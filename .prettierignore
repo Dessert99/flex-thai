@@ -34,3 +34,4 @@ tmp/
 
 *.mdx
 .turbo
+packages/database/drizzle/
