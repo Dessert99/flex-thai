@@ -1,0 +1,21 @@
+{
+  "name": "@flex-thia/infra",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --root ../.. infra/test",
+    "synth": "cdk synth -c synthFixture=true"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "2.260.0",
+    "constructs": "^10.5.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "aws-cdk": "2.1130.0",
+    "esbuild": "^0.25.0",
+    "tsx": "^4.20.0"
+  }
+}

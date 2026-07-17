@@ -1,0 +1,22 @@
+/** CDK synth와 deploy가 같은 production 설정을 사용하게 검증한다 */
+import { z } from 'zod';
+
+const infrastructureConfigSchema = z.object({
+  account: z.string().regex(/^\d{12}$/u),
+  rootDomain: z.string().min(3),
+  hostedZoneId: z.string().min(2),
+  alertEmail: z.email(),
+  githubRepository: z.string().regex(/^[^/]+\/[^/]+$/u),
+  mediaPublicKeyPem: z.string().min(1),
+  appRegion: z.literal('ap-northeast-2').default('ap-northeast-2'),
+  edgeRegion: z.literal('us-east-1').default('us-east-1'),
+  monthlyBudgetUsd: z.coerce.number().positive().default(30),
+});
+
+/** CDK Stack이 공유하는 검증된 production 설정 */
+export type InfrastructureConfig = z.infer<typeof infrastructureConfigSchema>;
+
+/** CDK context 문자열을 안전한 설정으로 변환한다 */
+export const readInfrastructureConfig = (
+  context: Record<string, unknown>,
+): InfrastructureConfig => infrastructureConfigSchema.parse(context);
