@@ -17,7 +17,8 @@ const fixtureConfig: InfrastructureConfig = readInfrastructureConfig({
   hostedZoneId: 'Z0123456789EXAMPLE',
   alertEmail: 'owner@example.com',
   githubRepository: 'Dessert99/flex-thai',
-  mediaPublicKeyPem: 'test-public-key',
+  mediaPublicKeyPem:
+    '-----BEGIN PUBLIC KEY-----\ndGVzdA==\n-----END PUBLIC KEY-----',
 });
 
 const synthFixture = app.node.tryGetContext('synthFixture') === 'true';
@@ -42,6 +43,7 @@ if (synthFixture) {
 
 const dataStack = new DataStack(app, 'FlexThiaDataProd', {
   env: { account: config.account, region: config.appRegion },
+  crossRegionReferences: true,
 });
 const applicationStack = new ApplicationStack(app, 'FlexThiaApplicationProd', {
   config,

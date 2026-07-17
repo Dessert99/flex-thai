@@ -14,10 +14,24 @@ describe('readInfrastructureConfig', () => {
       hostedZoneId: 'Z0123456789EXAMPLE',
       alertEmail: 'owner@example.com',
       githubRepository: 'Dessert99/flex-thai',
-      mediaPublicKeyPem: 'test-public-key',
+      mediaPublicKeyPem:
+        '-----BEGIN PUBLIC KEY-----\ndGVzdA==\n-----END PUBLIC KEY-----',
     });
 
     expect(config.appRegion).toBe('ap-northeast-2');
     expect(config.edgeRegion).toBe('us-east-1');
+  });
+
+  it('CloudFront media public key가 PEM 형식이 아니면 거부한다', () => {
+    expect(() =>
+      readInfrastructureConfig({
+        account: '123456789012',
+        rootDomain: 'example.com',
+        hostedZoneId: 'Z0123456789EXAMPLE',
+        alertEmail: 'owner@example.com',
+        githubRepository: 'Dessert99/flex-thai',
+        mediaPublicKeyPem: 'test-public-key',
+      }),
+    ).toThrow('CloudFront media public key는 PEM 형식이어야 한다');
   });
 });

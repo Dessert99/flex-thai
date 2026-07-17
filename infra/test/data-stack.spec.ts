@@ -39,4 +39,34 @@ describe('DataStack', () => {
     });
     template.resourceCountIs('AWS::SecretsManager::Secret', 4);
   });
+
+  it('Media bucket은 같은 계정의 CloudFront OAC만 읽을 수 있다', () => {
+    const template = Template.fromStack(new DataStack(new App(), 'TestData'));
+
+    template.hasResourceProperties('AWS::S3::BucketPolicy', {
+      PolicyDocument: {
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Action: 's3:GetObject',
+            Condition: {
+              StringEquals: {
+                'AWS:SourceAccount': {
+                  Ref: 'AWS::AccountId',
+                },
+              },
+              StringLike: {
+                'AWS:SourceArn': {
+                  'Fn::Join': Match.anyValue(),
+                },
+              },
+            },
+            Effect: 'Allow',
+            Principal: {
+              Service: 'cloudfront.amazonaws.com',
+            },
+          }),
+        ]),
+      },
+    });
+  });
 });

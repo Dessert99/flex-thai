@@ -7,7 +7,12 @@ const infrastructureConfigSchema = z.object({
   hostedZoneId: z.string().min(2),
   alertEmail: z.email(),
   githubRepository: z.string().regex(/^[^/]+\/[^/]+$/u),
-  mediaPublicKeyPem: z.string().min(1),
+  mediaPublicKeyPem: z
+    .string()
+    .regex(
+      /^-----BEGIN PUBLIC KEY-----[\s\S]+-----END PUBLIC KEY-----$/u,
+      'CloudFront media public key는 PEM 형식이어야 한다',
+    ),
   allowedEmailDomains: z.string().default('school.ac.kr'),
   appRegion: z.literal('ap-northeast-2').default('ap-northeast-2'),
   edgeRegion: z.literal('us-east-1').default('us-east-1'),

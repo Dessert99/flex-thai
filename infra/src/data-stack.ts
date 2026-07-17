@@ -1,5 +1,6 @@
 /** 장기 보존 데이터와 비용이 큰 DB를 애플리케이션 배포에서 분리한다 */
 import {
+  Aws,
   CfnOutput,
   Duration,
   RemovalPolicy,
@@ -7,6 +8,7 @@ import {
   type StackProps,
 } from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import * as rds from 'aws-cdk-lib/aws-rds';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
@@ -70,6 +72,21 @@ export class DataStack extends Stack {
       { expiration: Duration.days(30) },
     ]);
     this.mediaBucket = this.createPrivateBucket('MediaBucket');
+    this.mediaBucket.addToResourcePolicy(
+      new iam.PolicyStatement({
+        actions: ['s3:GetObject'],
+        resources: [this.mediaBucket.arnForObjects('*')],
+        principals: [new iam.ServicePrincipal('cloudfront.amazonaws.com')],
+        conditions: {
+          StringEquals: {
+            'AWS:SourceAccount': Aws.ACCOUNT_ID,
+          },
+          StringLike: {
+            'AWS:SourceArn': `arn:${Aws.PARTITION}:cloudfront::${Aws.ACCOUNT_ID}:distribution/*`,
+          },
+        },
+      }),
+    );
     this.challengeHmacPepper = new secretsmanager.Secret(
       this,
       'ChallengeHmacPepper',
