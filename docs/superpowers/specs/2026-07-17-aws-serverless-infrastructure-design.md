@@ -1,7 +1,7 @@
 # FLEX THIA AWS 서버리스 인프라·프로젝트 아키텍처 설계
 
 - 작성일: 2026-07-17
-- 상태: 설계 대화 승인, 문서 검토 대기
+- 상태: 사용자 승인
 - 선행 문서:
   [`2026-07-16-thai-flex-learning-service-design.md`](./2026-07-16-thai-flex-learning-service-design.md)
 - 대상: 인프라, 공통 프로젝트 구조, 후속 백엔드·프론트엔드 구현 계획의 기준
