@@ -1,3 +1,15 @@
+/** passwordless와 step-up challenge 타입을 공개한다 */
+export * from './auth/challenge.js';
+
+/** 인증 외부 의존성 port를 공개한다 */
+export * from './auth/challenge.repository.js';
+
+/** passwordless 인증 use case를 공개한다 */
+export * from './auth/passwordless-auth.service.js';
+
+/** 관리자 step-up use case를 공개한다 */
+export * from './auth/step-up.service.js';
+
 /** idempotent Job 생성 use case를 패키지 공개 경계에 노출한다 */
 export * from './jobs/create-job.service.js';
 
