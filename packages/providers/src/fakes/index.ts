@@ -13,5 +13,8 @@ export * from './fake-job.repository.js';
 /** in-memory upload repository를 테스트와 로컬 개발에 노출한다 */
 export * from './fake-upload.repository.js';
 
+/** fake upload policy와 inspection provider를 공개한다 */
+export * from './fake-upload.provider.js';
+
 /** fake SMS sender를 공개한다 */
 export * from './fake-sms-sender.js';

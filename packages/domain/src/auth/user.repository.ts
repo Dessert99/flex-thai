@@ -22,3 +22,8 @@ export interface UserRepository {
     verifiedAt: Date,
   ): Promise<ApplicationUser>;
 }
+
+/** 최초 ADMIN role 변경과 audit log를 한 transaction에 묶는다 */
+export interface AdminBootstrapRepository {
+  bootstrapAdmin(subject: string, requestId: string): Promise<void>;
+}

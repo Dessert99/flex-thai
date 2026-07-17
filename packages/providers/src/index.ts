@@ -1,6 +1,12 @@
 /** Cognito passwordless identity adapter를 공개한다 */
 export * from './aws/cognito-identity.provider.js';
 
+/** Cognito 전화번호 검증 adapter를 공개한다 */
+export * from './aws/cognito-phone-verification.provider.js';
+
+/** private S3 upload policy와 object inspector를 공개한다 */
+export * from './aws/s3-upload.provider.js';
+
 /** SES passwordless challenge sender를 공개한다 */
 export * from './aws/ses-challenge.sender.js';
 

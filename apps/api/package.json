@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "bootstrap-admin": "tsx src/commands/bootstrap-admin.ts",
     "dev": "tsx watch src/main.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run src",
@@ -10,6 +11,7 @@
   },
   "dependencies": {
     "@flex-thia/contracts": "workspace:*",
+    "@flex-thia/database": "workspace:*",
     "@flex-thia/domain": "workspace:*",
     "@nestjs/common": "11.1.28",
     "@nestjs/core": "11.1.28",

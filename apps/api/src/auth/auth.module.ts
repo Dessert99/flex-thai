@@ -2,8 +2,12 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import {
+  type ChallengeCryptoPort,
   PasswordlessAuthService,
+  StepUpService,
+  type StepUpRepository,
   type UserRepository,
+  type VerifiedPhoneProvider,
 } from '@flex-thia/domain';
 import { ApplicationRoleGuard } from './application-role.guard.js';
 import { AuthController } from './auth.controller.js';
@@ -12,6 +16,15 @@ import {
   CognitoAuthorizerGuard,
 } from './cognito-authorizer.guard.js';
 import { CsrfGuard } from './csrf.guard.js';
+import {
+  PhoneVerificationController,
+  USER_REPOSITORY,
+} from './phone-verification.controller.js';
+import { RequireStepUpGuard } from './require-step-up.guard.js';
+import {
+  StepUpController,
+  VERIFIED_PHONE_PROVIDER,
+} from './step-up.controller.js';
 
 /** local fake와 Cognito production 조립에 필요한 인증 옵션 */
 export interface AuthModuleOptions {
@@ -19,6 +32,10 @@ export interface AuthModuleOptions {
   users: UserRepository;
   authorizer: AuthorizerGuardOptions;
   allowedOrigins: string[];
+  stepUp: StepUpService;
+  stepUpRepository: StepUpRepository;
+  challengeCrypto: ChallengeCryptoPort;
+  phone: VerifiedPhoneProvider;
 }
 
 /** 공개 인증 endpoint와 보호 route용 guard를 함께 제공한다 */
@@ -28,7 +45,11 @@ export class AuthModule {
   static register(options: AuthModuleOptions): DynamicModule {
     return {
       module: AuthModule,
-      controllers: [AuthController],
+      controllers: [
+        AuthController,
+        StepUpController,
+        PhoneVerificationController,
+      ],
       providers: [
         Reflector,
         {
@@ -46,9 +67,34 @@ export class AuthModule {
           provide: CsrfGuard,
           useValue: new CsrfGuard(options.allowedOrigins),
         },
+        {
+          provide: StepUpService,
+          useValue: options.stepUp,
+        },
+        {
+          provide: VERIFIED_PHONE_PROVIDER,
+          useValue: options.phone,
+        },
+        {
+          provide: USER_REPOSITORY,
+          useValue: options.users,
+        },
+        {
+          provide: RequireStepUpGuard,
+          useValue: new RequireStepUpGuard(
+            new Reflector(),
+            options.stepUpRepository,
+            options.challengeCrypto,
+          ),
+        },
         ApplicationRoleGuard,
       ],
-      exports: [CognitoAuthorizerGuard, ApplicationRoleGuard, CsrfGuard],
+      exports: [
+        CognitoAuthorizerGuard,
+        ApplicationRoleGuard,
+        CsrfGuard,
+        RequireStepUpGuard,
+      ],
     };
   }
 }

@@ -168,4 +168,26 @@ export class FakeStepUpRepository implements StepUpRepository {
     this.grants.push({ ...input });
     return Promise.resolve();
   }
+
+  /** 사용자·action·현재 시각에 맞는 grant HMAC만 반환한다 */
+  findActiveGrants(
+    userId: string,
+    actionCategory: string,
+    now: Date,
+  ): Promise<
+    Array<{
+      actionCategory: string;
+      tokenHmac: string;
+      expiresAt: Date;
+    }>
+  > {
+    return Promise.resolve(
+      this.grants.filter(
+        (grant) =>
+          grant.userId === userId &&
+          grant.actionCategory === actionCategory &&
+          grant.expiresAt.getTime() > now.getTime(),
+      ),
+    );
+  }
 }

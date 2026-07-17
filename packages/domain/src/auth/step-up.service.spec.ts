@@ -43,6 +43,7 @@ describe('StepUpService', () => {
       recordChallengeFailure: vi.fn(),
       transitionChallenge: vi.fn().mockResolvedValue(true),
       createGrant: vi.fn().mockResolvedValue(undefined),
+      findActiveGrants: vi.fn(),
     };
     const crypto = {
       hashAnswer: vi.fn((value: string) => `hashed-${value}`),

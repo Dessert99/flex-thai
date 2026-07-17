@@ -65,6 +65,13 @@ export interface ChallengeSender {
   }): Promise<void>;
 }
 
+/** Cognito access token으로 전화번호 등록·검증 상태를 다루는 port */
+export interface VerifiedPhoneProvider {
+  startVerification(accessToken: string, phoneNumber: string): Promise<void>;
+  verify(accessToken: string, code: string): Promise<void>;
+  getVerifiedPhoneNumber(accessToken: string): Promise<string>;
+}
+
 /** step-up challenge와 grant HMAC만 저장하는 repository port */
 export interface StepUpRepository {
   createChallenge(input: {
@@ -88,4 +95,15 @@ export interface StepUpRepository {
     tokenHmac: string;
     expiresAt: Date;
   }): Promise<void>;
+  findActiveGrants(
+    userId: string,
+    actionCategory: string,
+    now: Date,
+  ): Promise<
+    Array<{
+      actionCategory: string;
+      tokenHmac: string;
+      expiresAt: Date;
+    }>
+  >;
 }

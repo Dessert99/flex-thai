@@ -30,3 +30,6 @@ export * from './thai/normalize-thai-search-text.js';
 
 /** upload repository port를 패키지 공개 경계에 노출한다 */
 export * from './uploads/upload.repository.js';
+
+/** 안전한 upload policy와 완료 검증 use case를 공개한다 */
+export * from './uploads/upload-policy.service.js';

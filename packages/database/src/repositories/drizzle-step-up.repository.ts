@@ -107,4 +107,32 @@ export class DrizzleStepUpRepository implements StepUpRepository {
   }): Promise<void> {
     await this.database.insert(stepUpGrants).values(input);
   }
+
+  /** 사용자·action·현재 시각에 맞는 만료 전 grant HMAC만 반환한다 */
+  async findActiveGrants(
+    userId: string,
+    actionCategory: string,
+    now: Date,
+  ): Promise<
+    Array<{
+      actionCategory: string;
+      tokenHmac: string;
+      expiresAt: Date;
+    }>
+  > {
+    return this.database
+      .select({
+        actionCategory: stepUpGrants.actionCategory,
+        tokenHmac: stepUpGrants.tokenHmac,
+        expiresAt: stepUpGrants.expiresAt,
+      })
+      .from(stepUpGrants)
+      .where(
+        and(
+          eq(stepUpGrants.userId, userId),
+          eq(stepUpGrants.actionCategory, actionCategory),
+          sql`${stepUpGrants.expiresAt} > ${now}`,
+        ),
+      );
+  }
 }

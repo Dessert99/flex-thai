@@ -7,6 +7,7 @@ import {
   HttpCode,
   Param,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import {
   createJobRequestSchema,
@@ -18,6 +19,10 @@ import {
   CurrentUser,
   type AuthenticatedUser,
 } from '../common/auth/current-user.decorator.js';
+import { ApplicationRoleGuard } from '../auth/application-role.guard.js';
+import { RequireRole } from '../auth/require-role.decorator.js';
+import { RequireStepUp } from '../auth/require-step-up.decorator.js';
+import { RequireStepUpGuard } from '../auth/require-step-up.guard.js';
 import { JobsService } from './jobs.service.js';
 
 const toJobResponse = (job: Job): JobResponse => ({
@@ -35,6 +40,9 @@ export class JobsController {
   /** 긴 작업을 기다리지 않고 queue 접수 결과를 반환한다 */
   @Post()
   @HttpCode(202)
+  @UseGuards(ApplicationRoleGuard, RequireStepUpGuard)
+  @RequireRole('ADMIN')
+  @RequireStepUp('AI_BULK_CREATE')
   async create(
     @CurrentUser() user: AuthenticatedUser,
     @Body() body: CreateJobRequest,
