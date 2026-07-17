@@ -88,6 +88,12 @@ importers:
 
   packages/domain: {}
 
+  packages/providers:
+    dependencies:
+      '@flex-thia/domain':
+        specifier: workspace:*
+        version: link:../domain
+
 packages:
 
   '@angular-devkit/core@19.2.24':
