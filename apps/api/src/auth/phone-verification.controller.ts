@@ -1,10 +1,19 @@
 /** Cognito 전화번호 등록·검증 뒤 DB 완료 시각을 갱신한다 */
-import { Body, Controller, Headers, Inject, Param, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Headers,
+  Inject,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import type { UserRepository, VerifiedPhoneProvider } from '@flex-thia/domain';
 import {
   CurrentUser,
   type AuthenticatedUser,
 } from '../common/auth/current-user.decorator.js';
+import { CognitoAuthorizerGuard } from './cognito-authorizer.guard.js';
 import { VERIFIED_PHONE_PROVIDER } from './step-up.controller.js';
 
 /** user repository의 NestJS injection token */
@@ -22,6 +31,7 @@ const bearer = (authorization: string): string => {
 
 /** 현재 Cognito 사용자의 E.164 전화번호 검증 API */
 @Controller('auth/phone')
+@UseGuards(CognitoAuthorizerGuard)
 export class PhoneVerificationController {
   constructor(
     @Inject(VERIFIED_PHONE_PROVIDER)

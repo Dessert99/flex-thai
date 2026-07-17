@@ -4,6 +4,9 @@ export * from './fake-challenge.repository.js';
 /** fake Cognito identity provider를 공개한다 */
 export * from './fake-identity-provider.js';
 
+/** fake Cognito 전화번호 검증 provider를 공개한다 */
+export * from './fake-phone-verification.provider.js';
+
 /** in-memory Job queue를 테스트와 로컬 개발에 노출한다 */
 export * from './fake-job.queue.js';
 

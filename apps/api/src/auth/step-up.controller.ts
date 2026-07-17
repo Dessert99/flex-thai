@@ -14,6 +14,7 @@ import {
   type AuthenticatedUser,
 } from '../common/auth/current-user.decorator.js';
 import { ApplicationRoleGuard } from './application-role.guard.js';
+import { CognitoAuthorizerGuard } from './cognito-authorizer.guard.js';
 import { RequireRole } from './require-role.decorator.js';
 import type { StepUpActionCategory } from './require-step-up.decorator.js';
 
@@ -32,7 +33,7 @@ const readBearerToken = (authorization: string): string => {
 
 /** ADMIN만 사용할 수 있는 SMS 추가 인증 API */
 @Controller('auth/step-up')
-@UseGuards(ApplicationRoleGuard)
+@UseGuards(CognitoAuthorizerGuard, ApplicationRoleGuard)
 @RequireRole('ADMIN')
 export class StepUpController {
   constructor(

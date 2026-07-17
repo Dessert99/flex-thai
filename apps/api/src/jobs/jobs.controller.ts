@@ -20,6 +20,7 @@ import {
   type AuthenticatedUser,
 } from '../common/auth/current-user.decorator.js';
 import { ApplicationRoleGuard } from '../auth/application-role.guard.js';
+import { CognitoAuthorizerGuard } from '../auth/cognito-authorizer.guard.js';
 import { RequireRole } from '../auth/require-role.decorator.js';
 import { RequireStepUp } from '../auth/require-step-up.decorator.js';
 import { RequireStepUpGuard } from '../auth/require-step-up.guard.js';
@@ -34,14 +35,15 @@ const toJobResponse = (job: Job): JobResponse => ({
 
 /** 비동기 콘텐츠 작업 API */
 @Controller('jobs')
+@UseGuards(CognitoAuthorizerGuard, ApplicationRoleGuard)
+@RequireRole('ADMIN')
 export class JobsController {
   constructor(private readonly jobsService: JobsService) {}
 
   /** 긴 작업을 기다리지 않고 queue 접수 결과를 반환한다 */
   @Post()
   @HttpCode(202)
-  @UseGuards(ApplicationRoleGuard, RequireStepUpGuard)
-  @RequireRole('ADMIN')
+  @UseGuards(RequireStepUpGuard)
   @RequireStepUp('AI_BULK_CREATE')
   async create(
     @CurrentUser() user: AuthenticatedUser,

@@ -52,7 +52,10 @@ const main = async (): Promise<void> => {
           resourceArn: requireEnv('RDS_RESOURCE_ARN'),
           secretArn: requireEnv('RDS_SECRET_ARN'),
         })
-      : createLocalDatabase(requireEnv('DATABASE_URL'));
+      : createLocalDatabase(
+          process.env.DATABASE_URL ??
+            'postgres://flex_thia:local_only_password@localhost:5432/flex_thia',
+        );
   const repository = new DrizzleAdminBootstrapRepository(database);
   await bootstrapAdmin(process.argv.slice(2), repository, randomUUID());
 };

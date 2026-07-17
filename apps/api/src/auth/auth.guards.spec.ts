@@ -1,7 +1,13 @@
 /** access token claim·DB 상태·CSRF를 서로 다른 보안 경계로 검증한다 */
 import { describe, expect, it, vi } from 'vitest';
+import { JobsController } from '../jobs/jobs.controller.js';
+import { UploadsController } from '../uploads/uploads.controller.js';
 import { CognitoAuthorizerGuard } from './cognito-authorizer.guard.js';
 import { CsrfGuard } from './csrf.guard.js';
+import { PhoneVerificationController } from './phone-verification.controller.js';
+import { StepUpController } from './step-up.controller.js';
+
+const GUARDS_METADATA = '__guards__';
 
 const createContext = (request: Record<string, unknown>) =>
   ({
@@ -98,5 +104,21 @@ describe('CsrfGuard', () => {
         }),
       ),
     ).toThrow();
+  });
+});
+
+describe('보호 API guard 구성', () => {
+  it('사용자 정보가 필요한 Controller는 Cognito authorizer를 먼저 적용한다', () => {
+    for (const controller of [
+      JobsController,
+      UploadsController,
+      StepUpController,
+      PhoneVerificationController,
+    ]) {
+      const guards = Reflect.getMetadata(GUARDS_METADATA, controller) as
+        unknown[] | undefined;
+
+      expect(guards).toContain(CognitoAuthorizerGuard);
+    }
   });
 });

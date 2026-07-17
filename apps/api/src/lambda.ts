@@ -7,7 +7,7 @@ import type {
   Context,
 } from 'aws-lambda';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module.js';
+import { createApplicationModule } from './app.module.js';
 import { configureApp } from './app.setup.js';
 
 type LambdaServer = (
@@ -32,7 +32,7 @@ export const createCachedLambdaHandler = (
 };
 
 const createServer = async (): Promise<LambdaServer> => {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(createApplicationModule());
   configureApp(app);
   await app.init();
   const expressApp: unknown = app.getHttpAdapter().getInstance();

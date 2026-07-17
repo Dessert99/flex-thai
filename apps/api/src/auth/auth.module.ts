@@ -44,6 +44,7 @@ export class AuthModule {
   /** 실행 환경에서 선택한 adapter로 인증 경계를 구성한다 */
   static register(options: AuthModuleOptions): DynamicModule {
     return {
+      global: true,
       module: AuthModule,
       controllers: [
         AuthController,

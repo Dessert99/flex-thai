@@ -6,11 +6,12 @@ import {
   type AuthenticatedUser,
 } from '../common/auth/current-user.decorator.js';
 import { ApplicationRoleGuard } from '../auth/application-role.guard.js';
+import { CognitoAuthorizerGuard } from '../auth/cognito-authorizer.guard.js';
 import { RequireRole } from '../auth/require-role.decorator.js';
 
 /** Job 입력 object를 안전하게 준비하는 upload API */
 @Controller('uploads')
-@UseGuards(ApplicationRoleGuard)
+@UseGuards(CognitoAuthorizerGuard, ApplicationRoleGuard)
 @RequireRole('ADMIN')
 export class UploadsController {
   constructor(private readonly uploads: UploadPolicyService) {}

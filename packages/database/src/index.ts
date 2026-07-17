@@ -19,6 +19,9 @@ export * from './repositories/drizzle-step-up.repository.js';
 /** 안전한 upload lifecycle repository adapter를 공개한다 */
 export * from './repositories/drizzle-upload.repository.js';
 
+/** DB 최소 readiness query adapter를 공개한다 */
+export * from './repositories/drizzle-readiness.probe.js';
+
 /** Cognito sub 기반 user repository adapter를 공개한다 */
 export * from './repositories/drizzle-user.repository.js';
 

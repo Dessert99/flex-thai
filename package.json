@@ -12,6 +12,7 @@
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run",
     "build": "pnpm -r build",
+    "build:lambda": "pnpm --filter @flex-thia/api build:lambda && pnpm --filter @flex-thia/worker build:lambda",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "devDependencies": {

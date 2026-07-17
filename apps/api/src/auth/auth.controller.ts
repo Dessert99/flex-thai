@@ -3,14 +3,20 @@ import {
   Body,
   Controller,
   HttpCode,
+  Inject,
   Param,
   Post,
   Req,
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { PasswordlessAuthService, type TokenSet } from '@flex-thia/domain';
+import {
+  PasswordlessAuthService,
+  type TokenSet,
+  type UserRepository,
+} from '@flex-thia/domain';
 import { CsrfGuard } from './csrf.guard.js';
+import { USER_REPOSITORY } from './phone-verification.controller.js';
 
 type CookieResponse = {
   cookie(name: string, value: string, options: Record<string, unknown>): void;
@@ -42,7 +48,11 @@ const readRefreshToken = (request: CookieRequest): string | null => {
 /** 공개 인증 endpoint */
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: PasswordlessAuthService) {}
+  constructor(
+    private readonly auth: PasswordlessAuthService,
+    @Inject(USER_REPOSITORY)
+    private readonly users: UserRepository,
+  ) {}
 
   /** 계정 존재 여부를 숨긴 동일 응답으로 이메일 challenge를 시작한다 */
   @Post('challenges')
@@ -114,6 +124,10 @@ export class AuthController {
     response: CookieResponse,
   ) {
     const tokens = await tokensPromise;
+    await this.users.upsertIdentity({
+      subject: tokens.subject,
+      email: tokens.email,
+    });
     response.cookie('refresh_token', tokens.refreshToken, {
       secure: true,
       httpOnly: true,

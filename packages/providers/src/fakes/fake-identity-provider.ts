@@ -15,6 +15,10 @@ export class FakeIdentityProvider implements IdentityProvider {
       subject: 'fake-subject',
       email: 'student@school.ac.kr',
     },
+    private readonly onStart?: (input: {
+      challengeId: string;
+      email: string;
+    }) => Promise<void>,
   ) {}
 
   /** 처음 본 이메일도 message 없이 fake 사용자로 준비한다 */
@@ -24,11 +28,15 @@ export class FakeIdentityProvider implements IdentityProvider {
   }
 
   /** 다른 브라우저에서도 연결할 challenge id와 session을 만든다 */
-  start(): Promise<{ challengeId: string; session: string }> {
-    return Promise.resolve({
-      challengeId: randomUUID(),
+  async start(
+    email: string,
+  ): Promise<{ challengeId: string; session: string }> {
+    const challengeId = randomUUID();
+    await this.onStart?.({ challengeId, email });
+    return {
+      challengeId,
       session: randomUUID(),
-    });
+    };
   }
 
   /** fake 환경에서는 trigger 검증이 끝났다고 보고 고정 token을 반환한다 */
