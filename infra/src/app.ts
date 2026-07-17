@@ -30,6 +30,7 @@ const config = synthFixture
       alertEmail: app.node.tryGetContext('alertEmail'),
       githubRepository: app.node.tryGetContext('githubRepository'),
       mediaPublicKeyPem: app.node.tryGetContext('mediaPublicKeyPem'),
+      allowedEmailDomains: app.node.tryGetContext('allowedEmailDomains'),
     });
 
 if (synthFixture) {

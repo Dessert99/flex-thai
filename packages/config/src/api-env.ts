@@ -21,8 +21,10 @@ const apiEnvSchema = z
     COGNITO_CLIENT_ID: z.string().optional(),
     INPUT_BUCKET_NAME: z.string().optional(),
     JOB_QUEUE_URL: z.string().optional(),
-    CHALLENGE_SESSION_KEY_BASE64: z.string().optional(),
+    CHALLENGE_SESSION_KEY: z.string().optional(),
     CHALLENGE_HMAC_PEPPER: z.string().optional(),
+    CHALLENGE_SESSION_KEY_SECRET_ARN: z.string().optional(),
+    CHALLENGE_HMAC_PEPPER_SECRET_ARN: z.string().optional(),
     SCHOOL_EMAIL_DOMAINS: z.string().default('school.ac.kr'),
     FAKE_USER_SUB: z.string().default('local-admin-sub'),
     FAKE_USER_EMAIL: z.string().default('admin@school.ac.kr'),
@@ -52,8 +54,8 @@ const apiEnvSchema = z
         value.COGNITO_CLIENT_ID,
         value.INPUT_BUCKET_NAME,
         value.JOB_QUEUE_URL,
-        value.CHALLENGE_SESSION_KEY_BASE64,
-        value.CHALLENGE_HMAC_PEPPER,
+        value.CHALLENGE_SESSION_KEY_SECRET_ARN,
+        value.CHALLENGE_HMAC_PEPPER_SECRET_ARN,
       ];
 
       if (required.some((item) => !item)) {

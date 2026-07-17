@@ -9,6 +9,7 @@ import type {
 import { NestFactory } from '@nestjs/core';
 import { createApplicationModule } from './app.module.js';
 import { configureApp } from './app.setup.js';
+import { loadApiRuntimeSource } from './runtime-config.js';
 
 type LambdaServer = (
   event: APIGatewayProxyEventV2,
@@ -32,7 +33,8 @@ export const createCachedLambdaHandler = (
 };
 
 const createServer = async (): Promise<LambdaServer> => {
-  const app = await NestFactory.create(createApplicationModule());
+  const runtimeSource = await loadApiRuntimeSource(process.env);
+  const app = await NestFactory.create(createApplicationModule(runtimeSource));
   configureApp(app);
   await app.init();
   const expressApp: unknown = app.getHttpAdapter().getInstance();

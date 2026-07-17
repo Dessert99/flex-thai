@@ -103,6 +103,11 @@ export class Identity extends Construct {
       'ALLOW_CUSTOM_AUTH',
       'ALLOW_REFRESH_TOKEN_AUTH',
     ];
+    appClientResource.allowedOAuthFlows = undefined;
+    appClientResource.allowedOAuthScopes = undefined;
+    appClientResource.allowedOAuthFlowsUserPoolClient = false;
+    appClientResource.callbackUrLs = undefined;
+    appClientResource.logoutUrLs = undefined;
 
     for (const trigger of [
       this.createChallengeFunction,

@@ -5,8 +5,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --root ../.. infra/test",
-    "synth": "cdk synth -c synthFixture=true"
+    "test": "pnpm --dir .. build:lambda && vitest run --root ../.. infra/test",
+    "synth": "pnpm --dir .. build:lambda && cdk synth -c synthFixture=true"
   },
   "dependencies": {
     "aws-cdk-lib": "2.260.0",

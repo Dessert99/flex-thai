@@ -36,6 +36,8 @@ describe('Identity', () => {
         Feature: 'ENABLED',
         RetryGracePeriodSeconds: 10,
       }),
+      AllowedOAuthFlowsUserPoolClient: false,
+      CallbackURLs: Match.absent(),
     });
     template.hasResourceProperties('AWS::Cognito::UserPool', {
       AdminCreateUserConfig: {
@@ -58,7 +60,7 @@ describe('Identity', () => {
     });
     const template = Template.fromStack(stack);
 
-    template.resourceCountIs('AWS::Lambda::Function', 3);
+    template.resourceCountIs('AWS::Lambda::Function', 6);
     template.resourceCountIs('AWS::SES::EmailIdentity', 1);
     template.hasResourceProperties('AWS::IAM::Policy', {
       PolicyDocument: {

@@ -6,6 +6,7 @@ import * as ses from 'aws-cdk-lib/aws-ses';
 import type { Construct } from 'constructs';
 import type { InfrastructureConfig } from './config.js';
 import { AsyncJobs } from './constructs/async-jobs.js';
+import { HttpApi } from './constructs/http-api.js';
 import { Identity } from './constructs/identity.js';
 import type { DataStack } from './data-stack.js';
 
@@ -21,6 +22,8 @@ export class ApplicationStack extends Stack {
   readonly identity: Identity;
   /** SQS와 Step Functions 비동기 Job 경계 */
   readonly asyncJobs: AsyncJobs;
+  /** Lambda와 route별 JWT를 연결하는 HTTP API 경계 */
+  readonly httpApi: HttpApi;
 
   constructor(scope: Construct, id: string, props: ApplicationStackProps) {
     super(scope, id, props);
@@ -60,6 +63,25 @@ export class ApplicationStack extends Stack {
       foundationEntry: `${workerRoot}foundation-task.ts`,
       cluster: props.dataStack.cluster,
       clusterSecret: props.dataStack.clusterSecret,
+    });
+    const apiAssetPath = fileURLToPath(
+      new URL('../../apps/api/dist/', import.meta.url),
+    );
+    this.httpApi = new HttpApi(this, 'HttpApi', {
+      apiAssetPath,
+      allowedOrigins: [
+        `https://app.${props.config.rootDomain}`,
+        'http://localhost:5173',
+      ],
+      allowedEmailDomains: props.config.allowedEmailDomains,
+      cluster: props.dataStack.cluster,
+      clusterSecret: props.dataStack.clusterSecret,
+      challengeHmacPepper: props.dataStack.challengeHmacPepper,
+      challengeSessionKey: props.dataStack.challengeSessionKey,
+      inputBucket: props.dataStack.inputBucket,
+      jobQueue: this.asyncJobs.queue,
+      userPool: this.identity.userPool,
+      userPoolClient: this.identity.userPoolClient,
     });
   }
 }

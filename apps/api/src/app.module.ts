@@ -76,11 +76,9 @@ export const createApplicationModule = (
   const uploads = new DrizzleUploadRepository(database);
   const users = new DrizzleUserRepository(database);
   const crypto = new ChallengeCrypto(
-    Buffer.from(
-      env.CHALLENGE_SESSION_KEY_BASE64 ??
-        Buffer.alloc(32, 7).toString('base64'),
-      'base64',
-    ),
+    env.CHALLENGE_SESSION_KEY
+      ? Buffer.from(env.CHALLENGE_SESSION_KEY, 'utf8')
+      : Buffer.alloc(32, 7),
     env.CHALLENGE_HMAC_PEPPER ?? 'local-only-challenge-pepper',
   );
   const cognitoClient =

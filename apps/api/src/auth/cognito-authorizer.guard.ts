@@ -24,6 +24,11 @@ type AuthRequest = {
       };
     };
   };
+  apiGateway?: {
+    event?: {
+      requestContext?: AuthRequest['requestContext'];
+    };
+  };
   user?: AuthenticatedUser;
 };
 
@@ -57,7 +62,9 @@ export class CognitoAuthorizerGuard implements CanActivate {
   }
 
   private readCognitoSubject(request: AuthRequest): string {
-    const claims = request.requestContext?.authorizer?.jwt?.claims;
+    const claims = (
+      request.requestContext ?? request.apiGateway?.event?.requestContext
+    )?.authorizer?.jwt?.claims;
 
     if (
       claims?.token_use !== 'access' ||

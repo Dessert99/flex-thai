@@ -8,6 +8,7 @@ const infrastructureConfigSchema = z.object({
   alertEmail: z.email(),
   githubRepository: z.string().regex(/^[^/]+\/[^/]+$/u),
   mediaPublicKeyPem: z.string().min(1),
+  allowedEmailDomains: z.string().default('school.ac.kr'),
   appRegion: z.literal('ap-northeast-2').default('ap-northeast-2'),
   edgeRegion: z.literal('us-east-1').default('us-east-1'),
   monthlyBudgetUsd: z.coerce.number().positive().default(30),

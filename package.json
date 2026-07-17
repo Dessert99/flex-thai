@@ -10,7 +10,7 @@
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "typecheck": "pnpm -r typecheck",
-    "test": "vitest run",
+    "test": "pnpm build:lambda && vitest run",
     "build": "pnpm -r build",
     "build:lambda": "pnpm --filter @flex-thia/api build:lambda && pnpm --filter @flex-thia/worker build:lambda",
     "infra:test": "pnpm --filter @flex-thia/infra test",

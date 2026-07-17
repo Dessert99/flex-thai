@@ -78,6 +78,44 @@ describe('CognitoAuthorizerGuard', () => {
       },
     });
   });
+
+  it('serverless-express가 보관한 API Gateway claim도 읽는다', async () => {
+    const user = {
+      id: 'user-id',
+      cognitoSub: 'cognito-sub',
+      email: 'student@school.ac.kr',
+      role: 'ADMIN',
+      status: 'ACTIVE',
+      phoneVerifiedAt: null,
+    };
+    const users = { findBySub: vi.fn().mockResolvedValue(user) };
+    const guard = new CognitoAuthorizerGuard(users as never, {
+      authMode: 'cognito',
+      cognitoClientId: 'client-id',
+    });
+
+    await expect(
+      guard.canActivate(
+        createContext({
+          apiGateway: {
+            event: {
+              requestContext: {
+                authorizer: {
+                  jwt: {
+                    claims: {
+                      sub: 'cognito-sub',
+                      token_use: 'access',
+                      client_id: 'client-id',
+                    },
+                  },
+                },
+              },
+            },
+          },
+        }),
+      ),
+    ).resolves.toBe(true);
+  });
 });
 
 describe('CsrfGuard', () => {
