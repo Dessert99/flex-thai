@@ -21,17 +21,16 @@ const fixtureConfig: InfrastructureConfig = readInfrastructureConfig({
 });
 
 const synthFixture = app.node.tryGetContext('synthFixture') === 'true';
-const config =
-  synthFixture
-    ? fixtureConfig
-    : readInfrastructureConfig({
-        account: app.node.tryGetContext('account'),
-        rootDomain: app.node.tryGetContext('rootDomain'),
-        hostedZoneId: app.node.tryGetContext('hostedZoneId'),
-        alertEmail: app.node.tryGetContext('alertEmail'),
-        githubRepository: app.node.tryGetContext('githubRepository'),
-        mediaPublicKeyPem: app.node.tryGetContext('mediaPublicKeyPem'),
-      });
+const config = synthFixture
+  ? fixtureConfig
+  : readInfrastructureConfig({
+      account: app.node.tryGetContext('account'),
+      rootDomain: app.node.tryGetContext('rootDomain'),
+      hostedZoneId: app.node.tryGetContext('hostedZoneId'),
+      alertEmail: app.node.tryGetContext('alertEmail'),
+      githubRepository: app.node.tryGetContext('githubRepository'),
+      mediaPublicKeyPem: app.node.tryGetContext('mediaPublicKeyPem'),
+    });
 
 if (synthFixture) {
   app.node.setContext(

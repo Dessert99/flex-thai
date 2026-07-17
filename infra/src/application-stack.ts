@@ -5,6 +5,7 @@ import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as ses from 'aws-cdk-lib/aws-ses';
 import type { Construct } from 'constructs';
 import type { InfrastructureConfig } from './config.js';
+import { AsyncJobs } from './constructs/async-jobs.js';
 import { Identity } from './constructs/identity.js';
 import type { DataStack } from './data-stack.js';
 
@@ -18,6 +19,8 @@ export interface ApplicationStackProps extends StackProps {
 export class ApplicationStack extends Stack {
   /** 학교 이메일 passwordless identity 경계 */
   readonly identity: Identity;
+  /** SQS와 Step Functions 비동기 Job 경계 */
+  readonly asyncJobs: AsyncJobs;
 
   constructor(scope: Construct, id: string, props: ApplicationStackProps) {
     super(scope, id, props);
@@ -48,6 +51,15 @@ export class ApplicationStack extends Stack {
       emailIdentity,
       fromEmail: `no-reply@${props.config.rootDomain}`,
       appUrl: `https://app.${props.config.rootDomain}`,
+    });
+    const workerRoot = fileURLToPath(
+      new URL('../../apps/worker/src/', import.meta.url),
+    );
+    this.asyncJobs = new AsyncJobs(this, 'AsyncJobs', {
+      jobStarterEntry: `${workerRoot}job-starter.ts`,
+      foundationEntry: `${workerRoot}foundation-task.ts`,
+      cluster: props.dataStack.cluster,
+      clusterSecret: props.dataStack.clusterSecret,
     });
   }
 }

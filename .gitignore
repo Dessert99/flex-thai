@@ -19,6 +19,8 @@ dist/
 # production
 build/
 storybook-static/
+cdk.out/
+infra/cdk.context.json
 
 # misc
 .DS_Store
