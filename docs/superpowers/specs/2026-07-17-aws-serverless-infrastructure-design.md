@@ -65,7 +65,7 @@
 | --- | --- |
 | 아키텍처 | AWS 서버리스 모듈러 모놀리스 |
 | 주 리전 | 서울 `ap-northeast-2` |
-| 글로벌 예외 | CloudFront와 CloudFront용 ACM 인증서는 `us-east-1` |
+| 글로벌 예외 | Web S3와 CloudFront용 ACM 관리 Stack은 `us-east-1`, CloudFront와 Route 53은 글로벌 |
 | 프론트엔드 | Vite 빌드 → 비공개 S3 → CloudFront |
 | API | API Gateway HTTP API → NestJS Lambda |
 | 짧은 작업 | TypeScript Lambda |
@@ -262,8 +262,9 @@ infra/          AWS CDK v2 TypeScript
 
 - 애플리케이션, Cognito, SES, SNS, Lambda, SQS, Step Functions, Aurora:
   `ap-northeast-2`
-- CloudFront용 ACM 인증서: `us-east-1`
+- 정적 Web S3와 CloudFront용 ACM 인증서: `us-east-1`
 - CloudFront: 글로벌
+- Route 53: 글로벌
 
 서비스가 서울 리전에서 해당 기능과 엔진 버전을 지원하는지는 CDK 구현 전
 한 번 더 확인한다. 지원되지 않는 최신 부가 기능보다 검증된 호환 조합을
@@ -278,7 +279,9 @@ infra/          AWS CDK v2 TypeScript
 - 인증 이메일 발신: `auth@<root-domain>`
 
 CORS는 production Web origin과 로컬 개발 origin만 허용한다. wildcard와
-credentials 조합은 사용하지 않는다.
+credentials 조합은 사용하지 않는다. 허용한 정확한 origin에는
+`Access-Control-Allow-Credentials`를 활성화해 refresh cookie를 보낼 수
+있게 한다.
 
 ## 8. 프론트엔드 배포
 
@@ -379,13 +382,15 @@ Manager에서 분리해 관리한다. 짧은 숫자 코드는 무차별 대입�
 
 - Access token은 브라우저 메모리에만 둔다.
 - `localStorage`, `sessionStorage`, IndexedDB에 token을 저장하지 않는다.
-- Refresh token은 API가 설정한 `Secure`, `HttpOnly`, `SameSite=Lax`
-  cookie에만 둔다.
+- Refresh token은 API host 전용 `Secure`, `HttpOnly`, `SameSite=Lax`
+  cookie에만 두고 path를 인증 endpoint 범위로 제한한다.
 - API 호출은 Cognito access token을 `Authorization: Bearer`로 보낸다.
 - API Gateway JWT Authorizer는 issuer, audience, 서명, 만료를 확인한다.
 - API 권한에는 ID token이 아니라 access token을 사용한다.
 - NestJS auth guard도 `token_use=access`와 Cognito app client ID를 확인해
   ID token의 오용을 막는다.
+- refresh와 logout은 POST만 허용하고 정확한 `Origin`과 필수 CSRF header를
+  함께 검사한다. 임의 Web origin은 preflight를 통과할 수 없다.
 - refresh endpoint는 refresh token rotation을 적용해 access token을
   갱신한다.
 - 로그아웃은 Cognito refresh token을 revoke하고 cookie를 삭제한다.
@@ -578,8 +583,9 @@ Drizzle은 공식 문서에서 AWS Data API PostgreSQL 연결을 제공한다.
 
 1. 브라우저가 API에 파일 메타데이터를 보낸다.
 2. API가 MIME, 확장자, 크기, 작업 권한을 검사한다.
-3. API가 10분 유효한 사전 서명 PUT URL을 만든다.
-4. 브라우저가 Input S3에 직접 업로드한다.
+3. API가 content-length 범위, object key, 허용 content type을 포함한 10분
+   유효 사전 서명 POST 정책을 만든다.
+4. 브라우저가 그 정책으로 Input S3에 직접 업로드한다.
 5. 완료 요청에서 실제 S3 object metadata를 다시 확인한다.
 6. 파일 signature와 실제 형식을 확인하고, PDF는 page 수와 암호화 여부를
    검사한다.
@@ -1182,6 +1188,10 @@ E2E 테스트와 E2E 스캐폴딩은 두지 않는다.
 18. 인프라는 CDK 코드로 재현할 수 있다.
 19. 검증은 단위·컴포넌트·Provider contract·CDK assertion으로 구성된다.
 20. E2E 스캐폴딩이 추가되지 않는다.
+21. refresh와 logout은 허용 origin과 CSRF header 없이는 cookie를 사용하지
+    않는다.
+22. Input S3 업로드 크기 제한은 사전 서명 정책과 완료 검증 양쪽에서
+    적용된다.
 
 ## 24. 후속 단계
 
@@ -1209,6 +1219,7 @@ Provider 제품과 모델의 기본값은 Provider benchmark 작업에서 실측
 ## 25. 참고한 공식 문서
 
 - [What is Amazon S3?](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html)
+- [Amazon S3 POST policy](https://docs.aws.amazon.com/AmazonS3/latest/developerguide/sigv4-HTTPPOSTConstructPolicy.html)
 - [What is Amazon CloudFront?](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Introduction.html)
 - [What is Amazon Cognito?](https://docs.aws.amazon.com/cognito/latest/developerguide/what-is-amazon-cognito.html)
 - [Custom authentication challenge Lambda triggers](https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-lambda-challenge.html)
