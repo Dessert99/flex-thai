@@ -32,6 +32,12 @@ importers:
 
   apps/api:
     dependencies:
+      '@flex-thia/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@flex-thia/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@nestjs/common':
         specifier: 11.1.28
         version: 11.1.28(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -72,6 +78,9 @@ importers:
       '@aws-sdk/client-rds-data':
         specifier: ^3.900.0
         version: 3.1089.0
+      '@flex-thia/domain':
+        specifier: workspace:*
+        version: link:../domain
       drizzle-orm:
         specifier: 0.45.2
         version: 0.45.2(@aws-sdk/client-rds-data@3.1089.0)(@types/pg@8.20.0)(pg@8.22.0)
@@ -90,6 +99,9 @@ importers:
 
   packages/providers:
     dependencies:
+      '@aws-sdk/client-sqs':
+        specifier: ^3.900.0
+        version: 3.1089.0
       '@flex-thia/domain':
         specifier: workspace:*
         version: link:../domain
@@ -131,6 +143,10 @@ packages:
     resolution: {integrity: sha512-D0MdzAEKWMElT5LCssycYrNeT8YeOCyFiYsA5njK+3GlSlXl87Dsxw0Gky+vxDbuzyj6DDdxjuPfeyIsbpCFdw==}
     engines: {node: '>=20.0.0'}
 
+  '@aws-sdk/client-sqs@3.1089.0':
+    resolution: {integrity: sha512-FniOhQM+EgcuRv7VRjkZBGlg875p+ZCjORtC7LOF2ekFZeNKa6mq4C0NVBVmx/CDJaOmtnfDnINrzWMwVyNXiA==}
+    engines: {node: '>=20.0.0'}
+
   '@aws-sdk/core@3.975.3':
     resolution: {integrity: sha512-7ur3kCKuvPLqlsZ2XlvnNBVQ7KkpSu6Y6dOTwSPHLrFpTEfZM8isLBJc4cgv96WB7GifeVM436mpycwxBd2vEA==}
     engines: {node: '>=20.0.0'}
@@ -165,6 +181,10 @@ packages:
 
   '@aws-sdk/credential-provider-web-identity@3.972.65':
     resolution: {integrity: sha512-gHQb/Kt0chjk/JQDa/GJDqmAvEuVn8n7z10wK2h0LFM9TUDRkohgOO4aEF+s2sBLM0br7Cl5W6P7phgjrrJvLQ==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/middleware-sdk-sqs@3.972.37':
+    resolution: {integrity: sha512-ObKPWZWpog+4zZQ2q+LdBwf/nm+HF2afgBxCtyHeqjRlsnATuKOV3dPYnzCGyjRZ/RHTEre4LRrYRcIxlWhzVQ==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/nested-clients@3.997.33':
@@ -2931,6 +2951,18 @@ snapshots:
       '@smithy/types': 4.16.1
       tslib: 2.8.1
 
+  '@aws-sdk/client-sqs@3.1089.0':
+    dependencies:
+      '@aws-sdk/core': 3.975.3
+      '@aws-sdk/credential-provider-node': 3.972.70
+      '@aws-sdk/middleware-sdk-sqs': 3.972.37
+      '@aws-sdk/types': 3.974.2
+      '@smithy/core': 3.29.5
+      '@smithy/fetch-http-handler': 5.6.7
+      '@smithy/node-http-handler': 4.9.7
+      '@smithy/types': 4.16.1
+      tslib: 2.8.1
+
   '@aws-sdk/core@3.975.3':
     dependencies:
       '@aws-sdk/types': 3.974.2
@@ -3021,6 +3053,13 @@ snapshots:
     dependencies:
       '@aws-sdk/core': 3.975.3
       '@aws-sdk/nested-clients': 3.997.33
+      '@aws-sdk/types': 3.974.2
+      '@smithy/core': 3.29.5
+      '@smithy/types': 4.16.1
+      tslib: 2.8.1
+
+  '@aws-sdk/middleware-sdk-sqs@3.972.37':
+    dependencies:
       '@aws-sdk/types': 3.974.2
       '@smithy/core': 3.29.5
       '@smithy/types': 4.16.1

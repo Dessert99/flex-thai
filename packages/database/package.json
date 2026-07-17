@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-rds-data": "^3.900.0",
+    "@flex-thia/domain": "workspace:*",
     "drizzle-orm": "0.45.2",
     "pg": "^8.16.0"
   },
