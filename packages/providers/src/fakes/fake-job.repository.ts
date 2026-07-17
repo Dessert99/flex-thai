@@ -1,6 +1,11 @@
 /** DB 없이 Job 중복 생성과 enqueue 상태를 검증하는 in-memory adapter */
 import { randomUUID } from 'node:crypto';
-import type { CreateJobCommand, Job, JobRepository } from '@flex-thia/domain';
+import type {
+  CreateJobCommand,
+  Job,
+  JobRepository,
+  JobStatus,
+} from '@flex-thia/domain';
 
 /** 사용자와 요청 ID 복합 key로 idempotency를 재현하는 fake repository */
 export class FakeJobRepository implements JobRepository {
@@ -57,5 +62,24 @@ export class FakeJobRepository implements JobRepository {
   /** id로 현재 in-memory Job 상태를 조회한다 */
   findById(jobId: string): Promise<Job | null> {
     return Promise.resolve(this.jobsById.get(jobId) ?? null);
+  }
+
+  /** 예상한 현재 상태일 때만 다음 Job 상태로 전이한다 */
+  transitionStatus(
+    jobId: string,
+    from: JobStatus,
+    to: JobStatus,
+  ): Promise<Job> {
+    const job = this.jobsById.get(jobId);
+
+    if (!job || job.status !== from) {
+      return Promise.reject(
+        new Error(`Job 상태 전이에 실패했습니다: ${jobId}`),
+      );
+    }
+
+    const updated = { ...job, status: to };
+    this.jobsById.set(jobId, updated);
+    return Promise.resolve(updated);
   }
 }

@@ -1,6 +1,11 @@
 /** Drizzle transaction과 unique constraint로 Job repository port를 구현한다 */
 import { and, eq, isNull } from 'drizzle-orm';
-import type { CreateJobCommand, Job, JobRepository } from '@flex-thia/domain';
+import type {
+  CreateJobCommand,
+  Job,
+  JobRepository,
+  JobStatus,
+} from '@flex-thia/domain';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import { jobInputs, jobs, uploads } from '../schema/index.js';
@@ -142,5 +147,30 @@ export class DrizzleJobRepository implements JobRepository {
     });
 
     return toJob(row, inputs);
+  }
+
+  /** 예상한 현재 상태의 Job만 다음 상태로 원자적으로 전이한다 */
+  async transitionStatus(
+    jobId: string,
+    from: JobStatus,
+    to: JobStatus,
+  ): Promise<Job> {
+    const updated = await this.database
+      .update(jobs)
+      .set({ status: to, updatedAt: new Date() })
+      .where(and(eq(jobs.id, jobId), eq(jobs.status, from)))
+      .returning({ id: jobs.id });
+
+    if (updated.length === 0) {
+      throw new Error(`Job 상태 전이에 실패했습니다: ${jobId} ${from} → ${to}`);
+    }
+
+    const job = await this.findById(jobId);
+
+    if (!job) {
+      throw new Error(`전이한 Job을 찾을 수 없습니다: ${jobId}`);
+    }
+
+    return job;
   }
 }

@@ -32,6 +32,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@codegenie/serverless-express':
+        specifier: ^4.17.0
+        version: 4.17.1
       '@flex-thia/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -59,20 +62,41 @@ importers:
     devDependencies:
       '@nestjs/cli':
         specifier: ^11.0.0
-        version: 11.0.24(@types/node@22.20.1)(esbuild@0.28.1)(prettier@3.9.5)
+        version: 11.0.24(@types/node@22.20.1)(esbuild@0.25.12)(prettier@3.9.5)
+      '@types/aws-lambda':
+        specifier: ^8.10.0
+        version: 8.10.162
+      esbuild:
+        specifier: ^0.25.0
+        version: 0.25.12
       tsx:
         specifier: ^4.20.0
         version: 4.23.1
 
   apps/worker:
     dependencies:
+      '@aws-sdk/client-sesv2':
+        specifier: ^3.900.0
+        version: 3.1089.0
+      '@aws-sdk/client-sfn':
+        specifier: ^3.900.0
+        version: 3.1089.0
+      '@flex-thia/database':
+        specifier: workspace:*
+        version: link:../../packages/database
       '@flex-thia/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@flex-thia/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
     devDependencies:
       '@types/aws-lambda':
         specifier: ^8.10.0
         version: 8.10.162
+      esbuild:
+        specifier: ^0.25.0
+        version: 0.25.12
 
   packages/config:
     dependencies:
@@ -190,6 +214,10 @@ packages:
     resolution: {integrity: sha512-g7QQ63YawmZKLfvs0UO3YfQCRG2K6rE8bQXcRsZkzPgBBhSD/H5Qx6iNQgEzkCBPUXJaDrN4e0OuG3C0ML47tA==}
     engines: {node: '>=20.0.0'}
 
+  '@aws-sdk/client-sfn@3.1089.0':
+    resolution: {integrity: sha512-UpnEOMizqr36qijwvzianhGoxeFGL070b+jAERe/dwM3Y4+6xWzSGlEdbPdpU2h53o0KP5iTLcn7/cgl3Rq/zA==}
+    engines: {node: '>=20.0.0'}
+
   '@aws-sdk/client-sns@3.1089.0':
     resolution: {integrity: sha512-7/1GaKWggyNqMGBWK86LJl9ifp9ZAJShjyKTzyRrlopsmNjfd8MSYYX0azjDI7aU8INm5zf6JBWSl0B/8oB7BQ==}
     engines: {node: '>=20.0.0'}
@@ -280,6 +308,10 @@ packages:
 
   '@borewit/text-codec@0.2.2':
     resolution: {integrity: sha512-DDaRehssg1aNrH4+2hnj1B7vnUGEjU6OIlyRdkMd0aUdIUvKXrJfXsy8LVtXAy7DRvYVluWbMspsRhz2lcW0mQ==}
+
+  '@codegenie/serverless-express@4.17.1':
+    resolution: {integrity: sha512-B/4RRtVK2iAp5ho+qoUFxUeMaWCgSP+hNrdLJV3DWKZ1E9n9oLKdsJ6W9LQekZsD8rGD15hDadIKWKKw5i3f3A==}
+    engines: {node: '>=18'}
 
   '@colors/colors@1.5.0':
     resolution: {integrity: sha512-ooWCrlZP11i8GImSjTHYHLkvFDP48nS4+204nGb1RiX/WXYHmJA2III9/e2DWVabCESdW7hBAEzHRqUn9OUVvQ==}
@@ -3073,6 +3105,17 @@ snapshots:
       '@smithy/types': 4.16.1
       tslib: 2.8.1
 
+  '@aws-sdk/client-sfn@3.1089.0':
+    dependencies:
+      '@aws-sdk/core': 3.975.3
+      '@aws-sdk/credential-provider-node': 3.972.70
+      '@aws-sdk/types': 3.974.2
+      '@smithy/core': 3.29.5
+      '@smithy/fetch-http-handler': 5.6.7
+      '@smithy/node-http-handler': 4.9.7
+      '@smithy/types': 4.16.1
+      tslib: 2.8.1
+
   '@aws-sdk/client-sns@3.1089.0':
     dependencies:
       '@aws-sdk/core': 3.975.3
@@ -3265,6 +3308,8 @@ snapshots:
   '@babel/helper-validator-identifier@7.29.7': {}
 
   '@borewit/text-codec@0.2.2': {}
+
+  '@codegenie/serverless-express@4.17.1': {}
 
   '@colors/colors@1.5.0':
     optional: true
@@ -3749,7 +3794,7 @@ snapshots:
       '@tybys/wasm-util': 0.10.3
     optional: true
 
-  '@nestjs/cli@11.0.24(@types/node@22.20.1)(esbuild@0.28.1)(prettier@3.9.5)':
+  '@nestjs/cli@11.0.24(@types/node@22.20.1)(esbuild@0.25.12)(prettier@3.9.5)':
     dependencies:
       '@angular-devkit/core': 19.2.27(chokidar@4.0.3)
       '@angular-devkit/schematics': 19.2.27(chokidar@4.0.3)
@@ -3760,14 +3805,14 @@ snapshots:
       chokidar: 4.0.3
       cli-table3: 0.6.5
       commander: 4.1.1
-      fork-ts-checker-webpack-plugin: 9.1.0(typescript@5.9.3)(webpack@5.106.2(esbuild@0.28.1))
+      fork-ts-checker-webpack-plugin: 9.1.0(typescript@5.9.3)(webpack@5.106.2(esbuild@0.25.12))
       glob: 13.0.6
       node-emoji: 1.11.0
       ora: 5.4.1
       tsconfig-paths: 4.2.0
       tsconfig-paths-webpack-plugin: 4.2.0
       typescript: 5.9.3
-      webpack: 5.106.2(esbuild@0.28.1)
+      webpack: 5.106.2(esbuild@0.25.12)
       webpack-node-externals: 3.0.0
     transitivePeerDependencies:
       - '@minify-html/node'
@@ -4743,7 +4788,7 @@ snapshots:
 
   flatted@3.4.2: {}
 
-  fork-ts-checker-webpack-plugin@9.1.0(typescript@5.9.3)(webpack@5.106.2(esbuild@0.28.1)):
+  fork-ts-checker-webpack-plugin@9.1.0(typescript@5.9.3)(webpack@5.106.2(esbuild@0.25.12)):
     dependencies:
       '@babel/code-frame': 7.29.7
       chalk: 4.1.2
@@ -4758,7 +4803,7 @@ snapshots:
       semver: 7.8.5
       tapable: 2.3.3
       typescript: 5.9.3
-      webpack: 5.106.2(esbuild@0.28.1)
+      webpack: 5.106.2(esbuild@0.25.12)
 
   forwarded@0.2.0: {}
 
@@ -5429,15 +5474,15 @@ snapshots:
 
   tapable@2.3.3: {}
 
-  terser-webpack-plugin@5.6.1(esbuild@0.28.1)(webpack@5.106.2(esbuild@0.28.1)):
+  terser-webpack-plugin@5.6.1(esbuild@0.25.12)(webpack@5.106.2(esbuild@0.25.12)):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       jest-worker: 27.5.1
       schema-utils: 4.3.3
       terser: 5.49.0
-      webpack: 5.106.2(esbuild@0.28.1)
+      webpack: 5.106.2(esbuild@0.25.12)
     optionalDependencies:
-      esbuild: 0.28.1
+      esbuild: 0.25.12
 
   terser@5.49.0:
     dependencies:
@@ -5601,7 +5646,7 @@ snapshots:
 
   webpack-sources@3.5.1: {}
 
-  webpack@5.106.2(esbuild@0.28.1):
+  webpack@5.106.2(esbuild@0.25.12):
     dependencies:
       '@types/eslint-scope': 3.7.7
       '@types/estree': 1.0.9
@@ -5624,7 +5669,7 @@ snapshots:
       neo-async: 2.6.2
       schema-utils: 4.3.3
       tapable: 2.3.3
-      terser-webpack-plugin: 5.6.1(esbuild@0.28.1)(webpack@5.106.2(esbuild@0.28.1))
+      terser-webpack-plugin: 5.6.1(esbuild@0.25.12)(webpack@5.106.2(esbuild@0.25.12))
       watchpack: 2.5.2
       webpack-sources: 3.5.1
     transitivePeerDependencies:

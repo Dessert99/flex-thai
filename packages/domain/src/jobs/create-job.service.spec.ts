@@ -32,6 +32,7 @@ const createFixture = () => {
       return Promise.resolve(job);
     }),
     findById: vi.fn(() => Promise.resolve(job)),
+    transitionStatus: vi.fn(),
   };
   const queue = {
     send: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),

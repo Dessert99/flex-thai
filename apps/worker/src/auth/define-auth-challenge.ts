@@ -28,3 +28,6 @@ export const applyDefineAuthChallenge = (
   event.response.challengeName = 'CUSTOM_CHALLENGE';
   return event;
 };
+
+/** Cognito DefineAuthChallenge trigger entrypoint */
+export const handler = applyDefineAuthChallenge;

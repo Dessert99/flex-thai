@@ -7,9 +7,11 @@
     "dev": "tsx watch src/main.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run src",
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "build:lambda": "node esbuild.config.mjs"
   },
   "dependencies": {
+    "@codegenie/serverless-express": "^4.17.0",
     "@flex-thia/contracts": "workspace:*",
     "@flex-thia/database": "workspace:*",
     "@flex-thia/domain": "workspace:*",
@@ -21,6 +23,8 @@
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",
+    "@types/aws-lambda": "^8.10.0",
+    "esbuild": "^0.25.0",
     "tsx": "^4.20.0"
   }
 }
