@@ -61,26 +61,28 @@ export const createAuthChallengeHandler = (
   };
 };
 
-let defaultHandler: ReturnType<typeof createAuthChallengeHandler> | undefined;
+let defaultHandler:
+  Promise<ReturnType<typeof createAuthChallengeHandler>> | undefined;
 
 /** AWS 환경 의존성을 지연 생성해 Cognito Create trigger를 실행한다 */
-export const handler = (
+export const handler = async (
   event: CreateAuthChallengeTriggerEvent,
 ): Promise<CreateAuthChallengeTriggerEvent> => {
   if (!defaultHandler) {
-    const runtime = createAuthTriggerRuntime();
-    defaultHandler = createAuthChallengeHandler({
-      ...runtime,
-      sender: new SesChallengeSender(
-        new SESv2Client({}),
-        readWorkerEnv('SES_FROM_EMAIL'),
-        readWorkerEnv('APP_URL'),
-      ),
-      generateCode: () => String(randomInt(0, 1_000_000)).padStart(6, '0'),
-      generateLinkToken: () => randomBytes(32).toString('base64url'),
-      generateChallengeId: randomUUID,
-    });
+    defaultHandler = createAuthTriggerRuntime().then((runtime) =>
+      createAuthChallengeHandler({
+        ...runtime,
+        sender: new SesChallengeSender(
+          new SESv2Client({}),
+          readWorkerEnv('SES_FROM_EMAIL'),
+          readWorkerEnv('APP_URL'),
+        ),
+        generateCode: () => String(randomInt(0, 1_000_000)).padStart(6, '0'),
+        generateLinkToken: () => randomBytes(32).toString('base64url'),
+        generateChallengeId: randomUUID,
+      }),
+    );
   }
 
-  return defaultHandler(event);
+  return (await defaultHandler)(event);
 };

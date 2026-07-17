@@ -52,18 +52,19 @@ export const createVerifyAuthChallengeHandler =
   };
 
 let defaultHandler:
-  ReturnType<typeof createVerifyAuthChallengeHandler> | undefined;
+  Promise<ReturnType<typeof createVerifyAuthChallengeHandler>> | undefined;
 
 /** AWS 환경 의존성을 지연 생성해 Cognito Verify trigger를 실행한다 */
-export const handler = (
+export const handler = async (
   event: VerifyAuthChallengeResponseTriggerEvent,
 ): Promise<VerifyAuthChallengeResponseTriggerEvent> => {
   if (!defaultHandler) {
-    const runtime = createAuthTriggerRuntime();
-    defaultHandler = createVerifyAuthChallengeHandler(
-      new VerifyChallengeAnswerService(runtime.repository, runtime.crypto),
+    defaultHandler = createAuthTriggerRuntime().then((runtime) =>
+      createVerifyAuthChallengeHandler(
+        new VerifyChallengeAnswerService(runtime.repository, runtime.crypto),
+      ),
     );
   }
 
-  return defaultHandler(event);
+  return (await defaultHandler)(event);
 };

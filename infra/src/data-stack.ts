@@ -85,9 +85,9 @@ export class DataStack extends Stack {
       this,
       'ChallengeSessionKey',
       {
-        description: 'Cognito session AES-256 key의 base64 문자열',
+        description: 'Cognito session AES-256 key 문자열',
         generateSecretString: {
-          passwordLength: 44,
+          passwordLength: 32,
           excludePunctuation: true,
         },
       },

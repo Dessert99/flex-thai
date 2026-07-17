@@ -9,6 +9,7 @@
     "build:lambda": "node esbuild.config.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.900.0",
     "@aws-sdk/client-sfn": "^3.900.0",
     "@aws-sdk/client-sesv2": "^3.900.0",
     "@flex-thia/database": "workspace:*",

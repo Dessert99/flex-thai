@@ -1,0 +1,74 @@
+/** 학교 이메일 custom auth만 열고 비밀번호 flow가 돌아오지 않게 고정한다 */
+import { App } from 'aws-cdk-lib';
+import { Match, Template } from 'aws-cdk-lib/assertions';
+import { describe, it } from 'vitest';
+import { ApplicationStack } from '../src/application-stack.js';
+import { readInfrastructureConfig } from '../src/config.js';
+import { DataStack } from '../src/data-stack.js';
+
+const config = readInfrastructureConfig({
+  account: '123456789012',
+  rootDomain: 'example.com',
+  hostedZoneId: 'Z0123456789EXAMPLE',
+  alertEmail: 'owner@example.com',
+  githubRepository: 'Dessert99/flex-thai',
+  mediaPublicKeyPem: 'test-public-key',
+});
+
+describe('Identity', () => {
+  it('Cognito custom auth와 refresh token만 허용한다', () => {
+    const app = new App();
+    const dataStack = new DataStack(app, 'IdentityData');
+    const stack = new ApplicationStack(app, 'IdentityApplication', {
+      config,
+      dataStack,
+    });
+    const template = Template.fromStack(stack);
+
+    template.hasResourceProperties('AWS::Cognito::UserPoolClient', {
+      ExplicitAuthFlows: Match.arrayWith([
+        'ALLOW_CUSTOM_AUTH',
+        'ALLOW_REFRESH_TOKEN_AUTH',
+      ]),
+      PreventUserExistenceErrors: 'ENABLED',
+      EnableTokenRevocation: true,
+      RefreshTokenRotation: Match.objectLike({
+        Feature: 'ENABLED',
+        RetryGracePeriodSeconds: 10,
+      }),
+    });
+    template.hasResourceProperties('AWS::Cognito::UserPool', {
+      AdminCreateUserConfig: {
+        AllowAdminCreateUserOnly: true,
+      },
+      LambdaConfig: Match.objectLike({
+        DefineAuthChallenge: Match.anyValue(),
+        CreateAuthChallenge: Match.anyValue(),
+        VerifyAuthChallengeResponse: Match.anyValue(),
+      }),
+    });
+  });
+
+  it('SES domain identity와 세 trigger Lambda를 만든다', () => {
+    const app = new App();
+    const dataStack = new DataStack(app, 'IdentityDataResources');
+    const stack = new ApplicationStack(app, 'IdentityResources', {
+      config,
+      dataStack,
+    });
+    const template = Template.fromStack(stack);
+
+    template.resourceCountIs('AWS::Lambda::Function', 3);
+    template.resourceCountIs('AWS::SES::EmailIdentity', 1);
+    template.hasResourceProperties('AWS::IAM::Policy', {
+      PolicyDocument: {
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Action: 'ses:SendEmail',
+            Effect: 'Allow',
+          }),
+        ]),
+      },
+    });
+  });
+});
