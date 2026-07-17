@@ -10,6 +10,9 @@ export * from './auth/passwordless-auth.service.js';
 /** 관리자 step-up use case를 공개한다 */
 export * from './auth/step-up.service.js';
 
+/** Cognito sub 기반 사용자 repository port를 공개한다 */
+export * from './auth/user.repository.js';
+
 /** idempotent Job 생성 use case를 패키지 공개 경계에 노출한다 */
 export * from './jobs/create-job.service.js';
 

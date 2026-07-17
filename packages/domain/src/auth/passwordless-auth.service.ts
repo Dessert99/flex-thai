@@ -88,7 +88,9 @@ export class PasswordlessAuthService {
     const started = await this.identity.start(email);
     await this.challenges.attachSession(
       started.challengeId,
-      this.crypto.encryptSession(started.session),
+      this.crypto.encryptSession(
+        JSON.stringify({ session: started.session, username: email }),
+      ),
     );
 
     return { challengeId: started.challengeId };
@@ -102,6 +104,16 @@ export class PasswordlessAuthService {
   /** POST로 받은 link token을 암호화된 Cognito session과 함께 교환한다 */
   verifyLink(challengeId: string, token: string): Promise<TokenSet> {
     return this.respond(challengeId, 'LINK', token);
+  }
+
+  /** HttpOnly cookie의 refresh token을 새 access token으로 교환한다 */
+  refresh(refreshToken: string): Promise<TokenSet> {
+    return this.identity.refresh(refreshToken);
+  }
+
+  /** logout 시 refresh token을 identity provider에서 폐기한다 */
+  revoke(refreshToken: string): Promise<void> {
+    return this.identity.revoke(refreshToken);
   }
 
   private async respond(
@@ -120,11 +132,27 @@ export class PasswordlessAuthService {
       throw new AuthDomainError('CHALLENGE_INVALID');
     }
 
+    const sessionValue = this.crypto.decryptSession(
+      challenge.sessionCiphertext,
+    );
+    const sessionRecord = JSON.parse(sessionValue) as {
+      session?: unknown;
+      username?: unknown;
+    };
+
+    if (
+      typeof sessionRecord.session !== 'string' ||
+      typeof sessionRecord.username !== 'string'
+    ) {
+      throw new AuthDomainError('CHALLENGE_INVALID');
+    }
+
     return this.identity.respond({
       challengeId,
       kind,
       answer,
-      session: this.crypto.decryptSession(challenge.sessionCiphertext),
+      session: sessionRecord.session,
+      username: sessionRecord.username,
     });
   }
 }

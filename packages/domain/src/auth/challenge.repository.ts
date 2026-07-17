@@ -10,6 +10,7 @@ import type {
 export interface AuthChallengeRepository {
   create(input: {
     id: string;
+    emailHash: string;
     codeHmac: string;
     linkHmac: string;
     expiresAt: Date;
@@ -43,6 +44,7 @@ export interface IdentityProvider {
     kind: 'CODE' | 'LINK';
     answer: string;
     session: string;
+    username: string;
   }): Promise<TokenSet>;
   refresh(refreshToken: string): Promise<TokenSet>;
   revoke(refreshToken: string): Promise<void>;
@@ -51,6 +53,16 @@ export interface IdentityProvider {
 /** 관리자 SMS OTP를 전송하는 provider port */
 export interface SmsSender {
   sendOtp(phoneNumber: string, otp: string): Promise<void>;
+}
+
+/** code와 link token 원문을 일회성 이메일로 보내는 provider port */
+export interface ChallengeSender {
+  send(input: {
+    email: string;
+    challengeId: string;
+    code: string;
+    linkToken: string;
+  }): Promise<void>;
 }
 
 /** step-up challenge와 grant HMAC만 저장하는 repository port */

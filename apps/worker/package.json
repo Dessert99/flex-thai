@@ -1,0 +1,16 @@
+{
+  "name": "@flex-thia/worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run src",
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@flex-thia/domain": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.0"
+  }
+}

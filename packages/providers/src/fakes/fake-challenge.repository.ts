@@ -15,12 +15,16 @@ export class FakeAuthChallengeRepository implements AuthChallengeRepository {
   /** trigger가 만든 HMAC과 만료만 저장한다 */
   create(input: {
     id: string;
+    emailHash: string;
     codeHmac: string;
     linkHmac: string;
     expiresAt: Date;
   }): Promise<AuthChallenge> {
     const challenge: AuthChallenge = {
-      ...input,
+      id: input.id,
+      codeHmac: input.codeHmac,
+      linkHmac: input.linkHmac,
+      expiresAt: input.expiresAt,
       sessionCiphertext: null,
       attempts: 0,
       status: 'PENDING',
