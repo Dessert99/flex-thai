@@ -111,6 +111,12 @@ pnpm build:lambda
 `pnpm check`는 포맷, lint, 타입, 단위 테스트, 일반 TypeScript 빌드를
 차례로 검사한다. `pnpm build:lambda`는 다음 AWS 실행 파일을 만든다.
 
+이때 타입 검사와 일반 빌드는 TypeScript 7.0.2 네이티브 컴파일러를
+사용한다. `package.json`의 `typescript` 의존성은 아직 네이티브
+compiler API를 읽지 못하는 ESLint 도구를 위한 TypeScript 6 호환층일
+뿐이다. 자세한 배경과 폴더별 책임은
+[프로젝트 폴더 구조](project-structure.md)를 참고한다.
+
 - `apps/api/dist/lambda.js`: API Gateway가 호출하는 NestJS API
 - `apps/worker/dist/job-starter.js`: SQS 메시지로 Step Functions를 시작
 - `apps/worker/dist/foundation-task.js`: Job 상태 전이의 기초 작업

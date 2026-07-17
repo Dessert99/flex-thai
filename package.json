@@ -18,12 +18,13 @@
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "devDependencies": {
+    "@typescript/native": "npm:typescript@7.0.2",
     "@eslint/js": "^9.39.0",
     "@types/node": "^22.18.0",
     "eslint": "^9.39.0",
     "prettier": "^3.6.2",
-    "typescript": "^5.9.3",
-    "typescript-eslint": "^8.46.0",
+    "typescript": "npm:@typescript/typescript6@6.0.2",
+    "typescript-eslint": "^8.63.0",
     "vitest": "4.1.10"
   }
 }

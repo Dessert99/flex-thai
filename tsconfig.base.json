@@ -4,6 +4,7 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "strict": true,
+    "types": ["node"],
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
     "experimentalDecorators": true,
@@ -12,15 +13,14 @@
     "skipLibCheck": true,
     "declaration": true,
     "sourceMap": true,
-    "baseUrl": ".",
     "paths": {
-      "@flex-thia/config": ["packages/config/src/index.ts"],
-      "@flex-thia/contracts": ["packages/contracts/src/index.ts"],
-      "@flex-thia/database": ["packages/database/src/index.ts"],
-      "@flex-thia/domain": ["packages/domain/src/index.ts"],
-      "@flex-thia/providers": ["packages/providers/src/index.ts"],
-      "@flex-thia/providers/fakes": ["packages/providers/src/fakes/index.ts"],
-      "@flex-thia/providers/*": ["packages/providers/src/*"]
+      "@flex-thia/config": ["./packages/config/src/index.ts"],
+      "@flex-thia/contracts": ["./packages/contracts/src/index.ts"],
+      "@flex-thia/database": ["./packages/database/src/index.ts"],
+      "@flex-thia/domain": ["./packages/domain/src/index.ts"],
+      "@flex-thia/providers": ["./packages/providers/src/index.ts"],
+      "@flex-thia/providers/fakes": ["./packages/providers/src/fakes/index.ts"],
+      "@flex-thia/providers/*": ["./packages/providers/src/*"]
     }
   }
 }
