@@ -6,7 +6,7 @@
 
 **Architecture:** `DataStack`은 오래 보존할 DB와 Input·Media S3를 서울 리전에 만들고, `ApplicationStack`은 Cognito·Lambda·API Gateway·SQS·Step Functions를 서울 리전에 만든다. `EdgeStack`은 Web S3·ACM·CloudFront·Route 53을 `us-east-1`과 글로벌 경계에 만들며, 모든 production 변경은 CDK와 수동 승인 GitHub Actions로만 수행한다.
 
-**Tech Stack:** AWS CDK v2 `aws-cdk-lib@2.260.0`, CDK CLI `2.1130.0`, TypeScript 5.9.x, Node.js 22 Lambda runtime, Aurora PostgreSQL 16.3 Serverless v2, API Gateway HTTP API, Cognito, SES, SNS, S3, CloudFront, SQS, Step Functions, CloudWatch, AWS Budgets
+**Tech Stack:** AWS CDK v2 `aws-cdk-lib@2.260.0`, CDK CLI `2.1130.0`, TypeScript 7.0.2 네이티브 컴파일러, TypeScript 6 compiler API 호환층, Node.js 22 Lambda runtime, Aurora PostgreSQL 16.3 Serverless v2, API Gateway HTTP API, Cognito, SES, SNS, S3, CloudFront, SQS, Step Functions, CloudWatch, AWS Budgets
 
 **Prerequisite Plan:** [`2026-07-17-backend-foundation.md`](./2026-07-17-backend-foundation.md)의 Lambda bundle과 migration을 먼저 만든다.
 

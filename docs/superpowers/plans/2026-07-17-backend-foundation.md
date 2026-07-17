@@ -6,7 +6,7 @@
 
 **Architecture:** pnpm workspace 안에서 AWS와 무관한 규칙을 `packages/domain`, 직렬화 계약을 `packages/contracts`, Drizzle schema와 저장소를 `packages/database`, 외부 시스템 port와 fake를 `packages/providers`, 설정 검증을 `packages/config`에 둔다. `apps/api`는 HTTP 요청을 use case에 연결하고, `apps/worker`는 SQS와 Step Functions가 호출할 얇은 진입점만 가진다.
 
-**Tech Stack:** Node.js 22.x, pnpm 10.33.0, TypeScript 5.9.x, NestJS 11.1.28, Vitest 4.1.10, Zod 4.x, Drizzle ORM 0.45.2, PostgreSQL 16, AWS SDK for JavaScript v3, esbuild
+**Tech Stack:** Node.js 22.x, pnpm 10.33.0, TypeScript 7.0.2 네이티브 컴파일러, TypeScript 6 compiler API 호환층, NestJS 11.1.28, Vitest 4.1.10, Zod 4.x, Drizzle ORM 0.45.2, PostgreSQL 16, AWS SDK for JavaScript v3, esbuild
 
 **Source Specs:** [`2026-07-16-thai-flex-learning-service-design.md`](../specs/2026-07-16-thai-flex-learning-service-design.md), [`2026-07-17-aws-serverless-infrastructure-design.md`](../specs/2026-07-17-aws-serverless-infrastructure-design.md)
 
@@ -110,12 +110,13 @@
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "devDependencies": {
+    "@typescript/native": "npm:typescript@7.0.2",
     "@eslint/js": "^9.39.0",
     "@types/node": "^22.18.0",
     "eslint": "^9.39.0",
     "prettier": "^3.6.2",
-    "typescript": "^5.9.3",
-    "typescript-eslint": "^8.46.0",
+    "typescript": "npm:@typescript/typescript6@6.0.2",
+    "typescript-eslint": "^8.63.0",
     "vitest": "4.1.10"
   }
 }
@@ -139,6 +140,7 @@ packages:
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "strict": true,
+    "types": ["node"],
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
     "experimentalDecorators": true,
@@ -147,19 +149,25 @@ packages:
     "skipLibCheck": true,
     "declaration": true,
     "sourceMap": true,
-    "baseUrl": ".",
     "paths": {
-      "@flex-thia/config": ["packages/config/src/index.ts"],
-      "@flex-thia/contracts": ["packages/contracts/src/index.ts"],
-      "@flex-thia/database": ["packages/database/src/index.ts"],
-      "@flex-thia/domain": ["packages/domain/src/index.ts"],
-      "@flex-thia/providers": ["packages/providers/src/index.ts"],
-      "@flex-thia/providers/fakes": ["packages/providers/src/fakes/index.ts"],
-      "@flex-thia/providers/*": ["packages/providers/src/*"]
+      "@flex-thia/config": ["./packages/config/src/index.ts"],
+      "@flex-thia/contracts": ["./packages/contracts/src/index.ts"],
+      "@flex-thia/database": ["./packages/database/src/index.ts"],
+      "@flex-thia/domain": ["./packages/domain/src/index.ts"],
+      "@flex-thia/providers": ["./packages/providers/src/index.ts"],
+      "@flex-thia/providers/fakes": [
+        "./packages/providers/src/fakes/index.ts"
+      ],
+      "@flex-thia/providers/*": ["./packages/providers/src/*"]
     }
   }
 }
 ```
+
+프로젝트의 `tsc`는 `@typescript/native`가 제공하는 TypeScript 7이다.
+`typescript` 이름의 TypeScript 6 package는 아직 TS7 compiler API를 읽지
+못하는 typescript-eslint 호환용이며 애플리케이션 빌드에는 사용하지
+않는다.
 
 - `eslint.config.mjs`는 `typescript-eslint.config(...)`의 recommended와
   type-checked rule을 사용하고 `dist`, `coverage`, `cdk.out`,
