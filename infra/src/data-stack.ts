@@ -120,6 +120,9 @@ export class DataStack extends Stack {
     new CfnOutput(this, 'SecretArn', {
       value: this.clusterSecret.secretArn,
     });
+    new CfnOutput(this, 'MediaPrivateKeySecretArn', {
+      value: this.mediaPrivateKey.secretArn,
+    });
   }
 
   private createPrivateBucket(

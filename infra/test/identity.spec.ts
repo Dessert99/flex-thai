@@ -74,4 +74,31 @@ describe('Identity', () => {
       },
     });
   });
+
+  it('Cognito가 전화번호 검증 SMS를 보낼 전용 role을 가진다', () => {
+    const app = new App();
+    const dataStack = new DataStack(app, 'IdentitySmsData');
+    const stack = new ApplicationStack(app, 'IdentitySmsApplication', {
+      config,
+      dataStack,
+    });
+    const template = Template.fromStack(stack);
+
+    template.hasResourceProperties('AWS::Cognito::UserPool', {
+      SmsConfiguration: Match.objectLike({
+        SnsCallerArn: Match.anyValue(),
+      }),
+    });
+    template.hasResourceProperties('AWS::IAM::Policy', {
+      PolicyDocument: {
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Action: 'sns:Publish',
+            Effect: 'Allow',
+            Resource: '*',
+          }),
+        ]),
+      },
+    });
+  });
 });

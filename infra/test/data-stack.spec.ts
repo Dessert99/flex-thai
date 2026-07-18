@@ -69,4 +69,12 @@ describe('DataStack', () => {
       },
     });
   });
+
+  it('배포 뒤 media private key를 넣을 Secret ARN을 출력한다', () => {
+    const template = Template.fromStack(new DataStack(new App(), 'TestData'));
+
+    template.hasOutput('MediaPrivateKeySecretArn', {
+      Value: Match.anyValue(),
+    });
+  });
 });

@@ -955,7 +955,7 @@ git commit -m "feat: add aws observability and budget guards"
 - Produces: `workflow_dispatch` production deploy workflow
 - Produces: AWS 계정 준비와 배포 runbook
 
-- [ ] **Step 1: 저장소 검증 workflow를 작성한다**
+- [x] **Step 1: 저장소 검증 workflow를 작성한다**
 
 ```yaml
 name: check
@@ -970,7 +970,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6.0.2
-      - uses: pnpm/action-setup@v4.4.0
+      - uses: pnpm/action-setup@v6.0.8
         with:
           version: 10.33.0
       - uses: actions/setup-node@v6.4.0
@@ -982,7 +982,7 @@ jobs:
       - run: pnpm --filter @flex-thia/infra synth
 ```
 
-- [ ] **Step 2: OIDC production 배포 workflow를 작성한다**
+- [x] **Step 2: OIDC production 배포 workflow를 작성한다**
 
 ```yaml
 name: deploy-production
@@ -1006,14 +1006,14 @@ jobs:
       MEDIA_PUBLIC_KEY_PEM: ${{ vars.MEDIA_PUBLIC_KEY_PEM }}
     steps:
       - uses: actions/checkout@v6.0.2
-      - uses: pnpm/action-setup@v4.4.0
+      - uses: pnpm/action-setup@v6.0.8
         with:
           version: 10.33.0
       - uses: actions/setup-node@v6.4.0
         with:
           node-version: 22
           cache: pnpm
-      - uses: aws-actions/configure-aws-credentials@v6.1.2
+      - uses: aws-actions/configure-aws-credentials@v6.2.2
         with:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ap-northeast-2
@@ -1056,11 +1056,13 @@ jobs:
 ```
 
 GitHub `production` environment의 required reviewer가 실제 수동 승인 경계다.
-OIDC role trust policy는 GitHub Environment를 쓰므로
-`repo:Dessert99/flex-thai:environment:production`과
-`aud=sts.amazonaws.com`만 허용한다.
+OIDC role trust policy는 GitHub Environment와 `aud=sts.amazonaws.com`을
+함께 제한한다. 저장소가 immutable subject를 사용한다면 owner·repository ID가
+포함된 실제 subject를 확인해 정확히 등록한다. 실제 입력값 검사, 계정 준비,
+복구 절차는 `docs/development/aws-account-setup.md`와
+`docs/development/aws-deployment.md`가 최신 구현 기준이다.
 
-- [ ] **Step 3: AWS 계정 준비 문서를 초보자 관점으로 작성한다**
+- [x] **Step 3: AWS 계정 준비 문서를 초보자 관점으로 작성한다**
 
 다음 순서와 이유를 포함한다.
 
@@ -1077,7 +1079,7 @@ OIDC role trust policy는 GitHub Environment를 쓰므로
 AWS CLI는 현재 로컬에 없으므로 synth 완료 조건에는 포함하지 않고 실제
 deploy 전에 설치·로그인한다.
 
-- [ ] **Step 4: 배포·복구 runbook을 작성한다**
+- [x] **Step 4: 배포·복구 runbook을 작성한다**
 
 배포 순서는 backend Lambda build → 전체 test → CDK synth → migration
 검토 → DataStack → ApplicationStack → EdgeStack이다. Aurora migration은
@@ -1085,7 +1087,7 @@ deploy 전에 설치·로그인한다.
 재배포, destructive migration 중지, CloudFormation rollback 확인 절차를
 문서화한다.
 
-- [ ] **Step 5: 전체 검증을 fresh run한다**
+- [x] **Step 5: 전체 검증을 fresh run한다**
 
 Run:
 
@@ -1099,7 +1101,7 @@ git diff --check
 Expected: format, lint, typecheck, unit tests, CDK assertion, Lambda build,
 CDK synth 모두 exit 0; whitespace error 0
 
-- [ ] **Step 6: 최종 커밋한다**
+- [x] **Step 6: 최종 커밋한다**
 
 ```bash
 git add .github package.json docs/development infra

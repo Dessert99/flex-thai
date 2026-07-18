@@ -32,6 +32,7 @@ const config = synthFixture
       githubRepository: app.node.tryGetContext('githubRepository'),
       mediaPublicKeyPem: app.node.tryGetContext('mediaPublicKeyPem'),
       allowedEmailDomains: app.node.tryGetContext('allowedEmailDomains'),
+      monthlyBudgetUsd: app.node.tryGetContext('monthlyBudgetUsd'),
     });
 
 if (synthFixture) {

@@ -34,7 +34,11 @@ yarn-error.log*
 
 # env files
 .env
-.env.local
+.env.*
+!.env.example
+
+# local deployment output
+cdk-outputs.json
 
 # vercel
 .vercel

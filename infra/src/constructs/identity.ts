@@ -1,5 +1,5 @@
 /** 학교 이메일 passwordless와 관리자 SMS의 AWS 자원을 묶는다 */
-import { Duration, RemovalPolicy } from 'aws-cdk-lib';
+import { Duration, RemovalPolicy, Stack } from 'aws-cdk-lib';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as nodejs from 'aws-cdk-lib/aws-lambda-nodejs';
@@ -43,6 +43,8 @@ export class Identity extends Construct {
       signInAliases: { email: true },
       selfSignUpEnabled: false,
       accountRecovery: cognito.AccountRecovery.NONE,
+      enableSmsRole: true,
+      snsRegion: Stack.of(this).region,
       removalPolicy: RemovalPolicy.RETAIN,
     });
     this.defineChallengeFunction = this.createTrigger(

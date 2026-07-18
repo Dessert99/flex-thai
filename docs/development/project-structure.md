@@ -8,6 +8,7 @@
 
 ```text
 flex-thia/
+├── .github/workflows/          # 코드 검사와 수동 production 배포 절차
 ├── apps/
 │   ├── api/                    # HTTP 요청을 처리하는 NestJS 프로그램
 │   └── worker/                 # AWS 이벤트가 호출하는 백그라운드 함수
@@ -30,6 +31,10 @@ flex-thia/
 프로그램들이 조립해서 쓰는 부품이며, 혼자 서버처럼 실행되지 않는다.
 `infra`는 프로그램이 아니라 AWS에 필요한 서버와 관리형 서비스를
 생성하는 설계도다.
+
+`.github/workflows`는 GitHub 컴퓨터가 저장소 검사와 AWS 배포 순서를
+실행하게 하는 절차다. 실제 production 배포는 자동으로 시작되지 않으며,
+GitHub의 수동 실행과 `production` 환경 승인을 모두 거쳐야 한다.
 
 ## `apps`: 실제로 실행되는 프로그램
 

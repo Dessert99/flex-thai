@@ -135,3 +135,10 @@ compiler API를 읽지 못하는 ESLint 도구를 위한 TypeScript 6 호환층�
 | 터미널 로그 | CloudWatch Logs |
 
 로컬에서 실제 이메일, SMS, AI, TTS 유료 API는 호출하지 않는다.
+
+## AWS 연결을 시작할 때
+
+코드 구현과 실제 계정 연결은 분리되어 있다. AWS 계정을 준비할 때는
+[AWS 계정 준비 가이드](aws-account-setup.md)를 먼저 따라가고, 값 등록이
+끝난 뒤 [AWS 배포와 복구 가이드](aws-deployment.md)로 최초 배포를
+진행한다.
