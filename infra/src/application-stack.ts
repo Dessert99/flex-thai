@@ -8,6 +8,7 @@ import type { InfrastructureConfig } from './config.js';
 import { AsyncJobs } from './constructs/async-jobs.js';
 import { HttpApi } from './constructs/http-api.js';
 import { Identity } from './constructs/identity.js';
+import { Observability } from './constructs/observability.js';
 import type { DataStack } from './data-stack.js';
 
 /** ApplicationStack이 장기 데이터 자원을 참조하는 설정 */
@@ -24,6 +25,8 @@ export class ApplicationStack extends Stack {
   readonly asyncJobs: AsyncJobs;
   /** Lambda와 route별 JWT를 연결하는 HTTP API 경계 */
   readonly httpApi: HttpApi;
+  /** 장애 알람, 일반 설정, 월 비용 예산 경계 */
+  readonly observability: Observability;
 
   constructor(scope: Construct, id: string, props: ApplicationStackProps) {
     super(scope, id, props);
@@ -82,6 +85,12 @@ export class ApplicationStack extends Stack {
       jobQueue: this.asyncJobs.queue,
       userPool: this.identity.userPool,
       userPoolClient: this.identity.userPoolClient,
+    });
+    this.observability = new Observability(this, 'Observability', {
+      config: props.config,
+      cluster: props.dataStack.cluster,
+      httpApi: this.httpApi,
+      asyncJobs: this.asyncJobs,
     });
   }
 }
