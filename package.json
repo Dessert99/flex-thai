@@ -15,7 +15,7 @@
     "build:lambda": "pnpm --filter @flex-thia/api build:lambda && pnpm --filter @flex-thia/worker build:lambda",
     "infra:test": "pnpm --filter @flex-thia/infra test",
     "infra:synth": "pnpm --filter @flex-thia/infra synth",
-    "infra:diff": "pnpm --filter @flex-thia/infra exec cdk diff --all",
+    "infra:diff": "pnpm --filter @flex-thia/infra exec cdk diff",
     "infra:diff:prod": "pnpm --filter @flex-thia/infra diff:prod",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },

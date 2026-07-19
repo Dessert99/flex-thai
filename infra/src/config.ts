@@ -27,3 +27,14 @@ export type InfrastructureConfig = z.infer<typeof infrastructureConfigSchema>;
 export const readInfrastructureConfig = (
   context: Record<string, unknown>,
 ): InfrastructureConfig => infrastructureConfigSchema.parse(context);
+
+/** CDK context와 실행 환경을 합쳐 production 설정을 검증한다 */
+export const readInfrastructureConfigFromSources = (
+  context: Record<string, unknown>,
+  environment: Record<string, string | undefined>,
+): InfrastructureConfig =>
+  readInfrastructureConfig({
+    ...context,
+    mediaPublicKeyPem:
+      context.mediaPublicKeyPem ?? environment.MEDIA_PUBLIC_KEY_PEM,
+  });

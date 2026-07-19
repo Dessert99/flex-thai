@@ -93,11 +93,11 @@ jobs:
 
       - name: AWS 변경 내용 확인
         run: >-
-          pnpm --filter @flex-thia/infra exec cdk diff --all -c "account=$CDK_ACCOUNT" -c "rootDomain=$ROOT_DOMAIN" -c "hostedZoneId=$HOSTED_ZONE_ID" -c "alertEmail=$ALERT_EMAIL" -c "githubRepository=$GITHUB_REPOSITORY_CONTEXT" -c "mediaPublicKeyPem=$MEDIA_PUBLIC_KEY_PEM" -c "allowedEmailDomains=$ALLOWED_EMAIL_DOMAINS" -c "monthlyBudgetUsd=$MONTHLY_BUDGET_USD"
+          pnpm --filter @flex-thia/infra exec cdk diff -c "account=$CDK_ACCOUNT" -c "rootDomain=$ROOT_DOMAIN" -c "hostedZoneId=$HOSTED_ZONE_ID" -c "alertEmail=$ALERT_EMAIL" -c "githubRepository=$GITHUB_REPOSITORY_CONTEXT" -c "allowedEmailDomains=$ALLOWED_EMAIL_DOMAINS" -c "monthlyBudgetUsd=$MONTHLY_BUDGET_USD"
 
       - name: 데이터 기반 배포
         run: >-
-          pnpm --filter @flex-thia/infra exec cdk deploy FlexThiaDataProd --require-approval never --outputs-file "$GITHUB_WORKSPACE/cdk-outputs.json" -c "account=$CDK_ACCOUNT" -c "rootDomain=$ROOT_DOMAIN" -c "hostedZoneId=$HOSTED_ZONE_ID" -c "alertEmail=$ALERT_EMAIL" -c "githubRepository=$GITHUB_REPOSITORY_CONTEXT" -c "mediaPublicKeyPem=$MEDIA_PUBLIC_KEY_PEM" -c "allowedEmailDomains=$ALLOWED_EMAIL_DOMAINS" -c "monthlyBudgetUsd=$MONTHLY_BUDGET_USD"
+          pnpm --filter @flex-thia/infra exec cdk deploy FlexThiaDataProd --require-approval never --outputs-file "$GITHUB_WORKSPACE/cdk-outputs.json" -c "account=$CDK_ACCOUNT" -c "rootDomain=$ROOT_DOMAIN" -c "hostedZoneId=$HOSTED_ZONE_ID" -c "alertEmail=$ALERT_EMAIL" -c "githubRepository=$GITHUB_REPOSITORY_CONTEXT" -c "allowedEmailDomains=$ALLOWED_EMAIL_DOMAINS" -c "monthlyBudgetUsd=$MONTHLY_BUDGET_USD"
 
       - name: 데이터베이스 migration 설정 읽기
         run: |
@@ -117,4 +117,4 @@ jobs:
 
       - name: API와 웹 진입점 배포
         run: >-
-          pnpm --filter @flex-thia/infra exec cdk deploy FlexThiaApplicationProd FlexThiaEdgeProd --require-approval never -c "account=$CDK_ACCOUNT" -c "rootDomain=$ROOT_DOMAIN" -c "hostedZoneId=$HOSTED_ZONE_ID" -c "alertEmail=$ALERT_EMAIL" -c "githubRepository=$GITHUB_REPOSITORY_CONTEXT" -c "mediaPublicKeyPem=$MEDIA_PUBLIC_KEY_PEM" -c "allowedEmailDomains=$ALLOWED_EMAIL_DOMAINS" -c "monthlyBudgetUsd=$MONTHLY_BUDGET_USD"
+          pnpm --filter @flex-thia/infra exec cdk deploy FlexThiaApplicationProd FlexThiaEdgeProd --require-approval never -c "account=$CDK_ACCOUNT" -c "rootDomain=$ROOT_DOMAIN" -c "hostedZoneId=$HOSTED_ZONE_ID" -c "alertEmail=$ALERT_EMAIL" -c "githubRepository=$GITHUB_REPOSITORY_CONTEXT" -c "allowedEmailDomains=$ALLOWED_EMAIL_DOMAINS" -c "monthlyBudgetUsd=$MONTHLY_BUDGET_USD"

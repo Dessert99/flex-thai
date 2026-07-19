@@ -83,7 +83,6 @@ export const createProductionDiffArguments = (
   awsProfile: string,
 ): readonly string[] => [
   'diff',
-  '--all',
   '--profile',
   awsProfile,
   '--no-change-set',
@@ -97,8 +96,6 @@ export const createProductionDiffArguments = (
   `alertEmail=${config.alertEmail}`,
   '-c',
   `githubRepository=${config.githubRepository}`,
-  '-c',
-  `mediaPublicKeyPem=${config.mediaPublicKeyPem}`,
   '-c',
   `allowedEmailDomains=${config.allowedEmailDomains}`,
   '-c',

@@ -1,6 +1,9 @@
 /** 잘못된 production 설정이 CloudFormation까지 전달되지 않게 검증한다 */
 import { describe, expect, it } from 'vitest';
-import { readInfrastructureConfig } from '../src/config.js';
+import {
+  readInfrastructureConfig,
+  readInfrastructureConfigFromSources,
+} from '../src/config.js';
 
 describe('readInfrastructureConfig', () => {
   it('필수 production 설정이 빠지면 synth 전에 실패한다', () => {
@@ -33,6 +36,23 @@ describe('readInfrastructureConfig', () => {
       githubRepository: 'Dessert99/flex-thai',
       mediaPublicKeyPem: `${mediaPublicKeyPem}\n`,
     });
+
+    expect(config.mediaPublicKeyPem).toBe(mediaPublicKeyPem);
+  });
+
+  it('CDK context에 공개 키가 없으면 실행 환경의 공개 키를 사용한다', () => {
+    const mediaPublicKeyPem =
+      '-----BEGIN PUBLIC KEY-----\ndGVzdA==\n-----END PUBLIC KEY-----';
+    const config = readInfrastructureConfigFromSources(
+      {
+        account: '123456789012',
+        rootDomain: 'example.com',
+        hostedZoneId: 'Z0123456789EXAMPLE',
+        alertEmail: 'owner@example.com',
+        githubRepository: 'Dessert99/flex-thai',
+      },
+      { MEDIA_PUBLIC_KEY_PEM: mediaPublicKeyPem },
+    );
 
     expect(config.mediaPublicKeyPem).toBe(mediaPublicKeyPem);
   });

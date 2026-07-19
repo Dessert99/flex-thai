@@ -4,6 +4,7 @@ import { ApplicationStack } from './application-stack.js';
 import {
   type InfrastructureConfig,
   readInfrastructureConfig,
+  readInfrastructureConfigFromSources,
 } from './config.js';
 import { DataStack } from './data-stack.js';
 import { EdgeStack } from './edge-stack.js';
@@ -24,16 +25,18 @@ const fixtureConfig: InfrastructureConfig = readInfrastructureConfig({
 const synthFixture = app.node.tryGetContext('synthFixture') === 'true';
 const config = synthFixture
   ? fixtureConfig
-  : readInfrastructureConfig({
-      account: app.node.tryGetContext('account'),
-      rootDomain: app.node.tryGetContext('rootDomain'),
-      hostedZoneId: app.node.tryGetContext('hostedZoneId'),
-      alertEmail: app.node.tryGetContext('alertEmail'),
-      githubRepository: app.node.tryGetContext('githubRepository'),
-      mediaPublicKeyPem: app.node.tryGetContext('mediaPublicKeyPem'),
-      allowedEmailDomains: app.node.tryGetContext('allowedEmailDomains'),
-      monthlyBudgetUsd: app.node.tryGetContext('monthlyBudgetUsd'),
-    });
+  : readInfrastructureConfigFromSources(
+      {
+        account: app.node.tryGetContext('account'),
+        rootDomain: app.node.tryGetContext('rootDomain'),
+        hostedZoneId: app.node.tryGetContext('hostedZoneId'),
+        alertEmail: app.node.tryGetContext('alertEmail'),
+        githubRepository: app.node.tryGetContext('githubRepository'),
+        allowedEmailDomains: app.node.tryGetContext('allowedEmailDomains'),
+        monthlyBudgetUsd: app.node.tryGetContext('monthlyBudgetUsd'),
+      },
+      process.env,
+    );
 
 if (synthFixture) {
   app.node.setContext(

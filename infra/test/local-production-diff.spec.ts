@@ -52,7 +52,7 @@ describe('production diff 설정 변환', () => {
     });
   });
 
-  it('읽기 전용 CDK diff에 필요한 context 인수를 모두 생성한다', () => {
+  it('여러 줄 공개 키를 제외한 읽기 전용 CDK diff 인수를 생성한다', () => {
     const environment = readLocalProductionDiffEnvironment(
       validEnvironmentSource,
     );
@@ -66,12 +66,13 @@ describe('production diff 설정 변환', () => {
     );
 
     expect(arguments_).toContain('--no-change-set');
+    expect(arguments_).not.toContain('--all');
     expect(arguments_).toContain('account=123456789012');
     expect(arguments_).toContain('rootDomain=example.com');
     expect(arguments_).toContain('hostedZoneId=Z0123456789EXAMPLE');
     expect(arguments_).toContain('alertEmail=owner@example.com');
     expect(arguments_).toContain('githubRepository=Dessert99/flex-thai');
-    expect(arguments_).toContain(
+    expect(arguments_).not.toContain(
       'mediaPublicKeyPem=-----BEGIN PUBLIC KEY-----\ndGVzdA==\n-----END PUBLIC KEY-----',
     );
     expect(arguments_).toContain('allowedEmailDomains=school.ac.kr');

@@ -84,7 +84,11 @@ const runProductionDiff = (): void => {
     ],
     {
       cwd: infrastructureDirectory,
-      env: { ...process.env, AWS_PROFILE: environment.awsProfile },
+      env: {
+        ...process.env,
+        AWS_PROFILE: environment.awsProfile,
+        MEDIA_PUBLIC_KEY_PEM: config.mediaPublicKeyPem,
+      },
       stdio: 'inherit',
     },
   );
