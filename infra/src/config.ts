@@ -9,6 +9,7 @@ const infrastructureConfigSchema = z.object({
   githubRepository: z.string().regex(/^[^/]+\/[^/]+$/u),
   mediaPublicKeyPem: z
     .string()
+    .trim()
     .regex(
       /^-----BEGIN PUBLIC KEY-----[\s\S]+-----END PUBLIC KEY-----$/u,
       'CloudFront media public key는 PEM 형식이어야 한다',

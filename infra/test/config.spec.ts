@@ -22,6 +22,21 @@ describe('readInfrastructureConfig', () => {
     expect(config.edgeRegion).toBe('us-east-1');
   });
 
+  it('CloudFront media 공개 키의 마지막 개행을 제거한다', () => {
+    const mediaPublicKeyPem =
+      '-----BEGIN PUBLIC KEY-----\ndGVzdA==\n-----END PUBLIC KEY-----';
+    const config = readInfrastructureConfig({
+      account: '123456789012',
+      rootDomain: 'example.com',
+      hostedZoneId: 'Z0123456789EXAMPLE',
+      alertEmail: 'owner@example.com',
+      githubRepository: 'Dessert99/flex-thai',
+      mediaPublicKeyPem: `${mediaPublicKeyPem}\n`,
+    });
+
+    expect(config.mediaPublicKeyPem).toBe(mediaPublicKeyPem);
+  });
+
   it('CloudFront media public key가 PEM 형식이 아니면 거부한다', () => {
     expect(() =>
       readInfrastructureConfig({
