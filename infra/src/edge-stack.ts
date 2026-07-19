@@ -27,7 +27,7 @@ export interface EdgeStackProps extends StackProps {
   applicationStack: ApplicationStack;
 }
 
-/** CloudFront와 app domain을 배치할 글로벌 경계 Stack */
+/** CloudFront와 정식 Web domain을 배치할 글로벌 경계 Stack */
 export class EdgeStack extends Stack {
   constructor(scope: Construct, id: string, props: EdgeStackProps) {
     super(scope, id, props);
@@ -38,7 +38,8 @@ export class EdgeStack extends Stack {
       'DataStack이 같은 계정의 CloudFront OAC 읽기 정책을 소유한다.',
     );
 
-    const appDomain = `app.${props.config.rootDomain}`;
+    const rootDomain = props.config.rootDomain;
+    const webDomain = `www.${rootDomain}`;
     const hostedZone = route53.PublicHostedZone.fromPublicHostedZoneAttributes(
       this,
       'HostedZone',
@@ -48,7 +49,8 @@ export class EdgeStack extends Stack {
       },
     );
     const certificate = new acm.Certificate(this, 'Certificate', {
-      domainName: appDomain,
+      domainName: webDomain,
+      subjectAlternativeNames: [rootDomain],
       validation: acm.CertificateValidation.fromDns(hostedZone),
     });
     const webBucket = new s3.Bucket(this, 'WebBucket', {
@@ -107,8 +109,51 @@ export class EdgeStack extends Stack {
         enableAcceptEncodingGzip: true,
       },
     );
+    const redirectFunction = new cloudfront.Function(this, 'RootRedirect', {
+      runtime: cloudfront.FunctionRuntime.JS_2_0,
+      comment: 'Redirect the root FLEX THIA domain to the canonical www domain',
+      code: cloudfront.FunctionCode.fromInline(`
+function serializeQueryString(querystring) {
+  var pairs = [];
+  Object.keys(querystring).forEach(function (key) {
+    var entry = querystring[key];
+    var values = entry.multiValue || [entry];
+    values.forEach(function (item) {
+      var pair = encodeURIComponent(key);
+      if (item.value !== '') {
+        pair += '=' + encodeURIComponent(item.value);
+      }
+      pairs.push(pair);
+    });
+  });
+  return pairs.length === 0 ? '' : '?' + pairs.join('&');
+}
+
+function handler(event) {
+  var request = event.request;
+  if (request.headers.host.value !== '${rootDomain}') {
+    return request;
+  }
+  return {
+    statusCode: 308,
+    statusDescription: 'Permanent Redirect',
+    headers: {
+      location: {
+        value: 'https://${webDomain}' + request.uri + serializeQueryString(request.querystring)
+      }
+    }
+  };
+}
+`),
+    });
+    const redirectFunctionAssociations: cloudfront.FunctionAssociation[] = [
+      {
+        function: redirectFunction,
+        eventType: cloudfront.FunctionEventType.VIEWER_REQUEST,
+      },
+    ];
     const distribution = new cloudfront.Distribution(this, 'Distribution', {
-      domainNames: [appDomain],
+      domainNames: [rootDomain, webDomain],
       certificate,
       defaultRootObject: 'index.html',
       defaultBehavior: {
@@ -116,6 +161,7 @@ export class EdgeStack extends Stack {
         allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
         cachePolicy: htmlCachePolicy,
         compress: true,
+        functionAssociations: redirectFunctionAssociations,
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
       },
       additionalBehaviors: {
@@ -124,6 +170,7 @@ export class EdgeStack extends Stack {
           allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
           cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
           compress: true,
+          functionAssociations: redirectFunctionAssociations,
           viewerProtocolPolicy:
             cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         },
@@ -132,6 +179,7 @@ export class EdgeStack extends Stack {
           allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
           cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
           compress: true,
+          functionAssociations: redirectFunctionAssociations,
           trustedKeyGroups: [mediaKeyGroup],
           viewerProtocolPolicy:
             cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
@@ -166,22 +214,29 @@ export class EdgeStack extends Stack {
       prune: true,
       retainOnDelete: true,
     });
-    new route53.ARecord(this, 'AliasA', {
+    const cloudFrontTarget = route53.RecordTarget.fromAlias(
+      new route53Targets.CloudFrontTarget(distribution),
+    );
+    new route53.ARecord(this, 'RootAliasA', {
       zone: hostedZone,
-      recordName: 'app',
-      target: route53.RecordTarget.fromAlias(
-        new route53Targets.CloudFrontTarget(distribution),
-      ),
+      target: cloudFrontTarget,
     });
-    new route53.AaaaRecord(this, 'AliasAaaa', {
+    new route53.AaaaRecord(this, 'RootAliasAaaa', {
       zone: hostedZone,
-      recordName: 'app',
-      target: route53.RecordTarget.fromAlias(
-        new route53Targets.CloudFrontTarget(distribution),
-      ),
+      target: cloudFrontTarget,
+    });
+    new route53.ARecord(this, 'WwwAliasA', {
+      zone: hostedZone,
+      recordName: 'www',
+      target: cloudFrontTarget,
+    });
+    new route53.AaaaRecord(this, 'WwwAliasAaaa', {
+      zone: hostedZone,
+      recordName: 'www',
+      target: cloudFrontTarget,
     });
     new CfnOutput(this, 'WebUrl', {
-      value: `https://${appDomain}`,
+      value: `https://${webDomain}`,
     });
   }
 }
