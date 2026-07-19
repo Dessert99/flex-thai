@@ -292,7 +292,7 @@ git commit -m "feat: validate local infrastructure settings"
 - Consumes: Task 1의 `readLocalProductionDiffEnvironment`, `createProductionInfrastructureConfig`, `assertExpectedAwsAccount`, `createProductionDiffArguments`
 - Produces: 루트 명령 `pnpm infra:diff:prod`
 
-- [ ] **Step 1: 전용 환경 파일 예시 작성**
+- [x] **Step 1: 전용 환경 파일 예시 작성**
 
 Create `.env.infrastructure.example`:
 
@@ -309,7 +309,7 @@ MONTHLY_BUDGET_USD=30
 MEDIA_PUBLIC_KEY_PATH=media-public-key.pem
 ```
 
-- [ ] **Step 2: 예시 파일만 Git에 포함되도록 예외 추가**
+- [x] **Step 2: 예시 파일만 Git에 포함되도록 예외 추가**
 
 Add the exact example exception under `# env files` in `.gitignore`:
 
@@ -321,7 +321,7 @@ Add the exact example exception under `# env files` in `.gitignore`:
 !.env.infrastructure.example
 ```
 
-- [ ] **Step 3: 얇은 로컬 실행기 작성**
+- [x] **Step 3: 얇은 로컬 실행기 작성**
 
 Create `infra/scripts/diff-production.ts`:
 
@@ -416,7 +416,7 @@ try {
 }
 ```
 
-- [ ] **Step 4: TypeScript 검사 범위에 실행기 포함**
+- [x] **Step 4: TypeScript 검사 범위에 실행기 포함**
 
 Modify `infra/tsconfig.json`:
 
@@ -432,7 +432,7 @@ Modify `infra/tsconfig.json`:
 }
 ```
 
-- [ ] **Step 5: infra와 루트 실행 명령 추가**
+- [x] **Step 5: infra와 루트 실행 명령 추가**
 
 Add to `infra/package.json` scripts:
 
@@ -446,7 +446,7 @@ Add to root `package.json` scripts:
 "infra:diff:prod": "pnpm --filter @flex-thia/infra diff:prod"
 ```
 
-- [ ] **Step 6: 실행기 정적 검증**
+- [x] **Step 6: 실행기 정적 검증**
 
 Run:
 
@@ -458,7 +458,7 @@ pnpm exec prettier --check .env.infrastructure.example infra/src/local-productio
 
 Expected: all commands exit `0`.
 
-- [ ] **Step 7: 예시와 실제 로컬 파일의 Git 경계를 확인**
+- [x] **Step 7: 예시와 실제 로컬 파일의 Git 경계를 확인**
 
 Run:
 
@@ -471,7 +471,7 @@ git check-ignore -v media-private-key.pem
 Expected: the example file is not ignored, while both local-only paths are
 matched by `.gitignore`.
 
-- [ ] **Step 8: Task 2 커밋**
+- [x] **Step 8: Task 2 커밋**
 
 ```bash
 git add .env.infrastructure.example .gitignore infra/scripts/diff-production.ts infra/package.json infra/tsconfig.json package.json

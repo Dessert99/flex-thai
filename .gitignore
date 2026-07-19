@@ -36,6 +36,7 @@ yarn-error.log*
 .env
 .env.*
 !.env.example
+!.env.infrastructure.example
 
 # local deployment output
 cdk-outputs.json
