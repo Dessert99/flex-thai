@@ -74,10 +74,7 @@ export class ApplicationStack extends Stack {
     );
     this.httpApi = new HttpApi(this, 'HttpApi', {
       apiAssetPath,
-      allowedOrigins: [
-        `https://${webDomain}`,
-        'http://localhost:5173',
-      ],
+      allowedOrigins: [`https://${webDomain}`, 'http://localhost:5173'],
       allowedEmailDomains: props.config.allowedEmailDomains,
       domainName: apiDomain,
       hostedZone,

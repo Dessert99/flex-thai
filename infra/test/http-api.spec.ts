@@ -95,21 +95,17 @@ describe('HttpApi 운영 API 경계', () => {
     });
     template.hasResourceProperties('AWS::ApiGatewayV2::Api', {
       CorsConfiguration: Match.objectLike({
-        AllowOrigins: [
-          'https://www.example.com',
-          'http://localhost:5173',
-        ],
+        AllowOrigins: ['https://www.example.com', 'http://localhost:5173'],
       }),
     });
     template.hasResourceProperties('AWS::Lambda::Function', {
       Environment: {
         Variables: Match.objectLike({
-          ALLOWED_ORIGINS:
-            'https://www.example.com,http://localhost:5173',
+          ALLOWED_ORIGINS: 'https://www.example.com,http://localhost:5173',
         }),
       },
     });
-    expect(Object.values(template.toJSON().Outputs ?? {})).toContainEqual({
+    template.hasOutput('*', {
       Value: 'https://api.example.com',
     });
     expect(JSON.stringify(template.toJSON())).not.toContain('app.example.com');

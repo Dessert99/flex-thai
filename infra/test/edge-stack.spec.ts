@@ -1,4 +1,5 @@
 /** 정적 파일과 media가 S3 URL로 직접 공개되지 않게 고정한다 */
+import { runInNewContext } from 'node:vm';
 import { App } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import { describe, expect, it } from 'vitest';
@@ -16,6 +17,32 @@ const config = readInfrastructureConfig({
   mediaPublicKeyPem:
     '-----BEGIN PUBLIC KEY-----\ndGVzdA==\n-----END PUBLIC KEY-----',
 });
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const readRedirectFunctionCode = (template: Template): string => {
+  const functions = template.findResources(
+    'AWS::CloudFront::Function',
+  ) as unknown;
+  if (!isRecord(functions)) {
+    throw new Error('CloudFront Function 목록을 읽을 수 없습니다.');
+  }
+  const [redirectFunction] = Object.values(functions);
+  if (!isRecord(redirectFunction)) {
+    throw new Error('CloudFront redirect Function이 생성되지 않았습니다.');
+  }
+  const properties = redirectFunction.Properties;
+  if (!isRecord(properties) || typeof properties.FunctionCode !== 'string') {
+    throw new Error('CloudFront redirect Function 코드를 읽을 수 없습니다.');
+  }
+  return properties.FunctionCode;
+};
+
+const runRedirectFunction = (code: string, request: unknown): unknown =>
+  runInNewContext(
+    `${code}; handler(${JSON.stringify({ request })});`,
+  ) as unknown;
 
 describe('EdgeStack 웹 전송 경계', () => {
   it('Web bucket public access를 막고 CloudFront OAC만 연결한다', () => {
@@ -115,16 +142,7 @@ describe('EdgeStack 웹 전송 경계', () => {
       applicationStack,
     });
     const template = Template.fromStack(stack);
-    const functions = template.findResources('AWS::CloudFront::Function');
-    const [redirectFunction] = Object.values(functions);
-    expect(redirectFunction).toBeDefined();
-    if (!redirectFunction) {
-      throw new Error('CloudFront redirect Function이 생성되지 않았습니다.');
-    }
-    const code = redirectFunction.Properties.FunctionCode as string;
-    const handler = new Function(`${code}; return handler;`)() as (
-      event: unknown,
-    ) => unknown;
+    const code = readRedirectFunctionCode(template);
     const request = {
       headers: { host: { value: 'example.com' } },
       uri: '/lessons',
@@ -136,7 +154,7 @@ describe('EdgeStack 웹 전송 경계', () => {
       },
     };
 
-    expect(handler({ request })).toEqual({
+    expect(runRedirectFunction(code, request)).toEqual({
       statusCode: 308,
       statusDescription: 'Permanent Redirect',
       headers: {
@@ -147,11 +165,9 @@ describe('EdgeStack 웹 전송 경계', () => {
       },
     });
     expect(
-      handler({
-        request: {
-          ...request,
-          headers: { host: { value: 'www.example.com' } },
-        },
+      runRedirectFunction(code, {
+        ...request,
+        headers: { host: { value: 'www.example.com' } },
       }),
     ).toEqual({
       ...request,
