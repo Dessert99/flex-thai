@@ -489,7 +489,7 @@ git commit -m "feat: add local infrastructure diff command"
 - Consumes: Task 2의 `.env.infrastructure.example`과 `pnpm infra:diff:prod`
 - Produces: 사용자가 한 번 설정하고 반복 실행할 수 있는 로컬 배포 안내
 
-- [ ] **Step 1: 일반 앱 환경 파일에서 인프라 설정 분리 안내**
+- [x] **Step 1: 일반 앱 환경 파일에서 인프라 설정 분리 안내**
 
 Replace the production deployment block in `.env.example` with:
 
@@ -498,7 +498,7 @@ Replace the production deployment block in `.env.example` with:
 ## 실제 배포 값은 .env가 아니라 GitHub production environment에 등록한다.
 ```
 
-- [ ] **Step 2: AWS 배포 문서를 전용 명령으로 단순화**
+- [x] **Step 2: AWS 배포 문서를 전용 명령으로 단순화**
 
 Replace the manual export block under `## 최초 배포 전에 로컬에서 확인` in
 `docs/development/aws-deployment.md` with:
@@ -525,7 +525,7 @@ pnpm infra:diff:prod
 같은지 확인한 뒤 `cdk diff --all --no-change-set`을 실행한다.
 ````
 
-- [ ] **Step 3: 기존 도메인 구현 계획의 남은 실행 명령 갱신**
+- [x] **Step 3: 기존 도메인 구현 계획의 남은 실행 명령 갱신**
 
 Update Task 4 Steps 5 and 6 in
 `docs/superpowers/plans/2026-07-19-production-domain-routing.md`:
@@ -555,7 +555,7 @@ Expected:
 - `cdk deploy`는 실행되지 않고 AWS 자원도 생성되지 않는다.
 ````
 
-- [ ] **Step 4: 문서와 전체 저장소 검사**
+- [x] **Step 4: 문서와 전체 저장소 검사**
 
 Run:
 
@@ -572,7 +572,7 @@ Expected:
 - infra tests include 8 files and 26 tests, all PASS.
 - typecheck, format, lint all exit `0`.
 
-- [ ] **Step 5: 실제 AWS를 호출하지 않은 상태 확인**
+- [x] **Step 5: 실제 AWS를 호출하지 않은 상태 확인**
 
 Run:
 
@@ -584,7 +584,7 @@ git status --short
 Expected: only the planned documentation changes are uncommitted; no
 `cdk-outputs.json`, CloudFormation output, or local environment file is tracked.
 
-- [ ] **Step 6: Task 3 커밋**
+- [x] **Step 6: Task 3 커밋**
 
 ```bash
 git add .env.example docs/development/aws-deployment.md docs/superpowers/plans/2026-07-19-production-domain-routing.md

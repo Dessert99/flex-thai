@@ -57,32 +57,27 @@ pnpm infra:synth
 `infra:synth`는 fixture account와 domain으로 template만 만든다. 실제
 AWS에는 아무것도 생성하지 않는다.
 
-실제 계정으로 변경 내용만 확인하려면 사람용 임시 profile로 다음 명령을
-사용할 수 있다.
+실제 계정으로 변경 내용만 확인하려면 전용 로컬 환경 파일을 한 번 만든다.
 
 ```bash
-export AWS_PROFILE=flex-thia-admin
-export AWS_ACCOUNT_ID=123456789012
-export ROOT_DOMAIN=example.com
-export HOSTED_ZONE_ID=Z0123456789EXAMPLE
-export ALERT_EMAIL=owner@example.com
-export ALLOWED_EMAIL_DOMAINS=school.ac.kr
-export MONTHLY_BUDGET_USD=30
-export MEDIA_PUBLIC_KEY_PEM="$(cat media-public-key.pem)"
-
-pnpm infra:diff -- \
-  -c "account=$AWS_ACCOUNT_ID" \
-  -c "rootDomain=$ROOT_DOMAIN" \
-  -c "hostedZoneId=$HOSTED_ZONE_ID" \
-  -c "alertEmail=$ALERT_EMAIL" \
-  -c "githubRepository=Dessert99/flex-thai" \
-  -c "mediaPublicKeyPem=$MEDIA_PUBLIC_KEY_PEM" \
-  -c "allowedEmailDomains=$ALLOWED_EMAIL_DOMAINS" \
-  -c "monthlyBudgetUsd=$MONTHLY_BUDGET_USD"
+cp .env.infrastructure.example .env.infrastructure.local
 ```
 
-`cdk diff`는 읽기와 synth를 수행하지만 deploy하지 않는다. lookup 과정에서
-AWS API를 읽을 수는 있다.
+`.env.infrastructure.local`에서 예시 값을 실제 GitHub production Variables와
+같게 채운다. `MEDIA_PUBLIC_KEY_PATH`에는 private key가 아니라 공개 키 파일
+경로를 적는다.
+
+AWS SSO 로그인 후 전용 명령을 실행한다.
+
+```bash
+aws sso login --profile flex-thia-admin
+pnpm infra:diff:prod
+```
+
+이 명령은 환경 파일과 공개 키를 검증하고, 로그인한 AWS account가 설정값과
+같은지 확인한 뒤 `cdk diff --all --no-change-set`을 실행한다. AWS API를
+읽고 synth하지만 deploy하거나 임시 CloudFormation change set을 만들지
+않는다.
 
 ## `cdk diff` 읽는 법
 

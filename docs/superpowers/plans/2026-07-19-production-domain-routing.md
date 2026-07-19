@@ -775,60 +775,30 @@ rg -n "www\\.example\\.com|api\\.example\\.com|app\\.example\\.com" infra/cdk.ou
 Expected: `www.example.com`과 `api.example.com`은 출력되고
 `app.example.com`은 출력되지 않는다.
 
-- [ ] **Step 5: production context의 필수 로컬 값을 확인**
-
-다음 명령은 값을 출력하지 않고 누락 여부만 확인한다.
+- [ ] **Step 5: production 로컬 설정과 AWS SSO를 확인**
 
 ```bash
-test -n "$ALERT_EMAIL"
-test -n "$ALLOWED_EMAIL_DOMAINS"
+test -f .env.infrastructure.local
 test -f media-public-key.pem
 aws sso login --profile flex-thia-admin
-aws sts get-caller-identity \
-  --profile flex-thia-admin \
-  --query Account \
-  --output text
 ```
 
-Expected: 앞의 세 명령은 출력 없이 성공하고, 마지막 명령은
-`330422589765`를 출력한다.
+Expected: 앞의 두 명령은 출력 없이 성공하고 AWS SSO 로그인이 완료된다.
 
-- [ ] **Step 6: production context를 구성하고 read-only diff 실행**
+- [ ] **Step 6: read-only production diff 실행**
 
 ```bash
-export AWS_PROFILE=flex-thia-admin
-export AWS_ACCOUNT_ID=330422589765
-export ROOT_DOMAIN=pleasegraduate.me
-export HOSTED_ZONE_ID="$(
-  aws route53 list-hosted-zones-by-name \
-    --profile "$AWS_PROFILE" \
-    --dns-name "$ROOT_DOMAIN" \
-    --query "HostedZones[?Name=='${ROOT_DOMAIN}.'].Id | [0]" \
-    --output text |
-    sed 's|/hostedzone/||'
-)"
-export GITHUB_REPOSITORY_CONTEXT=Dessert99/flex-thai
-export MEDIA_PUBLIC_KEY_PEM="$(<media-public-key.pem)"
-export MONTHLY_BUDGET_USD=30
-
-pnpm --filter @flex-thia/infra exec cdk diff --all \
-  --profile "$AWS_PROFILE" \
-  -c "account=$AWS_ACCOUNT_ID" \
-  -c "rootDomain=$ROOT_DOMAIN" \
-  -c "hostedZoneId=$HOSTED_ZONE_ID" \
-  -c "alertEmail=$ALERT_EMAIL" \
-  -c "githubRepository=$GITHUB_REPOSITORY_CONTEXT" \
-  -c "mediaPublicKeyPem=$MEDIA_PUBLIC_KEY_PEM" \
-  -c "allowedEmailDomains=$ALLOWED_EMAIL_DOMAINS" \
-  -c "monthlyBudgetUsd=$MONTHLY_BUDGET_USD"
+pnpm infra:diff:prod
 ```
 
 Expected:
 
+- 실행기가 `AWS_ACCOUNT_ID`와 현재 SSO account가 같은지 확인한다.
 - 세 stack의 생성 예정 자원이 표시된다.
 - Edge stack에 루트·`www` 인증서, CloudFront Function, A·AAAA records가 보인다.
 - Application stack에 `api` 인증서, custom domain, API mapping, A record가 보인다.
 - `app.pleasegraduate.me` 레코드나 인증서가 보이지 않는다.
+- `--no-change-set` 때문에 임시 CloudFormation change set도 만들지 않는다.
 - `cdk deploy`는 실행되지 않고 AWS 자원도 생성되지 않는다.
 
 - [ ] **Step 7: diff 결과를 사용자와 함께 검토하고 멈춤**
