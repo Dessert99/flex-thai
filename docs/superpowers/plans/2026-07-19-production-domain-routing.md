@@ -50,7 +50,7 @@
 - Produces: CloudFront aliases `rootDomain`·`www.${rootDomain}`, Route 53 A·AAAA records 4개, CloudFront Function viewer-request association
 - Preserves: `EdgeStackProps`, 기존 S3 web/media origins, `/media/*` trusted key group
 
-- [ ] **Step 1: 도메인과 리다이렉트 동작의 실패 테스트 작성**
+- [x] **Step 1: 도메인과 리다이렉트 동작의 실패 테스트 작성**
 
 `infra/test/edge-stack.spec.ts`의 Vitest import에 `expect`를 추가하고
 `describe`를 한국어로 바꾼다.
@@ -168,7 +168,7 @@ it('루트 요청의 path와 query를 보존해 www로 리다이렉트한다', (
 });
 ```
 
-- [ ] **Step 2: 새 테스트가 현재 `app` 구현에서 실패하는지 확인**
+- [x] **Step 2: 새 테스트가 현재 `app` 구현에서 실패하는지 확인**
 
 Run:
 
@@ -179,7 +179,7 @@ pnpm --filter @flex-thia/infra test -- edge-stack.spec.ts
 Expected: `AWS::Route53::RecordSet` 수량, 인증서 도메인 또는
 `AWS::CloudFront::Function` 검증이 실패한다.
 
-- [ ] **Step 3: CloudFront 인증서·Function·aliases를 최소 구현**
+- [x] **Step 3: CloudFront 인증서·Function·aliases를 최소 구현**
 
 `infra/src/edge-stack.ts`의 클래스 설명과 도메인 계산을 다음과 같이
 바꾼다.
@@ -312,7 +312,7 @@ const distribution = new cloudfront.Distribution(this, 'Distribution', {
 });
 ```
 
-- [ ] **Step 4: 루트·`www` Route 53 aliases와 output 구현**
+- [x] **Step 4: 루트·`www` Route 53 aliases와 output 구현**
 
 기존 `AliasA`, `AliasAaaa` 레코드와 `WebUrl` output을 다음으로 교체한다.
 
@@ -343,7 +343,7 @@ new CfnOutput(this, 'WebUrl', {
 });
 ```
 
-- [ ] **Step 5: EdgeStack 테스트와 typecheck 통과 확인**
+- [x] **Step 5: EdgeStack 테스트와 typecheck 통과 확인**
 
 Run:
 
@@ -354,7 +354,7 @@ pnpm --filter @flex-thia/infra typecheck
 
 Expected: 두 명령 모두 exit code `0`.
 
-- [ ] **Step 6: 웹 도메인 변경 커밋**
+- [x] **Step 6: 웹 도메인 변경 커밋**
 
 ```bash
 git add infra/src/edge-stack.ts infra/test/edge-stack.spec.ts
@@ -378,7 +378,7 @@ git commit -m "feat: route production web domains"
 - Produces: `api.${rootDomain}` certificate, API Gateway V2 DomainName, root ApiMapping, Route 53 A alias, custom `ApiUrl` output
 - Preserves: 기존 API route·authorizer·Lambda·throttling·access logs
 
-- [ ] **Step 1: API custom domain·CORS 실패 테스트 작성**
+- [x] **Step 1: API custom domain·CORS 실패 테스트 작성**
 
 `infra/test/http-api.spec.ts`의 `vitest` import와 `describe`를 바꾼다.
 
@@ -440,7 +440,7 @@ it('api custom domain과 www CORS origin을 사용한다', () => {
 });
 ```
 
-- [ ] **Step 2: passwordless 링크의 정식 주소 실패 테스트 작성**
+- [x] **Step 2: passwordless 링크의 정식 주소 실패 테스트 작성**
 
 `infra/test/identity.spec.ts`의 `describe`를 한국어로 바꾼다.
 
@@ -470,7 +470,7 @@ it('passwordless 로그인 링크가 www 운영 주소를 사용한다', () => {
 });
 ```
 
-- [ ] **Step 3: 새 테스트가 기본 API 주소와 `app` origin에서 실패하는지 확인**
+- [x] **Step 3: 새 테스트가 기본 API 주소와 `app` origin에서 실패하는지 확인**
 
 Run:
 
@@ -481,7 +481,7 @@ pnpm --filter @flex-thia/infra test -- http-api.spec.ts identity.spec.ts
 Expected: API custom domain resource, `www` CORS 또는 `APP_URL` 검증이
 실패한다.
 
-- [ ] **Step 4: `HttpApiProps`에 도메인 경계를 추가**
+- [x] **Step 4: `HttpApiProps`에 도메인 경계를 추가**
 
 `infra/src/constructs/http-api.ts` import에 ACM, Route 53과 target을 추가한다.
 
@@ -504,7 +504,7 @@ export interface HttpApiProps {
   cluster: rds.DatabaseCluster;
 ```
 
-- [ ] **Step 5: API 인증서·custom domain·mapping·DNS 구현**
+- [x] **Step 5: API 인증서·custom domain·mapping·DNS 구현**
 
 `this.api = new apigwv2.HttpApi(...)` 이후에 인증서와 domain을 만든다.
 
@@ -543,7 +543,7 @@ new CfnOutput(this, 'ApiUrl', {
 });
 ```
 
-- [ ] **Step 6: `ApplicationStack`에서 `www`와 `api` 주소를 한 번만 계산**
+- [x] **Step 6: `ApplicationStack`에서 `www`와 `api` 주소를 한 번만 계산**
 
 `infra/src/application-stack.ts`에서 hosted zone 생성 직후 다음 값을 만든다.
 
@@ -590,7 +590,7 @@ this.httpApi = new HttpApi(this, 'HttpApi', {
 });
 ```
 
-- [ ] **Step 7: API와 Identity 테스트·typecheck 통과 확인**
+- [x] **Step 7: API와 Identity 테스트·typecheck 통과 확인**
 
 Run:
 
@@ -601,7 +601,7 @@ pnpm --filter @flex-thia/infra typecheck
 
 Expected: 두 명령 모두 exit code `0`.
 
-- [ ] **Step 8: API 도메인 변경 커밋**
+- [x] **Step 8: API 도메인 변경 커밋**
 
 ```bash
 git add infra/src/application-stack.ts infra/src/constructs/http-api.ts infra/test/http-api.spec.ts infra/test/identity.spec.ts
@@ -623,7 +623,7 @@ git commit -m "feat: add production api domain"
 - Consumes: Task 1·2의 확정 주소와 현재 로컬 SSO profile `flex-thia-admin`
 - Produces: 초보 개발자가 그대로 따라도 `app` 주소나 실패한 bootstrap 명령을 사용하지 않는 운영 문서
 
-- [ ] **Step 1: 계정 설정 문서의 운영 주소 수정**
+- [x] **Step 1: 계정 설정 문서의 운영 주소 수정**
 
 `docs/development/aws-account-setup.md`의 도메인 목록을 다음으로 바꾼다.
 
@@ -636,7 +636,7 @@ git commit -m "feat: add production api domain"
 - `no-reply@<ROOT_DOMAIN>`: passwordless 로그인 이메일 발신 주소
 ```
 
-- [ ] **Step 2: 이미 검증한 bootstrap 명령으로 문서 수정**
+- [x] **Step 2: 이미 검증한 bootstrap 명령으로 문서 수정**
 
 `docs/development/aws-account-setup.md`의 두 bootstrap 명령을 다음으로
 교체한다. `pnpm --filter`는 `infra/cdk.json`을 읽어 production context
@@ -654,7 +654,7 @@ git commit -m "feat: add production api domain"
   --termination-protection
 ```
 
-- [ ] **Step 3: 배포 후 확인 주소와 명령 수정**
+- [x] **Step 3: 배포 후 확인 주소와 명령 수정**
 
 `docs/development/aws-deployment.md`의 웹 주소 안내를 다음으로 바꾼다.
 
@@ -683,7 +683,7 @@ curl https://api.<ROOT_DOMAIN>/health
 - [ ] `https://api.<ROOT_DOMAIN>/health`와 재시도 후 `/ready`가 정상이다.
 ```
 
-- [ ] **Step 4: 기존 전체 설계 문서의 도메인 경계 수정**
+- [x] **Step 4: 기존 전체 설계 문서의 도메인 경계 수정**
 
 `docs/superpowers/specs/2026-07-17-aws-serverless-infrastructure-design.md`의
 Web·API 도메인 목록을 다음으로 맞춘다.
@@ -694,7 +694,7 @@ Web·API 도메인 목록을 다음으로 맞춘다.
 - API: `api.<root-domain>`
 ```
 
-- [ ] **Step 5: 현재 운영 문서에 폐기한 `app` 주소가 없는지 확인**
+- [x] **Step 5: 현재 운영 문서에 폐기한 `app` 주소가 없는지 확인**
 
 Run:
 
@@ -707,7 +707,7 @@ rg -n "app\\.<ROOT_DOMAIN>|https://app\\.|app\\.<root-domain>" \
 
 Expected: 출력 없음, exit code `1`.
 
-- [ ] **Step 6: 문서 변경 커밋**
+- [x] **Step 6: 문서 변경 커밋**
 
 ```bash
 git add docs/development/aws-account-setup.md docs/development/aws-deployment.md docs/superpowers/specs/2026-07-17-aws-serverless-infrastructure-design.md
@@ -730,7 +730,7 @@ git commit -m "docs: align aws production domains"
 - Consumes: Task 1~3의 구현과 이미 등록된 GitHub production environment 값
 - Produces: AWS 배포 전에 검토 가능한 CloudFormation template과 실제 계정 변경점
 
-- [ ] **Step 1: 인프라 전체 테스트 실행**
+- [x] **Step 1: 인프라 전체 테스트 실행**
 
 Run:
 
@@ -740,7 +740,7 @@ pnpm --filter @flex-thia/infra test
 
 Expected: 모든 `infra/test` 테스트 PASS, exit code `0`.
 
-- [ ] **Step 2: 정적 검증 실행**
+- [x] **Step 2: 정적 검증 실행**
 
 Run:
 
@@ -753,7 +753,7 @@ git diff --check
 
 Expected: 네 명령 모두 exit code `0`.
 
-- [ ] **Step 3: 테스트 fixture로 CDK template 합성**
+- [x] **Step 3: 테스트 fixture로 CDK template 합성**
 
 Run:
 
@@ -764,7 +764,7 @@ pnpm infra:synth
 Expected: `FlexThiaDataProd`, `FlexThiaApplicationProd`,
 `FlexThiaEdgeProd`가 모두 합성되고 exit code `0`.
 
-- [ ] **Step 4: 합성 결과에서 운영 주소 확인**
+- [x] **Step 4: 합성 결과에서 운영 주소 확인**
 
 Run:
 
@@ -843,4 +843,3 @@ Expected:
 
 문제가 없더라도 이 계획에서는 GitHub `deploy-production`을 실행하지 않는다.
 첫 배포는 별도 승인 후 진행한다.
-
