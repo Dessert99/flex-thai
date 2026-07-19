@@ -97,7 +97,9 @@ AWS_PROFILE=flex-thia-admin aws sts get-caller-identity
 `ROOT_DOMAIN`은 `example.com`처럼 사용자가 소유한 루트 도메인이다.
 현재 인프라는 이 도메인 아래에 다음 주소를 만든다.
 
-- `app.<ROOT_DOMAIN>`: CloudFront가 제공하는 웹 주소
+- `www.<ROOT_DOMAIN>`: CloudFront가 제공하는 정식 웹 주소
+- `<ROOT_DOMAIN>`: 정식 `www` 주소로 이동시키는 보조 주소
+- `api.<ROOT_DOMAIN>`: API Gateway가 제공하는 API 주소
 - `no-reply@<ROOT_DOMAIN>`: passwordless 로그인 이메일 발신 주소
 
 AWS Route 53의 public hosted zone은 이 도메인의 DNS 주소록이다. 이미
@@ -201,14 +203,19 @@ FLEX THIA는 두 리전을 사용하므로 각각 bootstrap해야 한다.
 export AWS_ACCOUNT_ID=123456789012
 export AWS_PROFILE=flex-thia-admin
 
-pnpm --filter @flex-thia/infra exec cdk bootstrap \
+./infra/node_modules/.bin/cdk bootstrap \
   "aws://$AWS_ACCOUNT_ID/ap-northeast-2" \
+  --profile "$AWS_PROFILE" \
   --termination-protection
 
-pnpm --filter @flex-thia/infra exec cdk bootstrap \
+./infra/node_modules/.bin/cdk bootstrap \
   "aws://$AWS_ACCOUNT_ID/us-east-1" \
+  --profile "$AWS_PROFILE" \
   --termination-protection
 ```
+
+`pnpm --filter`는 `infra/cdk.json`을 읽어 production context 검증을 먼저
+실행하므로 context가 없는 bootstrap에는 사용하지 않는다.
 
 `--termination-protection`은 실수로 bootstrap stack을 삭제하지 못하게
 한다. 같은 계정과 리전에는 보통 한 번만 실행한다.

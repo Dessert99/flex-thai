@@ -274,7 +274,8 @@ infra/          AWS CDK v2 TypeScript
 
 실제 루트 도메인은 배포 설정 값으로 받는다.
 
-- Web: `app.<root-domain>`
+- Canonical Web: `www.<root-domain>`
+- Web redirect: `<root-domain>` → `www.<root-domain>`
 - API: `api.<root-domain>`
 - 인증 이메일 발신: `auth@<root-domain>`
 

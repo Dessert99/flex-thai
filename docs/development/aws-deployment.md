@@ -155,8 +155,11 @@ CloudFront 인증서 검증과 배포에는 시간이 걸릴 수 있다. 다음 
 확인한다.
 
 ```text
-https://app.<ROOT_DOMAIN>
+https://www.<ROOT_DOMAIN>
 ```
+
+`https://<ROOT_DOMAIN>`으로 접속하면 path와 query를 유지한 채 위 `www`
+주소로 이동해야 한다.
 
 현재 `apps/web`은 아직 없으므로 완성된 프론트 화면이 아니라 인프라
 연결 확인용 최소 정적 페이지가 보이는 것이 정상이다.
@@ -173,7 +176,7 @@ https://app.<ROOT_DOMAIN>
 CloudFormation 출력의 API URL에서 `/health`를 호출한다.
 
 ```bash
-curl https://<API_ID>.execute-api.ap-northeast-2.amazonaws.com/health
+curl https://api.<ROOT_DOMAIN>/health
 ```
 
 `/ready`는 Aurora가 0 ACU에서 깨어나는 동안 잠시 `503 DB_RESUMING`을
@@ -276,8 +279,9 @@ column에 데이터를 썼다면 이전 코드가 그 데이터를 읽을 수 �
 - [ ] Budget 알림 수신 주소를 확인했다.
 - [ ] SES identity와 DKIM 상태가 `Verified`다.
 - [ ] SMS sandbox 또는 운영 승인을 확인했다.
-- [ ] `https://app.<ROOT_DOMAIN>`이 HTTPS로 열린다.
-- [ ] API `/health`와 재시도 후 `/ready`가 정상이다.
+- [ ] `https://www.<ROOT_DOMAIN>`이 HTTPS로 열린다.
+- [ ] `https://<ROOT_DOMAIN>`이 같은 path·query의 `www` 주소로 이동한다.
+- [ ] `https://api.<ROOT_DOMAIN>/health`와 재시도 후 `/ready`가 정상이다.
 - [ ] 예상하지 않은 상시 비용 자원이 없는지 Billing과 Cost Explorer를 확인했다.
 
 ## 현재 의도적으로 하지 않는 것
