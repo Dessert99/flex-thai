@@ -1,5 +1,6 @@
 /** 공개 인증과 보호 API를 Lambda·HTTP API로 연결한다 */
 import { CfnOutput, Duration, RemovalPolicy, Stack } from 'aws-cdk-lib';
+import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import * as apigwv2 from 'aws-cdk-lib/aws-apigatewayv2';
 import * as authorizers from 'aws-cdk-lib/aws-apigatewayv2-authorizers';
 import * as integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
@@ -8,6 +9,8 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import type * as rds from 'aws-cdk-lib/aws-rds';
+import * as route53 from 'aws-cdk-lib/aws-route53';
+import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
 import type * as s3 from 'aws-cdk-lib/aws-s3';
 import type * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import type * as sqs from 'aws-cdk-lib/aws-sqs';
@@ -18,6 +21,8 @@ export interface HttpApiProps {
   apiAssetPath: string;
   allowedOrigins: string[];
   allowedEmailDomains: string;
+  domainName: string;
+  hostedZone: route53.IHostedZone;
   cluster: rds.DatabaseCluster;
   clusterSecret: secretsmanager.ISecret;
   challengeHmacPepper: secretsmanager.ISecret;
@@ -116,6 +121,30 @@ export class HttpApi extends Construct {
         maxAge: Duration.hours(1),
       },
     });
+    const certificate = new acm.Certificate(this, 'Certificate', {
+      domainName: props.domainName,
+      validation: acm.CertificateValidation.fromDns(props.hostedZone),
+    });
+    const domainName = new apigwv2.DomainName(this, 'DomainName', {
+      domainName: props.domainName,
+      certificate,
+      endpointType: apigwv2.EndpointType.REGIONAL,
+      securityPolicy: apigwv2.SecurityPolicy.TLS_1_2,
+    });
+    new apigwv2.ApiMapping(this, 'ApiMapping', {
+      api: this.api,
+      domainName,
+    });
+    new route53.ARecord(this, 'DomainAliasA', {
+      zone: props.hostedZone,
+      recordName: props.domainName,
+      target: route53.RecordTarget.fromAlias(
+        new route53Targets.ApiGatewayv2DomainProperties(
+          domainName.regionalDomainName,
+          domainName.regionalHostedZoneId,
+        ),
+      ),
+    });
     const integration = new integrations.HttpLambdaIntegration(
       'ApiIntegration',
       this.apiFunction,
@@ -180,6 +209,8 @@ export class HttpApi extends Construct {
       }),
     };
 
-    new CfnOutput(this, 'ApiUrl', { value: this.api.apiEndpoint });
+    new CfnOutput(this, 'ApiUrl', {
+      value: `https://${props.domainName}`,
+    });
   }
 }

@@ -39,6 +39,8 @@ export class ApplicationStack extends Stack {
         zoneName: props.config.rootDomain,
       },
     );
+    const webDomain = `www.${props.config.rootDomain}`;
+    const apiDomain = `api.${props.config.rootDomain}`;
     const emailIdentity = new ses.EmailIdentity(this, 'EmailIdentity', {
       identity: ses.Identity.publicHostedZone(hostedZone),
     });
@@ -56,7 +58,7 @@ export class ApplicationStack extends Stack {
       challengeSessionKey: props.dataStack.challengeSessionKey,
       emailIdentity,
       fromEmail: `no-reply@${props.config.rootDomain}`,
-      appUrl: `https://app.${props.config.rootDomain}`,
+      appUrl: `https://${webDomain}`,
     });
     const workerRoot = fileURLToPath(
       new URL('../../apps/worker/src/', import.meta.url),
@@ -73,10 +75,12 @@ export class ApplicationStack extends Stack {
     this.httpApi = new HttpApi(this, 'HttpApi', {
       apiAssetPath,
       allowedOrigins: [
-        `https://app.${props.config.rootDomain}`,
+        `https://${webDomain}`,
         'http://localhost:5173',
       ],
       allowedEmailDomains: props.config.allowedEmailDomains,
+      domainName: apiDomain,
+      hostedZone,
       cluster: props.dataStack.cluster,
       clusterSecret: props.dataStack.clusterSecret,
       challengeHmacPepper: props.dataStack.challengeHmacPepper,

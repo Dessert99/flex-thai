@@ -16,7 +16,7 @@ const config = readInfrastructureConfig({
     '-----BEGIN PUBLIC KEY-----\ndGVzdA==\n-----END PUBLIC KEY-----',
 });
 
-describe('Identity', () => {
+describe('Identity 학교 이메일 인증 경계', () => {
   it('Cognito custom auth와 refresh token만 허용한다', () => {
     const app = new App();
     const dataStack = new DataStack(app, 'IdentityData');
@@ -98,6 +98,24 @@ describe('Identity', () => {
             Resource: '*',
           }),
         ]),
+      },
+    });
+  });
+
+  it('passwordless 로그인 링크가 www 운영 주소를 사용한다', () => {
+    const app = new App();
+    const dataStack = new DataStack(app, 'IdentityUrlData');
+    const stack = new ApplicationStack(app, 'IdentityUrlApplication', {
+      config,
+      dataStack,
+    });
+    const template = Template.fromStack(stack);
+
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      Environment: {
+        Variables: Match.objectLike({
+          APP_URL: 'https://www.example.com',
+        }),
       },
     });
   });
