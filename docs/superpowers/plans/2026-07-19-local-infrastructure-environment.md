@@ -35,7 +35,7 @@
 - Produces: `assertExpectedAwsAccount(actualAccount: string, expectedAccount: string): void`
 - Produces: `createProductionDiffArguments(config: InfrastructureConfig, awsProfile: string): readonly string[]`
 
-- [ ] **Step 1: 환경값 검증 실패 테스트 작성**
+- [x] **Step 1: 환경값 검증 실패 테스트 작성**
 
 Create `infra/test/local-production-diff.spec.ts`:
 
@@ -76,7 +76,7 @@ describe('assertExpectedAwsAccount', () => {
 });
 ```
 
-- [ ] **Step 2: 실패 원인이 구현 부재인지 확인**
+- [x] **Step 2: 실패 원인이 구현 부재인지 확인**
 
 Run:
 
@@ -86,7 +86,7 @@ pnpm exec vitest run infra/test/local-production-diff.spec.ts
 
 Expected: FAIL because `../src/local-production-diff.js` cannot be resolved.
 
-- [ ] **Step 3: 환경값 파서와 계정 안전장치 최소 구현**
+- [x] **Step 3: 환경값 파서와 계정 안전장치 최소 구현**
 
 Create `infra/src/local-production-diff.ts`:
 
@@ -199,7 +199,7 @@ export const createProductionDiffArguments = (
 ];
 ```
 
-- [ ] **Step 4: 첫 테스트가 통과하는지 확인**
+- [x] **Step 4: 첫 테스트가 통과하는지 확인**
 
 Run:
 
@@ -209,7 +209,7 @@ pnpm exec vitest run infra/test/local-production-diff.spec.ts
 
 Expected: 2 tests PASS.
 
-- [ ] **Step 5: 정상 변환과 CDK 인수 테스트 추가**
+- [x] **Step 5: 정상 변환과 CDK 인수 테스트 추가**
 
 Append to `infra/test/local-production-diff.spec.ts`:
 
@@ -261,7 +261,7 @@ describe('production diff 설정 변환', () => {
 });
 ```
 
-- [ ] **Step 6: 전체 새 테스트가 통과하는지 확인**
+- [x] **Step 6: 전체 새 테스트가 통과하는지 확인**
 
 Run:
 
@@ -271,7 +271,7 @@ pnpm exec vitest run infra/test/local-production-diff.spec.ts
 
 Expected: 4 tests PASS.
 
-- [ ] **Step 7: Task 1 커밋**
+- [x] **Step 7: Task 1 커밋**
 
 ```bash
 git add infra/src/local-production-diff.ts infra/test/local-production-diff.spec.ts
