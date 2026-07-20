@@ -4,13 +4,13 @@
 
 **Goal:** 깨끗한 GitHub Actions 설치에서도 CDK Lambda 번들링이 루트 `esbuild`를 찾게 한다.
 
-**Architecture:** CDK 번들링 설정은 유지하고, 명령이 실행되는 루트 workspace에 `esbuild`를 직접 선언한다. 하위 workspace와 같은 버전 범위를 사용해 도구 버전 차이를 만들지 않는다.
+**Architecture:** CDK 번들링 설정은 유지하고, 명령이 실행되는 루트 workspace에 `esbuild`를 직접 선언한다. 루트 Vitest/Vite의 peer 범위와 호환되는 버전을 사용하고 하위 workspace는 변경하지 않는다.
 
-**Tech Stack:** pnpm 10.33.0, esbuild 0.25.x, AWS CDK, Vitest
+**Tech Stack:** pnpm 10.33.0, esbuild 0.28.x, AWS CDK, Vitest
 
 ## Global Constraints
 
-- 루트 `devDependencies`에 `esbuild` `^0.25.0`만 추가한다.
+- 루트 `devDependencies`에 `esbuild` `^0.28.0`만 추가한다.
 - CDK 구성과 테스트 파일은 변경하지 않는다.
 - 검증은 깨끗한 worktree와 전체 프로젝트 검사로 수행한다.
 
@@ -25,7 +25,7 @@
 
 **Interfaces:**
 - Consumes: CDK `NodejsFunction`이 루트에서 실행하는 `pnpm exec esbuild`
-- Produces: 루트 workspace의 `esbuild` 0.25.x 실행 파일
+- Produces: 루트 workspace의 `esbuild` 0.28.x 실행 파일
 
 - [ ] **Step 1: 수정 전 실패를 확인한다**
 
@@ -38,14 +38,14 @@ Expected: `ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL Command "esbuild" not found`
 `package.json`의 `devDependencies`에 다음 항목을 추가한다.
 
 ```json
-"esbuild": "^0.25.0"
+"esbuild": "^0.28.0"
 ```
 
 - [ ] **Step 3: lockfile을 갱신한다**
 
 Run: `pnpm install --lockfile-only`
 
-Expected: 루트 importer에 `esbuild` `^0.25.0`과 해석된 0.25.x 버전이 기록된다.
+Expected: 루트 importer에 `esbuild` `^0.28.0`과 해석된 0.28.x 버전이 기록된다.
 
 - [ ] **Step 4: 깨끗한 설치 계약을 확인한다**
 
@@ -57,7 +57,7 @@ Expected: lockfile 변경 없이 의존성 설치가 완료된다.
 
 Run: `pnpm exec esbuild --version`
 
-Expected: `0.25.12`
+Expected: `0.28.1`
 
 - [ ] **Step 6: 전체 코드와 인프라 설계도를 검증한다**
 

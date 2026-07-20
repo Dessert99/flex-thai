@@ -8,9 +8,9 @@ CDK `NodejsFunction`은 루트 `pnpm-lock.yaml`을 기준으로 저장소 루트
 
 ## 결정
 
-루트 `package.json`의 `devDependencies`에 하위 workspace와 같은
-`esbuild` 버전 범위인 `^0.25.0`을 추가한다. CDK 설정과 테스트 구조는
-변경하지 않는다.
+루트 `package.json`의 `devDependencies`에 Vitest/Vite의 peer 범위와
+호환되는 `esbuild` `^0.28.0`을 추가한다. CDK 설정, 하위 workspace,
+테스트 구조는 변경하지 않는다.
 
 ## 검증
 

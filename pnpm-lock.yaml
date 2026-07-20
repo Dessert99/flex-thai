@@ -17,6 +17,9 @@ importers:
       '@typescript/native':
         specifier: npm:typescript@7.0.2
         version: typescript@7.0.2
+      esbuild:
+        specifier: ^0.28.0
+        version: 0.28.1
       eslint:
         specifier: ^9.39.0
         version: 9.39.5
