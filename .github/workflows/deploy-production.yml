@@ -112,6 +112,9 @@ jobs:
             echo "AWS_REGION=ap-northeast-2"
           } >> "$GITHUB_ENV"
 
+      - name: Aurora Data API 준비 대기
+        run: pnpm --filter @flex-thia/database db:wait:data-api
+
       - name: 운영 데이터베이스 migration
         run: pnpm --filter @flex-thia/database db:migrate:data-api
 
