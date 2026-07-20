@@ -10,7 +10,7 @@
     "db:generate": "drizzle-kit generate --config drizzle.local.config.ts",
     "db:migrate:local": "drizzle-kit migrate --config drizzle.local.config.ts",
     "db:wait:data-api": "tsx src/commands/wait-for-data-api.ts",
-    "db:migrate:data-api": "drizzle-kit migrate --config drizzle.data-api.config.ts"
+    "db:migrate:data-api": "tsx src/commands/migrate-data-api.ts"
   },
   "dependencies": {
     "@aws-sdk/client-rds-data": "^3.900.0",
