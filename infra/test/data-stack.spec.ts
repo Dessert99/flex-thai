@@ -10,6 +10,7 @@ describe('DataStack', () => {
 
     template.hasResourceProperties('AWS::RDS::DBCluster', {
       Engine: 'aurora-postgresql',
+      EngineVersion: '16.13',
       EnableHttpEndpoint: true,
       DeletionProtection: true,
       ServerlessV2ScalingConfiguration: {
