@@ -14,7 +14,7 @@ describe('StructuredLogger', () => {
       authorization: 'Bearer secret',
       cookie: 'refresh_token=secret',
       nested: {
-        email: 'admin@school.ac.kr',
+        email: 'admin@hufs.ac.kr',
         phoneNumber: '+821012345678',
         otp: '123456',
         token: 'secret',

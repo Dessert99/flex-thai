@@ -1,56 +1,73 @@
-/** DB 없이 passwordless와 step-up terminal 전이를 재현한다 */
+/** DB 없이 이메일 인증과 step-up terminal 전이를 재현한다 */
 import { randomUUID } from 'node:crypto';
 import type {
   AuthChallenge,
+  AuthChallengeCreation,
+  AuthChallengePurpose,
   AuthChallengeRepository,
+  ChallengeLimits,
   ChallengeStatus,
   StepUpChallenge,
   StepUpRepository,
 } from '@flex-thia/domain';
 
-/** PENDING challenge만 변경하는 fake passwordless repository */
+/** 발송 상한과 PENDING 전이를 메모리에서 재현하는 fake repository */
 export class FakeAuthChallengeRepository implements AuthChallengeRepository {
   private readonly challenges = new Map<string, AuthChallenge>();
 
-  /** trigger가 만든 HMAC과 만료만 저장한다 */
-  create(input: {
+  /** production repository와 같은 최근 60초·24시간 상한을 적용한다 */
+  createWithinLimits(input: {
     id: string;
-    emailHash: string;
+    email: string;
+    purpose: AuthChallengePurpose;
     codeHmac: string;
-    linkHmac: string;
     expiresAt: Date;
-  }): Promise<AuthChallenge> {
+    createdAt: Date;
+    limits: ChallengeLimits;
+  }): Promise<AuthChallengeCreation> {
+    const dailySince = input.createdAt.getTime() - 24 * 60 * 60 * 1000;
+    const existing = [...this.challenges.values()].filter(
+      (challenge) => challenge.createdAt.getTime() >= dailySince,
+    );
+    const byEmail = existing.filter(
+      (challenge) => challenge.email === input.email,
+    );
+    const last = byEmail.at(-1);
+    if (
+      last &&
+      input.createdAt.getTime() - last.createdAt.getTime() <
+        input.limits.cooldownSeconds * 1000
+    ) {
+      return Promise.resolve({ kind: 'COOLDOWN' });
+    }
+    if (byEmail.length >= input.limits.perEmailPerDay) {
+      return Promise.resolve({ kind: 'EMAIL_DAILY_LIMIT' });
+    }
+    if (existing.length >= input.limits.globalPerDay) {
+      return Promise.resolve({ kind: 'GLOBAL_DAILY_LIMIT' });
+    }
+
     const challenge: AuthChallenge = {
       id: input.id,
+      email: input.email,
+      purpose: input.purpose,
       codeHmac: input.codeHmac,
-      linkHmac: input.linkHmac,
       expiresAt: input.expiresAt,
-      sessionCiphertext: null,
+      createdAt: input.createdAt,
       attempts: 0,
       status: 'PENDING',
     };
     this.challenges.set(challenge.id, challenge);
-    return Promise.resolve(challenge);
+    return Promise.resolve({
+      kind: 'CREATED',
+      challenge,
+      globalLimitReached: existing.length + 1 === input.limits.globalPerDay,
+    });
   }
 
   /** challenge id로 현재 상태를 조회한다 */
   findById(challengeId: string): Promise<AuthChallenge | null> {
     return Promise.resolve(this.challenges.get(challengeId) ?? null);
-  }
-
-  /** API가 받은 Cognito session 암호문만 기존 row에 연결한다 */
-  attachSession(challengeId: string, ciphertext: string): Promise<void> {
-    const challenge = this.challenges.get(challengeId);
-
-    if (!challenge || challenge.status !== 'PENDING') {
-      return Promise.reject(new Error('PENDING challenge를 찾을 수 없습니다'));
-    }
-
-    this.challenges.set(challengeId, {
-      ...challenge,
-      sessionCiphertext: ciphertext,
-    });
-    return Promise.resolve();
   }
 
   /** 최대 횟수에 도달한 오답은 즉시 CANCELLED로 전이한다 */

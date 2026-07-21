@@ -45,7 +45,7 @@ describe('CognitoAuthorizerGuard', () => {
     const user = {
       id: 'user-id',
       cognitoSub: 'cognito-sub',
-      email: 'student@school.ac.kr',
+      email: 'student@hufs.ac.kr',
       role: 'ADMIN',
       status: 'ACTIVE',
       phoneVerifiedAt: null,
@@ -83,7 +83,7 @@ describe('CognitoAuthorizerGuard', () => {
     const user = {
       id: 'user-id',
       cognitoSub: 'cognito-sub',
-      email: 'student@school.ac.kr',
+      email: 'student@hufs.ac.kr',
       role: 'ADMIN',
       status: 'ACTIVE',
       phoneVerifiedAt: null,

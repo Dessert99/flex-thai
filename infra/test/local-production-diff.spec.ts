@@ -13,7 +13,7 @@ const validEnvironmentSource = {
   ROOT_DOMAIN: 'example.com',
   HOSTED_ZONE_ID: 'Z0123456789EXAMPLE',
   ALERT_EMAIL: 'owner@example.com',
-  ALLOWED_EMAIL_DOMAINS: 'school.ac.kr',
+  ALLOWED_EMAIL_DOMAINS: 'hufs.ac.kr',
   GITHUB_REPOSITORY_CONTEXT: 'Dessert99/flex-thai',
   MONTHLY_BUDGET_USD: '30',
   MEDIA_PUBLIC_KEY_PATH: 'media-public-key.pem',
@@ -47,7 +47,7 @@ describe('production diff 설정 변환', () => {
       account: '123456789012',
       rootDomain: 'example.com',
       hostedZoneId: 'Z0123456789EXAMPLE',
-      allowedEmailDomains: 'school.ac.kr',
+      allowedEmailDomains: 'hufs.ac.kr',
       monthlyBudgetUsd: 30,
     });
   });
@@ -75,7 +75,7 @@ describe('production diff 설정 변환', () => {
     expect(arguments_).not.toContain(
       'mediaPublicKeyPem=-----BEGIN PUBLIC KEY-----\ndGVzdA==\n-----END PUBLIC KEY-----',
     );
-    expect(arguments_).toContain('allowedEmailDomains=school.ac.kr');
+    expect(arguments_).toContain('allowedEmailDomains=hufs.ac.kr');
     expect(arguments_).toContain('monthlyBudgetUsd=30');
   });
 });

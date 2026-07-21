@@ -8,7 +8,7 @@ describe('parseBootstrapAdminArgs', () => {
       subject: 'cognito-sub-value',
     });
     expect(() =>
-      parseBootstrapAdminArgs(['--email=admin+tag@school.ac.kr']),
+      parseBootstrapAdminArgs(['--email=admin+tag@hufs.ac.kr']),
     ).toThrow('bootstrap-admin은 --sub 하나만 받습니다');
   });
 });

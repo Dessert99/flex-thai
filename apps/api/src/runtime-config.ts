@@ -1,4 +1,4 @@
-/** API Lambda가 Secrets Manager ARN을 메모리 설정으로 해석한다 */
+/** API Lambda가 인증 코드 HMAC pepper를 Secrets Manager에서 읽는다 */
 import {
   GetSecretValueCommand,
   SecretsManagerClient,
@@ -18,34 +18,22 @@ export class AwsApiSecretReader implements ApiSecretReader {
     const result = await this.client.send(
       new GetSecretValueCommand({ SecretId: secretArn }),
     );
-
     if (!result.SecretString) {
       throw new Error(`SecretString을 찾을 수 없습니다: ${secretArn}`);
     }
-
     return result.SecretString;
   }
 }
 
-/** secret ARN이 있으면 원문을 process.env에 쓰지 않고 새 설정 객체에만 넣는다 */
+/** pepper ARN이 있으면 원문을 process.env에 쓰지 않고 새 설정 객체에만 넣는다 */
 export const loadApiRuntimeSource = async (
   source: Record<string, string | undefined>,
   secrets: ApiSecretReader = new AwsApiSecretReader(),
 ): Promise<Record<string, string | undefined>> => {
-  const sessionKeyArn = source.CHALLENGE_SESSION_KEY_SECRET_ARN;
   const pepperArn = source.CHALLENGE_HMAC_PEPPER_SECRET_ARN;
-
-  if (!sessionKeyArn || !pepperArn) {
-    return { ...source };
-  }
-
-  const [sessionKey, pepper] = await Promise.all([
-    secrets.read(sessionKeyArn),
-    secrets.read(pepperArn),
-  ]);
+  if (!pepperArn) return { ...source };
   return {
     ...source,
-    CHALLENGE_SESSION_KEY: sessionKey,
-    CHALLENGE_HMAC_PEPPER: pepper,
+    CHALLENGE_HMAC_PEPPER: await secrets.read(pepperArn),
   };
 };

@@ -19,7 +19,7 @@ export interface ApplicationStackProps extends StackProps {
 
 /** Cognito, Lambda, API Gateway, workflow를 배치할 서울 Stack */
 export class ApplicationStack extends Stack {
-  /** 학교 이메일 passwordless identity 경계 */
+  /** 학교 이메일 확인 기반 비밀번호 identity 경계 */
   readonly identity: Identity;
   /** SQS와 Step Functions 비동기 Job 경계 */
   readonly asyncJobs: AsyncJobs;
@@ -44,22 +44,7 @@ export class ApplicationStack extends Stack {
     const emailIdentity = new ses.EmailIdentity(this, 'EmailIdentity', {
       identity: ses.Identity.publicHostedZone(hostedZone),
     });
-    const workerSource = fileURLToPath(
-      new URL('../../apps/worker/src/auth/', import.meta.url),
-    );
-
-    this.identity = new Identity(this, 'Identity', {
-      defineChallengeEntry: `${workerSource}define-auth-challenge.ts`,
-      createChallengeEntry: `${workerSource}create-auth-challenge.ts`,
-      verifyChallengeEntry: `${workerSource}verify-auth-challenge.ts`,
-      cluster: props.dataStack.cluster,
-      clusterSecret: props.dataStack.clusterSecret,
-      challengeHmacPepper: props.dataStack.challengeHmacPepper,
-      challengeSessionKey: props.dataStack.challengeSessionKey,
-      emailIdentity,
-      fromEmail: `no-reply@${props.config.rootDomain}`,
-      appUrl: `https://${webDomain}`,
-    });
+    this.identity = new Identity(this, 'Identity');
     const workerRoot = fileURLToPath(
       new URL('../../apps/worker/src/', import.meta.url),
     );
@@ -81,7 +66,8 @@ export class ApplicationStack extends Stack {
       cluster: props.dataStack.cluster,
       clusterSecret: props.dataStack.clusterSecret,
       challengeHmacPepper: props.dataStack.challengeHmacPepper,
-      challengeSessionKey: props.dataStack.challengeSessionKey,
+      emailIdentity,
+      fromEmail: `no-reply@${props.config.rootDomain}`,
       inputBucket: props.dataStack.inputBucket,
       jobQueue: this.asyncJobs.queue,
       userPool: this.identity.userPool,
@@ -93,5 +79,13 @@ export class ApplicationStack extends Stack {
       httpApi: this.httpApi,
       asyncJobs: this.asyncJobs,
     });
+    this.httpApi.apiFunction.addEnvironment(
+      'ALARM_TOPIC_ARN',
+      this.observability.alarmTopic.topicArn,
+    );
+    this.observability.alarmTopic.grantPublish(this.httpApi.apiFunction);
+    for (const parameter of this.observability.authLimitParameters) {
+      parameter.grantRead(this.httpApi.apiFunction);
+    }
   }
 }

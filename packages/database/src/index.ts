@@ -4,7 +4,7 @@ export * from './clients/data-api.js';
 /** 로컬 PostgreSQL client factory를 패키지 공개 경계에 노출한다 */
 export * from './clients/local.js';
 
-/** passwordless challenge repository adapter를 공개한다 */
+/** 이메일 인증 challenge repository adapter를 공개한다 */
 export * from './repositories/drizzle-auth-challenge.repository.js';
 
 /** 최초 ADMIN bootstrap transaction adapter를 공개한다 */

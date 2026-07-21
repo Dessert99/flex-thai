@@ -2,8 +2,10 @@
 import { randomBytes, randomInt, randomUUID } from 'node:crypto';
 import { CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
 import { S3Client } from '@aws-sdk/client-s3';
+import { SESv2Client } from '@aws-sdk/client-sesv2';
 import { SNSClient } from '@aws-sdk/client-sns';
 import { SQSClient } from '@aws-sdk/client-sqs';
+import { SSMClient } from '@aws-sdk/client-ssm';
 import { type DynamicModule, Module } from '@nestjs/common';
 import { readApiEnv } from '@flex-thia/config';
 import {
@@ -18,7 +20,7 @@ import {
 } from '@flex-thia/database';
 import {
   CreateJobService,
-  PasswordlessAuthService,
+  PasswordAuthService,
   StepUpService,
   UploadPolicyService,
 } from '@flex-thia/domain';
@@ -32,8 +34,11 @@ import {
   FakeSmsSender,
   FakeUploadProvider,
   S3UploadProvider,
+  SesChallengeSender,
+  SnsSecurityAlert,
   SnsSmsSender,
   SqsJobQueue,
+  SsmChallengeLimitProvider,
 } from '@flex-thia/providers';
 import { AuthModule } from './auth/auth.module.js';
 import { HealthController } from './health/health.controller.js';
@@ -76,9 +81,6 @@ export const createApplicationModule = (
   const uploads = new DrizzleUploadRepository(database);
   const users = new DrizzleUserRepository(database);
   const crypto = new ChallengeCrypto(
-    env.CHALLENGE_SESSION_KEY
-      ? Buffer.from(env.CHALLENGE_SESSION_KEY, 'utf8')
-      : Buffer.alloc(32, 7),
     env.CHALLENGE_HMAC_PEPPER ?? 'local-only-challenge-pepper',
   );
   const cognitoClient =
@@ -87,24 +89,13 @@ export const createApplicationModule = (
       : null;
   const identity =
     cognitoClient === null
-      ? new FakeIdentityProvider(
-          {
-            accessToken: 'local-access-token',
-            refreshToken: 'local-refresh-token',
-            expiresIn: 3600,
-            subject: env.FAKE_USER_SUB,
-            email: env.FAKE_USER_EMAIL,
-          },
-          async ({ challengeId, email }) => {
-            await challenges.create({
-              id: challengeId,
-              emailHash: crypto.hashAnswer(email),
-              codeHmac: crypto.hashAnswer('123456'),
-              linkHmac: crypto.hashAnswer('local-link-token'),
-              expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-            });
-          },
-        )
+      ? new FakeIdentityProvider({
+          accessToken: 'local-access-token',
+          refreshToken: 'local-refresh-token',
+          expiresIn: 3600,
+          subject: env.FAKE_USER_SUB,
+          email: env.FAKE_USER_EMAIL,
+        })
       : new CognitoIdentityProvider(
           cognitoClient,
           requireValue(env.COGNITO_USER_POOL_ID, 'COGNITO_USER_POOL_ID'),
@@ -126,17 +117,55 @@ export const createApplicationModule = (
         env.INPUT_BUCKET_NAME,
       )
     : new FakeUploadProvider();
+  const snsClient = new SNSClient({ region: env.AWS_REGION });
   const sms =
     env.NODE_ENV === 'production'
-      ? new SnsSmsSender(new SNSClient({ region: env.AWS_REGION }))
+      ? new SnsSmsSender(snsClient)
       : new FakeSmsSender();
-  const auth = new PasswordlessAuthService(
+  const challengeSender =
+    env.NODE_ENV === 'production'
+      ? new SesChallengeSender(
+          new SESv2Client({ region: env.AWS_REGION }),
+          requireValue(env.FROM_EMAIL, 'FROM_EMAIL'),
+        )
+      : { send: () => Promise.resolve() };
+  const challengeLimits =
+    env.NODE_ENV === 'production'
+      ? new SsmChallengeLimitProvider(
+          new SSMClient({ region: env.AWS_REGION }),
+          env.AUTH_LIMIT_PARAMETER_PREFIX,
+        )
+      : {
+          getLimits: () =>
+            Promise.resolve({
+              cooldownSeconds: 60,
+              perEmailPerDay: 5,
+              globalPerDay: 500,
+            }),
+        };
+  const securityAlert =
+    env.NODE_ENV === 'production'
+      ? new SnsSecurityAlert(
+          snsClient,
+          requireValue(env.ALARM_TOPIC_ARN, 'ALARM_TOPIC_ARN'),
+        )
+      : { globalChallengeLimitReached: () => Promise.resolve() };
+  const auth = new PasswordAuthService(
     challenges,
     identity,
     crypto,
+    challengeSender,
+    challengeLimits,
+    securityAlert,
     env.SCHOOL_EMAIL_DOMAINS.split(',')
       .map((domain) => domain.trim())
       .filter(Boolean),
+    () => new Date(),
+    randomUUID,
+    () =>
+      env.NODE_ENV === 'production'
+        ? String(randomInt(0, 1_000_000)).padStart(6, '0')
+        : '123456',
   );
   const stepUp = new StepUpService(
     stepUps,

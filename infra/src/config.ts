@@ -14,7 +14,7 @@ const infrastructureConfigSchema = z.object({
       /^-----BEGIN PUBLIC KEY-----[\s\S]+-----END PUBLIC KEY-----$/u,
       'CloudFront media public key는 PEM 형식이어야 한다',
     ),
-  allowedEmailDomains: z.string().default('school.ac.kr'),
+  allowedEmailDomains: z.string().default('hufs.ac.kr'),
   appRegion: z.literal('ap-northeast-2').default('ap-northeast-2'),
   edgeRegion: z.literal('us-east-1').default('us-east-1'),
   monthlyBudgetUsd: z.coerce.number().positive().default(30),

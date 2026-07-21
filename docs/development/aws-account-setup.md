@@ -32,7 +32,7 @@ OIDC로 배포할 때만 짧게 유효한 자격 증명을 받는다.
 | `ROOT_DOMAIN` | `example.com` | GitHub production 변수 | 아니오 |
 | `HOSTED_ZONE_ID` | `Z0123...` | GitHub production 변수 | 아니오 |
 | `ALERT_EMAIL` | `owner@example.com` | GitHub production 변수 | 아니오 |
-| `ALLOWED_EMAIL_DOMAINS` | `school.ac.kr` | GitHub production 변수 | 아니오 |
+| `ALLOWED_EMAIL_DOMAINS` | `hufs.ac.kr` | GitHub production 변수 | 아니오 |
 | `MONTHLY_BUDGET_USD` | `30` | GitHub production 변수 | 아니오 |
 | `MEDIA_PUBLIC_KEY_PEM` | PEM 공개 키 전체 | GitHub production 변수 | 아니오 |
 | `AWS_DEPLOY_ROLE_ARN` | `arn:aws:iam::...:role/...` | GitHub production secret | role ARN 자체는 비밀이 아니지만 workflow와 같은 경계에서 관리 |
@@ -100,7 +100,7 @@ AWS_PROFILE=flex-thia-admin aws sts get-caller-identity
 - `www.<ROOT_DOMAIN>`: CloudFront가 제공하는 정식 웹 주소
 - `<ROOT_DOMAIN>`: 정식 `www` 주소로 이동시키는 보조 주소
 - `api.<ROOT_DOMAIN>`: API Gateway가 제공하는 API 주소
-- `no-reply@<ROOT_DOMAIN>`: passwordless 로그인 이메일 발신 주소
+- `no-reply@<ROOT_DOMAIN>`: 가입·비밀번호 재설정 인증 코드 발신 주소
 
 AWS Route 53의 public hosted zone은 이 도메인의 DNS 주소록이다. 이미
 hosted zone이 있다면 새로 만들지 않고 해당 `HOSTED_ZONE_ID`를 사용한다.

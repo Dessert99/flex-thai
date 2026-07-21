@@ -47,12 +47,18 @@ importers:
       '@aws-sdk/client-secrets-manager':
         specifier: ^3.900.0
         version: 3.1089.0
+      '@aws-sdk/client-sesv2':
+        specifier: ^3.900.0
+        version: 3.1089.0
       '@aws-sdk/client-sns':
         specifier: ^3.900.0
         version: 3.1089.0
       '@aws-sdk/client-sqs':
         specifier: ^3.900.0
         version: 3.1089.0
+      '@aws-sdk/client-ssm':
+        specifier: ^3.900.0
+        version: 3.1091.0
       '@codegenie/serverless-express':
         specifier: ^4.17.0
         version: 4.17.1
@@ -102,12 +108,6 @@ importers:
 
   apps/worker:
     dependencies:
-      '@aws-sdk/client-secrets-manager':
-        specifier: ^3.900.0
-        version: 3.1089.0
-      '@aws-sdk/client-sesv2':
-        specifier: ^3.900.0
-        version: 3.1089.0
       '@aws-sdk/client-sfn':
         specifier: ^3.900.0
         version: 3.1089.0
@@ -117,9 +117,6 @@ importers:
       '@flex-thia/domain':
         specifier: workspace:*
         version: link:../../packages/domain
-      '@flex-thia/providers':
-        specifier: workspace:*
-        version: link:../../packages/providers
     devDependencies:
       '@types/aws-lambda':
         specifier: ^8.10.0
@@ -206,6 +203,9 @@ importers:
       '@aws-sdk/client-sqs':
         specifier: ^3.900.0
         version: 3.1089.0
+      '@aws-sdk/client-ssm':
+        specifier: ^3.900.0
+        version: 3.1091.0
       '@aws-sdk/s3-presigned-post':
         specifier: ^3.900.0
         version: 3.1089.0
@@ -296,6 +296,10 @@ packages:
 
   '@aws-sdk/client-sqs@3.1089.0':
     resolution: {integrity: sha512-FniOhQM+EgcuRv7VRjkZBGlg875p+ZCjORtC7LOF2ekFZeNKa6mq4C0NVBVmx/CDJaOmtnfDnINrzWMwVyNXiA==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/client-ssm@3.1091.0':
+    resolution: {integrity: sha512-aqDOBa+gA4nH77Gh18gHQzo7ZGEX5cY9y7YHTQ/rXukqC/+BJ2uIfjbQVbxKGhrfNYlLgdc/cDsvrYM/t83jaQ==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/core@3.975.3':
@@ -3382,6 +3386,17 @@ snapshots:
       '@aws-sdk/core': 3.975.3
       '@aws-sdk/credential-provider-node': 3.972.70
       '@aws-sdk/middleware-sdk-sqs': 3.972.37
+      '@aws-sdk/types': 3.974.2
+      '@smithy/core': 3.29.5
+      '@smithy/fetch-http-handler': 5.6.7
+      '@smithy/node-http-handler': 4.9.7
+      '@smithy/types': 4.16.1
+      tslib: 2.8.1
+
+  '@aws-sdk/client-ssm@3.1091.0':
+    dependencies:
+      '@aws-sdk/core': 3.975.3
+      '@aws-sdk/credential-provider-node': 3.972.70
       '@aws-sdk/types': 3.974.2
       '@smithy/core': 3.29.5
       '@smithy/fetch-http-handler': 5.6.7

@@ -70,7 +70,6 @@ API가 AWS SDK나 SQL을 직접 여기저기 호출하지 않는다.
 
 ```text
 apps/worker/src/
-├── auth/                       # Cognito passwordless 인증 트리거
 ├── database-runtime.ts         # worker용 DB 연결
 ├── job-starter.ts              # SQS 메시지로 Step Functions 시작
 └── foundation-task.ts          # 작업 상태 전이의 기초 함수

@@ -1,4 +1,4 @@
-/** 학교 이메일 custom auth만 열고 비밀번호 flow가 돌아오지 않게 고정한다 */
+/** 학교 이메일 검증 뒤 서버 전용 비밀번호 인증만 열리게 고정한다 */
 import { App } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import { describe, it } from 'vitest';
@@ -17,7 +17,7 @@ const config = readInfrastructureConfig({
 });
 
 describe('Identity 학교 이메일 인증 경계', () => {
-  it('Cognito custom auth와 refresh token만 허용한다', () => {
+  it('Cognito 관리자 비밀번호 인증과 회전식 refresh token만 허용한다', () => {
     const app = new App();
     const dataStack = new DataStack(app, 'IdentityData');
     const stack = new ApplicationStack(app, 'IdentityApplication', {
@@ -27,10 +27,7 @@ describe('Identity 학교 이메일 인증 경계', () => {
     const template = Template.fromStack(stack);
 
     template.hasResourceProperties('AWS::Cognito::UserPoolClient', {
-      ExplicitAuthFlows: Match.arrayWith([
-        'ALLOW_CUSTOM_AUTH',
-        'ALLOW_REFRESH_TOKEN_AUTH',
-      ]),
+      ExplicitAuthFlows: ['ALLOW_ADMIN_USER_PASSWORD_AUTH'],
       PreventUserExistenceErrors: 'ENABLED',
       EnableTokenRevocation: true,
       RefreshTokenRotation: Match.objectLike({
@@ -44,15 +41,20 @@ describe('Identity 학교 이메일 인증 경계', () => {
       AdminCreateUserConfig: {
         AllowAdminCreateUserOnly: true,
       },
-      LambdaConfig: Match.objectLike({
-        DefineAuthChallenge: Match.anyValue(),
-        CreateAuthChallenge: Match.anyValue(),
-        VerifyAuthChallengeResponse: Match.anyValue(),
-      }),
+      LambdaConfig: Match.absent(),
+      Policies: {
+        PasswordPolicy: {
+          MinimumLength: 8,
+          RequireLowercase: true,
+          RequireNumbers: true,
+          RequireSymbols: true,
+          RequireUppercase: true,
+        },
+      },
     });
   });
 
-  it('SES domain identity와 세 trigger Lambda를 만든다', () => {
+  it('SES domain identity를 만들고 custom auth Lambda는 만들지 않는다', () => {
     const app = new App();
     const dataStack = new DataStack(app, 'IdentityDataResources');
     const stack = new ApplicationStack(app, 'IdentityResources', {
@@ -61,7 +63,7 @@ describe('Identity 학교 이메일 인증 경계', () => {
     });
     const template = Template.fromStack(stack);
 
-    template.resourceCountIs('AWS::Lambda::Function', 6);
+    template.resourceCountIs('AWS::Lambda::Function', 3);
     template.resourceCountIs('AWS::SES::EmailIdentity', 1);
     template.hasResourceProperties('AWS::IAM::Policy', {
       PolicyDocument: {
@@ -102,7 +104,7 @@ describe('Identity 학교 이메일 인증 경계', () => {
     });
   });
 
-  it('passwordless 로그인 링크가 www 운영 주소를 사용한다', () => {
+  it('서울 Cognito SMS는 AWS가 요구하는 도쿄 SNS 리전을 사용한다', () => {
     const app = new App();
     const dataStack = new DataStack(app, 'IdentityUrlData');
     const stack = new ApplicationStack(app, 'IdentityUrlApplication', {
@@ -111,12 +113,10 @@ describe('Identity 학교 이메일 인증 경계', () => {
     });
     const template = Template.fromStack(stack);
 
-    template.hasResourceProperties('AWS::Lambda::Function', {
-      Environment: {
-        Variables: Match.objectLike({
-          APP_URL: 'https://www.example.com',
-        }),
-      },
+    template.hasResourceProperties('AWS::Cognito::UserPool', {
+      SmsConfiguration: Match.objectLike({
+        SnsRegion: 'ap-northeast-1',
+      }),
     });
   });
 });

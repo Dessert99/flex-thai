@@ -1,20 +1,21 @@
-/** passwordless와 관리자 step-up이 공유하는 일회용 상태를 정의한다 */
+/** 이메일 인증과 관리자 step-up이 공유하는 일회용 상태를 정의한다 */
 
 /** 일회용 challenge의 terminal 전이를 포함한 상태 */
 export type ChallengeStatus = 'PENDING' | 'SUCCEEDED' | 'EXPIRED' | 'CANCELLED';
 
-/** 숫자 code와 이메일 link token을 구분한다 */
-export type ChallengeAnswerKind = 'CODE' | 'LINK';
+/** 이메일 코드가 증명하려는 행위를 구분한다 */
+export type AuthChallengePurpose = 'SIGNUP' | 'PASSWORD_RESET';
 
-/** 원문 답과 session을 노출하지 않는 passwordless challenge */
+/** 비밀번호 없이 이메일 코드 HMAC만 보관하는 인증 challenge */
 export interface AuthChallenge {
   id: string;
+  email: string;
+  purpose: AuthChallengePurpose;
   codeHmac: string;
-  linkHmac: string;
-  sessionCiphertext: string | null;
   attempts: number;
   status: ChallengeStatus;
   expiresAt: Date;
+  createdAt: Date;
 }
 
 /** Cognito 구현과 fake가 동일하게 반환하는 token 묶음 */

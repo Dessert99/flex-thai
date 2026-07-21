@@ -3,7 +3,7 @@ import { DynamicModule, Module } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import {
   type ChallengeCryptoPort,
-  PasswordlessAuthService,
+  PasswordAuthService,
   StepUpService,
   type StepUpRepository,
   type UserRepository,
@@ -28,7 +28,7 @@ import {
 
 /** local fake와 Cognito production 조립에 필요한 인증 옵션 */
 export interface AuthModuleOptions {
-  auth: PasswordlessAuthService;
+  auth: PasswordAuthService;
   users: UserRepository;
   authorizer: AuthorizerGuardOptions;
   allowedOrigins: string[];
@@ -54,7 +54,7 @@ export class AuthModule {
       providers: [
         Reflector,
         {
-          provide: PasswordlessAuthService,
+          provide: PasswordAuthService,
           useValue: options.auth,
         },
         {

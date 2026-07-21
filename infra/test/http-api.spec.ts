@@ -56,6 +56,14 @@ describe('HttpApi 운영 API 경계', () => {
       RouteKey: 'GET /health',
       AuthorizationType: 'NONE',
     });
+    template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
+      RouteKey: 'POST /auth/signup',
+      AuthorizationType: 'NONE',
+    });
+    template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
+      RouteKey: 'POST /auth/password/reset',
+      AuthorizationType: 'NONE',
+    });
     template.hasResourceProperties('AWS::ApiGatewayV2::Stage', {
       DefaultRouteSettings: {
         ThrottlingBurstLimit: 10,

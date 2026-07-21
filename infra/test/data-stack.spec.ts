@@ -38,7 +38,7 @@ describe('DataStack', () => {
         ]),
       },
     });
-    template.resourceCountIs('AWS::SecretsManager::Secret', 4);
+    template.resourceCountIs('AWS::SecretsManager::Secret', 3);
   });
 
   it('Media bucket은 같은 계정의 CloudFront OAC만 읽을 수 있다', () => {

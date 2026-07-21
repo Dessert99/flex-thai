@@ -26,8 +26,6 @@ export class DataStack extends Stack {
   readonly mediaBucket: s3.Bucket;
   /** 인증 코드 해시에 섞는 서버 비밀값(pepper) — DB가 새도 코드 역산을 막는다 */
   readonly challengeHmacPepper: secretsmanager.Secret;
-  /** Cognito custom auth session을 암·복호화할 AES-256 key */
-  readonly challengeSessionKey: secretsmanager.Secret;
   /** CloudFront signed URL 서명용 private key — 배포 뒤 사람이 직접 채우는 빈 secret */
   readonly mediaPrivateKey: secretsmanager.Secret;
 
@@ -107,18 +105,6 @@ export class DataStack extends Stack {
         // 특수문자를 빼 env·헤더로 옮길 때 escape 사고를 없앤다.
         generateSecretString: {
           passwordLength: 64,
-          excludePunctuation: true,
-        },
-      },
-    );
-    this.challengeSessionKey = new secretsmanager.Secret(
-      this,
-      'ChallengeSessionKey',
-      {
-        description: 'Cognito session AES-256 key 문자열',
-        // 32자 = AES-256이 요구하는 key 길이
-        generateSecretString: {
-          passwordLength: 32,
           excludePunctuation: true,
         },
       },

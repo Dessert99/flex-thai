@@ -82,7 +82,7 @@ describe('Observability', () => {
     });
   });
 
-  it('일반 운영 설정 일곱 개를 Parameter Store에 둔다', () => {
+  it('인증 발송 상한을 포함한 운영 설정 열 개를 Parameter Store에 둔다', () => {
     const app = new App();
     const dataStack = new DataStack(app, 'ParameterData');
     const template = Template.fromStack(
@@ -92,10 +92,14 @@ describe('Observability', () => {
       }),
     );
 
-    template.resourceCountIs('AWS::SSM::Parameter', 7);
+    template.resourceCountIs('AWS::SSM::Parameter', 10);
     template.hasResourceProperties('AWS::SSM::Parameter', {
       Name: '/flex-thia/prod/auth/allowed-email-domains',
-      Value: 'school.ac.kr',
+      Value: 'hufs.ac.kr',
+    });
+    template.hasResourceProperties('AWS::SSM::Parameter', {
+      Name: '/flex-thia/prod/auth/challenge-global-daily-limit',
+      Value: '500',
     });
     template.hasResourceProperties('AWS::SSM::Parameter', {
       Name: '/flex-thia/prod/jobs/map-max-concurrency',

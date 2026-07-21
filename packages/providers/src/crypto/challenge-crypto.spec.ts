@@ -4,19 +4,11 @@ import { ChallengeCrypto } from './challenge-crypto.js';
 
 describe('ChallengeCrypto', () => {
   it('같은 답은 검증하지만 저장 문자열에 원문을 포함하지 않는다', () => {
-    const crypto = new ChallengeCrypto(Buffer.alloc(32, 1), 'test-pepper');
+    const crypto = new ChallengeCrypto('test-pepper');
     const stored = crypto.hashAnswer('123456', Buffer.alloc(16, 2));
 
     expect(stored).not.toContain('123456');
     expect(crypto.verifyAnswer('123456', stored)).toBe(true);
     expect(crypto.verifyAnswer('654321', stored)).toBe(false);
-  });
-
-  it('암호화한 Cognito session을 복호화한다', () => {
-    const crypto = new ChallengeCrypto(Buffer.alloc(32, 1), 'test-pepper');
-
-    expect(crypto.decryptSession(crypto.encryptSession('session-value'))).toBe(
-      'session-value',
-    );
   });
 });

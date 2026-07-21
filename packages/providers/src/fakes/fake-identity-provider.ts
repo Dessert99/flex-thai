@@ -1,10 +1,19 @@
-/** Cognito 없이 passwordless session과 token 응답을 재현한다 */
-import { randomUUID } from 'node:crypto';
-import type { IdentityProvider, TokenSet } from '@flex-thia/domain';
+/** Cognito 없이 비밀번호 원문을 남기지 않는 local identity를 재현한다 */
+import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import {
+  IdentityProviderError,
+  type IdentityProvider,
+  type TokenSet,
+} from '@flex-thia/domain';
 
-/** 호출 기록과 고정 token을 제공하는 fake identity provider */
+const hashPassword = (password: string, salt = randomBytes(16)) => ({
+  salt,
+  digest: scryptSync(password, salt, 32),
+});
+
+/** local 개발에서도 메모리에 비밀번호 평문을 저장하지 않는 fake provider */
 export class FakeIdentityProvider implements IdentityProvider {
-  readonly users = new Set<string>();
+  private readonly users = new Map<string, { salt: Buffer; digest: Buffer }>();
   readonly revokedTokens = new Set<string>();
 
   constructor(
@@ -13,35 +22,41 @@ export class FakeIdentityProvider implements IdentityProvider {
       refreshToken: 'fake-refresh-token',
       expiresIn: 3600,
       subject: 'fake-subject',
-      email: 'student@school.ac.kr',
+      email: 'student@hufs.ac.kr',
     },
-    private readonly onStart?: (input: {
-      challengeId: string;
-      email: string;
-    }) => Promise<void>,
   ) {}
 
-  /** 처음 본 이메일도 message 없이 fake 사용자로 준비한다 */
-  ensureUser(email: string): Promise<void> {
-    this.users.add(email);
+  /** local 계정 존재 여부만 반환한다 */
+  userExists(email: string): Promise<boolean> {
+    return Promise.resolve(this.users.has(email));
+  }
+
+  /** local 가입에서도 scrypt 결과만 메모리에 남긴다 */
+  createVerifiedUser(email: string, password: string): Promise<TokenSet> {
+    if (this.users.has(email)) {
+      return Promise.reject(new IdentityProviderError('ACCOUNT_EXISTS'));
+    }
+    this.users.set(email, hashPassword(password));
+    return Promise.resolve({ ...this.tokens, email });
+  }
+
+  /** 입력 비밀번호를 같은 salt로 해시해 constant-time으로 비교한다 */
+  login(email: string, password: string): Promise<TokenSet> {
+    const stored = this.users.get(email);
+    const actual = stored ? scryptSync(password, stored.salt, 32) : null;
+    if (!stored || !actual || !timingSafeEqual(stored.digest, actual)) {
+      return Promise.reject(new IdentityProviderError('INVALID_CREDENTIALS'));
+    }
+    return Promise.resolve({ ...this.tokens, email });
+  }
+
+  /** 인증된 local 계정의 scrypt 결과만 교체한다 */
+  setPassword(email: string, newPassword: string): Promise<void> {
+    if (!this.users.has(email)) {
+      return Promise.reject(new Error('계정을 찾을 수 없습니다'));
+    }
+    this.users.set(email, hashPassword(newPassword));
     return Promise.resolve();
-  }
-
-  /** 다른 브라우저에서도 연결할 challenge id와 session을 만든다 */
-  async start(
-    email: string,
-  ): Promise<{ challengeId: string; session: string }> {
-    const challengeId = randomUUID();
-    await this.onStart?.({ challengeId, email });
-    return {
-      challengeId,
-      session: randomUUID(),
-    };
-  }
-
-  /** fake 환경에서는 trigger 검증이 끝났다고 보고 고정 token을 반환한다 */
-  respond(): Promise<TokenSet> {
-    return Promise.resolve(this.tokens);
   }
 
   /** refresh cookie 흐름을 AWS 없이 검증할 고정 token을 반환한다 */

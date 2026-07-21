@@ -69,18 +69,18 @@ curl -i http://localhost:3000/ready
 사용한다.
 
 ```bash
-curl -X POST http://localhost:3000/auth/challenges \
+curl -X POST http://localhost:3000/auth/signup \
   -H 'content-type: application/json' \
-  -d '{"email":"admin@school.ac.kr"}'
+  -d '{"email":"admin@hufs.ac.kr"}'
 ```
 
 응답의 `challengeId`를 아래 주소에 넣고 code `123456`을 보낸다. 이
 과정에서 `local-admin-sub` 사용자가 DB에 처음 생성된다.
 
 ```bash
-curl -X POST http://localhost:3000/auth/challenges/CHALLENGE_ID/code \
+curl -X POST http://localhost:3000/auth/signup/verify \
   -H 'content-type: application/json' \
-  -d '{"code":"123456"}'
+  -d '{"challengeId":"CHALLENGE_ID","code":"123456","password":"Strong1!"}'
 ```
 
 최초 한 번만 해당 Cognito `sub`를 관리자로 승격한다. 이메일의 `+tag`나
@@ -120,7 +120,6 @@ compiler API를 읽지 못하는 ESLint 도구를 위한 TypeScript 6 호환층�
 - `apps/api/dist/lambda.js`: API Gateway가 호출하는 NestJS API
 - `apps/worker/dist/job-starter.js`: SQS 메시지로 Step Functions를 시작
 - `apps/worker/dist/foundation-task.js`: Job 상태 전이의 기초 작업
-- `apps/worker/dist/*-auth-challenge.js`: Cognito passwordless 인증
   트리거
 
 ## 로컬과 AWS의 대응 관계

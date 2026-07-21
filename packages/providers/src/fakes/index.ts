@@ -1,7 +1,7 @@
-/** fake passwordless와 step-up repository를 공개한다 */
+/** fake 이메일 challenge와 step-up repository를 공개한다 */
 export * from './fake-challenge.repository.js';
 
-/** fake Cognito identity provider를 공개한다 */
+/** 비밀번호 원문을 저장하지 않는 fake identity provider를 공개한다 */
 export * from './fake-identity-provider.js';
 
 /** fake Cognito 전화번호 검증 provider를 공개한다 */

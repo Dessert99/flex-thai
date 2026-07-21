@@ -1,9 +1,14 @@
-/** 학교 이메일 passwordless 시작과 Cognito 응답을 조율한다 */
-import type { ChallengeAnswerKind, TokenSet } from './challenge.js';
+/** 이메일 소유 확인 뒤에만 Cognito 회원과 비밀번호를 설정한다 */
+import { randomInt, randomUUID } from 'node:crypto';
+import type { AuthChallengePurpose, TokenSet } from './challenge.js';
+import { IdentityProviderError } from './challenge.repository.js';
 import type {
   AuthChallengeRepository,
   ChallengeCryptoPort,
+  ChallengeLimitProvider,
+  ChallengeSender,
   IdentityProvider,
+  SecurityAlert,
 } from './challenge.repository.js';
 
 /** 인증 domain이 호출자에게 노출하는 안정적인 오류 code */
@@ -12,6 +17,10 @@ export class AuthDomainError extends Error {
     readonly code:
       | 'SCHOOL_EMAIL_REQUIRED'
       | 'CHALLENGE_INVALID'
+      | 'CHALLENGE_RATE_LIMITED'
+      | 'PASSWORD_POLICY_VIOLATION'
+      | 'ACCOUNT_ALREADY_EXISTS'
+      | 'INVALID_CREDENTIALS'
       | 'ADMIN_REQUIRED'
       | 'PHONE_VERIFICATION_REQUIRED'
       | 'STEP_UP_INVALID',
@@ -21,89 +30,104 @@ export class AuthDomainError extends Error {
   }
 }
 
-/** Cognito trigger가 HMAC·만료·최대 시도를 판정하는 use case */
-export class VerifyChallengeAnswerService {
-  constructor(
-    private readonly repository: AuthChallengeRepository,
-    private readonly crypto: ChallengeCryptoPort,
-    private readonly now: () => Date = () => new Date(),
-  ) {}
-
-  /** terminal 상태를 되돌리지 않고 일회용 답 하나만 성공시킨다 */
-  async execute(input: {
-    challengeId: string;
-    kind: ChallengeAnswerKind;
-    answer: string;
-  }): Promise<boolean> {
-    const challenge = await this.repository.findById(input.challengeId);
-
-    if (!challenge || challenge.status !== 'PENDING') {
-      return false;
-    }
-
-    if (challenge.expiresAt.getTime() <= this.now().getTime()) {
-      await this.repository.transition(input.challengeId, 'EXPIRED');
-      return false;
-    }
-
-    const stored =
-      input.kind === 'CODE' ? challenge.codeHmac : challenge.linkHmac;
-
-    if (!this.crypto.verifyAnswer(input.answer, stored)) {
-      await this.repository.recordFailure(input.challengeId, 5);
-      return false;
-    }
-
-    return this.repository.transition(input.challengeId, 'SUCCEEDED');
-  }
-}
-
-/** 학교 이메일 allowlist와 암호화된 Cognito session 수명주기를 관리한다 */
-export class PasswordlessAuthService {
+/** 이메일 challenge와 Cognito 비밀번호 인증 수명주기를 관리한다 */
+export class PasswordAuthService {
   private readonly allowedDomains: Set<string>;
 
   constructor(
     private readonly challenges: AuthChallengeRepository,
     private readonly identity: IdentityProvider,
     private readonly crypto: ChallengeCryptoPort,
+    private readonly sender: ChallengeSender,
+    private readonly limitProvider: ChallengeLimitProvider,
+    private readonly securityAlert: SecurityAlert,
     allowedDomains: string[],
     private readonly now: () => Date = () => new Date(),
+    private readonly createId: () => string = randomUUID,
+    private readonly createCode: () => string = () =>
+      randomInt(100_000, 1_000_000).toString(),
   ) {
     this.allowedDomains = new Set(
       allowedDomains.map((domain) => domain.toLowerCase()),
     );
   }
 
-  /** 계정 존재 여부와 무관한 공개 응답으로 학교 이메일 challenge를 시작한다 */
-  async start(emailInput: string): Promise<{ challengeId: string }> {
-    const email = emailInput.trim().toLowerCase();
-    const separatorIndex = email.lastIndexOf('@');
-    const domain = email.slice(separatorIndex + 1);
+  /** Cognito를 호출하지 않고 학교 이메일 인증 코드만 발송한다 */
+  async startSignup(emailInput: string): Promise<{ challengeId: string }> {
+    const email = this.normalizeSchoolEmail(emailInput);
+    const { challenge, code } = await this.createChallenge(email, 'SIGNUP');
+    await this.sender.send({ email, code });
+    return { challengeId: challenge.id };
+  }
 
-    if (separatorIndex <= 0 || !domain || !this.allowedDomains.has(domain)) {
-      throw new AuthDomainError('SCHOOL_EMAIL_REQUIRED');
+  /** 코드 성공 뒤에만 비밀번호를 Cognito에 영구 설정하고 token을 발급한다 */
+  async verifySignup(
+    challengeId: string,
+    code: string,
+    password: string,
+  ): Promise<TokenSet> {
+    this.assertPassword(password);
+    const email = await this.consumeChallenge(challengeId, code, 'SIGNUP');
+    try {
+      return await this.identity.createVerifiedUser(email, password);
+    } catch (error) {
+      if (
+        error instanceof IdentityProviderError &&
+        error.code === 'ACCOUNT_EXISTS'
+      ) {
+        throw new AuthDomainError('ACCOUNT_ALREADY_EXISTS');
+      }
+      throw error;
     }
+  }
 
-    await this.identity.ensureUser(email);
-    const started = await this.identity.start(email);
-    await this.challenges.attachSession(
-      started.challengeId,
-      this.crypto.encryptSession(
-        JSON.stringify({ session: started.session, username: email }),
-      ),
+  /** 학교 이메일과 비밀번호를 Cognito 서버 전용 흐름으로 검증한다 */
+  async login(emailInput: string, password: string): Promise<TokenSet> {
+    const email = this.normalizeSchoolEmail(emailInput);
+    try {
+      return await this.identity.login(email, password);
+    } catch (error) {
+      if (
+        error instanceof IdentityProviderError &&
+        error.code === 'INVALID_CREDENTIALS'
+      ) {
+        throw new AuthDomainError('INVALID_CREDENTIALS');
+      }
+      throw error;
+    }
+  }
+
+  /** 계정 존재 여부를 응답에 드러내지 않고 기존 회원에게만 재설정 코드를 보낸다 */
+  async startPasswordReset(
+    emailInput: string,
+  ): Promise<{ challengeId: string }> {
+    const email = this.normalizeSchoolEmail(emailInput);
+    const { challenge, code } = await this.createChallenge(
+      email,
+      'PASSWORD_RESET',
     );
 
-    return { challengeId: started.challengeId };
+    if (!(await this.identity.userExists(email))) {
+      return { challengeId: challenge.id };
+    }
+
+    await this.sender.send({ email, code });
+    return { challengeId: challenge.id };
   }
 
-  /** 숫자 code를 암호화된 Cognito session과 함께 교환한다 */
-  verifyCode(challengeId: string, code: string): Promise<TokenSet> {
-    return this.respond(challengeId, 'CODE', code);
-  }
-
-  /** POST로 받은 link token을 암호화된 Cognito session과 함께 교환한다 */
-  verifyLink(challengeId: string, token: string): Promise<TokenSet> {
-    return this.respond(challengeId, 'LINK', token);
+  /** 이메일 코드 성공 뒤 Cognito 비밀번호만 교체한다 */
+  async resetPassword(
+    challengeId: string,
+    code: string,
+    newPassword: string,
+  ): Promise<void> {
+    this.assertPassword(newPassword);
+    const email = await this.consumeChallenge(
+      challengeId,
+      code,
+      'PASSWORD_RESET',
+    );
+    await this.identity.setPassword(email, newPassword);
   }
 
   /** HttpOnly cookie의 refresh token을 새 access token으로 교환한다 */
@@ -116,43 +140,99 @@ export class PasswordlessAuthService {
     return this.identity.revoke(refreshToken);
   }
 
-  private async respond(
+  private async createChallenge(email: string, purpose: AuthChallengePurpose) {
+    const createdAt = this.now();
+    const code = this.createCode();
+    const limits = await this.limitProvider.getLimits();
+    const result = await this.challenges.createWithinLimits({
+      id: this.createId(),
+      email,
+      purpose,
+      codeHmac: this.crypto.hashAnswer(code),
+      expiresAt: new Date(createdAt.getTime() + 10 * 60 * 1000),
+      createdAt,
+      limits,
+    });
+
+    if (result.kind !== 'CREATED') {
+      throw new AuthDomainError('CHALLENGE_RATE_LIMITED');
+    }
+
+    if (result.globalLimitReached) {
+      await this.securityAlert.globalChallengeLimitReached(limits.globalPerDay);
+    }
+    return { challenge: result.challenge, code };
+  }
+
+  private async consumeChallenge(
     challengeId: string,
-    kind: ChallengeAnswerKind,
-    answer: string,
-  ): Promise<TokenSet> {
+    code: string,
+    purpose: AuthChallengePurpose,
+  ): Promise<string> {
+    if (
+      typeof challengeId !== 'string' ||
+      !challengeId ||
+      typeof code !== 'string' ||
+      !/^\d{6}$/u.test(code)
+    ) {
+      throw new AuthDomainError('CHALLENGE_INVALID');
+    }
     const challenge = await this.challenges.findById(challengeId);
 
     if (
       !challenge ||
-      challenge.status !== 'PENDING' ||
-      !challenge.sessionCiphertext ||
-      challenge.expiresAt.getTime() <= this.now().getTime()
+      challenge.purpose !== purpose ||
+      challenge.status !== 'PENDING'
     ) {
       throw new AuthDomainError('CHALLENGE_INVALID');
     }
 
-    const sessionValue = this.crypto.decryptSession(
-      challenge.sessionCiphertext,
-    );
-    const sessionRecord = JSON.parse(sessionValue) as {
-      session?: unknown;
-      username?: unknown;
-    };
+    if (challenge.expiresAt.getTime() <= this.now().getTime()) {
+      await this.challenges.transition(challengeId, 'EXPIRED');
+      throw new AuthDomainError('CHALLENGE_INVALID');
+    }
+
+    if (!this.crypto.verifyAnswer(code, challenge.codeHmac)) {
+      await this.challenges.recordFailure(challengeId, 5);
+      throw new AuthDomainError('CHALLENGE_INVALID');
+    }
+
+    if (!(await this.challenges.transition(challengeId, 'SUCCEEDED'))) {
+      throw new AuthDomainError('CHALLENGE_INVALID');
+    }
+
+    return challenge.email;
+  }
+
+  private normalizeSchoolEmail(emailInput: string): string {
+    if (typeof emailInput !== 'string') {
+      throw new AuthDomainError('SCHOOL_EMAIL_REQUIRED');
+    }
+    const email = emailInput.trim().toLowerCase();
+    const [localPart, domain, extra] = email.split('@');
 
     if (
-      typeof sessionRecord.session !== 'string' ||
-      typeof sessionRecord.username !== 'string'
+      !localPart ||
+      !domain ||
+      extra !== undefined ||
+      /\s/u.test(localPart) ||
+      !this.allowedDomains.has(domain)
     ) {
-      throw new AuthDomainError('CHALLENGE_INVALID');
+      throw new AuthDomainError('SCHOOL_EMAIL_REQUIRED');
     }
+    return email;
+  }
 
-    return this.identity.respond({
-      challengeId,
-      kind,
-      answer,
-      session: sessionRecord.session,
-      username: sessionRecord.username,
-    });
+  private assertPassword(password: string): void {
+    if (
+      typeof password !== 'string' ||
+      password.length < 8 ||
+      !/[A-Z]/u.test(password) ||
+      !/[a-z]/u.test(password) ||
+      !/\d/u.test(password) ||
+      !/[^A-Za-z0-9]/u.test(password)
+    ) {
+      throw new AuthDomainError('PASSWORD_POLICY_VIOLATION');
+    }
   }
 }

@@ -1,8 +1,11 @@
-/** passwordless challenge의 HMAC·암호문·terminal 전이를 Drizzle로 저장한다 */
-import { and, eq, sql } from 'drizzle-orm';
+/** 이메일 challenge 상한과 terminal 전이를 Drizzle로 원자적으로 저장한다 */
+import { and, eq, gte, sql } from 'drizzle-orm';
 import type {
   AuthChallenge,
+  AuthChallengeCreation,
+  AuthChallengePurpose,
   AuthChallengeRepository,
+  ChallengeLimits,
   ChallengeStatus,
 } from '@flex-thia/domain';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
@@ -15,36 +18,95 @@ type AuthChallengeRow = typeof authChallenges.$inferSelect;
 
 const toAuthChallenge = (row: AuthChallengeRow): AuthChallenge => ({
   id: row.id,
+  email: row.email,
+  purpose: row.purpose,
   codeHmac: row.codeHmac,
-  linkHmac: row.linkHmac,
-  sessionCiphertext: row.cognitoSessionCiphertext,
   attempts: row.attempts,
   status: row.status,
   expiresAt: row.expiresAt,
+  createdAt: row.createdAt,
 });
 
-/** PENDING 조건을 모든 변경 query에 강제하는 passwordless repository */
+/** 동시 요청도 전체 발송 상한을 넘지 못하게 transaction lock으로 직렬화한다 */
 export class DrizzleAuthChallengeRepository implements AuthChallengeRepository {
   constructor(private readonly database: AuthDatabase) {}
 
-  /** trigger가 만든 답 HMAC과 10분 만료만 저장한다 */
-  async create(input: {
+  /** 최근 60초·24시간 상한을 확인한 transaction 안에서만 challenge를 만든다 */
+  createWithinLimits(input: {
     id: string;
-    emailHash: string;
+    email: string;
+    purpose: AuthChallengePurpose;
     codeHmac: string;
-    linkHmac: string;
     expiresAt: Date;
-  }): Promise<AuthChallenge> {
-    const [row] = await this.database
-      .insert(authChallenges)
-      .values(input)
-      .returning();
+    createdAt: Date;
+    limits: ChallengeLimits;
+  }): Promise<AuthChallengeCreation> {
+    return this.database.transaction(async (transaction) => {
+      // 모든 API instance가 같은 lock을 잡아 count와 insert 사이 경쟁을 막는다.
+      await transaction.execute(
+        sql`select pg_advisory_xact_lock(hashtext('auth_challenges_rate_limit'))`,
+      );
+      const cooldownSince = new Date(
+        input.createdAt.getTime() - input.limits.cooldownSeconds * 1000,
+      );
+      const dailySince = new Date(
+        input.createdAt.getTime() - 24 * 60 * 60 * 1000,
+      );
+      const [cooldown] = await transaction
+        .select({ value: sql<number>`count(*)::int` })
+        .from(authChallenges)
+        .where(
+          and(
+            eq(authChallenges.email, input.email),
+            gte(authChallenges.createdAt, cooldownSince),
+          ),
+        );
+      if (Number(cooldown?.value ?? 0) > 0) {
+        return { kind: 'COOLDOWN' as const };
+      }
 
-    if (!row) {
-      throw new Error('Auth challenge 생성 결과가 없습니다');
-    }
+      const [emailDaily] = await transaction
+        .select({ value: sql<number>`count(*)::int` })
+        .from(authChallenges)
+        .where(
+          and(
+            eq(authChallenges.email, input.email),
+            gte(authChallenges.createdAt, dailySince),
+          ),
+        );
+      if (Number(emailDaily?.value ?? 0) >= input.limits.perEmailPerDay) {
+        return { kind: 'EMAIL_DAILY_LIMIT' as const };
+      }
 
-    return toAuthChallenge(row);
+      const [globalDaily] = await transaction
+        .select({ value: sql<number>`count(*)::int` })
+        .from(authChallenges)
+        .where(gte(authChallenges.createdAt, dailySince));
+      const globalCount = Number(globalDaily?.value ?? 0);
+      if (globalCount >= input.limits.globalPerDay) {
+        return { kind: 'GLOBAL_DAILY_LIMIT' as const };
+      }
+
+      const [row] = await transaction
+        .insert(authChallenges)
+        .values({
+          id: input.id,
+          email: input.email,
+          purpose: input.purpose,
+          codeHmac: input.codeHmac,
+          expiresAt: input.expiresAt,
+          createdAt: input.createdAt,
+        })
+        .returning();
+      if (!row) {
+        throw new Error('Auth challenge 생성 결과가 없습니다');
+      }
+      return {
+        kind: 'CREATED' as const,
+        challenge: toAuthChallenge(row),
+        globalLimitReached: globalCount + 1 === input.limits.globalPerDay,
+      };
+    });
   }
 
   /** challenge id로 HMAC과 terminal 상태를 조회한다 */
@@ -55,24 +117,6 @@ export class DrizzleAuthChallengeRepository implements AuthChallengeRepository {
       .where(eq(authChallenges.id, challengeId))
       .limit(1);
     return row ? toAuthChallenge(row) : null;
-  }
-
-  /** PENDING row에만 Cognito session 암호문을 연결한다 */
-  async attachSession(challengeId: string, ciphertext: string): Promise<void> {
-    const updated = await this.database
-      .update(authChallenges)
-      .set({ cognitoSessionCiphertext: ciphertext })
-      .where(
-        and(
-          eq(authChallenges.id, challengeId),
-          eq(authChallenges.status, 'PENDING'),
-        ),
-      )
-      .returning({ id: authChallenges.id });
-
-    if (updated.length === 0) {
-      throw new Error('PENDING auth challenge를 찾을 수 없습니다');
-    }
   }
 
   /** 오답 횟수를 원자적으로 올리고 최대 횟수면 CANCELLED로 바꾼다 */
@@ -93,7 +137,6 @@ export class DrizzleAuthChallengeRepository implements AuthChallengeRepository {
         ),
       )
       .returning();
-
     return row ? toAuthChallenge(row) : this.findById(challengeId);
   }
 

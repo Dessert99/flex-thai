@@ -21,13 +21,14 @@ const apiEnvSchema = z
     COGNITO_CLIENT_ID: z.string().optional(),
     INPUT_BUCKET_NAME: z.string().optional(),
     JOB_QUEUE_URL: z.string().optional(),
-    CHALLENGE_SESSION_KEY: z.string().optional(),
     CHALLENGE_HMAC_PEPPER: z.string().optional(),
-    CHALLENGE_SESSION_KEY_SECRET_ARN: z.string().optional(),
     CHALLENGE_HMAC_PEPPER_SECRET_ARN: z.string().optional(),
-    SCHOOL_EMAIL_DOMAINS: z.string().default('school.ac.kr'),
+    SCHOOL_EMAIL_DOMAINS: z.string().default('hufs.ac.kr'),
+    FROM_EMAIL: z.string().optional(),
+    AUTH_LIMIT_PARAMETER_PREFIX: z.string().default('/flex-thia/prod/auth'),
+    ALARM_TOPIC_ARN: z.string().optional(),
     FAKE_USER_SUB: z.string().default('local-admin-sub'),
-    FAKE_USER_EMAIL: z.string().default('admin@school.ac.kr'),
+    FAKE_USER_EMAIL: z.string().default('admin@hufs.ac.kr'),
     FAKE_PHONE_NUMBER: z.string().default('+821000000000'),
     ALLOWED_ORIGINS: z.string().default('http://localhost:5173'),
   })
@@ -54,8 +55,9 @@ const apiEnvSchema = z
         value.COGNITO_CLIENT_ID,
         value.INPUT_BUCKET_NAME,
         value.JOB_QUEUE_URL,
-        value.CHALLENGE_SESSION_KEY_SECRET_ARN,
         value.CHALLENGE_HMAC_PEPPER_SECRET_ARN,
+        value.FROM_EMAIL,
+        value.ALARM_TOPIC_ARN,
       ];
 
       if (required.some((item) => !item)) {

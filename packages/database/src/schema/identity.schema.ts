@@ -1,4 +1,4 @@
-/** 사용자 신원, passwordless challenge, 관리자 추가 인증을 저장한다 */
+/** 사용자 신원, 이메일 challenge, 관리자 추가 인증을 저장한다 */
 import {
   index,
   integer,
@@ -25,6 +25,12 @@ export const challengeStatusEnum = pgEnum('challenge_status', [
   'CANCELLED',
 ]);
 
+/** 이메일 인증 코드가 증명할 행위 */
+export const authChallengePurposeEnum = pgEnum('auth_challenge_purpose', [
+  'SIGNUP',
+  'PASSWORD_RESET',
+]);
+
 /** Cognito 신원과 애플리케이션 권한의 연결 */
 export const users = pgTable(
   'users',
@@ -48,15 +54,14 @@ export const users = pgTable(
   ],
 );
 
-/** 서로 다른 브라우저에서도 Cognito custom auth session을 이어 가는 record */
+/** 이메일 코드 HMAC과 발송 상한 계산 정보만 저장하는 record */
 export const authChallenges = pgTable(
   'auth_challenges',
   {
     id: uuid('id').defaultRandom().primaryKey(),
-    emailHash: text('email_hash').notNull(),
-    cognitoSessionCiphertext: text('cognito_session_ciphertext'),
+    email: text('email').notNull(),
+    purpose: authChallengePurposeEnum('purpose').notNull(),
     codeHmac: text('code_hmac').notNull(),
-    linkHmac: text('link_hmac').notNull(),
     attempts: integer('attempts').default(0).notNull(),
     status: challengeStatusEnum('status').default('PENDING').notNull(),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
@@ -64,7 +69,13 @@ export const authChallenges = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (table) => [index('auth_challenges_email_hash_idx').on(table.emailHash)],
+  (table) => [
+    index('auth_challenges_email_created_at_idx').on(
+      table.email,
+      table.createdAt,
+    ),
+    index('auth_challenges_created_at_idx').on(table.createdAt),
+  ],
 );
 
 /** 관리자 민감 작업 전에 SMS 답을 확인하는 record */
