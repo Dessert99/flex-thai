@@ -7,6 +7,7 @@ import type {
   QuestionVersionRecord,
 } from './question-publication.repository.js';
 import {
+  type QuestionPublicationError,
   QuestionPublicationService,
   type QuestionPublicationErrorCode,
 } from './question-publication.js';
@@ -121,50 +122,63 @@ const createTransaction = (
   calls: string[],
   overrides: TransactionOverrides = {},
 ): QuestionPublicationTransaction => ({
-  loadQuestion: async () => {
+  loadQuestion: () => {
     calls.push('loadQuestion');
-    return overrides.question === undefined ? question() : overrides.question;
+    return Promise.resolve(
+      overrides.question === undefined ? question() : overrides.question,
+    );
   },
-  loadVersion: async (versionId) => {
+  loadVersion: (versionId) => {
     calls.push('loadVersion');
     if (overrides.versions && versionId in overrides.versions) {
-      return overrides.versions[versionId]!;
+      return Promise.resolve(overrides.versions[versionId]!);
     }
-    return overrides.version === undefined ? version() : overrides.version;
+    return Promise.resolve(
+      overrides.version === undefined ? version() : overrides.version,
+    );
   },
-  loadValidationCandidate: async () => {
+  loadValidationCandidate: () => {
     calls.push('loadValidationCandidate');
-    return overrides.candidate === undefined
-      ? candidate()
-      : overrides.candidate;
+    return Promise.resolve(
+      overrides.candidate === undefined ? candidate() : overrides.candidate,
+    );
   },
-  saveValidation: async () => {
+  saveValidation: () => {
     calls.push('saveValidation');
+    return Promise.resolve();
   },
-  retireVersion: async (versionId, questionId) => {
+  retireVersion: (versionId, questionId) => {
     calls.push('retireVersion');
     overrides.onRetireVersion?.(versionId, questionId);
+    return Promise.resolve();
   },
-  publishVersion: async () => {
+  publishVersion: () => {
     calls.push('publishVersion');
+    return Promise.resolve();
   },
-  setCurrentPublishedVersion: async () => {
+  setCurrentPublishedVersion: () => {
     calls.push('setCurrentPublishedVersion');
+    return Promise.resolve();
   },
-  freezeReferencedSentences: async () => {
+  freezeReferencedSentences: () => {
     calls.push('freezeReferencedSentences');
+    return Promise.resolve();
   },
-  invalidateVersion: async () => {
+  invalidateVersion: () => {
     calls.push('invalidateVersion');
+    return Promise.resolve();
   },
-  hideQuestion: async () => {
+  hideQuestion: () => {
     calls.push('hideQuestion');
+    return Promise.resolve();
   },
-  restoreQuestion: async () => {
+  restoreQuestion: () => {
     calls.push('restoreQuestion');
+    return Promise.resolve();
   },
-  appendAuditLog: async () => {
+  appendAuditLog: () => {
     calls.push('appendAuditLog');
+    return Promise.resolve();
   },
 });
 
@@ -204,8 +218,9 @@ const restoreCommand = {
   occurredAt,
 };
 
-const expectPublicationError = (code: QuestionPublicationErrorCode) =>
-  expect.objectContaining({ code });
+const expectedPublicationError = (
+  code: QuestionPublicationErrorCode,
+): Pick<QuestionPublicationError, 'code'> => ({ code });
 
 describe('QuestionPublicationService 문제 게시 수명', () => {
   it('게시 transaction에서 최신 상태를 재검증하고 이전 버전을 퇴역시킨다', async () => {
@@ -279,8 +294,8 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
       calls,
     );
 
-    await expect(service.publishVersion(publishCommand)).rejects.toEqual(
-      expectPublicationError(code),
+    await expect(service.publishVersion(publishCommand)).rejects.toMatchObject(
+      expectedPublicationError(code),
     );
     expect(calls).toEqual([
       'loadQuestion',
@@ -300,8 +315,8 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
       calls,
     );
 
-    await expect(service.publishVersion(publishCommand)).rejects.toEqual(
-      expectPublicationError('QUESTION_VERSION_NOT_PUBLISHABLE'),
+    await expect(service.publishVersion(publishCommand)).rejects.toMatchObject(
+      expectedPublicationError('QUESTION_VERSION_NOT_PUBLISHABLE'),
     );
     expect(calls).toEqual([
       'loadQuestion',
@@ -353,8 +368,10 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
       calls,
     );
 
-    await expect(service.invalidateVersion(invalidateCommand)).rejects.toEqual(
-      expectPublicationError('QUESTION_VERSION_MISMATCH'),
+    await expect(
+      service.invalidateVersion(invalidateCommand),
+    ).rejects.toMatchObject(
+      expectedPublicationError('QUESTION_VERSION_MISMATCH'),
     );
     expect(calls).toEqual(['loadQuestion', 'loadVersion']);
   });
@@ -376,8 +393,10 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
       calls,
     );
 
-    await expect(service.invalidateVersion(invalidateCommand)).rejects.toEqual(
-      expectPublicationError('QUESTION_STATE_CONFLICT'),
+    await expect(
+      service.invalidateVersion(invalidateCommand),
+    ).rejects.toMatchObject(
+      expectedPublicationError('QUESTION_STATE_CONFLICT'),
     );
     expect(calls).toEqual(['loadQuestion', 'loadVersion']);
   });
@@ -399,8 +418,8 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
       calls,
     );
 
-    await expect(service.restoreQuestion(restoreCommand)).rejects.toEqual(
-      expectPublicationError('QUESTION_RESTORE_NOT_ALLOWED'),
+    await expect(service.restoreQuestion(restoreCommand)).rejects.toMatchObject(
+      expectedPublicationError('QUESTION_RESTORE_NOT_ALLOWED'),
     );
     expect(calls).toEqual(['loadQuestion', 'loadVersion']);
   });
@@ -412,8 +431,10 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
       hideCalls,
     );
 
-    await expect(hideService.hideQuestion(restoreCommand)).rejects.toEqual(
-      expectPublicationError('QUESTION_STATE_CONFLICT'),
+    await expect(
+      hideService.hideQuestion(restoreCommand),
+    ).rejects.toMatchObject(
+      expectedPublicationError('QUESTION_STATE_CONFLICT'),
     );
     expect(hideCalls).toEqual(['loadQuestion']);
   });
@@ -458,8 +479,8 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
       calls,
     );
 
-    await expect(service.restoreQuestion(restoreCommand)).rejects.toEqual(
-      expectPublicationError('QUESTION_VERSION_MISMATCH'),
+    await expect(service.restoreQuestion(restoreCommand)).rejects.toMatchObject(
+      expectedPublicationError('QUESTION_VERSION_MISMATCH'),
     );
     expect(calls).toEqual(['loadQuestion', 'loadVersion']);
   });
@@ -473,7 +494,9 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
 
     await expect(
       service.validateVersion('draft-version-id', occurredAt),
-    ).rejects.toEqual(expectPublicationError('QUESTION_VERSION_NOT_FOUND'));
+    ).rejects.toMatchObject(
+      expectedPublicationError('QUESTION_VERSION_NOT_FOUND'),
+    );
     expect(calls).toEqual(['loadVersion']);
   });
 
@@ -486,7 +509,9 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
 
     await expect(
       service.validateVersion('draft-version-id', occurredAt),
-    ).rejects.toEqual(expectPublicationError('QUESTION_VERSION_NOT_FOUND'));
+    ).rejects.toMatchObject(
+      expectedPublicationError('QUESTION_VERSION_NOT_FOUND'),
+    );
     expect(calls).toEqual(['loadVersion', 'loadValidationCandidate']);
   });
 
@@ -497,8 +522,8 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
       calls,
     );
 
-    await expect(service.publishVersion(publishCommand)).rejects.toEqual(
-      expectPublicationError('QUESTION_NOT_FOUND'),
+    await expect(service.publishVersion(publishCommand)).rejects.toMatchObject(
+      expectedPublicationError('QUESTION_NOT_FOUND'),
     );
   });
 
@@ -509,8 +534,8 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
       calls,
     );
 
-    await expect(service.publishVersion(publishCommand)).rejects.toEqual(
-      expectPublicationError('QUESTION_VERSION_NOT_FOUND'),
+    await expect(service.publishVersion(publishCommand)).rejects.toMatchObject(
+      expectedPublicationError('QUESTION_VERSION_NOT_FOUND'),
     );
   });
 
@@ -522,8 +547,8 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
       [],
     );
 
-    await expect(service.publishVersion(publishCommand)).rejects.toEqual(
-      expectPublicationError('QUESTION_VERSION_MISMATCH'),
+    await expect(service.publishVersion(publishCommand)).rejects.toMatchObject(
+      expectedPublicationError('QUESTION_VERSION_MISMATCH'),
     );
   });
 
@@ -535,8 +560,8 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
       [],
     );
 
-    await expect(service.publishVersion(publishCommand)).rejects.toEqual(
-      expectPublicationError('IMMUTABLE_VERSION'),
+    await expect(service.publishVersion(publishCommand)).rejects.toMatchObject(
+      expectedPublicationError('IMMUTABLE_VERSION'),
     );
   });
 });
