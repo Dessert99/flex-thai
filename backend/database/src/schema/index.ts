@@ -15,3 +15,6 @@ export * from './thai-content.schema.js';
 
 /** 문제 유형·버전·블록·선택지 schema를 공개한다 */
 export * from './questions.schema.js';
+
+/** 학습자 답안과 저장 콘텐츠 schema를 공개한다 */
+export * from './learning.schema.js';
