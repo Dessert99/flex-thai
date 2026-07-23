@@ -1,0 +1,4 @@
+interface:
+  display_name: "Claude 리뷰"
+  short_description: "Claude로 코드와 설계를 교차 검토"
+  default_prompt: "Use $claude-review to get an actual read-only Claude review and apply only verified feedback."
