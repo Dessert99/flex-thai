@@ -13,6 +13,9 @@ export * from './repositories/drizzle-admin-bootstrap.repository.js';
 /** Drizzle Job repository adapter를 패키지 공개 경계에 노출한다 */
 export * from './repositories/drizzle-job.repository.js';
 
+/** 문제 검증·게시·무효화 transaction adapter를 공개한다 */
+export * from './repositories/drizzle-question-publication.repository.js';
+
 /** 관리자 step-up repository adapter를 공개한다 */
 export * from './repositories/drizzle-step-up.repository.js';
 
