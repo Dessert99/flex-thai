@@ -1,7 +1,7 @@
 /** 기초 ERD에서 보안·중복 방지 column이 사라지지 않게 고정한다 */
 import { getTableColumns } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
-import { authChallenges, jobs, users } from './index.js';
+import { auditLogs, authChallenges, jobs, users } from './index.js';
 
 describe('기초 데이터베이스 schema', () => {
   it('사용자 신원은 변경 불가능한 cognitoSub를 가진다', () => {
@@ -32,5 +32,22 @@ describe('기초 데이터베이스 schema', () => {
     expect(Object.keys(getTableColumns(jobs))).toEqual(
       expect.arrayContaining(['clientRequestId', 'enqueuedAt']),
     );
+  });
+
+  it('감사 로그는 기존 문자열 대상과 nullable 구조화 대상을 함께 보존한다', () => {
+    const columns = getTableColumns(auditLogs);
+
+    expect(Object.keys(columns)).toEqual(
+      expect.arrayContaining([
+        'actorSub',
+        'target',
+        'actorUserId',
+        'targetType',
+        'targetId',
+      ]),
+    );
+    expect(columns.actorUserId.notNull).toBe(false);
+    expect(columns.targetType.notNull).toBe(false);
+    expect(columns.targetId.notNull).toBe(false);
   });
 });

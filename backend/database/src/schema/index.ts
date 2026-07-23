@@ -12,3 +12,6 @@ export * from './vocabulary.schema.js';
 
 /** 태국어 문장 버전·토큰·표현 schema를 공개한다 */
 export * from './thai-content.schema.js';
+
+/** 문제 유형·버전·블록·선택지 schema를 공개한다 */
+export * from './questions.schema.js';

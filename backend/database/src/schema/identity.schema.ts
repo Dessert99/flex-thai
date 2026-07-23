@@ -113,8 +113,13 @@ export const stepUpGrants = pgTable('step_up_grants', {
 export const auditLogs = pgTable('audit_logs', {
   id: uuid('id').defaultRandom().primaryKey(),
   actorSub: text('actor_sub').notNull(),
+  actorUserId: uuid('actor_user_id').references(() => users.id, {
+    onDelete: 'restrict',
+  }),
   action: text('action').notNull(),
   target: text('target').notNull(),
+  targetType: text('target_type'),
+  targetId: uuid('target_id'),
   summary: jsonb('summary').$type<Record<string, unknown>>().notNull(),
   requestId: text('request_id').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true })
