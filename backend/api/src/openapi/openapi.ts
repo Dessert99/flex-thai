@@ -8,6 +8,9 @@ import {
 import { cleanupOpenApiDoc } from 'nestjs-zod';
 import { REFRESH_COOKIE_NAME } from '../identity/refresh-cookie.js';
 
+/** Swagger 실행기와 route 설정이 같은 UI 경로를 사용하게 한다 */
+export const SWAGGER_UI_PATH = 'api/docs' as const;
+
 const OPEN_API_CONFIG = new DocumentBuilder()
   .setTitle('FLEX THIA API')
   .setDescription('FLEX 태국어 학습 서비스 공개 API')
@@ -21,7 +24,7 @@ const OPEN_API_CONFIG = new DocumentBuilder()
 
 /** 비운영 Swagger UI와 JSON의 고정 경로 */
 export interface OpenApiPaths {
-  ui: 'api/docs';
+  ui: typeof SWAGGER_UI_PATH;
   json: 'api/openapi.json';
 }
 
@@ -35,7 +38,7 @@ export const resolveOpenApiPaths = (
 ): OpenApiPaths | null =>
   nodeEnv === 'production'
     ? null
-    : { ui: 'api/docs', json: 'api/openapi.json' };
+    : { ui: SWAGGER_UI_PATH, json: 'api/openapi.json' };
 
 /** 비운영 환경에만 Swagger UI와 OpenAPI JSON을 등록한다 */
 export const configureOpenApi = (
