@@ -22,6 +22,13 @@
       "when": 1784800354454,
       "tag": "0002_identity-mfa",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1784827597587,
+      "tag": "0003_content-foundations",
+      "breakpoints": true
     }
   ]
 }
