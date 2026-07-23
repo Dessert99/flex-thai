@@ -2,6 +2,7 @@
 import {
   type CanActivate,
   type ExecutionContext,
+  Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -14,6 +15,12 @@ export interface AuthorizerGuardOptions {
   cognitoClientId: string;
   nodeEnv?: 'development' | 'test' | 'production';
 }
+
+/** Cognito guard가 사용할 사용자 repository 주입 token */
+export const IDENTITY_USER_REPOSITORY = Symbol('IDENTITY_USER_REPOSITORY');
+
+/** Cognito guard의 인증 모드와 app client 설정 주입 token */
+export const AUTHORIZER_GUARD_OPTIONS = Symbol('AUTHORIZER_GUARD_OPTIONS');
 
 type AuthRequest = {
   headers?: Record<string, string | string[] | undefined>;
@@ -36,7 +43,9 @@ type AuthRequest = {
 @Injectable()
 export class CognitoAuthorizerGuard implements CanActivate {
   constructor(
+    @Inject(IDENTITY_USER_REPOSITORY)
     private readonly users: IdentityUserRepository,
+    @Inject(AUTHORIZER_GUARD_OPTIONS)
     private readonly options: AuthorizerGuardOptions,
   ) {}
 

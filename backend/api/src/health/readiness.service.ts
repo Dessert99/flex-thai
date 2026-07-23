@@ -6,6 +6,18 @@ import {
   Res,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import {
+  ApiExtraModels,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
+import type { ReadinessResponse } from '@flex-thia/contracts';
+import { ApiProblemResponse } from '../openapi/openapi.decorators.js';
+import {
+  ProblemDetailsDto,
+  ReadinessResponseDto,
+} from '../openapi/openapi.dto.js';
 
 /** local PostgreSQL과 Aurora Data API가 구현할 최소 준비 확인 port */
 export interface ReadinessProbe {
@@ -60,15 +72,20 @@ type HeaderResponse = {
 };
 
 /** 배포와 알람에서 DB 준비 상태만 확인하는 endpoint */
+@ApiTags('Health')
+@ApiExtraModels(ProblemDetailsDto)
 @Controller('ready')
 export class ReadinessController {
   constructor(private readonly readiness: ReadinessService) {}
 
   /** DB 재개 중이면 3초 뒤 재시도할 503 응답을 반환한다 */
+  @ApiOperation({ summary: 'DB 연결 준비 상태를 확인한다' })
+  @ApiOkResponse({ type: ReadinessResponseDto })
+  @ApiProblemResponse(503, 'DB가 재개 중이거나 연결 준비가 끝나지 않음')
   @Get()
   async getReady(
     @Res({ passthrough: true }) response: HeaderResponse,
-  ): Promise<{ status: 'ready' }> {
+  ): Promise<ReadinessResponse> {
     try {
       return await this.readiness.check();
     } catch {

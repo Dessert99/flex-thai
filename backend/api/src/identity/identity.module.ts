@@ -8,10 +8,12 @@ import {
 import { AdminMfaGuard } from './admin-mfa.guard.js';
 import { ApplicationRoleGuard } from './application-role.guard.js';
 import {
+  AUTHORIZER_GUARD_OPTIONS,
   type AuthorizerGuardOptions,
   CognitoAuthorizerGuard,
+  IDENTITY_USER_REPOSITORY,
 } from './cognito-authorizer.guard.js';
-import { CsrfGuard } from './csrf.guard.js';
+import { CSRF_ALLOWED_ORIGINS, CsrfGuard } from './csrf.guard.js';
 import { IdentityController } from './identity.controller.js';
 import { MeController } from './me.controller.js';
 
@@ -39,16 +41,19 @@ export class IdentityModule {
           useValue: options.identity,
         },
         {
-          provide: CognitoAuthorizerGuard,
-          useValue: new CognitoAuthorizerGuard(
-            options.users,
-            options.authorizer,
-          ),
+          provide: IDENTITY_USER_REPOSITORY,
+          useValue: options.users,
         },
         {
-          provide: CsrfGuard,
-          useValue: new CsrfGuard(options.allowedOrigins),
+          provide: AUTHORIZER_GUARD_OPTIONS,
+          useValue: options.authorizer,
         },
+        CognitoAuthorizerGuard,
+        {
+          provide: CSRF_ALLOWED_ORIGINS,
+          useValue: options.allowedOrigins,
+        },
+        CsrfGuard,
         ApplicationRoleGuard,
         AdminMfaGuard,
       ],

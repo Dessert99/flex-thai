@@ -3,13 +3,20 @@ import {
   type CanActivate,
   type ExecutionContext,
   ForbiddenException,
+  Inject,
   Injectable,
 } from '@nestjs/common';
+
+/** CSRF guard의 exact origin allowlist 주입 token */
+export const CSRF_ALLOWED_ORIGINS = Symbol('CSRF_ALLOWED_ORIGINS');
 
 /** exact Origin과 명시적 custom header를 함께 요구하는 CSRF guard */
 @Injectable()
 export class CsrfGuard implements CanActivate {
-  constructor(private readonly allowedOrigins: string[]) {}
+  constructor(
+    @Inject(CSRF_ALLOWED_ORIGINS)
+    private readonly allowedOrigins: string[],
+  ) {}
 
   /** 허용 origin이 custom header를 포함한 요청만 통과시킨다 */
   canActivate(context: ExecutionContext): boolean {
