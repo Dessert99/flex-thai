@@ -172,7 +172,10 @@ describe('ThaiSentenceVersion', () => {
       ]),
     ).toEqual([
       expect.objectContaining({ vocabularyId: 'first', representative: true }),
-      expect.objectContaining({ vocabularyId: 'middle', representative: false }),
+      expect.objectContaining({
+        vocabularyId: 'middle',
+        representative: false,
+      }),
       expect.objectContaining({ vocabularyId: 'last', representative: false }),
     ]);
   });
@@ -195,7 +198,10 @@ describe('ThaiSentenceVersion', () => {
       ]),
     ).toEqual([
       expect.objectContaining({ vocabularyId: 'first', representative: true }),
-      expect.objectContaining({ vocabularyId: 'second', representative: false }),
+      expect.objectContaining({
+        vocabularyId: 'second',
+        representative: false,
+      }),
     ]);
   });
 
@@ -204,9 +210,7 @@ describe('ThaiSentenceVersion', () => {
   });
 
   it('동결된 문장 버전은 수정할 수 없다', () => {
-    expect(() =>
-      assertThaiSentenceVersionMutable(new Date()),
-    ).toThrowError(
+    expect(() => assertThaiSentenceVersionMutable(new Date())).toThrowError(
       expect.objectContaining({ code: 'THAI_SENTENCE_VERSION_IMMUTABLE' }),
     );
   });
