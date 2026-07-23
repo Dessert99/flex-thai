@@ -60,3 +60,18 @@ export * from './questions/question-publication.repository.js';
 
 /** 문제 게시와 노출 상태 수명 use case를 공개한다 */
 export * from './questions/question-publication.js';
+
+/** 답안 transaction 저장소 port를 공개한다 */
+export * from './learning/question-attempt.repository.js';
+
+/** 답안 append-only 수명과 학습자 오류를 공개한다 */
+export * from './learning/question-attempt.js';
+
+/** 저장 문제·어휘 repository port를 공개한다 */
+export * from './learning/saved-content.repository.js';
+
+/** 저장 문제·어휘의 가용성 use case를 공개한다 */
+export * from './learning/saved-content.js';
+
+/** private media 읽기 URL provider port를 공개한다 */
+export * from './media/media-read-url.provider.js';
