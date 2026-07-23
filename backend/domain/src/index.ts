@@ -48,3 +48,6 @@ export * from './uploads/upload-policy.service.js';
 
 /** 음성 자산의 완료·거절·게시 준비 규칙을 공개한다 */
 export * from './media/media-asset.js';
+
+/** 태국어 문장 버전의 Unicode offset·표현·동결 규칙을 공개한다 */
+export * from './thai-content/thai-sentence-version.js';
