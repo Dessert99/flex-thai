@@ -18,6 +18,7 @@ export interface ThaiExpressionOccurrenceInput {
   startTokenIndex: number;
   endTokenIndex: number;
   vocabularyId: string;
+  vocabularyKind: 'WORD' | 'EXPRESSION';
   adminSelected: boolean;
 }
 
@@ -40,7 +41,8 @@ export interface ThaiContentValidationIssue {
     | 'TOKEN_RANGE_INVALID'
     | 'TOKEN_RANGE_OVERLAP'
     | 'TOKEN_SURFACE_MISMATCH'
-    | 'EXPRESSION_RANGE_INVALID';
+    | 'EXPRESSION_RANGE_INVALID'
+    | 'EXPRESSION_VOCABULARY_REQUIRED';
 }
 
 /** 동결된 문장 버전의 변경 시도를 안정적인 code로 전달한다 */
@@ -100,12 +102,18 @@ export const validateThaiSentenceVersion = (
       !Number.isInteger(expression.startTokenIndex) ||
       !Number.isInteger(expression.endTokenIndex) ||
       expression.startTokenIndex < 0 ||
-      expression.endTokenIndex <= expression.startTokenIndex ||
+      expression.endTokenIndex - expression.startTokenIndex < 2 ||
       expression.endTokenIndex > input.tokens.length
     ) {
       issues.push({
         path: `expressions.${index}`,
         code: 'EXPRESSION_RANGE_INVALID',
+      });
+    }
+    if (expression.vocabularyKind !== 'EXPRESSION') {
+      issues.push({
+        path: `expressions.${index}.vocabularyId`,
+        code: 'EXPRESSION_VOCABULARY_REQUIRED',
       });
     }
   });

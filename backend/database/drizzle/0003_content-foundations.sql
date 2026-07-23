@@ -18,7 +18,8 @@ CREATE TABLE "media_assets" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "media_assets_declared_size_safe_integer" CHECK ("media_assets"."declared_size_bytes" > 0 and "media_assets"."declared_size_bytes" <= 9007199254740991),
 	CONSTRAINT "media_assets_size_safe_integer" CHECK ("media_assets"."size_bytes" is null or ("media_assets"."size_bytes" > 0 and "media_assets"."size_bytes" <= 9007199254740991)),
-	CONSTRAINT "media_assets_declared_sha256_length" CHECK (char_length("media_assets"."declared_sha256") = 64)
+	CONSTRAINT "media_assets_declared_sha256_length" CHECK (char_length("media_assets"."declared_sha256") = 64),
+	CONSTRAINT "media_assets_ready_metadata_consistent" CHECK ("media_assets"."status" <> 'READY' or ("media_assets"."mime_type" is not null and "media_assets"."size_bytes" is not null and "media_assets"."sha256" is not null and char_length("media_assets"."sha256") = 64 and "media_assets"."ready_at" is not null))
 );
 --> statement-breakpoint
 CREATE TABLE "vocabularies" (
@@ -28,7 +29,8 @@ CREATE TABLE "vocabularies" (
 	"kind" "vocabulary_kind" NOT NULL,
 	"status" "vocabulary_status" DEFAULT 'DRAFT' NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "vocabularies_id_kind_unique" UNIQUE("id","kind")
 );
 --> statement-breakpoint
 CREATE TABLE "vocabulary_meaning_pronunciations" (
@@ -66,8 +68,10 @@ CREATE TABLE "expression_occurrences" (
 	"start_token_index" integer NOT NULL,
 	"end_token_index" integer NOT NULL,
 	"vocabulary_id" uuid NOT NULL,
+	"vocabulary_kind" "vocabulary_kind" NOT NULL,
 	"representative" boolean DEFAULT false NOT NULL,
-	CONSTRAINT "expression_occurrences_token_range" CHECK ("expression_occurrences"."start_token_index" >= 0 and "expression_occurrences"."end_token_index" > "expression_occurrences"."start_token_index")
+	CONSTRAINT "expression_occurrences_vocabulary_kind_expression" CHECK ("expression_occurrences"."vocabulary_kind" = 'EXPRESSION'),
+	CONSTRAINT "expression_occurrences_token_range" CHECK ("expression_occurrences"."start_token_index" >= 0 and "expression_occurrences"."end_token_index" - "expression_occurrences"."start_token_index" >= 2)
 );
 --> statement-breakpoint
 CREATE TABLE "thai_sentence_versions" (
@@ -111,7 +115,7 @@ ALTER TABLE "vocabulary_meanings" ADD CONSTRAINT "vocabulary_meanings_vocabulary
 ALTER TABLE "vocabulary_pronunciations" ADD CONSTRAINT "vocabulary_pronunciations_vocabulary_id_vocabularies_id_fk" FOREIGN KEY ("vocabulary_id") REFERENCES "public"."vocabularies"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "vocabulary_pronunciations" ADD CONSTRAINT "vocabulary_pronunciations_media_asset_id_media_assets_id_fk" FOREIGN KEY ("media_asset_id") REFERENCES "public"."media_assets"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "expression_occurrences" ADD CONSTRAINT "expression_occurrences_sentence_version_id_thai_sentence_versions_id_fk" FOREIGN KEY ("sentence_version_id") REFERENCES "public"."thai_sentence_versions"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "expression_occurrences" ADD CONSTRAINT "expression_occurrences_vocabulary_id_vocabularies_id_fk" FOREIGN KEY ("vocabulary_id") REFERENCES "public"."vocabularies"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "expression_occurrences" ADD CONSTRAINT "expression_occurrences_vocabulary_kind_fk" FOREIGN KEY ("vocabulary_id","vocabulary_kind") REFERENCES "public"."vocabularies"("id","kind") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "thai_sentence_versions" ADD CONSTRAINT "thai_sentence_versions_sentence_id_thai_sentences_id_fk" FOREIGN KEY ("sentence_id") REFERENCES "public"."thai_sentences"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "thai_sentence_versions" ADD CONSTRAINT "thai_sentence_versions_media_asset_id_media_assets_id_fk" FOREIGN KEY ("media_asset_id") REFERENCES "public"."media_assets"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "token_occurrences" ADD CONSTRAINT "token_occurrences_sentence_version_id_thai_sentence_versions_id_fk" FOREIGN KEY ("sentence_version_id") REFERENCES "public"."thai_sentence_versions"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint

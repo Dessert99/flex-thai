@@ -21,7 +21,12 @@ const uploadingAsset = (): MediaAsset => ({
   readyAt: null,
 });
 
-describe('MediaAsset', () => {
+const readReadySha256 = (asset: MediaAsset): string => {
+  assertMediaAssetReady(asset);
+  return asset.sha256.toUpperCase();
+};
+
+describe('MediaAsset 음성 자산 수명 규칙', () => {
   it('선언 정보와 검사 정보가 같을 때만 READY로 전이한다', () => {
     const readyAt = new Date('2026-07-24T00:00:00.000Z');
 
@@ -80,5 +85,30 @@ describe('MediaAsset', () => {
     expect(() => assertMediaAssetReady(uploadingAsset())).toThrowError(
       expect.objectContaining({ code: 'MEDIA_ASSET_NOT_READY' }),
     );
+  });
+
+  it('READY 상태를 위조해도 실제 metadata와 readyAt이 없으면 거부한다', () => {
+    const forgedReady = {
+      ...uploadingAsset(),
+      status: 'READY',
+    } as unknown as MediaAsset;
+
+    expect(() => assertMediaAssetReady(forgedReady)).toThrowError(
+      expect.objectContaining({ code: 'MEDIA_ASSET_NOT_READY' }),
+    );
+  });
+
+  it('READY assertion 뒤에는 실제 SHA-256을 non-null로 좁힌다', () => {
+    const ready = completeMediaAsset(
+      uploadingAsset(),
+      {
+        mimeType: 'audio/mpeg',
+        sizeBytes: 1024,
+        sha256: 'a'.repeat(64),
+      },
+      new Date(),
+    );
+
+    expect(readReadySha256(ready)).toBe('A'.repeat(64));
   });
 });

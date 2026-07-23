@@ -46,6 +46,7 @@ export const vocabularies = pgTable(
   },
   (table) => [
     uniqueIndex('vocabularies_normalized_thai_unique').on(table.normalizedThai),
+    unique('vocabularies_id_kind_unique').on(table.id, table.kind),
   ],
 );
 

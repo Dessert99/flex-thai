@@ -58,5 +58,9 @@ export const mediaAssets = pgTable(
       'media_assets_declared_sha256_length',
       sql`char_length(${table.declaredSha256}) = 64`,
     ),
+    check(
+      'media_assets_ready_metadata_consistent',
+      sql`${table.status} <> 'READY' or (${table.mimeType} is not null and ${table.sizeBytes} is not null and ${table.sha256} is not null and char_length(${table.sha256}) = 64 and ${table.readyAt} is not null)`,
+    ),
   ],
 );

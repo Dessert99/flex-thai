@@ -56,6 +56,7 @@ describe('콘텐츠 기반 데이터베이스 schema', () => {
       expect.arrayContaining([
         'media_assets_declared_size_safe_integer',
         'media_assets_size_safe_integer',
+        'media_assets_ready_metadata_consistent',
       ]),
     );
   });
@@ -74,6 +75,15 @@ describe('콘텐츠 기반 데이터베이스 schema', () => {
   });
 
   it('복합 FK 대상 쌍을 table-level unique 제약으로 선언한다', () => {
+    expect(
+      getTableConfig(vocabularies).uniqueConstraints.map((constraint) => ({
+        name: constraint.name,
+        columns: constraint.columns.map((column) => column.name),
+      })),
+    ).toContainEqual({
+      name: 'vocabularies_id_kind_unique',
+      columns: ['id', 'kind'],
+    });
     expect(
       getTableConfig(vocabularyMeanings).uniqueConstraints.map(
         (constraint) => ({
@@ -206,11 +216,11 @@ describe('콘텐츠 기반 데이터베이스 schema', () => {
         onDelete: 'restrict',
       },
       {
-        name: 'expression_occurrences_vocabulary_id_vocabularies_id_fk',
+        name: 'expression_occurrences_vocabulary_kind_fk',
         sourceTable: 'expression_occurrences',
         targetTable: 'vocabularies',
-        columns: ['vocabulary_id'],
-        foreignColumns: ['id'],
+        columns: ['vocabulary_id', 'vocabulary_kind'],
+        foreignColumns: ['id', 'kind'],
         onDelete: 'restrict',
       },
     ]);
@@ -246,9 +256,19 @@ describe('콘텐츠 기반 데이터베이스 schema', () => {
     );
   });
 
-  it('표현 대표 여부를 보존한다', () => {
-    expect(Object.keys(getTableColumns(expressionOccurrences))).toContain(
-      'representative',
+  it('표현 종류 discriminator와 다중 토큰 범위 제약을 보존한다', () => {
+    expect(Object.keys(getTableColumns(expressionOccurrences))).toEqual(
+      expect.arrayContaining(['vocabularyKind', 'representative']),
+    );
+    expect(
+      getTableConfig(expressionOccurrences).checks.map(
+        (constraint) => constraint.name,
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        'expression_occurrences_vocabulary_kind_expression',
+        'expression_occurrences_token_range',
+      ]),
     );
   });
 
@@ -261,16 +281,33 @@ describe('콘텐츠 기반 데이터베이스 schema', () => {
     );
   });
 
+  it('generated SQL에 READY metadata와 다중 토큰 표현 제약을 보존한다', () => {
+    expect(migrationSql).toContain(
+      'CONSTRAINT "media_assets_ready_metadata_consistent"',
+    );
+    expect(migrationSql).toContain(
+      '"media_assets"."status" <> \'READY\' or ("media_assets"."mime_type" is not null',
+    );
+    expect(migrationSql).toContain(
+      'CONSTRAINT "expression_occurrences_vocabulary_kind_expression"',
+    );
+    expect(migrationSql).toContain(
+      '"expression_occurrences"."end_token_index" - "expression_occurrences"."start_token_index" >= 2',
+    );
+  });
+
   it('복합 FK target unique를 generated SQL의 FK보다 먼저 선언한다', () => {
     const targetUniquePositions = [
       migrationSql.indexOf('"vocabulary_meanings_id_vocabulary_unique"'),
       migrationSql.indexOf('"vocabulary_pronunciations_id_vocabulary_unique"'),
+      migrationSql.indexOf('"vocabularies_id_kind_unique"'),
     ];
     const compositeForeignKeyPositions = [
       migrationSql.indexOf('"vocabulary_meaning_pronunciations_meaning_fk"'),
       migrationSql.indexOf(
         '"vocabulary_meaning_pronunciations_pronunciation_fk"',
       ),
+      migrationSql.indexOf('"expression_occurrences_vocabulary_kind_fk"'),
     ];
 
     expect(targetUniquePositions).not.toContain(-1);
@@ -283,6 +320,9 @@ describe('콘텐츠 기반 데이터베이스 schema', () => {
     );
     expect(migrationSql).toContain(
       'CONSTRAINT "vocabulary_pronunciations_id_vocabulary_unique" UNIQUE("id","vocabulary_id")',
+    );
+    expect(migrationSql).toContain(
+      'CONSTRAINT "vocabularies_id_kind_unique" UNIQUE("id","kind")',
     );
   });
 });

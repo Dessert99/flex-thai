@@ -1,5 +1,5 @@
 {
-  "id": "d1324365-f144-49b5-a8ea-b1f4e5ae7967",
+  "id": "054f9b33-e27c-4f46-ae08-b18944db97c6",
   "prevId": "5017929b-26e2-4c62-b6f2-782fa867715a",
   "version": "7",
   "dialect": "postgresql",
@@ -1071,6 +1071,10 @@
         "media_assets_declared_sha256_length": {
           "name": "media_assets_declared_sha256_length",
           "value": "char_length(\"media_assets\".\"declared_sha256\") = 64"
+        },
+        "media_assets_ready_metadata_consistent": {
+          "name": "media_assets_ready_metadata_consistent",
+          "value": "\"media_assets\".\"status\" <> 'READY' or (\"media_assets\".\"mime_type\" is not null and \"media_assets\".\"size_bytes\" is not null and \"media_assets\".\"sha256\" is not null and char_length(\"media_assets\".\"sha256\") = 64 and \"media_assets\".\"ready_at\" is not null)"
         }
       },
       "isRLSEnabled": false
@@ -1147,7 +1151,16 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "vocabularies_id_kind_unique": {
+          "name": "vocabularies_id_kind_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "kind"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -1429,6 +1442,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "vocabulary_kind": {
+          "name": "vocabulary_kind",
+          "type": "vocabulary_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
         "representative": {
           "name": "representative",
           "type": "boolean",
@@ -1468,15 +1488,17 @@
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
-        "expression_occurrences_vocabulary_id_vocabularies_id_fk": {
-          "name": "expression_occurrences_vocabulary_id_vocabularies_id_fk",
+        "expression_occurrences_vocabulary_kind_fk": {
+          "name": "expression_occurrences_vocabulary_kind_fk",
           "tableFrom": "expression_occurrences",
           "tableTo": "vocabularies",
           "columnsFrom": [
-            "vocabulary_id"
+            "vocabulary_id",
+            "vocabulary_kind"
           ],
           "columnsTo": [
-            "id"
+            "id",
+            "kind"
           ],
           "onDelete": "restrict",
           "onUpdate": "no action"
@@ -1486,9 +1508,13 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
+        "expression_occurrences_vocabulary_kind_expression": {
+          "name": "expression_occurrences_vocabulary_kind_expression",
+          "value": "\"expression_occurrences\".\"vocabulary_kind\" = 'EXPRESSION'"
+        },
         "expression_occurrences_token_range": {
           "name": "expression_occurrences_token_range",
-          "value": "\"expression_occurrences\".\"start_token_index\" >= 0 and \"expression_occurrences\".\"end_token_index\" > \"expression_occurrences\".\"start_token_index\""
+          "value": "\"expression_occurrences\".\"start_token_index\" >= 0 and \"expression_occurrences\".\"end_token_index\" - \"expression_occurrences\".\"start_token_index\" >= 2"
         }
       },
       "isRLSEnabled": false

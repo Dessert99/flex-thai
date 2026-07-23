@@ -40,7 +40,7 @@ const sentence = (): ThaiSentenceVersionInput => ({
   expressions: [],
 });
 
-describe('ThaiSentenceVersion', () => {
+describe('ThaiSentenceVersion 문장 버전 검증', () => {
   it('offset을 UTF-16 code unit이 아니라 Unicode code point로 해석한다', () => {
     expect(validateThaiSentenceVersion(sentence())).toEqual([]);
   });
@@ -84,6 +84,7 @@ describe('ThaiSentenceVersion', () => {
         startTokenIndex: 0.5,
         endTokenIndex: 1,
         vocabularyId: 'expression-1',
+        vocabularyKind: 'EXPRESSION',
         adminSelected: false,
       },
     ];
@@ -93,6 +94,7 @@ describe('ThaiSentenceVersion', () => {
         startTokenIndex: 0,
         endTokenIndex: 1.5,
         vocabularyId: 'expression-1',
+        vocabularyKind: 'EXPRESSION',
         adminSelected: false,
       },
     ];
@@ -104,6 +106,42 @@ describe('ThaiSentenceVersion', () => {
     expect(validateThaiSentenceVersion(fractionalEnd)).toContainEqual({
       path: 'expressions.0',
       code: 'EXPRESSION_RANGE_INVALID',
+    });
+  });
+
+  it('한 토큰만 포함하는 표현 범위를 거부한다', () => {
+    const input = sentence();
+    input.expressions = [
+      {
+        startTokenIndex: 0,
+        endTokenIndex: 1,
+        vocabularyId: 'expression-1',
+        vocabularyKind: 'EXPRESSION',
+        adminSelected: false,
+      },
+    ];
+
+    expect(validateThaiSentenceVersion(input)).toContainEqual({
+      path: 'expressions.0',
+      code: 'EXPRESSION_RANGE_INVALID',
+    });
+  });
+
+  it('WORD 어휘를 표현 범위로 연결하면 안정적인 오류를 반환한다', () => {
+    const input = sentence();
+    input.expressions = [
+      {
+        startTokenIndex: 0,
+        endTokenIndex: 2,
+        vocabularyId: 'word-1',
+        vocabularyKind: 'WORD',
+        adminSelected: false,
+      },
+    ];
+
+    expect(validateThaiSentenceVersion(input)).toContainEqual({
+      path: 'expressions.0.vocabularyId',
+      code: 'EXPRESSION_VOCABULARY_REQUIRED',
     });
   });
 
@@ -123,18 +161,21 @@ describe('ThaiSentenceVersion', () => {
           startTokenIndex: 0,
           endTokenIndex: 2,
           vocabularyId: 'short',
+          vocabularyKind: 'EXPRESSION',
           adminSelected: true,
         },
         {
           startTokenIndex: 0,
           endTokenIndex: 3,
           vocabularyId: 'long',
+          vocabularyKind: 'EXPRESSION',
           adminSelected: false,
         },
         {
           startTokenIndex: 4,
-          endTokenIndex: 5,
+          endTokenIndex: 6,
           vocabularyId: 'separate',
+          vocabularyKind: 'EXPRESSION',
           adminSelected: false,
         },
       ]),
@@ -155,18 +196,21 @@ describe('ThaiSentenceVersion', () => {
           startTokenIndex: 0,
           endTokenIndex: 2,
           vocabularyId: 'first',
+          vocabularyKind: 'EXPRESSION',
           adminSelected: false,
         },
         {
           startTokenIndex: 1,
           endTokenIndex: 3,
           vocabularyId: 'middle',
+          vocabularyKind: 'EXPRESSION',
           adminSelected: false,
         },
         {
           startTokenIndex: 2,
           endTokenIndex: 4,
           vocabularyId: 'last',
+          vocabularyKind: 'EXPRESSION',
           adminSelected: false,
         },
       ]),
@@ -187,12 +231,14 @@ describe('ThaiSentenceVersion', () => {
           startTokenIndex: 0,
           endTokenIndex: 2,
           vocabularyId: 'first',
+          vocabularyKind: 'EXPRESSION',
           adminSelected: false,
         },
         {
           startTokenIndex: 0,
           endTokenIndex: 2,
           vocabularyId: 'second',
+          vocabularyKind: 'EXPRESSION',
           adminSelected: false,
         },
       ]),

@@ -16,6 +16,7 @@ import {
 import { mediaAssets } from './media.schema.js';
 import {
   vocabularies,
+  vocabularyKindEnum,
   vocabularyMeanings,
   vocabularyPronunciations,
 } from './vocabulary.schema.js';
@@ -127,16 +128,24 @@ export const expressionOccurrences = pgTable(
       .notNull(),
     startTokenIndex: integer('start_token_index').notNull(),
     endTokenIndex: integer('end_token_index').notNull(),
-    vocabularyId: uuid('vocabulary_id')
-      .references(() => vocabularies.id, { onDelete: 'restrict' })
-      .notNull(),
+    vocabularyId: uuid('vocabulary_id').notNull(),
+    vocabularyKind: vocabularyKindEnum('vocabulary_kind').notNull(),
     representative: boolean('representative').default(false).notNull(),
   },
   (table) => [
     index('expression_occurrences_sentence_idx').on(table.sentenceVersionId),
+    foreignKey({
+      name: 'expression_occurrences_vocabulary_kind_fk',
+      columns: [table.vocabularyId, table.vocabularyKind],
+      foreignColumns: [vocabularies.id, vocabularies.kind],
+    }).onDelete('restrict'),
+    check(
+      'expression_occurrences_vocabulary_kind_expression',
+      sql`${table.vocabularyKind} = 'EXPRESSION'`,
+    ),
     check(
       'expression_occurrences_token_range',
-      sql`${table.startTokenIndex} >= 0 and ${table.endTokenIndex} > ${table.startTokenIndex}`,
+      sql`${table.startTokenIndex} >= 0 and ${table.endTokenIndex} - ${table.startTokenIndex} >= 2`,
     ),
   ],
 );

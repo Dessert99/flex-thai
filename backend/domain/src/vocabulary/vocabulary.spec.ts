@@ -8,21 +8,38 @@ import {
   restoreVocabulary,
 } from './vocabulary.js';
 
-const mediaAsset = (status: MediaAsset['status']): MediaAsset => ({
-  id: 'asset-id',
-  kind: 'AUDIO',
-  storageKey: 'audio/asset-id',
-  declaredMimeType: 'audio/mpeg',
-  declaredSizeBytes: 1,
-  declaredSha256: 'a'.repeat(64),
-  mimeType: status === 'READY' ? 'audio/mpeg' : null,
-  sizeBytes: status === 'READY' ? 1 : null,
-  sha256: status === 'READY' ? 'a'.repeat(64) : null,
-  status,
-  readyAt: status === 'READY' ? new Date() : null,
-});
+const mediaAsset = (status: MediaAsset['status']): MediaAsset => {
+  const common = {
+    id: 'asset-id',
+    kind: 'AUDIO' as const,
+    storageKey: 'audio/asset-id',
+    declaredMimeType: 'audio/mpeg',
+    declaredSizeBytes: 1,
+    declaredSha256: 'a'.repeat(64),
+  };
 
-describe('Vocabulary', () => {
+  if (status === 'READY') {
+    return {
+      ...common,
+      mimeType: 'audio/mpeg',
+      sizeBytes: 1,
+      sha256: 'a'.repeat(64),
+      status,
+      readyAt: new Date(),
+    };
+  }
+
+  return {
+    ...common,
+    mimeType: null,
+    sizeBytes: null,
+    sha256: null,
+    status,
+    readyAt: null,
+  };
+};
+
+describe('Vocabulary 공용 어휘 상태 전이', () => {
   it('표시 태국어를 보존하고 정규화 표기를 중복 키로 만든다', () => {
     expect(
       createVocabularyDraft({
