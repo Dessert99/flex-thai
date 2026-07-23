@@ -1,6 +1,6 @@
 # 프론트엔드 컴포넌트 컨벤션
 
-이 문서는 `apps/web`의 React 컴포넌트에 적용한다. 파일 위치와 import 방향은 [structure-convention.md](../structure-convention.md)를 따른다.
+이 문서는 `frontend/web`의 React 컴포넌트에 적용한다. 파일 위치와 import 방향은 [structure-convention.md](../structure-convention.md)를 따른다.
 
 ## 위치
 
@@ -30,7 +30,7 @@
 - 새 UI 프리미티브는 shadcn 레지스트리를 먼저 확인하고, 있으면 `pnpm --filter @thai-flex/web dlx shadcn@latest add <name>`으로 추가한다.
 - shadcn 생성물은 vendored 코드로 취급해 직접 수정하지 않고 상위 컴포넌트에서 조합한다.
 - 화면 코드에서는 원시 `<button>`, `<input>`, `<select>`, `<textarea>` 대신 `shared/ui`를 사용한다.
-- 색과 반경은 [theme.css](../../apps/web/src/app/styles/theme.css)의 토큰을 시맨틱 Tailwind 클래스로 참조하며 리터럴 색상을 쓰지 않는다.
+- 색과 반경은 향후 `frontend/web/src/app/styles/theme.css`의 토큰을 시맨틱 Tailwind 클래스로 참조하며 리터럴 색상을 쓰지 않는다.
 
 ## 접근성과 테스트
 
@@ -45,4 +45,4 @@
 - shadcn CLI 생성물은 파일명, export 주석, 원시 태그 규칙의 예외로 두고 생성된 형식을 유지한다.
 - 주석은 [comment-convention.md](../comment-convention.md)를 따른다.
 
-`apps/web`에서 직접 작성한 모든 컴포넌트에 적용하며 shadcn CLI 생성물은 위 예외를 유지한다.
+`frontend/web`에서 직접 작성한 모든 컴포넌트에 적용하며 shadcn CLI 생성물은 위 예외를 유지한다.

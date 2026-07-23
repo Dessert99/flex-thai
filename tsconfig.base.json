@@ -14,13 +14,13 @@
     "declaration": true,
     "sourceMap": true,
     "paths": {
-      "@flex-thia/config": ["./packages/config/src/index.ts"],
-      "@flex-thia/contracts": ["./packages/contracts/src/index.ts"],
-      "@flex-thia/database": ["./packages/database/src/index.ts"],
-      "@flex-thia/domain": ["./packages/domain/src/index.ts"],
-      "@flex-thia/providers": ["./packages/providers/src/index.ts"],
-      "@flex-thia/providers/fakes": ["./packages/providers/src/fakes/index.ts"],
-      "@flex-thia/providers/*": ["./packages/providers/src/*"]
+      "@flex-thia/config": ["./backend/config/src/index.ts"],
+      "@flex-thia/contracts": ["./shared/contracts/src/index.ts"],
+      "@flex-thia/database": ["./backend/database/src/index.ts"],
+      "@flex-thia/domain": ["./backend/domain/src/index.ts"],
+      "@flex-thia/providers": ["./backend/providers/src/index.ts"],
+      "@flex-thia/providers/fakes": ["./backend/providers/src/fakes/index.ts"],
+      "@flex-thia/providers/*": ["./backend/providers/src/*"]
     }
   }
 }

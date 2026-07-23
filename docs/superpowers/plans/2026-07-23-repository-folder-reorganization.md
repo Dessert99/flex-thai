@@ -36,7 +36,7 @@
   - 승인된 backend/shared workspace `package.json` 존재
   - canonical structure convention 존재
 
-- [ ] **Step 1: 구조 검사 스크립트를 작성한다**
+- [x] **Step 1: 구조 검사 스크립트를 작성한다**
 
 ```js
 /** 저장소 최상위 workspace가 승인된 제품 영역에만 존재하는지 검사한다 */
@@ -70,7 +70,7 @@ if (violations.length > 0) {
 }
 ```
 
-- [ ] **Step 2: root 명령에 구조 검사를 연결한다**
+- [x] **Step 2: root 명령에 구조 검사를 연결한다**
 
 `package.json`에 다음 script를 추가하고 `check`의 첫 단계로 실행한다.
 
@@ -83,7 +83,7 @@ if (violations.length > 0) {
 }
 ```
 
-- [ ] **Step 3: 현재 과거 구조 때문에 검사가 실패하는지 확인한다**
+- [x] **Step 3: 현재 과거 구조 때문에 검사가 실패하는지 확인한다**
 
 Run:
 
@@ -118,7 +118,7 @@ Expected: FAIL하며 `apps`, `packages`, 새 필수 workspace 부재를 보고�
 - Preserves: `@flex-thia/api`, `@flex-thia/worker`, `@flex-thia/domain`, `@flex-thia/database`, `@flex-thia/providers`, `@flex-thia/config`, `@flex-thia/contracts`
 - Produces: pnpm workspace roots `backend/*`, `frontend/*`, `shared/*`, `infra`
 
-- [ ] **Step 1: 이동 대상과 목적지 충돌을 확인한다**
+- [x] **Step 1: 이동 대상과 목적지 충돌을 확인한다**
 
 Run:
 
@@ -129,7 +129,7 @@ git status --short
 
 Expected: `backend`와 `frontend` 아래 이동 충돌 대상이 없고, 기존 사용자 문서 변경만 표시된다.
 
-- [ ] **Step 2: Git rename으로 workspace를 이동한다**
+- [x] **Step 2: Git rename으로 workspace를 이동한다**
 
 Run:
 
@@ -146,7 +146,7 @@ git mv packages/contracts shared/contracts
 
 Expected: Git이 모든 기존 파일을 rename으로 추적하고 `apps`, `packages`가 남지 않는다.
 
-- [ ] **Step 3: pnpm workspace와 TypeScript alias를 갱신한다**
+- [x] **Step 3: pnpm workspace와 TypeScript alias를 갱신한다**
 
 `pnpm-workspace.yaml`:
 
@@ -174,7 +174,7 @@ packages:
 }
 ```
 
-- [ ] **Step 4: 테스트·lint·CDK의 명시적 경로를 갱신한다**
+- [x] **Step 4: 테스트·lint·CDK의 명시적 경로를 갱신한다**
 
 `vitest.config.ts`:
 
@@ -200,7 +200,7 @@ new URL('../../backend/worker/src/', import.meta.url);
 new URL('../../backend/api/dist/', import.meta.url);
 ```
 
-- [ ] **Step 5: lockfile importer를 새 workspace 경로로 다시 계산한다**
+- [x] **Step 5: lockfile importer를 새 workspace 경로로 다시 계산한다**
 
 Run:
 
@@ -210,7 +210,7 @@ pnpm install --lockfile-only --offline
 
 Expected: `pnpm-lock.yaml` importer가 `backend/*`, `shared/contracts`를 사용하고 dependency version은 바뀌지 않는다.
 
-- [ ] **Step 6: 새 구조와 workspace 인식을 확인한다**
+- [x] **Step 6: 새 구조와 workspace 인식을 확인한다**
 
 Run:
 
@@ -221,7 +221,7 @@ pnpm list -r --depth -1
 
 Expected: 구조 검사가 exit 0이고 8개 하위 workspace가 기존 package 이름으로 표시된다.
 
-- [ ] **Step 7: 경로 기반 정적 검사를 통과시킨다**
+- [x] **Step 7: 경로 기반 정적 검사를 통과시킨다**
 
 Run:
 
@@ -256,7 +256,7 @@ Expected: typecheck와 기존 단위 테스트가 exit 0이다.
 - Produces: canonical structure policy at `conventions/structure-convention.md`
 - References: `AGENTS.md`, `CLAUDE.md`, and explanatory docs point to the canonical policy
 
-- [ ] **Step 1: canonical convention을 새 최상위 구조로 교체한다**
+- [x] **Step 1: canonical convention을 새 최상위 구조로 교체한다**
 
 `conventions/structure-convention.md`는 다음 규칙을 명시한다.
 
@@ -288,7 +288,7 @@ shared/
 
 과거 `apps/*`, `packages/*`는 금지하며 구조 변경이 필요하면 이 convention을 먼저 갱신하도록 적는다.
 
-- [ ] **Step 2: AGENTS와 CLAUDE는 canonical convention만 참조하게 한다**
+- [x] **Step 2: AGENTS와 CLAUDE는 canonical convention만 참조하게 한다**
 
 `AGENTS.md`의 프론트엔드·백엔드 경로 목록과 중복 배치 규칙을 제거하고 다음 참조를 둔다.
 
@@ -300,7 +300,7 @@ shared/
 
 `CLAUDE.md`는 `@conventions/structure-convention.md` 참조를 유지하며 별도 경로 규칙을 추가하지 않는다.
 
-- [ ] **Step 3: 현재 구조 설명과 백엔드 아키텍처를 새 경로로 갱신한다**
+- [x] **Step 3: 현재 구조 설명과 백엔드 아키텍처를 새 경로로 갱신한다**
 
 `docs/development/project-structure.md`는 `backend`, `frontend`, `shared`를 최상위로 설명하고 convention이 규칙의 단일 원본임을 명시한다.
 
@@ -316,7 +316,7 @@ backend/config
 shared/contracts
 ```
 
-- [ ] **Step 4: 나머지 문서의 물리 경로와 Markdown 링크를 갱신한다**
+- [x] **Step 4: 나머지 문서의 물리 경로와 Markdown 링크를 갱신한다**
 
 다음 대응을 모든 `docs/**/*.md`에 적용하되 역사적 의사결정 내용은 바꾸지 않는다.
 
@@ -333,7 +333,7 @@ apps/web          -> frontend/web
 
 상대 Markdown 링크도 같은 대상 파일을 가리키도록 수정한다.
 
-- [ ] **Step 5: 문서와 설정의 과거 활성 경로를 검사한다**
+- [x] **Step 5: 문서와 설정의 과거 활성 경로를 검사한다**
 
 Run:
 
@@ -343,7 +343,7 @@ rg -n "apps/api|apps/worker|apps/web|packages/(domain|database|providers|config|
 
 Expected: 재구성 설계·계획에서 기존→신규 대응을 설명하는 행 외에는 과거 활성 경로가 없다.
 
-- [ ] **Step 6: 문서 포맷과 링크 대상 존재를 확인한다**
+- [x] **Step 6: 문서 포맷과 링크 대상 존재를 확인한다**
 
 Run:
 
@@ -367,7 +367,7 @@ Expected: 모든 포함 문서가 Prettier 검사를 통과한다.
 - Consumes: Tasks 1–3의 최종 workspace와 canonical convention
 - Produces: 새 경로에서 검증된 저장소와 구조 변경 커밋
 
-- [ ] **Step 1: 구조·lint·typecheck를 새 위치에서 검증한다**
+- [x] **Step 1: 구조·lint·typecheck를 새 위치에서 검증한다**
 
 Run:
 
@@ -379,7 +379,7 @@ pnpm typecheck
 
 Expected: 모두 exit 0이다.
 
-- [ ] **Step 2: Lambda·단위 테스트·workspace build를 검증한다**
+- [x] **Step 2: Lambda·단위 테스트·workspace build를 검증한다**
 
 Run:
 
@@ -394,7 +394,7 @@ Expected:
 - 모든 Vitest 단위 테스트 성공
 - 모든 workspace TypeScript build 성공
 
-- [ ] **Step 3: 전체 format check의 기존 blocker를 분리한다**
+- [x] **Step 3: 전체 format check의 기존 blocker를 분리한다**
 
 Run:
 
@@ -404,7 +404,7 @@ pnpm format:check
 
 Expected: 구조 변경 파일은 모두 통과하며, 실패한다면 기존 `.agents/skills/claude-review/agents/openai.yaml` 한 파일만 보고된다.
 
-- [ ] **Step 4: 최종 diff 범위를 확인한다**
+- [x] **Step 4: 최종 diff 범위를 확인한다**
 
 Run:
 
@@ -421,14 +421,14 @@ Expected:
 - 기능 코드와 migration 내용 변경은 없다.
 - whitespace 오류가 없다.
 
-- [ ] **Step 5: 구조 변경만 stage하고 커밋한다**
+- [x] **Step 5: 구조 변경만 stage하고 커밋한다**
 
 ```bash
-git add AGENTS.md CLAUDE.md backend frontend shared infra conventions docs package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json vitest.config.ts eslint.config.mjs scripts
+git add .prettierignore AGENTS.md backend shared infra/src/application-stack.ts conventions docs package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json vitest.config.ts eslint.config.mjs scripts
 git commit -m "refactor: organize repository by product area"
 ```
 
-- [ ] **Step 6: 커밋 뒤 작업 트리를 확인한다**
+- [x] **Step 6: 커밋 뒤 작업 트리를 확인한다**
 
 Run:
 

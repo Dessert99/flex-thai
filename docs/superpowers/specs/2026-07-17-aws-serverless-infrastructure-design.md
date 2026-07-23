@@ -201,23 +201,25 @@
 필요가 확인되기 전까지 추가하지 않는다.
 
 ```text
-apps/
-├─ web/         Vite, Tailwind CSS, shadcn, TanStack Query
+backend/
 ├─ api/         NestJS HTTP API와 Lambda entrypoint
-└─ worker/      비동기 Lambda entrypoint와 Fargate command
-
-packages/
+├─ worker/      비동기 Lambda entrypoint와 Fargate command
 ├─ domain/      AWS에 의존하지 않는 도메인 규칙과 상태 전이
-├─ contracts/   공유 스키마, API·작업 payload 타입
 ├─ database/    Drizzle schema, repository, migration
 ├─ providers/   OCR·생성·검증·TTS port와 adapter
 └─ config/      환경 변수·Parameter Store 설정 검증
 
+frontend/
+└─ web/         Vite, Tailwind CSS, shadcn, TanStack Query
+
+shared/
+└─ contracts/   공유 스키마, API·작업 payload 타입
+
 infra/          AWS CDK v2 TypeScript
 ```
 
-현재 비어 있는 `frontend/`, `backend/` 디렉터리는 부트스트랩 단계에서
-내용이 없음을 다시 확인한 뒤 `apps/` 구조로 대체한다.
+최상위 제품 영역은 `backend`, `frontend`, `shared`로 구분하고 실행
+프로그램과 지원 workspace를 각 영역 바로 아래에 둔다.
 
 ### 6.2 의존성 방향
 
@@ -524,7 +526,7 @@ Reader를 두지 않는 이유:
 
 - ORM은 Drizzle ORM을 사용한다.
 - 드라이버는 `drizzle-orm/aws-data-api/pg`를 사용한다.
-- schema와 migration은 `packages/database`에서 관리한다.
+- schema와 migration은 `backend/database`에서 관리한다.
 - production migration은 GitHub Actions의 별도 수동 승인 step으로
   실행한다.
 - 애플리케이션 시작 시 자동 migration하지 않는다.
@@ -538,7 +540,7 @@ Drizzle은 공식 문서에서 AWS Data API PostgreSQL 연결을 제공한다.
 초기에는 외부 검색 엔진을 사용하지 않는다.
 
 - 표시용 태국어 원문과 검색용 정규화 값을 분리한다.
-- 정규화 함수는 `packages/domain`의 순수 함수로 버전 관리한다.
+- 정규화 함수는 `backend/domain`의 순수 함수로 버전 관리한다.
 - PostgreSQL에 `normalized_form`과 `normalization_version`을 저장한다.
 - 공용 어휘는 정규화 표기에 고유 제약을 둔다.
 - 정확 일치와 prefix 검색은 B-tree 기반으로 시작한다.
@@ -632,7 +634,7 @@ TEXT 입력은 API body 상한 안에서 받고, API가 UTF-8 객체로 Input S3
 
 ### 13.1 Adapter
 
-다음 port를 `packages/providers`에 정의한다.
+다음 port를 `backend/providers`에 정의한다.
 
 ```text
 OcrProvider

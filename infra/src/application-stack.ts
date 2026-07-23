@@ -46,7 +46,7 @@ export class ApplicationStack extends Stack {
     });
     this.identity = new Identity(this, 'Identity');
     const workerRoot = fileURLToPath(
-      new URL('../../apps/worker/src/', import.meta.url),
+      new URL('../../backend/worker/src/', import.meta.url),
     );
     this.asyncJobs = new AsyncJobs(this, 'AsyncJobs', {
       jobStarterEntry: `${workerRoot}job-starter.ts`,
@@ -55,7 +55,7 @@ export class ApplicationStack extends Stack {
       clusterSecret: props.dataStack.clusterSecret,
     });
     const apiAssetPath = fileURLToPath(
-      new URL('../../apps/api/dist/', import.meta.url),
+      new URL('../../backend/api/dist/', import.meta.url),
     );
     this.httpApi = new HttpApi(this, 'HttpApi', {
       apiAssetPath,

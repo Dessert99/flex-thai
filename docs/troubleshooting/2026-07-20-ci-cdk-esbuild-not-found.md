@@ -10,7 +10,7 @@
 
 [pnpm workspace](https://pnpm.io/workspaces)는 하나의 저장소 안에 여러
 JavaScript 프로젝트를 함께 두고 관리하는 구조다. 이 저장소도 루트와
-`apps/api`, `apps/worker`, `infra` 등이 각각 자기 `package.json`을 가진다.
+`backend/api`, `backend/worker`, `infra` 등이 각각 자기 `package.json`을 가진다.
 
 lockfile과 설치 공간을 공유하더라도 각 프로젝트가 사용할 수 있다고
 보장되는 패키지는 자기 `package.json`에 선언한 항목이다. `pnpm exec`는
@@ -89,7 +89,7 @@ CI(Continuous Integration)는 push된 코드를 자동으로 설치하고 검사
 ## 원인
 
 1. CDK `NodejsFunction`은 루트 `pnpm-lock.yaml`을 기준으로 저장소 루트에서 `pnpm exec esbuild`를 실행했다.
-2. `esbuild`는 `apps/api`, `apps/worker`, `infra` 같은 하위 workspace에만 선언되어 있었고 루트 `package.json`에는 직접 선언되어 있지 않았다.
+2. `esbuild`는 `backend/api`, `backend/worker`, `infra` 같은 하위 workspace에만 선언되어 있었고 루트 `package.json`에는 직접 선언되어 있지 않았다.
 3. 로컬 설치 상태에서는 루트 실행 파일이 우연히 노출될 수 있다는 가정이 깨끗한 GitHub Actions 설치에서 깨져 CDK가 번들러를 찾지 못했다.
 
 ## 어떻게 찾았나

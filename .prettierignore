@@ -34,4 +34,4 @@ tmp/
 
 *.mdx
 .turbo
-packages/database/drizzle/
+backend/database/drizzle/

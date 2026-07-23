@@ -24,11 +24,11 @@
 ### Task 1: Production runtime command 회귀 테스트
 
 **Files:**
-- Create: `packages/database/src/commands/migrate-data-api.spec.ts`
-- Modify: `packages/database/package.json`
+- Create: `backend/database/src/commands/migrate-data-api.spec.ts`
+- Modify: `backend/database/package.json`
 
 **Interfaces:**
-- Consumes: `packages/database/package.json`의 `scripts["db:migrate:data-api"]`
+- Consumes: `backend/database/package.json`의 `scripts["db:migrate:data-api"]`
 - Produces: `tsx src/commands/migrate-data-api.ts`로 고정된 production migration 진입점
 
 - [ ] **Step 1: Drizzle Kit CLI를 검출하는 실패 테스트 작성**
@@ -57,7 +57,7 @@ describe('운영 Data API migration command', () => {
 
 - [ ] **Step 2: 기존 CLI script 때문에 실패하는지 확인**
 
-Run: `pnpm exec vitest run packages/database/src/commands/migrate-data-api.spec.ts`
+Run: `pnpm exec vitest run backend/database/src/commands/migrate-data-api.spec.ts`
 
 Expected: FAIL; received `drizzle-kit migrate --config drizzle.data-api.config.ts`.
 
@@ -69,15 +69,15 @@ Expected: FAIL; received `drizzle-kit migrate --config drizzle.data-api.config.t
 
 - [ ] **Step 4: 회귀 테스트 통과 확인**
 
-Run: `pnpm exec vitest run packages/database/src/commands/migrate-data-api.spec.ts`
+Run: `pnpm exec vitest run backend/database/src/commands/migrate-data-api.spec.ts`
 
 Expected: PASS, 1 test passed.
 
 ### Task 2: Migration 실행 경계
 
 **Files:**
-- Create: `packages/database/src/operations/run-data-api-migration.spec.ts`
-- Create: `packages/database/src/operations/run-data-api-migration.ts`
+- Create: `backend/database/src/operations/run-data-api-migration.spec.ts`
+- Create: `backend/database/src/operations/run-data-api-migration.ts`
 
 **Interfaces:**
 - Consumes: `RunDataApiMigrationOptions`
@@ -145,7 +145,7 @@ describe('runDataApiMigration', () => {
 
 - [ ] **Step 2: 구현 파일 부재로 실패하는지 확인**
 
-Run: `pnpm exec vitest run packages/database/src/operations/run-data-api-migration.spec.ts`
+Run: `pnpm exec vitest run backend/database/src/operations/run-data-api-migration.spec.ts`
 
 Expected: FAIL because `./run-data-api-migration.js` cannot be resolved.
 
@@ -181,15 +181,15 @@ export const runDataApiMigration = async ({
 
 - [ ] **Step 4: 실행 경계 테스트 통과 확인**
 
-Run: `pnpm exec vitest run packages/database/src/operations/run-data-api-migration.spec.ts`
+Run: `pnpm exec vitest run backend/database/src/operations/run-data-api-migration.spec.ts`
 
 Expected: PASS, 2 tests passed.
 
 ### Task 3: Runtime Data API migration command
 
 **Files:**
-- Create: `packages/database/src/commands/migrate-data-api.ts`
-- Delete: `packages/database/drizzle.data-api.config.ts`
+- Create: `backend/database/src/commands/migrate-data-api.ts`
+- Delete: `backend/database/drizzle.data-api.config.ts`
 
 **Interfaces:**
 - Consumes: `RDS_RESOURCE_ARN`, `RDS_SECRET_ARN`, `DATABASE_NAME`, `AWS_REGION`, `runDataApiMigration()`
@@ -253,11 +253,11 @@ try {
 
 - [ ] **Step 2: CLI 전용 config 제거**
 
-Delete `packages/database/drizzle.data-api.config.ts`; local generate와 local migrate config는 유지한다.
+Delete `backend/database/drizzle.data-api.config.ts`; local generate와 local migrate config는 유지한다.
 
 - [ ] **Step 3: database 범위 검증**
 
-Run: `pnpm exec vitest run packages/database/src/commands/migrate-data-api.spec.ts packages/database/src/operations/run-data-api-migration.spec.ts packages/database/src/operations/wait-for-data-api.spec.ts`
+Run: `pnpm exec vitest run backend/database/src/commands/migrate-data-api.spec.ts backend/database/src/operations/run-data-api-migration.spec.ts backend/database/src/operations/wait-for-data-api.spec.ts`
 
 Expected: PASS, 6 tests passed.
 
@@ -308,7 +308,7 @@ Run: `git diff --check && git status --short && git diff --stat`
 
 Expected: only the approved runtime migration files and documents changed.
 
-Run: `git add packages/database/src/commands/migrate-data-api.spec.ts packages/database/src/commands/migrate-data-api.ts packages/database/src/operations/run-data-api-migration.spec.ts packages/database/src/operations/run-data-api-migration.ts packages/database/package.json packages/database/drizzle.data-api.config.ts`
+Run: `git add backend/database/src/commands/migrate-data-api.spec.ts backend/database/src/commands/migrate-data-api.ts backend/database/src/operations/run-data-api-migration.spec.ts backend/database/src/operations/run-data-api-migration.ts backend/database/package.json backend/database/drizzle.data-api.config.ts`
 
 Run: `git commit -m "fix: run data api migration with current sdk"`
 

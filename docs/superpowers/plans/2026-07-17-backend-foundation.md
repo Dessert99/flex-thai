@@ -4,7 +4,7 @@
 
 **Goal:** 학교 이메일 인증, 관리자 추가 인증, 안전한 입력 업로드, 비동기 Job 생성·조회까지 이어지는 NestJS 기초 백엔드를 로컬에서 검증하고 AWS Lambda로 번들할 수 있게 만든다.
 
-**Architecture:** pnpm workspace 안에서 AWS와 무관한 규칙을 `packages/domain`, 직렬화 계약을 `packages/contracts`, Drizzle schema와 저장소를 `packages/database`, 외부 시스템 port와 fake를 `packages/providers`, 설정 검증을 `packages/config`에 둔다. `apps/api`는 HTTP 요청을 use case에 연결하고, `apps/worker`는 SQS와 Step Functions가 호출할 얇은 진입점만 가진다.
+**Architecture:** pnpm workspace 안에서 AWS와 무관한 규칙을 `backend/domain`, 직렬화 계약을 `shared/contracts`, Drizzle schema와 저장소를 `backend/database`, 외부 시스템 port와 fake를 `backend/providers`, 설정 검증을 `backend/config`에 둔다. `backend/api`는 HTTP 요청을 use case에 연결하고, `backend/worker`는 SQS와 Step Functions가 호출할 얇은 진입점만 가진다.
 
 **Tech Stack:** Node.js 22.x, pnpm 10.33.0, TypeScript 7.0.2 네이티브 컴파일러, TypeScript 6 compiler API 호환층, NestJS 11.1.28, Vitest 4.1.10, Zod 4.x, Drizzle ORM 0.45.2, PostgreSQL 16, AWS SDK for JavaScript v3, esbuild
 
@@ -37,7 +37,7 @@
 ├─ vitest.config.ts
 ├─ compose.yaml
 ├─ .env.example
-├─ apps/
+├─ backend/
 │  ├─ api/
 │  │  ├─ package.json
 │  │  ├─ tsconfig.json
@@ -51,18 +51,18 @@
 │  │     ├─ auth/
 │  │     ├─ uploads/
 │  │     └─ jobs/
-│  └─ worker/
+│  ├─ worker/
 │     ├─ package.json
 │     ├─ tsconfig.json
 │     └─ src/
 │        ├─ job-starter.ts
 │        └─ foundation-task.ts
-└─ packages/
-   ├─ config/
-   ├─ contracts/
-   ├─ domain/
-   ├─ database/
-   └─ providers/
+│  ├─ config/
+│  ├─ domain/
+│  ├─ database/
+│  └─ providers/
+└─ shared/
+   └─ contracts/
 ```
 
 ## Task 1: pnpm workspace와 Health API
@@ -76,13 +76,13 @@
 - Create: `eslint.config.mjs`
 - Create: `vitest.config.ts`
 - Create: `.env.example`
-- Create: `apps/api/package.json`
-- Create: `apps/api/tsconfig.json`
-- Create: `apps/api/nest-cli.json`
-- Create: `apps/api/src/main.ts`
-- Create: `apps/api/src/app.module.ts`
-- Create: `apps/api/src/health/health.controller.ts`
-- Test: `apps/api/src/health/health.controller.spec.ts`
+- Create: `backend/api/package.json`
+- Create: `backend/api/tsconfig.json`
+- Create: `backend/api/nest-cli.json`
+- Create: `backend/api/src/main.ts`
+- Create: `backend/api/src/app.module.ts`
+- Create: `backend/api/src/health/health.controller.ts`
+- Test: `backend/api/src/health/health.controller.spec.ts`
 
 **Interfaces:**
 - Produces: `HealthController.getHealth(): { status: "ok"; service: "api" }`
@@ -126,8 +126,9 @@
 
 ```yaml
 packages:
-  - apps/*
-  - packages/*
+  - backend/*
+  - frontend/*
+  - shared/*
   - infra
 ```
 
@@ -150,15 +151,15 @@ packages:
     "declaration": true,
     "sourceMap": true,
     "paths": {
-      "@flex-thia/config": ["./packages/config/src/index.ts"],
-      "@flex-thia/contracts": ["./packages/contracts/src/index.ts"],
-      "@flex-thia/database": ["./packages/database/src/index.ts"],
-      "@flex-thia/domain": ["./packages/domain/src/index.ts"],
-      "@flex-thia/providers": ["./packages/providers/src/index.ts"],
+      "@flex-thia/config": ["./backend/config/src/index.ts"],
+      "@flex-thia/contracts": ["./shared/contracts/src/index.ts"],
+      "@flex-thia/database": ["./backend/database/src/index.ts"],
+      "@flex-thia/domain": ["./backend/domain/src/index.ts"],
+      "@flex-thia/providers": ["./backend/providers/src/index.ts"],
       "@flex-thia/providers/fakes": [
-        "./packages/providers/src/fakes/index.ts"
+        "./backend/providers/src/fakes/index.ts"
       ],
-      "@flex-thia/providers/*": ["./packages/providers/src/*"]
+      "@flex-thia/providers/*": ["./backend/providers/src/*"]
     }
   }
 }
@@ -171,10 +172,10 @@ packages:
 
 - `eslint.config.mjs`는 `typescript-eslint.config(...)`의 recommended와
   type-checked rule을 사용하고 `dist`, `coverage`, `cdk.out`,
-  `packages/database/drizzle`을 ignore한다.
+  `backend/database/drizzle`을 ignore한다.
 - `vitest.config.ts`는 node environment에서
-  `apps/**/src/**/*.spec.ts`, `packages/**/src/**/*.spec.ts`,
-  `infra/test/**/*.spec.ts`만 수집한다.
+  `backend/**/src/**/*.spec.ts`, `frontend/**/src/**/*.spec.ts`,
+  `shared/**/src/**/*.spec.ts`, `infra/test/**/*.spec.ts`만 수집한다.
 - `.env.example`에는 secret이 아닌 다음 로컬 기본값만 둔다.
 
 ```dotenv
@@ -187,7 +188,7 @@ ALLOWED_ORIGINS=http://localhost:5173
 PORT=3000
 ```
 
-`apps/api/package.json`:
+`backend/api/package.json`:
 
 ```json
 {
@@ -215,7 +216,7 @@ PORT=3000
 }
 ```
 
-`apps/api/tsconfig.json`:
+`backend/api/tsconfig.json`:
 
 ```json
 {
@@ -249,13 +250,13 @@ describe('HealthController', () => {
 
 - [ ] **Step 3: 테스트가 구현 부재로 실패하는지 확인한다**
 
-Run: `pnpm test apps/api/src/health/health.controller.spec.ts`
+Run: `pnpm test backend/api/src/health/health.controller.spec.ts`
 
 Expected: FAIL with `Cannot find module './health.controller.js'`
 
 - [ ] **Step 4: 최소 NestJS 애플리케이션을 구현한다**
 
-`apps/api/src/health/health.controller.ts`:
+`backend/api/src/health/health.controller.ts`:
 
 ```ts
 /** DB와 무관하게 API 프로세스의 생존 여부를 노출하는 Controller */
@@ -272,7 +273,7 @@ export class HealthController {
 }
 ```
 
-`apps/api/src/app.module.ts`:
+`backend/api/src/app.module.ts`:
 
 ```ts
 /** HTTP 기능 모듈을 하나의 NestJS 애플리케이션으로 조립한다 */
@@ -286,7 +287,7 @@ import { HealthController } from './health/health.controller.js';
 export class AppModule {}
 ```
 
-`apps/api/src/main.ts`:
+`backend/api/src/main.ts`:
 
 ```ts
 /** 로컬 개발용 NestJS HTTP 서버를 시작한다 */
@@ -308,17 +309,17 @@ Run:
 
 ```bash
 pnpm install
-pnpm test apps/api/src/health/health.controller.spec.ts
+pnpm test backend/api/src/health/health.controller.spec.ts
 pnpm --filter @flex-thia/api typecheck
 pnpm --filter @flex-thia/api build
 ```
 
-Expected: 1 test PASS, typecheck exit 0, `apps/api/dist` 생성
+Expected: 1 test PASS, typecheck exit 0, `backend/api/dist` 생성
 
 - [ ] **Step 6: 커밋한다**
 
 ```bash
-git add package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json eslint.config.mjs vitest.config.ts .env.example apps/api
+git add package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json eslint.config.mjs vitest.config.ts .env.example backend/api
 git commit -m "chore: bootstrap backend workspace"
 ```
 
@@ -327,18 +328,18 @@ git commit -m "chore: bootstrap backend workspace"
 **학습 포인트:** 런타임 검증, schema와 type의 차이, 순수 함수와 외부 의존성 분리
 
 **Files:**
-- Create: `packages/config/package.json`
-- Create: `packages/config/src/api-env.ts`
-- Test: `packages/config/src/api-env.spec.ts`
-- Create: `packages/contracts/package.json`
-- Create: `packages/contracts/src/jobs.ts`
-- Create: `packages/contracts/src/index.ts`
-- Test: `packages/contracts/src/jobs.spec.ts`
-- Create: `packages/domain/package.json`
-- Create: `packages/domain/src/thai/normalize-thai-search-text.ts`
-- Create: `packages/domain/src/jobs/job.ts`
-- Create: `packages/domain/src/index.ts`
-- Test: `packages/domain/src/thai/normalize-thai-search-text.spec.ts`
+- Create: `backend/config/package.json`
+- Create: `backend/config/src/api-env.ts`
+- Test: `backend/config/src/api-env.spec.ts`
+- Create: `shared/contracts/package.json`
+- Create: `shared/contracts/src/jobs.ts`
+- Create: `shared/contracts/src/index.ts`
+- Test: `shared/contracts/src/jobs.spec.ts`
+- Create: `backend/domain/package.json`
+- Create: `backend/domain/src/thai/normalize-thai-search-text.ts`
+- Create: `backend/domain/src/jobs/job.ts`
+- Create: `backend/domain/src/index.ts`
+- Test: `backend/domain/src/thai/normalize-thai-search-text.spec.ts`
 
 **Interfaces:**
 - Produces: `readApiEnv(source): ApiEnv`
@@ -492,7 +493,7 @@ it('입력 개수 대신 전체 용량으로 작업을 제한한다', () => {
 });
 ```
 
-`packages/domain/src/jobs/job.ts`:
+`backend/domain/src/jobs/job.ts`:
 
 ```ts
 /** AWS와 HTTP에 의존하지 않는 비동기 Job aggregate */
@@ -546,7 +547,7 @@ export interface CreateJobCommand {
 Run:
 
 ```bash
-pnpm test packages/config packages/contracts packages/domain
+pnpm test backend/config shared/contracts backend/domain
 pnpm typecheck
 ```
 
@@ -555,7 +556,7 @@ Expected: 설정·계약·정규화 테스트 PASS, typecheck exit 0
 - [ ] **Step 6: 커밋한다**
 
 ```bash
-git add packages/config packages/contracts packages/domain
+git add backend/config shared/contracts backend/domain
 git commit -m "feat: add backend contracts and domain foundation"
 ```
 
@@ -565,18 +566,18 @@ git commit -m "feat: add backend contracts and domain foundation"
 
 **Files:**
 - Create: `compose.yaml`
-- Create: `packages/database/package.json`
-- Create: `packages/database/tsconfig.json`
-- Create: `packages/database/drizzle.local.config.ts`
-- Create: `packages/database/drizzle.data-api.config.ts`
-- Create: `packages/database/src/schema/identity.schema.ts`
-- Create: `packages/database/src/schema/jobs.schema.ts`
-- Create: `packages/database/src/schema/index.ts`
-- Create: `packages/database/src/clients/local.ts`
-- Create: `packages/database/src/clients/data-api.ts`
-- Create: `packages/database/src/index.ts`
-- Test: `packages/database/src/schema/schema.spec.ts`
-- Generate: `packages/database/drizzle/*`
+- Create: `backend/database/package.json`
+- Create: `backend/database/tsconfig.json`
+- Create: `backend/database/drizzle.local.config.ts`
+- Create: `backend/database/drizzle.data-api.config.ts`
+- Create: `backend/database/src/schema/identity.schema.ts`
+- Create: `backend/database/src/schema/jobs.schema.ts`
+- Create: `backend/database/src/schema/index.ts`
+- Create: `backend/database/src/clients/local.ts`
+- Create: `backend/database/src/clients/data-api.ts`
+- Create: `backend/database/src/index.ts`
+- Test: `backend/database/src/schema/schema.spec.ts`
+- Generate: `backend/database/drizzle/*`
 
 **Interfaces:**
 - Produces: `createLocalDatabase(databaseUrl)`
@@ -612,7 +613,7 @@ describe('기초 데이터베이스 schema', () => {
 
 - [ ] **Step 2: database package와 migration 설정을 작성한다**
 
-`packages/database/package.json`:
+`backend/database/package.json`:
 
 ```json
 {
@@ -941,7 +942,7 @@ export const createDataApiDatabase = (config: DataApiDatabaseConfig) =>
 Run:
 
 ```bash
-pnpm test packages/database/src/schema/schema.spec.ts
+pnpm test backend/database/src/schema/schema.spec.ts
 pnpm --filter @flex-thia/database db:generate
 docker compose up -d postgres
 pnpm --filter @flex-thia/database db:migrate:local
@@ -953,7 +954,7 @@ Expected: schema tests PASS, SQL migration 생성, migration exit 0, typecheck e
 - [ ] **Step 7: 커밋한다**
 
 ```bash
-git add compose.yaml packages/database
+git add compose.yaml backend/database
 git commit -m "feat: add foundation database schema"
 ```
 
@@ -962,15 +963,15 @@ git commit -m "feat: add foundation database schema"
 **학습 포인트:** use case, port와 adapter, idempotency, DB와 queue의 원자성 한계
 
 **Files:**
-- Create: `packages/domain/src/jobs/job.repository.ts`
-- Create: `packages/domain/src/jobs/job.queue.ts`
-- Create: `packages/domain/src/jobs/create-job.service.ts`
-- Create: `packages/domain/src/uploads/upload.repository.ts`
-- Create: `packages/providers/src/fakes/fake-job.repository.ts`
-- Create: `packages/providers/src/fakes/fake-job.queue.ts`
-- Create: `packages/providers/src/fakes/fake-upload.repository.ts`
-- Create: `packages/providers/src/fakes/index.ts`
-- Test: `packages/domain/src/jobs/create-job.service.spec.ts`
+- Create: `backend/domain/src/jobs/job.repository.ts`
+- Create: `backend/domain/src/jobs/job.queue.ts`
+- Create: `backend/domain/src/jobs/create-job.service.ts`
+- Create: `backend/domain/src/uploads/upload.repository.ts`
+- Create: `backend/providers/src/fakes/fake-job.repository.ts`
+- Create: `backend/providers/src/fakes/fake-job.queue.ts`
+- Create: `backend/providers/src/fakes/fake-upload.repository.ts`
+- Create: `backend/providers/src/fakes/index.ts`
+- Test: `backend/domain/src/jobs/create-job.service.spec.ts`
 
 **Interfaces:**
 - Produces: `JobRepository.createOrFind(command): Promise<{ job; created }>`
@@ -1069,14 +1070,14 @@ Fake는 `(requestedBy, clientRequestId)` 복합 key로 같은 Job을 돌려주�
 
 - [ ] **Step 4: 성공·queue 실패 후 재시도 테스트를 실행한다**
 
-Run: `pnpm test packages/domain/src/jobs/create-job.service.spec.ts`
+Run: `pnpm test backend/domain/src/jobs/create-job.service.spec.ts`
 
 Expected: 중복 요청과 queue 실패 복구 테스트 PASS
 
 - [ ] **Step 5: 커밋한다**
 
 ```bash
-git add packages/domain packages/providers
+git add backend/domain backend/providers
 git commit -m "feat: add idempotent job creation"
 ```
 
@@ -1085,16 +1086,16 @@ git commit -m "feat: add idempotent job creation"
 **학습 포인트:** repository 구현, dependency injection, HTTP status와 domain 오류 분리
 
 **Files:**
-- Create: `packages/database/src/repositories/drizzle-job.repository.ts`
-- Test: `packages/database/src/repositories/drizzle-job.repository.spec.ts`
-- Create: `packages/providers/src/aws/sqs-job.queue.ts`
-- Test: `packages/providers/src/aws/sqs-job.queue.spec.ts`
-- Create: `apps/api/src/jobs/jobs.controller.ts`
-- Create: `apps/api/src/jobs/jobs.service.ts`
-- Create: `apps/api/src/jobs/jobs.module.ts`
-- Create: `apps/api/src/common/auth/current-user.decorator.ts`
-- Test: `apps/api/src/jobs/jobs.controller.spec.ts`
-- Test: `apps/api/src/jobs/jobs.service.spec.ts`
+- Create: `backend/database/src/repositories/drizzle-job.repository.ts`
+- Test: `backend/database/src/repositories/drizzle-job.repository.spec.ts`
+- Create: `backend/providers/src/aws/sqs-job.queue.ts`
+- Test: `backend/providers/src/aws/sqs-job.queue.spec.ts`
+- Create: `backend/api/src/jobs/jobs.controller.ts`
+- Create: `backend/api/src/jobs/jobs.service.ts`
+- Create: `backend/api/src/jobs/jobs.module.ts`
+- Create: `backend/api/src/common/auth/current-user.decorator.ts`
+- Test: `backend/api/src/jobs/jobs.controller.spec.ts`
+- Test: `backend/api/src/jobs/jobs.service.spec.ts`
 
 **Interfaces:**
 - Consumes: `JobRepository`, `JobQueue`, `UploadRepository`, `createJobRequestSchema`
@@ -1208,7 +1209,7 @@ export class SqsJobQueue implements JobQueue {
 
 - [ ] **Step 5: Controller와 Module을 구현한다**
 
-`apps/api/src/common/auth/current-user.decorator.ts`:
+`backend/api/src/common/auth/current-user.decorator.ts`:
 
 ```ts
 /** 인증 guard가 request에 넣은 애플리케이션 사용자를 Controller에 전달한다 */
@@ -1263,7 +1264,7 @@ export class JobsController {
 Run:
 
 ```bash
-pnpm test packages/database/src/repositories packages/providers/src/aws apps/api/src/jobs
+pnpm test backend/database/src/repositories backend/providers/src/aws backend/api/src/jobs
 pnpm typecheck
 ```
 
@@ -1272,7 +1273,7 @@ Expected: repository query shape, SQS body, Controller 테스트 PASS
 - [ ] **Step 7: 커밋한다**
 
 ```bash
-git add packages/database packages/providers apps/api/src/jobs
+git add backend/database backend/providers backend/api/src/jobs
 git commit -m "feat: add job api and queue adapter"
 ```
 
@@ -1281,17 +1282,17 @@ git commit -m "feat: add job api and queue adapter"
 **학습 포인트:** passwordless challenge, HMAC, 암호화, 만료·시도 횟수, 추가 인증
 
 **Files:**
-- Create: `packages/domain/src/auth/challenge.ts`
-- Create: `packages/domain/src/auth/challenge.repository.ts`
-- Create: `packages/domain/src/auth/passwordless-auth.service.ts`
-- Create: `packages/domain/src/auth/step-up.service.ts`
-- Create: `packages/providers/src/crypto/challenge-crypto.ts`
-- Create: `packages/providers/src/fakes/fake-identity-provider.ts`
-- Create: `packages/providers/src/fakes/fake-challenge.repository.ts`
-- Create: `packages/providers/src/fakes/fake-sms-sender.ts`
-- Test: `packages/providers/src/crypto/challenge-crypto.spec.ts`
-- Test: `packages/domain/src/auth/passwordless-auth.service.spec.ts`
-- Test: `packages/domain/src/auth/step-up.service.spec.ts`
+- Create: `backend/domain/src/auth/challenge.ts`
+- Create: `backend/domain/src/auth/challenge.repository.ts`
+- Create: `backend/domain/src/auth/passwordless-auth.service.ts`
+- Create: `backend/domain/src/auth/step-up.service.ts`
+- Create: `backend/providers/src/crypto/challenge-crypto.ts`
+- Create: `backend/providers/src/fakes/fake-identity-provider.ts`
+- Create: `backend/providers/src/fakes/fake-challenge.repository.ts`
+- Create: `backend/providers/src/fakes/fake-sms-sender.ts`
+- Test: `backend/providers/src/crypto/challenge-crypto.spec.ts`
+- Test: `backend/domain/src/auth/passwordless-auth.service.spec.ts`
+- Test: `backend/domain/src/auth/step-up.service.spec.ts`
 
 **Interfaces:**
 - Produces: `ChallengeCrypto.hashAnswer`, `verifyAnswer`, `encryptSession`, `decryptSession`
@@ -1371,7 +1372,7 @@ Step-up `request`는 `ADMIN`과 검증된 전화번호를 먼저 확인한 뒤 6
 Run:
 
 ```bash
-pnpm test packages/domain/src/auth packages/providers/src/crypto
+pnpm test backend/domain/src/auth backend/providers/src/crypto
 pnpm typecheck
 ```
 
@@ -1380,7 +1381,7 @@ Expected: 성공, 만료, 최대 실패, 재사용 방지, 암복호화 테스�
 - [ ] **Step 6: 커밋한다**
 
 ```bash
-git add packages/domain/src/auth packages/providers/src/crypto packages/providers/src/fakes
+git add backend/domain/src/auth backend/providers/src/crypto backend/providers/src/fakes
 git commit -m "feat: add passwordless and step-up domain"
 ```
 
@@ -1389,26 +1390,26 @@ git commit -m "feat: add passwordless and step-up domain"
 **학습 포인트:** Cognito trigger, access/refresh token, API Gateway authorizer, CSRF
 
 **Files:**
-- Create: `apps/worker/package.json`
-- Create: `apps/worker/tsconfig.json`
-- Create: `apps/worker/src/auth/define-auth-challenge.ts`
-- Create: `apps/worker/src/auth/create-auth-challenge.ts`
-- Create: `apps/worker/src/auth/verify-auth-challenge.ts`
-- Test: `apps/worker/src/auth/*.spec.ts`
-- Create: `packages/providers/src/aws/cognito-identity.provider.ts`
-- Create: `packages/providers/src/aws/ses-challenge.sender.ts`
-- Create: `packages/providers/src/aws/sns-sms.sender.ts`
-- Create: `packages/database/src/repositories/drizzle-user.repository.ts`
-- Create: `packages/database/src/repositories/drizzle-auth-challenge.repository.ts`
-- Create: `packages/database/src/repositories/drizzle-step-up.repository.ts`
-- Test: `packages/database/src/repositories/drizzle-auth.repository.spec.ts`
-- Create: `apps/api/src/auth/auth.controller.ts`
-- Create: `apps/api/src/auth/auth.module.ts`
-- Create: `apps/api/src/auth/cognito-authorizer.guard.ts`
-- Create: `apps/api/src/auth/application-role.guard.ts`
-- Create: `apps/api/src/auth/require-role.decorator.ts`
-- Create: `apps/api/src/auth/csrf.guard.ts`
-- Test: `apps/api/src/auth/*.spec.ts`
+- Create: `backend/worker/package.json`
+- Create: `backend/worker/tsconfig.json`
+- Create: `backend/worker/src/auth/define-auth-challenge.ts`
+- Create: `backend/worker/src/auth/create-auth-challenge.ts`
+- Create: `backend/worker/src/auth/verify-auth-challenge.ts`
+- Test: `backend/worker/src/auth/*.spec.ts`
+- Create: `backend/providers/src/aws/cognito-identity.provider.ts`
+- Create: `backend/providers/src/aws/ses-challenge.sender.ts`
+- Create: `backend/providers/src/aws/sns-sms.sender.ts`
+- Create: `backend/database/src/repositories/drizzle-user.repository.ts`
+- Create: `backend/database/src/repositories/drizzle-auth-challenge.repository.ts`
+- Create: `backend/database/src/repositories/drizzle-step-up.repository.ts`
+- Test: `backend/database/src/repositories/drizzle-auth.repository.spec.ts`
+- Create: `backend/api/src/auth/auth.controller.ts`
+- Create: `backend/api/src/auth/auth.module.ts`
+- Create: `backend/api/src/auth/cognito-authorizer.guard.ts`
+- Create: `backend/api/src/auth/application-role.guard.ts`
+- Create: `backend/api/src/auth/require-role.decorator.ts`
+- Create: `backend/api/src/auth/csrf.guard.ts`
+- Test: `backend/api/src/auth/*.spec.ts`
 
 **Interfaces:**
 - Produces: `POST /auth/challenges`
@@ -1427,7 +1428,7 @@ Controller에는 링크 확인 화면용 token 검사 GET을 만들지 않는다
 
 - [ ] **Step 2: worker package를 추가한다**
 
-`apps/worker/package.json`은 Node ESM package로 만들고 `typecheck`,
+`backend/worker/package.json`은 Node ESM package로 만들고 `typecheck`,
 `test`, `build`, `build:lambda` script를 둔다. 초기 의존성은
 `@aws-sdk/client-sesv2`, `@types/aws-lambda`, `esbuild`이며 workspace의
 domain·database·providers source는 root TypeScript path로 참조한다.
@@ -1525,7 +1526,7 @@ CSRF guard는 refresh·logout에서 `Origin`이 exact allowlist에 있고
 Run:
 
 ```bash
-pnpm test apps/worker/src/auth apps/api/src/auth packages/providers/src/aws packages/database/src/repositories/drizzle-auth.repository.spec.ts
+pnpm test backend/worker/src/auth backend/api/src/auth backend/providers/src/aws backend/database/src/repositories/drizzle-auth.repository.spec.ts
 pnpm typecheck
 ```
 
@@ -1535,7 +1536,7 @@ Expected: link GET 부재, access token claim, production fake 거부, CSRF, coo
 - [ ] **Step 8: 커밋한다**
 
 ```bash
-git add apps/worker/src/auth apps/api/src/auth packages/providers/src/aws packages/database/src/repositories
+git add backend/worker/src/auth backend/api/src/auth backend/providers/src/aws backend/database/src/repositories
 git commit -m "feat: add cognito passwordless authentication"
 ```
 
@@ -1544,19 +1545,19 @@ git commit -m "feat: add cognito passwordless authentication"
 **학습 포인트:** presigned POST, MIME과 file signature 차이, 최소 권한, 민감 작업 재인증
 
 **Files:**
-- Create: `packages/domain/src/uploads/upload-policy.service.ts`
-- Create: `packages/providers/src/aws/s3-upload.provider.ts`
-- Create: `packages/providers/src/fakes/fake-upload.provider.ts`
-- Create: `packages/database/src/repositories/drizzle-upload.repository.ts`
-- Test: `packages/database/src/repositories/drizzle-upload.repository.spec.ts`
-- Create: `apps/api/src/uploads/uploads.controller.ts`
-- Create: `apps/api/src/uploads/uploads.module.ts`
-- Create: `apps/api/src/auth/step-up.controller.ts`
-- Create: `apps/api/src/auth/phone-verification.controller.ts`
-- Create: `apps/api/src/auth/require-step-up.guard.ts`
-- Create: `apps/api/src/commands/bootstrap-admin.ts`
-- Modify: `apps/api/package.json`
-- Modify: `apps/api/src/jobs/jobs.controller.ts`
+- Create: `backend/domain/src/uploads/upload-policy.service.ts`
+- Create: `backend/providers/src/aws/s3-upload.provider.ts`
+- Create: `backend/providers/src/fakes/fake-upload.provider.ts`
+- Create: `backend/database/src/repositories/drizzle-upload.repository.ts`
+- Test: `backend/database/src/repositories/drizzle-upload.repository.spec.ts`
+- Create: `backend/api/src/uploads/uploads.controller.ts`
+- Create: `backend/api/src/uploads/uploads.module.ts`
+- Create: `backend/api/src/auth/step-up.controller.ts`
+- Create: `backend/api/src/auth/phone-verification.controller.ts`
+- Create: `backend/api/src/auth/require-step-up.guard.ts`
+- Create: `backend/api/src/commands/bootstrap-admin.ts`
+- Modify: `backend/api/package.json`
+- Modify: `backend/api/src/jobs/jobs.controller.ts`
 - Test: corresponding `*.spec.ts`
 
 **Interfaces:**
@@ -1662,7 +1663,7 @@ DB의 평문 번호가 아니라 Cognito의 verified `phone_number`에서 읽는
 `+tag` 입력은 받지 않는다. 없는 사용자, 이미 다른 대상에 사용한 bootstrap,
 audit 저장 실패는 role 변경을 확정하지 않는 테스트를 작성한다.
 
-`apps/api/package.json`에는 다음 script를 추가한다.
+`backend/api/package.json`에는 다음 script를 추가한다.
 
 ```json
 {
@@ -1677,7 +1678,7 @@ audit 저장 실패는 role 변경을 확정하지 않는 테스트를 작성한
 Run:
 
 ```bash
-pnpm test packages/domain/src/uploads packages/providers/src/aws/s3-upload.provider.spec.ts apps/api/src/uploads apps/api/src/auth apps/api/src/commands
+pnpm test backend/domain/src/uploads backend/providers/src/aws/s3-upload.provider.spec.ts backend/api/src/uploads backend/api/src/auth backend/api/src/commands
 pnpm typecheck
 ```
 
@@ -1686,7 +1687,7 @@ Expected: 크기·형식·재검증, grant 사용자/action binding 테스트 PA
 - [ ] **Step 7: 커밋한다**
 
 ```bash
-git add packages/domain/src/uploads packages/providers apps/api/src/uploads apps/api/src/auth apps/api/src/commands
+git add backend/domain/src/uploads backend/providers backend/api/src/uploads backend/api/src/auth backend/api/src/commands
 git commit -m "feat: add secure uploads and admin step-up"
 ```
 
@@ -1695,16 +1696,16 @@ git commit -m "feat: add secure uploads and admin step-up"
 **학습 포인트:** Lambda handler, SQS at-least-once, deterministic Step Functions execution
 
 **Files:**
-- Modify: `apps/api/package.json`
-- Create: `apps/api/src/lambda.ts`
-- Create: `apps/api/esbuild.config.mjs`
-- Modify: `apps/worker/package.json`
-- Create: `apps/worker/src/job-starter.ts`
-- Create: `apps/worker/src/foundation-task.ts`
-- Create: `apps/worker/esbuild.config.mjs`
-- Test: `apps/api/src/lambda.spec.ts`
-- Test: `apps/worker/src/job-starter.spec.ts`
-- Test: `apps/worker/src/foundation-task.spec.ts`
+- Modify: `backend/api/package.json`
+- Create: `backend/api/src/lambda.ts`
+- Create: `backend/api/esbuild.config.mjs`
+- Modify: `backend/worker/package.json`
+- Create: `backend/worker/src/job-starter.ts`
+- Create: `backend/worker/src/foundation-task.ts`
+- Create: `backend/worker/esbuild.config.mjs`
+- Test: `backend/api/src/lambda.spec.ts`
+- Test: `backend/worker/src/job-starter.spec.ts`
+- Test: `backend/worker/src/foundation-task.spec.ts`
 
 **Interfaces:**
 - Produces: API `handler(event, context)`
@@ -1756,8 +1757,8 @@ export const createJobStarterHandler =
 bootstrap과 `lambda.ts`의 serverless bootstrap은 같은 `AppModule`과
 global validation/error filter 설정 함수를 사용한다.
 
-`apps/api/package.json`에는 `@codegenie/serverless-express`,
-`@types/aws-lambda`, `esbuild`를 추가한다. `apps/worker/package.json`은
+`backend/api/package.json`에는 `@codegenie/serverless-express`,
+`@types/aws-lambda`, `esbuild`를 추가한다. `backend/worker/package.json`은
 다음 script와 의존성을 사용한다.
 
 ```json
@@ -1793,18 +1794,18 @@ no-op하고, 허용되지 않은 상태 전이는 domain 오류로 실패한다.
 Run:
 
 ```bash
-pnpm test apps/api/src/lambda.spec.ts apps/worker/src
+pnpm test backend/api/src/lambda.spec.ts backend/worker/src
 pnpm --filter @flex-thia/api build:lambda
 pnpm --filter @flex-thia/worker build:lambda
 ```
 
 Expected: duplicate delivery 테스트 PASS,
-`apps/api/dist/lambda.js`, `apps/worker/dist/*.js` 생성
+`backend/api/dist/lambda.js`, `backend/worker/dist/*.js` 생성
 
 - [ ] **Step 6: 커밋한다**
 
 ```bash
-git add apps/api apps/worker
+git add backend/api backend/worker
 git commit -m "feat: add lambda and worker entrypoints"
 ```
 
@@ -1813,9 +1814,9 @@ git commit -m "feat: add lambda and worker entrypoints"
 **학습 포인트:** 구조화 로그, 민감 정보 마스킹, readiness와 liveness 차이, 검증 게이트
 
 **Files:**
-- Create: `apps/api/src/common/errors/domain-exception.filter.ts`
-- Create: `apps/api/src/common/logging/structured-logger.ts`
-- Create: `apps/api/src/health/readiness.service.ts`
+- Create: `backend/api/src/common/errors/domain-exception.filter.ts`
+- Create: `backend/api/src/common/logging/structured-logger.ts`
+- Create: `backend/api/src/health/readiness.service.ts`
 - Test: corresponding `*.spec.ts`
 - Create: `docs/development/backend-foundation.md`
 - Modify: `package.json`

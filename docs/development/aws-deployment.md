@@ -156,7 +156,7 @@ https://www.<ROOT_DOMAIN>
 `https://<ROOT_DOMAIN>`으로 접속하면 path와 query를 유지한 채 위 `www`
 주소로 이동해야 한다.
 
-현재 `apps/web`은 아직 없으므로 완성된 프론트 화면이 아니라 인프라
+현재 `frontend/web`은 아직 없으므로 완성된 프론트 화면이 아니라 인프라
 연결 확인용 최소 정적 페이지가 보이는 것이 정상이다.
 
 ### 4. SES와 SNS 확인

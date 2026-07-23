@@ -160,9 +160,9 @@ compiler API를 읽지 못하는 ESLint 도구를 위한 TypeScript 6 호환층�
 뿐이다. 자세한 배경과 폴더별 책임은
 [프로젝트 폴더 구조](project-structure.md)를 참고한다.
 
-- `apps/api/dist/lambda.js`: API Gateway가 호출하는 NestJS API
-- `apps/worker/dist/job-starter.js`: SQS 메시지로 Step Functions를 시작
-- `apps/worker/dist/foundation-task.js`: Job 상태 전이의 기초 작업
+- `backend/api/dist/lambda.js`: API Gateway가 호출하는 NestJS API
+- `backend/worker/dist/job-starter.js`: SQS 메시지로 Step Functions를 시작
+- `backend/worker/dist/foundation-task.js`: Job 상태 전이의 기초 작업
   트리거
 
 ## 로컬과 AWS의 대응 관계

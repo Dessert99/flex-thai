@@ -23,8 +23,8 @@
 ### Task 1: Data API 재개 대기 정책
 
 **Files:**
-- Create: `packages/database/src/operations/wait-for-data-api.spec.ts`
-- Create: `packages/database/src/operations/wait-for-data-api.ts`
+- Create: `backend/database/src/operations/wait-for-data-api.spec.ts`
+- Create: `backend/database/src/operations/wait-for-data-api.ts`
 
 **Interfaces:**
 - Consumes: AWS SDK의 `DatabaseResumingException`
@@ -74,7 +74,7 @@ describe('waitForDataApi', () => {
 
 - [ ] **Step 2: 테스트가 구현 파일 부재로 실패하는지 확인**
 
-Run: `pnpm exec vitest run packages/database/src/operations/wait-for-data-api.spec.ts`
+Run: `pnpm exec vitest run backend/database/src/operations/wait-for-data-api.spec.ts`
 
 Expected: FAIL because `./wait-for-data-api.js` cannot be resolved.
 
@@ -120,7 +120,7 @@ export const waitForDataApi = async ({
 
 - [ ] **Step 4: 첫 테스트가 통과하는지 확인**
 
-Run: `pnpm exec vitest run packages/database/src/operations/wait-for-data-api.spec.ts`
+Run: `pnpm exec vitest run backend/database/src/operations/wait-for-data-api.spec.ts`
 
 Expected: PASS, 1 test passed.
 
@@ -175,15 +175,15 @@ it('최대 횟수까지 재개 중이면 마지막 오류를 반환한다', asyn
 
 - [ ] **Step 6: 세 정책 테스트가 모두 통과하는지 확인**
 
-Run: `pnpm exec vitest run packages/database/src/operations/wait-for-data-api.spec.ts`
+Run: `pnpm exec vitest run backend/database/src/operations/wait-for-data-api.spec.ts`
 
 Expected: PASS, 3 tests passed.
 
 ### Task 2: 운영 준비 command와 workflow 연결
 
 **Files:**
-- Create: `packages/database/src/commands/wait-for-data-api.ts`
-- Modify: `packages/database/package.json`
+- Create: `backend/database/src/commands/wait-for-data-api.ts`
+- Modify: `backend/database/package.json`
 - Modify: `pnpm-lock.yaml`
 - Modify: `.github/workflows/deploy-production.yml`
 
@@ -245,13 +245,13 @@ console.info('Aurora Data API 준비 완료');
 
 - [ ] **Step 2: package command와 실행 의존성 추가**
 
-`packages/database/package.json`의 scripts에 다음 command를 추가한다.
+`backend/database/package.json`의 scripts에 다음 command를 추가한다.
 
 ```json
 "db:wait:data-api": "tsx src/commands/wait-for-data-api.ts"
 ```
 
-`packages/database/package.json`의 devDependencies에 다음 의존성을 추가한다.
+`backend/database/package.json`의 devDependencies에 다음 의존성을 추가한다.
 
 ```json
 "tsx": "^4.20.0"
@@ -272,7 +272,7 @@ Expected: exit 0 and the database importer in `pnpm-lock.yaml` contains `tsx`.
 
 - [ ] **Step 4: database 범위 검증**
 
-Run: `pnpm exec vitest run packages/database/src/operations/wait-for-data-api.spec.ts`
+Run: `pnpm exec vitest run backend/database/src/operations/wait-for-data-api.spec.ts`
 
 Expected: PASS, 3 tests passed.
 
@@ -365,7 +365,7 @@ Run: `git diff --check && git status --short && git diff --stat`
 
 Expected: whitespace errors are absent and only planned files changed.
 
-Run: `git add packages/database/src/operations/wait-for-data-api.spec.ts packages/database/src/operations/wait-for-data-api.ts packages/database/src/commands/wait-for-data-api.ts packages/database/package.json pnpm-lock.yaml .github/workflows/deploy-production.yml`
+Run: `git add backend/database/src/operations/wait-for-data-api.spec.ts backend/database/src/operations/wait-for-data-api.ts backend/database/src/commands/wait-for-data-api.ts backend/database/package.json pnpm-lock.yaml .github/workflows/deploy-production.yml`
 
 Run: `git commit -m "fix: wait for aurora before migration"`
 
