@@ -33,9 +33,13 @@
 - Create: `shared/contracts/src/health/status.ts`
 - Modify: `shared/contracts/src/index.ts`
 - Create: `backend/api/src/openapi/openapi.dto.ts`
+- Create: `backend/api/src/openapi/openapi.decorators.ts`
 - Create: `backend/api/src/openapi/openapi.ts`
 - Create: `backend/api/src/openapi/openapi.spec.ts`
 - Modify: `backend/api/src/identity/identity.controller.ts`
+- Modify: `backend/api/src/identity/cognito-authorizer.guard.ts`
+- Modify: `backend/api/src/identity/csrf.guard.ts`
+- Modify: `backend/api/src/identity/identity.module.ts`
 - Modify: `backend/api/src/identity/me.controller.ts`
 - Modify: `backend/api/src/health/health.controller.ts`
 - Modify: `backend/api/src/health/readiness.service.ts`
@@ -50,7 +54,7 @@
   - Identity·health Zod DTO
   - 아홉 개 활성 endpoint의 OpenAPI operation
 
-- [ ] **Step 1: Swagger와 Zod DTO 의존성을 설치한다**
+- [x] **Step 1: Swagger와 Zod DTO 의존성을 설치한다**
 
 Run:
 
@@ -60,7 +64,7 @@ pnpm --filter @flex-thia/api add @nestjs/swagger@11.4.6 nestjs-zod@5.4.0
 
 Expected: `backend/api/package.json`과 `pnpm-lock.yaml`에 두 runtime dependency가 추가된다.
 
-- [ ] **Step 2: OpenAPI document의 경로·계약·보안 metadata 실패 테스트를 작성한다**
+- [x] **Step 2: OpenAPI document의 경로·계약·보안 metadata 실패 테스트를 작성한다**
 
 `backend/api/src/openapi/openapi.spec.ts`는 실제 Nest application을 listen하지
 않고 초기화해 document 객체만 검사한다.
@@ -123,11 +127,14 @@ describe('OpenAPI document', () => {
     expect(operation?.responses).toHaveProperty('201');
     expect(operation?.responses).toHaveProperty('400');
     expect(operation?.responses).toHaveProperty('401');
-    expect(document.components?.schemas).toMatchObject({
-      LoginRequestDto: expect.any(Object),
-      LoginResponseDto: expect.any(Object),
-      ProblemDetailsDto: expect.any(Object),
-    });
+    expect(document.components?.schemas).toHaveProperty(
+      'AuthenticatedResponseDto',
+    );
+    expect(document.components?.schemas).toHaveProperty('LoginRequestDto');
+    expect(document.components?.schemas).toHaveProperty(
+      'MfaRequiredResponseDto',
+    );
+    expect(document.components?.schemas).toHaveProperty('ProblemDetailsDto');
   });
 
   it('Bearer와 refresh cookie 보안 scheme을 구분한다', () => {
@@ -154,17 +161,17 @@ describe('OpenAPI document', () => {
 });
 ```
 
-- [ ] **Step 3: OpenAPI 테스트가 생성 함수 미존재로 실패하는지 확인한다**
+- [x] **Step 3: OpenAPI 테스트가 생성 함수 미존재로 실패하는지 확인한다**
 
 Run:
 
 ```bash
-pnpm --filter @flex-thia/api test -- src/openapi/openapi.spec.ts
+pnpm exec vitest run backend/api/src/openapi/openapi.spec.ts
 ```
 
 Expected: FAIL with `./openapi.js` 또는 `createOpenApiDocument` 미존재 오류
 
-- [ ] **Step 4: health 공개 계약과 Zod DTO를 구현한다**
+- [x] **Step 4: health 공개 계약과 Zod DTO를 구현한다**
 
 `shared/contracts/src/health/status.ts`:
 
@@ -197,10 +204,11 @@ export한다.
 ```ts
 /** 공개 Zod 계약을 Nest Swagger reflection DTO로 연결한다 */
 import {
+  authenticatedResponseSchema,
   healthResponseSchema,
   loginRequestSchema,
-  loginResponseSchema,
   meResponseSchema,
+  mfaRequiredResponseSchema,
   problemDetailsSchema,
   readinessResponseSchema,
   totpChallengeRequestSchema,
@@ -212,8 +220,15 @@ import { createZodDto } from 'nestjs-zod';
 /** 로그인 요청 Swagger DTO */
 export class LoginRequestDto extends createZodDto(loginRequestSchema) {}
 
-/** 로그인·refresh 성공 Swagger DTO */
-export class LoginResponseDto extends createZodDto(loginResponseSchema) {}
+/** access token과 공개 사용자를 포함한 인증 성공 Swagger DTO */
+export class AuthenticatedResponseDto extends createZodDto(
+  authenticatedResponseSchema,
+) {}
+
+/** TOTP challenge가 필요한 로그인 Swagger DTO */
+export class MfaRequiredResponseDto extends createZodDto(
+  mfaRequiredResponseSchema,
+) {}
 
 /** TOTP 로그인 challenge 요청 Swagger DTO */
 export class TotpChallengeRequestDto extends createZodDto(
@@ -245,7 +260,7 @@ export class ReadinessResponseDto extends createZodDto(
 export class ProblemDetailsDto extends createZodDto(problemDetailsSchema) {}
 ```
 
-- [ ] **Step 5: 공통 OpenAPI document factory를 구현한다**
+- [x] **Step 5: 공통 OpenAPI document factory를 구현한다**
 
 `backend/api/src/openapi/openapi.ts`:
 
@@ -278,18 +293,18 @@ export const createOpenApiDocument = (
   cleanupOpenApiDoc(SwaggerModule.createDocument(app, OPEN_API_CONFIG));
 ```
 
-- [ ] **Step 6: 모든 활성 Controller operation을 문서화한다**
+- [x] **Step 6: 모든 활성 Controller operation을 문서화한다**
 
 각 Controller에 `@ApiTags`를 추가하고 각 method에는 다음 metadata를
 명시한다.
 
 | endpoint | success | 요청 DTO | 응답 DTO | security |
 | --- | --- | --- | --- | --- |
-| login | 201 | `LoginRequestDto` | `LoginResponseDto` | CSRF headers |
-| TOTP challenge | 201 | `TotpChallengeRequestDto` | `LoginResponseDto` | CSRF headers |
+| login | 201 | `LoginRequestDto` | 인증·MFA DTO `oneOf` | CSRF headers |
+| TOTP challenge | 201 | `TotpChallengeRequestDto` | 인증·MFA DTO `oneOf` | CSRF headers |
 | TOTP setup | 201 | 없음 | `TotpSetupResponseDto` | `accessToken` |
 | TOTP setup verify | 201 | `TotpSetupVerifyRequestDto` | `MeResponseDto` | `accessToken` |
-| refresh | 201 | 없음 | `LoginResponseDto` | `refreshCookie`, CSRF headers |
+| refresh | 201 | 없음 | 인증·MFA DTO `oneOf` | `refreshCookie`, CSRF headers |
 | logout | 204 | 없음 | 없음 | `refreshCookie`, CSRF headers |
 | me | 200 | 없음 | `MeResponseDto` | `accessToken` |
 | health | 200 | 없음 | `HealthResponseDto` | 없음 |
@@ -315,19 +330,23 @@ CSRF endpoint는 다음 두 header를 문서화한다.
 Guard와 domain 오류에 맞춰 `400`, `401`, `403`, `409`, `429`, `500` 중
 가능한 상태만 선언하고 readiness는 `503`을 선언한다.
 
-- [ ] **Step 7: OpenAPI document 테스트와 contracts 테스트를 통과시킨다**
+class 기반 Guard가 interface와 배열 생성자 인자를 Nest enhancer에서
+해석할 수 있도록 사용자 repository, authorizer 설정과 CSRF origin에
+명시적 Symbol DI token을 사용한다.
+
+- [x] **Step 7: OpenAPI document 테스트와 contracts 테스트를 통과시킨다**
 
 Run:
 
 ```bash
-pnpm --filter @flex-thia/api test -- src/openapi/openapi.spec.ts
-pnpm --filter @flex-thia/contracts test
+pnpm exec vitest run backend/api/src shared/contracts/src
 pnpm --filter @flex-thia/api typecheck
+pnpm --filter @flex-thia/contracts typecheck
 ```
 
 Expected: 세 명령 모두 exit 0
 
-- [ ] **Step 8: Zod 기반 OpenAPI 계약을 커밋한다**
+- [x] **Step 8: Zod 기반 OpenAPI 계약을 커밋한다**
 
 ```bash
 git add backend/api/package.json pnpm-lock.yaml shared/contracts/src backend/api/src/openapi backend/api/src/identity backend/api/src/health
@@ -353,7 +372,7 @@ git commit -m "feat: document active api contracts"
   - `configureOpenApi(app: INestApplication, nodeEnv: string | undefined): void`
   - 비운영 `/api/docs`, `/api/openapi.json`
 
-- [ ] **Step 1: 환경별 Swagger route 정책 실패 테스트를 작성한다**
+- [x] **Step 1: 환경별 Swagger route 정책 실패 테스트를 작성한다**
 
 `backend/api/src/openapi/openapi.spec.ts`에 추가한다.
 
@@ -377,17 +396,17 @@ describe('OpenAPI 노출 정책', () => {
 });
 ```
 
-- [ ] **Step 2: 새 export 미존재로 테스트가 실패하는지 확인한다**
+- [x] **Step 2: 새 export 미존재로 테스트가 실패하는지 확인한다**
 
 Run:
 
 ```bash
-pnpm --filter @flex-thia/api test -- src/openapi/openapi.spec.ts
+pnpm exec vitest run backend/api/src/openapi/openapi.spec.ts
 ```
 
 Expected: FAIL with `resolveOpenApiPaths` 또는 `configureOpenApi` 미존재 오류
 
-- [ ] **Step 3: 환경별 Swagger route 설정을 구현한다**
+- [x] **Step 3: 환경별 Swagger route 설정을 구현한다**
 
 `backend/api/src/openapi/openapi.ts`에 추가한다.
 
@@ -429,18 +448,18 @@ export const configureOpenApi = (
 `app.setup.spec.ts`는 `production`을 전달해 Swagger adapter 호출을
 피하고, `configureOpenApi`의 환경 정책은 전용 테스트가 담당한다.
 
-- [ ] **Step 4: 노출 정책과 기존 app setup 테스트를 통과시킨다**
+- [x] **Step 4: 노출 정책과 기존 app setup 테스트를 통과시킨다**
 
 Run:
 
 ```bash
-pnpm --filter @flex-thia/api test -- src/openapi/openapi.spec.ts src/app.setup.spec.ts
+pnpm exec vitest run backend/api/src/openapi/openapi.spec.ts backend/api/src/app.setup.spec.ts
 pnpm --filter @flex-thia/api typecheck
 ```
 
 Expected: 두 명령 모두 exit 0
 
-- [ ] **Step 5: 비운영 Swagger 연결을 커밋한다**
+- [x] **Step 5: 비운영 Swagger 연결을 커밋한다**
 
 ```bash
 git add backend/api/src/openapi backend/api/src/app.setup.ts backend/api/src/app.setup.spec.ts
@@ -463,7 +482,7 @@ git commit -m "feat: expose swagger outside production"
 - Consumes: Task 1·2의 Swagger 구현과 테스트
 - Produces: 이후 공개 API 구현에 적용되는 Swagger 완료 조건
 
-- [ ] **Step 1: Identity 계획과 MVP 로드맵에 Swagger 필수 규칙을 추가한다**
+- [x] **Step 1: Identity 계획과 MVP 로드맵에 Swagger 필수 규칙을 추가한다**
 
 Identity 계획의 `Global Constraints`와 `Completion Gate`, MVP 로드맵의
 `공통 원칙`에 다음 규칙을 추가한다.
@@ -477,7 +496,7 @@ root application에 등록하는 모든 공개 HTTP endpoint는 같은 변경에
 Identity 계획에는 별도 Task 8로 현재 아홉 endpoint의 Swagger 구현,
 비운영 노출 정책, Zod 단일 원본과 검증 명령을 기록한다.
 
-- [ ] **Step 2: 백엔드 아키텍처에 전달 계층 문서화 규칙을 추가한다**
+- [x] **Step 2: 백엔드 아키텍처에 전달 계층 문서화 규칙을 추가한다**
 
 `backend/api` 책임과 코드 품질 규칙에 다음 내용을 추가한다.
 
@@ -488,7 +507,7 @@ Identity 계획에는 별도 Task 8로 현재 아홉 endpoint의 Swagger 구현,
 - OpenAPI document 단위 테스트가 활성 path와 보안 scheme을 검증한다.
 ```
 
-- [ ] **Step 3: 문서와 코드 포맷을 검증한다**
+- [x] **Step 3: 문서와 코드 포맷을 검증한다**
 
 Run:
 
@@ -506,7 +525,7 @@ pnpm exec prettier --check \
 
 Expected: 모든 지정 파일이 Prettier 검사를 통과한다.
 
-- [ ] **Step 4: 전체 정적 검사·테스트·build를 실행한다**
+- [x] **Step 4: 전체 정적 검사·테스트·build를 실행한다**
 
 Run:
 
@@ -525,7 +544,7 @@ Expected:
 - 모든 Vitest 단위 테스트 성공
 - 모든 workspace build 성공
 
-- [ ] **Step 5: 변경 범위를 확인한다**
+- [x] **Step 5: 변경 범위를 확인한다**
 
 Run:
 
@@ -542,7 +561,7 @@ Expected:
 - E2E 설정이나 테스트가 추가되지 않는다.
 - whitespace 오류가 없다.
 
-- [ ] **Step 6: Swagger 필수 규칙과 최종 검증을 커밋한다**
+- [x] **Step 6: Swagger 필수 규칙과 최종 검증을 커밋한다**
 
 ```bash
 git add docs/development/backend-architecture.md docs/superpowers/plans/2026-07-23-backend-mvp-roadmap.md docs/superpowers/plans/2026-07-23-identity-auth-mvp.md docs/superpowers/plans/2026-07-23-swagger-openapi-documentation.md

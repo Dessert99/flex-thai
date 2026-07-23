@@ -162,6 +162,7 @@ NestJS를 사용하는 HTTP 전달 계층과 의존성 조립 지점이다.
 - 공개 API 입력을 도메인 명령으로 변환
 - 도메인 결과를 공개 응답으로 변환
 - 인증된 사용자와 요청 문맥 전달
+- 공개 operation의 요청·응답·인증·오류 Swagger metadata
 
 Controller에 업무 규칙, SQL, AWS SDK 호출을 넣지 않는다. 학습자와
 관리자의 공개 범위가 다르면 Controller를 분리한다.
@@ -310,6 +311,11 @@ backend/worker ────┬──> backend/domain
 - 하나의 유스케이스는 한 가지 사용자 행동만 수행한다.
 - Controller와 worker handler는 얇게 유지한다.
 - 도메인 규칙을 Controller, repository, worker에 복제하지 않는다.
+- root application에 등록하는 모든 공개 Controller operation은 같은
+  변경에서 요청·응답·인증·오류 Swagger metadata를 제공한다.
+- Swagger schema는 `shared/contracts`의 Zod schema를 단일 원본으로
+  사용한다.
+- OpenAPI document 단위 테스트는 활성 path와 보안 scheme을 검증한다.
 - 테스트는 대상 파일 옆에 둔다.
 - 패키지와 모듈의 `index.ts`는 외부에 허용할 항목만 공개한다.
 - 순환 의존성이 생기면 공용 폴더로 옮기기 전에 소유권과 호출 방향을

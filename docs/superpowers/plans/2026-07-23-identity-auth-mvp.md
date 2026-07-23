@@ -29,6 +29,9 @@ Amazon Cognito AWS SDK v3, PostgreSQL, Drizzle ORM 0.45, pnpm 10
   `X-CSRF-Protection: 1`을 요구한다.
 - `ADMIN`은 `LEARNER` 권한을 포함하며 관리자 API는 TOTP 등록을 요구한다.
 - 공개 signup, 셀프 password reset, SMS step-up API를 노출하지 않는다.
+- root application에 등록하는 모든 공개 HTTP endpoint는 같은 변경에서
+  요청·응답·인증·오류 Swagger 문서와 OpenAPI document 단위 테스트를
+  추가한다.
 - 인프라 코드, 배포, Lambda DI metadata 문제는 수정하지 않는다.
 - 브라우저·API E2E 테스트를 추가하지 않는다.
 - 테스트의 `describe`, `it`, `test` 설명은 한국어로 작성한다.
@@ -64,7 +67,12 @@ Amazon Cognito AWS SDK v3, PostgreSQL, Drizzle ORM 0.45, pnpm 10
 - `backend/api/src/identity/csrf.guard.ts`
 - `backend/api/src/identity/require-role.decorator.ts`
 - `backend/api/src/identity/identity.guards.spec.ts`
+- `backend/api/src/openapi/openapi.decorators.ts`
+- `backend/api/src/openapi/openapi.dto.ts`
+- `backend/api/src/openapi/openapi.spec.ts`
+- `backend/api/src/openapi/openapi.ts`
 - `backend/api/src/app.setup.spec.ts`
+- `shared/contracts/src/health/status.ts`
 - `backend/database/drizzle/0002_identity-mfa.sql`
 - `backend/database/drizzle/meta/0002_snapshot.json`
 
@@ -88,6 +96,8 @@ Amazon Cognito AWS SDK v3, PostgreSQL, Drizzle ORM 0.45, pnpm 10
 - `backend/api/src/app.setup.ts`
 - `backend/api/src/runtime-config.ts`
 - `backend/api/src/runtime-config.spec.ts`
+- `backend/api/src/health/health.controller.ts`
+- `backend/api/src/health/readiness.service.ts`
 - `backend/api/src/jobs/jobs.controller.ts`
 - `backend/api/src/uploads/uploads.controller.ts`
 - `backend/config/src/api-env.ts`
@@ -1344,6 +1354,69 @@ git commit -m "docs: explain mvp identity workflow"
 
 ---
 
+### Task 8: Swagger·OpenAPI 문서화
+
+**Files:**
+
+- Create: `backend/api/src/openapi/openapi.decorators.ts`
+- Create: `backend/api/src/openapi/openapi.dto.ts`
+- Create: `backend/api/src/openapi/openapi.spec.ts`
+- Create: `backend/api/src/openapi/openapi.ts`
+- Create: `shared/contracts/src/health/status.ts`
+- Modify: `backend/api/src/identity/identity.controller.ts`
+- Modify: `backend/api/src/identity/me.controller.ts`
+- Modify: `backend/api/src/health/health.controller.ts`
+- Modify: `backend/api/src/health/readiness.service.ts`
+- Modify: `backend/api/src/app.setup.ts`
+- Modify: `backend/api/src/identity/cognito-authorizer.guard.ts`
+- Modify: `backend/api/src/identity/csrf.guard.ts`
+- Modify: `backend/api/src/identity/identity.module.ts`
+- Modify: `backend/api/package.json`
+- Modify: `shared/contracts/src/index.ts`
+- Modify: `pnpm-lock.yaml`
+
+**Interfaces:**
+
+- Produces:
+  - 비운영 Swagger UI `/api/docs`
+  - 비운영 OpenAPI JSON `/api/openapi.json`
+  - Identity·health 활성 endpoint 아홉 개의 OpenAPI 계약
+
+- [x] **Step 1: 활성 endpoint의 OpenAPI document 실패 테스트를 작성한다**
+
+테스트는 활성 path 아홉 개, Zod 요청·응답, Bearer·refresh cookie security
+scheme, Problem Details와 logout `204`를 검사한다.
+
+- [x] **Step 2: Zod 계약 기반 Swagger DTO와 Controller metadata를 구현한다**
+
+`shared/contracts`의 Zod schema를 `nestjs-zod` DTO로 연결한다. 로그인
+성공과 MFA challenge 응답은 두 DTO를 OpenAPI `oneOf`로 조합한다.
+
+- [x] **Step 3: Guard 생성자에 명시적 Nest DI token을 적용한다**
+
+class 기반 `@UseGuards`가 interface와 배열 생성자 인자를 안정적으로
+해석하도록 사용자 repository, authorizer 설정과 CSRF origin에 Symbol
+token을 사용한다.
+
+- [x] **Step 4: 비운영 환경에만 Swagger route를 연결한다**
+
+`production`에서는 Swagger 설정을 호출하지 않고, 그 밖의 환경에서
+`/api/docs`와 `/api/openapi.json`을 등록한다.
+
+- [x] **Step 5: OpenAPI·API 단위 테스트와 typecheck를 통과시킨다**
+
+Run:
+
+```bash
+pnpm exec vitest run backend/api/src shared/contracts/src
+pnpm --filter @flex-thia/api typecheck
+pnpm --filter @flex-thia/contracts typecheck
+```
+
+Expected: 모든 명령 exit 0
+
+---
+
 ## Completion Gate
 
 다음 조건을 모두 만족해야 2단계 어휘·문장·음성 계획으로 넘어간다.
@@ -1358,5 +1431,7 @@ git commit -m "docs: explain mvp identity workflow"
 - TOTP 미등록 관리자가 관리자 route를 사용할 수 없다.
 - DB migration은 `mfa_enrolled_at`만 추가하고 기존 인증 테이블을 삭제하지
   않는다.
+- Identity·health 활성 endpoint 아홉 개가 요청·응답·인증·오류를 포함한
+  OpenAPI document에 존재하고 운영 환경에는 문서 route가 없다.
 - `pnpm check`가 exit 0이다.
 - 인프라, 배포, Lambda DI metadata는 변경하지 않는다.

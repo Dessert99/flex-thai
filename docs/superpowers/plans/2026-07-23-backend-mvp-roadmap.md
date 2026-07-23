@@ -13,6 +13,9 @@
 - 기존 PDF·AI·TTS Job과 공개 가입·SMS 인증 경로는 새 MVP 실행 경로에서
   격리하되, 관련 인프라 자원은 이 로드맵에서 삭제하지 않는다.
 - 브라우저·API E2E 테스트는 만들지 않는다.
+- root application에 등록하는 모든 공개 HTTP endpoint는 같은 변경에서
+  요청·응답·인증·오류 Swagger 문서와 OpenAPI document 단위 테스트를
+  추가한다.
 - 모든 테스트 설명은 한국어로 작성한다.
 - 새 코드와 변경 코드는 `conventions/comment-convention.md`를 따른다.
 - 배포와 Lambda DI metadata 문제는 애플리케이션 구현과 분리한다.
