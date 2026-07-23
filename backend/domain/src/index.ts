@@ -54,3 +54,9 @@ export * from './thai-content/thai-sentence-version.js';
 
 /** 문제 버전의 구조와 최신 게시 콘텐츠 검증을 공개한다 */
 export * from './questions/question-version.js';
+
+/** 문제 게시 transaction port를 공개한다 */
+export * from './questions/question-publication.repository.js';
+
+/** 문제 게시와 노출 상태 수명 use case를 공개한다 */
+export * from './questions/question-publication.js';
