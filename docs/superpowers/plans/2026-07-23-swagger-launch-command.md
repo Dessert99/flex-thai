@@ -35,14 +35,17 @@
 
 ```ts
 /** 로컬 진입점이 같은 NestJS 서버 설정을 사용하는지 검증한다 */
-import { NestFactory } from '@nestjs/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApplicationModule } from './app.module.js';
 import { configureApp } from './app.setup.js';
 import { startLocalApiServer } from './local-server.js';
 
+const { createNestApplication } = vi.hoisted(() => ({
+  createNestApplication: vi.fn(),
+}));
+
 vi.mock('@nestjs/core', () => ({
-  NestFactory: { create: vi.fn() },
+  NestFactory: { create: createNestApplication },
 }));
 vi.mock('./app.module.js', () => ({
   createApplicationModule: vi.fn(() => 'application-module'),
@@ -57,8 +60,8 @@ describe('로컬 API 서버', () => {
   });
 
   it('선택한 환경과 포트로 공통 애플리케이션을 시작한다', async () => {
-    const app = { listen: vi.fn(async () => undefined) };
-    vi.mocked(NestFactory.create).mockResolvedValue(app as never);
+    const app = { listen: vi.fn(() => Promise.resolve()) };
+    createNestApplication.mockResolvedValue(app);
 
     await startLocalApiServer({ nodeEnv: 'development', port: 4100 });
 
@@ -71,7 +74,7 @@ describe('로컬 API 서버', () => {
 
 - [ ] **Step 2: 구현 파일 부재로 테스트가 실패하는지 확인한다**
 
-Run: `pnpm --filter @flex-thia/api exec vitest run src/local-server.spec.ts`
+Run: `pnpm exec vitest run backend/api/src/local-server.spec.ts`
 
 Expected: FAIL because `local-server.ts` does not exist
 
@@ -112,7 +115,7 @@ void startLocalApiServer();
 
 - [ ] **Step 5: 새 단위 테스트와 typecheck를 통과시킨다**
 
-Run: `pnpm --filter @flex-thia/api exec vitest run src/local-server.spec.ts src/app.setup.spec.ts`
+Run: `pnpm exec vitest run backend/api/src/local-server.spec.ts backend/api/src/app.setup.spec.ts`
 
 Expected: 두 테스트 파일 PASS
 
@@ -167,7 +170,7 @@ describe('Swagger 실행 명령', () => {
 
 - [ ] **Step 3: URL 실행기 부재로 테스트가 실패하는지 확인한다**
 
-Run: `pnpm --filter @flex-thia/api exec vitest run src/swagger-launcher.spec.ts`
+Run: `pnpm exec vitest run backend/api/src/swagger-launcher.spec.ts`
 
 Expected: FAIL because `swagger-launcher.ts` does not exist
 
@@ -194,7 +197,7 @@ export const createSwaggerUrl = (port: number): string =>
 
 - [ ] **Step 5: URL 생성 테스트를 통과시킨다**
 
-Run: `pnpm --filter @flex-thia/api exec vitest run src/swagger-launcher.spec.ts`
+Run: `pnpm exec vitest run backend/api/src/swagger-launcher.spec.ts`
 
 Expected: 1 test PASS
 
@@ -209,11 +212,13 @@ Expected: 1 test PASS
 
     await launchSwagger({
       port: 4100,
-      startServer: vi.fn(async () => {
+      startServer: vi.fn(() => {
         events.push('server');
+        return Promise.resolve();
       }),
-      openPage: vi.fn(async () => {
+      openPage: vi.fn(() => {
         events.push('browser');
+        return Promise.resolve();
       }),
     });
 
@@ -221,13 +226,11 @@ Expected: 1 test PASS
   });
 
   it('서버 시작이 실패하면 브라우저를 열지 않는다', async () => {
-    const openPage = vi.fn(async () => undefined);
+    const openPage = vi.fn(() => Promise.resolve());
 
     await expect(
       launchSwagger({
-        startServer: vi.fn(async () => {
-          throw new Error('listen failed');
-        }),
+        startServer: vi.fn(() => Promise.reject(new Error('listen failed'))),
         openPage,
       }),
     ).rejects.toThrow('listen failed');
@@ -237,7 +240,7 @@ Expected: 1 test PASS
 
 - [ ] **Step 7: 실행 함수 부재로 테스트가 실패하는지 확인한다**
 
-Run: `pnpm --filter @flex-thia/api exec vitest run src/swagger-launcher.spec.ts`
+Run: `pnpm exec vitest run backend/api/src/swagger-launcher.spec.ts`
 
 Expected: FAIL because `launchSwagger` is not exported
 
@@ -272,7 +275,7 @@ export const launchSwagger = async ({
 
 - [ ] **Step 9: 성공 흐름과 서버 실패 테스트를 통과시킨다**
 
-Run: `pnpm --filter @flex-thia/api exec vitest run src/swagger-launcher.spec.ts`
+Run: `pnpm exec vitest run backend/api/src/swagger-launcher.spec.ts`
 
 Expected: 3 tests PASS
 
@@ -284,10 +287,8 @@ Expected: 3 tests PASS
 
     await expect(
       launchSwagger({
-        startServer: vi.fn(async () => undefined),
-        openPage: vi.fn(async () => {
-          throw new Error('open failed');
-        }),
+        startServer: vi.fn(() => Promise.resolve()),
+        openPage: vi.fn(() => Promise.reject(new Error('open failed'))),
         reportError,
       }),
     ).resolves.toBeUndefined();
@@ -300,7 +301,7 @@ Expected: 3 tests PASS
 
 - [ ] **Step 11: 브라우저 오류가 전파되어 테스트가 실패하는지 확인한다**
 
-Run: `pnpm --filter @flex-thia/api exec vitest run src/swagger-launcher.spec.ts`
+Run: `pnpm exec vitest run backend/api/src/swagger-launcher.spec.ts`
 
 Expected: FAIL with `open failed`
 
@@ -336,7 +337,7 @@ void launchSwagger();
 
 - [ ] **Step 14: Swagger 실행 단위 테스트를 통과시킨다**
 
-Run: `pnpm --filter @flex-thia/api exec vitest run src/swagger-launcher.spec.ts src/openapi/openapi.spec.ts`
+Run: `pnpm exec vitest run backend/api/src/swagger-launcher.spec.ts backend/api/src/openapi/openapi.spec.ts`
 
 Expected: 두 테스트 파일 PASS
 
@@ -385,7 +386,7 @@ Run: `pnpm typecheck`
 
 Expected: exit code 0
 
-Run: `pnpm --filter @flex-thia/api test`
+Run: `pnpm exec vitest run backend/api/src`
 
 Expected: 모든 API 단위 테스트 PASS
 

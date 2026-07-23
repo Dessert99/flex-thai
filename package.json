@@ -6,6 +6,7 @@
     "node": ">=22 <23"
   },
   "scripts": {
+    "swagger": "pnpm --filter @flex-thia/api run swagger",
     "structure:check": "node scripts/check-project-structure.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

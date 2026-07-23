@@ -13,11 +13,13 @@ describe('Swagger 실행 명령', () => {
 
     await launchSwagger({
       port: 4100,
-      startServer: vi.fn(async () => {
+      startServer: vi.fn(() => {
         events.push('server');
+        return Promise.resolve();
       }),
-      openPage: vi.fn(async () => {
+      openPage: vi.fn(() => {
         events.push('browser');
+        return Promise.resolve();
       }),
     });
 
@@ -25,13 +27,11 @@ describe('Swagger 실행 명령', () => {
   });
 
   it('서버 시작이 실패하면 브라우저를 열지 않는다', async () => {
-    const openPage = vi.fn(async () => undefined);
+    const openPage = vi.fn(() => Promise.resolve());
 
     await expect(
       launchSwagger({
-        startServer: vi.fn(async () => {
-          throw new Error('listen failed');
-        }),
+        startServer: vi.fn(() => Promise.reject(new Error('listen failed'))),
         openPage,
       }),
     ).rejects.toThrow('listen failed');
@@ -43,10 +43,8 @@ describe('Swagger 실행 명령', () => {
 
     await expect(
       launchSwagger({
-        startServer: vi.fn(async () => undefined),
-        openPage: vi.fn(async () => {
-          throw new Error('open failed');
-        }),
+        startServer: vi.fn(() => Promise.resolve()),
+        openPage: vi.fn(() => Promise.reject(new Error('open failed'))),
         reportError,
       }),
     ).resolves.toBeUndefined();

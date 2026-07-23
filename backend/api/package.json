@@ -5,6 +5,7 @@
   "scripts": {
     "bootstrap-admin": "tsx src/commands/bootstrap-admin.ts",
     "dev": "tsx watch src/main.ts",
+    "swagger": "tsx src/swagger.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run src",
     "build": "tsc -p tsconfig.json",
