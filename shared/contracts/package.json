@@ -5,7 +5,7 @@
   "exports": "./src/index.ts",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run src",
+    "test": "vitest run --root ../.. shared/contracts/src",
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
