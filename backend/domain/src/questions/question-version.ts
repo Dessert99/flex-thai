@@ -28,7 +28,7 @@ export interface QuestionSentenceCandidate {
   input: ThaiSentenceVersionInput;
   mediaAsset: MediaAsset;
   referencedVocabularies: ReferencedVocabularyState[];
-  pronunciationMediaAssets: MediaAsset[];
+  pronunciationMediaAssets: Array<MediaAsset | null>;
 }
 
 /** 검증할 문제 버전 전체 스냅샷 */
@@ -127,6 +127,13 @@ const validateSentence = (
   }
 
   sentence.pronunciationMediaAssets.forEach((mediaAsset, index) => {
+    if (mediaAsset === null) {
+      issues.push({
+        path: `${path}.pronunciationMediaAssets.${index}`,
+        code: 'MEDIA_ASSET_NOT_READY',
+      });
+      return;
+    }
     try {
       assertMediaAssetReady(mediaAsset);
     } catch {

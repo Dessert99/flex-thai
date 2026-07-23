@@ -249,4 +249,19 @@ describe('QuestionVersion 문제 버전 게시 검증', () => {
       code: 'MEDIA_ASSET_NOT_READY',
     });
   });
+
+  it('선택한 발음 음성이 아직 없으면 해당 index의 게시 검증을 실패한다', () => {
+    const input = candidate();
+    input.options[0]!.sentence.pronunciationMediaAssets = [null];
+
+    expect(validateQuestionVersion(input)).toMatchObject({
+      status: 'FAILED',
+      issues: [
+        {
+          path: 'options.0.sentence.pronunciationMediaAssets.0',
+          code: 'MEDIA_ASSET_NOT_READY',
+        },
+      ],
+    });
+  });
 });

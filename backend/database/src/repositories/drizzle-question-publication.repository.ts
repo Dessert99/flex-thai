@@ -354,9 +354,11 @@ const createQuestionPublicationTransaction = (
               expression.sentenceVersionId === row.sentenceVersionId,
           )
           .sort(compareExpressionPosition);
-        const pronunciationMediaAssets = sentenceTokens.flatMap((token) => {
+        const pronunciationMediaAssets = sentenceTokens.map((token) => {
+          if (token.pronunciationMediaAssetId === null) {
+            return null;
+          }
           if (
-            token.pronunciationMediaAssetId === null ||
             token.pronunciationMediaId === null ||
             token.pronunciationMediaKind === null ||
             token.pronunciationMediaStorageKey === null ||
@@ -367,21 +369,19 @@ const createQuestionPublicationTransaction = (
           ) {
             throw new MediaAssetDomainError('MEDIA_ASSET_NOT_READY');
           }
-          return [
-            toMediaAsset({
-              mediaId: token.pronunciationMediaId,
-              mediaKind: token.pronunciationMediaKind,
-              mediaStorageKey: token.pronunciationMediaStorageKey,
-              mediaDeclaredMimeType: token.pronunciationMediaDeclaredMimeType,
-              mediaDeclaredSizeBytes: token.pronunciationMediaDeclaredSizeBytes,
-              mediaDeclaredSha256: token.pronunciationMediaDeclaredSha256,
-              mediaMimeType: token.pronunciationMediaMimeType,
-              mediaSizeBytes: token.pronunciationMediaSizeBytes,
-              mediaSha256: token.pronunciationMediaSha256,
-              mediaStatus: token.pronunciationMediaStatus,
-              mediaReadyAt: token.pronunciationMediaReadyAt,
-            }),
-          ];
+          return toMediaAsset({
+            mediaId: token.pronunciationMediaId,
+            mediaKind: token.pronunciationMediaKind,
+            mediaStorageKey: token.pronunciationMediaStorageKey,
+            mediaDeclaredMimeType: token.pronunciationMediaDeclaredMimeType,
+            mediaDeclaredSizeBytes: token.pronunciationMediaDeclaredSizeBytes,
+            mediaDeclaredSha256: token.pronunciationMediaDeclaredSha256,
+            mediaMimeType: token.pronunciationMediaMimeType,
+            mediaSizeBytes: token.pronunciationMediaSizeBytes,
+            mediaSha256: token.pronunciationMediaSha256,
+            mediaStatus: token.pronunciationMediaStatus,
+            mediaReadyAt: token.pronunciationMediaReadyAt,
+          });
         });
         sentences.set(row.sentenceVersionId, {
           id: row.sentenceVersionId,
