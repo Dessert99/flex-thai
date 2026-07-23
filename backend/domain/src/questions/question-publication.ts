@@ -91,6 +91,9 @@ const validateInTransaction = async (
   return report;
 };
 
+type PublishVersionTransactionResult =
+  { status: 'NOT_PUBLISHABLE' } | { status: 'PUBLISHED' };
+
 /** 문제 버전 게시와 문제 노출 상태 전이를 수행한다 */
 export class QuestionPublicationService {
   constructor(private readonly repository: QuestionPublicationRepository) {}
@@ -108,48 +111,61 @@ export class QuestionPublicationService {
 
   /** 초안 버전을 게시하고 참조 문장과 현재 버전을 함께 동결한다 */
   async publishVersion(command: PublishQuestionVersionCommand): Promise<void> {
-    await this.repository.runInTransaction(async (transaction) => {
-      const question = assertQuestion(
-        await transaction.loadQuestion(command.questionId),
-      );
-      const version = assertVersion(
-        await transaction.loadVersion(command.versionId),
-      );
-      assertVersionBelongsToQuestion(question, version);
-      if (version.status !== 'DRAFT') {
-        throw new QuestionPublicationError('IMMUTABLE_VERSION');
-      }
+    const result = await this.repository.runInTransaction(
+      async (transaction): Promise<PublishVersionTransactionResult> => {
+        const question = assertQuestion(
+          await transaction.loadQuestion(command.questionId),
+        );
+        const version = assertVersion(
+          await transaction.loadVersion(command.versionId),
+        );
+        assertVersionBelongsToQuestion(question, version);
+        if (version.status !== 'DRAFT') {
+          throw new QuestionPublicationError('IMMUTABLE_VERSION');
+        }
 
-      const report = await validateInTransaction(
-        transaction,
-        version.id,
-        command.occurredAt,
-      );
-      // 실패한 최신 검증 결과는 기록하되 상태 전이에는 절대 쓰지 않는다.
-      if (report.status === 'FAILED') {
-        throw new QuestionPublicationError('QUESTION_VERSION_NOT_PUBLISHABLE');
-      }
-      if (
-        question.currentPublishedVersionId &&
-        question.currentPublishedVersionId !== version.id
-      ) {
-        await transaction.retireVersion(question.currentPublishedVersionId);
-      }
-      await transaction.publishVersion(version.id, command.occurredAt);
-      await transaction.setCurrentPublishedVersion(question.id, version.id);
-      await transaction.freezeReferencedSentences(
-        version.id,
-        command.occurredAt,
-      );
-      await transaction.appendAuditLog({
-        actorUserId: command.actorUserId,
-        action: 'QUESTION_VERSION_PUBLISHED',
-        targetType: 'QUESTION_VERSION',
-        targetId: version.id,
-        summary: { questionId: question.id },
-        requestId: command.requestId,
-      });
-    });
+        const report = await validateInTransaction(
+          transaction,
+          version.id,
+          command.occurredAt,
+        );
+        // 실패한 최신 검증 결과는 기록하되 상태 전이에는 절대 쓰지 않는다.
+        if (report.status === 'FAILED') {
+          return { status: 'NOT_PUBLISHABLE' };
+        }
+        if (
+          question.currentPublishedVersionId &&
+          question.currentPublishedVersionId !== version.id
+        ) {
+          const currentVersion = assertVersion(
+            await transaction.loadVersion(question.currentPublishedVersionId),
+          );
+          assertVersionBelongsToQuestion(question, currentVersion);
+          if (currentVersion.status !== 'PUBLISHED') {
+            throw new QuestionPublicationError('QUESTION_STATE_CONFLICT');
+          }
+          await transaction.retireVersion(currentVersion.id, question.id);
+        }
+        await transaction.publishVersion(version.id, command.occurredAt);
+        await transaction.setCurrentPublishedVersion(question.id, version.id);
+        await transaction.freezeReferencedSentences(
+          version.id,
+          command.occurredAt,
+        );
+        await transaction.appendAuditLog({
+          actorUserId: command.actorUserId,
+          action: 'QUESTION_VERSION_PUBLISHED',
+          targetType: 'QUESTION_VERSION',
+          targetId: version.id,
+          summary: { questionId: question.id },
+          requestId: command.requestId,
+        });
+        return { status: 'PUBLISHED' };
+      },
+    );
+    if (result.status === 'NOT_PUBLISHABLE') {
+      throw new QuestionPublicationError('QUESTION_VERSION_NOT_PUBLISHABLE');
+    }
   }
 
   /** 현재 게시 버전을 무효화하고 노출 중인 문제를 함께 숨긴다 */

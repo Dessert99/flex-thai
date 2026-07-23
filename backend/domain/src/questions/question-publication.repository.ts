@@ -33,7 +33,7 @@ export interface QuestionPublicationTransaction {
     report: QuestionValidationReport,
     validatedAt: Date,
   ): Promise<void>;
-  retireVersion(versionId: string): Promise<void>;
+  retireVersion(versionId: string, questionId: string): Promise<void>;
   publishVersion(versionId: string, publishedAt: Date): Promise<void>;
   setCurrentPublishedVersion(
     questionId: string,

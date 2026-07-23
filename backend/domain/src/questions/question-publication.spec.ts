@@ -109,20 +109,27 @@ const readyAudio = (id: string) => ({
   readyAt: occurredAt,
 });
 
+interface TransactionOverrides {
+  question?: QuestionRecord | null;
+  version?: QuestionVersionRecord | null;
+  versions?: Record<string, QuestionVersionRecord | null>;
+  candidate?: QuestionVersionValidationCandidate | null;
+  onRetireVersion?: (versionId: string, questionId: string) => void;
+}
+
 const createTransaction = (
   calls: string[],
-  overrides: {
-    question?: QuestionRecord | null;
-    version?: QuestionVersionRecord | null;
-    candidate?: QuestionVersionValidationCandidate | null;
-  } = {},
+  overrides: TransactionOverrides = {},
 ): QuestionPublicationTransaction => ({
   loadQuestion: async () => {
     calls.push('loadQuestion');
     return overrides.question === undefined ? question() : overrides.question;
   },
-  loadVersion: async () => {
+  loadVersion: async (versionId) => {
     calls.push('loadVersion');
+    if (overrides.versions && versionId in overrides.versions) {
+      return overrides.versions[versionId]!;
+    }
     return overrides.version === undefined ? version() : overrides.version;
   },
   loadValidationCandidate: async () => {
@@ -134,8 +141,9 @@ const createTransaction = (
   saveValidation: async () => {
     calls.push('saveValidation');
   },
-  retireVersion: async () => {
+  retireVersion: async (versionId, questionId) => {
     calls.push('retireVersion');
+    overrides.onRetireVersion?.(versionId, questionId);
   },
   publishVersion: async () => {
     calls.push('publishVersion');
@@ -162,12 +170,19 @@ const createTransaction = (
 
 const createRepository = (
   transaction: QuestionPublicationTransaction,
+  calls: string[],
 ): QuestionPublicationRepository => ({
-  runInTransaction: async (work) => work(transaction),
+  runInTransaction: async (work) => {
+    const result = await work(transaction);
+    calls.push('transactionCommitted');
+    return result;
+  },
 });
 
-const createService = (transaction: QuestionPublicationTransaction) =>
-  new QuestionPublicationService(createRepository(transaction));
+const createService = (
+  transaction: QuestionPublicationTransaction,
+  calls: string[],
+) => new QuestionPublicationService(createRepository(transaction, calls));
 
 const publishCommand = {
   questionId: 'question-id',
@@ -195,7 +210,22 @@ const expectPublicationError = (code: QuestionPublicationErrorCode) =>
 describe('QuestionPublicationService 문제 게시 수명', () => {
   it('게시 transaction에서 최신 상태를 재검증하고 이전 버전을 퇴역시킨다', async () => {
     const calls: string[] = [];
-    const service = createService(createTransaction(calls));
+    const retired: Array<[string, string]> = [];
+    const service = createService(
+      createTransaction(calls, {
+        versions: {
+          'published-version-id': version({
+            id: 'published-version-id',
+            status: 'PUBLISHED',
+            publishedAt: occurredAt,
+          }),
+        },
+        onRetireVersion: (versionId, questionId) => {
+          retired.push([versionId, questionId]);
+        },
+      }),
+      calls,
+    );
 
     await service.publishVersion(publishCommand);
 
@@ -204,20 +234,70 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
       'loadVersion',
       'loadValidationCandidate',
       'saveValidation',
+      'loadVersion',
       'retireVersion',
       'publishVersion',
       'setCurrentPublishedVersion',
       'freezeReferencedSentences',
       'appendAuditLog',
+      'transactionCommitted',
+    ]);
+    expect(retired).toEqual([['published-version-id', 'question-id']]);
+  });
+
+  it.each([
+    {
+      name: '존재하지 않는 이전 현재 버전',
+      currentVersion: null,
+      code: 'QUESTION_VERSION_NOT_FOUND' as const,
+    },
+    {
+      name: '다른 문제 소유 이전 현재 버전',
+      currentVersion: version({
+        id: 'published-version-id',
+        questionId: 'other-question-id',
+        status: 'PUBLISHED',
+        publishedAt: occurredAt,
+      }),
+      code: 'QUESTION_VERSION_MISMATCH' as const,
+    },
+    {
+      name: '게시 상태가 아닌 이전 현재 버전',
+      currentVersion: version({
+        id: 'published-version-id',
+        status: 'RETIRED',
+        publishedAt: occurredAt,
+      }),
+      code: 'QUESTION_STATE_CONFLICT' as const,
+    },
+  ])('$name은 퇴역하지 않는다', async ({ currentVersion, code }) => {
+    const calls: string[] = [];
+    const service = createService(
+      createTransaction(calls, {
+        versions: { 'published-version-id': currentVersion },
+      }),
+      calls,
+    );
+
+    await expect(service.publishVersion(publishCommand)).rejects.toEqual(
+      expectPublicationError(code),
+    );
+    expect(calls).toEqual([
+      'loadQuestion',
+      'loadVersion',
+      'loadValidationCandidate',
+      'saveValidation',
+      'loadVersion',
     ]);
   });
 
-  it('최신 콘텐츠 재검증이 실패하면 어떤 상태 변경도 호출하지 않는다', async () => {
+  it('최신 콘텐츠 재검증 실패 기록을 commit한 뒤 상태 변경 없이 오류를 던진다', async () => {
     const calls: string[] = [];
     const invalidCandidate = candidate();
     invalidCandidate.difficulty = 6;
     const service = createService(
       createTransaction(calls, { candidate: invalidCandidate }),
+      calls,
     );
 
     await expect(service.publishVersion(publishCommand)).rejects.toEqual(
@@ -228,6 +308,7 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
       'loadVersion',
       'loadValidationCandidate',
       'saveValidation',
+      'transactionCommitted',
     ]);
   });
 
@@ -242,6 +323,7 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
           publishedAt: occurredAt,
         }),
       }),
+      calls,
     );
 
     await service.invalidateVersion(invalidateCommand);
@@ -252,7 +334,52 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
       'invalidateVersion',
       'hideQuestion',
       'appendAuditLog',
+      'transactionCommitted',
     ]);
+  });
+
+  it('다른 문제 소유 버전은 현재 게시 버전으로 무효화하지 않는다', async () => {
+    const calls: string[] = [];
+    const service = createService(
+      createTransaction(calls, {
+        question: question({ status: 'PUBLISHED' }),
+        version: version({
+          id: 'published-version-id',
+          questionId: 'other-question-id',
+          status: 'PUBLISHED',
+          publishedAt: occurredAt,
+        }),
+      }),
+      calls,
+    );
+
+    await expect(service.invalidateVersion(invalidateCommand)).rejects.toEqual(
+      expectPublicationError('QUESTION_VERSION_MISMATCH'),
+    );
+    expect(calls).toEqual(['loadQuestion', 'loadVersion']);
+  });
+
+  it('현재 포인터와 다른 버전은 무효화하지 않는다', async () => {
+    const calls: string[] = [];
+    const service = createService(
+      createTransaction(calls, {
+        question: question({
+          status: 'PUBLISHED',
+          currentPublishedVersionId: 'another-version-id',
+        }),
+        version: version({
+          id: 'published-version-id',
+          status: 'PUBLISHED',
+          publishedAt: occurredAt,
+        }),
+      }),
+      calls,
+    );
+
+    await expect(service.invalidateVersion(invalidateCommand)).rejects.toEqual(
+      expectPublicationError('QUESTION_STATE_CONFLICT'),
+    );
+    expect(calls).toEqual(['loadQuestion', 'loadVersion']);
   });
 
   it('유효한 현재 게시 버전이 없는 숨긴 문제는 복구하지 않는다', async () => {
@@ -269,6 +396,7 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
           publishedAt: occurredAt,
         }),
       }),
+      calls,
     );
 
     await expect(service.restoreQuestion(restoreCommand)).rejects.toEqual(
@@ -281,6 +409,7 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
     const hideCalls: string[] = [];
     const hideService = createService(
       createTransaction(hideCalls, { question: question({ status: 'DRAFT' }) }),
+      hideCalls,
     );
 
     await expect(hideService.hideQuestion(restoreCommand)).rejects.toEqual(
@@ -300,6 +429,7 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
           publishedAt: occurredAt,
         }),
       }),
+      restoreCalls,
     );
 
     await restoreService.restoreQuestion(restoreCommand);
@@ -309,11 +439,63 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
       'loadVersion',
       'restoreQuestion',
       'appendAuditLog',
+      'transactionCommitted',
     ]);
   });
 
+  it('다른 문제 소유 현재 버전으로는 숨긴 문제를 복구하지 않는다', async () => {
+    const calls: string[] = [];
+    const service = createService(
+      createTransaction(calls, {
+        question: question({ status: 'HIDDEN' }),
+        version: version({
+          id: 'published-version-id',
+          questionId: 'other-question-id',
+          status: 'PUBLISHED',
+          publishedAt: occurredAt,
+        }),
+      }),
+      calls,
+    );
+
+    await expect(service.restoreQuestion(restoreCommand)).rejects.toEqual(
+      expectPublicationError('QUESTION_VERSION_MISMATCH'),
+    );
+    expect(calls).toEqual(['loadQuestion', 'loadVersion']);
+  });
+
+  it('존재하지 않는 버전은 validateVersion에서 거절한다', async () => {
+    const calls: string[] = [];
+    const service = createService(
+      createTransaction(calls, { version: null }),
+      calls,
+    );
+
+    await expect(
+      service.validateVersion('draft-version-id', occurredAt),
+    ).rejects.toEqual(expectPublicationError('QUESTION_VERSION_NOT_FOUND'));
+    expect(calls).toEqual(['loadVersion']);
+  });
+
+  it('검증 후보가 없으면 validateVersion에서 거절한다', async () => {
+    const calls: string[] = [];
+    const service = createService(
+      createTransaction(calls, { candidate: null }),
+      calls,
+    );
+
+    await expect(
+      service.validateVersion('draft-version-id', occurredAt),
+    ).rejects.toEqual(expectPublicationError('QUESTION_VERSION_NOT_FOUND'));
+    expect(calls).toEqual(['loadVersion', 'loadValidationCandidate']);
+  });
+
   it('존재하지 않는 문제는 QUESTION_NOT_FOUND로 거절한다', async () => {
-    const service = createService(createTransaction([], { question: null }));
+    const calls: string[] = [];
+    const service = createService(
+      createTransaction(calls, { question: null }),
+      calls,
+    );
 
     await expect(service.publishVersion(publishCommand)).rejects.toEqual(
       expectPublicationError('QUESTION_NOT_FOUND'),
@@ -321,7 +503,11 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
   });
 
   it('존재하지 않는 문제 버전은 QUESTION_VERSION_NOT_FOUND로 거절한다', async () => {
-    const service = createService(createTransaction([], { version: null }));
+    const calls: string[] = [];
+    const service = createService(
+      createTransaction(calls, { version: null }),
+      calls,
+    );
 
     await expect(service.publishVersion(publishCommand)).rejects.toEqual(
       expectPublicationError('QUESTION_VERSION_NOT_FOUND'),
@@ -333,6 +519,7 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
       createTransaction([], {
         version: version({ questionId: 'other-question-id' }),
       }),
+      [],
     );
 
     await expect(service.publishVersion(publishCommand)).rejects.toEqual(
@@ -345,6 +532,7 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
       createTransaction([], {
         version: version({ status: 'PUBLISHED', publishedAt: occurredAt }),
       }),
+      [],
     );
 
     await expect(service.publishVersion(publishCommand)).rejects.toEqual(
