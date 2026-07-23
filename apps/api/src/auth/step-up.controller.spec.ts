@@ -17,7 +17,9 @@ describe('StepUpController', () => {
       {
         userId: 'user-id',
         sub: 'cognito-sub',
+        email: 'admin@example.com',
         role: 'ADMIN',
+        mfaEnrolledAt: new Date('2026-07-23T00:00:00.000Z'),
       },
       'Bearer access-token',
       { actionCategory: 'AI_BULK_CREATE' },

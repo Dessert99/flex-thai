@@ -5,7 +5,9 @@ import { createParamDecorator, type ExecutionContext } from '@nestjs/common';
 export interface AuthenticatedUser {
   userId: string;
   sub: string;
+  email: string;
   role: 'LEARNER' | 'ADMIN';
+  mfaEnrolledAt: Date | null;
 }
 
 /** HTTP request에서 검증이 끝난 사용자를 꺼낸다 */

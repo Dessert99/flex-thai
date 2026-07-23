@@ -14,7 +14,9 @@ describe('UploadsController', () => {
       {
         userId: 'user-id',
         sub: 'cognito-sub',
+        email: 'admin@example.com',
         role: 'ADMIN',
+        mfaEnrolledAt: new Date('2026-07-23T00:00:00.000Z'),
       },
       {
         inputType: 'PDF',

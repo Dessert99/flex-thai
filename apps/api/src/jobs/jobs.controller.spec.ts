@@ -16,7 +16,9 @@ describe('JobsController', () => {
       {
         userId: '8f47b4d5-97d6-4596-af72-16456be51be8',
         sub: 'cognito-sub',
+        email: 'admin@example.com',
         role: 'ADMIN',
+        mfaEnrolledAt: new Date('2026-07-23T00:00:00.000Z'),
       },
       {
         clientRequestId: 'dbb22737-6f3d-4112-bb0e-8e4f005c810b',

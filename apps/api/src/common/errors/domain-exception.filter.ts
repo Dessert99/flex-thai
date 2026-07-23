@@ -7,19 +7,19 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
-import { AuthDomainError, UploadPolicyError } from '@flex-thia/domain';
+import type { ProblemDetailsResponse } from '@flex-thia/contracts';
+import {
+  AuthDomainError,
+  IdentityDomainError,
+  UploadPolicyError,
+} from '@flex-thia/domain';
+import { ZodError } from 'zod';
 import type { StructuredLogger } from '../logging/structured-logger.js';
-
-interface ErrorBody {
-  code: string;
-  message: string;
-  requestId: string;
-}
 
 /** 예외 filter가 HTTP adapter에 전달할 안전한 응답 */
 export interface ErrorResponse {
   status: number;
-  body: ErrorBody;
+  body: ProblemDetailsResponse;
 }
 
 const AUTH_STATUS: Record<AuthDomainError['code'], number> = {
@@ -42,6 +42,15 @@ const APPLICATION_STATUS: Record<string, number> = {
   DB_RESUMING: HttpStatus.SERVICE_UNAVAILABLE,
 };
 
+const IDENTITY_STATUS: Record<IdentityDomainError['code'], number> = {
+  INVALID_CREDENTIALS: HttpStatus.UNAUTHORIZED,
+  INVALID_MFA_CHALLENGE: HttpStatus.UNAUTHORIZED,
+  INVALID_TOTP: HttpStatus.UNAUTHORIZED,
+  INVALID_REFRESH_TOKEN: HttpStatus.UNAUTHORIZED,
+  AUTH_RATE_LIMITED: HttpStatus.TOO_MANY_REQUESTS,
+  ACCOUNT_DISABLED: HttpStatus.FORBIDDEN,
+};
+
 const readPublicCode = (value: unknown): string | null => {
   if (
     value &&
@@ -55,16 +64,39 @@ const readPublicCode = (value: unknown): string | null => {
   return null;
 };
 
-/** 예외 종류를 production에서도 노출 가능한 code와 message로 제한한다 */
+const createProblem = (
+  code: string,
+  status: number,
+  requestId: string,
+  fieldErrors: ProblemDetailsResponse['fieldErrors'] = [],
+): ProblemDetailsResponse => ({
+  type: `https://flex-thia.example/problems/${code.toLowerCase().replaceAll('_', '-')}`,
+  title: '요청을 처리할 수 없습니다.',
+  status,
+  code,
+  requestId,
+  fieldErrors,
+});
+
+/** 예외 종류를 production에서도 노출 가능한 Problem Details로 제한한다 */
 export const buildErrorResponse = (
   error: unknown,
   requestId: string,
-  production: boolean,
+  _production: boolean,
 ): ErrorResponse => {
   if (error instanceof AuthDomainError) {
+    const status = AUTH_STATUS[error.code];
     return {
-      status: AUTH_STATUS[error.code],
-      body: { code: error.code, message: error.message, requestId },
+      status,
+      body: createProblem(error.code, status, requestId),
+    };
+  }
+
+  if (error instanceof IdentityDomainError) {
+    const status = IDENTITY_STATUS[error.code];
+    return {
+      status,
+      body: createProblem(error.code, status, requestId),
     };
   }
 
@@ -75,23 +107,33 @@ export const buildErrorResponse = (
         : HttpStatus.BAD_REQUEST;
     return {
       status,
-      body: { code: error.code, message: error.message, requestId },
+      body: createProblem(error.code, status, requestId),
+    };
+  }
+
+  if (error instanceof ZodError) {
+    const status = HttpStatus.BAD_REQUEST;
+    return {
+      status,
+      body: createProblem(
+        'INVALID_REQUEST',
+        status,
+        requestId,
+        error.issues.map((issue) => ({
+          path: issue.path.map(String).join('.'),
+          message: issue.message,
+        })),
+      ),
     };
   }
 
   if (error instanceof HttpException) {
     const status = error.getStatus();
     const publicCode = readPublicCode(error.getResponse());
+    const code = publicCode ?? `HTTP_${status}`;
     return {
       status,
-      body: {
-        code: publicCode ?? `HTTP_${status}`,
-        message:
-          status >= 500 && production
-            ? 'INTERNAL_SERVER_ERROR'
-            : (publicCode ?? error.message),
-        requestId,
-      },
+      body: createProblem(code, status, requestId),
     };
   }
 
@@ -100,24 +142,21 @@ export const buildErrorResponse = (
   if (applicationCode && APPLICATION_STATUS[applicationCode]) {
     return {
       status: APPLICATION_STATUS[applicationCode],
-      body: {
-        code: applicationCode,
-        message: applicationCode,
+      body: createProblem(
+        applicationCode,
+        APPLICATION_STATUS[applicationCode],
         requestId,
-      },
+      ),
     };
   }
 
   return {
     status: HttpStatus.INTERNAL_SERVER_ERROR,
-    body: {
-      code: 'INTERNAL_SERVER_ERROR',
-      message:
-        production || !(error instanceof Error)
-          ? 'INTERNAL_SERVER_ERROR'
-          : error.message,
+    body: createProblem(
+      'INTERNAL_SERVER_ERROR',
+      HttpStatus.INTERNAL_SERVER_ERROR,
       requestId,
-    },
+    ),
   };
 };
 
@@ -126,8 +165,9 @@ type ErrorRequest = {
 };
 
 type ErrorResponseAdapter = {
+  type(value: string): ErrorResponseAdapter;
   status(code: number): ErrorResponseAdapter;
-  json(body: ErrorBody): void;
+  json(body: ProblemDetailsResponse): void;
 };
 
 /** 모든 예외 응답과 오류 로그에 같은 request id를 연결한다 */
@@ -151,7 +191,10 @@ export class DomainExceptionFilter implements ExceptionFilter {
       requestId,
       errorCode: result.body.code,
     });
-    response.status(result.status).json(result.body);
+    response
+      .type('application/problem+json')
+      .status(result.status)
+      .json(result.body);
   }
 
   private readRequestId(request: ErrorRequest): string {

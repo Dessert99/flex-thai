@@ -1,11 +1,11 @@
 /** API Gateway claim과 DB 사용자 상태를 함께 검증하는 인증 guard */
 import {
-  CanActivate,
+  type CanActivate,
   type ExecutionContext,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import type { UserRepository } from '@flex-thia/domain';
+import type { IdentityUserRepository } from '@flex-thia/domain';
 import type { AuthenticatedUser } from '../common/auth/current-user.decorator.js';
 
 /** Cognito 검증 모드와 app client 경계를 guard에 전달한다 */
@@ -32,15 +32,15 @@ type AuthRequest = {
   user?: AuthenticatedUser;
 };
 
-/** access token의 sub를 ACTIVE DB 사용자와 연결한다 */
+/** access token의 sub를 최신 ACTIVE DB 사용자와 연결한다 */
 @Injectable()
 export class CognitoAuthorizerGuard implements CanActivate {
   constructor(
-    private readonly users: UserRepository,
+    private readonly users: IdentityUserRepository,
     private readonly options: AuthorizerGuardOptions,
   ) {}
 
-  /** ID token·다른 app client·비활성 사용자는 request.user를 만들지 않는다 */
+  /** access token과 DB 상태가 모두 유효할 때 request.user를 만든다 */
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthRequest>();
     const subject =
