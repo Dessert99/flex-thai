@@ -8,6 +8,10 @@ describe('기초 데이터베이스 schema', () => {
     expect(Object.keys(getTableColumns(users))).toContain('cognitoSub');
   });
 
+  it('사용자는 관리자 TOTP 등록 완료 시각을 가진다', () => {
+    expect(Object.keys(getTableColumns(users))).toContain('mfaEnrolledAt');
+  });
+
   it('인증 challenge는 이메일·목적·코드 HMAC만 저장하고 비밀번호와 session은 저장하지 않는다', () => {
     const columns = Object.keys(getTableColumns(authChallenges));
 

@@ -8,6 +8,7 @@ export interface ApplicationUser {
   role: 'LEARNER' | 'ADMIN';
   status: 'ACTIVE' | 'DISABLED';
   phoneVerifiedAt: Date | null;
+  mfaEnrolledAt: Date | null;
 }
 
 /** Cognito claim을 변경 불가능한 sub 기준 사용자로 연결한다 */

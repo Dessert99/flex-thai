@@ -41,6 +41,7 @@ export const users = pgTable(
     role: userRoleEnum('role').default('LEARNER').notNull(),
     status: userStatusEnum('status').default('ACTIVE').notNull(),
     phoneVerifiedAt: timestamp('phone_verified_at', { withTimezone: true }),
+    mfaEnrolledAt: timestamp('mfa_enrolled_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),
