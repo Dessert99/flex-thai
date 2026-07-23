@@ -34,8 +34,11 @@ export * from './jobs/job.queue.js';
 /** Job repository port를 패키지 공개 경계에 노출한다 */
 export * from './jobs/job.repository.js';
 
-/** 태국어 검색 정규화를 패키지 공개 경계에 노출한다 */
-export * from './thai/normalize-thai-search-text.js';
+/** 태국어 어휘의 정확 중복과 검색을 위한 정규화를 공개한다 */
+export * from './vocabulary/normalize-thai-search-text.js';
+
+/** 공용 어휘의 생성·게시·숨김·복구 규칙을 공개한다 */
+export * from './vocabulary/vocabulary.js';
 
 /** upload repository port를 패키지 공개 경계에 노출한다 */
 export * from './uploads/upload.repository.js';
