@@ -28,6 +28,45 @@ const indexSummaries = (table: Parameters<typeof getTableConfig>[0]) =>
     unique: index.config.unique,
   }));
 
+const normalizeUniqueSummaries = (
+  summaries: Array<{
+    name: string | undefined;
+    columns: Array<string | undefined>;
+  }>,
+) =>
+  summaries
+    .map(({ name, columns }) => ({ name: name ?? '<unnamed>', columns }))
+    .sort((left, right) => left.name.localeCompare(right.name));
+
+const uniqueSummaries = (table: Parameters<typeof getTableConfig>[0]) => {
+  const config = getTableConfig(table);
+
+  return normalizeUniqueSummaries([
+    ...indexSummaries(table)
+      .filter(({ unique }) => unique)
+      .map(({ name, columns }) => ({ name, columns })),
+    ...config.uniqueConstraints.map((constraint) => ({
+      name: constraint.name,
+      columns: constraint.columns.map((column) => column.name),
+    })),
+  ]);
+};
+
+const columnSummaries = (table: Parameters<typeof getTableConfig>[0]) =>
+  Object.fromEntries(
+    Object.entries(getTableColumns(table)).map(([property, column]) => [
+      property,
+      {
+        name: column.name,
+        sqlType: column.getSQLType(),
+        dataType: column.dataType,
+        notNull: column.notNull,
+        hasDefault: column.hasDefault,
+        primary: column.primary,
+      },
+    ]),
+  );
+
 const foreignKeySummaries = (table: Parameters<typeof getTableConfig>[0]) =>
   getTableConfig(table).foreignKeys.map((foreignKey) => {
     const reference = foreignKey.reference();
@@ -58,39 +97,133 @@ describe('학습 기록 데이터베이스 schema', () => {
   it('답안은 제출 당시 사실만 append-only column으로 보존한다', () => {
     const columns = getTableColumns(questionAttempts);
 
-    expect(Object.keys(columns)).toEqual([
-      'id',
-      'userId',
-      'questionId',
-      'questionVersionId',
-      'attemptNo',
-      'selectedOptionId',
-      'clientAttemptId',
-      'durationMs',
-      'isCorrect',
-      'submittedAt',
-    ]);
-    expect(columns.durationMs.getSQLType()).toBe('bigint');
-    expect(columns.durationMs.dataType).toBe('number');
+    expect(columnSummaries(questionAttempts)).toEqual({
+      id: {
+        name: 'id',
+        sqlType: 'uuid',
+        dataType: 'string',
+        notNull: true,
+        hasDefault: true,
+        primary: true,
+      },
+      userId: {
+        name: 'user_id',
+        sqlType: 'uuid',
+        dataType: 'string',
+        notNull: true,
+        hasDefault: false,
+        primary: false,
+      },
+      questionId: {
+        name: 'question_id',
+        sqlType: 'uuid',
+        dataType: 'string',
+        notNull: true,
+        hasDefault: false,
+        primary: false,
+      },
+      questionVersionId: {
+        name: 'question_version_id',
+        sqlType: 'uuid',
+        dataType: 'string',
+        notNull: true,
+        hasDefault: false,
+        primary: false,
+      },
+      attemptNo: {
+        name: 'attempt_no',
+        sqlType: 'integer',
+        dataType: 'number',
+        notNull: true,
+        hasDefault: false,
+        primary: false,
+      },
+      selectedOptionId: {
+        name: 'selected_option_id',
+        sqlType: 'uuid',
+        dataType: 'string',
+        notNull: true,
+        hasDefault: false,
+        primary: false,
+      },
+      clientAttemptId: {
+        name: 'client_attempt_id',
+        sqlType: 'uuid',
+        dataType: 'string',
+        notNull: true,
+        hasDefault: false,
+        primary: false,
+      },
+      durationMs: {
+        name: 'duration_ms',
+        sqlType: 'bigint',
+        dataType: 'number',
+        notNull: true,
+        hasDefault: false,
+        primary: false,
+      },
+      isCorrect: {
+        name: 'is_correct',
+        sqlType: 'boolean',
+        dataType: 'boolean',
+        notNull: true,
+        hasDefault: false,
+        primary: false,
+      },
+      submittedAt: {
+        name: 'submitted_at',
+        sqlType: 'timestamp with time zone',
+        dataType: 'date',
+        notNull: true,
+        hasDefault: false,
+        primary: false,
+      },
+    });
     expect(columns).not.toHaveProperty('updatedAt');
     expect(columns).not.toHaveProperty('deletedAt');
     expect(columns).not.toHaveProperty('deletedBy');
   });
 
   it('사용자별 답안 순서와 clientAttemptId 재전송을 exact unique로 막는다', () => {
-    expect(indexSummaries(questionAttempts)).toEqual(
-      expect.arrayContaining([
-        {
-          name: 'question_attempts_user_question_attempt_unique',
-          columns: ['user_id', 'question_id', 'attempt_no'],
-          unique: true,
-        },
-        {
-          name: 'question_attempts_user_client_attempt_unique',
-          columns: ['user_id', 'client_attempt_id'],
-          unique: true,
-        },
-      ]),
+    expect(uniqueSummaries(questionAttempts)).toEqual([
+      {
+        name: 'question_attempts_user_client_attempt_unique',
+        columns: ['user_id', 'client_attempt_id'],
+      },
+      {
+        name: 'question_attempts_user_question_attempt_unique',
+        columns: ['user_id', 'question_id', 'attempt_no'],
+      },
+    ]);
+  });
+
+  it('exact unique 비교는 필수 제약 외 추가 unique mutation도 거부한다', () => {
+    const requiredUniqueIndexes = [
+      {
+        name: 'question_attempts_user_client_attempt_unique',
+        columns: ['user_id', 'client_attempt_id'],
+      },
+      {
+        name: 'question_attempts_user_question_attempt_unique',
+        columns: ['user_id', 'question_id', 'attempt_no'],
+      },
+    ];
+    const mutatedIndexes = [
+      ...requiredUniqueIndexes.map((index) => ({ ...index, unique: true })),
+      {
+        name: 'question_attempts_user_question_unique',
+        columns: ['user_id', 'question_id'],
+        unique: true,
+      },
+    ];
+
+    expect(mutatedIndexes).toEqual(
+      expect.arrayContaining(
+        requiredUniqueIndexes.map((index) => ({ ...index, unique: true })),
+      ),
+    );
+    expect(normalizeUniqueSummaries(mutatedIndexes)).not.toEqual(
+      requiredUniqueIndexes,
     );
   });
 
@@ -159,16 +292,58 @@ describe('학습 기록 데이터베이스 schema', () => {
   });
 
   it('저장 문제와 어휘는 사용자·대상 연결 외의 기능을 갖지 않는다', () => {
-    expect(Object.keys(getTableColumns(savedQuestions))).toEqual([
-      'userId',
-      'questionId',
-      'savedAt',
-    ]);
-    expect(Object.keys(getTableColumns(savedVocabularies))).toEqual([
-      'userId',
-      'vocabularyId',
-      'savedAt',
-    ]);
+    expect(columnSummaries(savedQuestions)).toEqual({
+      userId: {
+        name: 'user_id',
+        sqlType: 'uuid',
+        dataType: 'string',
+        notNull: true,
+        hasDefault: false,
+        primary: false,
+      },
+      questionId: {
+        name: 'question_id',
+        sqlType: 'uuid',
+        dataType: 'string',
+        notNull: true,
+        hasDefault: false,
+        primary: false,
+      },
+      savedAt: {
+        name: 'saved_at',
+        sqlType: 'timestamp with time zone',
+        dataType: 'date',
+        notNull: true,
+        hasDefault: false,
+        primary: false,
+      },
+    });
+    expect(columnSummaries(savedVocabularies)).toEqual({
+      userId: {
+        name: 'user_id',
+        sqlType: 'uuid',
+        dataType: 'string',
+        notNull: true,
+        hasDefault: false,
+        primary: false,
+      },
+      vocabularyId: {
+        name: 'vocabulary_id',
+        sqlType: 'uuid',
+        dataType: 'string',
+        notNull: true,
+        hasDefault: false,
+        primary: false,
+      },
+      savedAt: {
+        name: 'saved_at',
+        sqlType: 'timestamp with time zone',
+        dataType: 'date',
+        notNull: true,
+        hasDefault: false,
+        primary: false,
+      },
+    });
     expect(primaryKeySummaries(savedQuestions)).toEqual([
       {
         name: 'saved_questions_pk',
