@@ -39,6 +39,13 @@ const vocabularyPronunciationSchema = z
   })
   .strict();
 
+const vocabularyMeaningPronunciationSchema = z
+  .object({
+    meaningId: uuidSchema,
+    pronunciationId: uuidSchema,
+  })
+  .strict();
+
 const vocabularySummaryShape = {
   id: uuidSchema,
   thai: z.string().min(1),
@@ -87,9 +94,44 @@ export const vocabularyListResponseSchema = z
 export const vocabularyDetailResponseSchema = z
   .object({
     ...vocabularySummaryShape,
+    meaningPronunciations: z.array(vocabularyMeaningPronunciationSchema),
     exampleSentences: z.array(exampleSentenceSchema),
   })
-  .strict();
+  .strict()
+  .superRefine((detail, context) => {
+    const meaningIds = new Set(detail.meanings.map((meaning) => meaning.id));
+    const pronunciationIds = new Set(
+      detail.pronunciations.map((pronunciation) => pronunciation.id),
+    );
+    const pairs = new Set<string>();
+
+    detail.meaningPronunciations.forEach((link, index) => {
+      if (!meaningIds.has(link.meaningId)) {
+        context.addIssue({
+          code: 'custom',
+          message: '상세에 존재하는 뜻만 연결할 수 있습니다.',
+          path: ['meaningPronunciations', index, 'meaningId'],
+        });
+      }
+      if (!pronunciationIds.has(link.pronunciationId)) {
+        context.addIssue({
+          code: 'custom',
+          message: '상세에 존재하는 발음만 연결할 수 있습니다.',
+          path: ['meaningPronunciations', index, 'pronunciationId'],
+        });
+      }
+
+      const pair = `${link.meaningId}:${link.pronunciationId}`;
+      if (pairs.has(pair)) {
+        context.addIssue({
+          code: 'custom',
+          message: '같은 뜻과 발음 연결을 중복할 수 없습니다.',
+          path: ['meaningPronunciations', index],
+        });
+      }
+      pairs.add(pair);
+    });
+  });
 
 /** 한 어휘를 참조하는 현재 게시 문제의 페이지 query */
 export const vocabularyRelatedQuestionsQuerySchema = z

@@ -19,6 +19,9 @@ const ids = {
   question: '00000000-0000-4000-8000-000000000025',
   version: '00000000-0000-4000-8000-000000000026',
   type: '00000000-0000-4000-8000-000000000027',
+  secondMeaning: '00000000-0000-4000-8000-000000000028',
+  secondPronunciation: '00000000-0000-4000-8000-000000000029',
+  dangling: '00000000-0000-4000-8000-000000000030',
 } as const;
 
 const vocabulary = {
@@ -120,6 +123,9 @@ describe('학습자 어휘 공개 응답 계약', () => {
   it('어휘 상세에 게시 문장의 공개 예문을 허용한다', () => {
     const detail = {
       ...vocabulary,
+      meaningPronunciations: [
+        { meaningId: ids.meaning, pronunciationId: ids.pronunciation },
+      ],
       exampleSentences: [
         {
           sentenceVersionId: ids.sentence,
@@ -133,6 +139,79 @@ describe('학습자 어휘 공개 응답 계약', () => {
       ],
     };
     expect(vocabularyDetailResponseSchema.parse(detail)).toEqual(detail);
+  });
+
+  it('뜻 2개와 발음 2개의 비대칭 연결을 그대로 보존한다', () => {
+    const detail = {
+      ...vocabulary,
+      meanings: [
+        ...vocabulary.meanings,
+        {
+          id: ids.secondMeaning,
+          meaningKo: '잘 지내',
+          partOfSpeech: '인사말',
+          difficulty: 2,
+          contextNote: '친근한 상황',
+        },
+      ],
+      pronunciations: [
+        ...vocabulary.pronunciations,
+        {
+          id: ids.secondPronunciation,
+          pronunciationKo: '싸왓디이',
+          toneMarks: 'L-L-M',
+          audioUrl:
+            'https://media.example.com/vocabularies/greeting-long.mp3?Expires=300',
+        },
+      ],
+      meaningPronunciations: [
+        { meaningId: ids.meaning, pronunciationId: ids.pronunciation },
+        { meaningId: ids.meaning, pronunciationId: ids.secondPronunciation },
+        {
+          meaningId: ids.secondMeaning,
+          pronunciationId: ids.secondPronunciation,
+        },
+      ],
+      exampleSentences: [],
+    };
+
+    expect(vocabularyDetailResponseSchema.parse(detail)).toEqual(detail);
+  });
+
+  it('존재하지 않는 뜻·발음 연결과 중복 pair를 거부한다', () => {
+    const detail = {
+      ...vocabulary,
+      meaningPronunciations: [
+        { meaningId: ids.meaning, pronunciationId: ids.pronunciation },
+      ],
+      exampleSentences: [],
+    };
+
+    expect(() =>
+      vocabularyDetailResponseSchema.parse({
+        ...detail,
+        meaningPronunciations: [
+          { meaningId: ids.dangling, pronunciationId: ids.pronunciation },
+        ],
+      }),
+    ).toThrow();
+    expect(() =>
+      vocabularyDetailResponseSchema.parse({
+        ...detail,
+        meaningPronunciations: [
+          { meaningId: ids.meaning, pronunciationId: ids.dangling },
+        ],
+      }),
+    ).toThrow();
+    expect(() =>
+      vocabularyDetailResponseSchema.parse({
+        ...detail,
+        meaningPronunciations: [
+          ...detail.meaningPronunciations,
+          ...detail.meaningPronunciations,
+        ],
+      }),
+    ).toThrow();
   });
 
   it('어휘 응답의 내부 상태와 storage key를 모든 중첩 단계에서 거부한다', () => {
