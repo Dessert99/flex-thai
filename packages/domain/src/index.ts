@@ -13,6 +13,15 @@ export * from './auth/step-up.service.js';
 /** Cognito sub 기반 사용자 repository port를 공개한다 */
 export * from './auth/user.repository.js';
 
+/** Identity 인증 provider port와 결과 타입을 공개한다 */
+export * from './identity/authentication.js';
+
+/** 사전 준비 계정의 Identity 인증 use case를 공개한다 */
+export * from './identity/authentication.service.js';
+
+/** Identity 사용자 repository port를 공개한다 */
+export * from './identity/user.repository.js';
+
 /** idempotent Job 생성 use case를 패키지 공개 경계에 노출한다 */
 export * from './jobs/create-job.service.js';
 
