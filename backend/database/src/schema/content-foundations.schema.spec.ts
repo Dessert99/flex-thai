@@ -1,6 +1,6 @@
 /** 음성·어휘·문장 schema의 게시 보존과 소유 관계를 검증한다 */
 import { readFileSync } from 'node:fs';
-import { getTableColumns } from 'drizzle-orm';
+import { getTableColumns, getTableName } from 'drizzle-orm';
 import { getTableConfig } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 import {
@@ -27,6 +27,8 @@ const foreignKeySummaries = (
 
     return {
       name: foreignKey.getName(),
+      sourceTable: getTableName(foreignKey.table),
+      targetTable: getTableName(reference.foreignTable),
       columns: reference.columns.map((column) => column.name),
       foreignColumns: reference.foreignColumns.map((column) => column.name),
       onDelete: foreignKey.onDelete,
@@ -96,42 +98,119 @@ describe('콘텐츠 기반 데이터베이스 schema', () => {
     });
   });
 
-  it('뜻·발음 연결과 토큰은 같은 어휘 소유권을 복합 FK로 고정한다', () => {
-    expect(
-      foreignKeySummaries(
-        getTableConfig(vocabularyMeaningPronunciations).foreignKeys,
-      ),
-    ).toEqual([
+  it('신규 콘텐츠 schema의 모든 FK 방향과 삭제 정책을 고정한다', () => {
+    const contentForeignKeys = [
+      ...getTableConfig(vocabularyMeanings).foreignKeys,
+      ...getTableConfig(vocabularyPronunciations).foreignKeys,
+      ...getTableConfig(vocabularyMeaningPronunciations).foreignKeys,
+      ...getTableConfig(thaiSentenceVersions).foreignKeys,
+      ...getTableConfig(tokenOccurrences).foreignKeys,
+      ...getTableConfig(expressionOccurrences).foreignKeys,
+    ];
+
+    expect(foreignKeySummaries(contentForeignKeys)).toEqual([
+      {
+        name: 'vocabulary_meanings_vocabulary_id_vocabularies_id_fk',
+        sourceTable: 'vocabulary_meanings',
+        targetTable: 'vocabularies',
+        columns: ['vocabulary_id'],
+        foreignColumns: ['id'],
+        onDelete: 'restrict',
+      },
+      {
+        name: 'vocabulary_pronunciations_vocabulary_id_vocabularies_id_fk',
+        sourceTable: 'vocabulary_pronunciations',
+        targetTable: 'vocabularies',
+        columns: ['vocabulary_id'],
+        foreignColumns: ['id'],
+        onDelete: 'restrict',
+      },
+      {
+        name: 'vocabulary_pronunciations_media_asset_id_media_assets_id_fk',
+        sourceTable: 'vocabulary_pronunciations',
+        targetTable: 'media_assets',
+        columns: ['media_asset_id'],
+        foreignColumns: ['id'],
+        onDelete: 'restrict',
+      },
       {
         name: 'vocabulary_meaning_pronunciations_meaning_fk',
+        sourceTable: 'vocabulary_meaning_pronunciations',
+        targetTable: 'vocabulary_meanings',
         columns: ['meaning_id', 'vocabulary_id'],
         foreignColumns: ['id', 'vocabulary_id'],
         onDelete: 'restrict',
       },
       {
         name: 'vocabulary_meaning_pronunciations_pronunciation_fk',
+        sourceTable: 'vocabulary_meaning_pronunciations',
+        targetTable: 'vocabulary_pronunciations',
         columns: ['pronunciation_id', 'vocabulary_id'],
         foreignColumns: ['id', 'vocabulary_id'],
         onDelete: 'restrict',
       },
-    ]);
-    expect(
-      foreignKeySummaries(
-        getTableConfig(tokenOccurrences).foreignKeys.filter(
-          (foreignKey) => foreignKey.reference().columns.length > 1,
-        ),
-      ),
-    ).toEqual([
+      {
+        name: 'thai_sentence_versions_sentence_id_thai_sentences_id_fk',
+        sourceTable: 'thai_sentence_versions',
+        targetTable: 'thai_sentences',
+        columns: ['sentence_id'],
+        foreignColumns: ['id'],
+        onDelete: 'restrict',
+      },
+      {
+        name: 'thai_sentence_versions_media_asset_id_media_assets_id_fk',
+        sourceTable: 'thai_sentence_versions',
+        targetTable: 'media_assets',
+        columns: ['media_asset_id'],
+        foreignColumns: ['id'],
+        onDelete: 'restrict',
+      },
+      {
+        name: 'token_occurrences_sentence_version_id_thai_sentence_versions_id_fk',
+        sourceTable: 'token_occurrences',
+        targetTable: 'thai_sentence_versions',
+        columns: ['sentence_version_id'],
+        foreignColumns: ['id'],
+        onDelete: 'restrict',
+      },
+      {
+        name: 'token_occurrences_vocabulary_fk',
+        sourceTable: 'token_occurrences',
+        targetTable: 'vocabularies',
+        columns: ['vocabulary_id'],
+        foreignColumns: ['id'],
+        onDelete: 'restrict',
+      },
       {
         name: 'token_occurrences_meaning_vocabulary_fk',
+        sourceTable: 'token_occurrences',
+        targetTable: 'vocabulary_meanings',
         columns: ['meaning_id', 'vocabulary_id'],
         foreignColumns: ['id', 'vocabulary_id'],
         onDelete: 'restrict',
       },
       {
         name: 'token_occurrences_pronunciation_vocabulary_fk',
+        sourceTable: 'token_occurrences',
+        targetTable: 'vocabulary_pronunciations',
         columns: ['pronunciation_id', 'vocabulary_id'],
         foreignColumns: ['id', 'vocabulary_id'],
+        onDelete: 'restrict',
+      },
+      {
+        name: 'expression_occurrences_sentence_version_id_thai_sentence_versions_id_fk',
+        sourceTable: 'expression_occurrences',
+        targetTable: 'thai_sentence_versions',
+        columns: ['sentence_version_id'],
+        foreignColumns: ['id'],
+        onDelete: 'restrict',
+      },
+      {
+        name: 'expression_occurrences_vocabulary_id_vocabularies_id_fk',
+        sourceTable: 'expression_occurrences',
+        targetTable: 'vocabularies',
+        columns: ['vocabulary_id'],
+        foreignColumns: ['id'],
         onDelete: 'restrict',
       },
     ]);
