@@ -23,6 +23,7 @@
 ### Task 1: 로컬 API 서버 부트스트랩 공유
 
 **Files:**
+- Create: `backend/api/src/local-server.spec.ts`
 - Create: `backend/api/src/local-server.ts`
 - Modify: `backend/api/src/main.ts`
 
@@ -30,7 +31,51 @@
 - Produces: `LocalApiServerOptions` — `nodeEnv?: string`, `port?: number`
 - Produces: `startLocalApiServer(options?: LocalApiServerOptions): Promise<void>`
 
-- [ ] **Step 1: 공용 로컬 서버 함수를 작성한다**
+- [ ] **Step 1: 공용 로컬 서버 조립의 실패 테스트를 작성한다**
+
+```ts
+/** 로컬 진입점이 같은 NestJS 서버 설정을 사용하는지 검증한다 */
+import { NestFactory } from '@nestjs/core';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createApplicationModule } from './app.module.js';
+import { configureApp } from './app.setup.js';
+import { startLocalApiServer } from './local-server.js';
+
+vi.mock('@nestjs/core', () => ({
+  NestFactory: { create: vi.fn() },
+}));
+vi.mock('./app.module.js', () => ({
+  createApplicationModule: vi.fn(() => 'application-module'),
+}));
+vi.mock('./app.setup.js', () => ({
+  configureApp: vi.fn(),
+}));
+
+describe('로컬 API 서버', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('선택한 환경과 포트로 공통 애플리케이션을 시작한다', async () => {
+    const app = { listen: vi.fn(async () => undefined) };
+    vi.mocked(NestFactory.create).mockResolvedValue(app as never);
+
+    await startLocalApiServer({ nodeEnv: 'development', port: 4100 });
+
+    expect(createApplicationModule).toHaveBeenCalledOnce();
+    expect(configureApp).toHaveBeenCalledWith(app, undefined, 'development');
+    expect(app.listen).toHaveBeenCalledWith(4100);
+  });
+});
+```
+
+- [ ] **Step 2: 구현 파일 부재로 테스트가 실패하는지 확인한다**
+
+Run: `pnpm --filter @flex-thia/api exec vitest run src/local-server.spec.ts`
+
+Expected: FAIL because `local-server.ts` does not exist
+
+- [ ] **Step 3: 공용 로컬 서버 함수를 작성한다**
 
 ```ts
 /** 로컬 실행 진입점들이 같은 NestJS 서버 설정을 공유하게 한다 */
@@ -56,7 +101,7 @@ export const startLocalApiServer = async ({
 };
 ```
 
-- [ ] **Step 2: 기존 개발 진입점이 공용 함수를 호출하게 한다**
+- [ ] **Step 4: 기존 개발 진입점이 공용 함수를 호출하게 한다**
 
 ```ts
 /** 로컬 개발용 NestJS HTTP 서버를 시작한다 */
@@ -65,20 +110,20 @@ import { startLocalApiServer } from './local-server.js';
 void startLocalApiServer();
 ```
 
-- [ ] **Step 3: API 기존 설정 테스트와 typecheck를 실행한다**
+- [ ] **Step 5: 새 단위 테스트와 typecheck를 통과시킨다**
 
-Run: `pnpm --filter @flex-thia/api test -- src/app.setup.spec.ts`
+Run: `pnpm --filter @flex-thia/api exec vitest run src/local-server.spec.ts src/app.setup.spec.ts`
 
-Expected: `src/app.setup.spec.ts` PASS
+Expected: 두 테스트 파일 PASS
 
 Run: `pnpm --filter @flex-thia/api typecheck`
 
 Expected: exit code 0
 
-- [ ] **Step 4: 공용 부트스트랩 변경을 커밋한다**
+- [ ] **Step 6: 공용 부트스트랩 변경을 커밋한다**
 
 ```bash
-git add backend/api/src/local-server.ts backend/api/src/main.ts
+git add backend/api/src/local-server.spec.ts backend/api/src/local-server.ts backend/api/src/main.ts
 git commit -m "refactor: share local api bootstrap"
 ```
 
@@ -105,19 +150,60 @@ Run: `pnpm --filter @flex-thia/api add -D open@11.0.0`
 
 Expected: `backend/api/package.json`에 `"open": "11.0.0"`이 추가되고 lockfile이 갱신됨
 
-- [ ] **Step 2: Swagger 실행 동작의 실패 테스트를 작성한다**
+- [ ] **Step 2: URL 생성의 실패 테스트를 작성한다**
 
 ```ts
 /** Swagger 편의 명령의 서버·브라우저 실행 순서를 검증한다 */
 import { describe, expect, it, vi } from 'vitest';
-import { createSwaggerUrl, launchSwagger } from './swagger-launcher.js';
+import { createSwaggerUrl } from './swagger-launcher.js';
 
 describe('Swagger 실행 명령', () => {
   it('기본 포트와 사용자 지정 포트로 문서 URL을 만든다', () => {
     expect(createSwaggerUrl(3000)).toBe('http://localhost:3000/api/docs');
     expect(createSwaggerUrl(4100)).toBe('http://localhost:4100/api/docs');
   });
+});
+```
 
+- [ ] **Step 3: URL 실행기 부재로 테스트가 실패하는지 확인한다**
+
+Run: `pnpm --filter @flex-thia/api exec vitest run src/swagger-launcher.spec.ts`
+
+Expected: FAIL because `swagger-launcher.ts` does not exist
+
+- [ ] **Step 4: OpenAPI 경로 상수와 최소 URL 생성기를 작성한다**
+
+`backend/api/src/openapi/openapi.ts`에서 다음 상수를 추가하고
+`OpenApiPaths.ui`와 `resolveOpenApiPaths`가 이를 사용하게 한다.
+
+```ts
+/** Swagger 실행기와 route 설정이 같은 UI 경로를 사용하게 한다 */
+export const SWAGGER_UI_PATH = 'api/docs' as const;
+```
+
+`backend/api/src/swagger-launcher.ts`:
+
+```ts
+/** 로컬 API 준비 후 Swagger UI를 기본 브라우저로 연다 */
+import { SWAGGER_UI_PATH } from './openapi/openapi.js';
+
+/** 지정 포트의 Swagger UI 절대 URL을 만든다 */
+export const createSwaggerUrl = (port: number): string =>
+  `http://localhost:${port}/${SWAGGER_UI_PATH}`;
+```
+
+- [ ] **Step 5: URL 생성 테스트를 통과시킨다**
+
+Run: `pnpm --filter @flex-thia/api exec vitest run src/swagger-launcher.spec.ts`
+
+Expected: 1 test PASS
+
+- [ ] **Step 6: 서버와 브라우저 순서·서버 실패 테스트를 추가한다**
+
+`swagger-launcher.spec.ts`의 import에 `launchSwagger`를 추가하고 다음
+테스트를 같은 `describe`에 추가한다.
+
+```ts
   it('서버가 준비된 뒤 브라우저를 연다', async () => {
     const events: string[] = [];
 
@@ -147,7 +233,52 @@ describe('Swagger 실행 명령', () => {
     ).rejects.toThrow('listen failed');
     expect(openPage).not.toHaveBeenCalled();
   });
+```
 
+- [ ] **Step 7: 실행 함수 부재로 테스트가 실패하는지 확인한다**
+
+Run: `pnpm --filter @flex-thia/api exec vitest run src/swagger-launcher.spec.ts`
+
+Expected: FAIL because `launchSwagger` is not exported
+
+- [ ] **Step 8: 성공 흐름과 서버 실패 전파를 구현한다**
+
+`swagger-launcher.ts`에 `open`, 로컬 서버 import와 다음 interface·함수를
+추가한다.
+
+```ts
+type StartServer = (options?: LocalApiServerOptions) => Promise<void>;
+type OpenPage = (url: string) => Promise<unknown>;
+type ReportError = (message: string) => void;
+
+/** 테스트가 실행 부수효과를 대신 주입할 수 있게 한다 */
+export interface SwaggerLauncherOptions {
+  port?: number;
+  startServer?: StartServer;
+  openPage?: OpenPage;
+  reportError?: ReportError;
+}
+
+/** 로컬 API를 준비한 뒤 Swagger UI를 연다 */
+export const launchSwagger = async ({
+  port = Number(process.env.PORT ?? 3000),
+  startServer = startLocalApiServer,
+  openPage = open,
+}: SwaggerLauncherOptions = {}): Promise<void> => {
+  await startServer({ nodeEnv: 'development', port });
+  await openPage(createSwaggerUrl(port));
+};
+```
+
+- [ ] **Step 9: 성공 흐름과 서버 실패 테스트를 통과시킨다**
+
+Run: `pnpm --filter @flex-thia/api exec vitest run src/swagger-launcher.spec.ts`
+
+Expected: 3 tests PASS
+
+- [ ] **Step 10: 브라우저 실패 복구 테스트를 추가한다**
+
+```ts
   it('브라우저 실행이 실패하면 URL을 안내하고 서버를 유지한다', async () => {
     const reportError = vi.fn();
 
@@ -167,49 +298,15 @@ describe('Swagger 실행 명령', () => {
 });
 ```
 
-- [ ] **Step 3: 테스트가 구현 부재로 실패하는지 확인한다**
+- [ ] **Step 11: 브라우저 오류가 전파되어 테스트가 실패하는지 확인한다**
 
 Run: `pnpm --filter @flex-thia/api exec vitest run src/swagger-launcher.spec.ts`
 
-Expected: FAIL because `swagger-launcher.ts` does not exist
+Expected: FAIL with `open failed`
 
-- [ ] **Step 4: OpenAPI UI 경로를 공개 상수로 만든다**
-
-`backend/api/src/openapi/openapi.ts`에서 다음 상수를 추가하고
-`OpenApiPaths.ui`와 `resolveOpenApiPaths`가 이를 사용하게 한다.
+- [ ] **Step 12: 브라우저 오류만 복구하도록 최소 구현한다**
 
 ```ts
-/** Swagger 실행기와 route 설정이 같은 UI 경로를 사용하게 한다 */
-export const SWAGGER_UI_PATH = 'api/docs' as const;
-```
-
-- [ ] **Step 5: 최소 Swagger 실행 함수를 작성한다**
-
-```ts
-/** 로컬 API 준비 후 Swagger UI를 기본 브라우저로 연다 */
-import open from 'open';
-import {
-  type LocalApiServerOptions,
-  startLocalApiServer,
-} from './local-server.js';
-import { SWAGGER_UI_PATH } from './openapi/openapi.js';
-
-type StartServer = (options?: LocalApiServerOptions) => Promise<void>;
-type OpenPage = (url: string) => Promise<unknown>;
-type ReportError = (message: string) => void;
-
-/** 테스트가 실행 부수효과를 대신 주입할 수 있게 한다 */
-export interface SwaggerLauncherOptions {
-  port?: number;
-  startServer?: StartServer;
-  openPage?: OpenPage;
-  reportError?: ReportError;
-}
-
-/** 지정 포트의 Swagger UI 절대 URL을 만든다 */
-export const createSwaggerUrl = (port: number): string =>
-  `http://localhost:${port}/${SWAGGER_UI_PATH}`;
-
 /** 로컬 API를 준비한 뒤 Swagger UI를 열고 브라우저 실패만 복구한다 */
 export const launchSwagger = async ({
   port = Number(process.env.PORT ?? 3000),
@@ -228,7 +325,7 @@ export const launchSwagger = async ({
 };
 ```
 
-- [ ] **Step 6: 얇은 Swagger 진입점을 작성한다**
+- [ ] **Step 13: 얇은 Swagger 진입점을 작성한다**
 
 ```ts
 /** 로컬 Swagger 확인용 API 서버와 브라우저를 시작한다 */
@@ -237,13 +334,13 @@ import { launchSwagger } from './swagger-launcher.js';
 void launchSwagger();
 ```
 
-- [ ] **Step 7: Swagger 실행 단위 테스트를 통과시킨다**
+- [ ] **Step 14: Swagger 실행 단위 테스트를 통과시킨다**
 
 Run: `pnpm --filter @flex-thia/api exec vitest run src/swagger-launcher.spec.ts src/openapi/openapi.spec.ts`
 
 Expected: 두 테스트 파일 PASS
 
-- [ ] **Step 8: Swagger 실행기를 커밋한다**
+- [ ] **Step 15: Swagger 실행기를 커밋한다**
 
 ```bash
 git add backend/api/src/swagger-launcher.spec.ts backend/api/src/swagger-launcher.ts backend/api/src/swagger.ts backend/api/src/openapi/openapi.ts backend/api/package.json pnpm-lock.yaml
