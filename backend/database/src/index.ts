@@ -13,6 +13,9 @@ export * from './repositories/drizzle-admin-bootstrap.repository.js';
 /** Drizzle Job repository adapter를 패키지 공개 경계에 노출한다 */
 export * from './repositories/drizzle-job.repository.js';
 
+/** 학습 답안 transaction과 저장 콘텐츠 adapter를 공개한다 */
+export * from './repositories/drizzle-learning.repository.js';
+
 /** 문제 검증·게시·무효화 transaction adapter를 공개한다 */
 export * from './repositories/drizzle-question-publication.repository.js';
 
