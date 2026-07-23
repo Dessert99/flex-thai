@@ -2,6 +2,7 @@
 import { type INestApplication, RequestMethod } from '@nestjs/common';
 import { DomainExceptionFilter } from './common/errors/domain-exception.filter.js';
 import { StructuredLogger } from './common/logging/structured-logger.js';
+import { configureOpenApi } from './openapi/openapi.js';
 
 /** credentials CORS를 exact allowlist origin에만 허용한다 */
 export const configureApp = (
@@ -10,6 +11,7 @@ export const configureApp = (
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean),
+  nodeEnv = process.env.NODE_ENV,
 ): void => {
   const logger = new StructuredLogger('api');
   app.setGlobalPrefix('api/v1', {
@@ -24,4 +26,5 @@ export const configureApp = (
     origin: allowedOrigins,
     credentials: true,
   });
+  configureOpenApi(app, nodeEnv);
 };

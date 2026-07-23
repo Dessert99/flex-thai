@@ -4,7 +4,11 @@ import { NestFactory } from '@nestjs/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createApplicationModule } from '../app.module.js';
 import { configureApp } from '../app.setup.js';
-import { createOpenApiDocument } from './openapi.js';
+import {
+  configureOpenApi,
+  createOpenApiDocument,
+  resolveOpenApiPaths,
+} from './openapi.js';
 
 const ACTIVE_PATHS = [
   '/api/v1/auth/login',
@@ -107,5 +111,23 @@ describe('OpenAPI document', () => {
 
     expect(response).toBeDefined();
     expect(response).not.toHaveProperty('content');
+  });
+});
+
+describe('OpenAPI 노출 정책', () => {
+  it('로컬·개발 환경은 고정된 UI와 JSON 경로를 사용한다', () => {
+    expect(resolveOpenApiPaths('development')).toEqual({
+      ui: 'api/docs',
+      json: 'api/openapi.json',
+    });
+    expect(resolveOpenApiPaths('test')).toEqual({
+      ui: 'api/docs',
+      json: 'api/openapi.json',
+    });
+  });
+
+  it('운영 환경은 Swagger route를 등록하지 않는다', () => {
+    expect(resolveOpenApiPaths('production')).toBeNull();
+    expect(() => configureOpenApi({} as never, 'production')).not.toThrow();
   });
 });

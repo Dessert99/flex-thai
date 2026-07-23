@@ -12,7 +12,7 @@ describe('configureApp', () => {
       enableCors: vi.fn(),
     };
 
-    configureApp(app as never, ['http://localhost:5173']);
+    configureApp(app as never, ['http://localhost:5173'], 'production');
 
     expect(app.setGlobalPrefix).toHaveBeenCalledWith('api/v1', {
       exclude: [
