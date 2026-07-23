@@ -37,8 +37,12 @@ export const writeRefreshCookie = (
 
 /** logout 뒤 refresh cookie를 동일한 범위와 보안 속성으로 삭제한다 */
 export const clearRefreshCookie = (response: ClearCookieResponse): void => {
-  const { maxAge: _maxAge, ...options } = REFRESH_COOKIE_OPTIONS;
-  response.clearCookie(REFRESH_COOKIE_NAME, options);
+  response.clearCookie(REFRESH_COOKIE_NAME, {
+    secure: REFRESH_COOKIE_OPTIONS.secure,
+    httpOnly: REFRESH_COOKIE_OPTIONS.httpOnly,
+    sameSite: REFRESH_COOKIE_OPTIONS.sameSite,
+    path: REFRESH_COOKIE_OPTIONS.path,
+  });
 };
 
 /** Cookie header에서 refresh token만 추출한다 */

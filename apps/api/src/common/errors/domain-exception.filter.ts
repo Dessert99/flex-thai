@@ -82,7 +82,6 @@ const createProblem = (
 export const buildErrorResponse = (
   error: unknown,
   requestId: string,
-  _production: boolean,
 ): ErrorResponse => {
   if (error instanceof AuthDomainError) {
     const status = AUTH_STATUS[error.code];
@@ -181,11 +180,7 @@ export class DomainExceptionFilter implements ExceptionFilter {
     const request = http.getRequest<ErrorRequest>();
     const response = http.getResponse<ErrorResponseAdapter>();
     const requestId = this.readRequestId(request);
-    const result = buildErrorResponse(
-      error,
-      requestId,
-      process.env.NODE_ENV === 'production',
-    );
+    const result = buildErrorResponse(error, requestId);
 
     this.logger.error('HTTP 요청 실패', {
       requestId,

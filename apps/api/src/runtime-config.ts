@@ -26,7 +26,11 @@ export class AwsApiSecretReader implements ApiSecretReader {
 }
 
 /** legacy secret을 읽지 않고 입력 설정의 복사본을 반환한다 */
-export const loadApiRuntimeSource = async (
+export const loadApiRuntimeSource = (
   source: Record<string, string | undefined>,
-  _secrets?: ApiSecretReader,
-): Promise<Record<string, string | undefined>> => ({ ...source });
+  secrets?: ApiSecretReader,
+): Promise<Record<string, string | undefined>> => {
+  // 이전 호출 계약은 유지하되 Identity MVP에서는 secret reader를 사용하지 않는다
+  void secrets;
+  return Promise.resolve({ ...source });
+};

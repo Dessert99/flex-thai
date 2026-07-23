@@ -13,7 +13,7 @@ describe('buildErrorResponse', () => {
     const error = new AuthDomainError('STEP_UP_INVALID');
     error.stack = 'sensitive stack';
 
-    const result = buildErrorResponse(error, 'request-1', true);
+    const result = buildErrorResponse(error, 'request-1');
 
     expect(result).toEqual({
       status: 401,
@@ -33,7 +33,6 @@ describe('buildErrorResponse', () => {
     const result = buildErrorResponse(
       new ServiceUnavailableException({ code: 'DB_RESUMING' }),
       'request-2',
-      true,
     );
 
     expect(result.body.code).toBe('DB_RESUMING');
@@ -43,7 +42,6 @@ describe('buildErrorResponse', () => {
     const identity = buildErrorResponse(
       new IdentityDomainError('INVALID_CREDENTIALS'),
       'request-3',
-      true,
     );
     const zodError = (() => {
       try {
@@ -52,7 +50,7 @@ describe('buildErrorResponse', () => {
         return error;
       }
     })();
-    const invalidBody = buildErrorResponse(zodError, 'request-4', true);
+    const invalidBody = buildErrorResponse(zodError, 'request-4');
 
     expect(problemDetailsSchema.parse(identity.body)).toEqual(identity.body);
     expect(identity.status).toBe(401);

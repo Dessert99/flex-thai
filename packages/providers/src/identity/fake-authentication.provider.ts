@@ -73,12 +73,14 @@ export class FakeAuthenticationProvider implements AuthenticationProvider {
   }
 
   /** local 인증 앱 등록에 사용할 비밀값을 고정해 테스트를 재현한다 */
-  startTotpSetup(_accessToken: string): Promise<{ secretCode: string }> {
+  startTotpSetup(accessToken: string): Promise<{ secretCode: string }> {
+    void accessToken;
     return Promise.resolve({ secretCode: 'LOCALONLYTOTPSECRET' });
   }
 
   /** local TOTP 확인은 문서화한 고정 code만 허용한다 */
-  verifyTotpSetup(_accessToken: string, code: string): Promise<void> {
+  verifyTotpSetup(accessToken: string, code: string): Promise<void> {
+    void accessToken;
     if (code !== '123456') {
       return Promise.reject(new AuthenticationProviderError('INVALID_TOTP'));
     }
