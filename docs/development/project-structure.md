@@ -44,25 +44,30 @@ GitHub의 수동 실행과 `production` 환경 승인을 모두 거쳐야 한다
 
 ```text
 apps/api/src/
-├── auth/                       # 로그인과 관리자 추가 인증
+├── identity/                   # 활성 로그인·TOTP·refresh HTTP 경계와 guard
+├── auth/                       # 비활성 Job 호환용 require-step-up 코드
 ├── commands/                   # 터미널에서 한 번 실행하는 관리 명령
 ├── common/
-│   ├── auth/                   # 인증 guard와 요청 사용자 정보
+│   ├── auth/                   # guard가 넣은 요청 사용자 정보
 │   ├── errors/                 # 공통 오류 응답
 │   └── logging/                # 구조화 로그
 ├── health/                     # /health, /ready 확인
-├── jobs/                       # AI 작업 생성·조회
-├── uploads/                    # 파일 업로드 URL 발급
+├── jobs/                       # 다음 단계용 작업 코드, 현재 HTTP 비활성
+├── uploads/                    # 다음 단계용 업로드 코드, 현재 HTTP 비활성
 ├── app.module.ts               # API 모듈을 한곳에 조립
-├── app.setup.ts                # 필터·로그 등 공통 실행 설정
+├── app.setup.ts                # api/v1 prefix·필터·로그 등 공통 설정
 ├── main.ts                     # 로컬 Node.js 실행 진입점
 ├── lambda.ts                   # AWS Lambda 실행 진입점
-└── runtime-config.ts           # AWS Secret을 실행 시점에 읽는 설정
+└── runtime-config.ts           # 실행 환경 입력을 복사하는 설정 경계
 ```
 
 컨트롤러는 HTTP 입력을 받고 응답을 돌려주는 역할에 집중한다. 업무
 규칙과 저장 방식은 아래 `packages`의 부품을 주입받아 사용한다. 따라서
 API가 AWS SDK나 SQL을 직접 여기저기 호출하지 않는다.
+
+현재 root 애플리케이션에는 `identity`와 `health`만 연결된다. `jobs`와
+`uploads`의 Controller, `auth/require-step-up*`은 이후 기능 단계가
+재사용할 호환 코드일 뿐 지금은 HTTP에서 접근할 수 없다.
 
 ### `apps/worker`
 
@@ -121,7 +126,8 @@ Drizzle 스키마는 TypeScript로 표현한 테이블 설계이고, migration�
 packages/providers/src/
 ├── aws/                        # Cognito·S3·SQS·SNS 실제 구현
 ├── crypto/                     # code·토큰 해시 등 암호화 구현
-└── fakes/                      # 로컬 개발과 단위 테스트용 메모리 구현
+├── identity/                   # Cognito·local fake 인증 adapter
+└── fakes/                      # 기타 로컬·단위 테스트용 메모리 구현
 ```
 
 domain이 정의한 포트를 외부 기술로 구현하는 곳이다. 운영에서는 `aws`
@@ -186,7 +192,7 @@ apps/worker ──> 같은 packages 부품
 
 | 만들려는 코드 | 위치 |
 | --- | --- |
-| 로그인 HTTP 주소 | `apps/api/src/auth` |
+| 로그인·TOTP HTTP 주소 | `apps/api/src/identity` |
 | 오래 걸리는 AI 작업의 Lambda 진입점 | `apps/worker/src` |
 | 작업 상태가 바뀌는 업무 규칙 | `packages/domain/src/jobs` |
 | 새 HTTP 요청 스키마 | `packages/contracts/src` |

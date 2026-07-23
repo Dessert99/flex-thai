@@ -17,9 +17,11 @@
   수 있는 JavaScript 묶음으로 만드는 작업이다. 빌드 자체는 AWS에
   배포하지 않는다.
 
-로컬에서는 Cognito, S3, SQS, SNS 대신 비용이 들지 않는 fake adapter를
-사용한다. 데이터 저장소만 Docker PostgreSQL을 사용하므로 테이블 구조와
-소유권 규칙은 운영 환경과 같은 방식으로 확인할 수 있다.
+현재 Identity MVP의 로컬 실행은 Cognito 대신 비용이 들지 않는 fake
+인증 adapter를 사용한다. 데이터 저장소는 Docker PostgreSQL을 사용하므로
+사용자와 MFA 상태는 운영 환경과 같은 테이블 구조로 확인할 수 있다.
+Job·upload·phone·SMS 코드는 다음 단계 호환을 위해 남아 있지만 root
+애플리케이션에는 연결되지 않는다.
 
 ## 1. 한 번만 준비하기
 
@@ -63,43 +65,84 @@ curl -i http://localhost:3000/ready
 - `/ready`는 DB에 `select 1`을 보내 확인한다. DB가 재개 중이면
   `503 DB_RESUMING`과 `Retry-After: 3`을 반환한다.
 
-## 3. 로컬 사용자와 관리자 만들기
+## 3. 사전 준비 계정으로 로그인하기
 
-로컬 fake 인증은 `.env.example`의 학교 이메일과 고정 개발 code를
-사용한다.
+공개 signup과 셀프 password reset은 제공하지 않는다. 로컬 fake 계정은
+`.env.example`의 다음 값을 사용한다.
 
-```bash
-curl -X POST http://localhost:3000/auth/signup \
-  -H 'content-type: application/json' \
-  -d '{"email":"admin@hufs.ac.kr"}'
+```text
+FAKE_USER_EMAIL=admin@hufs.ac.kr
+FAKE_USER_PASSWORD=LocalOnly1!
+FAKE_USER_SUB=local-admin-sub
 ```
 
-응답의 `challengeId`를 아래 주소에 넣고 code `123456`을 보낸다. 이
-과정에서 `local-admin-sub` 사용자가 DB에 처음 생성된다.
+로그인은 허용된 exact Origin과 `X-CSRF-Protection: 1`을 함께 보낸다.
 
 ```bash
-curl -X POST http://localhost:3000/auth/signup/verify \
+curl -X POST http://localhost:3000/api/v1/auth/login \
   -H 'content-type: application/json' \
-  -d '{"challengeId":"CHALLENGE_ID","code":"123456","password":"Strong1!"}'
+  -H 'origin: http://localhost:5173' \
+  -H 'x-csrf-protection: 1' \
+  -d '{"email":"admin@hufs.ac.kr","password":"LocalOnly1!"}'
 ```
 
-최초 한 번만 해당 Cognito `sub`를 관리자로 승격한다. 이메일의 `+tag`나
-도메인으로 관리자를 추론하지 않고, 변경되지 않는 `sub`를 정확히
-지정한다.
+로컬 계정은 TOTP를 요구하므로 `MFA_REQUIRED`와 `challengeToken`이
+돌아온다. 해당 token과 고정 개발 code `123456`을 challenge endpoint에
+보내면 access token이 body에 오고 refresh token은 cookie에만 저장된다.
+
+```bash
+curl -X POST http://localhost:3000/api/v1/auth/mfa/totp/challenge \
+  -H 'content-type: application/json' \
+  -H 'origin: http://localhost:5173' \
+  -H 'x-csrf-protection: 1' \
+  -c cookies.txt \
+  -d '{"email":"admin@hufs.ac.kr","challengeToken":"CHALLENGE_TOKEN","code":"123456"}'
+```
+
+access token은 localStorage가 아니라 애플리케이션 메모리에만 둔다.
+refresh cookie는 `Secure`, `HttpOnly`, `SameSite=Strict`, `Path=/`인
+`__Host-flex-thia-refresh`이고 수명은 7일이다. 브라우저에서 개발할 때는
+Vite의 `/api` proxy를 `http://localhost:3000`으로 연결해 프론트와 API
+요청 경계를 일관되게 유지한다.
+
+refresh와 logout 요청에도 cookie credentials, exact Origin,
+`X-CSRF-Protection: 1`이 필요하다.
+
+```bash
+curl -X POST http://localhost:3000/api/v1/auth/refresh \
+  -H 'origin: http://localhost:5173' \
+  -H 'x-csrf-protection: 1' \
+  -b cookies.txt -c cookies.txt
+
+curl -X POST http://localhost:3000/api/v1/auth/logout \
+  -H 'origin: http://localhost:5173' \
+  -H 'x-csrf-protection: 1' \
+  -b cookies.txt
+```
+
+첫 challenge 완료로 DB 사용자가 생기면, 최초 한 번만 변경되지 않는
+Cognito `sub`를 정확히 지정해 관리자로 승격한다.
 
 ```bash
 pnpm --filter @flex-thia/api bootstrap-admin --sub=local-admin-sub
 ```
 
-보호 API를 로컬에서 호출할 때는 access token 대신 다음 개발 전용
-헤더를 사용한다.
+관리자는 보호 기능을 쓰기 전에 TOTP 등록도 완료해야 한다. 로컬 인증
+guard에는 `x-dev-user-sub`, TOTP 설정 호출에는 직전에 받은 bearer access
+token을 함께 전달한다. setup 응답의 secret을 인증 앱에 등록한 뒤 verify에
+code `123456`을 보낸다.
 
-```text
-x-dev-user-sub: local-admin-sub
+```bash
+curl -X POST http://localhost:3000/api/v1/auth/mfa/totp/setup \
+  -H 'authorization: Bearer ACCESS_TOKEN' \
+  -H 'x-dev-user-sub: local-admin-sub'
+
+curl -X POST http://localhost:3000/api/v1/auth/mfa/totp/setup/verify \
+  -H 'content-type: application/json' \
+  -H 'authorization: Bearer ACCESS_TOKEN' \
+  -H 'x-dev-user-sub: local-admin-sub' \
+  -d '{"code":"123456"}'
 ```
-
-관리자 step-up의 로컬 OTP는 `123456`이다. 운영에서는 이 값이 고정되지
-않고 SNS가 Cognito에서 검증된 전화번호로 무작위 OTP를 보낸다.
 
 ## 4. 검사와 Lambda 묶음 만들기
 
@@ -128,9 +171,8 @@ compiler API를 읽지 못하는 ESLint 도구를 위한 TypeScript 6 호환층�
 | --- | --- |
 | `pnpm ... api dev` Node.js 프로세스 | API Gateway가 호출하는 Lambda |
 | Docker PostgreSQL | Aurora PostgreSQL Serverless v2 |
-| fake identity/phone | Cognito와 SNS |
-| fake upload storage | private Input S3 |
-| fake job queue | SQS와 DLQ |
+| fake Identity 인증 | Cognito User Pool |
+| 비활성 Job·upload 호환 코드 | 이후 단계에서 S3·SQS에 다시 연결 |
 | 터미널 로그 | CloudWatch Logs |
 
 로컬에서 실제 이메일, SMS, AI, TTS 유료 API는 호출하지 않는다.
