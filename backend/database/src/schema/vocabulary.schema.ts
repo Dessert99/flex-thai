@@ -9,6 +9,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
@@ -65,7 +66,7 @@ export const vocabularyMeanings = pgTable(
       .notNull(),
   },
   (table) => [
-    uniqueIndex('vocabulary_meanings_id_vocabulary_unique').on(
+    unique('vocabulary_meanings_id_vocabulary_unique').on(
       table.id,
       table.vocabularyId,
     ),
@@ -94,7 +95,7 @@ export const vocabularyPronunciations = pgTable(
       .notNull(),
   },
   (table) => [
-    uniqueIndex('vocabulary_pronunciations_id_vocabulary_unique').on(
+    unique('vocabulary_pronunciations_id_vocabulary_unique').on(
       table.id,
       table.vocabularyId,
     ),

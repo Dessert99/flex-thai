@@ -1,5 +1,5 @@
 {
-  "id": "20c1a34d-582e-4f35-8eb5-6e6800b7a115",
+  "id": "d1324365-f144-49b5-a8ea-b1f4e5ae7967",
   "prevId": "5017929b-26e2-4c62-b6f2-782fa867715a",
   "version": "7",
   "dialect": "postgresql",
@@ -1060,9 +1060,13 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "media_assets_declared_size_positive": {
-          "name": "media_assets_declared_size_positive",
-          "value": "\"media_assets\".\"declared_size_bytes\" > 0"
+        "media_assets_declared_size_safe_integer": {
+          "name": "media_assets_declared_size_safe_integer",
+          "value": "\"media_assets\".\"declared_size_bytes\" > 0 and \"media_assets\".\"declared_size_bytes\" <= 9007199254740991"
+        },
+        "media_assets_size_safe_integer": {
+          "name": "media_assets_size_safe_integer",
+          "value": "\"media_assets\".\"size_bytes\" is null or (\"media_assets\".\"size_bytes\" > 0 and \"media_assets\".\"size_bytes\" <= 9007199254740991)"
         },
         "media_assets_declared_sha256_length": {
           "name": "media_assets_declared_sha256_length",
@@ -1267,29 +1271,7 @@
           "default": "now()"
         }
       },
-      "indexes": {
-        "vocabulary_meanings_id_vocabulary_unique": {
-          "name": "vocabulary_meanings_id_vocabulary_unique",
-          "columns": [
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "vocabulary_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "vocabulary_meanings_vocabulary_id_vocabularies_id_fk": {
           "name": "vocabulary_meanings_vocabulary_id_vocabularies_id_fk",
@@ -1306,7 +1288,16 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "vocabulary_meanings_id_vocabulary_unique": {
+          "name": "vocabulary_meanings_id_vocabulary_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "vocabulary_id"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {
         "vocabulary_meanings_difficulty_range": {
@@ -1359,29 +1350,7 @@
           "default": "now()"
         }
       },
-      "indexes": {
-        "vocabulary_pronunciations_id_vocabulary_unique": {
-          "name": "vocabulary_pronunciations_id_vocabulary_unique",
-          "columns": [
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "vocabulary_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "vocabulary_pronunciations_vocabulary_id_vocabularies_id_fk": {
           "name": "vocabulary_pronunciations_vocabulary_id_vocabularies_id_fk",
@@ -1411,7 +1380,16 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "vocabulary_pronunciations_id_vocabulary_unique": {
+          "name": "vocabulary_pronunciations_id_vocabulary_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "vocabulary_id"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false

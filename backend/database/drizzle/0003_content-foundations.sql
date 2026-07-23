@@ -16,7 +16,8 @@ CREATE TABLE "media_assets" (
 	"status" "media_asset_status" DEFAULT 'UPLOADING' NOT NULL,
 	"ready_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "media_assets_declared_size_positive" CHECK ("media_assets"."declared_size_bytes" > 0),
+	CONSTRAINT "media_assets_declared_size_safe_integer" CHECK ("media_assets"."declared_size_bytes" > 0 and "media_assets"."declared_size_bytes" <= 9007199254740991),
+	CONSTRAINT "media_assets_size_safe_integer" CHECK ("media_assets"."size_bytes" is null or ("media_assets"."size_bytes" > 0 and "media_assets"."size_bytes" <= 9007199254740991)),
 	CONSTRAINT "media_assets_declared_sha256_length" CHECK (char_length("media_assets"."declared_sha256") = 64)
 );
 --> statement-breakpoint
@@ -45,6 +46,7 @@ CREATE TABLE "vocabulary_meanings" (
 	"difficulty" integer,
 	"context_note" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "vocabulary_meanings_id_vocabulary_unique" UNIQUE("id","vocabulary_id"),
 	CONSTRAINT "vocabulary_meanings_difficulty_range" CHECK ("vocabulary_meanings"."difficulty" is null or "vocabulary_meanings"."difficulty" between 1 and 5)
 );
 --> statement-breakpoint
@@ -54,7 +56,8 @@ CREATE TABLE "vocabulary_pronunciations" (
 	"pronunciation_ko" text NOT NULL,
 	"tone_marks" text NOT NULL,
 	"media_asset_id" uuid,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "vocabulary_pronunciations_id_vocabulary_unique" UNIQUE("id","vocabulary_id")
 );
 --> statement-breakpoint
 CREATE TABLE "expression_occurrences" (
@@ -118,8 +121,6 @@ ALTER TABLE "token_occurrences" ADD CONSTRAINT "token_occurrences_pronunciation_
 CREATE UNIQUE INDEX "media_assets_storage_key_unique" ON "media_assets" USING btree ("storage_key");--> statement-breakpoint
 CREATE INDEX "media_assets_sha256_status_idx" ON "media_assets" USING btree ("sha256","status");--> statement-breakpoint
 CREATE UNIQUE INDEX "vocabularies_normalized_thai_unique" ON "vocabularies" USING btree ("normalized_thai");--> statement-breakpoint
-CREATE UNIQUE INDEX "vocabulary_meanings_id_vocabulary_unique" ON "vocabulary_meanings" USING btree ("id","vocabulary_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "vocabulary_pronunciations_id_vocabulary_unique" ON "vocabulary_pronunciations" USING btree ("id","vocabulary_id");--> statement-breakpoint
 CREATE INDEX "expression_occurrences_sentence_idx" ON "expression_occurrences" USING btree ("sentence_version_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "thai_sentence_versions_sentence_version_unique" ON "thai_sentence_versions" USING btree ("sentence_id","version");--> statement-breakpoint
 CREATE UNIQUE INDEX "token_occurrences_sentence_position_unique" ON "token_occurrences" USING btree ("sentence_version_id","position");

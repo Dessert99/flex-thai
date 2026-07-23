@@ -47,8 +47,12 @@ export const mediaAssets = pgTable(
     uniqueIndex('media_assets_storage_key_unique').on(table.storageKey),
     index('media_assets_sha256_status_idx').on(table.sha256, table.status),
     check(
-      'media_assets_declared_size_positive',
-      sql`${table.declaredSizeBytes} > 0`,
+      'media_assets_declared_size_safe_integer',
+      sql`${table.declaredSizeBytes} > 0 and ${table.declaredSizeBytes} <= 9007199254740991`,
+    ),
+    check(
+      'media_assets_size_safe_integer',
+      sql`${table.sizeBytes} is null or (${table.sizeBytes} > 0 and ${table.sizeBytes} <= 9007199254740991)`,
     ),
     check(
       'media_assets_declared_sha256_length',
