@@ -51,3 +51,6 @@ export * from './media/media-asset.js';
 
 /** 태국어 문장 버전의 Unicode offset·표현·동결 규칙을 공개한다 */
 export * from './thai-content/thai-sentence-version.js';
+
+/** 문제 버전의 구조와 최신 게시 콘텐츠 검증을 공개한다 */
+export * from './questions/question-version.js';
