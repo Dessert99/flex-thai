@@ -4,6 +4,9 @@ export * from './fake-challenge.repository.js';
 /** 비밀번호 원문을 저장하지 않는 fake identity provider를 공개한다 */
 export * from './fake-identity-provider.js';
 
+/** 사전 준비 계정의 비밀번호·TOTP·refresh fake를 공개한다 */
+export * from '../identity/fake-authentication.provider.js';
+
 /** fake Cognito 전화번호 검증 provider를 공개한다 */
 export * from './fake-phone-verification.provider.js';
 
