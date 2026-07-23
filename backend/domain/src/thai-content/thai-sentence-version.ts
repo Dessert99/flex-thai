@@ -66,6 +66,8 @@ export const validateThaiSentenceVersion = (
       });
     }
     if (
+      !Number.isInteger(token.startOffset) ||
+      !Number.isInteger(token.endOffset) ||
       token.startOffset < 0 ||
       token.endOffset <= token.startOffset ||
       token.endOffset > codePoints.length
@@ -95,6 +97,8 @@ export const validateThaiSentenceVersion = (
   });
   input.expressions.forEach((expression, index) => {
     if (
+      !Number.isInteger(expression.startTokenIndex) ||
+      !Number.isInteger(expression.endTokenIndex) ||
       expression.startTokenIndex < 0 ||
       expression.endTokenIndex <= expression.startTokenIndex ||
       expression.endTokenIndex > input.tokens.length
