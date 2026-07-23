@@ -334,6 +334,281 @@ describe('DrizzleQuestionPublicationRepository', () => {
     });
   });
 
+  it.each([
+    {
+      name: '선택된 발음의 media 참조가 null',
+      media: {
+        pronunciationMediaAssetId: null,
+        pronunciationMediaId: null,
+        pronunciationMediaKind: null,
+        pronunciationMediaStorageKey: null,
+        pronunciationMediaDeclaredMimeType: null,
+        pronunciationMediaDeclaredSizeBytes: null,
+        pronunciationMediaDeclaredSha256: null,
+        pronunciationMediaMimeType: null,
+        pronunciationMediaSizeBytes: null,
+        pronunciationMediaSha256: null,
+        pronunciationMediaStatus: null,
+        pronunciationMediaReadyAt: null,
+      },
+    },
+    {
+      name: '선택된 발음 media의 declared metadata가 누락',
+      media: {
+        pronunciationMediaAssetId: 'pronunciation-media-id',
+        pronunciationMediaId: 'pronunciation-media-id',
+        pronunciationMediaKind: 'AUDIO',
+        pronunciationMediaStorageKey: 'audio/pronunciation',
+        pronunciationMediaDeclaredMimeType: null,
+        pronunciationMediaDeclaredSizeBytes: null,
+        pronunciationMediaDeclaredSha256: null,
+        pronunciationMediaMimeType: null,
+        pronunciationMediaSizeBytes: null,
+        pronunciationMediaSha256: null,
+        pronunciationMediaStatus: 'UPLOADING',
+        pronunciationMediaReadyAt: null,
+      },
+    },
+  ])('$name이면 READY 검증을 우회하지 않는다', async ({ media }) => {
+    const fake = createFake({
+      selectResults: [
+        [
+          {
+            id: 'version-id',
+            questionId: 'question-id',
+            difficulty: 3,
+            typeVersionId: 'type-version-id',
+            template: 'STANDARD_CHOICE',
+            optionCount: 1,
+          },
+        ],
+        [],
+        [],
+        [
+          {
+            id: 'option-id',
+            sentenceVersionId: 'sentence-id',
+            position: 0,
+            isCorrect: true,
+          },
+        ],
+        [
+          {
+            sentenceVersionId: 'sentence-id',
+            originalText: 'ก',
+            translationKo: '정답',
+            pronunciationKo: '꼬',
+            toneMarks: '-',
+            sentenceMediaAssetId: 'media-id',
+            mediaId: 'media-id',
+            mediaKind: 'AUDIO',
+            mediaStorageKey: 'audio/media-id',
+            mediaDeclaredMimeType: 'audio/mpeg',
+            mediaDeclaredSizeBytes: 1,
+            mediaDeclaredSha256: 'a'.repeat(64),
+            mediaMimeType: 'audio/mpeg',
+            mediaSizeBytes: 1,
+            mediaSha256: 'a'.repeat(64),
+            mediaStatus: 'READY',
+            mediaReadyAt: new Date('2026-07-24T00:00:00.000Z'),
+          },
+        ],
+        [
+          {
+            sentenceVersionId: 'sentence-id',
+            position: 0,
+            surface: 'ก',
+            startOffset: 0,
+            endOffset: 1,
+            vocabularyId: 'word-id',
+            meaningId: 'meaning-id',
+            pronunciationId: 'pronunciation-id',
+            contextMeaningKo: '문맥 뜻',
+            role: 'TARGET',
+            vocabularyStatus: 'PUBLISHED',
+            ...media,
+          },
+        ],
+        [],
+      ],
+    });
+
+    await expect(
+      withTransaction(fake.database, (transaction) =>
+        transaction.loadValidationCandidate('version-id'),
+      ),
+    ).rejects.toMatchObject({
+      code: 'MEDIA_ASSET_NOT_READY',
+    });
+  });
+
+  it('역순으로 받은 block·문장·선택지·token·expression을 position 순서로 복원한다', async () => {
+    const readyAt = new Date('2026-07-24T00:00:00.000Z');
+    const pronunciationMedia = {
+      pronunciationMediaAssetId: 'pronunciation-media-id',
+      pronunciationMediaId: 'pronunciation-media-id',
+      pronunciationMediaKind: 'AUDIO',
+      pronunciationMediaStorageKey: 'audio/pronunciation',
+      pronunciationMediaDeclaredMimeType: 'audio/mpeg',
+      pronunciationMediaDeclaredSizeBytes: 1,
+      pronunciationMediaDeclaredSha256: 'b'.repeat(64),
+      pronunciationMediaMimeType: 'audio/mpeg',
+      pronunciationMediaSizeBytes: 1,
+      pronunciationMediaSha256: 'b'.repeat(64),
+      pronunciationMediaStatus: 'READY',
+      pronunciationMediaReadyAt: readyAt,
+    } as const;
+    const token = {
+      sentenceVersionId: 'sentence-id',
+      vocabularyId: 'word-id',
+      meaningId: 'meaning-id',
+      pronunciationId: 'pronunciation-id',
+      contextMeaningKo: '문맥 뜻',
+      role: 'TARGET',
+      vocabularyStatus: 'PUBLISHED',
+      ...pronunciationMedia,
+    } as const;
+    const fake = createFake({
+      selectResults: [
+        [
+          {
+            id: 'version-id',
+            questionId: 'question-id',
+            difficulty: 3,
+            typeVersionId: 'type-version-id',
+            template: 'STANDARD_CHOICE',
+            optionCount: 2,
+          },
+        ],
+        [
+          {
+            id: 'block-1',
+            kind: 'QUESTION',
+            displayMode: 'TEXT',
+            position: 1,
+          },
+          {
+            id: 'block-0',
+            kind: 'INSTRUCTION',
+            displayMode: 'TEXT',
+            position: 0,
+          },
+        ],
+        [
+          {
+            blockId: 'block-0',
+            sentenceVersionId: 'sentence-id',
+            position: 1,
+            speaker: '두 번째',
+          },
+          {
+            blockId: 'block-0',
+            sentenceVersionId: 'sentence-id',
+            position: 0,
+            speaker: '첫 번째',
+          },
+        ],
+        [
+          {
+            id: 'option-1',
+            sentenceVersionId: 'sentence-id',
+            position: 1,
+            isCorrect: false,
+          },
+          {
+            id: 'option-0',
+            sentenceVersionId: 'sentence-id',
+            position: 0,
+            isCorrect: true,
+          },
+        ],
+        [
+          {
+            sentenceVersionId: 'sentence-id',
+            originalText: 'กข',
+            translationKo: '정답',
+            pronunciationKo: '꼬 커',
+            toneMarks: '- -',
+            sentenceMediaAssetId: 'media-id',
+            mediaId: 'media-id',
+            mediaKind: 'AUDIO',
+            mediaStorageKey: 'audio/media-id',
+            mediaDeclaredMimeType: 'audio/mpeg',
+            mediaDeclaredSizeBytes: 2,
+            mediaDeclaredSha256: 'a'.repeat(64),
+            mediaMimeType: 'audio/mpeg',
+            mediaSizeBytes: 2,
+            mediaSha256: 'a'.repeat(64),
+            mediaStatus: 'READY',
+            mediaReadyAt: readyAt,
+          },
+        ],
+        [
+          {
+            ...token,
+            position: 1,
+            surface: 'ข',
+            startOffset: 1,
+            endOffset: 2,
+          },
+          {
+            ...token,
+            position: 0,
+            surface: 'ก',
+            startOffset: 0,
+            endOffset: 1,
+          },
+        ],
+        [
+          {
+            sentenceVersionId: 'sentence-id',
+            startTokenIndex: 1,
+            endTokenIndex: 3,
+            vocabularyId: 'expression-1',
+            vocabularyKind: 'EXPRESSION',
+            representative: false,
+            vocabularyStatus: 'PUBLISHED',
+          },
+          {
+            sentenceVersionId: 'sentence-id',
+            startTokenIndex: 0,
+            endTokenIndex: 2,
+            vocabularyId: 'expression-0',
+            vocabularyKind: 'EXPRESSION',
+            representative: true,
+            vocabularyStatus: 'PUBLISHED',
+          },
+        ],
+      ],
+    });
+
+    await withTransaction(fake.database, async (transaction) => {
+      const candidate = await transaction.loadValidationCandidate('version-id');
+
+      expect(candidate?.blocks.map((block) => block.id)).toEqual([
+        'block-0',
+        'block-1',
+      ]);
+      expect(
+        candidate?.blocks[0]?.sentences.map((sentence) => sentence.speaker),
+      ).toEqual(['첫 번째', '두 번째']);
+      expect(candidate?.options.map((option) => option.id)).toEqual([
+        'option-0',
+        'option-1',
+      ]);
+      expect(
+        candidate?.options[0]?.sentence.input.tokens.map(
+          (occurrence) => occurrence.position,
+        ),
+      ).toEqual([0, 1]);
+      expect(
+        candidate?.options[0]?.sentence.input.expressions.map(
+          (occurrence) => occurrence.startTokenIndex,
+        ),
+      ).toEqual([0, 1]);
+    });
+  });
+
   it('READY media metadata가 불완전하면 안정적인 domain 오류를 던진다', async () => {
     const fake = createFake({
       selectResults: [
@@ -414,6 +689,9 @@ describe('DrizzleQuestionPublicationRepository', () => {
         validatedAt,
       },
     });
+    expect(toSql(fake.updateCalls[0]?.condition).params).toEqual([
+      'version-id',
+    ]);
   });
 
   it.each([
@@ -421,26 +699,31 @@ describe('DrizzleQuestionPublicationRepository', () => {
       'retireVersion',
       ['version-id', 'question-id'],
       questionVersions,
-      'PUBLISHED',
+      ['version-id', 'question-id', 'PUBLISHED'],
     ],
     [
       'publishVersion',
       ['version-id', new Date('2026-07-24T00:00:00.000Z')],
       questionVersions,
-      'DRAFT',
+      ['version-id', 'DRAFT', 'PASSED'],
     ],
-    ['invalidateVersion', ['version-id'], questionVersions, 'PUBLISHED'],
+    [
+      'invalidateVersion',
+      ['version-id'],
+      questionVersions,
+      ['version-id', 'PUBLISHED'],
+    ],
     [
       'setCurrentPublishedVersion',
       ['question-id', 'version-id'],
       questions,
-      'DRAFT',
+      ['question-id', 'DRAFT', 'PUBLISHED'],
     ],
-    ['hideQuestion', ['question-id'], questions, 'PUBLISHED'],
-    ['restoreQuestion', ['question-id'], questions, 'HIDDEN'],
+    ['hideQuestion', ['question-id'], questions, ['question-id', 'PUBLISHED']],
+    ['restoreQuestion', ['question-id'], questions, ['question-id', 'HIDDEN']],
   ] as const)(
     '%s는 기대 현재 상태가 아니면 안정적인 저장 오류를 던진다',
-    async (method, args, table, expectedStatus) => {
+    async (method, args, table, expectedParams) => {
       const fake = createFake({ returningResults: [[]] });
 
       await expect(
@@ -452,8 +735,8 @@ describe('DrizzleQuestionPublicationRepository', () => {
       ).rejects.toBeInstanceOf(QuestionPublicationPersistenceError);
 
       expect(fake.updateCalls[0]?.table).toBe(table);
-      expect(toSql(fake.updateCalls[0]?.condition).params).toContain(
-        expectedStatus,
+      expect(toSql(fake.updateCalls[0]?.condition).params).toEqual(
+        expect.arrayContaining([...expectedParams]),
       );
     },
   );

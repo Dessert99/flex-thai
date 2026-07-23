@@ -66,6 +66,18 @@ const assertExactlyOne = (
   }
 };
 
+const comparePosition = (
+  left: { position: number },
+  right: { position: number },
+): number => left.position - right.position;
+
+const compareExpressionPosition = (
+  left: { startTokenIndex: number; endTokenIndex: number },
+  right: { startTokenIndex: number; endTokenIndex: number },
+): number =>
+  left.startTokenIndex - right.startTokenIndex ||
+  left.endTokenIndex - right.endTokenIndex;
+
 const toMediaAsset = (row: MediaProjection): MediaAsset => {
   const base = {
     id: row.mediaId,
@@ -204,6 +216,8 @@ const createQuestionPublicationTransaction = (
           ...optionRows.map((row) => row.sentenceVersionId),
         ]),
       ];
+      const orderedBlockRows = [...blockRows].sort(comparePosition);
+      const orderedOptionRows = [...optionRows].sort(comparePosition);
 
       if (sentenceVersionIds.length === 0) {
         return {
@@ -215,7 +229,10 @@ const createQuestionPublicationTransaction = (
             template: versionRow.template,
             optionCount: versionRow.optionCount,
           },
-          blocks: blockRows.map((block) => ({ ...block, sentences: [] })),
+          blocks: orderedBlockRows.map((block) => ({
+            ...block,
+            sentences: [],
+          })),
           options: [],
         };
       }
@@ -328,13 +345,15 @@ const createQuestionPublicationTransaction = (
 
       const sentences = new Map<string, QuestionSentenceCandidate>();
       sentenceRows.forEach((row) => {
-        const sentenceTokens = tokenRows.filter(
-          (token) => token.sentenceVersionId === row.sentenceVersionId,
-        );
-        const sentenceExpressions = expressionRows.filter(
-          (expression) =>
-            expression.sentenceVersionId === row.sentenceVersionId,
-        );
+        const sentenceTokens = tokenRows
+          .filter((token) => token.sentenceVersionId === row.sentenceVersionId)
+          .sort(comparePosition);
+        const sentenceExpressions = expressionRows
+          .filter(
+            (expression) =>
+              expression.sentenceVersionId === row.sentenceVersionId,
+          )
+          .sort(compareExpressionPosition);
         const pronunciationMediaAssets = sentenceTokens.flatMap((token) => {
           if (
             token.pronunciationMediaAssetId === null ||
@@ -346,7 +365,7 @@ const createQuestionPublicationTransaction = (
             token.pronunciationMediaDeclaredSha256 === null ||
             token.pronunciationMediaStatus === null
           ) {
-            return [];
+            throw new MediaAssetDomainError('MEDIA_ASSET_NOT_READY');
           }
           return [
             toMediaAsset({
@@ -425,16 +444,17 @@ const createQuestionPublicationTransaction = (
           template: versionRow.template,
           optionCount: versionRow.optionCount,
         },
-        blocks: blockRows.map((block) => ({
+        blocks: orderedBlockRows.map((block) => ({
           ...block,
           sentences: blockSentenceRows
             .filter((row) => row.blockId === block.id)
+            .sort(comparePosition)
             .map((row) => ({
               speaker: row.speaker,
               sentence: getSentence(row.sentenceVersionId),
             })),
         })),
-        options: optionRows.map((option) => ({
+        options: orderedOptionRows.map((option) => ({
           id: option.id,
           position: option.position,
           isCorrect: option.isCorrect,
