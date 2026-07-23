@@ -327,6 +327,21 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
     ]);
   });
 
+  it('숨긴 문제의 초안 버전은 검증과 저장 없이 게시를 거절한다', async () => {
+    const calls: string[] = [];
+    const service = createService(
+      createTransaction(calls, {
+        question: question({ status: 'HIDDEN' }),
+      }),
+      calls,
+    );
+
+    await expect(service.publishVersion(publishCommand)).rejects.toMatchObject(
+      expectedPublicationError('QUESTION_STATE_CONFLICT'),
+    );
+    expect(calls).toEqual(['loadQuestion', 'loadVersion']);
+  });
+
   it('현재 게시 버전 무효화와 문제 숨김을 같은 transaction에 둔다', async () => {
     const calls: string[] = [];
     const service = createService(
@@ -348,6 +363,31 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
       'loadVersion',
       'invalidateVersion',
       'hideQuestion',
+      'appendAuditLog',
+      'transactionCommitted',
+    ]);
+  });
+
+  it('이미 숨긴 문제는 현재 게시 버전만 무효화하고 숨김 update를 반복하지 않는다', async () => {
+    const calls: string[] = [];
+    const service = createService(
+      createTransaction(calls, {
+        question: question({ status: 'HIDDEN' }),
+        version: version({
+          id: 'published-version-id',
+          status: 'PUBLISHED',
+          publishedAt: occurredAt,
+        }),
+      }),
+      calls,
+    );
+
+    await service.invalidateVersion(invalidateCommand);
+
+    expect(calls).toEqual([
+      'loadQuestion',
+      'loadVersion',
+      'invalidateVersion',
       'appendAuditLog',
       'transactionCommitted',
     ]);

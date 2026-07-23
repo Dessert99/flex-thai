@@ -120,6 +120,9 @@ export class QuestionPublicationService {
           await transaction.loadVersion(command.versionId),
         );
         assertVersionBelongsToQuestion(question, version);
+        if (question.status !== 'DRAFT' && question.status !== 'PUBLISHED') {
+          throw new QuestionPublicationError('QUESTION_STATE_CONFLICT');
+        }
         if (version.status !== 'DRAFT') {
           throw new QuestionPublicationError('IMMUTABLE_VERSION');
         }
@@ -181,7 +184,7 @@ export class QuestionPublicationService {
       );
       assertVersionBelongsToQuestion(question, version);
       if (
-        question.status !== 'PUBLISHED' ||
+        (question.status !== 'PUBLISHED' && question.status !== 'HIDDEN') ||
         question.currentPublishedVersionId !== version.id ||
         version.status !== 'PUBLISHED'
       ) {
@@ -189,7 +192,9 @@ export class QuestionPublicationService {
       }
 
       await transaction.invalidateVersion(version.id);
-      await transaction.hideQuestion(question.id);
+      if (question.status === 'PUBLISHED') {
+        await transaction.hideQuestion(question.id);
+      }
       await transaction.appendAuditLog({
         actorUserId: command.actorUserId,
         action: 'QUESTION_VERSION_INVALIDATED',
