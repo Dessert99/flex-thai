@@ -1,0 +1,84 @@
+/** 음성 자산의 완료·거절·게시 준비 상태를 검증한다 */
+import { describe, expect, it } from 'vitest';
+import {
+  assertMediaAssetReady,
+  completeMediaAsset,
+  rejectMediaAsset,
+  type MediaAsset,
+} from './media-asset.js';
+
+const uploadingAsset = (): MediaAsset => ({
+  id: 'asset-id',
+  kind: 'AUDIO',
+  storageKey: 'audio/asset-id',
+  declaredMimeType: 'audio/mpeg',
+  declaredSizeBytes: 1024,
+  declaredSha256: 'a'.repeat(64),
+  mimeType: null,
+  sizeBytes: null,
+  sha256: null,
+  status: 'UPLOADING',
+  readyAt: null,
+});
+
+describe('MediaAsset', () => {
+  it('선언 정보와 검사 정보가 같을 때만 READY로 전이한다', () => {
+    const readyAt = new Date('2026-07-24T00:00:00.000Z');
+
+    expect(
+      completeMediaAsset(
+        uploadingAsset(),
+        {
+          mimeType: 'audio/mpeg',
+          sizeBytes: 1024,
+          sha256: 'a'.repeat(64),
+        },
+        readyAt,
+      ),
+    ).toMatchObject({
+      status: 'READY',
+      mimeType: 'audio/mpeg',
+      sizeBytes: 1024,
+      sha256: 'a'.repeat(64),
+      readyAt,
+    });
+  });
+
+  it('검사 정보가 선언과 다르면 안정적인 오류를 반환한다', () => {
+    expect(() =>
+      completeMediaAsset(
+        uploadingAsset(),
+        {
+          mimeType: 'audio/mpeg',
+          sizeBytes: 1025,
+          sha256: 'a'.repeat(64),
+        },
+        new Date(),
+      ),
+    ).toThrowError(
+      expect.objectContaining({ code: 'MEDIA_INSPECTION_MISMATCH' }),
+    );
+  });
+
+  it('READY 자산은 완료하거나 거절해 덮어쓸 수 없다', () => {
+    const ready = completeMediaAsset(
+      uploadingAsset(),
+      {
+        mimeType: 'audio/mpeg',
+        sizeBytes: 1024,
+        sha256: 'a'.repeat(64),
+      },
+      new Date(),
+    );
+
+    expect(() => rejectMediaAsset(ready)).toThrowError(
+      expect.objectContaining({ code: 'MEDIA_ASSET_IMMUTABLE' }),
+    );
+  });
+
+  it('게시 준비 확인은 READY가 아닌 자산을 거부한다', () => {
+    expect(() => assertMediaAssetReady(uploadingAsset())).toThrowError(
+      expect.objectContaining({ code: 'MEDIA_ASSET_NOT_READY' }),
+    );
+  });
+});

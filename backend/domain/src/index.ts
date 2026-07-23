@@ -42,3 +42,6 @@ export * from './uploads/upload.repository.js';
 
 /** 안전한 upload policy와 완료 검증 use case를 공개한다 */
 export * from './uploads/upload-policy.service.js';
+
+/** 음성 자산의 완료·거절·게시 준비 규칙을 공개한다 */
+export * from './media/media-asset.js';
