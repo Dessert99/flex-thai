@@ -5,9 +5,9 @@ import {
   CurrentUser,
   type AuthenticatedUser,
 } from '../common/auth/current-user.decorator.js';
-import { ApplicationRoleGuard } from '../auth/application-role.guard.js';
-import { CognitoAuthorizerGuard } from '../auth/cognito-authorizer.guard.js';
-import { RequireRole } from '../auth/require-role.decorator.js';
+import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
+import { CognitoAuthorizerGuard } from '../identity/cognito-authorizer.guard.js';
+import { RequireRole } from '../identity/require-role.decorator.js';
 
 /** Job 입력 object를 안전하게 준비하는 upload API */
 @Controller('uploads')

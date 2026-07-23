@@ -29,6 +29,7 @@ const apiEnvSchema = z
     ALARM_TOPIC_ARN: z.string().optional(),
     FAKE_USER_SUB: z.string().default('local-admin-sub'),
     FAKE_USER_EMAIL: z.string().default('admin@hufs.ac.kr'),
+    FAKE_USER_PASSWORD: z.string().default('LocalOnly1!'),
     FAKE_PHONE_NUMBER: z.string().default('+821000000000'),
     ALLOWED_ORIGINS: z.string().default('http://localhost:5173'),
   })
@@ -53,11 +54,6 @@ const apiEnvSchema = z
         value.RDS_SECRET_ARN,
         value.COGNITO_USER_POOL_ID,
         value.COGNITO_CLIENT_ID,
-        value.INPUT_BUCKET_NAME,
-        value.JOB_QUEUE_URL,
-        value.CHALLENGE_HMAC_PEPPER_SECRET_ARN,
-        value.FROM_EMAIL,
-        value.ALARM_TOPIC_ARN,
       ];
 
       if (required.some((item) => !item)) {

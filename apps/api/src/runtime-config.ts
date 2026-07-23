@@ -1,4 +1,4 @@
-/** API Lambda가 인증 코드 HMAC pepper를 Secrets Manager에서 읽는다 */
+/** API Lambda가 입력 환경 설정을 별도 객체로 격리한다 */
 import {
   GetSecretValueCommand,
   SecretsManagerClient,
@@ -25,15 +25,8 @@ export class AwsApiSecretReader implements ApiSecretReader {
   }
 }
 
-/** pepper ARN이 있으면 원문을 process.env에 쓰지 않고 새 설정 객체에만 넣는다 */
+/** legacy secret을 읽지 않고 입력 설정의 복사본을 반환한다 */
 export const loadApiRuntimeSource = async (
   source: Record<string, string | undefined>,
-  secrets: ApiSecretReader = new AwsApiSecretReader(),
-): Promise<Record<string, string | undefined>> => {
-  const pepperArn = source.CHALLENGE_HMAC_PEPPER_SECRET_ARN;
-  if (!pepperArn) return { ...source };
-  return {
-    ...source,
-    CHALLENGE_HMAC_PEPPER: await secrets.read(pepperArn),
-  };
-};
+  _secrets?: ApiSecretReader,
+): Promise<Record<string, string | undefined>> => ({ ...source });
