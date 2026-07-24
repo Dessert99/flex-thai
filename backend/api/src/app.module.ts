@@ -1,28 +1,48 @@
 /** HTTP 기능 모듈을 하나의 NestJS 애플리케이션으로 조립한다 */
 import { CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
+import { S3Client } from '@aws-sdk/client-s3';
 import { SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { type DynamicModule, Module } from '@nestjs/common';
 import { readApiEnv } from '@flex-thia/config';
 import {
   createDataApiDatabase,
   createLocalDatabase,
+  DrizzleAdminMediaQuery,
+  DrizzleAdminQuestionQuery,
+  DrizzleAdminVocabularyQuery,
+  DrizzleContentDraftRepository,
+  DrizzleContentImportQuery,
+  DrizzleContentImportRepository,
   DrizzleLearnerQuestionQuery,
   DrizzleLearnerVocabularyQuery,
   DrizzleLearningRepository,
+  DrizzleMediaAdminRepository,
+  DrizzleQuestionAdminRepository,
+  DrizzleQuestionPublicationRepository,
   DrizzleReadinessProbe,
   DrizzleUserRepository,
+  DrizzleVocabularyAdminRepository,
 } from '@flex-thia/database';
 import {
+  ContentDraftService,
+  ContentImportService,
   IdentityAuthenticationService,
+  MediaAdminService,
+  QuestionAdminService,
   QuestionAttemptService,
+  QuestionPublicationService,
   SavedContentService,
+  VocabularyAdminService,
 } from '@flex-thia/domain';
 import {
   CloudFrontMediaReadUrlProvider,
   CognitoAuthenticationProvider,
+  FakeAudioUploadProvider,
   FakeAuthenticationProvider,
   FakeMediaReadUrlProvider,
+  S3AudioUploadProvider,
 } from '@flex-thia/providers';
+import { AdminModule } from './admin/admin.module.js';
 import { HealthController } from './health/health.controller.js';
 import {
   ReadinessController,
@@ -90,6 +110,28 @@ export const createApplicationModule = (
     cognitoClientId: env.COGNITO_CLIENT_ID ?? 'local-client',
     nodeEnv: env.NODE_ENV,
   };
+  const contentDraftRepository = new DrizzleContentDraftRepository(database);
+  const contentImportRepository = new DrizzleContentImportRepository(database);
+  const contentImports = new ContentImportService(
+    contentImportRepository,
+    new ContentDraftService(contentDraftRepository),
+  );
+  const mediaRepository = new DrizzleMediaAdminRepository(database);
+  const audioStorage =
+    env.NODE_ENV === 'production'
+      ? new S3AudioUploadProvider(
+          new S3Client({ region: env.AWS_REGION }),
+          env.MEDIA_BUCKET_NAME,
+        )
+      : new FakeAudioUploadProvider();
+  const media = new MediaAdminService(mediaRepository, audioStorage);
+  const questionAdminRepository = new DrizzleQuestionAdminRepository(database);
+  const questionPublicationRepository =
+    new DrizzleQuestionPublicationRepository(database);
+  const questionPublication = new QuestionPublicationService(
+    questionPublicationRepository,
+  );
+  const vocabularyRepository = new DrizzleVocabularyAdminRepository(database);
 
   return {
     module: AppModule,
@@ -108,6 +150,24 @@ export const createApplicationModule = (
         questionAttempts: new QuestionAttemptService(learningRepository),
         savedContent: new SavedContentService(learningRepository),
         mediaReadUrls,
+        users,
+        authorizer,
+      }),
+      AdminModule.register({
+        contentImports,
+        contentImportQuery: new DrizzleContentImportQuery(database),
+        media,
+        mediaQuery: new DrizzleAdminMediaQuery(database),
+        questions: new QuestionAdminService(questionAdminRepository),
+        questionPublication,
+        questionQuery: new DrizzleAdminQuestionQuery(database),
+        vocabularies: new VocabularyAdminService(vocabularyRepository),
+        vocabularyQuery: new DrizzleAdminVocabularyQuery(database),
+        findQuestionIdByVersionId: async (versionId) =>
+          questionPublicationRepository.runInTransaction(
+            async (transaction) =>
+              (await transaction.loadVersion(versionId))?.questionId ?? null,
+          ),
         users,
         authorizer,
       }),

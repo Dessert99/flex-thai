@@ -39,6 +39,23 @@ describe('readApiEnv', () => {
     ).toThrow('production 필수 환경 변수가 누락되었습니다');
   });
 
+  it('production은 MEDIA_BUCKET_NAME 누락 시 시작을 거부한다', () => {
+    expect(() =>
+      readApiEnv({
+        NODE_ENV: 'production',
+        AUTH_MODE: 'cognito',
+        DATABASE_MODE: 'data-api',
+        RDS_RESOURCE_ARN: 'resource-arn',
+        RDS_SECRET_ARN: 'secret-arn',
+        COGNITO_USER_POOL_ID: 'pool-id',
+        COGNITO_CLIENT_ID: 'client-id',
+        MEDIA_CDN_BASE_URL: 'https://cdn.example.com/media',
+        MEDIA_KEY_PAIR_ID: 'key-pair-id',
+        MEDIA_PRIVATE_KEY_SECRET_ARN: 'media-secret-arn',
+      }),
+    ).toThrow('production 필수 환경 변수가 누락되었습니다');
+  });
+
   it('production은 DB·Cognito·media 연결 값이 모두 있으면 시작할 수 있다', () => {
     expect(
       readApiEnv({
@@ -52,6 +69,7 @@ describe('readApiEnv', () => {
         MEDIA_CDN_BASE_URL: 'https://cdn.example.com/media',
         MEDIA_KEY_PAIR_ID: 'key-pair-id',
         MEDIA_PRIVATE_KEY_SECRET_ARN: 'media-secret-arn',
+        MEDIA_BUCKET_NAME: 'media-bucket',
       }),
     ).toMatchObject({
       RDS_RESOURCE_ARN: 'resource-arn',
@@ -59,6 +77,7 @@ describe('readApiEnv', () => {
       MEDIA_CDN_BASE_URL: 'https://cdn.example.com/media',
       MEDIA_KEY_PAIR_ID: 'key-pair-id',
       MEDIA_PRIVATE_KEY_SECRET_ARN: 'media-secret-arn',
+      MEDIA_BUCKET_NAME: 'media-bucket',
     });
   });
 
@@ -75,6 +94,7 @@ describe('readApiEnv', () => {
         MEDIA_CDN_BASE_URL: 'http://cdn.example.com/media',
         MEDIA_KEY_PAIR_ID: 'key-pair-id',
         MEDIA_PRIVATE_KEY_SECRET_ARN: 'media-secret-arn',
+        MEDIA_BUCKET_NAME: 'media-bucket',
       }),
     ).toThrow('production MEDIA_CDN_BASE_URL은 HTTPS여야 합니다');
   });
@@ -84,11 +104,13 @@ describe('readApiEnv', () => {
       MEDIA_CDN_BASE_URL: 'https://fake-media.invalid/media',
       MEDIA_KEY_PAIR_ID: 'local-fake-key-pair',
       MEDIA_PRIVATE_KEY_SECRET_ARN: 'local-fake-media-secret',
+      MEDIA_BUCKET_NAME: 'local-fake-media-bucket',
     });
     expect(readApiEnv({ NODE_ENV: 'test' })).toMatchObject({
       MEDIA_CDN_BASE_URL: 'https://fake-media.invalid/media',
       MEDIA_KEY_PAIR_ID: 'local-fake-key-pair',
       MEDIA_PRIVATE_KEY_SECRET_ARN: 'local-fake-media-secret',
+      MEDIA_BUCKET_NAME: 'local-fake-media-bucket',
     });
   });
 

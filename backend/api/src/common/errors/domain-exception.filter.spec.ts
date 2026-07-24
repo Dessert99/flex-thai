@@ -9,8 +9,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { loginRequestSchema, problemDetailsSchema } from '@flex-thia/contracts';
 import {
   AuthDomainError,
+  ContentImportError,
   IdentityDomainError,
   LearningDomainError,
+  MediaAssetDomainError,
+  QuestionAdminError,
+  QuestionPublicationError,
+  VocabularyAdminError,
 } from '@flex-thia/domain';
 import { LearnerPublicResponseError } from '../../learning/learner-content.service.js';
 import { LearnerQuestionsController } from '../../learning/learner-questions.controller.js';
@@ -164,6 +169,63 @@ describe('공개 오류 응답 변환', () => {
           requestId: 'request-learning',
           fieldErrors: [],
         },
+      });
+    },
+  );
+
+  it.each([
+    'CONTENT_DRAFT_ITEM_CONFLICT',
+    'CONTENT_DRAFT_PERSISTENCE_CONFLICT',
+    'CONTENT_IMPORT_PERSISTENCE_CONFLICT',
+    'MEDIA_ADMIN_PERSISTENCE_CONFLICT',
+    'QUESTION_ADMIN_PERSISTENCE_CONFLICT',
+    'QUESTION_PUBLICATION_PERSISTENCE_CONFLICT',
+  ])('관리자 persistence 충돌 %s를 409로 변환한다', (code) => {
+    const result = buildErrorResponse({ code }, 'request-persistence');
+
+    expect(result).toMatchObject({
+      status: 409,
+      body: { code, status: 409, requestId: 'request-persistence' },
+    });
+  });
+
+  it.each([
+    [new ContentImportError('CONTENT_IMPORT_IDEMPOTENCY_CONFLICT'), 409],
+    [new MediaAssetDomainError('MEDIA_UPLOAD_EMPTY'), 400],
+    [new MediaAssetDomainError('MEDIA_UPLOAD_TOO_LARGE'), 413],
+    [new MediaAssetDomainError('MEDIA_MIME_NOT_ALLOWED'), 400],
+    [new MediaAssetDomainError('MEDIA_SHA256_INVALID'), 400],
+    [new MediaAssetDomainError('MEDIA_ASSET_NOT_FOUND'), 404],
+    [new MediaAssetDomainError('MEDIA_ASSET_NOT_UPLOADING'), 409],
+    [new MediaAssetDomainError('MEDIA_INSPECTION_MISMATCH'), 409],
+    [new QuestionAdminError('QUESTION_NOT_FOUND'), 404],
+    [new QuestionAdminError('QUESTION_VERSION_NOT_FOUND'), 404],
+    [new QuestionAdminError('QUESTION_TYPE_NOT_FOUND'), 404],
+    [new QuestionAdminError('QUESTION_REFERENCE_NOT_FOUND'), 404],
+    [new QuestionAdminError('QUESTION_MEDIA_NOT_READY'), 409],
+    [new QuestionAdminError('QUESTION_CONTENT_INVALID'), 400],
+    [new QuestionAdminError('IMMUTABLE_VERSION'), 409],
+    [new QuestionPublicationError('QUESTION_NOT_FOUND'), 404],
+    [new QuestionPublicationError('QUESTION_VERSION_NOT_FOUND'), 404],
+    [new QuestionPublicationError('QUESTION_VERSION_NOT_PUBLISHABLE'), 409],
+    [new QuestionPublicationError('QUESTION_STATE_CONFLICT'), 409],
+    [new VocabularyAdminError('VOCABULARY_NOT_FOUND'), 404],
+    [new VocabularyAdminError('VOCABULARY_MEDIA_NOT_FOUND'), 404],
+    [new VocabularyAdminError('VOCABULARY_CONTENT_INVALID'), 400],
+    [new VocabularyAdminError('VOCABULARY_DUPLICATE'), 409],
+    [new VocabularyAdminError('VOCABULARY_IN_USE'), 409],
+    [new VocabularyAdminError('VOCABULARY_AUDIO_NOT_READY'), 409],
+    [new VocabularyAdminError('VOCABULARY_STATE_CONFLICT'), 409],
+  ] as const)(
+    '관리자 domain 오류 %s를 정확한 공개 상태 %i로 변환한다',
+    (error, status) => {
+      const result = buildErrorResponse(error, 'request-admin');
+
+      expect(result.status).toBe(status);
+      expect(result.body).toMatchObject({
+        status,
+        code: error.code,
+        requestId: 'request-admin',
       });
     },
   );

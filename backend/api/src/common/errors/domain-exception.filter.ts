@@ -10,9 +10,14 @@ import {
 import type { ProblemDetailsResponse } from '@flex-thia/contracts';
 import {
   AuthDomainError,
+  ContentImportError,
   IdentityDomainError,
   LearningDomainError,
+  MediaAssetDomainError,
+  QuestionAdminError,
+  QuestionPublicationError,
   UploadPolicyError,
+  VocabularyAdminError,
 } from '@flex-thia/domain';
 import { ZodError } from 'zod';
 import type { StructuredLogger } from '../logging/structured-logger.js';
@@ -43,6 +48,12 @@ const APPLICATION_STATUS: Record<string, number> = {
   JOB_INPUT_TOO_LARGE: HttpStatus.BAD_REQUEST,
   JOB_NOT_FOUND: HttpStatus.NOT_FOUND,
   DB_RESUMING: HttpStatus.SERVICE_UNAVAILABLE,
+  CONTENT_DRAFT_ITEM_CONFLICT: HttpStatus.CONFLICT,
+  CONTENT_DRAFT_PERSISTENCE_CONFLICT: HttpStatus.CONFLICT,
+  CONTENT_IMPORT_PERSISTENCE_CONFLICT: HttpStatus.CONFLICT,
+  MEDIA_ADMIN_PERSISTENCE_CONFLICT: HttpStatus.CONFLICT,
+  QUESTION_ADMIN_PERSISTENCE_CONFLICT: HttpStatus.CONFLICT,
+  QUESTION_PUBLICATION_PERSISTENCE_CONFLICT: HttpStatus.CONFLICT,
 };
 
 const IDENTITY_STATUS: Record<IdentityDomainError['code'], number> = {
@@ -59,6 +70,55 @@ const LEARNING_STATUS: Record<LearningDomainError['code'], number> = {
   QUESTION_OPTION_MISMATCH: HttpStatus.CONFLICT,
   ATTEMPT_IDEMPOTENCY_CONFLICT: HttpStatus.CONFLICT,
   VOCABULARY_UNAVAILABLE: HttpStatus.NOT_FOUND,
+};
+
+const MEDIA_ADMIN_STATUS: Partial<
+  Record<MediaAssetDomainError['code'], number>
+> = {
+  MEDIA_UPLOAD_EMPTY: HttpStatus.BAD_REQUEST,
+  MEDIA_UPLOAD_TOO_LARGE: HttpStatus.PAYLOAD_TOO_LARGE,
+  MEDIA_MIME_NOT_ALLOWED: HttpStatus.BAD_REQUEST,
+  MEDIA_SHA256_INVALID: HttpStatus.BAD_REQUEST,
+  MEDIA_ASSET_NOT_FOUND: HttpStatus.NOT_FOUND,
+  MEDIA_ASSET_NOT_UPLOADING: HttpStatus.CONFLICT,
+  MEDIA_ASSET_NOT_READY: HttpStatus.CONFLICT,
+  MEDIA_ASSET_IMMUTABLE: HttpStatus.CONFLICT,
+  MEDIA_INSPECTION_MISMATCH: HttpStatus.CONFLICT,
+};
+
+const QUESTION_ADMIN_STATUS: Record<QuestionAdminError['code'], number> = {
+  QUESTION_NOT_FOUND: HttpStatus.NOT_FOUND,
+  QUESTION_VERSION_NOT_FOUND: HttpStatus.NOT_FOUND,
+  QUESTION_VERSION_MISMATCH: HttpStatus.CONFLICT,
+  QUESTION_TYPE_NOT_FOUND: HttpStatus.NOT_FOUND,
+  QUESTION_REFERENCE_NOT_FOUND: HttpStatus.NOT_FOUND,
+  QUESTION_REFERENCE_MISMATCH: HttpStatus.CONFLICT,
+  QUESTION_MEDIA_NOT_READY: HttpStatus.CONFLICT,
+  QUESTION_CONTENT_INVALID: HttpStatus.BAD_REQUEST,
+  IMMUTABLE_VERSION: HttpStatus.CONFLICT,
+};
+
+const QUESTION_PUBLICATION_STATUS: Record<
+  QuestionPublicationError['code'],
+  number
+> = {
+  QUESTION_NOT_FOUND: HttpStatus.NOT_FOUND,
+  QUESTION_VERSION_NOT_FOUND: HttpStatus.NOT_FOUND,
+  QUESTION_VERSION_MISMATCH: HttpStatus.CONFLICT,
+  IMMUTABLE_VERSION: HttpStatus.CONFLICT,
+  QUESTION_VERSION_NOT_PUBLISHABLE: HttpStatus.CONFLICT,
+  QUESTION_STATE_CONFLICT: HttpStatus.CONFLICT,
+  QUESTION_RESTORE_NOT_ALLOWED: HttpStatus.CONFLICT,
+};
+
+const VOCABULARY_ADMIN_STATUS: Record<VocabularyAdminError['code'], number> = {
+  VOCABULARY_NOT_FOUND: HttpStatus.NOT_FOUND,
+  VOCABULARY_DUPLICATE: HttpStatus.CONFLICT,
+  VOCABULARY_IN_USE: HttpStatus.CONFLICT,
+  VOCABULARY_CONTENT_INVALID: HttpStatus.BAD_REQUEST,
+  VOCABULARY_MEDIA_NOT_FOUND: HttpStatus.NOT_FOUND,
+  VOCABULARY_AUDIO_NOT_READY: HttpStatus.CONFLICT,
+  VOCABULARY_STATE_CONFLICT: HttpStatus.CONFLICT,
 };
 
 const readPublicCode = (value: unknown): string | null => {
@@ -111,6 +171,48 @@ export const buildErrorResponse = (
 
   if (error instanceof LearningDomainError) {
     const status = LEARNING_STATUS[error.code];
+    return {
+      status,
+      body: createProblem(error.code, status, requestId),
+    };
+  }
+
+  if (error instanceof ContentImportError) {
+    const status = HttpStatus.CONFLICT;
+    return {
+      status,
+      body: createProblem(error.code, status, requestId),
+    };
+  }
+
+  if (error instanceof MediaAssetDomainError) {
+    const status = MEDIA_ADMIN_STATUS[error.code];
+    if (status !== undefined) {
+      return {
+        status,
+        body: createProblem(error.code, status, requestId),
+      };
+    }
+  }
+
+  if (error instanceof QuestionAdminError) {
+    const status = QUESTION_ADMIN_STATUS[error.code];
+    return {
+      status,
+      body: createProblem(error.code, status, requestId),
+    };
+  }
+
+  if (error instanceof QuestionPublicationError) {
+    const status = QUESTION_PUBLICATION_STATUS[error.code];
+    return {
+      status,
+      body: createProblem(error.code, status, requestId),
+    };
+  }
+
+  if (error instanceof VocabularyAdminError) {
+    const status = VOCABULARY_ADMIN_STATUS[error.code];
     return {
       status,
       body: createProblem(error.code, status, requestId),

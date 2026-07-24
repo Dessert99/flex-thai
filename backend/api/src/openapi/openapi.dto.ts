@@ -1,8 +1,31 @@
 /** 공개 Zod 계약을 Nest Swagger reflection DTO로 연결한다 */
 import {
+  adminQuestionDetailResponseSchema,
+  adminQuestionIdPathSchema,
+  adminQuestionListQuerySchema,
+  adminQuestionListResponseSchema,
+  adminQuestionValidationReportSchema,
+  adminQuestionVersionIdPathSchema,
+  adminQuestionVersionPayloadSchema,
+  adminQuestionVersionResponseSchema,
+  adminVocabularyDetailResponseSchema,
+  adminVocabularyIdPathSchema,
+  adminVocabularyListQuerySchema,
+  adminVocabularyListResponseSchema,
+  adminVocabularyReplaceRequestSchema,
+  audioUploadRequestSchema,
+  audioUploadResponseSchema,
   authenticatedResponseSchema,
+  completeMediaAssetResponseSchema,
+  contentImportDetailResponseSchema,
+  contentImportIdPathSchema,
+  contentImportListQuerySchema,
+  contentImportListResponseSchema,
+  contentImportRequestSchema,
   healthResponseSchema,
   loginRequestSchema,
+  mediaAssetDetailResponseSchema,
+  mediaAssetIdPathSchema,
   meResponseSchema,
   mfaRequiredResponseSchema,
   questionAttemptListQuerySchema,
@@ -28,6 +51,7 @@ import {
   vocabularyRelatedQuestionsResponseSchema,
 } from '@flex-thia/contracts';
 import { createZodDto } from 'nestjs-zod';
+import type { ZodObject } from 'zod';
 
 /** 로그인 요청 Swagger DTO */
 export class LoginRequestDto extends createZodDto(loginRequestSchema) {}
@@ -145,4 +169,117 @@ export class SavedVocabularyListQueryDto extends createZodDto(
 /** 저장 어휘 목록 성공 Swagger DTO */
 export class SavedVocabularyListResponseDto extends createZodDto(
   savedVocabularyListResponseSchema,
+) {}
+
+/** canonical 콘텐츠 가져오기 요청 Swagger DTO */
+export class ContentImportRequestDto extends createZodDto(
+  contentImportRequestSchema,
+) {}
+
+/** 콘텐츠 가져오기 목록 query Swagger DTO */
+export class ContentImportListQueryDto extends createZodDto(
+  contentImportListQuerySchema,
+) {}
+
+/** 콘텐츠 가져오기 UUID path Swagger DTO */
+export class ContentImportIdPathDto extends createZodDto(
+  contentImportIdPathSchema,
+) {}
+
+/** 콘텐츠 가져오기 상세 Swagger DTO */
+export class ContentImportDetailResponseDto extends createZodDto(
+  contentImportDetailResponseSchema,
+) {}
+
+/** 콘텐츠 가져오기 이력 page Swagger DTO */
+export class ContentImportListResponseDto extends createZodDto(
+  contentImportListResponseSchema,
+) {}
+
+/** audio upload 선언 요청 Swagger DTO */
+export class AudioUploadRequestDto extends createZodDto(
+  audioUploadRequestSchema,
+) {}
+
+/** audio upload 준비 또는 재사용 응답 Swagger DTO */
+export class AudioUploadResponseDto extends createZodDto(
+  audioUploadResponseSchema as unknown as ZodObject,
+) {}
+
+/** media asset UUID path Swagger DTO */
+export class MediaAssetIdPathDto extends createZodDto(mediaAssetIdPathSchema) {}
+
+/** media asset 완료 응답 Swagger DTO */
+export class CompleteMediaAssetResponseDto extends createZodDto(
+  completeMediaAssetResponseSchema,
+) {}
+
+/** media asset 상태·사용처 상세 Swagger DTO */
+export class MediaAssetDetailResponseDto extends createZodDto(
+  mediaAssetDetailResponseSchema as unknown as ZodObject,
+) {}
+
+/** 관리자 문제 목록 query Swagger DTO */
+export class AdminQuestionListQueryDto extends createZodDto(
+  adminQuestionListQuerySchema,
+) {}
+
+/** 관리자 문제 목록 page Swagger DTO */
+export class AdminQuestionListResponseDto extends createZodDto(
+  adminQuestionListResponseSchema,
+) {}
+
+/** 관리자 문제 상세 Swagger DTO */
+export class AdminQuestionDetailResponseDto extends createZodDto(
+  adminQuestionDetailResponseSchema,
+) {}
+
+/** 관리자 문제 UUID path Swagger DTO */
+export class AdminQuestionIdPathDto extends createZodDto(
+  adminQuestionIdPathSchema,
+) {}
+
+/** 관리자 문제 버전 UUID path Swagger DTO */
+export class AdminQuestionVersionIdPathDto extends createZodDto(
+  adminQuestionVersionIdPathSchema,
+) {}
+
+/** 관리자 문제 버전 전체 교체 Swagger DTO */
+export class AdminQuestionVersionPayloadDto extends createZodDto(
+  adminQuestionVersionPayloadSchema,
+) {}
+
+/** 관리자 문제 DRAFT 요약 Swagger DTO */
+export class AdminQuestionVersionResponseDto extends createZodDto(
+  adminQuestionVersionResponseSchema,
+) {}
+
+/** 관리자 문제 검증 보고서 Swagger DTO */
+export class AdminQuestionValidationReportDto extends createZodDto(
+  adminQuestionValidationReportSchema,
+) {}
+
+/** 관리자 어휘 목록 query Swagger DTO */
+export class AdminVocabularyListQueryDto extends createZodDto(
+  adminVocabularyListQuerySchema,
+) {}
+
+/** 관리자 어휘 목록 page Swagger DTO */
+export class AdminVocabularyListResponseDto extends createZodDto(
+  adminVocabularyListResponseSchema,
+) {}
+
+/** 관리자 어휘 상세 Swagger DTO */
+export class AdminVocabularyDetailResponseDto extends createZodDto(
+  adminVocabularyDetailResponseSchema,
+) {}
+
+/** 관리자 어휘 UUID path Swagger DTO */
+export class AdminVocabularyIdPathDto extends createZodDto(
+  adminVocabularyIdPathSchema,
+) {}
+
+/** 관리자 어휘 전체 교체 요청 Swagger DTO */
+export class AdminVocabularyReplaceRequestDto extends createZodDto(
+  adminVocabularyReplaceRequestSchema,
 ) {}

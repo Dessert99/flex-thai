@@ -11,6 +11,25 @@ import {
 } from './openapi.js';
 
 const ACTIVE_PATHS = [
+  '/api/v1/admin/content-imports',
+  '/api/v1/admin/content-imports/{importId}',
+  '/api/v1/admin/media-assets/audio-upload-requests',
+  '/api/v1/admin/media-assets/{mediaAssetId}',
+  '/api/v1/admin/media-assets/{mediaAssetId}/complete',
+  '/api/v1/admin/questions',
+  '/api/v1/admin/questions/{questionId}',
+  '/api/v1/admin/questions/{questionId}/hide',
+  '/api/v1/admin/questions/{questionId}/restore',
+  '/api/v1/admin/questions/{questionId}/versions',
+  '/api/v1/admin/question-versions/{versionId}',
+  '/api/v1/admin/question-versions/{versionId}/invalidate',
+  '/api/v1/admin/question-versions/{versionId}/publish',
+  '/api/v1/admin/question-versions/{versionId}/validate',
+  '/api/v1/admin/vocabularies',
+  '/api/v1/admin/vocabularies/{vocabularyId}',
+  '/api/v1/admin/vocabularies/{vocabularyId}/hide',
+  '/api/v1/admin/vocabularies/{vocabularyId}/publish',
+  '/api/v1/admin/vocabularies/{vocabularyId}/restore',
   '/api/v1/auth/login',
   '/api/v1/auth/mfa/totp/challenge',
   '/api/v1/auth/mfa/totp/setup',
@@ -41,6 +60,172 @@ type LearnerOperationExpectation = {
   success: readonly [status: string, dto?: string];
   errors: readonly string[];
 };
+
+type AdminOperationExpectation = LearnerOperationExpectation & {
+  headers?: readonly string[];
+};
+
+const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
+  {
+    method: 'post',
+    path: '/api/v1/admin/content-imports',
+    headers: ['Idempotency-Key'],
+    body: 'ContentImportRequestDto',
+    success: ['201', 'ContentImportDetailResponseDto'],
+    errors: ['400', '401', '403', '409', '413', '429', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/admin/content-imports',
+    query: ['page', 'pageSize'],
+    success: ['200', 'ContentImportListResponseDto'],
+    errors: ['400', '401', '403', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/admin/content-imports/{importId}',
+    pathParameters: ['importId'],
+    success: ['200', 'ContentImportDetailResponseDto'],
+    errors: ['400', '401', '403', '404', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/media-assets/audio-upload-requests',
+    body: 'AudioUploadRequestDto',
+    success: ['201', 'AudioUploadResponseDto'],
+    errors: ['400', '401', '403', '413', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/media-assets/{mediaAssetId}/complete',
+    pathParameters: ['mediaAssetId'],
+    success: ['200', 'CompleteMediaAssetResponseDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/admin/media-assets/{mediaAssetId}',
+    pathParameters: ['mediaAssetId'],
+    success: ['200', 'MediaAssetDetailResponseDto'],
+    errors: ['400', '401', '403', '404', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/admin/questions',
+    query: [
+      'status',
+      'versionStatus',
+      'validationStatus',
+      'questionTypeSlug',
+      'skill',
+      'difficulty',
+      'page',
+      'pageSize',
+    ],
+    success: ['200', 'AdminQuestionListResponseDto'],
+    errors: ['400', '401', '403', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/admin/questions/{questionId}',
+    pathParameters: ['questionId'],
+    success: ['200', 'AdminQuestionDetailResponseDto'],
+    errors: ['400', '401', '403', '404', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/questions/{questionId}/versions',
+    pathParameters: ['questionId'],
+    success: ['201', 'AdminQuestionVersionResponseDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'put',
+    path: '/api/v1/admin/question-versions/{versionId}',
+    pathParameters: ['versionId'],
+    body: 'AdminQuestionVersionPayloadDto',
+    success: ['200', 'AdminQuestionVersionResponseDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/question-versions/{versionId}/validate',
+    pathParameters: ['versionId'],
+    success: ['200', 'AdminQuestionValidationReportDto'],
+    errors: ['400', '401', '403', '404', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/question-versions/{versionId}/publish',
+    pathParameters: ['versionId'],
+    success: ['204'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/question-versions/{versionId}/invalidate',
+    pathParameters: ['versionId'],
+    success: ['204'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/questions/{questionId}/hide',
+    pathParameters: ['questionId'],
+    success: ['204'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/questions/{questionId}/restore',
+    pathParameters: ['questionId'],
+    success: ['204'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/admin/vocabularies',
+    query: ['query', 'kind', 'status', 'page', 'pageSize'],
+    success: ['200', 'AdminVocabularyListResponseDto'],
+    errors: ['400', '401', '403', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/admin/vocabularies/{vocabularyId}',
+    pathParameters: ['vocabularyId'],
+    success: ['200', 'AdminVocabularyDetailResponseDto'],
+    errors: ['400', '401', '403', '404', '500'],
+  },
+  {
+    method: 'put',
+    path: '/api/v1/admin/vocabularies/{vocabularyId}',
+    pathParameters: ['vocabularyId'],
+    body: 'AdminVocabularyReplaceRequestDto',
+    success: ['204'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/vocabularies/{vocabularyId}/publish',
+    pathParameters: ['vocabularyId'],
+    success: ['204'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/vocabularies/{vocabularyId}/hide',
+    pathParameters: ['vocabularyId'],
+    success: ['204'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/vocabularies/{vocabularyId}/restore',
+    pathParameters: ['vocabularyId'],
+    success: ['204'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+];
 
 const LEARNER_OPERATIONS: readonly LearnerOperationExpectation[] = [
   {
@@ -160,7 +345,7 @@ describe('OpenAPI 문서', () => {
     await app?.close();
   });
 
-  it('현재 활성 endpoint의 서로 다른 path 열아홉 개만 공개한다', () => {
+  it('현재 활성 endpoint의 서로 다른 path 서른여덟 개만 공개한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
@@ -312,6 +497,125 @@ describe('OpenAPI 문서', () => {
         });
       });
     });
+  });
+
+  it('관리자 operation 스물한 개의 입력·성공·Bearer·오류 계약을 모두 고정한다', () => {
+    if (!app)
+      throw new Error('OpenAPI test application이 초기화되지 않았습니다');
+    const document = createOpenApiDocument(app);
+
+    expect(ADMIN_OPERATIONS).toHaveLength(21);
+    ADMIN_OPERATIONS.forEach((expected) => {
+      const operation = document.paths[expected.path]?.[expected.method];
+      expect(
+        operation,
+        `${expected.method.toUpperCase()} ${expected.path}`,
+      ).toBeDefined();
+      if (!operation) return;
+
+      expect(operation.security).toContainEqual({ accessToken: [] });
+      const parameters = (operation.parameters ?? []).flatMap((parameter) =>
+        'name' in parameter ? [parameter] : [],
+      );
+      const pathParameters = parameters.filter(
+        (parameter) => parameter.in === 'path',
+      );
+      const queryParameters = parameters.filter(
+        (parameter) => parameter.in === 'query',
+      );
+      const headerParameters = parameters.filter(
+        (parameter) => parameter.in === 'header',
+      );
+      expect(pathParameters.map(({ name }) => name).sort()).toEqual(
+        [...(expected.pathParameters ?? [])].sort(),
+      );
+      pathParameters.forEach((parameter) => {
+        expect(parameter.required).toBe(true);
+        expect(parameter.schema).toMatchObject({
+          type: 'string',
+          format: 'uuid',
+        });
+      });
+      expect(queryParameters.map(({ name }) => name).sort()).toEqual(
+        [...(expected.query ?? [])].sort(),
+      );
+      expect(headerParameters.map(({ name }) => name).sort()).toEqual(
+        [...(expected.headers ?? [])].sort(),
+      );
+      headerParameters.forEach((parameter) => {
+        expect(parameter.required).toBe(true);
+
+        if (parameter.name === 'Idempotency-Key') {
+          expect(parameter.schema).toMatchObject({
+            type: 'string',
+            format: 'uuid',
+          });
+        }
+      });
+
+      if (expected.body) {
+        expect(operation.requestBody).toMatchObject({
+          content: {
+            'application/json': {
+              schema: {
+                $ref: `#/components/schemas/${expected.body}`,
+              },
+            },
+          },
+        });
+      } else {
+        expect(operation.requestBody).toBeUndefined();
+      }
+
+      const [successStatus, successDto] = expected.success;
+      const success = operation.responses[successStatus];
+      expect(success).toBeDefined();
+      if (successDto) {
+        expect(success).toMatchObject({
+          content: {
+            'application/json': {
+              schema: {
+                $ref: `#/components/schemas/${successDto}`,
+              },
+            },
+          },
+        });
+      } else {
+        expect(success).not.toHaveProperty('content');
+      }
+
+      expect(Object.keys(operation.responses).sort()).toEqual(
+        [successStatus, ...expected.errors].sort(),
+      );
+      expected.errors.forEach((status) => {
+        expect(operation.responses[status]).toMatchObject({
+          content: {
+            'application/problem+json': {
+              schema: { $ref: '#/components/schemas/ProblemDetailsDto' },
+            },
+          },
+        });
+      });
+    });
+  });
+
+  it('관리자 DTO component JSON에는 private 내부 필드가 없다', () => {
+    if (!app)
+      throw new Error('OpenAPI test application이 초기화되지 않았습니다');
+    const document = createOpenApiDocument(app);
+    const adminComponents = Object.fromEntries(
+      Object.entries(document.components?.schemas ?? {}).filter(([name]) =>
+        /Admin|ContentImport|MediaAsset|AudioUpload/u.test(name),
+      ),
+    );
+    const serialized = JSON.stringify(adminComponents);
+
+    expect(serialized).not.toMatch(
+      /storageKey|requestHash|referenceMap|isCorrect|dbRow/u,
+    );
+    expect(adminComponents).toHaveProperty('ContentImportRequestDto');
+    expect(adminComponents).toHaveProperty('AdminQuestionDetailResponseDto');
+    expect(adminComponents).toHaveProperty('AdminVocabularyDetailResponseDto');
   });
 
   it('문제 상세 schema에는 정답·검증·private storage 필드가 없다', () => {

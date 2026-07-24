@@ -2,6 +2,7 @@
 import { z } from 'zod';
 
 const localMediaDefaults = {
+  MEDIA_BUCKET_NAME: 'local-fake-media-bucket',
   MEDIA_CDN_BASE_URL: 'https://fake-media.invalid/media',
   MEDIA_KEY_PAIR_ID: 'local-fake-key-pair',
   MEDIA_PRIVATE_KEY_SECRET_ARN: 'local-fake-media-secret',
@@ -34,6 +35,7 @@ const apiEnvSchema = z
     AUTH_LIMIT_PARAMETER_PREFIX: z.string().default('/flex-thia/prod/auth'),
     ALARM_TOPIC_ARN: z.string().optional(),
     MEDIA_CDN_BASE_URL: z.string().trim().url().optional(),
+    MEDIA_BUCKET_NAME: z.string().trim().min(1).optional(),
     MEDIA_KEY_PAIR_ID: z.string().trim().min(1).optional(),
     MEDIA_PRIVATE_KEY_SECRET_ARN: z.string().trim().min(1).optional(),
     FAKE_USER_SUB: z.string().default('local-admin-sub'),
@@ -64,6 +66,7 @@ const apiEnvSchema = z
         value.COGNITO_USER_POOL_ID,
         value.COGNITO_CLIENT_ID,
         value.MEDIA_CDN_BASE_URL,
+        value.MEDIA_BUCKET_NAME,
         value.MEDIA_KEY_PAIR_ID,
         value.MEDIA_PRIVATE_KEY_SECRET_ARN,
       ];
@@ -91,6 +94,8 @@ const apiEnvSchema = z
     ...value,
     MEDIA_CDN_BASE_URL:
       value.MEDIA_CDN_BASE_URL ?? localMediaDefaults.MEDIA_CDN_BASE_URL,
+    MEDIA_BUCKET_NAME:
+      value.MEDIA_BUCKET_NAME ?? localMediaDefaults.MEDIA_BUCKET_NAME,
     MEDIA_KEY_PAIR_ID:
       value.MEDIA_KEY_PAIR_ID ?? localMediaDefaults.MEDIA_KEY_PAIR_ID,
     MEDIA_PRIVATE_KEY_SECRET_ARN:

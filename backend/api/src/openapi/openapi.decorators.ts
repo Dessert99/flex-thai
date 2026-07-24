@@ -39,6 +39,14 @@ export const ApiProblemResponse = (status: number, description: string) =>
     },
   });
 
+/** operation별 exact 오류 상태 집합을 같은 Problem Details 계약으로 문서화한다 */
+export const ApiProblemResponses = (...statuses: number[]) =>
+  applyDecorators(
+    ...statuses.map((status) =>
+      ApiProblemResponse(status, `HTTP ${status} 요청 처리 실패`),
+    ),
+  );
+
 /** 인증 완료와 TOTP challenge 분기를 하나의 성공 응답으로 문서화한다 */
 export const ApiAuthenticationResponse = () =>
   ApiCreatedResponse({
