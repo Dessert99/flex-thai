@@ -317,7 +317,7 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
     ]);
   });
 
-  it('최신 콘텐츠 재검증 실패 기록을 commit한 뒤 상태 변경 없이 오류를 던진다', async () => {
+  it('게시용 최신 콘텐츠 재검증 실패는 검증 저장까지 rollback한다', async () => {
     const calls: string[] = [];
     const invalidCandidate = candidate();
     invalidCandidate.difficulty = 6;
@@ -334,7 +334,6 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
       'loadVersion',
       'loadValidationCandidate',
       'saveValidation',
-      'transactionCommitted',
     ]);
   });
 

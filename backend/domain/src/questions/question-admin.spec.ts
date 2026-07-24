@@ -455,6 +455,20 @@ describe('QuestionAdminService 문제 버전 전체 교체', () => {
     ]);
   });
 
+  it('공개 계약이 허용하는 공백 slug와 빈 toneMarks를 그대로 허용한다', async () => {
+    const calls: string[] = [];
+    const command = replaceCommand();
+    command.input.questionTypeSlug = ' ';
+    command.input.blocks[0]!.sentences[0]!.sentence.toneMarks = '';
+    command.input.options[0]!.sentence.toneMarks = '';
+    const service = createService(createTransaction(calls), calls);
+
+    await expect(service.replaceVersion(command)).resolves.toMatchObject({
+      status: 'DRAFT',
+      validationStatus: 'PENDING',
+    });
+  });
+
   it.each(['PUBLISHED', 'RETIRED', 'INVALIDATED'] as const)(
     '%s 버전은 IMMUTABLE_VERSION으로 교체를 거절한다',
     async (status) => {
@@ -525,23 +539,100 @@ describe('QuestionAdminService 문제 버전 전체 교체', () => {
       code: 'QUESTION_REFERENCE_NOT_FOUND',
       path: 'blocks.0.sentences.0.sentence.tokens.0.vocabulary',
     });
-    expect(calls).not.toContain('replaceVersion');
+    expect(calls).toEqual([]);
   });
 
-  it('타입만으로 우회한 비정상 canonical 구조는 lookup 전에 거절한다', async () => {
+  it.each([
+    {
+      name: 'blocks가 배열이 아님',
+      mutate: (command: ReplaceQuestionVersionCommand) => {
+        (command.input as unknown as { blocks: unknown }).blocks = {};
+      },
+    },
+    {
+      name: '문장 originalText가 빈 문자열',
+      mutate: (command: ReplaceQuestionVersionCommand) => {
+        command.input.blocks[0]!.sentences[0]!.sentence.originalText = '';
+      },
+    },
+    {
+      name: 'block kind가 허용 enum 밖',
+      mutate: (command: ReplaceQuestionVersionCommand) => {
+        (
+          command.input.blocks[0] as unknown as {
+            kind: unknown;
+          }
+        ).kind = 'UNKNOWN';
+      },
+    },
+    {
+      name: 'token role이 허용 enum 밖',
+      mutate: (command: ReplaceQuestionVersionCommand) => {
+        (
+          command.input.blocks[0]!.sentences[0]!.sentence
+            .tokens[0] as unknown as { role: unknown }
+        ).role = 'UNKNOWN';
+      },
+    },
+    {
+      name: 'sentence media ID가 UUID가 아님',
+      mutate: (command: ReplaceQuestionVersionCommand) => {
+        command.input.blocks[0]!.sentences[0]!.sentence.mediaAssetId =
+          'not-a-uuid';
+      },
+    },
+    {
+      name: '직접 vocabulary ref ID가 UUID가 아님',
+      mutate: (command: ReplaceQuestionVersionCommand) => {
+        command.input.blocks[0]!.sentences[0]!.sentence.tokens[0]!.vocabulary =
+          { id: 'not-a-uuid' };
+      },
+    },
+    {
+      name: 'block speaker가 빈 문자열',
+      mutate: (command: ReplaceQuestionVersionCommand) => {
+        command.input.blocks[0]!.sentences[0]!.speaker = '';
+      },
+    },
+    {
+      name: 'expression representative가 boolean이 아님',
+      mutate: (command: ReplaceQuestionVersionCommand) => {
+        const sentence = command.input.blocks[0]!.sentences[0]!.sentence;
+        sentence.expressions = [
+          {
+            startTokenIndex: 0,
+            endTokenIndex: 2,
+            vocabulary: {
+              id: '00000000-0000-4000-8000-000000000108',
+            },
+            representative: 'yes',
+          } as unknown as (typeof sentence.expressions)[number],
+        ];
+      },
+    },
+    {
+      name: 'option clientRef가 빈 문자열',
+      mutate: (command: ReplaceQuestionVersionCommand) => {
+        command.input.options[0]!.clientRef = '';
+      },
+    },
+    {
+      name: 'strict payload에 알 수 없는 key가 있음',
+      mutate: (command: ReplaceQuestionVersionCommand) => {
+        (command.input as unknown as Record<string, unknown>).unknownField =
+          true;
+      },
+    },
+  ])('타입을 우회한 $name 입력은 DB 호출 전에 거절한다', async ({ mutate }) => {
     const calls: string[] = [];
     const command = replaceCommand();
-    command.input.difficulty = 6;
-    command.input.blocks = [];
+    mutate(command);
     const service = createService(createTransaction(calls), calls);
 
     await expect(service.replaceVersion(command)).rejects.toMatchObject({
       code: 'QUESTION_CONTENT_INVALID',
-      path: 'question',
     });
-    expect(calls).toEqual([
-      'loadVersionSource:00000000-0000-4000-8000-000000000105',
-    ]);
+    expect(calls).toEqual([]);
   });
 
   it('교체 audit 실패는 transaction 성공으로 처리하지 않는다', async () => {

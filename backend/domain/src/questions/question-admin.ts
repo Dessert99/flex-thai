@@ -110,41 +110,330 @@ const createDraftVersion = (input: {
   publishedAt: null,
 });
 
-const assertQuestionInput = (
-  input: ReplaceQuestionVersionCommand['input'],
+type UnknownRecord = Record<string, unknown>;
+
+const failInvalidContent = (path: string): never => {
+  throw new QuestionAdminError('QUESTION_CONTENT_INVALID', path);
+};
+
+const requireRecord = (value: unknown, path: string): UnknownRecord => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return failInvalidContent(path);
+  }
+  return value as UnknownRecord;
+};
+
+const requireExactKeys = (
+  value: UnknownRecord,
+  required: readonly string[],
+  optional: readonly string[],
+  path: string,
 ): void => {
-  const optionRefs = input.options.map(({ clientRef }) => clientRef);
+  const allowed = new Set([...required, ...optional]);
   if (
-    input.questionTypeSlug.trim().length === 0 ||
-    !Number.isSafeInteger(input.questionTypeVersion) ||
-    input.questionTypeVersion < 1 ||
-    !Number.isSafeInteger(input.difficulty) ||
-    input.difficulty < 1 ||
-    input.difficulty > 5 ||
-    input.blocks.length === 0 ||
-    input.blocks.some(({ sentences }) => sentences.length === 0) ||
-    input.options.length === 0
+    required.some((key) => !Object.hasOwn(value, key)) ||
+    Object.keys(value).some((key) => !allowed.has(key))
   ) {
-    throw new QuestionAdminError('QUESTION_CONTENT_INVALID', 'question');
+    failInvalidContent(path);
   }
+};
+
+const requireNonemptyString = (value: unknown, path: string): string => {
+  if (typeof value !== 'string' || value.length === 0) {
+    return failInvalidContent(path);
+  }
+  return value;
+};
+
+const requireSafeInteger = (
+  value: unknown,
+  minimum: number,
+  maximum: number,
+  path: string,
+): number => {
   if (
-    optionRefs.some((ref) => ref.length === 0) ||
-    new Set(optionRefs).size !== optionRefs.length ||
-    !optionRefs.includes(input.correctOptionRef)
+    typeof value !== 'number' ||
+    !Number.isSafeInteger(value) ||
+    value < minimum ||
+    value > maximum
   ) {
-    throw new QuestionAdminError(
-      'QUESTION_CONTENT_INVALID',
-      'correctOptionRef',
+    return failInvalidContent(path);
+  }
+  return value;
+};
+
+const requireArray = (value: unknown, path: string): unknown[] => {
+  if (!Array.isArray(value)) {
+    return failInvalidContent(path);
+  }
+  return value;
+};
+
+const requireEnum = (
+  value: unknown,
+  allowed: readonly string[],
+  path: string,
+): string => {
+  if (typeof value !== 'string' || !allowed.includes(value)) {
+    return failInvalidContent(path);
+  }
+  return value;
+};
+
+const requireUuid = (value: unknown, path: string): string => {
+  if (typeof value !== 'string' || !UUID_PATTERN.test(value)) {
+    return failInvalidContent(path);
+  }
+  return value;
+};
+
+const assertReference = (value: unknown, path: string): void => {
+  const reference = requireRecord(value, path);
+  const keys = Object.keys(reference);
+  if (keys.length !== 1) {
+    failInvalidContent(path);
+  }
+  if (keys[0] === 'id') {
+    requireUuid(reference.id, `${path}.id`);
+    return;
+  }
+  if (keys[0] === 'clientRef') {
+    requireNonemptyString(reference.clientRef, `${path}.clientRef`);
+    // 전체 교체 요청에는 import 안에서 만든 clientRef를 해석할 문맥이 없다.
+    throw new QuestionAdminError('QUESTION_REFERENCE_NOT_FOUND', path);
+  }
+  failInvalidContent(path);
+};
+
+const assertSentenceInput = (value: unknown, path: string): void => {
+  const sentence = requireRecord(value, path);
+  requireExactKeys(
+    sentence,
+    [
+      'originalText',
+      'translationKo',
+      'pronunciationKo',
+      'toneMarks',
+      'mediaAssetId',
+      'tokens',
+      'expressions',
+    ],
+    [],
+    path,
+  );
+  const originalText = requireNonemptyString(
+    sentence.originalText,
+    `${path}.originalText`,
+  );
+  requireNonemptyString(sentence.translationKo, `${path}.translationKo`);
+  requireNonemptyString(sentence.pronunciationKo, `${path}.pronunciationKo`);
+  if (typeof sentence.toneMarks !== 'string') {
+    failInvalidContent(`${path}.toneMarks`);
+  }
+  requireUuid(sentence.mediaAssetId, `${path}.mediaAssetId`);
+
+  const codePoints = Array.from(originalText);
+  let previousEnd = 0;
+  const tokens = requireArray(sentence.tokens, `${path}.tokens`);
+  tokens.forEach((value, index) => {
+    const tokenPath = `${path}.tokens.${index}`;
+    const token = requireRecord(value, tokenPath);
+    requireExactKeys(
+      token,
+      [
+        'surface',
+        'startOffset',
+        'endOffset',
+        'vocabulary',
+        'meaning',
+        'pronunciation',
+        'contextMeaningKo',
+        'role',
+      ],
+      [],
+      tokenPath,
     );
-  }
-  input.options.forEach((option, index) => {
-    if (option.position !== index) {
-      throw new QuestionAdminError(
-        'QUESTION_CONTENT_INVALID',
-        `options.${index}.position`,
-      );
+    const surface = requireNonemptyString(
+      token.surface,
+      `${tokenPath}.surface`,
+    );
+    const startOffset = requireSafeInteger(
+      token.startOffset,
+      0,
+      Number.MAX_SAFE_INTEGER,
+      `${tokenPath}.startOffset`,
+    );
+    const endOffset = requireSafeInteger(
+      token.endOffset,
+      1,
+      Number.MAX_SAFE_INTEGER,
+      `${tokenPath}.endOffset`,
+    );
+    assertReference(token.vocabulary, `${tokenPath}.vocabulary`);
+    assertReference(token.meaning, `${tokenPath}.meaning`);
+    assertReference(token.pronunciation, `${tokenPath}.pronunciation`);
+    requireNonemptyString(
+      token.contextMeaningKo,
+      `${tokenPath}.contextMeaningKo`,
+    );
+    requireEnum(
+      token.role,
+      ['TARGET', 'REQUIRED', 'SUPPORTING'],
+      `${tokenPath}.role`,
+    );
+    if (
+      endOffset <= startOffset ||
+      endOffset > codePoints.length ||
+      startOffset < previousEnd
+    ) {
+      failInvalidContent(tokenPath);
+    }
+    if (codePoints.slice(startOffset, endOffset).join('') !== surface) {
+      failInvalidContent(`${tokenPath}.surface`);
+    }
+    previousEnd = Math.max(previousEnd, endOffset);
+  });
+
+  const expressions = requireArray(sentence.expressions, `${path}.expressions`);
+  expressions.forEach((value, index) => {
+    const expressionPath = `${path}.expressions.${index}`;
+    const expression = requireRecord(value, expressionPath);
+    requireExactKeys(
+      expression,
+      ['startTokenIndex', 'endTokenIndex', 'vocabulary'],
+      ['representative'],
+      expressionPath,
+    );
+    const startTokenIndex = requireSafeInteger(
+      expression.startTokenIndex,
+      0,
+      Number.MAX_SAFE_INTEGER,
+      `${expressionPath}.startTokenIndex`,
+    );
+    const endTokenIndex = requireSafeInteger(
+      expression.endTokenIndex,
+      1,
+      Number.MAX_SAFE_INTEGER,
+      `${expressionPath}.endTokenIndex`,
+    );
+    assertReference(expression.vocabulary, `${expressionPath}.vocabulary`);
+    if (
+      expression.representative !== undefined &&
+      typeof expression.representative !== 'boolean'
+    ) {
+      failInvalidContent(`${expressionPath}.representative`);
+    }
+    if (endTokenIndex - startTokenIndex < 2 || endTokenIndex > tokens.length) {
+      failInvalidContent(expressionPath);
     }
   });
+};
+
+const assertQuestionInput = (value: unknown): void => {
+  const input = requireRecord(value, 'question');
+  requireExactKeys(
+    input,
+    [
+      'questionTypeSlug',
+      'questionTypeVersion',
+      'difficulty',
+      'blocks',
+      'options',
+      'correctOptionRef',
+    ],
+    [],
+    'question',
+  );
+  requireNonemptyString(input.questionTypeSlug, 'questionTypeSlug');
+  requireSafeInteger(
+    input.questionTypeVersion,
+    1,
+    Number.MAX_SAFE_INTEGER,
+    'questionTypeVersion',
+  );
+  requireSafeInteger(input.difficulty, 1, 5, 'difficulty');
+
+  const blocks = requireArray(input.blocks, 'blocks');
+  if (blocks.length === 0) {
+    failInvalidContent('blocks');
+  }
+  blocks.forEach((value, blockIndex) => {
+    const blockPath = `blocks.${blockIndex}`;
+    const block = requireRecord(value, blockPath);
+    requireExactKeys(
+      block,
+      ['kind', 'displayMode', 'sentences'],
+      [],
+      blockPath,
+    );
+    requireEnum(
+      block.kind,
+      ['INSTRUCTION', 'PASSAGE', 'DIALOGUE', 'QUESTION', 'EXPLANATION'],
+      `${blockPath}.kind`,
+    );
+    requireEnum(
+      block.displayMode,
+      ['TEXT', 'AUDIO', 'TEXT_AND_AUDIO', 'AUDIO_THEN_REVEAL'],
+      `${blockPath}.displayMode`,
+    );
+    const sentences = requireArray(block.sentences, `${blockPath}.sentences`);
+    if (sentences.length === 0) {
+      failInvalidContent(`${blockPath}.sentences`);
+    }
+    sentences.forEach((value, sentenceIndex) => {
+      const entryPath = `${blockPath}.sentences.${sentenceIndex}`;
+      const entry = requireRecord(value, entryPath);
+      requireExactKeys(entry, ['sentence'], ['speaker'], entryPath);
+      if (
+        entry.speaker !== undefined &&
+        entry.speaker !== null &&
+        (typeof entry.speaker !== 'string' || entry.speaker.length === 0)
+      ) {
+        failInvalidContent(`${entryPath}.speaker`);
+      }
+      assertSentenceInput(entry.sentence, `${entryPath}.sentence`);
+    });
+  });
+
+  const options = requireArray(input.options, 'options');
+  if (options.length === 0) {
+    failInvalidContent('options');
+  }
+  const optionRefs = options.map((value, optionIndex) => {
+    const optionPath = `options.${optionIndex}`;
+    const option = requireRecord(value, optionPath);
+    requireExactKeys(
+      option,
+      ['clientRef', 'position', 'sentence'],
+      [],
+      optionPath,
+    );
+    const clientRef = requireNonemptyString(
+      option.clientRef,
+      `${optionPath}.clientRef`,
+    );
+    const position = requireSafeInteger(
+      option.position,
+      0,
+      Number.MAX_SAFE_INTEGER,
+      `${optionPath}.position`,
+    );
+    if (position !== optionIndex) {
+      failInvalidContent(`${optionPath}.position`);
+    }
+    assertSentenceInput(option.sentence, `${optionPath}.sentence`);
+    return clientRef;
+  });
+  const correctOptionRef = requireNonemptyString(
+    input.correctOptionRef,
+    'correctOptionRef',
+  );
+  if (
+    new Set(optionRefs).size !== optionRefs.length ||
+    !optionRefs.includes(correctOptionRef)
+  ) {
+    failInvalidContent('correctOptionRef');
+  }
 };
 
 const toResult = (
@@ -434,6 +723,7 @@ export class QuestionAdminService {
   async replaceVersion(
     command: ReplaceQuestionVersionCommand,
   ): Promise<QuestionAdminVersionResult> {
+    assertQuestionInput(command.input);
     return this.repository.runInTransaction(async (transaction) => {
       const current = await transaction.loadVersionSource(command.versionId);
       if (!current) {
@@ -442,7 +732,6 @@ export class QuestionAdminService {
       if (current.status !== 'DRAFT') {
         throw new QuestionAdminError('IMMUTABLE_VERSION');
       }
-      assertQuestionInput(command.input);
       const typeVersion = await transaction.findQuestionTypeVersion(
         command.input.questionTypeSlug,
         command.input.questionTypeVersion,

@@ -698,6 +698,75 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       expect(stored.rows[0]?.validatedAt).toBeInstanceOf(Date);
     });
 
+    it('게시용 최신 검증 실패는 검증 결과와 감사를 포함한 transaction 전체를 rollback한다', async () => {
+      const fixture = await createIntegrationFixture(pool);
+      const database = drizzle({ client: pool, schema });
+      const admin = new QuestionAdminService(
+        new DrizzleQuestionAdminRepository(database),
+      );
+      const draft = await admin.cloneVersion({
+        questionId: fixture.questionId,
+        ...commandContext(fixture),
+      });
+      await admin.replaceVersion({
+        versionId: draft.versionId,
+        input: replacementInput(fixture, 1),
+        ...commandContext(fixture),
+      });
+      const publication = new QuestionPublicationService(
+        new DrizzleQuestionPublicationRepository(database),
+      );
+
+      await expect(
+        publication.publishVersion({
+          questionId: fixture.questionId,
+          versionId: draft.versionId,
+          ...commandContext(fixture),
+        }),
+      ).rejects.toMatchObject({
+        code: 'QUESTION_VERSION_NOT_PUBLISHABLE',
+      });
+
+      const stored = await pool.query<{
+        currentPublishedVersionId: string;
+        draftIssues: unknown[];
+        draftPublishedAt: Date | null;
+        draftStatus: string;
+        draftValidatedAt: Date | null;
+        draftValidationStatus: string;
+        publishAuditCount: string;
+        validationAuditCount: string;
+      }>(
+        `select
+           q.current_published_version_id "currentPublishedVersionId",
+           draft.status "draftStatus",
+           draft.validation_status "draftValidationStatus",
+           draft.validation_issues "draftIssues",
+           draft.validated_at "draftValidatedAt",
+           draft.published_at "draftPublishedAt",
+           (select count(*) from audit_logs
+             where target_id = draft.id
+               and action = 'QUESTION_VERSION_PUBLISHED') "publishAuditCount",
+           (select count(*) from audit_logs
+             where target_id = draft.id
+               and action = 'QUESTION_VERSION_VALIDATED') "validationAuditCount"
+         from questions q
+         join question_versions draft on draft.id = $2
+         where q.id = $1`,
+        [fixture.questionId, draft.versionId],
+      );
+      expect(stored.rows[0]).toEqual({
+        currentPublishedVersionId: fixture.publishedVersionId,
+        draftStatus: 'DRAFT',
+        draftValidationStatus: 'PENDING',
+        draftIssues: [],
+        draftValidatedAt: null,
+        draftPublishedAt: null,
+        publishAuditCount: '0',
+        validationAuditCount: '0',
+      });
+    });
+
     it('새 버전 publish는 이전 버전을 retire하고 invalidate는 문제를 숨긴다', async () => {
       const fixture = await createIntegrationFixture(pool);
       const database = drizzle({ client: pool, schema });

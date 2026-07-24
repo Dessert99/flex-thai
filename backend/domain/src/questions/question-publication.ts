@@ -96,9 +96,6 @@ const validateInTransaction = async (
   return report;
 };
 
-type PublishVersionTransactionResult =
-  { status: 'NOT_PUBLISHABLE' } | { status: 'PUBLISHED' };
-
 /** 문제 버전 게시와 문제 노출 상태 전이를 수행한다 */
 export class QuestionPublicationService {
   constructor(private readonly repository: QuestionPublicationRepository) {}
@@ -132,8 +129,8 @@ export class QuestionPublicationService {
 
   /** 초안 버전을 게시하고 참조 문장과 현재 버전을 함께 동결한다 */
   async publishVersion(command: PublishQuestionVersionCommand): Promise<void> {
-    const result = await this.repository.runInTransaction(
-      async (transaction): Promise<PublishVersionTransactionResult> => {
+    await this.repository.runInTransaction(
+      async (transaction): Promise<void> => {
         const question = assertQuestion(
           await transaction.loadQuestion(command.questionId),
         );
@@ -153,9 +150,11 @@ export class QuestionPublicationService {
           version.id,
           command.occurredAt,
         );
-        // 실패한 최신 검증 결과는 기록하되 상태 전이에는 절대 쓰지 않는다.
+        // 게시용 검증 실패는 transaction 안에서 던져 저장한 검증 결과도 되돌린다.
         if (report.status === 'FAILED') {
-          return { status: 'NOT_PUBLISHABLE' };
+          throw new QuestionPublicationError(
+            'QUESTION_VERSION_NOT_PUBLISHABLE',
+          );
         }
         if (
           question.currentPublishedVersionId &&
@@ -185,12 +184,8 @@ export class QuestionPublicationService {
           requestId: command.requestId,
           occurredAt: command.occurredAt,
         });
-        return { status: 'PUBLISHED' };
       },
     );
-    if (result.status === 'NOT_PUBLISHABLE') {
-      throw new QuestionPublicationError('QUESTION_VERSION_NOT_PUBLISHABLE');
-    }
   }
 
   /** 현재 게시 버전을 무효화하고 노출 중인 문제를 함께 숨긴다 */
