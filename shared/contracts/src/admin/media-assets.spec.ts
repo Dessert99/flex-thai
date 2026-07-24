@@ -1,8 +1,10 @@
 /** 관리자 음성 업로드와 자산 사용처 공개 계약을 검증한다 */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
+import type { CompleteMediaAssetResponse } from './media-assets.js';
 import {
   audioUploadRequestSchema,
   audioUploadResponseSchema,
+  completeMediaAssetResponseSchema,
   mediaAssetDetailResponseSchema,
   mediaAssetIdPathSchema,
 } from './media-assets.js';
@@ -66,7 +68,12 @@ describe('관리자 음성 자산 공개 응답 계약', () => {
       uploadRequired: true,
       upload: {
         url: 'https://uploads.example.com/',
-        fields: { key: 'opaque-policy-field', policy: 'signed-policy' },
+        fields: {
+          key: 'opaque-policy-field',
+          policy: 'signed-policy',
+          'x-amz-algorithm': 'AWS4-HMAC-SHA256',
+          'Content-Type': 'audio/mpeg',
+        },
         expiresAt: '2026-07-24T00:10:00.000Z',
       },
     } as const;
@@ -87,6 +94,44 @@ describe('관리자 음성 자산 공개 응답 계약', () => {
         storageKey: `audio/${ids.media}`,
       }),
     ).toThrow();
+  });
+
+  it('presigned form의 일반 S3 field는 허용하고 내부 이름은 중첩 위치에서도 거부한다', () => {
+    const response = {
+      mediaAssetId: ids.media,
+      status: 'UPLOADING',
+      uploadRequired: true,
+      upload: {
+        url: 'https://uploads.example.com/',
+        fields: {
+          key: 'audio/server-selected-id',
+          policy: 'signed-policy',
+          'x-amz-credential': 'credential',
+          'Content-Type': 'audio/mpeg',
+        },
+        expiresAt: '2026-07-24T00:10:00.000Z',
+      },
+    } as const;
+
+    expect(audioUploadResponseSchema.parse(response)).toEqual(response);
+    for (const internalKey of [
+      'storageKey',
+      'storage_key',
+      'RequestHash',
+      'reference-map',
+      'isCorrect',
+      'db_row',
+    ]) {
+      expect(() =>
+        audioUploadResponseSchema.parse({
+          ...response,
+          upload: {
+            ...response.upload,
+            fields: { ...response.upload.fields, [internalKey]: 'private' },
+          },
+        }),
+      ).toThrow();
+    }
   });
 
   it('상태와 발음·문장 사용처를 공개하되 storage key를 거부한다', () => {
@@ -115,5 +160,63 @@ describe('관리자 음성 자산 공개 응답 계약', () => {
         storageKey: `audio/${ids.media}`,
       }),
     ).toThrow();
+  });
+
+  it('완료 응답의 READY 상태와 검증 시각 type을 고정한다', () => {
+    const response = completeMediaAssetResponseSchema.parse({
+      mediaAssetId: ids.media,
+      status: 'READY',
+      readyAt: '2026-07-24T00:00:00.000Z',
+    });
+
+    expectTypeOf(response).toEqualTypeOf<CompleteMediaAssetResponse>();
+    expect(response.status).toBe('READY');
+  });
+
+  it('READY 상태는 확정 metadata가 필요하고 미완료 상태는 모두 null이어야 한다', () => {
+    const ready = {
+      id: ids.media,
+      kind: 'AUDIO',
+      status: 'READY',
+      declaredMimeType: 'audio/mpeg',
+      declaredSizeBytes: 1024,
+      declaredSha256: 'a'.repeat(64),
+      mimeType: 'audio/mpeg',
+      sizeBytes: 1024,
+      sha256: 'a'.repeat(64),
+      readyAt: '2026-07-24T00:00:00.000Z',
+      createdAt: '2026-07-23T23:59:00.000Z',
+      usage: {
+        pronunciations: { count: 0, ids: [] },
+        sentences: { count: 0, ids: [] },
+      },
+    } as const;
+
+    expect(() =>
+      mediaAssetDetailResponseSchema.parse({ ...ready, mimeType: null }),
+    ).toThrow();
+    expect(() =>
+      mediaAssetDetailResponseSchema.parse({
+        ...ready,
+        status: 'UPLOADING',
+      }),
+    ).toThrow();
+    expect(
+      mediaAssetDetailResponseSchema.parse({
+        ...ready,
+        status: 'REJECTED',
+        mimeType: null,
+        sizeBytes: null,
+        sha256: null,
+        readyAt: null,
+      }),
+    ).toEqual({
+      ...ready,
+      status: 'REJECTED',
+      mimeType: null,
+      sizeBytes: null,
+      sha256: null,
+      readyAt: null,
+    });
   });
 });

@@ -1,5 +1,10 @@
 /** 관리자 문제 조회·교체·검증 공개 계약을 검증한다 */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
+import type {
+  AdminQuestionIdPath,
+  AdminQuestionVersionIdPath,
+  AdminQuestionVersionResponse,
+} from './questions.js';
 import {
   adminQuestionDetailResponseSchema,
   adminQuestionIdPathSchema,
@@ -8,6 +13,7 @@ import {
   adminQuestionValidationReportSchema,
   adminQuestionVersionIdPathSchema,
   adminQuestionVersionPayloadSchema,
+  adminQuestionVersionResponseSchema,
 } from './questions.js';
 
 const ids = {
@@ -85,12 +91,17 @@ describe('관리자 문제 path·query·교체 payload 계약', () => {
   });
 
   it('question과 version UUID path를 strict하게 검증한다', () => {
-    expect(
-      adminQuestionIdPathSchema.parse({ questionId: ids.question }),
-    ).toEqual({ questionId: ids.question });
-    expect(
-      adminQuestionVersionIdPathSchema.parse({ versionId: ids.version }),
-    ).toEqual({ versionId: ids.version });
+    const questionPath = adminQuestionIdPathSchema.parse({
+      questionId: ids.question,
+    });
+    const versionPath = adminQuestionVersionIdPathSchema.parse({
+      versionId: ids.version,
+    });
+
+    expect(questionPath).toEqual({ questionId: ids.question });
+    expect(versionPath).toEqual({ versionId: ids.version });
+    expectTypeOf(questionPath).toEqualTypeOf<AdminQuestionIdPath>();
+    expectTypeOf(versionPath).toEqualTypeOf<AdminQuestionVersionIdPath>();
     expect(() =>
       adminQuestionVersionIdPathSchema.parse({
         versionId: ids.version,
@@ -208,7 +219,152 @@ describe('관리자 문제 공개 응답 계약', () => {
     expect(() =>
       adminQuestionDetailResponseSchema.parse({
         ...detail,
+        versions: [
+          {
+            ...detail.versions[0],
+            correctOptionId: ids.block,
+          },
+        ],
+      }),
+    ).toThrow();
+    expect(() =>
+      adminQuestionDetailResponseSchema.parse({
+        ...detail,
+        versions: [
+          {
+            ...detail.versions[0],
+            options: [
+              detail.versions[0].options[0],
+              detail.versions[0].options[0],
+            ],
+          },
+        ],
+      }),
+    ).toThrow();
+    expect(() =>
+      adminQuestionDetailResponseSchema.parse({
+        ...detail,
         storageKey: 'audio/private',
+      }),
+    ).toThrow();
+  });
+
+  it('버전 validation 상태와 issue·검증 시각 조합을 일관되게 검증한다', () => {
+    const base = {
+      questionId: ids.question,
+      status: 'DRAFT',
+      currentPublishedVersionId: null,
+      versions: [
+        {
+          id: ids.version,
+          version: 1,
+          status: 'DRAFT',
+          validation: {
+            status: 'PENDING',
+            issues: [],
+            validatedAt: null,
+          },
+          questionType: {
+            id: ids.type,
+            slug: 'reading-standard-choice',
+            version: 1,
+            skill: 'READING',
+            template: 'STANDARD_CHOICE',
+          },
+          difficulty: 2,
+          blocks: [],
+          options: [
+            {
+              id: ids.option,
+              position: 0,
+              sentenceVersionId: ids.sentence,
+            },
+          ],
+          correctOptionId: ids.option,
+          createdAt: '2026-07-24T00:00:00.000Z',
+          publishedAt: null,
+        },
+      ],
+      createdAt: '2026-07-24T00:00:00.000Z',
+      updatedAt: '2026-07-24T00:00:00.000Z',
+    } as const;
+    const issue = { path: 'options', code: 'OPTION_COUNT_INVALID' } as const;
+    const validatedAt = '2026-07-24T00:00:00.000Z';
+
+    expect(adminQuestionDetailResponseSchema.parse(base)).toEqual(base);
+    expect(
+      adminQuestionDetailResponseSchema.parse({
+        ...base,
+        versions: [
+          {
+            ...base.versions[0],
+            validation: {
+              status: 'PASSED',
+              issues: [],
+              validatedAt,
+            },
+          },
+        ],
+      }).versions[0]!.validation.status,
+    ).toBe('PASSED');
+    expect(
+      adminQuestionDetailResponseSchema.parse({
+        ...base,
+        versions: [
+          {
+            ...base.versions[0],
+            validation: {
+              status: 'FAILED',
+              issues: [issue],
+              validatedAt,
+            },
+          },
+        ],
+      }).versions[0]!.validation.status,
+    ).toBe('FAILED');
+    expect(() =>
+      adminQuestionDetailResponseSchema.parse({
+        ...base,
+        versions: [
+          {
+            ...base.versions[0],
+            validation: {
+              status: 'PENDING',
+              issues: [issue],
+              validatedAt,
+            },
+          },
+        ],
+      }),
+    ).toThrow();
+    expect(() =>
+      adminQuestionDetailResponseSchema.parse({
+        ...base,
+        versions: [
+          {
+            ...base.versions[0],
+            validation: {
+              status: 'PASSED',
+              issues: [],
+              validatedAt: null,
+            },
+          },
+        ],
+      }),
+    ).toThrow();
+    expect(() =>
+      adminQuestionDetailResponseSchema.parse({
+        ...base,
+        versions: [
+          {
+            ...base.versions[0],
+            validation: {
+              status: 'FAILED',
+              issues: [],
+              validatedAt,
+            },
+          },
+        ],
       }),
     ).toThrow();
   });
@@ -225,5 +381,18 @@ describe('관리자 문제 공개 응답 계약', () => {
         issues: [{ ...report.issues[0], dbRow: { id: ids.version } }],
       }),
     ).toThrow();
+  });
+
+  it('생성·교체한 문제 버전 요약의 named type을 제공한다', () => {
+    const response = adminQuestionVersionResponseSchema.parse({
+      questionId: ids.question,
+      versionId: ids.version,
+      version: 1,
+      status: 'DRAFT',
+      validationStatus: 'PENDING',
+    });
+
+    expectTypeOf(response).toEqualTypeOf<AdminQuestionVersionResponse>();
+    expect(response.version).toBe(1);
   });
 });

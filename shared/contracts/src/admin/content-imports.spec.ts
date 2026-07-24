@@ -1,11 +1,18 @@
 /** 관리자 콘텐츠 가져오기 요청과 공개 결과 계약을 검증한다 */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
+import type {
+  ContentImportIdPath,
+  ContentImportIdempotencyKeyHeader,
+  ContentImportItemResult,
+  ContentImportSummary,
+} from './content-imports.js';
 import {
   canonicalSentenceInputSchema,
   contentImportDetailResponseSchema,
   contentImportIdPathSchema,
   contentImportListQuerySchema,
   contentImportRequestSchema,
+  contentImportSummarySchema,
   idempotencyKeyHeaderSchema,
   refSchema,
 } from './content-imports.js';
@@ -209,12 +216,17 @@ describe('관리자 콘텐츠 가져오기 canonical 요청 계약', () => {
 
 describe('관리자 콘텐츠 가져오기 HTTP와 공개 응답 계약', () => {
   it('UUID Idempotency-Key·path와 페이지 query를 검증한다', () => {
-    expect(
-      idempotencyKeyHeaderSchema.parse({ 'idempotency-key': ids.import }),
-    ).toEqual({ 'idempotency-key': ids.import });
-    expect(contentImportIdPathSchema.parse({ importId: ids.import })).toEqual({
+    const header = idempotencyKeyHeaderSchema.parse({
+      'idempotency-key': ids.import,
+    });
+    const path = contentImportIdPathSchema.parse({ importId: ids.import });
+
+    expect(header).toEqual({ 'idempotency-key': ids.import });
+    expect(path).toEqual({
       importId: ids.import,
     });
+    expectTypeOf(header).toEqualTypeOf<ContentImportIdempotencyKeyHeader>();
+    expectTypeOf(path).toEqualTypeOf<ContentImportIdPath>();
     expect(contentImportListQuerySchema.parse({ page: '2' })).toEqual({
       page: 2,
       pageSize: 20,
@@ -265,5 +277,142 @@ describe('관리자 콘텐츠 가져오기 HTTP와 공개 응답 계약', () => 
         contentImportDetailResponseSchema.parse({ ...response, ...internal }),
       ).toThrow();
     }
+  });
+
+  it('공개 요약의 항목 합계·처리 합계와 최종 상태를 일관되게 검증한다', () => {
+    const summary = {
+      id: ids.import,
+      status: 'COMPLETED',
+      vocabularyCount: 1,
+      questionCount: 0,
+      importedCount: 1,
+      rejectedCount: 0,
+      createdAt: '2026-07-24T00:00:00.000Z',
+      completedAt: '2026-07-24T00:00:01.000Z',
+    } as const;
+
+    expect(contentImportSummarySchema.parse(summary)).toEqual(summary);
+    expectTypeOf(
+      contentImportSummarySchema.parse(summary),
+    ).toEqualTypeOf<ContentImportSummary>();
+    for (const invalid of [
+      {
+        ...summary,
+        vocabularyCount: 0,
+        importedCount: 0,
+      },
+      {
+        ...summary,
+        vocabularyCount: 101,
+        importedCount: 101,
+      },
+      {
+        ...summary,
+        importedCount: 0,
+      },
+      {
+        ...summary,
+        importedCount: 0,
+        rejectedCount: 1,
+      },
+      {
+        ...summary,
+        status: 'COMPLETED_WITH_FAILURES',
+      },
+    ]) {
+      expect(() => contentImportSummarySchema.parse(invalid)).toThrow();
+    }
+  });
+
+  it('상세 항목은 kind별 source index와 요약 count·status를 정확히 재구성한다', () => {
+    const detail = {
+      id: ids.import,
+      status: 'COMPLETED_WITH_FAILURES',
+      vocabularyCount: 2,
+      questionCount: 1,
+      importedCount: 2,
+      rejectedCount: 1,
+      createdAt: '2026-07-24T00:00:00.000Z',
+      completedAt: '2026-07-24T00:00:01.000Z',
+      items: [
+        {
+          kind: 'VOCABULARY',
+          sourceIndex: 0,
+          status: 'IMPORTED',
+          targetId: ids.target,
+          errors: [],
+        },
+        {
+          kind: 'VOCABULARY',
+          sourceIndex: 1,
+          status: 'REJECTED',
+          targetId: null,
+          errors: [{ path: 'thai', code: 'IMPORT_CONTENT_INVALID' }],
+        },
+        {
+          kind: 'QUESTION',
+          sourceIndex: 0,
+          status: 'IMPORTED',
+          targetId: ids.target,
+          errors: [],
+        },
+      ],
+    } as const;
+
+    expect(contentImportDetailResponseSchema.parse(detail)).toEqual(detail);
+    expectTypeOf(
+      contentImportDetailResponseSchema.parse(detail).items[0]!,
+    ).toEqualTypeOf<ContentImportItemResult>();
+    expect(() =>
+      contentImportDetailResponseSchema.parse({
+        ...detail,
+        items: detail.items.slice(0, 2),
+      }),
+    ).toThrow();
+    expect(() =>
+      contentImportDetailResponseSchema.parse({
+        ...detail,
+        items: [
+          detail.items[0],
+          { ...detail.items[1], sourceIndex: 0 },
+          detail.items[2],
+        ],
+      }),
+    ).toThrow();
+    expect(() =>
+      contentImportDetailResponseSchema.parse({
+        ...detail,
+        items: [
+          detail.items[0],
+          detail.items[1],
+          { ...detail.items[2], sourceIndex: 1 },
+        ],
+      }),
+    ).toThrow();
+    expect(() =>
+      contentImportDetailResponseSchema.parse({
+        ...detail,
+        items: [
+          detail.items[0],
+          detail.items[1],
+          {
+            ...detail.items[2],
+            status: 'REJECTED',
+            targetId: null,
+            errors: [{ path: 'blocks', code: 'IMPORT_CONTENT_INVALID' }],
+          },
+        ],
+      }),
+    ).toThrow();
+    expect(() =>
+      contentImportDetailResponseSchema.parse({
+        ...detail,
+        items: [
+          detail.items[0],
+          detail.items[1],
+          { ...detail.items[2], kind: 'VOCABULARY' },
+        ],
+      }),
+    ).toThrow();
   });
 });

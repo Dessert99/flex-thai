@@ -174,13 +174,29 @@ const adminQuestionOptionSchema = z
   })
   .strict();
 
-const adminQuestionValidationStateSchema = z
-  .object({
-    status: questionValidationStatusSchema,
-    issues: z.array(questionValidationIssueSchema),
-    validatedAt: utcDateTimeSchema.nullable(),
-  })
-  .strict();
+const adminQuestionValidationStateSchema = z.discriminatedUnion('status', [
+  z
+    .object({
+      status: z.literal('PENDING'),
+      issues: z.tuple([]),
+      validatedAt: z.null(),
+    })
+    .strict(),
+  z
+    .object({
+      status: z.literal('PASSED'),
+      issues: z.tuple([]),
+      validatedAt: utcDateTimeSchema,
+    })
+    .strict(),
+  z
+    .object({
+      status: z.literal('FAILED'),
+      issues: z.array(questionValidationIssueSchema).min(1),
+      validatedAt: utcDateTimeSchema,
+    })
+    .strict(),
+]);
 
 const adminQuestionVersionDetailSchema = z
   .object({
@@ -196,7 +212,19 @@ const adminQuestionVersionDetailSchema = z
     createdAt: utcDateTimeSchema,
     publishedAt: utcDateTimeSchema.nullable(),
   })
-  .strict();
+  .strict()
+  .superRefine((version, context) => {
+    const correctMatches = version.options.filter(
+      ({ id }) => id === version.correctOptionId,
+    );
+    if (correctMatches.length !== 1) {
+      context.addIssue({
+        code: 'custom',
+        message: 'correctOptionId는 해당 버전 선택지 하나를 가리켜야 합니다.',
+        path: ['correctOptionId'],
+      });
+    }
+  });
 
 /** 문제의 모든 버전·검증·정답 option ID를 공개하는 관리자 상세 */
 export const adminQuestionDetailResponseSchema = z
@@ -215,9 +243,22 @@ export type AdminQuestionListQuery = z.infer<
   typeof adminQuestionListQuerySchema
 >;
 
+/** 검증된 관리자 문제 UUID path type */
+export type AdminQuestionIdPath = z.infer<typeof adminQuestionIdPathSchema>;
+
+/** 검증된 관리자 문제 버전 UUID path type */
+export type AdminQuestionVersionIdPath = z.infer<
+  typeof adminQuestionVersionIdPathSchema
+>;
+
 /** canonical 관리자 문제 버전 교체 요청 type */
 export type AdminQuestionVersionPayload = z.infer<
   typeof adminQuestionVersionPayloadSchema
+>;
+
+/** 생성·교체된 관리자 문제 버전 요약 응답 type */
+export type AdminQuestionVersionResponse = z.infer<
+  typeof adminQuestionVersionResponseSchema
 >;
 
 /** 관리자 문제 결정 규칙 검증 보고서 type */

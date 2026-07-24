@@ -1,5 +1,6 @@
 /** 관리자 어휘 조회·전체 교체 공개 계약을 검증한다 */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
+import type { AdminVocabularyIdPath } from './vocabularies.js';
 import {
   adminVocabularyDetailResponseSchema,
   adminVocabularyIdPathSchema,
@@ -33,9 +34,11 @@ describe('관리자 어휘 path·query·교체 계약', () => {
       page: 2,
       pageSize: 20,
     });
-    expect(
-      adminVocabularyIdPathSchema.parse({ vocabularyId: ids.vocabulary }),
-    ).toEqual({ vocabularyId: ids.vocabulary });
+    const path = adminVocabularyIdPathSchema.parse({
+      vocabularyId: ids.vocabulary,
+    });
+    expect(path).toEqual({ vocabularyId: ids.vocabulary });
+    expectTypeOf(path).toEqualTypeOf<AdminVocabularyIdPath>();
     expect(() =>
       adminVocabularyListQuerySchema.parse({ status: 'RETIRED' }),
     ).toThrow();
@@ -159,6 +162,49 @@ describe('관리자 어휘 공개 응답 계약', () => {
       adminVocabularyDetailResponseSchema.parse({
         ...detail,
         dbRow: { normalizedThai: 'สวัสดี' },
+      }),
+    ).toThrow();
+    expect(() =>
+      adminVocabularyDetailResponseSchema.parse({
+        ...detail,
+        meanings: [detail.meanings[0], detail.meanings[0]],
+      }),
+    ).toThrow();
+    expect(() =>
+      adminVocabularyDetailResponseSchema.parse({
+        ...detail,
+        pronunciations: [detail.pronunciations[0], detail.pronunciations[0]],
+      }),
+    ).toThrow();
+    expect(() =>
+      adminVocabularyDetailResponseSchema.parse({
+        ...detail,
+        meaningPronunciations: [
+          {
+            meaningId: ids.sentence,
+            pronunciationId: ids.pronunciation,
+          },
+        ],
+      }),
+    ).toThrow();
+    expect(() =>
+      adminVocabularyDetailResponseSchema.parse({
+        ...detail,
+        meaningPronunciations: [
+          {
+            meaningId: ids.meaning,
+            pronunciationId: ids.sentence,
+          },
+        ],
+      }),
+    ).toThrow();
+    expect(() =>
+      adminVocabularyDetailResponseSchema.parse({
+        ...detail,
+        meaningPronunciations: [
+          detail.meaningPronunciations[0],
+          detail.meaningPronunciations[0],
+        ],
       }),
     ).toThrow();
   });

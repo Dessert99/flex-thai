@@ -17,6 +17,28 @@ const audioMimeTypeSchema = z.enum([
   'audio/webm',
   'audio/mp4',
 ]);
+const prohibitedPublicFieldNames = new Set([
+  'storagekey',
+  'requesthash',
+  'referencemap',
+  'iscorrect',
+  'dbrow',
+]);
+
+const uploadFormFieldsSchema = z
+  .record(z.string(), z.string())
+  .superRefine((fields, context) => {
+    Object.keys(fields).forEach((field) => {
+      const normalized = field.toLowerCase().replace(/[^a-z0-9]/gu, '');
+      if (prohibitedPublicFieldNames.has(normalized)) {
+        context.addIssue({
+          code: 'custom',
+          message: '내부 field 이름은 upload form에 공개할 수 없습니다.',
+          path: [field],
+        });
+      }
+    });
+  });
 
 /** presigned audio upload를 준비할 선언 metadata 요청 */
 export const audioUploadRequestSchema = z
@@ -36,7 +58,7 @@ const uploadRequiredResponseSchema = z
     upload: z
       .object({
         url: z.string().url(),
-        fields: z.record(z.string(), z.string()),
+        fields: uploadFormFieldsSchema,
         expiresAt: utcDateTimeSchema,
       })
       .strict(),
@@ -88,28 +110,48 @@ const mediaUsageSchema = z
     }
   });
 
-/** storage key 없이 검증 상태와 발음·문장 사용처를 반환하는 상세 응답 */
-export const mediaAssetDetailResponseSchema = z
+const mediaAssetDetailShape = {
+  id: uuidSchema,
+  kind: z.literal('AUDIO'),
+  declaredMimeType: audioMimeTypeSchema,
+  declaredSizeBytes: sizeBytesSchema,
+  declaredSha256: sha256Schema,
+  createdAt: utcDateTimeSchema,
+  usage: z
+    .object({
+      pronunciations: mediaUsageSchema,
+      sentences: mediaUsageSchema,
+    })
+    .strict(),
+};
+
+const readyMediaAssetDetailSchema = z
   .object({
-    id: uuidSchema,
-    kind: z.literal('AUDIO'),
-    status: z.enum(['UPLOADING', 'READY', 'REJECTED']),
-    declaredMimeType: audioMimeTypeSchema,
-    declaredSizeBytes: sizeBytesSchema,
-    declaredSha256: sha256Schema,
-    mimeType: audioMimeTypeSchema.nullable(),
-    sizeBytes: sizeBytesSchema.nullable(),
-    sha256: sha256Schema.nullable(),
-    readyAt: utcDateTimeSchema.nullable(),
-    createdAt: utcDateTimeSchema,
-    usage: z
-      .object({
-        pronunciations: mediaUsageSchema,
-        sentences: mediaUsageSchema,
-      })
-      .strict(),
+    ...mediaAssetDetailShape,
+    status: z.literal('READY'),
+    mimeType: audioMimeTypeSchema,
+    sizeBytes: sizeBytesSchema,
+    sha256: sha256Schema,
+    readyAt: utcDateTimeSchema,
   })
   .strict();
+
+const incompleteMediaAssetDetailSchema = z
+  .object({
+    ...mediaAssetDetailShape,
+    status: z.enum(['UPLOADING', 'REJECTED']),
+    mimeType: z.null(),
+    sizeBytes: z.null(),
+    sha256: z.null(),
+    readyAt: z.null(),
+  })
+  .strict();
+
+/** storage key 없이 검증 상태와 발음·문장 사용처를 반환하는 상세 응답 */
+export const mediaAssetDetailResponseSchema = z.discriminatedUnion('status', [
+  readyMediaAssetDetailSchema,
+  incompleteMediaAssetDetailSchema,
+]);
 
 /** 검증된 음성 업로드 준비 요청 type */
 export type AudioUploadRequest = z.infer<typeof audioUploadRequestSchema>;
@@ -119,6 +161,11 @@ export type AudioUploadResponse = z.infer<typeof audioUploadResponseSchema>;
 
 /** 검증된 media asset UUID path type */
 export type MediaAssetIdPath = z.infer<typeof mediaAssetIdPathSchema>;
+
+/** media asset 완료 READY 응답 type */
+export type CompleteMediaAssetResponse = z.infer<
+  typeof completeMediaAssetResponseSchema
+>;
 
 /** 공개 media asset 상세 응답 type */
 export type MediaAssetDetailResponse = z.infer<

@@ -308,10 +308,49 @@ const contentImportSummaryShape = {
   completedAt: utcDateTimeSchema,
 };
 
+const validateContentImportSummary = (
+  summary: {
+    status: 'COMPLETED' | 'COMPLETED_WITH_FAILURES';
+    vocabularyCount: number;
+    questionCount: number;
+    importedCount: number;
+    rejectedCount: number;
+  },
+  context: z.RefinementCtx,
+): void => {
+  const total = summary.vocabularyCount + summary.questionCount;
+  if (total < 1 || total > 100) {
+    context.addIssue({
+      code: 'custom',
+      message: '공개 가져오기 항목 합계는 1개에서 100개여야 합니다.',
+      path: ['vocabularyCount'],
+    });
+  }
+  if (summary.importedCount + summary.rejectedCount !== total) {
+    context.addIssue({
+      code: 'custom',
+      message: '처리 결과 합계는 가져오기 항목 합계와 일치해야 합니다.',
+      path: ['importedCount'],
+    });
+  }
+  if (
+    (summary.status === 'COMPLETED' && summary.rejectedCount !== 0) ||
+    (summary.status === 'COMPLETED_WITH_FAILURES' &&
+      summary.rejectedCount === 0)
+  ) {
+    context.addIssue({
+      code: 'custom',
+      message: '최종 상태는 거절 항목 존재 여부와 일치해야 합니다.',
+      path: ['status'],
+    });
+  }
+};
+
 /** 가져오기 이력과 동기 처리 결과가 공유하는 공개 요약 */
 export const contentImportSummarySchema = z
   .object(contentImportSummaryShape)
-  .strict();
+  .strict()
+  .superRefine(validateContentImportSummary);
 
 const importedItemResultSchema = z
   .object({
@@ -354,7 +393,61 @@ export const contentImportDetailResponseSchema = z
     ...contentImportSummaryShape,
     items: z.array(contentImportItemResultSchema),
   })
-  .strict();
+  .strict()
+  .superRefine((detail, context) => {
+    validateContentImportSummary(detail, context);
+
+    const expectedTotal = detail.vocabularyCount + detail.questionCount;
+    if (detail.items.length !== expectedTotal) {
+      context.addIssue({
+        code: 'custom',
+        message: '공개 상세 항목 수는 가져오기 항목 합계와 일치해야 합니다.',
+        path: ['items'],
+      });
+    }
+
+    const importedCount = detail.items.filter(
+      ({ status }) => status === 'IMPORTED',
+    ).length;
+    const rejectedCount = detail.items.length - importedCount;
+    if (
+      importedCount !== detail.importedCount ||
+      rejectedCount !== detail.rejectedCount
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message: '공개 상세 항목 상태 수는 처리 결과 count와 일치해야 합니다.',
+        path: ['items'],
+      });
+    }
+
+    (
+      [
+        ['VOCABULARY', detail.vocabularyCount],
+        ['QUESTION', detail.questionCount],
+      ] as const
+    ).forEach(([kind, expectedCount]) => {
+      const sourceIndexes = detail.items
+        .filter((item) => item.kind === kind)
+        .map(({ sourceIndex }) => sourceIndex);
+      const sourceIndexSet = new Set(sourceIndexes);
+      const coversExpectedRange =
+        sourceIndexes.length === expectedCount &&
+        sourceIndexSet.size === expectedCount &&
+        Array.from(
+          { length: expectedCount },
+          (_, sourceIndex) => sourceIndex,
+        ).every((sourceIndex) => sourceIndexSet.has(sourceIndex));
+      if (!coversExpectedRange) {
+        context.addIssue({
+          code: 'custom',
+          message:
+            'kind별 sourceIndex는 원본 범위를 중복 없이 포함해야 합니다.',
+          path: ['items'],
+        });
+      }
+    });
+  });
 
 /** 전체 관리자 가져오기 이력의 페이지 응답 */
 export const contentImportListResponseSchema = z
@@ -390,9 +483,25 @@ export type CanonicalQuestionInput = z.infer<
 /** 검증된 콘텐츠 가져오기 요청 type */
 export type ContentImportRequest = z.infer<typeof contentImportRequestSchema>;
 
+/** 검증된 UUID Idempotency-Key header type */
+export type ContentImportIdempotencyKeyHeader = z.infer<
+  typeof idempotencyKeyHeaderSchema
+>;
+
+/** 검증된 가져오기 UUID path type */
+export type ContentImportIdPath = z.infer<typeof contentImportIdPathSchema>;
+
 /** 검증된 가져오기 페이지 query type */
 export type ContentImportListQuery = z.infer<
   typeof contentImportListQuerySchema
+>;
+
+/** 공개 콘텐츠 가져오기 이력 요약 type */
+export type ContentImportSummary = z.infer<typeof contentImportSummarySchema>;
+
+/** 공개 콘텐츠 가져오기 항목 결과 type */
+export type ContentImportItemResult = z.infer<
+  typeof contentImportItemResultSchema
 >;
 
 /** 공개 콘텐츠 가져오기 상세 응답 type */

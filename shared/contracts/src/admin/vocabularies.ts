@@ -183,12 +183,59 @@ export const adminVocabularyDetailResponseSchema = z
     createdAt: utcDateTimeSchema,
     updatedAt: utcDateTimeSchema,
   })
-  .strict();
+  .strict()
+  .superRefine((vocabulary, context) => {
+    const meaningIds = vocabulary.meanings.map(({ id }) => id);
+    const pronunciationIds = vocabulary.pronunciations.map(({ id }) => id);
+    if (hasDuplicates(meaningIds)) {
+      context.addIssue({
+        code: 'custom',
+        message: '뜻 ID는 중복될 수 없습니다.',
+        path: ['meanings'],
+      });
+    }
+    if (hasDuplicates(pronunciationIds)) {
+      context.addIssue({
+        code: 'custom',
+        message: '발음 ID는 중복될 수 없습니다.',
+        path: ['pronunciations'],
+      });
+    }
+
+    const mappingPairs: string[] = [];
+    vocabulary.meaningPronunciations.forEach((mapping, index) => {
+      if (!meaningIds.includes(mapping.meaningId)) {
+        context.addIssue({
+          code: 'custom',
+          message: 'mapping은 상세 응답 안의 뜻을 가리켜야 합니다.',
+          path: ['meaningPronunciations', index, 'meaningId'],
+        });
+      }
+      if (!pronunciationIds.includes(mapping.pronunciationId)) {
+        context.addIssue({
+          code: 'custom',
+          message: 'mapping은 상세 응답 안의 발음을 가리켜야 합니다.',
+          path: ['meaningPronunciations', index, 'pronunciationId'],
+        });
+      }
+      mappingPairs.push(`${mapping.meaningId}:${mapping.pronunciationId}`);
+    });
+    if (hasDuplicates(mappingPairs)) {
+      context.addIssue({
+        code: 'custom',
+        message: '뜻과 발음 mapping은 중복될 수 없습니다.',
+        path: ['meaningPronunciations'],
+      });
+    }
+  });
 
 /** 검증된 관리자 어휘 목록 query type */
 export type AdminVocabularyListQuery = z.infer<
   typeof adminVocabularyListQuerySchema
 >;
+
+/** 검증된 관리자 어휘 UUID path type */
+export type AdminVocabularyIdPath = z.infer<typeof adminVocabularyIdPathSchema>;
 
 /** 관리자 어휘 전체 교체 요청 type */
 export type AdminVocabularyReplaceRequest = z.infer<
