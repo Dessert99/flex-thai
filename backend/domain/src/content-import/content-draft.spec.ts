@@ -377,6 +377,69 @@ describe('ContentDraftService 어휘 초안', () => {
     });
   });
 
+  it('어휘 자식 __proto__ clientRef를 own JSON key로 보존한다', async () => {
+    const transaction = createTransaction();
+    const service = new ContentDraftService(
+      createRepository(transaction),
+      createIdGenerator(),
+    );
+    const command = vocabularyCommand();
+    command.input.meanings[0] = {
+      ...command.input.meanings[0]!,
+      clientRef: '__proto__',
+    };
+
+    const result = await service.createVocabularyItem(command);
+
+    const saved = vi.mocked(transaction.saveVocabularyDraft).mock.calls[0]![0];
+    const meaningId = saved.graph.meanings[0]!.id;
+    expect(Object.getPrototypeOf(result.referenceMap)).toBe(Object.prototype);
+    expect(Object.hasOwn(result.referenceMap, '__proto__')).toBe(true);
+    expect(result.referenceMap['__proto__']).toBe(meaningId);
+    expect(result.referenceMap).toEqual(
+      Object.fromEntries([
+        ['vocabulary-ref', result.targetId],
+        ['__proto__', meaningId],
+        ['meaning-2', saved.graph.meanings[1]!.id],
+        ['pronunciation-1', saved.graph.pronunciations[0]!.id],
+        ['pronunciation-2', saved.graph.pronunciations[1]!.id],
+      ]),
+    );
+    expect(JSON.parse(JSON.stringify(result.referenceMap))).toMatchObject({
+      ['__proto__']: meaningId,
+    });
+  });
+
+  it('어휘의 top-level과 다른 prototype-like clientRef도 own JSON key로 보존한다', async () => {
+    const transaction = createTransaction();
+    const service = new ContentDraftService(
+      createRepository(transaction),
+      createIdGenerator(),
+    );
+    const command = vocabularyCommand();
+    command.input.clientRef = '__proto__';
+    command.input.meanings[0] = {
+      ...command.input.meanings[0]!,
+      clientRef: 'constructor',
+    };
+    command.input.pronunciations[0] = {
+      ...command.input.pronunciations[0]!,
+      clientRef: 'toString',
+    };
+
+    const result = await service.createVocabularyItem(command);
+
+    expect(
+      ['__proto__', 'constructor', 'toString'].every((key) =>
+        Object.hasOwn(result.referenceMap, key),
+      ),
+    ).toBe(true);
+    const serialized = JSON.stringify(result.referenceMap);
+    expect(serialized).toContain(`"__proto__":"${result.targetId}"`);
+    expect(serialized).toContain('"constructor":"');
+    expect(serialized).toContain('"toString":"');
+  });
+
   it('뜻과 발음 사이의 중복 clientRef를 저장 전에 거절한다', async () => {
     const transaction = createTransaction();
     const service = new ContentDraftService(
@@ -529,6 +592,68 @@ describe('ContentDraftService 문제 초안', () => {
       targetType: 'QUESTION',
       targetId: result.targetId,
     });
+  });
+
+  it('question option __proto__ clientRef를 own JSON key로 보존한다', async () => {
+    const transaction = createTransaction();
+    const service = new ContentDraftService(
+      createRepository(transaction),
+      createIdGenerator(),
+    );
+    const command = questionCommand();
+    command.input.options[0] = {
+      ...command.input.options[0]!,
+      clientRef: '__proto__',
+    };
+
+    const result = await service.createQuestionItem(command);
+
+    const saved = vi.mocked(transaction.saveQuestionDraft).mock.calls[0]![0];
+    const optionId = saved.graph.options[0]!.id;
+    expect(Object.getPrototypeOf(result.referenceMap)).toBe(Object.prototype);
+    expect(Object.hasOwn(result.referenceMap, '__proto__')).toBe(true);
+    expect(result.referenceMap['__proto__']).toBe(optionId);
+    expect(result.referenceMap).toEqual(
+      Object.fromEntries([
+        ['question-ref', result.targetId],
+        ['__proto__', optionId],
+        ['option-2', saved.graph.options[1]!.id],
+      ]),
+    );
+    expect(JSON.parse(JSON.stringify(result.referenceMap))).toMatchObject({
+      ['__proto__']: optionId,
+    });
+  });
+
+  it('question의 top-level과 다른 prototype-like clientRef도 own JSON key로 보존한다', async () => {
+    const transaction = createTransaction();
+    const service = new ContentDraftService(
+      createRepository(transaction),
+      createIdGenerator(),
+    );
+    const command = questionCommand();
+    command.input.clientRef = '__proto__';
+    command.input.options[0] = {
+      ...command.input.options[0]!,
+      clientRef: 'constructor',
+    };
+    command.input.options[1] = {
+      ...command.input.options[1]!,
+      clientRef: 'toString',
+    };
+    command.input.correctOptionRef = 'toString';
+
+    const result = await service.createQuestionItem(command);
+
+    expect(
+      ['__proto__', 'constructor', 'toString'].every((key) =>
+        Object.hasOwn(result.referenceMap, key),
+      ),
+    ).toBe(true);
+    const serialized = JSON.stringify(result.referenceMap);
+    expect(serialized).toContain(`"__proto__":"${result.targetId}"`);
+    expect(serialized).toContain('"constructor":"');
+    expect(serialized).toContain('"toString":"');
   });
 
   it('문제 item과 option clientRef 충돌로 reference map target을 덮어쓰지 않는다', async () => {

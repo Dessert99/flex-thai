@@ -556,15 +556,17 @@ export class ContentDraftService {
           })),
         ),
       };
-      const referenceMap: Record<string, string> = {
-        [command.input.clientRef]: vocabularyId,
-      };
-      command.input.meanings.forEach((meaning, index) => {
-        referenceMap[meaning.clientRef] = meanings[index]!.id;
-      });
-      command.input.pronunciations.forEach((pronunciation, index) => {
-        referenceMap[pronunciation.clientRef] = pronunciations[index]!.id;
-      });
+      // Object.fromEntries는 __proto__도 setter가 아닌 own data property로 만든다.
+      const referenceMap = Object.fromEntries([
+        [command.input.clientRef, vocabularyId],
+        ...command.input.meanings.map(
+          (meaning, index) => [meaning.clientRef, meanings[index]!.id] as const,
+        ),
+        ...command.input.pronunciations.map(
+          (pronunciation, index) =>
+            [pronunciation.clientRef, pronunciations[index]!.id] as const,
+        ),
+      ]);
       await transaction.saveVocabularyDraft({
         graph,
         item: createItem({
@@ -649,9 +651,9 @@ export class ContentDraftService {
       }
 
       const options = [];
-      const referenceMap: Record<string, string> = {
-        [command.input.clientRef]: questionId,
-      };
+      const referenceEntries: Array<readonly [string, string]> = [
+        [command.input.clientRef, questionId],
+      ];
       for (const [optionIndex, option] of command.input.options.entries()) {
         const sentence = await resolveSentence({
           transaction,
@@ -669,8 +671,10 @@ export class ContentDraftService {
           position: option.position,
           isCorrect: option.clientRef === command.input.correctOptionRef,
         });
-        referenceMap[option.clientRef] = optionId;
+        referenceEntries.push([option.clientRef, optionId]);
       }
+      // option의 prototype-like ref도 JSON object의 own key로 직렬화한다.
+      const referenceMap = Object.fromEntries(referenceEntries);
 
       const graph: ResolvedQuestionDraftGraph = {
         question: {
