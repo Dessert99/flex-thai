@@ -13,8 +13,10 @@ CREATE TABLE "content_import_items" (
 	"reference_map" jsonb NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "content_import_items_source_index_nonnegative" CHECK ("content_import_items"."source_index" >= 0),
-	CONSTRAINT "content_import_items_json_shapes" CHECK (jsonb_typeof("content_import_items"."errors") = 'array' and jsonb_typeof("content_import_items"."reference_map") = 'object'),
-	CONSTRAINT "content_import_items_result_consistency" CHECK (("content_import_items"."status" = 'IMPORTED' and "content_import_items"."target_id" is not null and jsonb_array_length("content_import_items"."errors") = 0) or ("content_import_items"."status" = 'REJECTED' and "content_import_items"."target_id" is null and jsonb_array_length("content_import_items"."errors") > 0 and "content_import_items"."reference_map" = '{}'::jsonb))
+	CONSTRAINT "content_import_items_client_ref_nonempty" CHECK (char_length("content_import_items"."client_ref") > 0),
+	CONSTRAINT "content_import_items_errors_shape" CHECK (jsonb_typeof("content_import_items"."errors") = 'array' and not coalesce("content_import_items"."errors" @? '$[*] ? (@.type() != "object")', true) and not coalesce("content_import_items"."errors" @? '$[*] ? (!exists(@.path) || @.path.type() != "string" || !exists(@.code) || @.code.type() != "string" || @.code == "")', true) and not coalesce("content_import_items"."errors" @? '$[*].keyvalue() ? (@.key != "path" && @.key != "code")', true)),
+	CONSTRAINT "content_import_items_reference_map_shape" CHECK (jsonb_typeof("content_import_items"."reference_map") = 'object' and not coalesce("content_import_items"."reference_map" @? '$.keyvalue() ? (@.key == "" || @.value.type() != "string" || !(@.value like_regex "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"))', true)),
+	CONSTRAINT "content_import_items_result_consistency" CHECK (("content_import_items"."status" = 'IMPORTED' and "content_import_items"."target_id" is not null and jsonb_array_length("content_import_items"."errors") = 0 and "content_import_items"."reference_map" <> '{}'::jsonb) or ("content_import_items"."status" = 'REJECTED' and "content_import_items"."target_id" is null and jsonb_array_length("content_import_items"."errors") > 0 and "content_import_items"."reference_map" = '{}'::jsonb))
 );
 --> statement-breakpoint
 CREATE TABLE "content_imports" (
@@ -29,6 +31,7 @@ CREATE TABLE "content_imports" (
 	"rejected_count" integer DEFAULT 0 NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"completed_at" timestamp with time zone,
+	CONSTRAINT "content_imports_request_hash_sha256" CHECK ("content_imports"."request_hash" ~ '^[0-9A-Fa-f]{64}$'),
 	CONSTRAINT "content_imports_counts_nonnegative" CHECK ("content_imports"."vocabulary_count" >= 0 and "content_imports"."question_count" >= 0 and "content_imports"."imported_count" >= 0 and "content_imports"."rejected_count" >= 0),
 	CONSTRAINT "content_imports_total_count_range" CHECK ("content_imports"."vocabulary_count" + "content_imports"."question_count" between 1 and 100),
 	CONSTRAINT "content_imports_processed_count_consistency" CHECK ("content_imports"."imported_count" + "content_imports"."rejected_count" <= "content_imports"."vocabulary_count" + "content_imports"."question_count"),

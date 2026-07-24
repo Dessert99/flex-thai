@@ -64,6 +64,10 @@ export const contentImports = pgTable(
       table.idempotencyKey,
     ),
     check(
+      'content_imports_request_hash_sha256',
+      sql`${table.requestHash} ~ '^[0-9A-Fa-f]{64}$'`,
+    ),
+    check(
       'content_imports_counts_nonnegative',
       sql`${table.vocabularyCount} >= 0 and ${table.questionCount} >= 0 and ${table.importedCount} >= 0 and ${table.rejectedCount} >= 0`,
     ),
@@ -118,12 +122,20 @@ export const contentImportItems = pgTable(
       sql`${table.sourceIndex} >= 0`,
     ),
     check(
-      'content_import_items_json_shapes',
-      sql`jsonb_typeof(${table.errors}) = 'array' and jsonb_typeof(${table.referenceMap}) = 'object'`,
+      'content_import_items_client_ref_nonempty',
+      sql`char_length(${table.clientRef}) > 0`,
+    ),
+    check(
+      'content_import_items_errors_shape',
+      sql`jsonb_typeof(${table.errors}) = 'array' and not coalesce(${table.errors} @? '$[*] ? (@.type() != "object")', true) and not coalesce(${table.errors} @? '$[*] ? (!exists(@.path) || @.path.type() != "string" || !exists(@.code) || @.code.type() != "string" || @.code == "")', true) and not coalesce(${table.errors} @? '$[*].keyvalue() ? (@.key != "path" && @.key != "code")', true)`,
+    ),
+    check(
+      'content_import_items_reference_map_shape',
+      sql`jsonb_typeof(${table.referenceMap}) = 'object' and not coalesce(${table.referenceMap} @? '$.keyvalue() ? (@.key == "" || @.value.type() != "string" || !(@.value like_regex "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"))', true)`,
     ),
     check(
       'content_import_items_result_consistency',
-      sql`(${table.status} = 'IMPORTED' and ${table.targetId} is not null and jsonb_array_length(${table.errors}) = 0) or (${table.status} = 'REJECTED' and ${table.targetId} is null and jsonb_array_length(${table.errors}) > 0 and ${table.referenceMap} = '{}'::jsonb)`,
+      sql`(${table.status} = 'IMPORTED' and ${table.targetId} is not null and jsonb_array_length(${table.errors}) = 0 and ${table.referenceMap} <> '{}'::jsonb) or (${table.status} = 'REJECTED' and ${table.targetId} is null and jsonb_array_length(${table.errors}) > 0 and ${table.referenceMap} = '{}'::jsonb)`,
     ),
   ],
 );

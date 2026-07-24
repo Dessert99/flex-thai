@@ -293,6 +293,7 @@ describe('콘텐츠 가져오기 데이터베이스 schema', () => {
     expect(
       getTableConfig(contentImports).checks.map(({ name }) => name),
     ).toEqual([
+      'content_imports_request_hash_sha256',
       'content_imports_counts_nonnegative',
       'content_imports_total_count_range',
       'content_imports_processed_count_consistency',
@@ -303,7 +304,9 @@ describe('콘텐츠 가져오기 데이터베이스 schema', () => {
       getTableConfig(contentImportItems).checks.map(({ name }) => name),
     ).toEqual([
       'content_import_items_source_index_nonnegative',
-      'content_import_items_json_shapes',
+      'content_import_items_client_ref_nonempty',
+      'content_import_items_errors_shape',
+      'content_import_items_reference_map_shape',
       'content_import_items_result_consistency',
     ]);
   });
@@ -333,17 +336,29 @@ describe('콘텐츠 가져오기 데이터베이스 schema', () => {
       'CONSTRAINT "content_import_items_import_id_content_imports_id_fk" FOREIGN KEY ("import_id") REFERENCES "public"."content_imports"("id") ON DELETE restrict',
     );
     for (const constraintName of [
+      'content_imports_request_hash_sha256',
       'content_imports_counts_nonnegative',
       'content_imports_total_count_range',
       'content_imports_processed_count_consistency',
       'content_imports_status_completion_consistency',
       'content_imports_final_status_result_consistency',
       'content_import_items_source_index_nonnegative',
-      'content_import_items_json_shapes',
+      'content_import_items_client_ref_nonempty',
+      'content_import_items_errors_shape',
+      'content_import_items_reference_map_shape',
       'content_import_items_result_consistency',
     ]) {
       expect(migrationSql).toContain(`CONSTRAINT "${constraintName}" CHECK`);
     }
+    expect(migrationSql).toContain(
+      `@? '$[*].keyvalue() ? (@.key != "path" && @.key != "code")'`,
+    );
+    expect(migrationSql).toContain(
+      `@? '$.keyvalue() ? (@.key == "" || @.value.type() != "string"`,
+    );
+    expect(migrationSql).toContain(
+      '^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$',
+    );
     expect(migrationSql).not.toMatch(/^\s*(DROP|DELETE|TRUNCATE)\b/im);
   });
 });

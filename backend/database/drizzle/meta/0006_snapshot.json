@@ -1,5 +1,5 @@
 {
-  "id": "dfae199e-867a-46ad-9e00-77ac2735add4",
+  "id": "4a9edd8a-f19e-4a1e-b1a4-3328af732ad8",
   "prevId": "73065eed-5c7a-497f-8422-999cf51a6fdf",
   "version": "7",
   "dialect": "postgresql",
@@ -3056,13 +3056,21 @@
           "name": "content_import_items_source_index_nonnegative",
           "value": "\"content_import_items\".\"source_index\" >= 0"
         },
-        "content_import_items_json_shapes": {
-          "name": "content_import_items_json_shapes",
-          "value": "jsonb_typeof(\"content_import_items\".\"errors\") = 'array' and jsonb_typeof(\"content_import_items\".\"reference_map\") = 'object'"
+        "content_import_items_client_ref_nonempty": {
+          "name": "content_import_items_client_ref_nonempty",
+          "value": "char_length(\"content_import_items\".\"client_ref\") > 0"
+        },
+        "content_import_items_errors_shape": {
+          "name": "content_import_items_errors_shape",
+          "value": "jsonb_typeof(\"content_import_items\".\"errors\") = 'array' and not coalesce(\"content_import_items\".\"errors\" @? '$[*] ? (@.type() != \"object\")', true) and not coalesce(\"content_import_items\".\"errors\" @? '$[*] ? (!exists(@.path) || @.path.type() != \"string\" || !exists(@.code) || @.code.type() != \"string\" || @.code == \"\")', true) and not coalesce(\"content_import_items\".\"errors\" @? '$[*].keyvalue() ? (@.key != \"path\" && @.key != \"code\")', true)"
+        },
+        "content_import_items_reference_map_shape": {
+          "name": "content_import_items_reference_map_shape",
+          "value": "jsonb_typeof(\"content_import_items\".\"reference_map\") = 'object' and not coalesce(\"content_import_items\".\"reference_map\" @? '$.keyvalue() ? (@.key == \"\" || @.value.type() != \"string\" || !(@.value like_regex \"^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$\"))', true)"
         },
         "content_import_items_result_consistency": {
           "name": "content_import_items_result_consistency",
-          "value": "(\"content_import_items\".\"status\" = 'IMPORTED' and \"content_import_items\".\"target_id\" is not null and jsonb_array_length(\"content_import_items\".\"errors\") = 0) or (\"content_import_items\".\"status\" = 'REJECTED' and \"content_import_items\".\"target_id\" is null and jsonb_array_length(\"content_import_items\".\"errors\") > 0 and \"content_import_items\".\"reference_map\" = '{}'::jsonb)"
+          "value": "(\"content_import_items\".\"status\" = 'IMPORTED' and \"content_import_items\".\"target_id\" is not null and jsonb_array_length(\"content_import_items\".\"errors\") = 0 and \"content_import_items\".\"reference_map\" <> '{}'::jsonb) or (\"content_import_items\".\"status\" = 'REJECTED' and \"content_import_items\".\"target_id\" is null and jsonb_array_length(\"content_import_items\".\"errors\") > 0 and \"content_import_items\".\"reference_map\" = '{}'::jsonb)"
         }
       },
       "isRLSEnabled": false
@@ -3185,6 +3193,10 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
+        "content_imports_request_hash_sha256": {
+          "name": "content_imports_request_hash_sha256",
+          "value": "\"content_imports\".\"request_hash\" ~ '^[0-9A-Fa-f]{64}$'"
+        },
         "content_imports_counts_nonnegative": {
           "name": "content_imports_counts_nonnegative",
           "value": "\"content_imports\".\"vocabulary_count\" >= 0 and \"content_imports\".\"question_count\" >= 0 and \"content_imports\".\"imported_count\" >= 0 and \"content_imports\".\"rejected_count\" >= 0"
