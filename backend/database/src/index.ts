@@ -28,6 +28,9 @@ export * from './repositories/drizzle-upload.repository.js';
 /** 관리자 audio media transaction repository를 공개한다 */
 export * from './repositories/drizzle-media-admin.repository.js';
 
+/** canonical 콘텐츠 draft transaction repository를 공개한다 */
+export * from './repositories/drizzle-content-draft.repository.js';
+
 /** DB 최소 readiness query adapter를 공개한다 */
 export * from './repositories/drizzle-readiness.probe.js';
 
