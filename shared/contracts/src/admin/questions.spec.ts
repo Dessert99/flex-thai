@@ -68,6 +68,16 @@ const payload = {
   correctOptionRef: 'option.correct',
 } as const;
 
+const withBlockSentence = (sentence: unknown) => ({
+  ...payload,
+  blocks: [
+    {
+      ...payload.blocks[0],
+      sentences: [{ speaker: null, sentence }],
+    },
+  ],
+});
+
 describe('관리자 문제 path·query·교체 payload 계약', () => {
   it('모든 상태 필터와 페이지 query를 안전하게 변환한다', () => {
     expect(
@@ -110,7 +120,7 @@ describe('관리자 문제 path·query·교체 payload 계약', () => {
     ).toThrow();
   });
 
-  it('초안 전체 교체는 import와 같은 canonical 문제 payload를 사용한다', () => {
+  it('초안 전체 교체는 기존 콘텐츠 UUID와 payload 내부 option 참조를 허용한다', () => {
     expect(adminQuestionVersionPayloadSchema.parse(payload)).toEqual(payload);
     expect(() =>
       adminQuestionVersionPayloadSchema.parse({
@@ -118,6 +128,70 @@ describe('관리자 문제 path·query·교체 payload 계약', () => {
         options: [{ ...payload.options[0], isCorrect: true }],
       }),
     ).toThrow();
+  });
+
+  it.each([
+    [
+      'token vocabulary',
+      withBlockSentence({
+        ...sentenceInput,
+        tokens: [
+          {
+            ...sentenceInput.tokens[0],
+            vocabulary: { clientRef: 'vocabulary.greeting' },
+          },
+        ],
+      }),
+    ],
+    [
+      'token meaning',
+      withBlockSentence({
+        ...sentenceInput,
+        tokens: [
+          {
+            ...sentenceInput.tokens[0],
+            meaning: { clientRef: 'meaning.greeting' },
+          },
+        ],
+      }),
+    ],
+    [
+      'token pronunciation',
+      withBlockSentence({
+        ...sentenceInput,
+        tokens: [
+          {
+            ...sentenceInput.tokens[0],
+            pronunciation: { clientRef: 'pronunciation.greeting' },
+          },
+        ],
+      }),
+    ],
+    [
+      'expression vocabulary',
+      withBlockSentence({
+        ...sentenceInput,
+        originalText: 'สวัสดีครับ',
+        tokens: [
+          sentenceInput.tokens[0],
+          {
+            ...sentenceInput.tokens[0],
+            surface: 'ครับ',
+            startOffset: 6,
+            endOffset: 10,
+          },
+        ],
+        expressions: [
+          {
+            startTokenIndex: 0,
+            endTokenIndex: 2,
+            vocabulary: { clientRef: 'expression.greeting' },
+          },
+        ],
+      }),
+    ],
+  ])('%s의 clientRef 콘텐츠 참조를 공개 입력에서 거절한다', (_name, input) => {
+    expect(() => adminQuestionVersionPayloadSchema.parse(input)).toThrow();
   });
 });
 

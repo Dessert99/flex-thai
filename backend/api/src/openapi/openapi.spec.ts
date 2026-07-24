@@ -51,6 +51,15 @@ const ACTIVE_PATHS = [
   '/ready',
 ];
 
+type OpenApiSchemaNode = {
+  type?: string;
+  format?: string;
+  properties?: Record<string, OpenApiSchemaNode>;
+  items?: OpenApiSchemaNode;
+  required?: string[];
+  additionalProperties?: boolean;
+};
+
 type LearnerOperationExpectation = {
   method: 'get' | 'post' | 'put' | 'delete';
   path: string;
@@ -616,6 +625,50 @@ describe('OpenAPI 문서', () => {
     expect(adminComponents).toHaveProperty('ContentImportRequestDto');
     expect(adminComponents).toHaveProperty('AdminQuestionDetailResponseDto');
     expect(adminComponents).toHaveProperty('AdminVocabularyDetailResponseDto');
+  });
+
+  it('관리자 문제 버전 교체 DTO는 콘텐츠 참조를 UUID 전용 object로 문서화한다', () => {
+    if (!app)
+      throw new Error('OpenAPI test application이 초기화되지 않았습니다');
+    const document = createOpenApiDocument(app);
+    const payload = document.components?.schemas
+      ?.AdminQuestionVersionPayloadDto as
+      | {
+          properties?: Record<string, OpenApiSchemaNode>;
+        }
+      | undefined;
+    const blockSentence =
+      payload?.properties?.blocks?.items?.properties?.sentences?.items
+        ?.properties?.sentence;
+    const optionSentence =
+      payload?.properties?.options?.items?.properties?.sentence;
+
+    [blockSentence, optionSentence].forEach((sentence) => {
+      const token = sentence?.properties?.tokens?.items;
+      const expression = sentence?.properties?.expressions?.items;
+      [
+        token?.properties?.vocabulary,
+        token?.properties?.meaning,
+        token?.properties?.pronunciation,
+        expression?.properties?.vocabulary,
+      ].forEach((reference) => {
+        expect(reference).toMatchObject({
+          type: 'object',
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+          },
+          required: ['id'],
+          additionalProperties: false,
+        });
+        expect(Object.keys(reference?.properties ?? {})).toEqual(['id']);
+      });
+    });
+    expect(
+      payload?.properties?.options?.items?.properties?.clientRef,
+    ).toMatchObject({ type: 'string' });
+    expect(payload?.properties?.correctOptionRef).toMatchObject({
+      type: 'string',
+    });
   });
 
   it('문제 상세 schema에는 정답·검증·private storage 필드가 없다', () => {
