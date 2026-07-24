@@ -1,8 +1,12 @@
 /** 도메인 오류가 내부 정보를 숨긴 안정적인 HTTP 응답이 되는지 검증한다 */
-import { ServiceUnavailableException } from '@nestjs/common';
+import { NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { loginRequestSchema, problemDetailsSchema } from '@flex-thia/contracts';
-import { AuthDomainError, IdentityDomainError } from '@flex-thia/domain';
+import {
+  AuthDomainError,
+  IdentityDomainError,
+  LearningDomainError,
+} from '@flex-thia/domain';
 import {
   buildErrorResponse,
   DomainExceptionFilter,
@@ -56,6 +60,53 @@ describe('buildErrorResponse', () => {
     expect(identity.status).toBe(401);
     expect(invalidBody.status).toBe(400);
     expect(invalidBody.body.fieldErrors.length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    ['QUESTION_UNAVAILABLE', 409],
+    ['QUESTION_OPTION_MISMATCH', 409],
+    ['ATTEMPT_IDEMPOTENCY_CONFLICT', 409],
+    ['VOCABULARY_UNAVAILABLE', 404],
+  ] as const)(
+    '학습 오류 %s를 exact public status %i로 변환한다',
+    (code, status) => {
+      const result = buildErrorResponse(
+        new LearningDomainError(code),
+        'request-learning',
+      );
+
+      expect(result).toEqual({
+        status,
+        body: {
+          type: `https://flex-thia.example/problems/${code.toLowerCase().replaceAll('_', '-')}`,
+          title: '요청을 처리할 수 없습니다.',
+          status,
+          code,
+          requestId: 'request-learning',
+          fieldErrors: [],
+        },
+      });
+    },
+  );
+
+  it('공개 query null의 stable 404 code를 보존한다', () => {
+    const question = buildErrorResponse(
+      new NotFoundException({ code: 'QUESTION_NOT_FOUND' }),
+      'request-question',
+    );
+    const vocabulary = buildErrorResponse(
+      new NotFoundException({ code: 'VOCABULARY_NOT_FOUND' }),
+      'request-vocabulary',
+    );
+
+    expect(question).toMatchObject({
+      status: 404,
+      body: { code: 'QUESTION_NOT_FOUND' },
+    });
+    expect(vocabulary).toMatchObject({
+      status: 404,
+      body: { code: 'VOCABULARY_NOT_FOUND' },
+    });
   });
 
   it('filter는 application/problem+json content type으로 응답한다', () => {

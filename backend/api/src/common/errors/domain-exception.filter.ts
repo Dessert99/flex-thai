@@ -11,6 +11,7 @@ import type { ProblemDetailsResponse } from '@flex-thia/contracts';
 import {
   AuthDomainError,
   IdentityDomainError,
+  LearningDomainError,
   UploadPolicyError,
 } from '@flex-thia/domain';
 import { ZodError } from 'zod';
@@ -49,6 +50,13 @@ const IDENTITY_STATUS: Record<IdentityDomainError['code'], number> = {
   INVALID_REFRESH_TOKEN: HttpStatus.UNAUTHORIZED,
   AUTH_RATE_LIMITED: HttpStatus.TOO_MANY_REQUESTS,
   ACCOUNT_DISABLED: HttpStatus.FORBIDDEN,
+};
+
+const LEARNING_STATUS: Record<LearningDomainError['code'], number> = {
+  QUESTION_UNAVAILABLE: HttpStatus.CONFLICT,
+  QUESTION_OPTION_MISMATCH: HttpStatus.CONFLICT,
+  ATTEMPT_IDEMPOTENCY_CONFLICT: HttpStatus.CONFLICT,
+  VOCABULARY_UNAVAILABLE: HttpStatus.NOT_FOUND,
 };
 
 const readPublicCode = (value: unknown): string | null => {
@@ -93,6 +101,14 @@ export const buildErrorResponse = (
 
   if (error instanceof IdentityDomainError) {
     const status = IDENTITY_STATUS[error.code];
+    return {
+      status,
+      body: createProblem(error.code, status, requestId),
+    };
+  }
+
+  if (error instanceof LearningDomainError) {
+    const status = LEARNING_STATUS[error.code];
     return {
       status,
       body: createProblem(error.code, status, requestId),

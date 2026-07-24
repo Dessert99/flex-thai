@@ -18,9 +18,28 @@ const ACTIVE_PATHS = [
   '/api/v1/auth/refresh',
   '/api/v1/auth/logout',
   '/api/v1/me',
+  '/api/v1/me/question-attempts',
+  '/api/v1/me/saved-questions/{questionId}',
+  '/api/v1/me/saved-vocabularies',
+  '/api/v1/me/saved-vocabularies/{vocabularyId}',
+  '/api/v1/questions',
+  '/api/v1/questions/{questionId}',
+  '/api/v1/questions/{questionId}/attempts',
+  '/api/v1/vocabularies',
+  '/api/v1/vocabularies/{vocabularyId}',
+  '/api/v1/vocabularies/{vocabularyId}/questions',
   '/health',
   '/ready',
 ];
+
+const LEARNER_PATHS = ACTIVE_PATHS.filter(
+  (path) =>
+    path.startsWith('/api/v1/questions') ||
+    path.startsWith('/api/v1/vocabularies') ||
+    path.includes('/question-attempts') ||
+    path.includes('/saved-questions') ||
+    path.includes('/saved-vocabularies'),
+);
 
 describe('OpenAPI document', () => {
   let app: INestApplication | undefined;
@@ -43,7 +62,7 @@ describe('OpenAPI document', () => {
     await app?.close();
   });
 
-  it('현재 활성 endpoint 아홉 개만 공개한다', () => {
+  it('현재 활성 endpoint의 서로 다른 path 열아홉 개만 공개한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
@@ -111,6 +130,104 @@ describe('OpenAPI document', () => {
 
     expect(response).toBeDefined();
     expect(response).not.toHaveProperty('content');
+  });
+
+  it('학습자 operation 열두 개가 모두 Bearer 보안을 요구한다', () => {
+    if (!app)
+      throw new Error('OpenAPI test application이 초기화되지 않았습니다');
+    const document = createOpenApiDocument(app);
+    const methods = ['get', 'post', 'put', 'delete'] as const;
+    let operationCount = 0;
+
+    LEARNER_PATHS.forEach((path) => {
+      methods.forEach((method) => {
+        const operation = document.paths[path]?.[method];
+        if (!operation) return;
+        operationCount += 1;
+        expect(operation.security).toContainEqual({ accessToken: [] });
+      });
+    });
+
+    expect(operationCount).toBe(12);
+  });
+
+  it('답안 body·201 응답과 문제 목록 query를 공개 DTO에서 문서화한다', () => {
+    if (!app)
+      throw new Error('OpenAPI test application이 초기화되지 않았습니다');
+    const document = createOpenApiDocument(app);
+    const attempt =
+      document.paths['/api/v1/questions/{questionId}/attempts']?.post;
+    const list = document.paths['/api/v1/questions']?.get;
+
+    expect(attempt?.requestBody).toMatchObject({
+      content: {
+        'application/json': {
+          schema: {
+            $ref: '#/components/schemas/SubmitQuestionAttemptRequestDto',
+          },
+        },
+      },
+    });
+    expect(attempt?.responses?.['201']).toMatchObject({
+      content: {
+        'application/json': {
+          schema: {
+            $ref: '#/components/schemas/SubmitQuestionAttemptResponseDto',
+          },
+        },
+      },
+    });
+    expect(list?.parameters?.map((parameter) => parameter)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'page', in: 'query' }),
+        expect.objectContaining({ name: 'pageSize', in: 'query' }),
+        expect.objectContaining({ name: 'firstResult', in: 'query' }),
+      ]),
+    );
+  });
+
+  it('학습자 오류는 problem media type이고 저장 204에는 body가 없다', () => {
+    if (!app)
+      throw new Error('OpenAPI test application이 초기화되지 않았습니다');
+    const document = createOpenApiDocument(app);
+    const problem =
+      document.paths['/api/v1/questions/{questionId}/attempts']?.post
+        ?.responses?.['409'];
+    const savedOperations = [
+      document.paths['/api/v1/me/saved-questions/{questionId}']?.put,
+      document.paths['/api/v1/me/saved-questions/{questionId}']?.delete,
+      document.paths['/api/v1/me/saved-vocabularies/{vocabularyId}']?.put,
+      document.paths['/api/v1/me/saved-vocabularies/{vocabularyId}']?.delete,
+    ];
+
+    expect(problem).toMatchObject({
+      content: {
+        'application/problem+json': {
+          schema: { $ref: '#/components/schemas/ProblemDetailsDto' },
+        },
+      },
+    });
+    savedOperations.forEach((operation) => {
+      expect(operation?.responses?.['204']).toBeDefined();
+      expect(operation?.responses?.['204']).not.toHaveProperty('content');
+    });
+  });
+
+  it('문제 상세 schema에는 정답·검증·private storage 필드가 없다', () => {
+    if (!app)
+      throw new Error('OpenAPI test application이 초기화되지 않았습니다');
+    const document = createOpenApiDocument(app);
+    const detail = JSON.stringify(
+      document.components?.schemas?.QuestionDetailResponseDto,
+    );
+
+    expect(detail).not.toContain('correctOptionId');
+    expect(detail).not.toContain('isCorrect');
+    expect(detail).not.toContain('validationStatus');
+    expect(detail).not.toContain('validationIssues');
+    expect(detail).not.toContain('storageKey');
+    expect(detail).not.toContain('EXPLANATION');
+    expect(detail).toContain('audioUrl');
   });
 });
 

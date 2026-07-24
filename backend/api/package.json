@@ -7,7 +7,7 @@
     "dev": "tsx watch src/main.ts",
     "swagger": "tsx src/swagger.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run src",
+    "test": "vitest run --root ../.. backend/api/src",
     "build": "tsc -p tsconfig.json",
     "build:lambda": "node esbuild.config.mjs"
   },

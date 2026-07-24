@@ -1,17 +1,27 @@
 /** HTTP 기능 모듈을 하나의 NestJS 애플리케이션으로 조립한다 */
 import { CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
+import { SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { type DynamicModule, Module } from '@nestjs/common';
 import { readApiEnv } from '@flex-thia/config';
 import {
   createDataApiDatabase,
   createLocalDatabase,
+  DrizzleLearnerQuestionQuery,
+  DrizzleLearnerVocabularyQuery,
+  DrizzleLearningRepository,
   DrizzleReadinessProbe,
   DrizzleUserRepository,
 } from '@flex-thia/database';
-import { IdentityAuthenticationService } from '@flex-thia/domain';
 import {
+  IdentityAuthenticationService,
+  QuestionAttemptService,
+  SavedContentService,
+} from '@flex-thia/domain';
+import {
+  CloudFrontMediaReadUrlProvider,
   CognitoAuthenticationProvider,
   FakeAuthenticationProvider,
+  FakeMediaReadUrlProvider,
 } from '@flex-thia/providers';
 import { HealthController } from './health/health.controller.js';
 import {
@@ -19,6 +29,7 @@ import {
   ReadinessService,
 } from './health/readiness.service.js';
 import { IdentityModule } from './identity/identity.module.js';
+import { LearningModule } from './learning/learning.module.js';
 
 /** 기초 API의 root module */
 @Module({})
@@ -64,6 +75,21 @@ export const createApplicationModule = (
     authenticationProvider,
     users,
   );
+  const learningRepository = new DrizzleLearningRepository(database);
+  const mediaReadUrls =
+    env.NODE_ENV === 'production'
+      ? new CloudFrontMediaReadUrlProvider(
+          new SecretsManagerClient({ region: env.AWS_REGION }),
+          env.MEDIA_CDN_BASE_URL,
+          env.MEDIA_KEY_PAIR_ID,
+          env.MEDIA_PRIVATE_KEY_SECRET_ARN,
+        )
+      : new FakeMediaReadUrlProvider();
+  const authorizer = {
+    authMode: env.AUTH_MODE,
+    cognitoClientId: env.COGNITO_CLIENT_ID ?? 'local-client',
+    nodeEnv: env.NODE_ENV,
+  };
 
   return {
     module: AppModule,
@@ -71,14 +97,19 @@ export const createApplicationModule = (
       IdentityModule.register({
         identity,
         users,
-        authorizer: {
-          authMode: env.AUTH_MODE,
-          cognitoClientId: env.COGNITO_CLIENT_ID ?? 'local-client',
-          nodeEnv: env.NODE_ENV,
-        },
+        authorizer,
         allowedOrigins: env.ALLOWED_ORIGINS.split(',')
           .map((origin) => origin.trim())
           .filter(Boolean),
+      }),
+      LearningModule.register({
+        questionQuery: new DrizzleLearnerQuestionQuery(database),
+        vocabularyQuery: new DrizzleLearnerVocabularyQuery(database),
+        questionAttempts: new QuestionAttemptService(learningRepository),
+        savedContent: new SavedContentService(learningRepository),
+        mediaReadUrls,
+        users,
+        authorizer,
       }),
     ],
     controllers: [HealthController, ReadinessController],
