@@ -11,6 +11,8 @@ describe('StructuredLogger', () => {
       requestId: 'request-1',
       errorCode: 'AUTH_FAILED',
       jobId: 'job-1',
+      route: '/api/v1/questions/:questionId',
+      userId: 'user-1',
       Authorization: 'Bearer authorization-secret',
       COOKIE: 'refresh_token=cookie-secret',
       PassWord: 'password-secret',
@@ -22,6 +24,12 @@ describe('StructuredLogger', () => {
         otp: '123456',
         token: 'secret',
         StorageKey: 'private/storage-key-secret.mp3',
+        sensitive: {
+          PassWord: 'nested-password-secret',
+          tOtP: 'nested-totp-secret',
+          rawJSON: { answer: 'nested-raw-json-secret' },
+          StorageKey: 'private/nested-storage-key-secret.mp3',
+        },
       },
     });
 
@@ -36,6 +44,8 @@ describe('StructuredLogger', () => {
       requestId: 'request-1',
       errorCode: 'AUTH_FAILED',
       jobId: 'job-1',
+      route: '/api/v1/questions/:questionId',
+      userId: 'user-1',
     });
     expect(normalized).not.toMatch(
       /authorization|cookie|password|totp|rawjson|storagekey|email|phonenumber|otp|token|secret|123456/u,

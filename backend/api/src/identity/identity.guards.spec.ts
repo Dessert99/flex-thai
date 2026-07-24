@@ -355,6 +355,7 @@ describe('CsrfGuard', () => {
         'x-csrf-protection': '1',
       },
     ],
+    ['누락된 Origin', { 'x-csrf-protection': '1' }],
     ['누락된 보호 header', { origin: 'https://app.example.com' }],
     [
       '값이 1이 아닌 보호 header',

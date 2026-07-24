@@ -47,7 +47,9 @@ describe('IdentityController', () => {
       { email: 'admin@example.com', password: 'Strong1!' },
       cookieResponse,
     );
+    const serialized = JSON.stringify(result);
 
+    expect(cookieResponse.cookie).toHaveBeenCalledTimes(1);
     expect(cookieResponse.cookie).toHaveBeenCalledWith(
       '__Host-flex-thia-refresh',
       'refresh',
@@ -63,7 +65,8 @@ describe('IdentityController', () => {
       status: 'AUTHENTICATED',
       accessToken: 'access',
     });
-    expect(result).not.toHaveProperty('refreshToken');
+    expect(serialized).not.toContain('refreshToken');
+    expect(serialized).not.toContain(tokens.refreshToken);
   });
 
   it('MFA_REQUIRED 응답은 refresh cookie를 쓰지 않는다', async () => {
@@ -101,8 +104,10 @@ describe('IdentityController', () => {
       },
       cookieResponse,
     );
+    const serialized = JSON.stringify(result);
 
     expect(refresh).toHaveBeenCalledWith('old-refresh');
+    expect(cookieResponse.cookie).toHaveBeenCalledTimes(1);
     expect(cookieResponse.cookie).toHaveBeenCalledWith(
       '__Host-flex-thia-refresh',
       'refresh',
@@ -114,7 +119,8 @@ describe('IdentityController', () => {
         maxAge: 7 * 24 * 60 * 60 * 1000,
       },
     );
-    expect(result).not.toHaveProperty('refreshToken');
+    expect(serialized).not.toContain('refreshToken');
+    expect(serialized).not.toContain(tokens.refreshToken);
   });
 
   it('refresh cookie가 없으면 안정적인 401 오류를 반환한다', async () => {
