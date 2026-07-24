@@ -90,3 +90,9 @@ export * from './content-import/content-draft.repository.js';
 
 /** canonical 어휘·문제 초안 생성 use case를 공개한다 */
 export * from './content-import/content-draft.js';
+
+/** 동기 콘텐츠 가져오기 멱등·완료 저장 port를 공개한다 */
+export * from './content-import/content-import.repository.js';
+
+/** canonical hash와 항목별 동기 가져오기 orchestration을 공개한다 */
+export * from './content-import/content-import.service.js';
