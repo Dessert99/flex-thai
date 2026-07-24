@@ -7,13 +7,16 @@ import {
   IdentityDomainError,
   LearningDomainError,
 } from '@flex-thia/domain';
+import { LearnerPublicResponseError } from '../../learning/learner-content.service.js';
+import { LearnerQuestionsController } from '../../learning/learner-questions.controller.js';
+import { StructuredLogger } from '../logging/structured-logger.js';
 import {
   buildErrorResponse,
   DomainExceptionFilter,
 } from './domain-exception.filter.js';
 
-describe('buildErrorResponse', () => {
-  it('production 응답에는 stack 없이 code와 request id만 남긴다', () => {
+describe('공개 오류 응답 변환', () => {
+  it('운영 응답에는 stack 없이 code와 request id만 남긴다', () => {
     const error = new AuthDomainError('STEP_UP_INVALID');
     error.stack = 'sensitive stack';
 
@@ -33,7 +36,7 @@ describe('buildErrorResponse', () => {
     expect(JSON.stringify(result)).not.toContain('sensitive stack');
   });
 
-  it('readiness의 공개 code를 일반 HTTP 이름으로 덮어쓰지 않는다', () => {
+  it('준비 상태의 공개 code를 일반 HTTP 이름으로 덮어쓰지 않는다', () => {
     const result = buildErrorResponse(
       new ServiceUnavailableException({ code: 'DB_RESUMING' }),
       'request-2',
@@ -42,7 +45,7 @@ describe('buildErrorResponse', () => {
     expect(result.body.code).toBe('DB_RESUMING');
   });
 
-  it('Identity 오류와 Zod 오류를 problem details 계약으로 변환한다', () => {
+  it('Identity 오류와 요청 Zod 오류를 Problem Details 계약으로 변환한다', () => {
     const identity = buildErrorResponse(
       new IdentityDomainError('INVALID_CREDENTIALS'),
       'request-3',
@@ -68,7 +71,7 @@ describe('buildErrorResponse', () => {
     ['ATTEMPT_IDEMPOTENCY_CONFLICT', 409],
     ['VOCABULARY_UNAVAILABLE', 404],
   ] as const)(
-    '학습 오류 %s를 exact public status %i로 변환한다',
+    '학습 오류 %s를 정확한 공개 상태 %i로 변환한다',
     (code, status) => {
       const result = buildErrorResponse(
         new LearningDomainError(code),
@@ -89,7 +92,7 @@ describe('buildErrorResponse', () => {
     },
   );
 
-  it('공개 query null의 stable 404 code를 보존한다', () => {
+  it('공개 query null의 안정적인 404 code를 보존한다', () => {
     const question = buildErrorResponse(
       new NotFoundException({ code: 'QUESTION_NOT_FOUND' }),
       'request-question',
@@ -109,20 +112,104 @@ describe('buildErrorResponse', () => {
     });
   });
 
-  it('filter는 application/problem+json content type으로 응답한다', () => {
+  it('예상한 4xx는 application/problem+json으로 응답하고 오류 로그를 남기지 않는다', () => {
     const type = vi.fn().mockReturnThis();
     const status = vi.fn().mockReturnThis();
     const json = vi.fn();
-    const filter = new DomainExceptionFilter({ error: vi.fn() } as never);
-
-    filter.catch(new IdentityDomainError('INVALID_TOTP'), {
+    const errorLog = vi.fn();
+    const filter = new DomainExceptionFilter({ error: errorLog } as never);
+    const host = {
       switchToHttp: () => ({
         getRequest: () => ({ headers: { 'x-request-id': 'request-5' } }),
         getResponse: () => ({ type, status, json }),
       }),
-    } as never);
+    } as never;
+    let requestError: unknown;
+    try {
+      loginRequestSchema.parse({ email: 'invalid', password: '' });
+    } catch (error) {
+      requestError = error;
+    }
+
+    filter.catch(new IdentityDomainError('INVALID_TOTP'), host);
+    filter.catch(requestError, host);
+    filter.catch(new LearningDomainError('QUESTION_UNAVAILABLE'), host);
 
     expect(type).toHaveBeenCalledWith('application/problem+json');
     expect(status).toHaveBeenCalledWith(401);
+    expect(status).toHaveBeenCalledWith(400);
+    expect(status).toHaveBeenCalledWith(409);
+    expect(errorLog).not.toHaveBeenCalled();
+  });
+
+  it('실제 Controller 응답 검증 실패는 내부 필드 없이 500으로 응답하고 안전한 요청 문맥만 기록한다', async () => {
+    const controller = new LearnerQuestionsController({
+      listQuestions: () =>
+        Promise.resolve({
+          items: [],
+          page: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 },
+          storageKey: 'private/leak.mp3',
+        }),
+    } as never);
+    let responseError: unknown;
+    try {
+      await controller.listQuestions(
+        {
+          userId: 'user-1',
+          sub: 'subject-1',
+          email: 'learner@example.com',
+          role: 'LEARNER',
+          mfaEnrolledAt: null,
+        },
+        {},
+      );
+    } catch (error) {
+      responseError = error;
+    }
+    expect(responseError).toBeInstanceOf(LearnerPublicResponseError);
+
+    const type = vi.fn().mockReturnThis();
+    const status = vi.fn().mockReturnThis();
+    const json = vi.fn();
+    const write = vi.fn();
+    const filter = new DomainExceptionFilter(
+      new StructuredLogger('api', write),
+    );
+
+    filter.catch(responseError, {
+      switchToHttp: () => ({
+        getRequest: () => ({
+          headers: {
+            'x-request-id': 'request-response',
+            authorization: 'Bearer secret-token',
+          },
+          route: { path: '/api/v1/questions' },
+          user: { userId: 'user-1' },
+          body: { storageKey: 'private/leak.mp3' },
+        }),
+        getResponse: () => ({ type, status, json }),
+      }),
+    } as never);
+
+    expect(status).toHaveBeenCalledWith(500);
+    expect(json).toHaveBeenCalledWith({
+      type: 'https://flex-thia.example/problems/internal-server-error',
+      title: '요청을 처리할 수 없습니다.',
+      status: 500,
+      code: 'INTERNAL_SERVER_ERROR',
+      requestId: 'request-response',
+      fieldErrors: [],
+    });
+    const serialized = write.mock.calls[0]?.[0] as string;
+    expect(JSON.parse(serialized)).toMatchObject({
+      level: 'error',
+      requestId: 'request-response',
+      errorCode: 'INTERNAL_SERVER_ERROR',
+      route: '/api/v1/questions',
+      userId: 'user-1',
+    });
+    expect(serialized).not.toMatch(
+      /storageKey|private\/leak|authorization|secret-token|Zod/u,
+    );
   });
 });

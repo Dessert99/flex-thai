@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
 import { CognitoAuthorizerGuard } from '../identity/cognito-authorizer.guard.js';
 import { REQUIRED_ROLE_KEY } from '../identity/require-role.decorator.js';
+import { LearnerPublicResponseError } from './learner-content.service.js';
 import { LearnerVocabulariesController } from './learner-vocabularies.controller.js';
 
 const vocabularyId = '00000000-0000-4000-8000-000000000021';
@@ -26,6 +27,16 @@ const emptyPage = {
     totalPages: 0,
   },
 } as const;
+const detail = {
+  id: vocabularyId,
+  thai: 'สวัสดี',
+  kind: 'WORD',
+  meanings: [],
+  pronunciations: [],
+  saved: false,
+  meaningPronunciations: [],
+  exampleSentences: [],
+} as const;
 
 const readHttpCode = (
   method: keyof LearnerVocabulariesController,
@@ -39,7 +50,7 @@ const readHttpCode = (
 
 const service = () => ({
   listVocabularies: vi.fn().mockResolvedValue(emptyPage),
-  getVocabularyDetail: vi.fn(),
+  getVocabularyDetail: vi.fn().mockResolvedValue(detail),
   listRelatedQuestions: vi.fn().mockResolvedValue(emptyPage),
   listSavedVocabularies: vi.fn().mockResolvedValue(emptyPage),
   saveVocabulary: vi.fn().mockResolvedValue(undefined),
@@ -109,14 +120,65 @@ describe('LearnerVocabulariesController 공개 계약', () => {
     ).rejects.toThrow();
   });
 
-  it('service 응답도 strict 공개 schema로 다시 검증한다', async () => {
+  it('어휘 상세 path를 검증하고 현재 userId로 조회한다', async () => {
     const fake = service();
-    fake.listVocabularies.mockResolvedValueOnce({
-      ...emptyPage,
-      storageKey: 'private/leak',
-    });
     const controller = new LearnerVocabulariesController(fake as never);
 
-    await expect(controller.listVocabularies(user, {})).rejects.toThrow();
+    await expect(
+      controller.getVocabularyDetail(user, { vocabularyId }),
+    ).resolves.toEqual(detail);
+    expect(fake.getVocabularyDetail).toHaveBeenCalledWith(
+      'user-1',
+      vocabularyId,
+    );
+  });
+
+  it('네 공개 응답 method의 계약 실패를 모두 generic response 오류로 바꾼다', async () => {
+    const extra = { storageKey: 'private/leak.mp3' };
+
+    const listFake = service();
+    listFake.listVocabularies.mockResolvedValueOnce({
+      ...emptyPage,
+      ...extra,
+    });
+    await expect(
+      new LearnerVocabulariesController(listFake as never).listVocabularies(
+        user,
+        {},
+      ),
+    ).rejects.toBeInstanceOf(LearnerPublicResponseError);
+
+    const detailFake = service();
+    detailFake.getVocabularyDetail.mockResolvedValueOnce({
+      ...detail,
+      ...extra,
+    });
+    await expect(
+      new LearnerVocabulariesController(
+        detailFake as never,
+      ).getVocabularyDetail(user, { vocabularyId }),
+    ).rejects.toBeInstanceOf(LearnerPublicResponseError);
+
+    const relatedFake = service();
+    relatedFake.listRelatedQuestions.mockResolvedValueOnce({
+      ...emptyPage,
+      ...extra,
+    });
+    await expect(
+      new LearnerVocabulariesController(
+        relatedFake as never,
+      ).listRelatedQuestions(user, { vocabularyId }, {}),
+    ).rejects.toBeInstanceOf(LearnerPublicResponseError);
+
+    const savedFake = service();
+    savedFake.listSavedVocabularies.mockResolvedValueOnce({
+      ...emptyPage,
+      ...extra,
+    });
+    await expect(
+      new LearnerVocabulariesController(
+        savedFake as never,
+      ).listSavedVocabularies(user, {}),
+    ).rejects.toBeInstanceOf(LearnerPublicResponseError);
   });
 });

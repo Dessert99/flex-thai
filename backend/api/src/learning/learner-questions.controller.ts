@@ -56,7 +56,10 @@ import {
   SubmitQuestionAttemptRequestDto,
   SubmitQuestionAttemptResponseDto,
 } from '../openapi/openapi.dto.js';
-import { LearnerContentService } from './learner-content.service.js';
+import {
+  LearnerContentService,
+  parseLearnerPublicResponse,
+} from './learner-content.service.js';
 
 /** LEARNER와 상속된 ADMIN이 사용하는 문제 endpoint */
 @ApiTags('Learner Questions')
@@ -92,7 +95,8 @@ export class LearnerQuestionsController {
     @Query() rawQuery: Record<string, unknown>,
   ): Promise<QuestionListResponse> {
     const query = questionListQuerySchema.parse(rawQuery);
-    return questionListResponseSchema.parse(
+    return parseLearnerPublicResponse(
+      questionListResponseSchema,
       await this.learning.listQuestions(user.userId, query),
     );
   }
@@ -112,7 +116,8 @@ export class LearnerQuestionsController {
     @Param() rawPath: Record<string, unknown>,
   ): Promise<QuestionDetailResponse> {
     const path = questionIdPathSchema.parse(rawPath);
-    return questionDetailResponseSchema.parse(
+    return parseLearnerPublicResponse(
+      questionDetailResponseSchema,
       await this.learning.getQuestionDetail(user.userId, path.questionId),
     );
   }
@@ -136,7 +141,8 @@ export class LearnerQuestionsController {
   ): Promise<SubmitQuestionAttemptResponse> {
     const path = questionIdPathSchema.parse(rawPath);
     const body = submitQuestionAttemptRequestSchema.parse(rawBody);
-    return submitQuestionAttemptResponseSchema.parse(
+    return parseLearnerPublicResponse(
+      submitQuestionAttemptResponseSchema,
       await this.learning.submitQuestionAttempt(
         user.userId,
         path.questionId,
@@ -159,7 +165,8 @@ export class LearnerQuestionsController {
     @Query() rawQuery: Record<string, unknown>,
   ): Promise<QuestionAttemptListResponse> {
     const query = questionAttemptListQuerySchema.parse(rawQuery);
-    return questionAttemptListResponseSchema.parse(
+    return parseLearnerPublicResponse(
+      questionAttemptListResponseSchema,
       await this.learning.listAttempts(user.userId, query),
     );
   }

@@ -38,6 +38,7 @@ import {
   type QuestionAttemptService,
   type SavedContentService,
 } from '@flex-thia/domain';
+import type { ZodType } from 'zod';
 
 const MEDIA_URL_TTL_MS = 5 * 60 * 1_000;
 
@@ -70,6 +71,26 @@ interface LearnerContentDependencies {
 }
 
 type SignMedia = (storageKey: string) => Promise<string>;
+
+/** 내부 응답 계약 실패의 Zod issue를 HTTP request 오류와 분리한다 */
+export class LearnerPublicResponseError extends Error {
+  constructor() {
+    super('LEARNER_PUBLIC_RESPONSE_INVALID');
+    this.name = 'LearnerPublicResponseError';
+  }
+}
+
+/** 공개 응답 schema 실패를 내부 필드가 없는 generic 오류로 바꾼다 */
+export const parseLearnerPublicResponse = <Output>(
+  schema: ZodType<Output>,
+  value: unknown,
+): Output => {
+  const result = schema.safeParse(value);
+  if (!result.success) {
+    throw new LearnerPublicResponseError();
+  }
+  return result.data;
+};
 
 const toQuestionListQuery = (
   query: QuestionListQuery,
@@ -166,7 +187,8 @@ export class LearnerContentService {
     userId: string,
     query: QuestionListQuery,
   ): Promise<QuestionListResponse> {
-    return questionListResponseSchema.parse(
+    return parseLearnerPublicResponse(
+      questionListResponseSchema,
       await this.dependencies.questionQuery.listQuestions(
         userId,
         toQuestionListQuery(query),
@@ -187,7 +209,7 @@ export class LearnerContentService {
       throw new NotFoundException({ code: 'QUESTION_NOT_FOUND' });
     }
     const signMedia = this.createResponseSigner();
-    return questionDetailResponseSchema.parse({
+    return parseLearnerPublicResponse(questionDetailResponseSchema, {
       ...detail,
       blocks: await mapBlocks(detail.blocks, signMedia),
       options: await Promise.all(
@@ -215,7 +237,7 @@ export class LearnerContentService {
       result.attempt.questionVersionId,
     );
     const signMedia = this.createResponseSigner();
-    return submitQuestionAttemptResponseSchema.parse({
+    return parseLearnerPublicResponse(submitQuestionAttemptResponseSchema, {
       attempt: {
         id: result.attempt.id,
         attemptNo: result.attempt.attemptNo,
@@ -240,7 +262,7 @@ export class LearnerContentService {
       userId,
       query,
     );
-    return questionAttemptListResponseSchema.parse({
+    return parseLearnerPublicResponse(questionAttemptListResponseSchema, {
       ...result,
       items: result.items.map((attempt) => ({
         ...attempt,
@@ -273,7 +295,7 @@ export class LearnerContentService {
       toVocabularyListQuery(query),
     );
     const signMedia = this.createResponseSigner();
-    return vocabularyListResponseSchema.parse({
+    return parseLearnerPublicResponse(vocabularyListResponseSchema, {
       ...result,
       items: await Promise.all(
         result.items.map((item) => mapVocabularySummary(item, signMedia)),
@@ -294,7 +316,7 @@ export class LearnerContentService {
       throw new NotFoundException({ code: 'VOCABULARY_NOT_FOUND' });
     }
     const signMedia = this.createResponseSigner();
-    return vocabularyDetailResponseSchema.parse({
+    return parseLearnerPublicResponse(vocabularyDetailResponseSchema, {
       ...(await mapVocabularySummary(detail, signMedia)),
       meaningPronunciations: detail.meaningPronunciations,
       exampleSentences: await Promise.all(
@@ -323,7 +345,8 @@ export class LearnerContentService {
     if (!detail) {
       throw new NotFoundException({ code: 'VOCABULARY_NOT_FOUND' });
     }
-    return vocabularyRelatedQuestionsResponseSchema.parse(
+    return parseLearnerPublicResponse(
+      vocabularyRelatedQuestionsResponseSchema,
       await this.dependencies.vocabularyQuery.listRelatedQuestions(
         userId,
         vocabularyId,
@@ -343,7 +366,7 @@ export class LearnerContentService {
         query,
       );
     const signMedia = this.createResponseSigner();
-    return savedVocabularyListResponseSchema.parse({
+    return parseLearnerPublicResponse(savedVocabularyListResponseSchema, {
       ...result,
       items: await Promise.all(
         result.items.map((item) => mapVocabularySummary(item, signMedia)),

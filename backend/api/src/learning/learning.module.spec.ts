@@ -13,7 +13,7 @@ import { LearnerQuestionsController } from './learner-questions.controller.js';
 import { LearnerVocabulariesController } from './learner-vocabularies.controller.js';
 import { LearningModule } from './learning.module.js';
 
-describe('LearningModule', () => {
+describe('LearningModule 조립', () => {
   it('두 learner Controller와 하나의 content service를 등록한다', () => {
     const module = LearningModule.register({
       questionQuery: {} as never,

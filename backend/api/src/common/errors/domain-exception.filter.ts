@@ -177,6 +177,10 @@ export const buildErrorResponse = (
 
 type ErrorRequest = {
   headers?: Record<string, string | string[] | undefined>;
+  route?: { path?: unknown };
+  path?: unknown;
+  url?: unknown;
+  user?: { userId?: unknown };
 };
 
 type ErrorResponseAdapter = {
@@ -185,7 +189,7 @@ type ErrorResponseAdapter = {
   json(body: ProblemDetailsResponse): void;
 };
 
-/** 모든 예외 응답과 오류 로그에 같은 request id를 연결한다 */
+/** 예외 응답과 예상하지 못한 오류 로그에 같은 request id를 연결한다 */
 @Catch()
 export class DomainExceptionFilter implements ExceptionFilter {
   constructor(private readonly logger: StructuredLogger) {}
@@ -198,10 +202,15 @@ export class DomainExceptionFilter implements ExceptionFilter {
     const requestId = this.readRequestId(request);
     const result = buildErrorResponse(error, requestId);
 
-    this.logger.error('HTTP 요청 실패', {
-      requestId,
-      errorCode: result.body.code,
-    });
+    if (result.body.code === 'INTERNAL_SERVER_ERROR') {
+      this.logger.error('예상하지 못한 HTTP 요청 실패', {
+        requestId,
+        errorCode: result.body.code,
+        route: this.readRoute(request),
+        userId:
+          typeof request.user?.userId === 'string' ? request.user.userId : null,
+      });
+    }
     response
       .type('application/problem+json')
       .status(result.status)
@@ -211,5 +220,17 @@ export class DomainExceptionFilter implements ExceptionFilter {
   private readRequestId(request: ErrorRequest): string {
     const value = request.headers?.['x-request-id'];
     return typeof value === 'string' && value ? value : randomUUID();
+  }
+
+  private readRoute(request: ErrorRequest): string {
+    const value =
+      typeof request.route?.path === 'string'
+        ? request.route.path
+        : typeof request.path === 'string'
+          ? request.path
+          : typeof request.url === 'string'
+            ? request.url.split('?')[0]
+            : undefined;
+    return value || 'unknown';
   }
 }

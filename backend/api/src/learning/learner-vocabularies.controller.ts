@@ -52,7 +52,10 @@ import {
   VocabularyRelatedQuestionsQueryDto,
   VocabularyRelatedQuestionsResponseDto,
 } from '../openapi/openapi.dto.js';
-import { LearnerContentService } from './learner-content.service.js';
+import {
+  LearnerContentService,
+  parseLearnerPublicResponse,
+} from './learner-content.service.js';
 
 /** LEARNER와 상속된 ADMIN이 사용하는 어휘 endpoint */
 @ApiTags('Learner Vocabularies')
@@ -88,7 +91,8 @@ export class LearnerVocabulariesController {
     @Query() rawQuery: Record<string, unknown>,
   ): Promise<VocabularyListResponse> {
     const query = vocabularyListQuerySchema.parse(rawQuery);
-    return vocabularyListResponseSchema.parse(
+    return parseLearnerPublicResponse(
+      vocabularyListResponseSchema,
       await this.learning.listVocabularies(user.userId, query),
     );
   }
@@ -108,7 +112,8 @@ export class LearnerVocabulariesController {
     @Param() rawPath: Record<string, unknown>,
   ): Promise<VocabularyDetailResponse> {
     const path = vocabularyIdPathSchema.parse(rawPath);
-    return vocabularyDetailResponseSchema.parse(
+    return parseLearnerPublicResponse(
+      vocabularyDetailResponseSchema,
       await this.learning.getVocabularyDetail(user.userId, path.vocabularyId),
     );
   }
@@ -131,7 +136,8 @@ export class LearnerVocabulariesController {
   ): Promise<VocabularyRelatedQuestionsResponse> {
     const path = vocabularyIdPathSchema.parse(rawPath);
     const query = vocabularyRelatedQuestionsQuerySchema.parse(rawQuery);
-    return vocabularyRelatedQuestionsResponseSchema.parse(
+    return parseLearnerPublicResponse(
+      vocabularyRelatedQuestionsResponseSchema,
       await this.learning.listRelatedQuestions(
         user.userId,
         path.vocabularyId,
@@ -154,7 +160,8 @@ export class LearnerVocabulariesController {
     @Query() rawQuery: Record<string, unknown>,
   ): Promise<SavedVocabularyListResponse> {
     const query = savedVocabularyListQuerySchema.parse(rawQuery);
-    return savedVocabularyListResponseSchema.parse(
+    return parseLearnerPublicResponse(
+      savedVocabularyListResponseSchema,
       await this.learning.listSavedVocabularies(user.userId, query),
     );
   }

@@ -32,16 +32,114 @@ const ACTIVE_PATHS = [
   '/ready',
 ];
 
-const LEARNER_PATHS = ACTIVE_PATHS.filter(
-  (path) =>
-    path.startsWith('/api/v1/questions') ||
-    path.startsWith('/api/v1/vocabularies') ||
-    path.includes('/question-attempts') ||
-    path.includes('/saved-questions') ||
-    path.includes('/saved-vocabularies'),
-);
+type LearnerOperationExpectation = {
+  method: 'get' | 'post' | 'put' | 'delete';
+  path: string;
+  pathParameters?: readonly string[];
+  query?: readonly string[];
+  body?: string;
+  success: readonly [status: string, dto?: string];
+  errors: readonly string[];
+};
 
-describe('OpenAPI document', () => {
+const LEARNER_OPERATIONS: readonly LearnerOperationExpectation[] = [
+  {
+    method: 'get',
+    path: '/api/v1/questions',
+    query: [
+      'skill',
+      'questionTypeId',
+      'difficulty',
+      'saved',
+      'firstResult',
+      'page',
+      'pageSize',
+    ],
+    success: ['200', 'QuestionListResponseDto'],
+    errors: ['400', '401', '403', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/questions/{questionId}',
+    pathParameters: ['questionId'],
+    success: ['200', 'QuestionDetailResponseDto'],
+    errors: ['400', '401', '403', '404', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/questions/{questionId}/attempts',
+    pathParameters: ['questionId'],
+    body: 'SubmitQuestionAttemptRequestDto',
+    success: ['201', 'SubmitQuestionAttemptResponseDto'],
+    errors: ['400', '401', '403', '409', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/me/question-attempts',
+    query: ['page', 'pageSize'],
+    success: ['200', 'QuestionAttemptListResponseDto'],
+    errors: ['400', '401', '403', '500'],
+  },
+  {
+    method: 'put',
+    path: '/api/v1/me/saved-questions/{questionId}',
+    pathParameters: ['questionId'],
+    success: ['204'],
+    errors: ['400', '401', '403', '409', '500'],
+  },
+  {
+    method: 'delete',
+    path: '/api/v1/me/saved-questions/{questionId}',
+    pathParameters: ['questionId'],
+    success: ['204'],
+    errors: ['400', '401', '403', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/vocabularies',
+    query: ['query', 'kind', 'partOfSpeech', 'difficulty', 'page', 'pageSize'],
+    success: ['200', 'VocabularyListResponseDto'],
+    errors: ['400', '401', '403', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/vocabularies/{vocabularyId}',
+    pathParameters: ['vocabularyId'],
+    success: ['200', 'VocabularyDetailResponseDto'],
+    errors: ['400', '401', '403', '404', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/vocabularies/{vocabularyId}/questions',
+    pathParameters: ['vocabularyId'],
+    query: ['page', 'pageSize'],
+    success: ['200', 'VocabularyRelatedQuestionsResponseDto'],
+    errors: ['400', '401', '403', '404', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/me/saved-vocabularies',
+    query: ['page', 'pageSize'],
+    success: ['200', 'SavedVocabularyListResponseDto'],
+    errors: ['400', '401', '403', '500'],
+  },
+  {
+    method: 'put',
+    path: '/api/v1/me/saved-vocabularies/{vocabularyId}',
+    pathParameters: ['vocabularyId'],
+    success: ['204'],
+    errors: ['400', '401', '403', '404', '500'],
+  },
+  {
+    method: 'delete',
+    path: '/api/v1/me/saved-vocabularies/{vocabularyId}',
+    pathParameters: ['vocabularyId'],
+    success: ['204'],
+    errors: ['400', '401', '403', '500'],
+  },
+];
+
+describe('OpenAPI 문서', () => {
   let app: INestApplication | undefined;
 
   beforeEach(async () => {
@@ -132,84 +230,87 @@ describe('OpenAPI document', () => {
     expect(response).not.toHaveProperty('content');
   });
 
-  it('학습자 operation 열두 개가 모두 Bearer 보안을 요구한다', () => {
+  it('학습자 operation 열두 개의 요청·성공·보안·오류 계약을 모두 고정한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
-    const methods = ['get', 'post', 'put', 'delete'] as const;
-    let operationCount = 0;
 
-    LEARNER_PATHS.forEach((path) => {
-      methods.forEach((method) => {
-        const operation = document.paths[path]?.[method];
-        if (!operation) return;
-        operationCount += 1;
-        expect(operation.security).toContainEqual({ accessToken: [] });
+    expect(LEARNER_OPERATIONS).toHaveLength(12);
+    LEARNER_OPERATIONS.forEach((expected) => {
+      const operation = document.paths[expected.path]?.[expected.method];
+      expect(
+        operation,
+        `${expected.method.toUpperCase()} ${expected.path}`,
+      ).toBeDefined();
+      if (!operation) return;
+
+      expect(operation.security).toContainEqual({ accessToken: [] });
+      const parameters = (operation.parameters ?? []).flatMap((parameter) =>
+        'name' in parameter ? [parameter] : [],
+      );
+      const pathParameters = parameters.filter(
+        (parameter) => parameter.in === 'path',
+      );
+      const queryParameters = parameters.filter(
+        (parameter) => parameter.in === 'query',
+      );
+      expect(pathParameters.map((parameter) => parameter.name).sort()).toEqual(
+        [...(expected.pathParameters ?? [])].sort(),
+      );
+      pathParameters.forEach((parameter) => {
+        expect(parameter.required).toBe(true);
+        expect(parameter.schema).toMatchObject({
+          type: 'string',
+          format: 'uuid',
+        });
       });
-    });
+      expect(queryParameters.map((parameter) => parameter.name).sort()).toEqual(
+        [...(expected.query ?? [])].sort(),
+      );
 
-    expect(operationCount).toBe(12);
-  });
-
-  it('답안 body·201 응답과 문제 목록 query를 공개 DTO에서 문서화한다', () => {
-    if (!app)
-      throw new Error('OpenAPI test application이 초기화되지 않았습니다');
-    const document = createOpenApiDocument(app);
-    const attempt =
-      document.paths['/api/v1/questions/{questionId}/attempts']?.post;
-    const list = document.paths['/api/v1/questions']?.get;
-
-    expect(attempt?.requestBody).toMatchObject({
-      content: {
-        'application/json': {
-          schema: {
-            $ref: '#/components/schemas/SubmitQuestionAttemptRequestDto',
+      if (expected.body) {
+        expect(operation.requestBody).toMatchObject({
+          content: {
+            'application/json': {
+              schema: {
+                $ref: `#/components/schemas/${expected.body}`,
+              },
+            },
           },
-        },
-      },
-    });
-    expect(attempt?.responses?.['201']).toMatchObject({
-      content: {
-        'application/json': {
-          schema: {
-            $ref: '#/components/schemas/SubmitQuestionAttemptResponseDto',
+        });
+      } else {
+        expect(operation.requestBody).toBeUndefined();
+      }
+
+      const [successStatus, successDto] = expected.success;
+      const success = operation.responses[successStatus];
+      expect(success).toBeDefined();
+      if (successDto) {
+        expect(success).toMatchObject({
+          content: {
+            'application/json': {
+              schema: {
+                $ref: `#/components/schemas/${successDto}`,
+              },
+            },
           },
-        },
-      },
-    });
-    expect(list?.parameters?.map((parameter) => parameter)).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ name: 'page', in: 'query' }),
-        expect.objectContaining({ name: 'pageSize', in: 'query' }),
-        expect.objectContaining({ name: 'firstResult', in: 'query' }),
-      ]),
-    );
-  });
+        });
+      } else {
+        expect(success).not.toHaveProperty('content');
+      }
 
-  it('학습자 오류는 problem media type이고 저장 204에는 body가 없다', () => {
-    if (!app)
-      throw new Error('OpenAPI test application이 초기화되지 않았습니다');
-    const document = createOpenApiDocument(app);
-    const problem =
-      document.paths['/api/v1/questions/{questionId}/attempts']?.post
-        ?.responses?.['409'];
-    const savedOperations = [
-      document.paths['/api/v1/me/saved-questions/{questionId}']?.put,
-      document.paths['/api/v1/me/saved-questions/{questionId}']?.delete,
-      document.paths['/api/v1/me/saved-vocabularies/{vocabularyId}']?.put,
-      document.paths['/api/v1/me/saved-vocabularies/{vocabularyId}']?.delete,
-    ];
-
-    expect(problem).toMatchObject({
-      content: {
-        'application/problem+json': {
-          schema: { $ref: '#/components/schemas/ProblemDetailsDto' },
-        },
-      },
-    });
-    savedOperations.forEach((operation) => {
-      expect(operation?.responses?.['204']).toBeDefined();
-      expect(operation?.responses?.['204']).not.toHaveProperty('content');
+      expect(Object.keys(operation.responses).sort()).toEqual(
+        [successStatus, ...expected.errors].sort(),
+      );
+      expected.errors.forEach((status) => {
+        expect(operation.responses[status]).toMatchObject({
+          content: {
+            'application/problem+json': {
+              schema: { $ref: '#/components/schemas/ProblemDetailsDto' },
+            },
+          },
+        });
+      });
     });
   });
 

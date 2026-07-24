@@ -1,6 +1,9 @@
 /** 학습자 내부 projection이 서명 URL과 strict 공개 계약으로 바뀌는지 검증한다 */
 import { describe, expect, it, vi } from 'vitest';
-import { LearnerContentService } from './learner-content.service.js';
+import {
+  LearnerContentService,
+  LearnerPublicResponseError,
+} from './learner-content.service.js';
 
 const ids = {
   question: '00000000-0000-4000-8000-000000000001',
@@ -14,6 +17,8 @@ const ids = {
   pronunciation: '00000000-0000-4000-8000-000000000009',
   attempt: '00000000-0000-4000-8000-000000000010',
   clientAttempt: '00000000-0000-4000-8000-000000000011',
+  requestedVersion: '00000000-0000-4000-8000-000000000012',
+  persistedVersion: '00000000-0000-4000-8000-000000000013',
 } as const;
 
 const sentence = {
@@ -203,7 +208,7 @@ const dependencies = () => ({
         id: ids.attempt,
         userId: 'user-1',
         questionId: ids.question,
-        questionVersionId: ids.version,
+        questionVersionId: ids.persistedVersion,
         attemptNo: 1,
         selectedOptionId: ids.option,
         clientAttemptId: ids.clientAttempt,
@@ -261,14 +266,14 @@ describe('LearnerContentService 문제 응답', () => {
     });
 
     const result = await service.submitQuestionAttempt('user-1', ids.question, {
-      questionVersionId: ids.version,
+      questionVersionId: ids.requestedVersion,
       selectedOptionId: ids.option,
       clientAttemptId: ids.clientAttempt,
       durationMs: 1_000,
     });
 
     expect(fakes.questionQuery.getExplanation).toHaveBeenCalledWith(
-      ids.version,
+      ids.persistedVersion,
     );
     expect(result).toMatchObject({
       attempt: {
@@ -295,6 +300,20 @@ describe('LearnerContentService 문제 응답', () => {
       status: 404,
       response: { code: 'QUESTION_NOT_FOUND' },
     });
+  });
+
+  it('공개 응답 계약 실패를 request ZodError와 다른 generic 오류로 바꾼다', async () => {
+    const fakes = dependencies();
+    fakes.questionQuery.listQuestions.mockResolvedValueOnce({
+      items: [],
+      page: { ...page, totalItems: 0, totalPages: 0 },
+      storageKey: 'private/leak.mp3',
+    });
+    const service = new LearnerContentService({ ...fakes });
+
+    await expect(
+      service.listQuestions('user-1', { page: 1, pageSize: 20 }),
+    ).rejects.toEqual(new LearnerPublicResponseError());
   });
 });
 

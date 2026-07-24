@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
 import { CognitoAuthorizerGuard } from '../identity/cognito-authorizer.guard.js';
 import { REQUIRED_ROLE_KEY } from '../identity/require-role.decorator.js';
+import { LearnerPublicResponseError } from './learner-content.service.js';
 import { LearnerQuestionsController } from './learner-questions.controller.js';
 
 const ids = {
@@ -32,6 +33,37 @@ const page = {
   totalPages: 0,
 } as const;
 
+const emptyPage = { items: [], page } as const;
+const detail = {
+  questionId: ids.question,
+  questionVersionId: ids.version,
+  questionType: {
+    id: '00000000-0000-4000-8000-000000000006',
+    slug: 'reading-standard-choice',
+    displayName: '독해 기본 선택',
+  },
+  skill: 'READING',
+  difficulty: 2,
+  template: 'STANDARD_CHOICE',
+  blocks: [],
+  options: [],
+  saved: false,
+} as const;
+const attempt = {
+  attempt: {
+    id: ids.attempt,
+    attemptNo: 1,
+    isFirst: true,
+    isCorrect: false,
+    selectedOptionId: ids.option,
+    submittedAt: '2026-07-24T00:00:00.000Z',
+  },
+  feedback: {
+    correctOptionId: ids.option,
+    explanationBlocks: [],
+  },
+} as const;
+
 const readHttpCode = (
   method: keyof LearnerQuestionsController,
 ): number | undefined => {
@@ -43,23 +75,10 @@ const readHttpCode = (
 };
 
 const service = () => ({
-  listQuestions: vi.fn().mockResolvedValue({ items: [], page }),
-  getQuestionDetail: vi.fn(),
-  submitQuestionAttempt: vi.fn().mockResolvedValue({
-    attempt: {
-      id: ids.attempt,
-      attemptNo: 1,
-      isFirst: true,
-      isCorrect: false,
-      selectedOptionId: ids.option,
-      submittedAt: '2026-07-24T00:00:00.000Z',
-    },
-    feedback: {
-      correctOptionId: ids.option,
-      explanationBlocks: [],
-    },
-  }),
-  listAttempts: vi.fn().mockResolvedValue({ items: [], page }),
+  listQuestions: vi.fn().mockResolvedValue(emptyPage),
+  getQuestionDetail: vi.fn().mockResolvedValue(detail),
+  submitQuestionAttempt: vi.fn().mockResolvedValue(attempt),
+  listAttempts: vi.fn().mockResolvedValue(emptyPage),
   saveQuestion: vi.fn().mockResolvedValue(undefined),
   removeQuestion: vi.fn().mockResolvedValue(undefined),
 });
@@ -98,6 +117,16 @@ describe('LearnerQuestionsController 공개 계약', () => {
       page: 1,
       pageSize: 50,
     });
+  });
+
+  it('문제 상세 path를 검증하고 현재 userId로 조회한다', async () => {
+    const fake = service();
+    const controller = new LearnerQuestionsController(fake as never);
+
+    await expect(
+      controller.getQuestionDetail(user, { questionId: ids.question }),
+    ).resolves.toEqual(detail);
+    expect(fake.getQuestionDetail).toHaveBeenCalledWith('user-1', ids.question);
   });
 
   it('path와 답안 body를 strict UUID 계약으로 parse해 제출한다', async () => {
@@ -147,15 +176,50 @@ describe('LearnerQuestionsController 공개 계약', () => {
     expect(fake.removeQuestion).toHaveBeenCalledWith('user-1', ids.question);
   });
 
-  it('service 응답도 strict 공개 schema로 다시 검증한다', async () => {
-    const fake = service();
-    fake.listQuestions.mockResolvedValueOnce({
-      items: [],
-      page,
-      storageKey: 'private/leak',
-    });
-    const controller = new LearnerQuestionsController(fake as never);
+  it('네 공개 응답 method의 계약 실패를 모두 generic response 오류로 바꾼다', async () => {
+    const body = {
+      questionVersionId: ids.version,
+      selectedOptionId: ids.option,
+      clientAttemptId: ids.clientAttempt,
+      durationMs: 1_000,
+    };
+    const extra = { storageKey: 'private/leak.mp3' };
 
-    await expect(controller.listQuestions(user, {})).rejects.toThrow();
+    const listFake = service();
+    listFake.listQuestions.mockResolvedValueOnce({ ...emptyPage, ...extra });
+    await expect(
+      new LearnerQuestionsController(listFake as never).listQuestions(user, {}),
+    ).rejects.toBeInstanceOf(LearnerPublicResponseError);
+
+    const detailFake = service();
+    detailFake.getQuestionDetail.mockResolvedValueOnce({ ...detail, ...extra });
+    await expect(
+      new LearnerQuestionsController(detailFake as never).getQuestionDetail(
+        user,
+        { questionId: ids.question },
+      ),
+    ).rejects.toBeInstanceOf(LearnerPublicResponseError);
+
+    const submitFake = service();
+    submitFake.submitQuestionAttempt.mockResolvedValueOnce({
+      ...attempt,
+      ...extra,
+    });
+    await expect(
+      new LearnerQuestionsController(submitFake as never).submitQuestionAttempt(
+        user,
+        { questionId: ids.question },
+        body,
+      ),
+    ).rejects.toBeInstanceOf(LearnerPublicResponseError);
+
+    const attemptsFake = service();
+    attemptsFake.listAttempts.mockResolvedValueOnce({ ...emptyPage, ...extra });
+    await expect(
+      new LearnerQuestionsController(attemptsFake as never).listAttempts(
+        user,
+        {},
+      ),
+    ).rejects.toBeInstanceOf(LearnerPublicResponseError);
   });
 });

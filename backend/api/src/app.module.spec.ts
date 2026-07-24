@@ -1,4 +1,4 @@
-/** MVP root가 Identity와 health 경계만 조립하는지 검증한다 */
+/** MVP root가 Identity·Learning과 health 경계만 조립하는지 검증한다 */
 import { describe, expect, it } from 'vitest';
 import {
   CloudFrontMediaReadUrlProvider,
@@ -9,7 +9,7 @@ import { LearnerContentService } from './learning/learner-content.service.js';
 import { LearningModule } from './learning/learning.module.js';
 import { createApplicationModule } from './app.module.js';
 
-describe('createApplicationModule', () => {
+describe('createApplicationModule 조립', () => {
   it('로컬 설정에서 Identity·Learning과 health만 조립한다', () => {
     const application = createApplicationModule({
       NODE_ENV: 'test',
@@ -58,7 +58,7 @@ describe('createApplicationModule', () => {
     );
   });
 
-  it('production은 같은 Learning 조립에서 CloudFront signer를 선택한다', () => {
+  it('운영 환경은 같은 Learning 조립에서 CloudFront signer를 선택한다', () => {
     const application = createApplicationModule({
       NODE_ENV: 'production',
       AUTH_MODE: 'cognito',
