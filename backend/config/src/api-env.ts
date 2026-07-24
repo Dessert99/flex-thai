@@ -1,6 +1,12 @@
 /** API가 시작 전에 환경 설정 오류를 발견하도록 검증한다 */
 import { z } from 'zod';
 
+const localMediaDefaults = {
+  MEDIA_CDN_BASE_URL: 'https://fake-media.invalid/media',
+  MEDIA_KEY_PAIR_ID: 'local-fake-key-pair',
+  MEDIA_PRIVATE_KEY_SECRET_ARN: 'local-fake-media-secret',
+} as const;
+
 const apiEnvSchema = z
   .object({
     NODE_ENV: z
@@ -27,6 +33,9 @@ const apiEnvSchema = z
     FROM_EMAIL: z.string().optional(),
     AUTH_LIMIT_PARAMETER_PREFIX: z.string().default('/flex-thia/prod/auth'),
     ALARM_TOPIC_ARN: z.string().optional(),
+    MEDIA_CDN_BASE_URL: z.string().trim().url().optional(),
+    MEDIA_KEY_PAIR_ID: z.string().trim().min(1).optional(),
+    MEDIA_PRIVATE_KEY_SECRET_ARN: z.string().trim().min(1).optional(),
     FAKE_USER_SUB: z.string().default('local-admin-sub'),
     FAKE_USER_EMAIL: z.string().default('admin@hufs.ac.kr'),
     FAKE_USER_PASSWORD: z.string().default('LocalOnly1!'),
@@ -54,6 +63,9 @@ const apiEnvSchema = z
         value.RDS_SECRET_ARN,
         value.COGNITO_USER_POOL_ID,
         value.COGNITO_CLIENT_ID,
+        value.MEDIA_CDN_BASE_URL,
+        value.MEDIA_KEY_PAIR_ID,
+        value.MEDIA_PRIVATE_KEY_SECRET_ARN,
       ];
 
       if (required.some((item) => !item)) {
@@ -62,8 +74,29 @@ const apiEnvSchema = z
           message: 'production 필수 환경 변수가 누락되었습니다',
         });
       }
+
+      if (
+        value.MEDIA_CDN_BASE_URL &&
+        new URL(value.MEDIA_CDN_BASE_URL).protocol !== 'https:'
+      ) {
+        context.addIssue({
+          code: 'custom',
+          path: ['MEDIA_CDN_BASE_URL'],
+          message: 'production MEDIA_CDN_BASE_URL은 HTTPS여야 합니다',
+        });
+      }
     }
-  });
+  })
+  .transform((value) => ({
+    ...value,
+    MEDIA_CDN_BASE_URL:
+      value.MEDIA_CDN_BASE_URL ?? localMediaDefaults.MEDIA_CDN_BASE_URL,
+    MEDIA_KEY_PAIR_ID:
+      value.MEDIA_KEY_PAIR_ID ?? localMediaDefaults.MEDIA_KEY_PAIR_ID,
+    MEDIA_PRIVATE_KEY_SECRET_ARN:
+      value.MEDIA_PRIVATE_KEY_SECRET_ARN ??
+      localMediaDefaults.MEDIA_PRIVATE_KEY_SECRET_ARN,
+  }));
 
 /** 검증이 끝난 API 환경 설정 */
 export type ApiEnv = z.infer<typeof apiEnvSchema>;
