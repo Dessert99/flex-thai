@@ -22,10 +22,18 @@ const tokens = {
 const response = () => ({ cookie: vi.fn(), clearCookie: vi.fn() });
 
 describe('IdentityController', () => {
-  it('공개 signup과 password reset method를 제공하지 않는다', () => {
-    expect(IdentityController.prototype).not.toHaveProperty('signup');
-    expect(IdentityController.prototype).not.toHaveProperty('forgotPassword');
-    expect(IdentityController.prototype).not.toHaveProperty('resetPassword');
+  it('공개 signup·password reset·phone·SMS method를 제공하지 않는다', () => {
+    [
+      'signup',
+      'verifySignup',
+      'forgotPassword',
+      'resetPassword',
+      'start',
+      'verify',
+      'request',
+    ].forEach((method) => {
+      expect(IdentityController.prototype).not.toHaveProperty(method);
+    });
   });
 
   it('로그인 성공은 refresh cookie를 쓰고 body에서 refresh token을 제외한다', async () => {

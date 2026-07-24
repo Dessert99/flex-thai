@@ -13,10 +13,7 @@ import {
   S3AudioUploadProvider,
 } from '@flex-thia/providers';
 import { AdminContentService } from './admin/admin-content.service.js';
-import { AdminModule } from './admin/admin.module.js';
-import { IdentityModule } from './identity/identity.module.js';
 import { LearnerContentService } from './learning/learner-content.service.js';
-import { LearningModule } from './learning/learning.module.js';
 import { createApplicationModule } from './app.module.js';
 
 describe('createApplicationModule 조립', () => {
@@ -28,16 +25,26 @@ describe('createApplicationModule 조립', () => {
       DATABASE_URL: 'postgres://local/test',
     });
 
-    expect(application.imports).toHaveLength(3);
-    expect(application.imports?.[0]).toMatchObject({ module: IdentityModule });
-    expect(application.imports?.[1]).toMatchObject({ module: LearningModule });
-    expect(application.imports?.[2]).toMatchObject({ module: AdminModule });
-    expect(application.controllers).toHaveLength(2);
-    expect(
-      application.controllers?.map(
-        (controller) => (controller as { name: string }).name,
-      ),
-    ).toEqual(['HealthController', 'ReadinessController']);
+    const importedModuleNames = application.imports?.map(
+      (entry) => (entry as { module: { name: string } }).module.name,
+    );
+    const rootControllerNames = application.controllers?.map(
+      (controller) => (controller as { name: string }).name,
+    );
+
+    expect(importedModuleNames).toEqual([
+      'IdentityModule',
+      'LearningModule',
+      'AdminModule',
+    ]);
+    expect(importedModuleNames).not.toContain('JobsModule');
+    expect(importedModuleNames).not.toContain('UploadsModule');
+    expect(rootControllerNames).toEqual([
+      'HealthController',
+      'ReadinessController',
+    ]);
+    expect(rootControllerNames).not.toContain('JobsController');
+    expect(rootControllerNames).not.toContain('UploadsController');
     expect(application.providers).toHaveLength(1);
 
     const learning = application.imports?.[1] as {

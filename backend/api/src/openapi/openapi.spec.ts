@@ -51,6 +51,17 @@ const ACTIVE_PATHS = [
   '/ready',
 ];
 
+const INACTIVE_MVP_PATHS = [
+  '/api/v1/auth/signup',
+  '/api/v1/auth/signup/verify',
+  '/api/v1/auth/forgot-password',
+  '/api/v1/auth/reset-password',
+  '/api/v1/auth/phone-verifications',
+  '/api/v1/auth/mfa/sms/challenge',
+  '/api/v1/jobs',
+  '/api/v1/uploads/policies',
+] as const;
+
 type OpenApiSchemaNode = {
   type?: string;
   format?: string;
@@ -360,8 +371,16 @@ describe('OpenAPI 문서', () => {
     const document = createOpenApiDocument(app);
 
     expect(Object.keys(document.paths).sort()).toEqual(ACTIVE_PATHS.sort());
-    expect(document.paths).not.toHaveProperty('/api/v1/jobs');
-    expect(document.paths).not.toHaveProperty('/api/v1/uploads/policies');
+  });
+
+  it('보류한 legacy HTTP 경로를 MVP 문서에 노출하지 않는다', () => {
+    if (!app)
+      throw new Error('OpenAPI test application이 초기화되지 않았습니다');
+    const document = createOpenApiDocument(app);
+
+    INACTIVE_MVP_PATHS.forEach((path) => {
+      expect(document.paths).not.toHaveProperty(path);
+    });
   });
 
   it('로그인 요청·응답과 Problem Details schema를 공개한다', () => {
