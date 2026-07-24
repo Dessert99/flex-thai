@@ -81,3 +81,12 @@ export * from './learning/saved-content.js';
 
 /** private media 읽기 URL provider port를 공개한다 */
 export * from './media/media-read-url.provider.js';
+
+/** canonical 콘텐츠 가져오기 내부 명령 구조를 공개한다 */
+export * from './content-import/content-import.js';
+
+/** 콘텐츠 초안의 current lookup·원자 저장 port를 공개한다 */
+export * from './content-import/content-draft.repository.js';
+
+/** canonical 어휘·문제 초안 생성 use case를 공개한다 */
+export * from './content-import/content-draft.js';
