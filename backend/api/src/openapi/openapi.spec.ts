@@ -152,7 +152,7 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
     path: '/api/v1/admin/question-versions/{versionId}/validate',
     pathParameters: ['versionId'],
     success: ['200', 'AdminQuestionValidationReportDto'],
-    errors: ['400', '401', '403', '404', '500'],
+    errors: ['400', '401', '403', '404', '409', '500'],
   },
   {
     method: 'post',

@@ -675,7 +675,7 @@ describe('DrizzleQuestionPublicationRepository', () => {
     });
   });
 
-  it('검증 상태와 이슈와 시각을 한 update에 저장한다', async () => {
+  it('DRAFT 검증 상태와 이슈와 시각을 한 update에 저장한다', async () => {
     const validatedAt = new Date('2026-07-24T00:00:00.000Z');
     const issues = [{ path: 'options', code: 'OPTION_COUNT_INVALID' }] as const;
     const fake = createFake({ returningResults: [[{ id: 'version-id' }]] });
@@ -697,9 +697,29 @@ describe('DrizzleQuestionPublicationRepository', () => {
         validatedAt,
       },
     });
-    expect(toSql(fake.updateCalls[0]?.condition).params).toEqual([
-      'version-id',
-    ]);
+    expect(toSql(fake.updateCalls[0]?.condition).params).toEqual(
+      expect.arrayContaining(['version-id', 'DRAFT']),
+    );
+  });
+
+  it('DRAFT가 아닌 버전의 검증 저장 결과가 없으면 안정적인 저장 오류를 던진다', async () => {
+    const validatedAt = new Date('2026-07-24T00:00:00.000Z');
+    const fake = createFake({ returningResults: [[]] });
+
+    await expect(
+      withTransaction(fake.database, (transaction) =>
+        transaction.saveValidation(
+          'version-id',
+          { status: 'PASSED', issues: [] },
+          validatedAt,
+        ),
+      ),
+    ).rejects.toEqual(
+      new QuestionPublicationPersistenceError('saveValidation'),
+    );
+    expect(toSql(fake.updateCalls[0]?.condition).params).toEqual(
+      expect.arrayContaining(['version-id', 'DRAFT']),
+    );
   });
 
   it.each([

@@ -101,12 +101,17 @@ const validateInTransaction = async (
 export class QuestionPublicationService {
   constructor(private readonly repository: QuestionPublicationRepository) {}
 
-  /** 최신 참조 상태로 버전을 검증하고 결과를 저장한다 */
+  /** DRAFT만 최신 참조 상태로 검증하고 결과를 저장한다 */
   async validateVersion(
     command: ValidateQuestionVersionCommand,
   ): Promise<QuestionValidationReport> {
     return this.repository.runInTransaction(async (transaction) => {
-      assertVersion(await transaction.loadVersion(command.versionId));
+      const version = assertVersion(
+        await transaction.loadVersion(command.versionId),
+      );
+      if (version.status !== 'DRAFT') {
+        throw new QuestionPublicationError('IMMUTABLE_VERSION');
+      }
       const report = await validateInTransaction(
         transaction,
         command.versionId,

@@ -489,7 +489,12 @@ const createQuestionPublicationTransaction = (
           validatedAt,
           updatedAt: validatedAt,
         })
-        .where(eq(questionVersions.id, versionId))
+        .where(
+          and(
+            eq(questionVersions.id, versionId),
+            eq(questionVersions.status, 'DRAFT'),
+          ),
+        )
         .returning({ id: questionVersions.id });
       assertExactlyOne(rows, 'saveValidation');
     },

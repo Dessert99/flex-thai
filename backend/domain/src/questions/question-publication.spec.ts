@@ -7,7 +7,7 @@ import type {
   QuestionVersionRecord,
 } from './question-publication.repository.js';
 import {
-  type QuestionPublicationError,
+  QuestionPublicationError,
   QuestionPublicationService,
   type QuestionPublicationErrorCode,
 } from './question-publication.js';
@@ -567,6 +567,24 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
     );
     expect(calls).toEqual(['loadVersion', 'loadValidationCandidate']);
   });
+
+  it.each(['PUBLISHED', 'RETIRED', 'INVALIDATED'] as const)(
+    '%s 버전은 IMMUTABLE_VERSION으로 검증하지 않는다',
+    async (status) => {
+      const calls: string[] = [];
+      const service = createService(
+        createTransaction(calls, {
+          version: version({ status, publishedAt: occurredAt }),
+        }),
+        calls,
+      );
+
+      await expect(service.validateVersion(validateCommand)).rejects.toEqual(
+        new QuestionPublicationError('IMMUTABLE_VERSION'),
+      );
+      expect(calls).toEqual(['loadVersion']);
+    },
+  );
 
   it('FAILED 검증 보고서 저장과 구조화 audit을 같은 transaction에 둔다', async () => {
     const calls: string[] = [];

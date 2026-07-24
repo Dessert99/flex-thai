@@ -162,11 +162,11 @@ export class AdminQuestionsController {
     );
   }
 
-  /** 최신 참조 상태의 FAILED도 200 보고서로 반환한다 */
+  /** DRAFT의 최신 참조 상태 FAILED도 200 보고서로 반환한다 */
   @ApiOperation({ summary: '최신 참조 상태로 문제 버전을 검증한다' })
   @ApiParam({ name: 'versionId', type: 'string', format: 'uuid' })
   @ApiOkResponse({ type: AdminQuestionValidationReportDto })
-  @ApiProblemResponses(400, 401, 403, 404, 500)
+  @ApiProblemResponses(400, 401, 403, 404, 409, 500)
   @Post('question-versions/:versionId/validate')
   @HttpCode(200)
   async validateQuestionVersion(
