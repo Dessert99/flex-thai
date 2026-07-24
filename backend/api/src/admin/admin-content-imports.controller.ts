@@ -36,6 +36,7 @@ import {
   CurrentUser,
   type AuthenticatedUser,
 } from '../common/auth/current-user.decorator.js';
+import { AdminRequestId } from '../common/http/admin-request-id.js';
 import { AdminMfaGuard } from '../identity/admin-mfa.guard.js';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
 import { CognitoAuthorizerGuard } from '../identity/cognito-authorizer.guard.js';
@@ -54,7 +55,6 @@ import {
   createAdminActorContext,
   parseAdminPublicResponse,
 } from './admin-content.service.js';
-import { AdminRequestId } from './admin-request-id.js';
 
 /** ADMIN과 TOTP 등록을 요구하는 콘텐츠 가져오기 endpoint */
 @ApiTags('Admin Content Imports')

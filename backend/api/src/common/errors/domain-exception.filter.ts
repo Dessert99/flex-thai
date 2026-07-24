@@ -22,7 +22,7 @@ import { ZodError } from 'zod';
 import {
   resolveAdminRequestId,
   type AdminRequestIdRequest,
-} from '../../admin/admin-request-id.js';
+} from '../http/admin-request-id.js';
 import type { StructuredLogger } from '../logging/structured-logger.js';
 
 const INTERNAL_SERVER_ERROR_STATUS: number = HttpStatus.INTERNAL_SERVER_ERROR;

@@ -9,13 +9,13 @@ import {
   buildErrorResponse,
   DomainExceptionFilter,
 } from '../common/errors/domain-exception.filter.js';
+import { resolveAdminRequestId } from '../common/http/admin-request-id.js';
 import { AdminMfaGuard } from '../identity/admin-mfa.guard.js';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
 import { CognitoAuthorizerGuard } from '../identity/cognito-authorizer.guard.js';
 import { REQUIRED_ROLE_KEY } from '../identity/require-role.decorator.js';
 import { AdminContentService } from './admin-content.service.js';
 import { AdminMediaAssetsController } from './admin-media-assets.controller.js';
-import { resolveAdminRequestId } from './admin-request-id.js';
 
 const mediaAssetId = '00000000-0000-4000-8000-000000000001';
 const user = {

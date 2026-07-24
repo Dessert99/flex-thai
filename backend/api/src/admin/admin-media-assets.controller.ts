@@ -34,6 +34,7 @@ import {
   CurrentUser,
   type AuthenticatedUser,
 } from '../common/auth/current-user.decorator.js';
+import { AdminRequestId } from '../common/http/admin-request-id.js';
 import { AdminMfaGuard } from '../identity/admin-mfa.guard.js';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
 import { CognitoAuthorizerGuard } from '../identity/cognito-authorizer.guard.js';
@@ -52,7 +53,6 @@ import {
   createAdminActorContext,
   parseAdminPublicResponse,
 } from './admin-content.service.js';
-import { AdminRequestId } from './admin-request-id.js';
 
 const MAX_AUDIO_SIZE_BYTES = 25 * 1024 * 1024;
 
