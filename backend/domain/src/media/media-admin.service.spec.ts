@@ -274,4 +274,47 @@ describe('MediaAdminService 업로드 완료', () => {
     expect(storage.inspectAndSeal).not.toHaveBeenCalled();
     expect(repository.finalizeWithAudit).not.toHaveBeenCalled();
   });
+
+  it('seal 뒤 transaction 실패가 나도 retry에서 final inspection으로 READY를 완료한다', async () => {
+    const uploading: MediaAsset = {
+      ...readyAsset,
+      mimeType: null,
+      sizeBytes: null,
+      sha256: null,
+      status: 'UPLOADING',
+      readyAt: null,
+    };
+    const repository = createRepository({ asset: uploading });
+    const auditFailure = new Error('audit transaction rolled back');
+    repository.finalizeWithAudit
+      .mockRejectedValueOnce(auditFailure)
+      .mockResolvedValueOnce({ outcome: 'READY', asset: readyAsset });
+    const storage = createStorage();
+    storage.inspectAndSeal
+      .mockResolvedValueOnce({
+        mimeType: 'audio/mpeg',
+        sizeBytes: 3,
+        sha256,
+      })
+      .mockResolvedValueOnce({
+        mimeType: 'audio/mpeg',
+        sizeBytes: 3,
+        sha256,
+      });
+    const service = new MediaAdminService(
+      repository,
+      storage,
+      () => readyAsset.id,
+      () => readyAt,
+    );
+
+    await expect(
+      service.completeAudioUpload(readyAsset.id, context),
+    ).rejects.toBe(auditFailure);
+    await expect(
+      service.completeAudioUpload(readyAsset.id, context),
+    ).resolves.toBe(readyAsset);
+    expect(storage.inspectAndSeal).toHaveBeenCalledTimes(2);
+    expect(repository.finalizeWithAudit).toHaveBeenCalledTimes(2);
+  });
 });

@@ -91,7 +91,7 @@ const createFake = (
   return { database, inserted, lockModes, updates };
 };
 
-describe('DrizzleMediaAdminRepository', () => {
+describe('Drizzle 관리자 media 저장소', () => {
   it('UPLOADING 생성과 audit을 같은 transaction에 저장한다', async () => {
     const fake = createFake();
     const repository = new DrizzleMediaAdminRepository(fake.database as never);

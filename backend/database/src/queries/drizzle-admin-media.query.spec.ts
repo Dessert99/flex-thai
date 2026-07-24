@@ -27,7 +27,7 @@ const createSelectFake = (results: Array<Array<Record<string, unknown>>>) => {
   return { calls, database: { select } };
 };
 
-describe('DrizzleAdminMediaQuery', () => {
+describe('Drizzle 관리자 media 조회', () => {
   it('storage key 없이 상태·선언/actual metadata와 발음·문장 사용 ID/count를 반환한다', async () => {
     const fake = createSelectFake([
       [

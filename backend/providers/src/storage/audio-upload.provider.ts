@@ -41,6 +41,19 @@ const isDestinationConflict = (error: unknown): boolean => {
   );
 };
 
+const isObjectNotFound = (error: unknown): boolean => {
+  if (typeof error !== 'object' || error === null) return false;
+  const candidate = error as {
+    name?: unknown;
+    $metadata?: { httpStatusCode?: unknown };
+  };
+  return (
+    candidate.name === 'NotFound' ||
+    candidate.name === 'NoSuchKey' ||
+    candidate.$metadata?.httpStatusCode === 404
+  );
+};
+
 /** AWS 상세를 stable 오류로 막고 전체 bytes에서 actual hash를 계산하는 adapter */
 export class S3AudioUploadProvider implements AudioUploadStorage {
   constructor(
@@ -87,7 +100,14 @@ export class S3AudioUploadProvider implements AudioUploadStorage {
     input: Parameters<AudioUploadStorage['inspectAndSeal']>[0],
   ): Promise<Awaited<ReturnType<AudioUploadStorage['inspectAndSeal']>>> {
     try {
-      const temporary = await this.readPinnedObject(input.temporaryStorageKey);
+      let temporary: PinnedObject;
+      try {
+        temporary = await this.readPinnedObject(input.temporaryStorageKey);
+      } catch (error) {
+        if (!isObjectNotFound(error)) throw error;
+        // 이전 seal 뒤 DB rollback된 retry만 existing final inspection으로 복구한다.
+        return (await this.readPinnedObject(input.finalStorageKey)).inspection;
+      }
       let inspection = temporary.inspection;
       try {
         await this.client.send(

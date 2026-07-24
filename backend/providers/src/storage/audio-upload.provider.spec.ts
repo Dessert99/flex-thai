@@ -30,7 +30,7 @@ const commandInput = (command: unknown): Record<string, unknown> => {
   return command.input as Record<string, unknown>;
 };
 
-describe('S3AudioUploadProvider upload policy', () => {
+describe('S3 음성 업로드 policy', () => {
   it('final key가 아닌 temporary key에만 10분 exact policy를 발급한다', async () => {
     const sign = vi.fn().mockResolvedValue({
       url: 'https://media-bucket.s3.amazonaws.com',
@@ -74,7 +74,7 @@ describe('S3AudioUploadProvider upload policy', () => {
   });
 });
 
-describe('S3AudioUploadProvider object seal', () => {
+describe('S3 음성 object seal', () => {
   it('Head ETag/version으로 Get을 고정하고 final key를 write-once로 저장한 뒤 temp를 지운다', async () => {
     const bytes = new TextEncoder().encode('abc');
     const send = vi
@@ -216,5 +216,106 @@ describe('S3AudioUploadProvider object seal', () => {
         ([command]) => command instanceof DeleteObjectCommand,
       ),
     ).toBe(false);
+  });
+
+  it.each([
+    [
+      '404',
+      Object.assign(new Error('temporary missing'), {
+        name: 'NotFound',
+        $metadata: { httpStatusCode: 404 },
+      }),
+    ],
+    [
+      'NoSuchKey',
+      Object.assign(new Error('temporary missing'), {
+        name: 'NoSuchKey',
+      }),
+    ],
+  ])(
+    'temporary Head %s이면 existing final을 pinned read한다',
+    async (_case, temporaryMissing) => {
+      const finalBytes = new TextEncoder().encode('existing');
+      const send = vi
+        .fn()
+        .mockRejectedValueOnce(temporaryMissing)
+        .mockResolvedValueOnce({
+          ContentLength: finalBytes.byteLength,
+          ContentType: 'audio/mpeg',
+          ETag: '"final-etag"',
+          VersionId: 'final-version',
+        })
+        .mockResolvedValueOnce({ Body: body(finalBytes) });
+      const provider = new S3AudioUploadProvider(
+        { send } as never,
+        'media-bucket',
+      );
+
+      await expect(
+        provider.inspectAndSeal({ temporaryStorageKey, finalStorageKey }),
+      ).resolves.toEqual({
+        mimeType: 'audio/mpeg',
+        sizeBytes: finalBytes.byteLength,
+        sha256: createHash('sha256').update(finalBytes).digest('hex'),
+      });
+
+      expect(send).toHaveBeenCalledTimes(3);
+      expect(commandInput(send.mock.calls[1]?.[0])).toEqual({
+        Bucket: 'media-bucket',
+        Key: finalStorageKey,
+      });
+      expect(commandInput(send.mock.calls[2]?.[0])).toEqual({
+        Bucket: 'media-bucket',
+        Key: finalStorageKey,
+        IfMatch: '"final-etag"',
+        VersionId: 'final-version',
+      });
+    },
+  );
+
+  it('temporary와 final이 모두 없으면 stable 오류로 종료한다', async () => {
+    const send = vi
+      .fn()
+      .mockRejectedValueOnce(
+        Object.assign(new Error('temporary missing'), {
+          name: 'NotFound',
+          $metadata: { httpStatusCode: 404 },
+        }),
+      )
+      .mockRejectedValueOnce(
+        Object.assign(new Error('final missing'), {
+          name: 'NoSuchKey',
+        }),
+      );
+    const provider = new S3AudioUploadProvider(
+      { send } as never,
+      'media-bucket',
+    );
+
+    await expect(
+      provider.inspectAndSeal({ temporaryStorageKey, finalStorageKey }),
+    ).rejects.toMatchObject({ code: 'AUDIO_UPLOAD_STORAGE_FAILED' });
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+
+  it('temporary 임의 AWS 오류는 final fallback 없이 stable 오류로 종료한다', async () => {
+    const send = vi.fn().mockRejectedValueOnce(
+      Object.assign(new Error('private AccessDenied details'), {
+        name: 'AccessDenied',
+        $metadata: { httpStatusCode: 403 },
+      }),
+    );
+    const provider = new S3AudioUploadProvider(
+      { send } as never,
+      'media-bucket',
+    );
+
+    const error = await provider
+      .inspectAndSeal({ temporaryStorageKey, finalStorageKey })
+      .catch((cause: unknown) => cause);
+
+    expect(error).toBeInstanceOf(AudioUploadStorageError);
+    expect(String(error)).not.toContain('AccessDenied');
+    expect(send).toHaveBeenCalledTimes(1);
   });
 });
