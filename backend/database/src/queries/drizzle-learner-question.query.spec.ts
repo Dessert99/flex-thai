@@ -191,7 +191,7 @@ describe('DrizzleLearnerQuestionQuery 문제 목록', () => {
 });
 
 describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
-  it('position 순으로 조립하고 같은 sentence projection을 재사용한다', async () => {
+  it('position과 동일 span의 occurrence id 순으로 조립하고 같은 sentence projection을 재사용한다', async () => {
     const fake = createSelectFake([
       [
         {
@@ -285,17 +285,27 @@ describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
       [
         {
           sentenceVersionId: 'sentence-id',
-          startTokenIndex: 1,
-          endTokenIndex: 3,
+          occurrenceId: 'occurrence-2',
+          startTokenIndex: 0,
+          endTokenIndex: 2,
           vocabularyId: 'expression-2',
           representative: false,
         },
         {
           sentenceVersionId: 'sentence-id',
+          occurrenceId: 'occurrence-1',
           startTokenIndex: 0,
           endTokenIndex: 2,
           vocabularyId: 'expression-1',
           representative: true,
+        },
+        {
+          sentenceVersionId: 'sentence-id',
+          occurrenceId: 'occurrence-3',
+          startTokenIndex: 1,
+          endTokenIndex: 3,
+          vocabularyId: 'expression-3',
+          representative: false,
         },
       ],
     ]);
@@ -313,9 +323,17 @@ describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
     ).toEqual([0, 1]);
     expect(
       detail?.blocks[0]?.sentences[0]?.sentence.expressions.map(
-        (expression) => expression.startTokenIndex,
+        (expression) => expression.vocabularyId,
       ),
-    ).toEqual([0, 1]);
+    ).toEqual(['expression-1', 'expression-2', 'expression-3']);
+    expect(
+      fake.selectCalls[6]?.orderBy.map((order) => toSql(order).sql),
+    ).toEqual([
+      expect.stringContaining('"sentence_version_id" asc'),
+      expect.stringContaining('"start_token_index" asc'),
+      expect.stringContaining('"end_token_index" asc'),
+      expect.stringContaining('"id" asc'),
+    ]);
     expect(detail?.blocks[0]?.sentences[0]?.sentence).toBe(
       detail?.options[0]?.sentence,
     );
@@ -327,6 +345,7 @@ describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
     expect(serialized).not.toContain('isCorrect');
     expect(serialized).not.toContain('validation');
     expect(serialized).not.toContain('EXPLANATION');
+    expect(serialized).not.toContain('occurrenceId');
     expect(Object.keys(fake.selectCalls[3]?.fields ?? {})).not.toContain(
       'isCorrect',
     );

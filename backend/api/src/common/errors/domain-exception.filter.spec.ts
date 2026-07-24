@@ -1,5 +1,10 @@
 /** 도메인 오류가 내부 정보를 숨긴 안정적인 HTTP 응답이 되는지 검증한다 */
-import { NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import {
+  HttpException,
+  InternalServerErrorException,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { loginRequestSchema, problemDetailsSchema } from '@flex-thia/contracts';
 import {
@@ -43,6 +48,77 @@ describe('공개 오류 응답 변환', () => {
     );
 
     expect(result.body.code).toBe('DB_RESUMING');
+  });
+
+  it('모든 500 HttpException을 generic 응답으로 숨기고 안전한 요청 문맥만 기록한다', () => {
+    const type = vi.fn().mockReturnThis();
+    const status = vi.fn().mockReturnThis();
+    const json = vi.fn();
+    const write = vi.fn();
+    const filter = new DomainExceptionFilter(
+      new StructuredLogger('api', write),
+    );
+    const host = {
+      switchToHttp: () => ({
+        getRequest: () => ({
+          headers: {
+            'x-request-id': 'request-internal',
+            authorization: 'Bearer secret-token',
+          },
+          route: { path: '/api/v1/questions/:questionId' },
+          user: { userId: 'user-internal' },
+          body: { storageKey: 'private/internal.mp3' },
+        }),
+        getResponse: () => ({ type, status, json }),
+      }),
+    } as never;
+    const errors = [
+      new InternalServerErrorException({
+        code: 'INTERNAL_DETAIL',
+        message: 'secret',
+        issues: [{ path: ['storageKey'], message: 'Zod secret issue' }],
+        storageKey: 'private/exception.mp3',
+        token: 'exception-secret-token',
+      }),
+      new HttpException(
+        { code: 'PLAIN_INTERNAL_DETAIL', message: 'plain-secret' },
+        500,
+      ),
+    ];
+
+    errors.forEach((error) => filter.catch(error, host));
+
+    expect(status).toHaveBeenNthCalledWith(1, 500);
+    expect(status).toHaveBeenNthCalledWith(2, 500);
+    json.mock.calls.forEach(([body]) => {
+      expect(body).toEqual({
+        type: 'https://flex-thia.example/problems/internal-server-error',
+        title: '요청을 처리할 수 없습니다.',
+        status: 500,
+        code: 'INTERNAL_SERVER_ERROR',
+        requestId: 'request-internal',
+        fieldErrors: [],
+      });
+    });
+    expect(write).toHaveBeenCalledTimes(2);
+    const serializedLogs = write.mock.calls.map(([serialized]) =>
+      String(serialized),
+    );
+    serializedLogs.forEach((serialized) => {
+      expect(JSON.parse(serialized)).toMatchObject({
+        level: 'error',
+        requestId: 'request-internal',
+        errorCode: 'INTERNAL_SERVER_ERROR',
+        route: '/api/v1/questions/:questionId',
+        userId: 'user-internal',
+      });
+    });
+    expect(JSON.stringify(json.mock.calls)).not.toMatch(
+      /INTERNAL_DETAIL|secret|Zod|storageKey|private\/internal|private\/exception|token/u,
+    );
+    expect(serializedLogs.join(' ')).not.toMatch(
+      /INTERNAL_DETAIL|secret|Zod|storageKey|private\/internal|private\/exception|authorization|token/u,
+    );
   });
 
   it('Identity 오류와 요청 Zod 오류를 Problem Details 계약으로 변환한다', () => {

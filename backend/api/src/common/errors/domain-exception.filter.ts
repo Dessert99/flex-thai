@@ -17,6 +17,8 @@ import {
 import { ZodError } from 'zod';
 import type { StructuredLogger } from '../logging/structured-logger.js';
 
+const INTERNAL_SERVER_ERROR_STATUS: number = HttpStatus.INTERNAL_SERVER_ERROR;
+
 /** 예외 filter가 HTTP adapter에 전달할 안전한 응답 */
 export interface ErrorResponse {
   status: number;
@@ -144,6 +146,12 @@ export const buildErrorResponse = (
 
   if (error instanceof HttpException) {
     const status = error.getStatus();
+    if (status === INTERNAL_SERVER_ERROR_STATUS) {
+      return {
+        status,
+        body: createProblem('INTERNAL_SERVER_ERROR', status, requestId),
+      };
+    }
     const publicCode = readPublicCode(error.getResponse());
     const code = publicCode ?? `HTTP_${status}`;
     return {
@@ -202,7 +210,7 @@ export class DomainExceptionFilter implements ExceptionFilter {
     const requestId = this.readRequestId(request);
     const result = buildErrorResponse(error, requestId);
 
-    if (result.body.code === 'INTERNAL_SERVER_ERROR') {
+    if (result.status === INTERNAL_SERVER_ERROR_STATUS) {
       this.logger.error('예상하지 못한 HTTP 요청 실패', {
         requestId,
         errorCode: result.body.code,

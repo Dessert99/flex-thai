@@ -197,11 +197,24 @@ const comparePosition = (
 ): number => left.position - right.position;
 
 const compareExpressionPosition = (
-  left: { startTokenIndex: number; endTokenIndex: number },
-  right: { startTokenIndex: number; endTokenIndex: number },
+  left: {
+    occurrenceId: string;
+    startTokenIndex: number;
+    endTokenIndex: number;
+  },
+  right: {
+    occurrenceId: string;
+    startTokenIndex: number;
+    endTokenIndex: number;
+  },
 ): number =>
   left.startTokenIndex - right.startTokenIndex ||
-  left.endTokenIndex - right.endTokenIndex;
+  left.endTokenIndex - right.endTokenIndex ||
+  (left.occurrenceId < right.occurrenceId
+    ? -1
+    : left.occurrenceId > right.occurrenceId
+      ? 1
+      : 0);
 
 const requireSentence = (
   sentences: Map<string, LearnerQuestionSentenceProjection>,
@@ -612,6 +625,7 @@ export class DrizzleLearnerQuestionQuery {
       );
     const expressionRows = await this.database
       .select({
+        occurrenceId: expressionOccurrences.id,
         sentenceVersionId: expressionOccurrences.sentenceVersionId,
         startTokenIndex: expressionOccurrences.startTokenIndex,
         endTokenIndex: expressionOccurrences.endTokenIndex,
@@ -626,6 +640,7 @@ export class DrizzleLearnerQuestionQuery {
         asc(expressionOccurrences.sentenceVersionId),
         asc(expressionOccurrences.startTokenIndex),
         asc(expressionOccurrences.endTokenIndex),
+        asc(expressionOccurrences.id),
       );
 
     return new Map(
