@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { readApiEnv } from './api-env.js';
 
-describe('readApiEnv', () => {
+describe('readApiEnv가 API 환경 변수를 검증한다', () => {
   it('production에서 fake 인증 모드를 거부한다', () => {
     expect(() =>
       readApiEnv({

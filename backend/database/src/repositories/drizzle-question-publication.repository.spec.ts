@@ -174,7 +174,7 @@ const createPronunciationMediaCandidateFake = (
     ],
   });
 
-describe('DrizzleQuestionPublicationRepository', () => {
+describe('DrizzleQuestionPublicationRepository가 문제 게시 생명주기를 영속화한다', () => {
   it('transaction callback 결과와 예외를 변경하지 않는다', async () => {
     const fake = createFake();
     const repository = new DrizzleQuestionPublicationRepository(

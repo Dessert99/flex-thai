@@ -216,7 +216,7 @@ const createCompletionDatabase = (options?: {
   };
 };
 
-describe('DrizzleContentImportRepository claim', () => {
+describe('DrizzleContentImportRepository가 콘텐츠 import 요청의 claim을 처리한다', () => {
   it('원본 body 없이 user·UUID key unique row를 생성하거나 기존 row를 반환한다', async () => {
     const fake = createClaimDatabase();
     const repository = new DrizzleContentImportRepository(
