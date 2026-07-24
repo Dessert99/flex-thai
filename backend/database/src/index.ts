@@ -28,6 +28,9 @@ export * from './repositories/drizzle-upload.repository.js';
 /** DB 최소 readiness query adapter를 공개한다 */
 export * from './repositories/drizzle-readiness.probe.js';
 
+/** 학습자 문제·해설·원시 풀이 기록 read model을 공개한다 */
+export * from './queries/drizzle-learner-question.query.js';
+
 /** Cognito sub 기반 user repository adapter를 공개한다 */
 export * from './repositories/drizzle-user.repository.js';
 
