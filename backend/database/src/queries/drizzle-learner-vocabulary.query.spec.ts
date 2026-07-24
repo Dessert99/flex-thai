@@ -1,0 +1,742 @@
+/** 학습자 어휘 read model의 검색·사용처·게시 무결성을 검증한다 */
+import { PgDialect } from 'drizzle-orm/pg-core';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import * as schema from '../schema/index.js';
+import { questions, savedVocabularies, vocabularies } from '../schema/index.js';
+import { DrizzleLearnerVocabularyQuery } from './drizzle-learner-vocabulary.query.js';
+
+type QueryResult = Array<Record<string, unknown>>;
+
+interface SelectCall {
+  fields: Record<string, unknown>;
+  from?: unknown;
+  joins: Array<{ kind: 'inner' | 'left'; table: unknown; condition: unknown }>;
+  condition?: unknown;
+  orderBy: unknown[];
+  limit?: number;
+  offset?: number;
+}
+
+const toSql = (value: unknown) => new PgDialect().sqlToQuery(value as never);
+
+const createSelectFake = (selectResults: QueryResult[]) => {
+  const results = [...selectResults];
+  const selectCalls: SelectCall[] = [];
+  const select = vi.fn((fields: Record<string, unknown>) => {
+    const call: SelectCall = { fields, joins: [], orderBy: [] };
+    selectCalls.push(call);
+    const chain = {
+      from: vi.fn((table: unknown) => {
+        call.from = table;
+        return chain;
+      }),
+      innerJoin: vi.fn((table: unknown, condition: unknown) => {
+        call.joins.push({ kind: 'inner', table, condition });
+        return chain;
+      }),
+      leftJoin: vi.fn((table: unknown, condition: unknown) => {
+        call.joins.push({ kind: 'left', table, condition });
+        return chain;
+      }),
+      where: vi.fn((condition: unknown) => {
+        call.condition = condition;
+        return chain;
+      }),
+      orderBy: vi.fn((...orderBy: unknown[]) => {
+        call.orderBy = orderBy;
+        return chain;
+      }),
+      limit: vi.fn((limit: number) => {
+        call.limit = limit;
+        return chain;
+      }),
+      offset: vi.fn((offset: number) => {
+        call.offset = offset;
+        return chain;
+      }),
+      then: (
+        resolve: (value: QueryResult) => unknown,
+        reject?: (reason: unknown) => unknown,
+      ) => Promise.resolve(results.shift() ?? []).then(resolve, reject),
+    };
+    return chain;
+  });
+  return { database: { select }, selectCalls };
+};
+
+const summaryRows = {
+  bases: [
+    { id: 'vocabulary-2', thai: 'ขอบคุณ', kind: 'WORD', saved: false },
+    { id: 'vocabulary-1', thai: 'สวัสดี', kind: 'WORD', saved: true },
+  ],
+  meanings: [
+    {
+      id: 'meaning-2',
+      vocabularyId: 'vocabulary-1',
+      meaningKo: '안녕',
+      partOfSpeech: '감탄사',
+      difficulty: 2,
+      contextNote: null,
+      createdAt: new Date('2026-07-24T00:00:00.000Z'),
+    },
+    {
+      id: 'meaning-1',
+      vocabularyId: 'vocabulary-1',
+      meaningKo: '안녕하세요',
+      partOfSpeech: '감탄사',
+      difficulty: 1,
+      contextNote: '정중한 인사',
+      createdAt: new Date('2026-07-24T00:00:00.000Z'),
+    },
+    {
+      id: 'meaning-3',
+      vocabularyId: 'vocabulary-2',
+      meaningKo: '감사합니다',
+      partOfSpeech: '감탄사',
+      difficulty: 1,
+      contextNote: null,
+      createdAt: new Date('2026-07-24T00:00:00.000Z'),
+    },
+  ],
+  pronunciations: [
+    {
+      id: 'pronunciation-2',
+      vocabularyId: 'vocabulary-1',
+      pronunciationKo: '싸왓디',
+      toneMarks: 'L-L-M',
+      mediaAssetId: 'media-2',
+      mediaStatus: 'READY',
+      mediaStorageKey: 'private/vocabulary-2.mp3',
+      createdAt: new Date('2026-07-24T00:00:00.000Z'),
+    },
+    {
+      id: 'pronunciation-1',
+      vocabularyId: 'vocabulary-1',
+      pronunciationKo: '사왓디',
+      toneMarks: 'L-L-M',
+      mediaAssetId: 'media-1',
+      mediaStatus: 'READY',
+      mediaStorageKey: 'private/vocabulary-1.mp3',
+      createdAt: new Date('2026-07-24T00:00:00.000Z'),
+    },
+    {
+      id: 'pronunciation-3',
+      vocabularyId: 'vocabulary-2',
+      pronunciationKo: '컵쿤',
+      toneMarks: 'L-M',
+      mediaAssetId: 'media-3',
+      mediaStatus: 'READY',
+      mediaStorageKey: 'private/vocabulary-3.mp3',
+      createdAt: new Date('2026-07-24T00:00:00.000Z'),
+    },
+  ],
+} as const;
+
+describe('DrizzleLearnerVocabularyQuery 공용 어휘 검색', () => {
+  it('정규화 태국어와 한국어·분류 필터를 같은 게시 어휘에 적용한다', async () => {
+    const fake = createSelectFake([
+      [{ totalItems: 2 }],
+      [...summaryRows.bases],
+      [...summaryRows.meanings],
+      [...summaryRows.pronunciations],
+    ]);
+    const query = new DrizzleLearnerVocabularyQuery(fake.database as never);
+
+    const result = await query.listVocabularies('user-id', {
+      query: '\u200b สวัสดี  ',
+      kind: 'WORD',
+      partOfSpeech: '감탄사',
+      difficulty: 1,
+      page: 2,
+      pageSize: 10,
+    });
+
+    expect(result.page).toEqual({
+      page: 2,
+      pageSize: 10,
+      totalItems: 2,
+      totalPages: 1,
+    });
+    expect(result.items.map((item) => item.id)).toEqual([
+      'vocabulary-2',
+      'vocabulary-1',
+    ]);
+    expect(result.items[1]?.meanings.map((meaning) => meaning.id)).toEqual([
+      'meaning-1',
+      'meaning-2',
+    ]);
+    expect(
+      result.items[1]?.pronunciations.map((pronunciation) => pronunciation.id),
+    ).toEqual(['pronunciation-1', 'pronunciation-2']);
+    expect(result.items[1]?.pronunciations[0]?.media).toEqual({
+      storageKey: 'private/vocabulary-1.mp3',
+    });
+
+    expect(fake.selectCalls[0]?.from).toBe(vocabularies);
+    expect(fake.selectCalls[1]?.from).toBe(vocabularies);
+    for (const call of fake.selectCalls.slice(0, 2)) {
+      const condition = toSql(call.condition);
+      expect(condition.params).toEqual(
+        expect.arrayContaining([
+          'PUBLISHED',
+          'WORD',
+          '감탄사',
+          1,
+          '%สวัสดี%',
+          '%\u200b สวัสดี  %',
+        ]),
+      );
+      expect(condition.sql.toLowerCase()).toContain('ilike');
+      expect(condition.sql).toContain('vocabulary_meanings');
+      expect(condition.sql).toContain('vocabulary_pronunciations');
+    }
+    expect(fake.selectCalls[1]).toMatchObject({ limit: 10, offset: 10 });
+    expect(toSql(fake.selectCalls[1]?.orderBy[0]).sql).toContain(
+      '"vocabularies"."id" asc',
+    );
+  });
+
+  it('뜻·발음 filter와 무관하게 선택된 어휘의 모든 하위 정보를 반환한다', async () => {
+    const fake = createSelectFake([
+      [{ totalItems: 1 }],
+      [summaryRows.bases[1]],
+      [...summaryRows.meanings],
+      [...summaryRows.pronunciations],
+    ]);
+    const query = new DrizzleLearnerVocabularyQuery(fake.database as never);
+
+    const result = await query.listVocabularies('user-id', {
+      partOfSpeech: '감탄사',
+      difficulty: 1,
+      page: 1,
+      pageSize: 20,
+    });
+
+    expect(result.items[0]?.meanings).toHaveLength(2);
+    expect(result.items[0]?.pronunciations).toHaveLength(2);
+  });
+
+  it('게시 어휘 발음의 음성이 없거나 READY가 아니면 stable 오류로 실패한다', async () => {
+    const fake = createSelectFake([
+      [{ totalItems: 1 }],
+      [summaryRows.bases[1]],
+      [...summaryRows.meanings],
+      [
+        {
+          ...summaryRows.pronunciations[0],
+          mediaAssetId: null,
+          mediaStatus: null,
+          mediaStorageKey: null,
+        },
+      ],
+    ]);
+    const query = new DrizzleLearnerVocabularyQuery(fake.database as never);
+
+    await expect(
+      query.listVocabularies('user-id', { page: 1, pageSize: 20 }),
+    ).rejects.toMatchObject({
+      code: 'PUBLISHED_VOCABULARY_MEDIA_INVALID',
+    });
+  });
+});
+
+describe('DrizzleLearnerVocabularyQuery 상세와 예문', () => {
+  it('뜻·발음 exact link와 현재 게시 문제의 동결 예문을 중복 없이 조립한다', async () => {
+    const fake = createSelectFake([
+      [summaryRows.bases[1]],
+      [...summaryRows.meanings.slice(0, 2)],
+      [...summaryRows.pronunciations.slice(0, 2)],
+      [
+        {
+          meaningId: 'meaning-2',
+          pronunciationId: 'pronunciation-2',
+        },
+        {
+          meaningId: 'meaning-1',
+          pronunciationId: 'pronunciation-1',
+        },
+      ],
+      [
+        {
+          sentenceVersionId: 'sentence-2',
+          originalText: 'สวัสดีอีกครั้ง',
+          translationKo: '다시 안녕하세요',
+          pronunciationKo: '싸왓디 익 크랑',
+          toneMarks: '-',
+          frozenAt: new Date('2026-07-24T00:00:00.000Z'),
+          mediaAssetId: 'sentence-media-2',
+          mediaStatus: 'READY',
+          mediaStorageKey: 'private/sentence-2.mp3',
+        },
+        {
+          sentenceVersionId: 'sentence-1',
+          originalText: 'สวัสดี',
+          translationKo: '안녕하세요',
+          pronunciationKo: '싸왓디',
+          toneMarks: '-',
+          frozenAt: new Date('2026-07-24T00:00:00.000Z'),
+          mediaAssetId: 'sentence-media-1',
+          mediaStatus: 'READY',
+          mediaStorageKey: 'private/sentence-1.mp3',
+        },
+      ],
+    ]);
+    const query = new DrizzleLearnerVocabularyQuery(fake.database as never);
+
+    const detail = await query.getVocabularyDetail('user-id', 'vocabulary-1');
+
+    expect(detail?.meaningPronunciations).toEqual([
+      { meaningId: 'meaning-1', pronunciationId: 'pronunciation-1' },
+      { meaningId: 'meaning-2', pronunciationId: 'pronunciation-2' },
+    ]);
+    expect(
+      detail?.exampleSentences.map((sentence) => sentence.sentenceVersionId),
+    ).toEqual(['sentence-1', 'sentence-2']);
+    expect(detail?.exampleSentences[0]?.media).toEqual({
+      storageKey: 'private/sentence-1.mp3',
+    });
+    const exampleCondition = toSql(fake.selectCalls[4]?.condition);
+    expect(exampleCondition.params).toEqual(
+      expect.arrayContaining(['vocabulary-1', 'PUBLISHED', 'PUBLISHED']),
+    );
+    expect(exampleCondition.sql).toContain('token_occurrences');
+    expect(exampleCondition.sql).toContain('expression_occurrences');
+    expect(exampleCondition.sql).toContain('question_block_sentences');
+    expect(exampleCondition.sql).toContain('question_options');
+    expect(exampleCondition.sql).toContain('frozen_at');
+  });
+
+  it('게시되지 않은 어휘는 상세을 반환하지 않는다', async () => {
+    const fake = createSelectFake([[]]);
+    const query = new DrizzleLearnerVocabularyQuery(fake.database as never);
+
+    await expect(
+      query.getVocabularyDetail('user-id', 'hidden-vocabulary-id'),
+    ).resolves.toBeNull();
+  });
+
+  it('상세 link가 반환한 뜻·발음에 없으면 stable 오류로 실패한다', async () => {
+    const fake = createSelectFake([
+      [summaryRows.bases[1]],
+      [summaryRows.meanings[0]],
+      [summaryRows.pronunciations[0]],
+      [
+        {
+          meaningId: 'missing-meaning',
+          pronunciationId: 'pronunciation-2',
+        },
+      ],
+      [],
+    ]);
+    const query = new DrizzleLearnerVocabularyQuery(fake.database as never);
+
+    await expect(
+      query.getVocabularyDetail('user-id', 'vocabulary-1'),
+    ).rejects.toMatchObject({
+      code: 'PUBLISHED_VOCABULARY_LINK_INVALID',
+    });
+  });
+});
+
+describe('DrizzleLearnerVocabularyQuery 관련 문제와 저장 목록', () => {
+  it('token 또는 expression을 쓰는 현재 게시 문제를 공개 summary 의미로 읽는다', async () => {
+    const fake = createSelectFake([
+      [{ totalItems: 1 }],
+      [
+        {
+          questionId: 'question-id',
+          questionVersionId: 'version-id',
+          questionTypeId: 'type-id',
+          questionTypeSlug: 'reading-choice',
+          questionTypeDisplayName: '독해 선택',
+          skill: 'READING',
+          difficulty: 2,
+          saved: true,
+          firstResult: 'UNANSWERED',
+        },
+      ],
+    ]);
+    const query = new DrizzleLearnerVocabularyQuery(fake.database as never);
+
+    const result = await query.listRelatedQuestions(
+      'user-id',
+      'vocabulary-id',
+      { page: 1, pageSize: 20 },
+    );
+
+    expect(result.items).toEqual([
+      {
+        questionId: 'question-id',
+        questionVersionId: 'version-id',
+        questionType: {
+          id: 'type-id',
+          slug: 'reading-choice',
+          displayName: '독해 선택',
+        },
+        skill: 'READING',
+        difficulty: 2,
+        saved: true,
+        firstResult: 'UNANSWERED',
+      },
+    ]);
+    for (const call of fake.selectCalls) {
+      const sqlQuery = [
+        ...call.joins.map((join) => toSql(join.condition)),
+        toSql(call.condition),
+      ];
+      expect(sqlQuery.flatMap((part) => part.params)).toEqual(
+        expect.arrayContaining([
+          'vocabulary-id',
+          'PUBLISHED',
+          'PUBLISHED',
+          'user-id',
+          1,
+        ]),
+      );
+      expect(sqlQuery.map((part) => part.sql).join(' ')).toContain(
+        'expression_occurrences',
+      );
+    }
+    expect(toSql(fake.selectCalls[1]?.fields.firstResult).params).toContain(
+      'INVALIDATED',
+    );
+    expect(fake.selectCalls[0]?.from).toBe(questions);
+    expect(toSql(fake.selectCalls[1]?.orderBy[0]).sql).toContain(
+      '"questions"."id" asc',
+    );
+  });
+
+  it('저장 사용자 연결과 현재 게시 상태로 제한하고 savedAt과 ID로 정렬한다', async () => {
+    const fake = createSelectFake([
+      [{ totalItems: 1 }],
+      [summaryRows.bases[1]],
+      [...summaryRows.meanings.slice(0, 2)],
+      [...summaryRows.pronunciations.slice(0, 2)],
+    ]);
+    const query = new DrizzleLearnerVocabularyQuery(fake.database as never);
+
+    const result = await query.listSavedVocabularies('user-id', {
+      page: 1,
+      pageSize: 20,
+    });
+
+    expect(result.items[0]).toMatchObject({
+      id: 'vocabulary-1',
+      saved: true,
+    });
+    expect(fake.selectCalls[0]?.from).toBe(savedVocabularies);
+    expect(fake.selectCalls[1]?.from).toBe(savedVocabularies);
+    expect(
+      fake.selectCalls[1]?.orderBy.map((order) => toSql(order).sql),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('"saved_at" desc'),
+        expect.stringContaining('"vocabularies"."id" asc'),
+      ]),
+    );
+    expect(toSql(fake.selectCalls[1]?.condition).params).toEqual(
+      expect.arrayContaining(['user-id', 'PUBLISHED']),
+    );
+  });
+});
+
+const integrationDatabaseUrl =
+  process.env.LEARNER_VOCABULARY_QUERY_TEST_DATABASE_URL;
+
+const ids = {
+  user: '11000000-0000-4000-8000-000000000001',
+  media: [
+    '21000000-0000-4000-8000-000000000001',
+    '21000000-0000-4000-8000-000000000002',
+    '21000000-0000-4000-8000-000000000003',
+  ],
+  vocabulary: [
+    '31000000-0000-4000-8000-000000000001',
+    '31000000-0000-4000-8000-000000000002',
+    '31000000-0000-4000-8000-000000000003',
+  ],
+  meaning: [
+    '32000000-0000-4000-8000-000000000001',
+    '32000000-0000-4000-8000-000000000002',
+    '32000000-0000-4000-8000-000000000003',
+  ],
+  pronunciation: [
+    '33000000-0000-4000-8000-000000000001',
+    '33000000-0000-4000-8000-000000000002',
+    '33000000-0000-4000-8000-000000000003',
+  ],
+  sentence: '41000000-0000-4000-8000-000000000001',
+  sentenceVersion: '42000000-0000-4000-8000-000000000001',
+  type: '51000000-0000-4000-8000-000000000001',
+  typeVersion: '52000000-0000-4000-8000-000000000001',
+  question: '61000000-0000-4000-8000-000000000001',
+  questionVersion: '62000000-0000-4000-8000-000000000001',
+  block: '71000000-0000-4000-8000-000000000001',
+  option: '81000000-0000-4000-8000-000000000001',
+} as const;
+
+const createVocabularyQueryFixture = async (pool: Pool): Promise<void> => {
+  const sha256 = 'b'.repeat(64);
+  await pool.query(
+    `insert into users (id, cognito_sub, email, status)
+     values ($1, 'vocabulary-query-user', 'vocabulary-query@example.com', 'ACTIVE')`,
+    [ids.user],
+  );
+  await pool.query(
+    `insert into media_assets (
+       id, storage_key, declared_mime_type, declared_size_bytes,
+       declared_sha256, mime_type, size_bytes, sha256, status, ready_at
+     ) values
+       ($1, 'private/vocabulary-word.mp3', 'audio/mpeg', 1, $4,
+        'audio/mpeg', 1, $4, 'READY', now()),
+       ($2, 'private/vocabulary-expression.mp3', 'audio/mpeg', 1, $4,
+        'audio/mpeg', 1, $4, 'READY', now()),
+       ($3, 'private/sentence-example.mp3', 'audio/mpeg', 1, $4,
+        'audio/mpeg', 1, $4, 'READY', now())`,
+    [...ids.media, sha256],
+  );
+  await pool.query(
+    `insert into vocabularies (id, thai, normalized_thai, kind, status)
+     values
+       ($1, 'สวัสดี', 'สวัสดี', 'WORD', 'PUBLISHED'),
+       ($2, 'ขอบคุณมาก', 'ขอบคุณมาก', 'EXPRESSION', 'PUBLISHED'),
+       ($3, 'ซ่อน', 'ซ่อน', 'WORD', 'HIDDEN')`,
+    [...ids.vocabulary],
+  );
+  await pool.query(
+    `insert into vocabulary_meanings
+       (id, vocabulary_id, meaning_ko, part_of_speech, difficulty)
+     values
+       ($1, $4, '안녕하세요', '감탄사', 1),
+       ($2, $4, '안녕', '인사말', 2),
+       ($3, $5, '매우 감사합니다', '표현', 3)`,
+    [...ids.meaning, ids.vocabulary[0], ids.vocabulary[1]],
+  );
+  await pool.query(
+    `insert into vocabulary_pronunciations
+       (id, vocabulary_id, pronunciation_ko, tone_marks, media_asset_id)
+     values
+       ($1, $4, '싸왓디', '-', $6),
+       ($2, $4, '사왓디', '-', $6),
+       ($3, $5, '컵쿤 막', '-', $7)`,
+    [
+      ...ids.pronunciation,
+      ids.vocabulary[0],
+      ids.vocabulary[1],
+      ids.media[0],
+      ids.media[1],
+    ],
+  );
+  await pool.query(
+    `insert into vocabulary_meaning_pronunciations
+       (vocabulary_id, meaning_id, pronunciation_id)
+     values ($1, $2, $4), ($1, $3, $5), ($6, $7, $8)`,
+    [
+      ids.vocabulary[0],
+      ids.meaning[0],
+      ids.meaning[1],
+      ids.pronunciation[0],
+      ids.pronunciation[1],
+      ids.vocabulary[1],
+      ids.meaning[2],
+      ids.pronunciation[2],
+    ],
+  );
+  await pool.query(`insert into thai_sentences (id) values ($1)`, [
+    ids.sentence,
+  ]);
+  await pool.query(
+    `insert into thai_sentence_versions (
+       id, sentence_id, version, original_text, translation_ko,
+       pronunciation_ko, tone_marks, media_asset_id, frozen_at
+     ) values ($1, $2, 1, 'สวัสดี ขอบคุณมาก', '안녕하세요, 매우 감사합니다',
+               '싸왓디 컵쿤 막', '-', $3, now())`,
+    [ids.sentenceVersion, ids.sentence, ids.media[2]],
+  );
+  await pool.query(
+    `insert into token_occurrences (
+       sentence_version_id, position, surface, start_offset, end_offset,
+       vocabulary_id, meaning_id, pronunciation_id, context_meaning_ko, role
+     ) values ($1, 0, 'สวัสดี', 0, 6, $2, $3, $4, '안녕하세요', 'TARGET')`,
+    [
+      ids.sentenceVersion,
+      ids.vocabulary[0],
+      ids.meaning[0],
+      ids.pronunciation[0],
+    ],
+  );
+  await pool.query(
+    `insert into expression_occurrences (
+       sentence_version_id, start_token_index, end_token_index,
+       vocabulary_id, vocabulary_kind, representative
+     ) values ($1, 0, 2, $2, 'EXPRESSION', true)`,
+    [ids.sentenceVersion, ids.vocabulary[1]],
+  );
+  await pool.query(
+    `insert into question_types (id, slug, display_name, skill)
+     values ($1, 'vocabulary-reading', '어휘 독해', 'READING')`,
+    [ids.type],
+  );
+  await pool.query(
+    `insert into question_type_versions (
+       id, question_type_id, version, template, option_count, decision_rules
+     ) values ($1, $2, 1, 'STANDARD_CHOICE', 1, '{}')`,
+    [ids.typeVersion, ids.type],
+  );
+  await pool.query(
+    `insert into questions (id, status) values ($1, 'PUBLISHED')`,
+    [ids.question],
+  );
+  await pool.query(
+    `insert into question_versions (
+       id, question_id, version, type_version_id, difficulty, status,
+       validation_status, validation_issues, published_at
+     ) values ($1, $2, 1, $3, 2, 'PUBLISHED', 'PASSED', '[]', now())`,
+    [ids.questionVersion, ids.question, ids.typeVersion],
+  );
+  await pool.query(
+    `update questions set current_published_version_id = $2 where id = $1`,
+    [ids.question, ids.questionVersion],
+  );
+  await pool.query(
+    `insert into question_blocks
+       (id, question_version_id, kind, display_mode, position)
+     values ($1, $2, 'QUESTION', 'TEXT', 0)`,
+    [ids.block, ids.questionVersion],
+  );
+  await pool.query(
+    `insert into question_block_sentences
+       (block_id, sentence_version_id, position)
+     values ($1, $2, 0)`,
+    [ids.block, ids.sentenceVersion],
+  );
+  await pool.query(
+    `insert into question_options
+       (id, question_version_id, sentence_version_id, position, is_correct)
+     values ($1, $2, $3, 0, true)`,
+    [ids.option, ids.questionVersion, ids.sentenceVersion],
+  );
+  await pool.query(
+    `insert into saved_vocabularies (user_id, vocabulary_id, saved_at)
+     values ($1, $2, now())`,
+    [ids.user, ids.vocabulary[0]],
+  );
+};
+
+describe.runIf(integrationDatabaseUrl !== undefined)(
+  'DrizzleLearnerVocabularyQuery PostgreSQL 16 projection',
+  () => {
+    let pool: Pool;
+    let query: DrizzleLearnerVocabularyQuery;
+
+    beforeAll(async () => {
+      if (!integrationDatabaseUrl) {
+        throw new Error('LEARNER_VOCABULARY_QUERY_TEST_DATABASE_URL_REQUIRED');
+      }
+      pool = new Pool({ connectionString: integrationDatabaseUrl });
+      await createVocabularyQueryFixture(pool);
+      query = new DrizzleLearnerVocabularyQuery(
+        drizzle({ client: pool, schema }),
+      );
+    });
+
+    afterAll(async () => {
+      await pool.end();
+    });
+
+    it('검색·필터·페이지가 어휘 중복 없이 모든 뜻과 발음을 보존한다', async () => {
+      const result = await query.listVocabularies(ids.user, {
+        query: '\u200b สวัสดี ',
+        kind: 'WORD',
+        partOfSpeech: '감탄사',
+        difficulty: 1,
+        page: 1,
+        pageSize: 20,
+      });
+
+      expect(result.page).toMatchObject({ totalItems: 1, totalPages: 1 });
+      expect(result.items[0]).toMatchObject({
+        id: ids.vocabulary[0],
+        saved: true,
+      });
+      expect(result.items[0]?.meanings).toHaveLength(2);
+      expect(result.items[0]?.pronunciations).toHaveLength(2);
+    });
+
+    it('상세의 exact link와 현재 공개 문제의 동결 예문만 반환한다', async () => {
+      const detail = await query.getVocabularyDetail(
+        ids.user,
+        ids.vocabulary[0],
+      );
+
+      expect(detail?.meaningPronunciations).toEqual([
+        {
+          meaningId: ids.meaning[0],
+          pronunciationId: ids.pronunciation[0],
+        },
+        {
+          meaningId: ids.meaning[1],
+          pronunciationId: ids.pronunciation[1],
+        },
+      ]);
+      expect(detail?.exampleSentences).toHaveLength(1);
+      expect(detail?.exampleSentences[0]?.sentenceVersionId).toBe(
+        ids.sentenceVersion,
+      );
+    });
+
+    it('token과 expression 관련 문제를 각각 중복 없이 반환한다', async () => {
+      for (const vocabularyId of ids.vocabulary.slice(0, 2)) {
+        const related = await query.listRelatedQuestions(
+          ids.user,
+          vocabularyId,
+          { page: 1, pageSize: 20 },
+        );
+        expect(related.items.map((item) => item.questionId)).toEqual([
+          ids.question,
+        ]);
+      }
+    });
+
+    it('사용자가 저장한 현재 게시 어휘만 반환한다', async () => {
+      const saved = await query.listSavedVocabularies(ids.user, {
+        page: 1,
+        pageSize: 20,
+      });
+
+      expect(saved.items.map((item) => item.id)).toEqual([ids.vocabulary[0]]);
+    });
+
+    it('게시 어휘의 발음 media 불변식 손상을 stable 오류로 전달한다', async () => {
+      const invalidVocabularyId = '31000000-0000-4000-8000-000000000099';
+      const invalidMeaningId = '32000000-0000-4000-8000-000000000099';
+      const invalidPronunciationId = '33000000-0000-4000-8000-000000000099';
+      await pool.query(
+        `insert into vocabularies
+           (id, thai, normalized_thai, kind, status)
+         values ($1, 'เสีย', 'เสีย', 'WORD', 'PUBLISHED')`,
+        [invalidVocabularyId],
+      );
+      await pool.query(
+        `insert into vocabulary_meanings
+           (id, vocabulary_id, meaning_ko, part_of_speech, difficulty)
+         values ($1, $2, '손상', '명사', 1)`,
+        [invalidMeaningId, invalidVocabularyId],
+      );
+      await pool.query(
+        `insert into vocabulary_pronunciations
+           (id, vocabulary_id, pronunciation_ko, tone_marks)
+         values ($1, $2, '씨아', '-')`,
+        [invalidPronunciationId, invalidVocabularyId],
+      );
+
+      await expect(
+        query.getVocabularyDetail(ids.user, invalidVocabularyId),
+      ).rejects.toMatchObject({
+        code: 'PUBLISHED_VOCABULARY_MEDIA_INVALID',
+      });
+    });
+  },
+);

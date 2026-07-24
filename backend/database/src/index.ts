@@ -31,6 +31,9 @@ export * from './repositories/drizzle-readiness.probe.js';
 /** 학습자 문제·해설·원시 풀이 기록 read model을 공개한다 */
 export * from './queries/drizzle-learner-question.query.js';
 
+/** 학습자 공용·저장 어휘와 관련 문제 read model을 공개한다 */
+export * from './queries/drizzle-learner-vocabulary.query.js';
+
 /** Cognito sub 기반 user repository adapter를 공개한다 */
 export * from './repositories/drizzle-user.repository.js';
 
