@@ -25,8 +25,13 @@ import type {
   QuestionAdminVersionSource,
 } from './question-admin.repository.js';
 
-const UUID_PATTERN =
+const STANDARD_UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+const NIL_UUID = '00000000-0000-0000-0000-000000000000';
+const MAX_UUID = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
+
+const isCanonicalUuid = (value: string): boolean =>
+  STANDARD_UUID_PATTERN.test(value) || value === NIL_UUID || value === MAX_UUID;
 
 /** 관리자 문제 변경 실패를 API가 안정적으로 분기할 code로 전달한다 */
 export type QuestionAdminErrorCode =
@@ -80,7 +85,7 @@ export interface QuestionAdminVersionResult {
 
 const assertGeneratedId = (generateId: () => string): string => {
   const id = generateId();
-  if (!UUID_PATTERN.test(id)) {
+  if (!STANDARD_UUID_PATTERN.test(id)) {
     throw new QuestionAdminError('QUESTION_CONTENT_INVALID', 'generatedId');
   }
   return id;
@@ -166,6 +171,11 @@ const requireArray = (value: unknown, path: string): unknown[] => {
   if (!Array.isArray(value)) {
     return failInvalidContent(path);
   }
+  for (let index = 0; index < value.length; index += 1) {
+    if (!Object.hasOwn(value, index)) {
+      failInvalidContent(`${path}.${index}`);
+    }
+  }
   return value;
 };
 
@@ -181,7 +191,7 @@ const requireEnum = (
 };
 
 const requireUuid = (value: unknown, path: string): string => {
-  if (typeof value !== 'string' || !UUID_PATTERN.test(value)) {
+  if (typeof value !== 'string' || !isCanonicalUuid(value)) {
     return failInvalidContent(path);
   }
   return value;
@@ -453,7 +463,7 @@ const requireReferenceId = (
   if (
     !('id' in reference) ||
     typeof reference.id !== 'string' ||
-    !UUID_PATTERN.test(reference.id)
+    !isCanonicalUuid(reference.id)
   ) {
     throw new QuestionAdminError('QUESTION_REFERENCE_NOT_FOUND', path);
   }

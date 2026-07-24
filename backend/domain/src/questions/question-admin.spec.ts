@@ -469,6 +469,34 @@ describe('QuestionAdminService 문제 버전 전체 교체', () => {
     });
   });
 
+  it('공개 계약이 허용하는 lowercase nil/max UUID를 media와 직접 참조에 허용한다', async () => {
+    const nilUuid = '00000000-0000-0000-0000-000000000000';
+    const maxUuid = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
+    const calls: string[] = [];
+    const command = replaceCommand();
+    const sentence = command.input.blocks[0]!.sentences[0]!.sentence;
+    sentence.mediaAssetId = nilUuid;
+    sentence.tokens[0]!.vocabulary = { id: nilUuid };
+    sentence.tokens[0]!.meaning = { id: maxUuid };
+    sentence.tokens[0]!.pronunciation = { id: maxUuid };
+    command.input.options[0]!.sentence.mediaAssetId = maxUuid;
+    const transaction = createTransaction(calls);
+    transaction.findVocabularyMeaningById = (id) =>
+      Promise.resolve({ id, vocabularyId: nilUuid });
+    transaction.findVocabularyPronunciationById = (id) =>
+      Promise.resolve({
+        id,
+        vocabularyId: nilUuid,
+        mediaAssetId: maxUuid,
+      });
+    const service = createService(transaction, calls);
+
+    await expect(service.replaceVersion(command)).resolves.toMatchObject({
+      status: 'DRAFT',
+      validationStatus: 'PENDING',
+    });
+  });
+
   it.each(['PUBLISHED', 'RETIRED', 'INVALIDATED'] as const)(
     '%s 버전은 IMMUTABLE_VERSION으로 교체를 거절한다',
     async (status) => {
@@ -544,6 +572,64 @@ describe('QuestionAdminService 문제 버전 전체 교체', () => {
 
   it.each([
     {
+      name: 'blocks',
+      mutate: (command: ReplaceQuestionVersionCommand) => {
+        command.input.blocks = new Array<(typeof command.input.blocks)[number]>(
+          command.input.blocks.length,
+        );
+      },
+    },
+    {
+      name: 'options',
+      mutate: (command: ReplaceQuestionVersionCommand) => {
+        const option = command.input.options[0]!;
+        command.input.options = new Array<
+          (typeof command.input.options)[number]
+        >(2);
+        command.input.options[1] = { ...option, position: 1 };
+      },
+    },
+    {
+      name: 'block sentences',
+      mutate: (command: ReplaceQuestionVersionCommand) => {
+        const block = command.input.blocks[0]!;
+        block.sentences = new Array<(typeof block.sentences)[number]>(
+          block.sentences.length,
+        );
+      },
+    },
+    {
+      name: 'sentence tokens',
+      mutate: (command: ReplaceQuestionVersionCommand) => {
+        const sentence = command.input.blocks[0]!.sentences[0]!.sentence;
+        sentence.tokens = new Array<(typeof sentence.tokens)[number]>(
+          sentence.tokens.length,
+        );
+      },
+    },
+    {
+      name: 'sentence expressions',
+      mutate: (command: ReplaceQuestionVersionCommand) => {
+        const sentence = command.input.blocks[0]!.sentences[0]!.sentence;
+        sentence.expressions = new Array<(typeof sentence.expressions)[number]>(
+          1,
+        );
+      },
+    },
+  ])('$name sparse array는 DB 호출 전에 거절한다', async ({ mutate }) => {
+    const calls: string[] = [];
+    const command = replaceCommand();
+    mutate(command);
+    const service = createService(createTransaction(calls), calls);
+
+    await expect(service.replaceVersion(command)).rejects.toMatchObject({
+      code: 'QUESTION_CONTENT_INVALID',
+    });
+    expect(calls).toEqual([]);
+  });
+
+  it.each([
+    {
       name: 'blocks가 배열이 아님',
       mutate: (command: ReplaceQuestionVersionCommand) => {
         (command.input as unknown as { blocks: unknown }).blocks = {};
@@ -579,6 +665,20 @@ describe('QuestionAdminService 문제 버전 전체 교체', () => {
       mutate: (command: ReplaceQuestionVersionCommand) => {
         command.input.blocks[0]!.sentences[0]!.sentence.mediaAssetId =
           'not-a-uuid';
+      },
+    },
+    {
+      name: 'uppercase max UUID',
+      mutate: (command: ReplaceQuestionVersionCommand) => {
+        command.input.blocks[0]!.sentences[0]!.sentence.mediaAssetId =
+          'FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF';
+      },
+    },
+    {
+      name: '허용 version 밖 UUID',
+      mutate: (command: ReplaceQuestionVersionCommand) => {
+        command.input.blocks[0]!.sentences[0]!.sentence.tokens[0]!.vocabulary =
+          { id: '00000000-0000-9000-8000-000000000000' };
       },
     },
     {
