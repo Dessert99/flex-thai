@@ -34,5 +34,8 @@ export * from './identity/fake-authentication.provider.js';
 /** private CloudFront media read URL signer를 공개한다 */
 export * from './storage/cloudfront-media-read-url.provider.js';
 
+/** private audio S3 upload와 hash inspection adapter를 공개한다 */
+export * from './storage/audio-upload.provider.js';
+
 /** AWS를 호출하지 않는 로컬·테스트 adapter를 공개한다 */
 export * from './fakes/index.js';

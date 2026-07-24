@@ -25,5 +25,8 @@ export * from './fake-upload.repository.js';
 /** fake upload policy와 inspection provider를 공개한다 */
 export * from './fake-upload.provider.js';
 
+/** deterministic audio form과 inspection fake를 공개한다 */
+export * from './fake-audio-upload.provider.js';
+
 /** fake SMS sender를 공개한다 */
 export * from './fake-sms-sender.js';

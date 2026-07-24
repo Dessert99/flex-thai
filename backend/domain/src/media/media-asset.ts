@@ -55,7 +55,12 @@ export class MediaAssetDomainError extends Error {
       | 'MEDIA_ASSET_IMMUTABLE'
       | 'MEDIA_ASSET_NOT_UPLOADING'
       | 'MEDIA_ASSET_NOT_READY'
-      | 'MEDIA_INSPECTION_MISMATCH',
+      | 'MEDIA_INSPECTION_MISMATCH'
+      | 'MEDIA_UPLOAD_EMPTY'
+      | 'MEDIA_UPLOAD_TOO_LARGE'
+      | 'MEDIA_MIME_NOT_ALLOWED'
+      | 'MEDIA_SHA256_INVALID'
+      | 'MEDIA_ASSET_NOT_FOUND',
   ) {
     super(code);
     this.name = 'MediaAssetDomainError';

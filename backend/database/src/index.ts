@@ -25,6 +25,9 @@ export * from './repositories/drizzle-step-up.repository.js';
 /** 안전한 upload lifecycle repository adapter를 공개한다 */
 export * from './repositories/drizzle-upload.repository.js';
 
+/** 관리자 audio media transaction repository를 공개한다 */
+export * from './repositories/drizzle-media-admin.repository.js';
+
 /** DB 최소 readiness query adapter를 공개한다 */
 export * from './repositories/drizzle-readiness.probe.js';
 
@@ -33,6 +36,9 @@ export * from './queries/drizzle-learner-question.query.js';
 
 /** 학습자 공용·저장 어휘와 관련 문제 read model을 공개한다 */
 export * from './queries/drizzle-learner-vocabulary.query.js';
+
+/** 관리자 media 상태와 발음·문장 사용처 read model을 공개한다 */
+export * from './queries/drizzle-admin-media.query.js';
 
 /** Cognito sub 기반 user repository adapter를 공개한다 */
 export * from './repositories/drizzle-user.repository.js';
