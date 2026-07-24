@@ -79,6 +79,13 @@ type OpenApiContentCarrier = {
   content?: Record<string, { schema?: unknown }>;
 };
 
+type OpenApiInlineParameter = {
+  name: string;
+  in: string;
+  required?: boolean;
+  schema?: unknown;
+};
+
 type LearnerOperationExpectation = {
   method: 'get' | 'post' | 'put' | 'delete';
   path: string;
@@ -184,8 +191,54 @@ const SYSTEM_OPERATIONS: readonly SystemOperationExpectation[] = [
   },
 ];
 
+const OPEN_API_HTTP_METHODS = [
+  'get',
+  'put',
+  'post',
+  'delete',
+  'options',
+  'head',
+  'patch',
+  'trace',
+] as const;
+
 const hasOpenApiContent = (value: unknown): value is OpenApiContentCarrier =>
   typeof value === 'object' && value !== null && 'content' in value;
+
+const isOpenApiInlineParameter = (
+  parameter: unknown,
+): parameter is OpenApiInlineParameter =>
+  typeof parameter === 'object' &&
+  parameter !== null &&
+  'name' in parameter &&
+  typeof parameter.name === 'string' &&
+  'in' in parameter &&
+  typeof parameter.in === 'string';
+
+const requireOpenApiInlineParameter = (
+  parameter: unknown,
+): OpenApiInlineParameter => {
+  const isInline = isOpenApiInlineParameter(parameter);
+
+  expect(isInline).toBe(true);
+  if (!isInline) {
+    throw new Error('OpenAPI parameter는 inline name을 가져야 합니다');
+  }
+  return parameter;
+};
+
+const collectOpenApiOperations = (
+  paths: ReturnType<typeof createOpenApiDocument>['paths'],
+  selectedPaths: ReadonlySet<string>,
+): string[] =>
+  Object.entries(paths)
+    .filter(([path]) => selectedPaths.has(path))
+    .flatMap(([path, pathItem]) =>
+      OPEN_API_HTTP_METHODS.flatMap((method) =>
+        pathItem[method] ? [`${method} ${path}`] : [],
+      ),
+    )
+    .sort();
 
 const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
   {
@@ -552,6 +605,15 @@ describe('OpenAPI 문서', () => {
     const document = createOpenApiDocument(app);
 
     expect(IDENTITY_OPERATIONS).toHaveLength(7);
+    expect(document.security).toBeUndefined();
+    expect(
+      collectOpenApiOperations(
+        document.paths,
+        new Set(IDENTITY_OPERATIONS.map(({ path }) => path)),
+      ),
+    ).toEqual(
+      IDENTITY_OPERATIONS.map(({ method, path }) => `${method} ${path}`).sort(),
+    );
     IDENTITY_OPERATIONS.forEach((expected) => {
       const operation = document.paths[expected.path]?.[expected.method];
       expect(
@@ -560,9 +622,13 @@ describe('OpenAPI 문서', () => {
       ).toBeDefined();
       if (!operation) return;
 
-      expect(operation.security ?? []).toEqual(expected.security);
-      const parameters = (operation.parameters ?? []).flatMap((parameter) =>
-        'name' in parameter ? [parameter] : [],
+      if (expected.security.length === 0) {
+        expect(operation).not.toHaveProperty('security');
+      } else {
+        expect(operation.security).toEqual(expected.security);
+      }
+      const parameters = (operation.parameters ?? []).map(
+        requireOpenApiInlineParameter,
       );
       const headerParameters = parameters.filter(
         (parameter) => parameter.in === 'header',
@@ -649,6 +715,13 @@ describe('OpenAPI 문서', () => {
     const document = createOpenApiDocument(app);
 
     expect(SYSTEM_OPERATIONS).toHaveLength(2);
+    expect(document.security).toBeUndefined();
+    expect(
+      collectOpenApiOperations(
+        document.paths,
+        new Set(SYSTEM_OPERATIONS.map(({ path }) => path)),
+      ),
+    ).toEqual(SYSTEM_OPERATIONS.map(({ path }) => `get ${path}`).sort());
     SYSTEM_OPERATIONS.forEach((expected) => {
       const operation = document.paths[expected.path]?.get;
       expect(operation, `GET ${expected.path}`).toBeDefined();
