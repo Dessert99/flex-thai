@@ -48,7 +48,17 @@ describe('IdentityController', () => {
       cookieResponse,
     );
 
-    expect(cookieResponse.cookie).toHaveBeenCalled();
+    expect(cookieResponse.cookie).toHaveBeenCalledWith(
+      '__Host-flex-thia-refresh',
+      'refresh',
+      {
+        secure: true,
+        httpOnly: true,
+        sameSite: 'strict',
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      },
+    );
     expect(result).toMatchObject({
       status: 'AUTHENTICATED',
       accessToken: 'access',
@@ -76,6 +86,37 @@ describe('IdentityController', () => {
     expect(cookieResponse.cookie).not.toHaveBeenCalled();
   });
 
+  it('refresh 성공은 회전된 token을 같은 cookie 속성으로 쓰고 body에서 제외한다', async () => {
+    const refresh = vi
+      .fn()
+      .mockResolvedValue({ kind: 'AUTHENTICATED', tokens, user });
+    const controller = new IdentityController({ refresh } as never);
+    const cookieResponse = response();
+
+    const result = await controller.refresh(
+      {
+        headers: {
+          cookie: '__Host-flex-thia-refresh=old-refresh',
+        },
+      },
+      cookieResponse,
+    );
+
+    expect(refresh).toHaveBeenCalledWith('old-refresh');
+    expect(cookieResponse.cookie).toHaveBeenCalledWith(
+      '__Host-flex-thia-refresh',
+      'refresh',
+      {
+        secure: true,
+        httpOnly: true,
+        sameSite: 'strict',
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      },
+    );
+    expect(result).not.toHaveProperty('refreshToken');
+  });
+
   it('refresh cookie가 없으면 안정적인 401 오류를 반환한다', async () => {
     const controller = new IdentityController({} as never);
 
@@ -92,7 +133,7 @@ describe('IdentityController', () => {
     const controller = new IdentityController({ logout } as never);
     const cookieResponse = response();
 
-    await controller.logout(
+    const result = await controller.logout(
       {
         headers: {
           cookie: '__Host-flex-thia-refresh=refresh',
@@ -111,6 +152,7 @@ describe('IdentityController', () => {
         path: '/',
       },
     );
+    expect(result).toBeUndefined();
   });
 
   it('setup verify는 현재 sub와 bearer access token을 use case에 전달한다', async () => {

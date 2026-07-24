@@ -11,17 +11,22 @@ describe('StructuredLogger', () => {
       requestId: 'request-1',
       errorCode: 'AUTH_FAILED',
       jobId: 'job-1',
-      authorization: 'Bearer secret',
-      cookie: 'refresh_token=secret',
+      Authorization: 'Bearer authorization-secret',
+      COOKIE: 'refresh_token=cookie-secret',
+      PassWord: 'password-secret',
+      tOtP: 'totp-secret',
+      rawJSON: { answer: 'raw-json-secret' },
       nested: {
         email: 'admin@hufs.ac.kr',
         phoneNumber: '+821012345678',
         otp: '123456',
         token: 'secret',
+        StorageKey: 'private/storage-key-secret.mp3',
       },
     });
 
     const serialized = write.mock.calls[0]?.[0] as string;
+    const normalized = serialized.toLowerCase();
     const entry = JSON.parse(serialized) as Record<string, unknown>;
 
     expect(entry).toMatchObject({
@@ -32,8 +37,8 @@ describe('StructuredLogger', () => {
       errorCode: 'AUTH_FAILED',
       jobId: 'job-1',
     });
-    expect(serialized).not.toMatch(
-      /authorization|cookie|email|phoneNumber|otp|token|secret|123456/u,
+    expect(normalized).not.toMatch(
+      /authorization|cookie|password|totp|rawjson|storagekey|email|phonenumber|otp|token|secret|123456/u,
     );
   });
 });

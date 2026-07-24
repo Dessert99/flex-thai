@@ -7,10 +7,14 @@ const SENSITIVE_KEYS = new Set([
   'email',
   'phonenumber',
   'otp',
+  'totp',
+  'password',
   'token',
   'accesstoken',
   'refreshtoken',
   'linktoken',
+  'rawjson',
+  'storagekey',
 ]);
 
 type LogMetadata = Record<string, unknown>;

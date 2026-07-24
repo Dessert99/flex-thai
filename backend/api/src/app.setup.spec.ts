@@ -21,4 +21,24 @@ describe('configureApp', () => {
       ],
     });
   });
+
+  it('credentials CORS는 전달받은 exact origin allowlist만 사용한다', () => {
+    const app = {
+      setGlobalPrefix: vi.fn(),
+      useLogger: vi.fn(),
+      useGlobalFilters: vi.fn(),
+      enableCors: vi.fn(),
+    };
+    const exactAllowlist = [
+      'https://www.pleasegraduate.me',
+      'http://localhost:5173',
+    ];
+
+    configureApp(app as never, exactAllowlist, 'production');
+
+    expect(app.enableCors).toHaveBeenCalledWith({
+      origin: exactAllowlist,
+      credentials: true,
+    });
+  });
 });
