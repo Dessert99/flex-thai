@@ -289,16 +289,36 @@ const questionAudit: ResolvedContentDraftAudit = {
   targetId: ids.question,
 };
 
-const createDataApiQueryError = (
-  sqlState: string | null,
-  constraint: string | null,
-  messageOverride?: string,
-): DrizzleQueryError => {
+type DataApiConstraintKind = 'check' | 'foreign key' | 'unique';
+
+interface DataApiQueryErrorOptions {
+  constraint: string | null;
+  constraintKind: DataApiConstraintKind | null;
+  detail?: string;
+  messageOverride?: string | undefined;
+  sqlState: string | null;
+}
+
+const createDataApiQueryError = ({
+  sqlState,
+  constraint,
+  constraintKind,
+  detail = 'simulated private detail',
+  messageOverride,
+}: DataApiQueryErrorOptions): DrizzleQueryError => {
+  const header =
+    constraint === null || constraintKind === null
+      ? 'ERROR: simulated Data API database failure'
+      : constraintKind === 'unique'
+        ? `ERROR: duplicate key value violates unique constraint "${constraint}"`
+        : constraintKind === 'foreign key'
+          ? `ERROR: insert or update on table "content" violates foreign key constraint "${constraint}"`
+          : `ERROR: new row for relation "content" violates check constraint "${constraint}"`;
   const message =
     messageOverride ??
     [
-      'ERROR: simulated Data API database failure',
-      constraint === null ? null : `constraint "${constraint}"`,
+      header,
+      `Detail: ${detail}`,
       sqlState === null ? null : `SQLState: ${sqlState}`,
     ]
       .filter((part): part is string => part !== null)
@@ -816,6 +836,7 @@ describe('DrizzleContentDraftRepository Aurora Data API 오류 변환', () => {
       saveKind: 'VOCABULARY',
       sqlState: '23505',
       constraint: 'vocabularies_normalized_thai_unique',
+      constraintKind: 'unique',
       code: 'IMPORT_DUPLICATE_VOCABULARY',
       path: 'thai',
     },
@@ -824,6 +845,7 @@ describe('DrizzleContentDraftRepository Aurora Data API 오류 변환', () => {
       saveKind: 'VOCABULARY',
       sqlState: '23505',
       constraint: 'content_import_items_import_kind_source_index_unique',
+      constraintKind: 'unique',
       code: 'CONTENT_DRAFT_ITEM_CONFLICT',
       operation: 'saveVocabularyDraft',
     },
@@ -832,6 +854,7 @@ describe('DrizzleContentDraftRepository Aurora Data API 오류 변환', () => {
       saveKind: 'VOCABULARY',
       sqlState: '23503',
       constraint: 'vocabulary_pronunciations_media_asset_id_media_assets_id_fk',
+      constraintKind: 'foreign key',
       code: 'IMPORT_REFERENCE_NOT_FOUND',
       path: 'pronunciations.mediaAssetId',
     },
@@ -840,6 +863,7 @@ describe('DrizzleContentDraftRepository Aurora Data API 오류 변환', () => {
       saveKind: 'QUESTION',
       sqlState: '23503',
       constraint: 'token_occurrences_meaning_vocabulary_fk',
+      constraintKind: 'foreign key',
       code: 'IMPORT_REFERENCE_MISMATCH',
       path: 'sentences.tokens',
     },
@@ -848,15 +872,28 @@ describe('DrizzleContentDraftRepository Aurora Data API 오류 변환', () => {
       saveKind: 'QUESTION',
       sqlState: '23514',
       constraint: 'expression_occurrences_vocabulary_kind_expression',
+      constraintKind: 'check',
       code: 'IMPORT_REFERENCE_MISMATCH',
       path: 'sentences.expressions',
     },
   ] as const)(
     '$constraint DatabaseErrorException을 stable 오류로 변환한다',
-    async ({ table, saveKind, sqlState, constraint, code, ...expected }) => {
+    async ({
+      table,
+      saveKind,
+      sqlState,
+      constraint,
+      constraintKind,
+      code,
+      ...expected
+    }) => {
       const fake = createFakeDatabase({
         table,
-        error: createDataApiQueryError(sqlState, constraint),
+        error: createDataApiQueryError({
+          sqlState,
+          constraint,
+          constraintKind,
+        }),
       });
       const repository = new DrizzleContentDraftRepository(
         fake.database as never,
@@ -877,24 +914,32 @@ describe('DrizzleContentDraftRepository Aurora Data API 오류 변환', () => {
     {
       sqlState: '23505',
       constraint: 'unknown_private_unique',
-      message: undefined,
+      constraintKind: 'unique',
+      messageOverride: undefined,
     },
     {
       sqlState: '22000',
       constraint: 'vocabularies_normalized_thai_unique',
-      message: undefined,
+      constraintKind: 'unique',
+      messageOverride: undefined,
     },
     {
       sqlState: null,
       constraint: null,
-      message: 'unstructured private database failure',
+      constraintKind: null,
+      messageOverride: 'unstructured private database failure',
     },
-  ])(
+  ] as const)(
     'unknown Data API message를 SQL·params 없이 generic persistence 오류로 감춘다',
-    async ({ sqlState, constraint, message }) => {
+    async ({ sqlState, constraint, constraintKind, messageOverride }) => {
       const fake = createFakeDatabase({
         table: vocabularies,
-        error: createDataApiQueryError(sqlState, constraint, message),
+        error: createDataApiQueryError({
+          sqlState,
+          constraint,
+          constraintKind,
+          messageOverride,
+        }),
       });
       const repository = new DrizzleContentDraftRepository(
         fake.database as never,
@@ -913,6 +958,132 @@ describe('DrizzleContentDraftRepository Aurora Data API 오류 변환', () => {
       expect(String(failure)).not.toContain('private-param');
       expect(String(failure)).not.toContain('unknown_private_unique');
       expect(String(failure)).not.toContain('unstructured private');
+    },
+  );
+
+  it.each([
+    {
+      table: vocabularies,
+      saveKind: 'VOCABULARY',
+      sqlState: '23505',
+      constraintKind: 'unique',
+      headerConstraint: 'unknown_private_unique',
+      detailConstraint: 'vocabularies_normalized_thai_unique',
+      operation: 'saveVocabularyDraft',
+    },
+    {
+      table: tokenOccurrences,
+      saveKind: 'QUESTION',
+      sqlState: '23503',
+      constraintKind: 'foreign key',
+      headerConstraint: 'unknown_private_fk',
+      detailConstraint: 'token_occurrences_meaning_vocabulary_fk',
+      operation: 'saveQuestionDraft',
+    },
+    {
+      table: expressionOccurrences,
+      saveKind: 'QUESTION',
+      sqlState: '23514',
+      constraintKind: 'check',
+      headerConstraint: 'unknown_private_check',
+      detailConstraint: 'expression_occurrences_vocabulary_kind_expression',
+      operation: 'saveQuestionDraft',
+    },
+  ] as const)(
+    '$constraintKind Detail의 known constraint 문자열을 specific 오류로 승격하지 않는다',
+    async ({
+      table,
+      saveKind,
+      sqlState,
+      constraintKind,
+      headerConstraint,
+      detailConstraint,
+      operation,
+    }) => {
+      const fake = createFakeDatabase({
+        table,
+        error: createDataApiQueryError({
+          sqlState,
+          constraint: headerConstraint,
+          constraintKind,
+          detail: `private input constraint "${detailConstraint}"`,
+        }),
+      });
+      const repository = new DrizzleContentDraftRepository(
+        fake.database as never,
+      );
+
+      const failure = await (
+        saveKind === 'VOCABULARY'
+          ? saveVocabulary(repository)
+          : saveQuestion(repository)
+      ).catch((error: unknown) => error);
+
+      expect(failure).toMatchObject({
+        code: 'CONTENT_DRAFT_PERSISTENCE_CONFLICT',
+        operation,
+        message: `CONTENT_DRAFT_PERSISTENCE_CONFLICT:${operation}`,
+      });
+      expect(String(failure)).not.toContain(headerConstraint);
+      expect(String(failure)).not.toContain(detailConstraint);
+    },
+  );
+
+  it.each([
+    {
+      table: vocabularies,
+      saveKind: 'VOCABULARY',
+      sqlState: '23505',
+      constraintKind: 'foreign key',
+      constraint: 'vocabularies_normalized_thai_unique',
+      operation: 'saveVocabularyDraft',
+    },
+    {
+      table: tokenOccurrences,
+      saveKind: 'QUESTION',
+      sqlState: '23503',
+      constraintKind: 'unique',
+      constraint: 'token_occurrences_meaning_vocabulary_fk',
+      operation: 'saveQuestionDraft',
+    },
+    {
+      table: expressionOccurrences,
+      saveKind: 'QUESTION',
+      sqlState: '23514',
+      constraintKind: 'unique',
+      constraint: 'expression_occurrences_vocabulary_kind_expression',
+      operation: 'saveQuestionDraft',
+    },
+  ] as const)(
+    '$sqlState와 $constraintKind 조합이 맞지 않으면 specific 오류로 승격하지 않는다',
+    async ({
+      table,
+      saveKind,
+      sqlState,
+      constraintKind,
+      constraint,
+      operation,
+    }) => {
+      const fake = createFakeDatabase({
+        table,
+        error: createDataApiQueryError({
+          sqlState,
+          constraint,
+          constraintKind,
+        }),
+      });
+      const repository = new DrizzleContentDraftRepository(
+        fake.database as never,
+      );
+
+      await expect(
+        saveKind === 'VOCABULARY'
+          ? saveVocabulary(repository)
+          : saveQuestion(repository),
+      ).rejects.toMatchObject({
+        code: 'CONTENT_DRAFT_PERSISTENCE_CONFLICT',
+        operation,
+      });
     },
   );
 });

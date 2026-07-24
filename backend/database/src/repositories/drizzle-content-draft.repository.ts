@@ -53,17 +53,57 @@ export class ContentDraftPersistenceError extends Error {
 
 const DATA_API_SQL_STATES = ['23503', '23505', '23514'] as const;
 
-const KNOWN_CONSTRAINT_NAMES = [
-  'content_import_items_import_kind_source_index_unique',
-  'expression_occurrences_vocabulary_kind_expression',
-  'expression_occurrences_vocabulary_kind_fk',
-  'question_versions_type_version_id_question_type_versions_id_fk',
-  'thai_sentence_versions_media_asset_id_media_assets_id_fk',
-  'token_occurrences_meaning_vocabulary_fk',
-  'token_occurrences_pronunciation_vocabulary_fk',
-  'token_occurrences_vocabulary_fk',
-  'vocabularies_normalized_thai_unique',
-  'vocabulary_pronunciations_media_asset_id_media_assets_id_fk',
+const DATA_API_CONSTRAINTS = [
+  {
+    code: '23505',
+    kind: 'unique',
+    name: 'content_import_items_import_kind_source_index_unique',
+  },
+  {
+    code: '23514',
+    kind: 'check',
+    name: 'expression_occurrences_vocabulary_kind_expression',
+  },
+  {
+    code: '23503',
+    kind: 'foreign key',
+    name: 'expression_occurrences_vocabulary_kind_fk',
+  },
+  {
+    code: '23503',
+    kind: 'foreign key',
+    name: 'question_versions_type_version_id_question_type_versions_id_fk',
+  },
+  {
+    code: '23503',
+    kind: 'foreign key',
+    name: 'thai_sentence_versions_media_asset_id_media_assets_id_fk',
+  },
+  {
+    code: '23503',
+    kind: 'foreign key',
+    name: 'token_occurrences_meaning_vocabulary_fk',
+  },
+  {
+    code: '23503',
+    kind: 'foreign key',
+    name: 'token_occurrences_pronunciation_vocabulary_fk',
+  },
+  {
+    code: '23503',
+    kind: 'foreign key',
+    name: 'token_occurrences_vocabulary_fk',
+  },
+  {
+    code: '23505',
+    kind: 'unique',
+    name: 'vocabularies_normalized_thai_unique',
+  },
+  {
+    code: '23503',
+    kind: 'foreign key',
+    name: 'vocabulary_pronunciations_media_asset_id_media_assets_id_fk',
+  },
 ] as const;
 
 interface DatabaseErrorLike {
@@ -93,14 +133,20 @@ const decodeDataApiError = (
   if (!message.startsWith('ERROR: ')) {
     return { code: undefined, constraint: undefined, dataApi: true };
   }
-  // Data API 문자열에서 허용된 marker만 읽어 SQL·params나 미지 constraint가 stable 오류에 섞이지 않게 한다.
+  // 첫 ERROR header와 끝 SQLSTATE만 묶어 Detail·Hint의 사용자 값을 constraint로 신뢰하지 않는다.
   const code = DATA_API_SQL_STATES.find((sqlState) =>
     message.endsWith(`; SQLState: ${sqlState}`),
   );
-  const constraint = KNOWN_CONSTRAINT_NAMES.find((constraintName) =>
-    message.includes(`constraint "${constraintName}"`),
+  const headerEnd = message.indexOf('; ');
+  const header = headerEnd === -1 ? message : message.slice(0, headerEnd);
+  const constraint = DATA_API_CONSTRAINTS.find(
+    (candidate) =>
+      candidate.code === code &&
+      header.endsWith(
+        ` violates ${candidate.kind} constraint "${candidate.name}"`,
+      ),
   );
-  return { code, constraint, dataApi: true };
+  return { code, constraint: constraint?.name, dataApi: true };
 };
 
 const decodePostgreSqlError = (
