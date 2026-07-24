@@ -1,5 +1,11 @@
-/** MVP root가 Identity·Learning과 health 경계만 조립하는지 검증한다 */
-import { describe, expect, it } from 'vitest';
+/** MVP root가 Identity·Learning·Admin과 환경별 provider를 조립하는지 검증한다 */
+import {
+  completeMediaAsset,
+  type MediaAdminRepository,
+  type MediaAsset,
+  type MediaAdminService,
+} from '@flex-thia/domain';
+import { describe, expect, it, vi } from 'vitest';
 import {
   CloudFrontMediaReadUrlProvider,
   FakeAudioUploadProvider,
@@ -113,6 +119,80 @@ describe('createApplicationModule 조립', () => {
     expect(adminContent.dependencies.vocabularyQuery.database).toBe(
       adminDatabase,
     );
+  });
+
+  it('로컬 기본 fake는 upload 요청 직후 선언 metadata로 READY 완료를 지원한다', async () => {
+    const application = createApplicationModule({
+      NODE_ENV: 'test',
+      AUTH_MODE: 'fake',
+      DATABASE_MODE: 'local',
+      DATABASE_URL: 'postgres://local/test',
+    });
+    const admin = application.imports?.[2] as {
+      providers: { provide: unknown; useValue: unknown }[];
+    };
+    const adminContent = admin.providers.find(
+      (provider) => provider.provide === AdminContentService,
+    )?.useValue as {
+      dependencies: {
+        media: Pick<
+          MediaAdminService,
+          'completeAudioUpload' | 'requestAudioUpload'
+        > & {
+          repository: MediaAdminRepository;
+        };
+      };
+    };
+    const media = adminContent.dependencies.media;
+    let storedAsset: MediaAsset | null = null;
+    vi.spyOn(media.repository, 'findReadyByMetadata').mockResolvedValue(null);
+    vi.spyOn(media.repository, 'createUploadingWithAudit').mockImplementation(
+      ({ asset }) => {
+        storedAsset = asset;
+        return Promise.resolve();
+      },
+    );
+    vi.spyOn(media.repository, 'findById').mockImplementation(() => {
+      return Promise.resolve(storedAsset);
+    });
+    vi.spyOn(media.repository, 'finalizeWithAudit').mockImplementation(
+      ({ inspection, readyAt }) => {
+        if (!storedAsset) return Promise.resolve(null);
+        const ready = completeMediaAsset(storedAsset, inspection, readyAt);
+        storedAsset = ready;
+        return Promise.resolve({ outcome: 'READY', asset: ready });
+      },
+    );
+    const declaredSha256 = 'A'.repeat(64);
+
+    const requested = await media.requestAudioUpload({
+      filename: 'voice.mp3',
+      mimeType: 'audio/mpeg',
+      sizeBytes: 3,
+      sha256: declaredSha256,
+      context: {
+        actorSub: 'cognito-sub',
+        actorUserId: '00000000-0000-4000-8000-000000000001',
+        requestId: 'request-id',
+      },
+    });
+    if (!requested.uploadRequired) {
+      throw new Error('새 local upload form이 필요합니다');
+    }
+    const completed = await media.completeAudioUpload(requested.mediaAssetId, {
+      actorSub: 'cognito-sub',
+      actorUserId: '00000000-0000-4000-8000-000000000001',
+      requestId: 'request-id',
+    });
+
+    expect(requested.upload.url).toBe('http://localhost/__fake_audio_upload__');
+    expect(completed).toMatchObject({
+      id: requested.mediaAssetId,
+      status: 'READY',
+      mimeType: 'audio/mpeg',
+      sizeBytes: 3,
+      sha256: declaredSha256.toLowerCase(),
+    });
   });
 
   it('운영 환경은 같은 Learning 조립에서 CloudFront signer를 선택한다', () => {

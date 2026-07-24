@@ -48,6 +48,7 @@ describe('S3 음성 업로드 policy', () => {
       storageKey: temporaryStorageKey,
       mimeType: 'audio/mpeg',
       sizeBytes: 3,
+      sha256: 'a'.repeat(64),
     });
     const options = sign.mock.calls[0]?.[1] as {
       Bucket: string;

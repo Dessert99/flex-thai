@@ -32,6 +32,7 @@ export interface AudioUploadStorage {
     storageKey: string;
     mimeType: AudioMimeType;
     sizeBytes: number;
+    sha256: string;
   }): Promise<AudioUploadForm>;
   inspectAndSeal(input: {
     temporaryStorageKey: string;

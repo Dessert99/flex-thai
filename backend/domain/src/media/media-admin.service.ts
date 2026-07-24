@@ -125,6 +125,7 @@ export class MediaAdminService {
       storageKey: temporaryStorageKey,
       mimeType: command.mimeType,
       sizeBytes: command.sizeBytes,
+      sha256: normalizedSha256,
     });
     await this.repository.createUploadingWithAudit({
       asset,

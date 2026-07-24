@@ -112,13 +112,16 @@ describe('MediaAdminService 업로드 요청', () => {
       () => readyAsset.id,
     );
 
-    const result = await service.requestAudioUpload(createCommand());
+    const result = await service.requestAudioUpload(
+      createCommand({ sha256: sha256.toUpperCase() }),
+    );
 
     expect(storage.createUpload).toHaveBeenCalledWith({
       mediaAssetId: readyAsset.id,
       storageKey: `audio/uploads/${readyAsset.id}`,
       mimeType: 'audio/mpeg',
       sizeBytes: 3,
+      sha256,
     });
     expect(repository.createUploadingWithAudit).toHaveBeenCalledTimes(1);
     expect(
@@ -127,6 +130,7 @@ describe('MediaAdminService 업로드 요청', () => {
       asset: {
         id: readyAsset.id,
         storageKey: readyAsset.storageKey,
+        declaredSha256: sha256,
         status: 'UPLOADING',
       },
       context,

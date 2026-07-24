@@ -14,20 +14,28 @@ export class FakeAudioUploadProvider implements AudioUploadStorage {
 
   constructor(
     private readonly inspections = new Map<string, MediaAssetInspection>(),
+    private readonly now: () => Date = () => new Date(),
   ) {}
 
-  /** exact key와 MIME을 드러내는 고정 local upload form을 반환한다 */
+  /** 선언 metadata를 기억하고 exact key·MIME의 local upload form을 반환한다 */
   createUpload(
     input: Parameters<AudioUploadStorage['createUpload']>[0],
   ): Promise<Awaited<ReturnType<AudioUploadStorage['createUpload']>>> {
     this.uploads.push({ ...input });
+    if (!this.inspections.has(input.storageKey)) {
+      this.inspections.set(input.storageKey, {
+        mimeType: input.mimeType,
+        sizeBytes: input.sizeBytes,
+        sha256: input.sha256,
+      });
+    }
     return Promise.resolve({
-      url: 'https://fake-audio-upload.invalid',
+      url: 'http://localhost/__fake_audio_upload__',
       fields: {
         key: input.storageKey,
         'Content-Type': input.mimeType,
       },
-      expiresAt: new Date(600_000).toISOString(),
+      expiresAt: new Date(this.now().getTime() + 600_000).toISOString(),
     });
   }
 
