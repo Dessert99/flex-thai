@@ -54,12 +54,16 @@ const ACTIVE_PATHS = [
 const INACTIVE_MVP_PATHS = [
   '/api/v1/auth/signup',
   '/api/v1/auth/signup/verify',
-  '/api/v1/auth/forgot-password',
-  '/api/v1/auth/reset-password',
-  '/api/v1/auth/phone-verifications',
-  '/api/v1/auth/mfa/sms/challenge',
-  '/api/v1/jobs',
+  '/api/v1/auth/password/forgot',
+  '/api/v1/auth/password/reset',
+  '/api/v1/auth/phone/challenges',
+  '/api/v1/auth/phone/challenges/{challengeId}/verify',
+  '/api/v1/auth/step-up/challenges',
+  '/api/v1/auth/step-up/challenges/{challengeId}/verify',
   '/api/v1/uploads/policies',
+  '/api/v1/uploads/{uploadId}/complete',
+  '/api/v1/jobs',
+  '/api/v1/jobs/{jobId}',
 ] as const;
 
 type OpenApiSchemaNode = {
@@ -378,6 +382,7 @@ describe('OpenAPI 문서', () => {
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
 
+    expect(INACTIVE_MVP_PATHS).toHaveLength(12);
     INACTIVE_MVP_PATHS.forEach((path) => {
       expect(document.paths).not.toHaveProperty(path);
     });
