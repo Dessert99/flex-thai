@@ -180,7 +180,7 @@ describe('관리자 음성 자산 공개 응답 계약', () => {
       status: 'READY',
       declaredMimeType: 'audio/mpeg',
       declaredSizeBytes: 1024,
-      declaredSha256: 'a'.repeat(64),
+      declaredSha256: 'A'.repeat(64),
       mimeType: 'audio/mpeg',
       sizeBytes: 1024,
       sha256: 'a'.repeat(64),
@@ -194,6 +194,22 @@ describe('관리자 음성 자산 공개 응답 계약', () => {
 
     expect(() =>
       mediaAssetDetailResponseSchema.parse({ ...ready, mimeType: null }),
+    ).toThrow();
+    expect(mediaAssetDetailResponseSchema.parse(ready)).toEqual(ready);
+    expect(() =>
+      mediaAssetDetailResponseSchema.parse({
+        ...ready,
+        mimeType: 'audio/wav',
+      }),
+    ).toThrow();
+    expect(() =>
+      mediaAssetDetailResponseSchema.parse({ ...ready, sizeBytes: 2048 }),
+    ).toThrow();
+    expect(() =>
+      mediaAssetDetailResponseSchema.parse({
+        ...ready,
+        sha256: 'b'.repeat(64),
+      }),
     ).toThrow();
     expect(() =>
       mediaAssetDetailResponseSchema.parse({

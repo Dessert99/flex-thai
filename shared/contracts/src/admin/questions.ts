@@ -99,8 +99,8 @@ export const adminQuestionVersionResponseSchema = z
     questionId: uuidSchema,
     versionId: uuidSchema,
     version: positiveIntegerSchema,
-    status: questionVersionStatusSchema,
-    validationStatus: questionValidationStatusSchema,
+    status: z.literal('DRAFT'),
+    validationStatus: z.literal('PENDING'),
   })
   .strict();
 

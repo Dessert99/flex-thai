@@ -383,16 +383,30 @@ describe('관리자 문제 공개 응답 계약', () => {
     ).toThrow();
   });
 
-  it('생성·교체한 문제 버전 요약의 named type을 제공한다', () => {
-    const response = adminQuestionVersionResponseSchema.parse({
+  it('생성·교체한 문제 버전 요약은 DRAFT·PENDING 상태만 허용한다', () => {
+    const draft = {
       questionId: ids.question,
       versionId: ids.version,
       version: 1,
       status: 'DRAFT',
       validationStatus: 'PENDING',
-    });
+    } as const;
+    const response = adminQuestionVersionResponseSchema.parse(draft);
 
     expectTypeOf(response).toEqualTypeOf<AdminQuestionVersionResponse>();
     expect(response.version).toBe(1);
+    for (const status of ['PUBLISHED', 'RETIRED', 'INVALIDATED'] as const) {
+      expect(() =>
+        adminQuestionVersionResponseSchema.parse({ ...draft, status }),
+      ).toThrow();
+    }
+    for (const validationStatus of ['PASSED', 'FAILED'] as const) {
+      expect(() =>
+        adminQuestionVersionResponseSchema.parse({
+          ...draft,
+          validationStatus,
+        }),
+      ).toThrow();
+    }
   });
 });

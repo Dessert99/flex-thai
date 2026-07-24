@@ -148,10 +148,35 @@ const incompleteMediaAssetDetailSchema = z
   .strict();
 
 /** storage key 없이 검증 상태와 발음·문장 사용처를 반환하는 상세 응답 */
-export const mediaAssetDetailResponseSchema = z.discriminatedUnion('status', [
-  readyMediaAssetDetailSchema,
-  incompleteMediaAssetDetailSchema,
-]);
+export const mediaAssetDetailResponseSchema = z
+  .discriminatedUnion('status', [
+    readyMediaAssetDetailSchema,
+    incompleteMediaAssetDetailSchema,
+  ])
+  .superRefine((asset, context) => {
+    if (asset.status !== 'READY') return;
+    if (asset.mimeType !== asset.declaredMimeType) {
+      context.addIssue({
+        code: 'custom',
+        message: 'READY MIME은 선언값과 일치해야 합니다.',
+        path: ['mimeType'],
+      });
+    }
+    if (asset.sizeBytes !== asset.declaredSizeBytes) {
+      context.addIssue({
+        code: 'custom',
+        message: 'READY byte 크기는 선언값과 일치해야 합니다.',
+        path: ['sizeBytes'],
+      });
+    }
+    if (asset.sha256.toLowerCase() !== asset.declaredSha256.toLowerCase()) {
+      context.addIssue({
+        code: 'custom',
+        message: 'READY SHA-256은 선언값과 일치해야 합니다.',
+        path: ['sha256'],
+      });
+    }
+  });
 
 /** 검증된 음성 업로드 준비 요청 type */
 export type AudioUploadRequest = z.infer<typeof audioUploadRequestSchema>;
