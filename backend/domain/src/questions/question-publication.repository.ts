@@ -44,6 +44,7 @@ export interface QuestionPublicationTransaction {
   hideQuestion(questionId: string): Promise<void>;
   restoreQuestion(questionId: string): Promise<void>;
   appendAuditLog(input: {
+    actorSub: string;
     actorUserId: string;
     action: string;
     targetType: 'QUESTION' | 'QUESTION_VERSION';

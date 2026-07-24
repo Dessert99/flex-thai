@@ -1,5 +1,4 @@
 /** 도메인 오류를 안정적인 HTTP code로 바꾸고 내부 정보를 숨긴다 */
-import { randomUUID } from 'node:crypto';
 import {
   ArgumentsHost,
   Catch,
@@ -20,6 +19,10 @@ import {
   VocabularyAdminError,
 } from '@flex-thia/domain';
 import { ZodError } from 'zod';
+import {
+  resolveAdminRequestId,
+  type AdminRequestIdRequest,
+} from '../../admin/admin-request-id.js';
 import type { StructuredLogger } from '../logging/structured-logger.js';
 
 const INTERNAL_SERVER_ERROR_STATUS: number = HttpStatus.INTERNAL_SERVER_ERROR;
@@ -285,8 +288,7 @@ export const buildErrorResponse = (
   };
 };
 
-type ErrorRequest = {
-  headers?: Record<string, string | string[] | undefined>;
+type ErrorRequest = AdminRequestIdRequest & {
   route?: { path?: unknown };
   path?: unknown;
   url?: unknown;
@@ -309,7 +311,7 @@ export class DomainExceptionFilter implements ExceptionFilter {
     const http = host.switchToHttp();
     const request = http.getRequest<ErrorRequest>();
     const response = http.getResponse<ErrorResponseAdapter>();
-    const requestId = this.readRequestId(request);
+    const requestId = resolveAdminRequestId(request);
     const result = buildErrorResponse(error, requestId);
 
     if (result.status === INTERNAL_SERVER_ERROR_STATUS) {
@@ -325,11 +327,6 @@ export class DomainExceptionFilter implements ExceptionFilter {
       .type('application/problem+json')
       .status(result.status)
       .json(result.body);
-  }
-
-  private readRequestId(request: ErrorRequest): string {
-    const value = request.headers?.['x-request-id'];
-    return typeof value === 'string' && value ? value : randomUUID();
   }
 
   private readRoute(request: ErrorRequest): string {

@@ -55,6 +55,7 @@ export interface VocabularyAdminReplaceInput {
 
 /** 관리자 어휘 command의 인증·감사 문맥 */
 export interface VocabularyAdminCommandContext {
+  actorSub: string;
   actorUserId: string;
   requestId: string;
   occurredAt: Date;
@@ -326,6 +327,7 @@ const createAudit = (
     summary: Record<string, unknown>;
   },
 ): VocabularyAdminAuditInput => ({
+  actorSub: command.actorSub,
   actorUserId: command.actorUserId,
   action: input.action,
   targetType: 'VOCABULARY',

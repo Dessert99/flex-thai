@@ -24,6 +24,7 @@ const ids = {
 } as const;
 
 const context = {
+  actorSub: 'cognito-sub',
   actorUserId: ids.actor,
   requestId: 'request-id',
   occurredAt: new Date('2026-07-24T00:00:00.000Z'),
@@ -230,6 +231,7 @@ describe('VocabularyAdminService 어휘 전체 교체', () => {
       ],
     });
     expect(fake.appendAuditLog).toHaveBeenCalledWith({
+      actorSub: 'cognito-sub',
       actorUserId: ids.actor,
       action: 'VOCABULARY_REPLACED',
       targetType: 'VOCABULARY',

@@ -50,6 +50,7 @@ export interface VocabularyAdminMediaRecord {
 
 /** 관리자 어휘 변경과 같은 transaction에 append할 감사 입력 */
 export interface VocabularyAdminAuditInput {
+  actorSub: string;
   actorUserId: string;
   action:
     | 'VOCABULARY_REPLACED'

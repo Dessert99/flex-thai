@@ -58,6 +58,7 @@ export class QuestionAdminError extends Error {
 
 /** 문제 초안 변경과 감사에 필요한 관리자 요청 문맥 */
 export interface QuestionAdminCommandContext {
+  actorSub: string;
   actorUserId: string;
   requestId: string;
   occurredAt: Date;
@@ -713,6 +714,7 @@ export class QuestionAdminService {
       };
       await transaction.createVersion(graph);
       await transaction.appendAuditLog({
+        actorSub: command.actorSub,
         actorUserId: command.actorUserId,
         action: 'QUESTION_VERSION_CLONED',
         targetType: 'QUESTION_VERSION',
@@ -816,6 +818,7 @@ export class QuestionAdminService {
       };
       await transaction.replaceVersion(graph);
       await transaction.appendAuditLog({
+        actorSub: command.actorSub,
         actorUserId: command.actorUserId,
         action: 'QUESTION_VERSION_REPLACED',
         targetType: 'QUESTION_VERSION',

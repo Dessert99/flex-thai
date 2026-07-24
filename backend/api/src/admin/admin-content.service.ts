@@ -1,5 +1,4 @@
 /** 관리자 use case와 read model을 strict 공개 응답·감사 문맥으로 조립한다 */
-import { randomUUID } from 'node:crypto';
 import { NotFoundException } from '@nestjs/common';
 import {
   adminQuestionDetailResponseSchema,
@@ -78,17 +77,14 @@ export interface AdminActorContext {
   requestId: string;
 }
 
-/** 선택적 요청 ID를 감사·오류 응답이 공유할 관리자 문맥으로 정규화한다 */
+/** 요청 객체에서 확정된 ID와 인증 사용자를 관리자 감사 문맥으로 묶는다 */
 export const createAdminActorContext = (
   user: AuthenticatedUser,
-  requestId: string | undefined,
+  requestId: string,
 ): AdminActorContext => ({
   userId: user.userId,
   sub: user.sub,
-  requestId:
-    typeof requestId === 'string' && requestId.trim()
-      ? requestId.trim()
-      : randomUUID(),
+  requestId,
 });
 
 /** 관리자 facade가 조정하는 기존 Stage 3~8 use case와 read model */
@@ -127,6 +123,7 @@ export const parseAdminPublicResponse = <Output>(
 };
 
 const toAuditContext = (actor: AdminActorContext, occurredAt: Date) => ({
+  actorSub: actor.sub,
   actorUserId: actor.userId,
   requestId: actor.requestId,
   occurredAt,

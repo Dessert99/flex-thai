@@ -30,6 +30,7 @@ export class QuestionPublicationError extends Error {
 
 /** 감사 기록을 남기는 게시 수명 명령의 공통 요청 문맥이다 */
 export interface QuestionPublicationCommandContext {
+  actorSub: string;
   actorUserId: string;
   requestId: string;
   occurredAt: Date;
@@ -112,6 +113,7 @@ export class QuestionPublicationService {
         command.occurredAt,
       );
       await transaction.appendAuditLog({
+        actorSub: command.actorSub,
         actorUserId: command.actorUserId,
         action: 'QUESTION_VERSION_VALIDATED',
         targetType: 'QUESTION_VERSION',
@@ -176,6 +178,7 @@ export class QuestionPublicationService {
           command.occurredAt,
         );
         await transaction.appendAuditLog({
+          actorSub: command.actorSub,
           actorUserId: command.actorUserId,
           action: 'QUESTION_VERSION_PUBLISHED',
           targetType: 'QUESTION_VERSION',
@@ -213,6 +216,7 @@ export class QuestionPublicationService {
         await transaction.hideQuestion(question.id);
       }
       await transaction.appendAuditLog({
+        actorSub: command.actorSub,
         actorUserId: command.actorUserId,
         action: 'QUESTION_VERSION_INVALIDATED',
         targetType: 'QUESTION_VERSION',
@@ -235,6 +239,7 @@ export class QuestionPublicationService {
       }
       await transaction.hideQuestion(question.id);
       await transaction.appendAuditLog({
+        actorSub: command.actorSub,
         actorUserId: command.actorUserId,
         action: 'QUESTION_HIDDEN',
         targetType: 'QUESTION',
@@ -264,6 +269,7 @@ export class QuestionPublicationService {
       }
       await transaction.restoreQuestion(question.id);
       await transaction.appendAuditLog({
+        actorSub: command.actorSub,
         actorUserId: command.actorUserId,
         action: 'QUESTION_RESTORED',
         targetType: 'QUESTION',

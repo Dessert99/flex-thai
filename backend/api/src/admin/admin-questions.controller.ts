@@ -3,7 +3,6 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
   HttpCode,
   Param,
   Post,
@@ -62,6 +61,7 @@ import {
   createAdminActorContext,
   parseAdminPublicResponse,
 } from './admin-content.service.js';
+import { AdminRequestId } from './admin-request-id.js';
 
 /** ADMIN과 TOTP 등록을 요구하는 문제 관리 endpoint */
 @ApiTags('Admin Questions')
@@ -124,7 +124,7 @@ export class AdminQuestionsController {
   @HttpCode(201)
   async cloneQuestionVersion(
     @CurrentUser() user: AuthenticatedUser,
-    @Headers('x-request-id') requestId: string | undefined,
+    @AdminRequestId() requestId: string,
     @Param() rawPath: Record<string, unknown>,
   ): Promise<AdminQuestionVersionResponse> {
     const path = adminQuestionIdPathSchema.parse(rawPath);
@@ -146,7 +146,7 @@ export class AdminQuestionsController {
   @Put('question-versions/:versionId')
   async replaceQuestionVersion(
     @CurrentUser() user: AuthenticatedUser,
-    @Headers('x-request-id') requestId: string | undefined,
+    @AdminRequestId() requestId: string,
     @Param() rawPath: Record<string, unknown>,
     @Body() rawBody: unknown,
   ): Promise<AdminQuestionVersionResponse> {
@@ -171,7 +171,7 @@ export class AdminQuestionsController {
   @HttpCode(200)
   async validateQuestionVersion(
     @CurrentUser() user: AuthenticatedUser,
-    @Headers('x-request-id') requestId: string | undefined,
+    @AdminRequestId() requestId: string,
     @Param() rawPath: Record<string, unknown>,
   ): Promise<AdminQuestionValidationReport> {
     const path = adminQuestionVersionIdPathSchema.parse(rawPath);
@@ -193,7 +193,7 @@ export class AdminQuestionsController {
   @HttpCode(204)
   async publishQuestionVersion(
     @CurrentUser() user: AuthenticatedUser,
-    @Headers('x-request-id') requestId: string | undefined,
+    @AdminRequestId() requestId: string,
     @Param() rawPath: Record<string, unknown>,
   ): Promise<void> {
     const path = adminQuestionVersionIdPathSchema.parse(rawPath);
@@ -212,7 +212,7 @@ export class AdminQuestionsController {
   @HttpCode(204)
   async invalidateQuestionVersion(
     @CurrentUser() user: AuthenticatedUser,
-    @Headers('x-request-id') requestId: string | undefined,
+    @AdminRequestId() requestId: string,
     @Param() rawPath: Record<string, unknown>,
   ): Promise<void> {
     const path = adminQuestionVersionIdPathSchema.parse(rawPath);
@@ -231,7 +231,7 @@ export class AdminQuestionsController {
   @HttpCode(204)
   async hideQuestion(
     @CurrentUser() user: AuthenticatedUser,
-    @Headers('x-request-id') requestId: string | undefined,
+    @AdminRequestId() requestId: string,
     @Param() rawPath: Record<string, unknown>,
   ): Promise<void> {
     const path = adminQuestionIdPathSchema.parse(rawPath);
@@ -250,7 +250,7 @@ export class AdminQuestionsController {
   @HttpCode(204)
   async restoreQuestion(
     @CurrentUser() user: AuthenticatedUser,
-    @Headers('x-request-id') requestId: string | undefined,
+    @AdminRequestId() requestId: string,
     @Param() rawPath: Record<string, unknown>,
   ): Promise<void> {
     const path = adminQuestionIdPathSchema.parse(rawPath);

@@ -787,6 +787,7 @@ describe('DrizzleQuestionPublicationRepository', () => {
 
     await withTransaction(fake.database, (transaction) =>
       transaction.appendAuditLog({
+        actorSub: 'cognito-sub',
         actorUserId: 'actor-id',
         action: 'QUESTION_VERSION_PUBLISHED',
         targetType: 'QUESTION_VERSION',
@@ -799,7 +800,7 @@ describe('DrizzleQuestionPublicationRepository', () => {
 
     expect(fake.insertValues).toEqual([
       {
-        actorSub: 'actor-id',
+        actorSub: 'cognito-sub',
         actorUserId: 'actor-id',
         action: 'QUESTION_VERSION_PUBLISHED',
         target: 'version-id',

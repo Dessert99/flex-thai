@@ -205,6 +205,7 @@ const createService = (
 const publishCommand = {
   questionId: 'question-id',
   versionId: 'draft-version-id',
+  actorSub: 'cognito-sub',
   actorUserId: 'admin-id',
   requestId: 'request-id',
   occurredAt,
@@ -217,6 +218,7 @@ const invalidateCommand = {
 
 const restoreCommand = {
   questionId: 'question-id',
+  actorSub: 'cognito-sub',
   actorUserId: 'admin-id',
   requestId: 'request-id',
   occurredAt,
@@ -224,6 +226,7 @@ const restoreCommand = {
 
 const validateCommand = {
   versionId: 'draft-version-id',
+  actorSub: 'cognito-sub',
   actorUserId: 'admin-id',
   requestId: 'request-id',
   occurredAt,
@@ -593,6 +596,7 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
     ]);
     expect(audits).toEqual([
       {
+        actorSub: 'cognito-sub',
         actorUserId: 'admin-id',
         action: 'QUESTION_VERSION_VALIDATED',
         targetType: 'QUESTION_VERSION',

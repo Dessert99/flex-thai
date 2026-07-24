@@ -181,6 +181,36 @@ describe('AdminContentService 감사 문맥', () => {
       status: 'FAILED',
       issues: [{ path: 'x', code: 'THAI_CONTENT_INVALID' }],
     });
+    expect(fakes.questionPublication.validateVersion).toHaveBeenCalledWith({
+      versionId: ids.version,
+      actorSub: 'subject-1',
+      actorUserId: 'user-1',
+      requestId: 'request-1',
+      occurredAt,
+    });
+  });
+
+  it('문제와 어휘 command에 Cognito sub를 보존한다', async () => {
+    const fakes = dependencies();
+    const service = new AdminContentService(fakes as never);
+
+    await service.cloneQuestionVersion(actor, ids.question);
+    await service.publishVocabulary(actor, ids.vocabulary);
+
+    expect(fakes.questions.cloneVersion).toHaveBeenCalledWith({
+      questionId: ids.question,
+      actorSub: 'subject-1',
+      actorUserId: 'user-1',
+      requestId: 'request-1',
+      occurredAt,
+    });
+    expect(fakes.vocabularies.publish).toHaveBeenCalledWith({
+      vocabularyId: ids.vocabulary,
+      actorSub: 'subject-1',
+      actorUserId: 'user-1',
+      requestId: 'request-1',
+      occurredAt,
+    });
   });
 
   it('Date를 ISO 문자열로 바꾸고 media storageKey를 공개하지 않는다', async () => {

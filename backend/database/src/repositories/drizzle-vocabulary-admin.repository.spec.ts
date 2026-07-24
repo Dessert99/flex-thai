@@ -143,6 +143,7 @@ const replacement: VocabularyAdminReplacementGraph = {
 };
 
 const audit: VocabularyAdminAuditInput = {
+  actorSub: 'cognito-sub',
   actorUserId: 'actor-id',
   action: 'VOCABULARY_REPLACED',
   targetType: 'VOCABULARY',
@@ -369,6 +370,7 @@ const replacementInput = (
 });
 
 const commandContext = (fixture: IntegrationFixture) => ({
+  actorSub: `task8-${fixture.actorUserId}`,
   actorUserId: fixture.actorUserId,
   requestId: `request-${randomUUID()}`,
   occurredAt: new Date(),
@@ -708,6 +710,7 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       await expect(
         service.publish({
           vocabularyId: fixture.vocabularyId,
+          actorSub: 'missing-actor-sub',
           actorUserId: randomUUID(),
           requestId: `request-${randomUUID()}`,
           occurredAt: new Date(),
@@ -734,6 +737,7 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
         service.replace({
           vocabularyId: fixture.vocabularyId,
           input: replacementInput(fixture, `롤백-${randomUUID()}`),
+          actorSub: 'missing-actor-sub',
           actorUserId: randomUUID(),
           requestId: `request-${randomUUID()}`,
           occurredAt: new Date(),
@@ -780,7 +784,7 @@ describe('DrizzleVocabularyAdminRepository 감사·오류 안정화', () => {
         kind: 'insert',
         table: auditLogs,
         values: {
-          actorSub: 'actor-id',
+          actorSub: 'cognito-sub',
           actorUserId: 'actor-id',
           action: 'VOCABULARY_REPLACED',
           target: 'vocabulary-id',

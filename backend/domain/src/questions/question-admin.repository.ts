@@ -69,6 +69,7 @@ export interface QuestionAdminVersionGraph {
 
 /** 관리자 문제 변경과 같은 transaction에 append할 감사 입력 */
 export interface QuestionAdminAuditInput {
+  actorSub: string;
   actorUserId: string;
   action: 'QUESTION_VERSION_CLONED' | 'QUESTION_VERSION_REPLACED';
   targetType: 'QUESTION_VERSION';

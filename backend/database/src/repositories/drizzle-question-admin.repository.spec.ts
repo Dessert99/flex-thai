@@ -337,6 +337,7 @@ describe('DrizzleQuestionAdminRepository 감사 원자성', () => {
 
     await repository.runInTransaction((transaction) =>
       transaction.appendAuditLog({
+        actorSub: 'cognito-sub',
         actorUserId: 'actor-id',
         action: 'QUESTION_VERSION_REPLACED',
         targetType: 'QUESTION_VERSION',
@@ -352,7 +353,7 @@ describe('DrizzleQuestionAdminRepository 감사 원자성', () => {
         kind: 'insert',
         table: auditLogs,
         values: {
-          actorSub: 'actor-id',
+          actorSub: 'cognito-sub',
           actorUserId: 'actor-id',
           action: 'QUESTION_VERSION_REPLACED',
           target: 'version-id',
@@ -375,6 +376,7 @@ describe('DrizzleQuestionAdminRepository 감사 원자성', () => {
     await expect(
       repository.runInTransaction((transaction) =>
         transaction.appendAuditLog({
+          actorSub: 'cognito-sub',
           actorUserId: 'actor-id',
           action: 'QUESTION_VERSION_CLONED',
           targetType: 'QUESTION_VERSION',
@@ -549,6 +551,7 @@ const replacementInput = (
 };
 
 const commandContext = (fixture: IntegrationFixture) => ({
+  actorSub: `task7-${fixture.actorUserId}`,
   actorUserId: fixture.actorUserId,
   requestId: `request-${randomUUID()}`,
   occurredAt: new Date(),
@@ -838,6 +841,7 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       await expect(
         admin.cloneVersion({
           questionId: fixture.questionId,
+          actorSub: 'missing-actor-sub',
           actorUserId: randomUUID(),
           requestId: `request-${randomUUID()}`,
           occurredAt: new Date(),

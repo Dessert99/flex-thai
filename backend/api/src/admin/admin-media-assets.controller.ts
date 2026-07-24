@@ -3,7 +3,6 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
   HttpCode,
   Param,
   Post,
@@ -26,9 +25,11 @@ import {
   mediaAssetDetailResponseSchema,
   mediaAssetIdPathSchema,
   type AudioUploadResponse,
+  type AudioUploadRequest,
   type CompleteMediaAssetResponse,
   type MediaAssetDetailResponse,
 } from '@flex-thia/contracts';
+import { MediaAssetDomainError } from '@flex-thia/domain';
 import {
   CurrentUser,
   type AuthenticatedUser,
@@ -51,6 +52,25 @@ import {
   createAdminActorContext,
   parseAdminPublicResponse,
 } from './admin-content.service.js';
+import { AdminRequestId } from './admin-request-id.js';
+
+const MAX_AUDIO_SIZE_BYTES = 25 * 1024 * 1024;
+
+/** 초과 숫자 크기만 stable 413 domain 오류로 승격하고 나머지는 strict 400에 둔다 */
+export const parseAudioUploadRequest = (
+  rawBody: unknown,
+): AudioUploadRequest => {
+  if (
+    typeof rawBody === 'object' &&
+    rawBody !== null &&
+    'sizeBytes' in rawBody &&
+    typeof rawBody.sizeBytes === 'number' &&
+    rawBody.sizeBytes > MAX_AUDIO_SIZE_BYTES
+  ) {
+    throw new MediaAssetDomainError('MEDIA_UPLOAD_TOO_LARGE');
+  }
+  return audioUploadRequestSchema.parse(rawBody);
+};
 
 /** ADMIN과 TOTP 등록을 요구하는 불변 audio asset endpoint */
 @ApiTags('Admin Media Assets')
@@ -78,10 +98,10 @@ export class AdminMediaAssetsController {
   @HttpCode(201)
   async requestAudioUpload(
     @CurrentUser() user: AuthenticatedUser,
-    @Headers('x-request-id') requestId: string | undefined,
+    @AdminRequestId() requestId: string,
     @Body() rawBody: unknown,
   ): Promise<AudioUploadResponse> {
-    const body = audioUploadRequestSchema.parse(rawBody);
+    const body = parseAudioUploadRequest(rawBody);
     return parseAdminPublicResponse(
       audioUploadResponseSchema,
       await this.admin.requestAudioUpload(
@@ -100,7 +120,7 @@ export class AdminMediaAssetsController {
   @HttpCode(200)
   async completeMediaAsset(
     @CurrentUser() user: AuthenticatedUser,
-    @Headers('x-request-id') requestId: string | undefined,
+    @AdminRequestId() requestId: string,
     @Param() rawPath: Record<string, unknown>,
   ): Promise<CompleteMediaAssetResponse> {
     const path = mediaAssetIdPathSchema.parse(rawPath);

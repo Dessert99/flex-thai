@@ -392,7 +392,7 @@ const createQuestionAdminTransaction = (
 
   async appendAuditLog(input) {
     await transaction.insert(auditLogs).values({
-      actorSub: input.actorUserId,
+      actorSub: input.actorSub,
       actorUserId: input.actorUserId,
       action: input.action,
       target: input.targetId,

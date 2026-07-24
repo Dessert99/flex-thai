@@ -54,6 +54,7 @@ import {
   createAdminActorContext,
   parseAdminPublicResponse,
 } from './admin-content.service.js';
+import { AdminRequestId } from './admin-request-id.js';
 
 /** ADMIN과 TOTP 등록을 요구하는 콘텐츠 가져오기 endpoint */
 @ApiTags('Admin Content Imports')
@@ -86,7 +87,7 @@ export class AdminContentImportsController {
   @HttpCode(201)
   async createContentImport(
     @CurrentUser() user: AuthenticatedUser,
-    @Headers('x-request-id') requestId: string | undefined,
+    @AdminRequestId() requestId: string,
     @Headers('idempotency-key') idempotencyKey: unknown,
     @Body() rawBody: unknown,
   ): Promise<ContentImportDetailResponse> {

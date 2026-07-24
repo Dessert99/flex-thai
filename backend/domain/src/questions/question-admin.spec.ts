@@ -190,6 +190,7 @@ const createService = (
 };
 
 const commandContext = {
+  actorSub: 'cognito-sub',
   actorUserId: '00000000-0000-4000-8000-000000000120',
   requestId: 'request-id',
   occurredAt,
@@ -262,6 +263,8 @@ describe('QuestionAdminService 문제 버전 복제', () => {
   it('현재 게시 버전 내용을 재사용하고 max version 다음 DRAFT를 만든다', async () => {
     const calls: string[] = [];
     let created: QuestionAdminVersionGraph | undefined;
+    let audit:
+      Parameters<QuestionAdminTransaction['appendAuditLog']>[0] | undefined;
     const latest = sourceVersion({
       id: '00000000-0000-4000-8000-000000000106',
       version: 3,
@@ -274,6 +277,9 @@ describe('QuestionAdminService 문제 버전 복제', () => {
         latestVersion: latest,
         onCreate: (graph) => {
           created = graph;
+        },
+        onAudit: (input) => {
+          audit = input;
         },
       }),
       calls,
@@ -327,6 +333,10 @@ describe('QuestionAdminService 문제 버전 복제', () => {
       'appendAuditLog',
       'transactionCommitted',
     ]);
+    expect(audit).toMatchObject({
+      actorSub: 'cognito-sub',
+      actorUserId: commandContext.actorUserId,
+    });
   });
 
   it('현재 게시 버전이 없으면 latest version을 복제 원본으로 사용한다', async () => {

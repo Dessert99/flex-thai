@@ -3,7 +3,6 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
   HttpCode,
   Param,
   Post,
@@ -53,6 +52,7 @@ import {
   createAdminActorContext,
   parseAdminPublicResponse,
 } from './admin-content.service.js';
+import { AdminRequestId } from './admin-request-id.js';
 
 /** ADMIN과 TOTP 등록을 요구하는 어휘 관리 endpoint */
 @ApiTags('Admin Vocabularies')
@@ -113,7 +113,7 @@ export class AdminVocabulariesController {
   @HttpCode(204)
   async replaceVocabulary(
     @CurrentUser() user: AuthenticatedUser,
-    @Headers('x-request-id') requestId: string | undefined,
+    @AdminRequestId() requestId: string,
     @Param() rawPath: Record<string, unknown>,
     @Body() rawBody: unknown,
   ): Promise<void> {
@@ -135,7 +135,7 @@ export class AdminVocabulariesController {
   @HttpCode(204)
   async publishVocabulary(
     @CurrentUser() user: AuthenticatedUser,
-    @Headers('x-request-id') requestId: string | undefined,
+    @AdminRequestId() requestId: string,
     @Param() rawPath: Record<string, unknown>,
   ): Promise<void> {
     const path = adminVocabularyIdPathSchema.parse(rawPath);
@@ -154,7 +154,7 @@ export class AdminVocabulariesController {
   @HttpCode(204)
   async hideVocabulary(
     @CurrentUser() user: AuthenticatedUser,
-    @Headers('x-request-id') requestId: string | undefined,
+    @AdminRequestId() requestId: string,
     @Param() rawPath: Record<string, unknown>,
   ): Promise<void> {
     const path = adminVocabularyIdPathSchema.parse(rawPath);
@@ -173,7 +173,7 @@ export class AdminVocabulariesController {
   @HttpCode(204)
   async restoreVocabulary(
     @CurrentUser() user: AuthenticatedUser,
-    @Headers('x-request-id') requestId: string | undefined,
+    @AdminRequestId() requestId: string,
     @Param() rawPath: Record<string, unknown>,
   ): Promise<void> {
     const path = adminVocabularyIdPathSchema.parse(rawPath);
