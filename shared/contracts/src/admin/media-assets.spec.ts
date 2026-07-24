@@ -217,22 +217,40 @@ describe('관리자 음성 자산 공개 응답 계약', () => {
         status: 'UPLOADING',
       }),
     ).toThrow();
+    const rejected = {
+      ...ready,
+      status: 'REJECTED',
+      mimeType: 'application/octet-stream',
+      sizeBytes: 2048,
+      sha256: 'b'.repeat(64),
+      readyAt: null,
+    } as const;
+    expect(mediaAssetDetailResponseSchema.parse(rejected)).toEqual(rejected);
+    expect(() =>
+      mediaAssetDetailResponseSchema.parse({
+        ...rejected,
+        mimeType: rejected.declaredMimeType,
+        sizeBytes: rejected.declaredSizeBytes,
+        sha256: rejected.declaredSha256,
+      }),
+    ).toThrow();
+    expect(() =>
+      mediaAssetDetailResponseSchema.parse({
+        ...rejected,
+        mimeType: null,
+        sizeBytes: null,
+        sha256: null,
+      }),
+    ).toThrow();
     expect(
       mediaAssetDetailResponseSchema.parse({
         ...ready,
-        status: 'REJECTED',
+        status: 'UPLOADING',
         mimeType: null,
         sizeBytes: null,
         sha256: null,
         readyAt: null,
       }),
-    ).toEqual({
-      ...ready,
-      status: 'REJECTED',
-      mimeType: null,
-      sizeBytes: null,
-      sha256: null,
-      readyAt: null,
-    });
+    ).toMatchObject({ status: 'UPLOADING', mimeType: null });
   });
 });

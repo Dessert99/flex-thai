@@ -105,6 +105,23 @@ const toMediaAsset = (row: MediaProjection): MediaAsset => {
       readyAt: row.mediaReadyAt,
     };
   }
+  if (row.mediaStatus === 'REJECTED') {
+    if (
+      row.mediaMimeType === null ||
+      row.mediaSizeBytes === null ||
+      row.mediaSha256 === null
+    ) {
+      throw new MediaAssetDomainError('MEDIA_ASSET_NOT_READY');
+    }
+    return {
+      ...base,
+      mimeType: row.mediaMimeType,
+      sizeBytes: row.mediaSizeBytes,
+      sha256: row.mediaSha256,
+      status: 'REJECTED',
+      readyAt: null,
+    };
+  }
   return {
     ...base,
     mimeType: null,

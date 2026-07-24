@@ -76,8 +76,42 @@ describe('MediaAsset 음성 자산 수명 규칙', () => {
       new Date(),
     );
 
-    expect(() => rejectMediaAsset(ready)).toThrowError(
-      expect.objectContaining({ code: 'MEDIA_ASSET_IMMUTABLE' }),
+    expect(() =>
+      rejectMediaAsset(ready, {
+        mimeType: 'audio/ogg',
+        sizeBytes: 1024,
+        sha256: 'b'.repeat(64),
+      }),
+    ).toThrowError(expect.objectContaining({ code: 'MEDIA_ASSET_IMMUTABLE' }));
+  });
+
+  it('불일치로 거절할 때 실제 MIME·size·SHA-256을 보존한다', () => {
+    expect(
+      rejectMediaAsset(uploadingAsset(), {
+        mimeType: 'application/octet-stream',
+        sizeBytes: 1025,
+        sha256: 'B'.repeat(64),
+      }),
+    ).toMatchObject({
+      status: 'REJECTED',
+      mimeType: 'application/octet-stream',
+      sizeBytes: 1025,
+      sha256: 'b'.repeat(64),
+      readyAt: null,
+    });
+  });
+
+  it('선언과 모두 같은 actual metadata로 REJECTED를 만들 수 없다', () => {
+    expect(() =>
+      rejectMediaAsset(uploadingAsset(), {
+        mimeType: 'audio/mpeg',
+        sizeBytes: 1024,
+        sha256: 'a'.repeat(64),
+      }),
+    ).toThrowError(
+      expect.objectContaining({
+        code: 'MEDIA_REJECTION_MATCHES_DECLARATION',
+      }),
     );
   });
 

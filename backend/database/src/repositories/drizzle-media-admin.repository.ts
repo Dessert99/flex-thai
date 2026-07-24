@@ -8,7 +8,7 @@ import {
   type MediaAssetAuditContext,
   type ReadyMediaAsset,
 } from '@flex-thia/domain';
-import { and, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import { auditLogs, mediaAssets } from '../schema/index.js';
@@ -56,6 +56,26 @@ const toMediaAsset = (row: MediaAssetRow): MediaAsset => {
       sha256: row.sha256,
       status: 'READY',
       readyAt: row.readyAt,
+    };
+  }
+  if (row.status === 'REJECTED') {
+    if (
+      row.mimeType === null ||
+      row.sizeBytes === null ||
+      row.sha256 === null ||
+      (row.mimeType === row.declaredMimeType &&
+        row.sizeBytes === row.declaredSizeBytes &&
+        row.sha256.toLowerCase() === row.declaredSha256.toLowerCase())
+    ) {
+      throw new MediaAdminPersistenceError('mapRejected');
+    }
+    return {
+      ...base,
+      mimeType: row.mimeType,
+      sizeBytes: row.sizeBytes,
+      sha256: row.sha256,
+      status: 'REJECTED',
+      readyAt: null,
     };
   }
   return {
@@ -120,6 +140,7 @@ export class DrizzleMediaAdminRepository implements MediaAdminRepository {
           eq(mediaAssets.sha256, input.sha256),
         ),
       )
+      .orderBy(asc(mediaAssets.createdAt), asc(mediaAssets.id))
       .limit(1);
     return row ? (toMediaAsset(row) as ReadyMediaAsset) : null;
   }
@@ -214,10 +235,15 @@ export class DrizzleMediaAdminRepository implements MediaAdminRepository {
         ) {
           throw error;
         }
-        const rejected = rejectMediaAsset(asset);
+        const rejected = rejectMediaAsset(asset, input.inspection);
         const rows = await transaction
           .update(mediaAssets)
-          .set({ status: 'REJECTED' })
+          .set({
+            mimeType: rejected.mimeType,
+            sizeBytes: rejected.sizeBytes,
+            sha256: rejected.sha256,
+            status: 'REJECTED',
+          })
           .where(
             and(
               eq(mediaAssets.id, rejected.id),
@@ -230,7 +256,12 @@ export class DrizzleMediaAdminRepository implements MediaAdminRepository {
           context: input.context,
           action: 'MEDIA_ASSET_REJECTED',
           mediaAssetId: rejected.id,
-          summary: { reason: 'MEDIA_INSPECTION_MISMATCH' },
+          summary: {
+            reason: 'MEDIA_INSPECTION_MISMATCH',
+            mimeType: rejected.mimeType,
+            sizeBytes: rejected.sizeBytes,
+            sha256: rejected.sha256,
+          },
         });
         return { outcome: 'REJECTED', asset: rejected };
       }

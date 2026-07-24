@@ -66,14 +66,16 @@ const createRepository = (options?: {
 const createStorage = () => ({
   createUpload: vi.fn<AudioUploadStorage['createUpload']>().mockResolvedValue({
     url: 'https://upload.invalid',
-    fields: { key: readyAsset.storageKey },
+    fields: { key: `audio/uploads/${readyAsset.id}` },
     expiresAt: '2026-07-24T00:10:00.000Z',
   }),
-  inspect: vi.fn<AudioUploadStorage['inspect']>().mockResolvedValue({
-    mimeType: 'audio/mpeg',
-    sizeBytes: 3,
-    sha256,
-  }),
+  inspectAndSeal: vi
+    .fn<AudioUploadStorage['inspectAndSeal']>()
+    .mockResolvedValue({
+      mimeType: 'audio/mpeg',
+      sizeBytes: 3,
+      sha256,
+    }),
 });
 
 describe('MediaAdminService 업로드 요청', () => {
@@ -101,7 +103,7 @@ describe('MediaAdminService 업로드 요청', () => {
     },
   );
 
-  it('서버 UUID로 만든 exact audio key만 저장하고 presign한다', async () => {
+  it('final key는 DB에만 저장하고 별도 temporary key만 presign한다', async () => {
     const repository = createRepository();
     const storage = createStorage();
     const service = new MediaAdminService(
@@ -114,7 +116,7 @@ describe('MediaAdminService 업로드 요청', () => {
 
     expect(storage.createUpload).toHaveBeenCalledWith({
       mediaAssetId: readyAsset.id,
-      storageKey: readyAsset.storageKey,
+      storageKey: `audio/uploads/${readyAsset.id}`,
       mimeType: 'audio/mpeg',
       sizeBytes: 3,
     });
@@ -133,7 +135,30 @@ describe('MediaAdminService 업로드 요청', () => {
       mediaAssetId: readyAsset.id,
       status: 'UPLOADING',
       uploadRequired: true,
+      upload: {
+        fields: { key: `audio/uploads/${readyAsset.id}` },
+      },
     });
+    expect(result.uploadRequired && result.upload.fields.key).not.toBe(
+      readyAsset.storageKey,
+    );
+  });
+
+  it('generator가 UUID를 반환하지 않으면 storage와 DB 호출 전에 거절한다', async () => {
+    const repository = createRepository();
+    const storage = createStorage();
+    const service = new MediaAdminService(
+      repository,
+      storage,
+      () => 'not-a-uuid',
+    );
+
+    await expect(
+      service.requestAudioUpload(createCommand()),
+    ).rejects.toMatchObject({ code: 'MEDIA_ASSET_ID_INVALID' });
+    expect(repository.findReadyByMetadata).not.toHaveBeenCalled();
+    expect(repository.createUploadingWithAudit).not.toHaveBeenCalled();
+    expect(storage.createUpload).not.toHaveBeenCalled();
   });
 
   it('actual hash·size·MIME이 같은 READY 자산은 row와 object를 만들지 않고 재사용한다', async () => {
@@ -182,7 +207,10 @@ describe('MediaAdminService 업로드 완료', () => {
 
     const result = await service.completeAudioUpload(readyAsset.id, context);
 
-    expect(storage.inspect).toHaveBeenCalledWith(readyAsset.storageKey);
+    expect(storage.inspectAndSeal).toHaveBeenCalledWith({
+      temporaryStorageKey: `audio/uploads/${readyAsset.id}`,
+      finalStorageKey: readyAsset.storageKey,
+    });
     expect(repository.finalizeWithAudit).toHaveBeenCalledWith({
       mediaAssetId: readyAsset.id,
       inspection: {
@@ -209,7 +237,13 @@ describe('MediaAdminService 업로드 완료', () => {
       asset: uploading,
       finalization: {
         outcome: 'REJECTED',
-        asset: { ...uploading, status: 'REJECTED' },
+        asset: {
+          ...uploading,
+          mimeType: 'audio/ogg',
+          sizeBytes: 3,
+          sha256,
+          status: 'REJECTED',
+        },
       },
     });
     const service = new MediaAdminService(
@@ -237,7 +271,7 @@ describe('MediaAdminService 업로드 완료', () => {
     const result = await service.completeAudioUpload(readyAsset.id, context);
 
     expect(result).toBe(readyAsset);
-    expect(storage.inspect).not.toHaveBeenCalled();
+    expect(storage.inspectAndSeal).not.toHaveBeenCalled();
     expect(repository.finalizeWithAudit).not.toHaveBeenCalled();
   });
 });

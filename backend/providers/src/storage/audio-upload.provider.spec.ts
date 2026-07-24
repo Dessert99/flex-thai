@@ -1,14 +1,40 @@
-/** audio S3 adapter의 exact policy·bytes hash·오류 은닉을 고정한다 */
+/** audio S3 adapter의 temporary upload·pinned read·write-once seal을 고정한다 */
 import { createHash } from 'node:crypto';
-import { describe, expect, it, vi } from 'vitest';
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+} from '@aws-sdk/client-s3';
 import { AudioUploadStorageError } from '@flex-thia/domain';
+import { describe, expect, it, vi } from 'vitest';
 import { S3AudioUploadProvider } from './audio-upload.provider.js';
 
-describe('S3AudioUploadProvider', () => {
-  it('10분 policy에 exact key·MIME·size와 전체 허용 범위를 강제한다', async () => {
+const temporaryStorageKey = 'audio/uploads/media-id';
+const finalStorageKey = 'audio/media-id';
+
+const body = (bytes: Uint8Array) => ({
+  transformToByteArray: vi.fn().mockResolvedValue(bytes),
+});
+
+const commandInput = (command: unknown): Record<string, unknown> => {
+  if (
+    typeof command !== 'object' ||
+    command === null ||
+    !('input' in command) ||
+    typeof command.input !== 'object' ||
+    command.input === null
+  ) {
+    throw new Error('AWS command input이 없습니다');
+  }
+  return command.input as Record<string, unknown>;
+};
+
+describe('S3AudioUploadProvider upload policy', () => {
+  it('final key가 아닌 temporary key에만 10분 exact policy를 발급한다', async () => {
     const sign = vi.fn().mockResolvedValue({
       url: 'https://media-bucket.s3.amazonaws.com',
-      fields: { key: 'audio/media-id', 'Content-Type': 'audio/mpeg' },
+      fields: { key: temporaryStorageKey, 'Content-Type': 'audio/mpeg' },
     });
     const provider = new S3AudioUploadProvider(
       {} as never,
@@ -19,7 +45,7 @@ describe('S3AudioUploadProvider', () => {
 
     const result = await provider.createUpload({
       mediaAssetId: 'media-id',
-      storageKey: 'audio/media-id',
+      storageKey: temporaryStorageKey,
       mimeType: 'audio/mpeg',
       sizeBytes: 3,
     });
@@ -32,47 +58,142 @@ describe('S3AudioUploadProvider', () => {
 
     expect(options).toMatchObject({
       Bucket: 'media-bucket',
-      Key: 'audio/media-id',
+      Key: temporaryStorageKey,
       Expires: 600,
     });
+    expect(options.Key).not.toBe(finalStorageKey);
     expect(options.Conditions).toEqual(
       expect.arrayContaining([
         ['content-length-range', 1, 25 * 1024 * 1024],
         ['content-length-range', 3, 3],
-        ['eq', '$key', 'audio/media-id'],
+        ['eq', '$key', temporaryStorageKey],
         ['eq', '$Content-Type', 'audio/mpeg'],
       ]),
     );
     expect(result.expiresAt).toBe('2026-07-24T00:10:00.000Z');
   });
+});
 
-  it('Head metadata와 Get 전체 bytes로 실제 SHA-256을 계산한다', async () => {
+describe('S3AudioUploadProvider object seal', () => {
+  it('Head ETag/version으로 Get을 고정하고 final key를 write-once로 저장한 뒤 temp를 지운다', async () => {
     const bytes = new TextEncoder().encode('abc');
     const send = vi
       .fn()
       .mockResolvedValueOnce({
         ContentLength: bytes.byteLength,
         ContentType: 'audio/mpeg',
+        ETag: '"temp-etag"',
+        VersionId: 'temp-version',
       })
-      .mockResolvedValueOnce({
-        Body: { transformToByteArray: vi.fn().mockResolvedValue(bytes) },
-      });
+      .mockResolvedValueOnce({ Body: body(bytes) })
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({});
     const provider = new S3AudioUploadProvider(
       { send } as never,
       'media-bucket',
     );
 
-    await expect(provider.inspect('audio/media-id')).resolves.toEqual({
+    await expect(
+      provider.inspectAndSeal({ temporaryStorageKey, finalStorageKey }),
+    ).resolves.toEqual({
       mimeType: 'audio/mpeg',
       sizeBytes: 3,
       sha256: createHash('sha256').update(bytes).digest('hex'),
     });
+
+    expect(send.mock.calls[0]?.[0]).toBeInstanceOf(HeadObjectCommand);
+    expect(commandInput(send.mock.calls[0]?.[0])).toEqual({
+      Bucket: 'media-bucket',
+      Key: temporaryStorageKey,
+    });
+    expect(send.mock.calls[1]?.[0]).toBeInstanceOf(GetObjectCommand);
+    expect(commandInput(send.mock.calls[1]?.[0])).toEqual({
+      Bucket: 'media-bucket',
+      Key: temporaryStorageKey,
+      IfMatch: '"temp-etag"',
+      VersionId: 'temp-version',
+    });
+    expect(send.mock.calls[2]?.[0]).toBeInstanceOf(PutObjectCommand);
+    expect(commandInput(send.mock.calls[2]?.[0])).toMatchObject({
+      Bucket: 'media-bucket',
+      Key: finalStorageKey,
+      Body: bytes,
+      ContentType: 'audio/mpeg',
+      IfNoneMatch: '*',
+      ChecksumSHA256: createHash('sha256').update(bytes).digest('base64'),
+    });
+    expect(send.mock.calls[3]?.[0]).toBeInstanceOf(DeleteObjectCommand);
+    expect(commandInput(send.mock.calls[3]?.[0])).toEqual({
+      Bucket: 'media-bucket',
+      Key: temporaryStorageKey,
+      VersionId: 'temp-version',
+    });
   });
 
-  it('AWS message와 bucket·key를 stable storage 오류 밖으로 노출하지 않는다', async () => {
+  it('final key가 이미 있으면 덮어쓰지 않고 기존 version을 pinned read해 반환한다', async () => {
+    const temporaryBytes = new TextEncoder().encode('abc');
+    const finalBytes = new TextEncoder().encode('existing');
+    const preconditionFailure = Object.assign(new Error('private key leaked'), {
+      name: 'PreconditionFailed',
+      $metadata: { httpStatusCode: 412 },
+    });
     const send = vi
       .fn()
-      .mockRejectedValue(
+      .mockResolvedValueOnce({
+        ContentLength: temporaryBytes.byteLength,
+        ContentType: 'audio/mpeg',
+        ETag: '"temp-etag"',
+      })
+      .mockResolvedValueOnce({ Body: body(temporaryBytes) })
+      .mockRejectedValueOnce(preconditionFailure)
+      .mockResolvedValueOnce({
+        ContentLength: finalBytes.byteLength,
+        ContentType: 'audio/ogg',
+        ETag: '"final-etag"',
+        VersionId: 'final-version',
+      })
+      .mockResolvedValueOnce({ Body: body(finalBytes) })
+      .mockResolvedValueOnce({});
+    const provider = new S3AudioUploadProvider(
+      { send } as never,
+      'media-bucket',
+    );
+
+    await expect(
+      provider.inspectAndSeal({ temporaryStorageKey, finalStorageKey }),
+    ).resolves.toEqual({
+      mimeType: 'audio/ogg',
+      sizeBytes: finalBytes.byteLength,
+      sha256: createHash('sha256').update(finalBytes).digest('hex'),
+    });
+
+    expect(send).toHaveBeenCalledTimes(6);
+    expect(send.mock.calls[3]?.[0]).toBeInstanceOf(HeadObjectCommand);
+    expect(commandInput(send.mock.calls[3]?.[0])).toEqual({
+      Bucket: 'media-bucket',
+      Key: finalStorageKey,
+    });
+    expect(send.mock.calls[4]?.[0]).toBeInstanceOf(GetObjectCommand);
+    expect(commandInput(send.mock.calls[4]?.[0])).toEqual({
+      Bucket: 'media-bucket',
+      Key: finalStorageKey,
+      IfMatch: '"final-etag"',
+      VersionId: 'final-version',
+    });
+    expect(send.mock.calls[5]?.[0]).toBeInstanceOf(DeleteObjectCommand);
+  });
+
+  it('seal 실패 시 temp를 지우지 않고 공급자 상세를 stable 오류로 숨긴다', async () => {
+    const bytes = new TextEncoder().encode('abc');
+    const send = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ContentLength: bytes.byteLength,
+        ContentType: 'audio/mpeg',
+        ETag: '"temp-etag"',
+      })
+      .mockResolvedValueOnce({ Body: body(bytes) })
+      .mockRejectedValueOnce(
         new Error('AccessDenied media-bucket audio/private-key'),
       );
     const provider = new S3AudioUploadProvider(
@@ -81,7 +202,7 @@ describe('S3AudioUploadProvider', () => {
     );
 
     const error = await provider
-      .inspect('audio/private-key')
+      .inspectAndSeal({ temporaryStorageKey, finalStorageKey })
       .catch((cause: unknown) => cause);
 
     expect(error).toBeInstanceOf(AudioUploadStorageError);
@@ -89,5 +210,11 @@ describe('S3AudioUploadProvider', () => {
     expect(String(error)).not.toContain('AccessDenied');
     expect(String(error)).not.toContain('media-bucket');
     expect(String(error)).not.toContain('audio/private-key');
+    expect(send).toHaveBeenCalledTimes(3);
+    expect(
+      send.mock.calls.some(
+        ([command]) => command instanceof DeleteObjectCommand,
+      ),
+    ).toBe(false);
   });
 });

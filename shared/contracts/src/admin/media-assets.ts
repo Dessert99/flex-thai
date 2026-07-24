@@ -136,13 +136,24 @@ const readyMediaAssetDetailSchema = z
   })
   .strict();
 
-const incompleteMediaAssetDetailSchema = z
+const uploadingMediaAssetDetailSchema = z
   .object({
     ...mediaAssetDetailShape,
-    status: z.enum(['UPLOADING', 'REJECTED']),
+    status: z.literal('UPLOADING'),
     mimeType: z.null(),
     sizeBytes: z.null(),
     sha256: z.null(),
+    readyAt: z.null(),
+  })
+  .strict();
+
+const rejectedMediaAssetDetailSchema = z
+  .object({
+    ...mediaAssetDetailShape,
+    status: z.literal('REJECTED'),
+    mimeType: z.string().min(1),
+    sizeBytes: sizeBytesSchema,
+    sha256: sha256Schema,
     readyAt: z.null(),
   })
   .strict();
@@ -151,9 +162,22 @@ const incompleteMediaAssetDetailSchema = z
 export const mediaAssetDetailResponseSchema = z
   .discriminatedUnion('status', [
     readyMediaAssetDetailSchema,
-    incompleteMediaAssetDetailSchema,
+    uploadingMediaAssetDetailSchema,
+    rejectedMediaAssetDetailSchema,
   ])
   .superRefine((asset, context) => {
+    const metadataMatches =
+      asset.mimeType === asset.declaredMimeType &&
+      asset.sizeBytes === asset.declaredSizeBytes &&
+      asset.sha256?.toLowerCase() === asset.declaredSha256.toLowerCase();
+    if (asset.status === 'REJECTED' && metadataMatches) {
+      context.addIssue({
+        code: 'custom',
+        message: 'REJECTED actual metadata는 선언값과 하나 이상 달라야 합니다.',
+        path: ['status'],
+      });
+      return;
+    }
     if (asset.status !== 'READY') return;
     if (asset.mimeType !== asset.declaredMimeType) {
       context.addIssue({

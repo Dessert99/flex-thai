@@ -28,6 +28,16 @@ const mediaAsset = (status: MediaAsset['status']): MediaAsset => {
       readyAt: new Date(),
     };
   }
+  if (status === 'REJECTED') {
+    return {
+      ...common,
+      mimeType: 'audio/ogg',
+      sizeBytes: 1,
+      sha256: 'b'.repeat(64),
+      status,
+      readyAt: null,
+    };
+  }
 
   return {
     ...common,

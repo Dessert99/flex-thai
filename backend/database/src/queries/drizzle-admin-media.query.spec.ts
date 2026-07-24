@@ -81,4 +81,62 @@ describe('DrizzleAdminMediaQuery', () => {
     await expect(query.findById('missing-id')).resolves.toBeNull();
     expect(fake.calls).toHaveLength(1);
   });
+
+  it('REJECTED의 불일치 actual metadata를 storage key 없이 반환한다', async () => {
+    const fake = createSelectFake([
+      [
+        {
+          id: 'media-id',
+          kind: 'AUDIO',
+          declaredMimeType: 'audio/mpeg',
+          declaredSizeBytes: 3,
+          declaredSha256: 'a'.repeat(64),
+          mimeType: 'application/octet-stream',
+          sizeBytes: 4,
+          sha256: 'b'.repeat(64),
+          status: 'REJECTED',
+          readyAt: null,
+          createdAt: new Date('2026-07-24T00:00:00.000Z'),
+        },
+      ],
+      [],
+      [],
+    ]);
+    const query = new DrizzleAdminMediaQuery(fake.database as never);
+
+    await expect(query.findById('media-id')).resolves.toMatchObject({
+      status: 'REJECTED',
+      mimeType: 'application/octet-stream',
+      sizeBytes: 4,
+      sha256: 'b'.repeat(64),
+      readyAt: null,
+    });
+  });
+
+  it('선언값과 모두 같은 REJECTED projection은 손상된 상태로 거절한다', async () => {
+    const fake = createSelectFake([
+      [
+        {
+          id: 'media-id',
+          kind: 'AUDIO',
+          declaredMimeType: 'audio/mpeg',
+          declaredSizeBytes: 3,
+          declaredSha256: 'a'.repeat(64),
+          mimeType: 'audio/mpeg',
+          sizeBytes: 3,
+          sha256: 'a'.repeat(64),
+          status: 'REJECTED',
+          readyAt: null,
+          createdAt: new Date('2026-07-24T00:00:00.000Z'),
+        },
+      ],
+      [],
+      [],
+    ]);
+    const query = new DrizzleAdminMediaQuery(fake.database as never);
+
+    await expect(query.findById('media-id')).rejects.toMatchObject({
+      code: 'ADMIN_MEDIA_READY_METADATA_INVALID',
+    });
+  });
 });

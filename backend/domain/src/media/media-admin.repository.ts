@@ -33,7 +33,10 @@ export interface AudioUploadStorage {
     mimeType: AudioMimeType;
     sizeBytes: number;
   }): Promise<AudioUploadForm>;
-  inspect(storageKey: string): Promise<MediaAssetInspection>;
+  inspectAndSeal(input: {
+    temporaryStorageKey: string;
+    finalStorageKey: string;
+  }): Promise<MediaAssetInspection>;
 }
 
 /** 공급자 상세를 감춘 audio storage stable 오류 */

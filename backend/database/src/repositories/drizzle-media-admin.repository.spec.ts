@@ -29,7 +29,10 @@ const baseRow = {
 const toSql = (condition: unknown) =>
   new PgDialect().sqlToQuery(condition as never);
 
-const createFake = (lockedRow: Record<string, unknown> = baseRow) => {
+const createFake = (
+  lockedRow: Record<string, unknown> = baseRow,
+  options?: { auditFailure?: Error },
+) => {
   const inserted: Array<{ table: unknown; values: Record<string, unknown> }> =
     [];
   const updates: Array<{
@@ -44,6 +47,10 @@ const createFake = (lockedRow: Record<string, unknown> = baseRow) => {
       where: vi.fn(),
       limit: vi.fn(),
       for: vi.fn(),
+      then: (
+        resolve: (rows: Array<Record<string, unknown>>) => unknown,
+        reject?: (reason: unknown) => unknown,
+      ) => Promise.resolve([lockedRow]).then(resolve, reject),
     };
     chain.from.mockReturnValue(chain);
     chain.where.mockReturnValue(chain);
@@ -57,6 +64,9 @@ const createFake = (lockedRow: Record<string, unknown> = baseRow) => {
   const insert = vi.fn((table: unknown) => ({
     values: vi.fn((values: Record<string, unknown>) => {
       inserted.push({ table, values });
+      if (table === auditLogs && options?.auditFailure) {
+        return Promise.reject(options.auditFailure);
+      }
       return Promise.resolve();
     }),
   }));
@@ -72,6 +82,7 @@ const createFake = (lockedRow: Record<string, unknown> = baseRow) => {
   }));
   const transactionValue = { insert, select, update };
   const database = {
+    select,
     transaction: vi.fn(
       <T>(work: (transaction: typeof transactionValue) => Promise<T>) =>
         work(transactionValue),
@@ -154,11 +165,66 @@ describe('DrizzleMediaAdminRepository', () => {
     expect(result?.outcome).toBe('REJECTED');
     expect(fake.updates[0]).toMatchObject({
       table: mediaAssets,
-      values: { status: 'REJECTED' },
+      values: {
+        mimeType: 'audio/ogg',
+        sizeBytes: 3,
+        sha256,
+        status: 'REJECTED',
+      },
     });
     expect(fake.inserted[0]).toMatchObject({
       table: auditLogs,
-      values: { action: 'MEDIA_ASSET_REJECTED', targetId: baseRow.id },
+      values: {
+        action: 'MEDIA_ASSET_REJECTED',
+        targetId: baseRow.id,
+        summary: {
+          reason: 'MEDIA_INSPECTION_MISMATCH',
+          mimeType: 'audio/ogg',
+          sizeBytes: 3,
+          sha256,
+        },
+      },
+    });
+    expect(result?.asset).toMatchObject({
+      mimeType: 'audio/ogg',
+      sizeBytes: 3,
+      sha256,
+      status: 'REJECTED',
+    });
+  });
+
+  it('저장된 REJECTED row를 actual metadata가 있는 domain asset으로 복원한다', async () => {
+    const fake = createFake({
+      ...baseRow,
+      mimeType: 'application/octet-stream',
+      sizeBytes: 4,
+      sha256: 'b'.repeat(64),
+      status: 'REJECTED',
+    });
+    const repository = new DrizzleMediaAdminRepository(fake.database as never);
+
+    await expect(repository.findById(baseRow.id)).resolves.toMatchObject({
+      status: 'REJECTED',
+      mimeType: 'application/octet-stream',
+      sizeBytes: 4,
+      sha256: 'b'.repeat(64),
+      readyAt: null,
+    });
+  });
+
+  it('선언값과 모두 같은 REJECTED row는 손상된 상태로 거절한다', async () => {
+    const fake = createFake({
+      ...baseRow,
+      mimeType: 'audio/mpeg',
+      sizeBytes: 3,
+      sha256,
+      status: 'REJECTED',
+    });
+    const repository = new DrizzleMediaAdminRepository(fake.database as never);
+
+    await expect(repository.findById(baseRow.id)).rejects.toMatchObject({
+      code: 'MEDIA_ADMIN_PERSISTENCE_CONFLICT',
+      operation: 'mapRejected',
     });
   });
 
@@ -183,5 +249,61 @@ describe('DrizzleMediaAdminRepository', () => {
     expect(result?.outcome).toBe('READY_UNCHANGED');
     expect(fake.updates).toEqual([]);
     expect(fake.inserted).toEqual([]);
+  });
+
+  it('READY update 뒤 audit 저장이 실패하면 transaction promise도 실패한다', async () => {
+    const auditFailure = new Error('audit failed');
+    const fake = createFake(baseRow, { auditFailure });
+    const repository = new DrizzleMediaAdminRepository(fake.database as never);
+
+    await expect(
+      repository.finalizeWithAudit({
+        mediaAssetId: baseRow.id,
+        inspection: { mimeType: 'audio/mpeg', sizeBytes: 3, sha256 },
+        readyAt: new Date('2026-07-24T00:10:00.000Z'),
+        context,
+      }),
+    ).rejects.toBe(auditFailure);
+    expect(fake.database.transaction).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('DrizzleMediaAdminRepository READY 재사용', () => {
+  it('동일 actual metadata 중 createdAt과 id가 가장 이른 row를 선택한다', async () => {
+    const orderByValues: unknown[] = [];
+    const row = {
+      ...baseRow,
+      mimeType: 'audio/mpeg',
+      sizeBytes: 3,
+      sha256,
+      status: 'READY',
+      readyAt: new Date('2026-07-24T00:10:00.000Z'),
+    };
+    const chain = {
+      from: vi.fn(),
+      where: vi.fn(),
+      orderBy: vi.fn((...values: unknown[]) => {
+        orderByValues.push(...values);
+        return chain;
+      }),
+      limit: vi.fn().mockResolvedValue([row]),
+    };
+    chain.from.mockReturnValue(chain);
+    chain.where.mockReturnValue(chain);
+    const repository = new DrizzleMediaAdminRepository({
+      select: vi.fn(() => chain),
+    } as never);
+
+    await repository.findReadyByMetadata({
+      mimeType: 'audio/mpeg',
+      sizeBytes: 3,
+      sha256,
+    });
+
+    expect(orderByValues).toHaveLength(2);
+    expect(toSql(orderByValues[0]).sql).toContain(
+      '"media_assets"."created_at" asc',
+    );
+    expect(toSql(orderByValues[1]).sql).toContain('"media_assets"."id" asc');
   });
 });

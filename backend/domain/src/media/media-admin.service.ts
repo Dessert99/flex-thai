@@ -1,4 +1,5 @@
 /** 관리자 audio upload 요청과 실제 object 완료 검증을 조율한다 */
+import { randomUUID } from 'node:crypto';
 import type {
   AudioMimeType,
   AudioUploadForm,
@@ -14,6 +15,8 @@ import {
 
 const MAX_AUDIO_SIZE_BYTES = 25 * 1024 * 1024;
 const SHA256_PATTERN = /^[a-fA-F0-9]{64}$/u;
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const AUDIO_MIME_TYPES: readonly string[] = [
   'audio/mpeg',
   'audio/wav',
@@ -73,7 +76,7 @@ export class MediaAdminService {
   constructor(
     private readonly repository: MediaAdminRepository,
     private readonly storage: AudioUploadStorage,
-    private readonly generateMediaAssetId: () => string,
+    private readonly generateMediaAssetId: () => string = randomUUID,
     private readonly now: () => Date = () => new Date(),
   ) {}
 
@@ -82,6 +85,10 @@ export class MediaAdminService {
     command: RequestAudioUploadCommand,
   ): Promise<RequestAudioUploadResult> {
     assertAudioDeclaration(command);
+    const mediaAssetId = this.generateMediaAssetId();
+    if (!UUID_PATTERN.test(mediaAssetId)) {
+      throw new MediaAssetDomainError('MEDIA_ASSET_ID_INVALID');
+    }
     const normalizedSha256 = command.sha256.toLowerCase();
     const reusable = await this.repository.findReadyByMetadata({
       mimeType: command.mimeType,
@@ -98,8 +105,8 @@ export class MediaAdminService {
       };
     }
 
-    const mediaAssetId = this.generateMediaAssetId();
     const storageKey = `audio/${mediaAssetId}`;
+    const temporaryStorageKey = `audio/uploads/${mediaAssetId}`;
     const asset: UploadingMediaAsset = {
       id: mediaAssetId,
       kind: 'AUDIO',
@@ -115,7 +122,7 @@ export class MediaAdminService {
     };
     const upload = await this.storage.createUpload({
       mediaAssetId,
-      storageKey,
+      storageKey: temporaryStorageKey,
       mimeType: command.mimeType,
       sizeBytes: command.sizeBytes,
     });
@@ -147,7 +154,10 @@ export class MediaAdminService {
       throw new MediaAssetDomainError('MEDIA_ASSET_NOT_UPLOADING');
     }
 
-    const inspection = await this.storage.inspect(asset.storageKey);
+    const inspection = await this.storage.inspectAndSeal({
+      temporaryStorageKey: `audio/uploads/${asset.id}`,
+      finalStorageKey: asset.storageKey,
+    });
     const finalization = await this.repository.finalizeWithAudit({
       mediaAssetId,
       inspection,

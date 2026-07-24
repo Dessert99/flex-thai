@@ -30,9 +30,9 @@ export interface ReadyMediaAsset extends MediaAssetBase {
 
 /** 검증에 실패해 다시 게시 후보가 될 수 없는 음성 object */
 export interface RejectedMediaAsset extends MediaAssetBase {
-  mimeType: null;
-  sizeBytes: null;
-  sha256: null;
+  mimeType: string;
+  sizeBytes: number;
+  sha256: string;
   status: 'REJECTED';
   readyAt: null;
 }
@@ -60,7 +60,9 @@ export class MediaAssetDomainError extends Error {
       | 'MEDIA_UPLOAD_TOO_LARGE'
       | 'MEDIA_MIME_NOT_ALLOWED'
       | 'MEDIA_SHA256_INVALID'
-      | 'MEDIA_ASSET_NOT_FOUND',
+      | 'MEDIA_ASSET_NOT_FOUND'
+      | 'MEDIA_ASSET_ID_INVALID'
+      | 'MEDIA_REJECTION_MATCHES_DECLARATION',
   ) {
     super(code);
     this.name = 'MediaAssetDomainError';
@@ -102,10 +104,26 @@ export const completeMediaAsset = (
   };
 };
 
-/** 완료 검증에 실패한 업로드를 다시 게시 후보로 쓰지 못하게 종료한다 */
-export const rejectMediaAsset = (asset: MediaAsset): RejectedMediaAsset => {
+/** 완료 검증 실패의 actual metadata를 보존하며 게시 후보에서 제외한다 */
+export const rejectMediaAsset = (
+  asset: MediaAsset,
+  inspection: MediaAssetInspection,
+): RejectedMediaAsset => {
   assertUploading(asset);
-  return { ...asset, status: 'REJECTED' };
+  if (
+    asset.declaredMimeType === inspection.mimeType &&
+    asset.declaredSizeBytes === inspection.sizeBytes &&
+    asset.declaredSha256.toLowerCase() === inspection.sha256.toLowerCase()
+  ) {
+    throw new MediaAssetDomainError('MEDIA_REJECTION_MATCHES_DECLARATION');
+  }
+  return {
+    ...asset,
+    mimeType: inspection.mimeType,
+    sizeBytes: inspection.sizeBytes,
+    sha256: inspection.sha256.toLowerCase(),
+    status: 'REJECTED',
+  };
 };
 
 /** 게시 규칙이 검증된 READY 음성만 참조하게 한다 */

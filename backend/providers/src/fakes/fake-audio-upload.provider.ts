@@ -9,6 +9,8 @@ import { AudioUploadStorageError } from '@flex-thia/domain';
 export class FakeAudioUploadProvider implements AudioUploadStorage {
   readonly uploads: Array<Parameters<AudioUploadStorage['createUpload']>[0]> =
     [];
+  readonly seals: Array<Parameters<AudioUploadStorage['inspectAndSeal']>[0]> =
+    [];
 
   constructor(
     private readonly inspections = new Map<string, MediaAssetInspection>(),
@@ -30,10 +32,11 @@ export class FakeAudioUploadProvider implements AudioUploadStorage {
   }
 
   /** 설정되지 않은 object는 공급자 상세 없는 stable 오류로 거절한다 */
-  inspect(
-    storageKey: string,
-  ): Promise<Awaited<ReturnType<AudioUploadStorage['inspect']>>> {
-    const inspection = this.inspections.get(storageKey);
+  inspectAndSeal(
+    input: Parameters<AudioUploadStorage['inspectAndSeal']>[0],
+  ): Promise<Awaited<ReturnType<AudioUploadStorage['inspectAndSeal']>>> {
+    this.seals.push({ ...input });
+    const inspection = this.inspections.get(input.temporaryStorageKey);
     return inspection
       ? Promise.resolve({ ...inspection })
       : Promise.reject(new AudioUploadStorageError());

@@ -40,10 +40,17 @@ export type AdminMediaDetailProjection =
       readyAt: Date;
     })
   | (AdminMediaDetailBaseProjection & {
-      status: 'UPLOADING' | 'REJECTED';
+      status: 'UPLOADING';
       mimeType: null;
       sizeBytes: null;
       sha256: null;
+      readyAt: null;
+    })
+  | (AdminMediaDetailBaseProjection & {
+      status: 'REJECTED';
+      mimeType: string;
+      sizeBytes: number;
+      sha256: string;
       readyAt: null;
     });
 
@@ -112,13 +119,33 @@ export class DrizzleAdminMediaQuery {
         },
       },
     };
-    if (row.status !== 'READY') {
+    if (row.status === 'UPLOADING') {
       return {
         ...base,
         status: row.status,
         mimeType: null,
         sizeBytes: null,
         sha256: null,
+        readyAt: null,
+      };
+    }
+    if (row.status === 'REJECTED') {
+      if (
+        row.mimeType === null ||
+        row.sizeBytes === null ||
+        row.sha256 === null ||
+        (row.mimeType === row.declaredMimeType &&
+          row.sizeBytes === row.declaredSizeBytes &&
+          row.sha256.toLowerCase() === row.declaredSha256.toLowerCase())
+      ) {
+        throw new AdminMediaQueryError();
+      }
+      return {
+        ...base,
+        status: 'REJECTED',
+        mimeType: row.mimeType,
+        sizeBytes: row.sizeBytes,
+        sha256: row.sha256,
         readyAt: null,
       };
     }
