@@ -1,5 +1,6 @@
 /** canonical 콘텐츠 draft의 insert 순서·오류 변환·transaction 경계를 고정한다 */
 import { randomUUID } from 'node:crypto';
+import { DatabaseErrorException } from '@aws-sdk/client-rds-data';
 import type {
   ContentDraftTransaction,
   CreateQuestionDraftCommand,
@@ -11,6 +12,7 @@ import type {
 } from '@flex-thia/domain';
 import { ContentDraftService } from '@flex-thia/domain';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { DrizzleQueryError } from 'drizzle-orm/errors';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
@@ -285,6 +287,31 @@ const questionAudit: ResolvedContentDraftAudit = {
   action: 'CONTENT_QUESTION_DRAFT_IMPORTED',
   targetType: 'QUESTION',
   targetId: ids.question,
+};
+
+const createDataApiQueryError = (
+  sqlState: string | null,
+  constraint: string | null,
+  messageOverride?: string,
+): DrizzleQueryError => {
+  const message =
+    messageOverride ??
+    [
+      'ERROR: simulated Data API database failure',
+      constraint === null ? null : `constraint "${constraint}"`,
+      sqlState === null ? null : `SQLState: ${sqlState}`,
+    ]
+      .filter((part): part is string => part !== null)
+      .join('; ');
+  const cause = new DatabaseErrorException({
+    message,
+    $metadata: {},
+  });
+  return new DrizzleQueryError(
+    'insert into private_table values ($1)',
+    ['private-param'],
+    cause,
+  );
 };
 
 const createFakeDatabase = (failure?: { table: unknown; error: unknown }) => {
@@ -780,6 +807,114 @@ describe('DrizzleContentDraftRepository 문제 저장', () => {
       operation: 'saveQuestionDraft',
     });
   });
+});
+
+describe('DrizzleContentDraftRepository Aurora Data API 오류 변환', () => {
+  it.each([
+    {
+      table: vocabularies,
+      saveKind: 'VOCABULARY',
+      sqlState: '23505',
+      constraint: 'vocabularies_normalized_thai_unique',
+      code: 'IMPORT_DUPLICATE_VOCABULARY',
+      path: 'thai',
+    },
+    {
+      table: contentImportItems,
+      saveKind: 'VOCABULARY',
+      sqlState: '23505',
+      constraint: 'content_import_items_import_kind_source_index_unique',
+      code: 'CONTENT_DRAFT_ITEM_CONFLICT',
+      operation: 'saveVocabularyDraft',
+    },
+    {
+      table: vocabularyPronunciations,
+      saveKind: 'VOCABULARY',
+      sqlState: '23503',
+      constraint: 'vocabulary_pronunciations_media_asset_id_media_assets_id_fk',
+      code: 'IMPORT_REFERENCE_NOT_FOUND',
+      path: 'pronunciations.mediaAssetId',
+    },
+    {
+      table: tokenOccurrences,
+      saveKind: 'QUESTION',
+      sqlState: '23503',
+      constraint: 'token_occurrences_meaning_vocabulary_fk',
+      code: 'IMPORT_REFERENCE_MISMATCH',
+      path: 'sentences.tokens',
+    },
+    {
+      table: expressionOccurrences,
+      saveKind: 'QUESTION',
+      sqlState: '23514',
+      constraint: 'expression_occurrences_vocabulary_kind_expression',
+      code: 'IMPORT_REFERENCE_MISMATCH',
+      path: 'sentences.expressions',
+    },
+  ] as const)(
+    '$constraint DatabaseErrorException을 stable 오류로 변환한다',
+    async ({ table, saveKind, sqlState, constraint, code, ...expected }) => {
+      const fake = createFakeDatabase({
+        table,
+        error: createDataApiQueryError(sqlState, constraint),
+      });
+      const repository = new DrizzleContentDraftRepository(
+        fake.database as never,
+      );
+
+      await expect(
+        saveKind === 'VOCABULARY'
+          ? saveVocabulary(repository)
+          : saveQuestion(repository),
+      ).rejects.toMatchObject({
+        code,
+        ...expected,
+      });
+    },
+  );
+
+  it.each([
+    {
+      sqlState: '23505',
+      constraint: 'unknown_private_unique',
+      message: undefined,
+    },
+    {
+      sqlState: '22000',
+      constraint: 'vocabularies_normalized_thai_unique',
+      message: undefined,
+    },
+    {
+      sqlState: null,
+      constraint: null,
+      message: 'unstructured private database failure',
+    },
+  ])(
+    'unknown Data API message를 SQL·params 없이 generic persistence 오류로 감춘다',
+    async ({ sqlState, constraint, message }) => {
+      const fake = createFakeDatabase({
+        table: vocabularies,
+        error: createDataApiQueryError(sqlState, constraint, message),
+      });
+      const repository = new DrizzleContentDraftRepository(
+        fake.database as never,
+      );
+
+      const failure = await saveVocabulary(repository).catch(
+        (error: unknown) => error,
+      );
+
+      expect(failure).toMatchObject({
+        code: 'CONTENT_DRAFT_PERSISTENCE_CONFLICT',
+        operation: 'saveVocabularyDraft',
+        message: 'CONTENT_DRAFT_PERSISTENCE_CONFLICT:saveVocabularyDraft',
+      });
+      expect(String(failure)).not.toContain('private_table');
+      expect(String(failure)).not.toContain('private-param');
+      expect(String(failure)).not.toContain('unknown_private_unique');
+      expect(String(failure)).not.toContain('unstructured private');
+    },
+  );
 });
 
 const integrationDatabaseUrl =

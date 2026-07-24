@@ -51,13 +51,61 @@ export class ContentDraftPersistenceError extends Error {
   }
 }
 
-interface PostgreSqlErrorLike {
+const DATA_API_SQL_STATES = ['23503', '23505', '23514'] as const;
+
+const KNOWN_CONSTRAINT_NAMES = [
+  'content_import_items_import_kind_source_index_unique',
+  'expression_occurrences_vocabulary_kind_expression',
+  'expression_occurrences_vocabulary_kind_fk',
+  'question_versions_type_version_id_question_type_versions_id_fk',
+  'thai_sentence_versions_media_asset_id_media_assets_id_fk',
+  'token_occurrences_meaning_vocabulary_fk',
+  'token_occurrences_pronunciation_vocabulary_fk',
+  'token_occurrences_vocabulary_fk',
+  'vocabularies_normalized_thai_unique',
+  'vocabulary_pronunciations_media_asset_id_media_assets_id_fk',
+] as const;
+
+interface DatabaseErrorLike {
   code?: unknown;
   constraint?: unknown;
   cause?: unknown;
+  message?: unknown;
+  name?: unknown;
 }
 
-const toPostgreSqlError = (error: unknown): PostgreSqlErrorLike | null => {
+interface DecodedPostgreSqlError {
+  code: string | undefined;
+  constraint: string | undefined;
+  dataApi: boolean;
+}
+
+const decodeDataApiError = (
+  error: DatabaseErrorLike,
+): DecodedPostgreSqlError | null => {
+  if (
+    error.name !== 'DatabaseErrorException' ||
+    typeof error.message !== 'string'
+  ) {
+    return null;
+  }
+  const message = error.message;
+  if (!message.startsWith('ERROR: ')) {
+    return { code: undefined, constraint: undefined, dataApi: true };
+  }
+  // Data API 문자열에서 허용된 marker만 읽어 SQL·params나 미지 constraint가 stable 오류에 섞이지 않게 한다.
+  const code = DATA_API_SQL_STATES.find((sqlState) =>
+    message.endsWith(`; SQLState: ${sqlState}`),
+  );
+  const constraint = KNOWN_CONSTRAINT_NAMES.find((constraintName) =>
+    message.includes(`constraint "${constraintName}"`),
+  );
+  return { code, constraint, dataApi: true };
+};
+
+const decodePostgreSqlError = (
+  error: unknown,
+): DecodedPostgreSqlError | null => {
   let current = error;
   const visited = new Set<object>();
   while (typeof current === 'object' && current !== null) {
@@ -65,12 +113,23 @@ const toPostgreSqlError = (error: unknown): PostgreSqlErrorLike | null => {
       return null;
     }
     visited.add(current);
-    const candidate = current as PostgreSqlErrorLike;
+    const candidate = current as DatabaseErrorLike;
     if (
       typeof candidate.code === 'string' ||
       typeof candidate.constraint === 'string'
     ) {
-      return candidate;
+      return {
+        code: typeof candidate.code === 'string' ? candidate.code : undefined,
+        constraint:
+          typeof candidate.constraint === 'string'
+            ? candidate.constraint
+            : undefined,
+        dataApi: false,
+      };
+    }
+    const dataApiError = decodeDataApiError(candidate);
+    if (dataApiError !== null) {
+      return dataApiError;
     }
     current = candidate.cause;
   }
@@ -78,7 +137,7 @@ const toPostgreSqlError = (error: unknown): PostgreSqlErrorLike | null => {
 };
 
 const translateSharedSaveError = (error: unknown, operation: string): void => {
-  const postgresError = toPostgreSqlError(error);
+  const postgresError = decodePostgreSqlError(error);
   if (
     postgresError?.code === '23505' &&
     postgresError.constraint ===
@@ -90,8 +149,9 @@ const translateSharedSaveError = (error: unknown, operation: string): void => {
     );
   }
   if (
-    typeof postgresError?.code === 'string' &&
-    postgresError.code.startsWith('23')
+    postgresError?.dataApi === true ||
+    (typeof postgresError?.code === 'string' &&
+      postgresError.code.startsWith('23'))
   ) {
     throw new ContentDraftPersistenceError(
       'CONTENT_DRAFT_PERSISTENCE_CONFLICT',
@@ -104,7 +164,7 @@ const translateVocabularySaveError = (
   error: unknown,
   operation: string,
 ): never => {
-  const postgresError = toPostgreSqlError(error);
+  const postgresError = decodePostgreSqlError(error);
   if (
     postgresError?.code === '23505' &&
     postgresError.constraint === 'vocabularies_normalized_thai_unique'
@@ -129,7 +189,7 @@ const translateQuestionSaveError = (
   error: unknown,
   operation: string,
 ): never => {
-  const postgresError = toPostgreSqlError(error);
+  const postgresError = decodePostgreSqlError(error);
   if (postgresError?.code === '23503') {
     if (
       postgresError.constraint ===
