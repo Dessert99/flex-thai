@@ -624,6 +624,7 @@ const createQuestionPublicationTransaction = (
         targetId: input.targetId,
         summary: input.summary,
         requestId: input.requestId,
+        createdAt: input.occurredAt,
       });
     },
   };

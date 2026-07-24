@@ -35,6 +35,11 @@ export interface QuestionPublicationCommandContext {
   occurredAt: Date;
 }
 
+/** 최신 참조 상태 검증과 감사에 필요한 버전을 지정한다 */
+export interface ValidateQuestionVersionCommand extends QuestionPublicationCommandContext {
+  versionId: string;
+}
+
 /** 초안 버전을 게시할 문제와 버전을 지정한다 */
 export interface PublishQuestionVersionCommand extends QuestionPublicationCommandContext {
   questionId: string;
@@ -100,12 +105,28 @@ export class QuestionPublicationService {
 
   /** 최신 참조 상태로 버전을 검증하고 결과를 저장한다 */
   async validateVersion(
-    versionId: string,
-    occurredAt: Date,
+    command: ValidateQuestionVersionCommand,
   ): Promise<QuestionValidationReport> {
     return this.repository.runInTransaction(async (transaction) => {
-      assertVersion(await transaction.loadVersion(versionId));
-      return validateInTransaction(transaction, versionId, occurredAt);
+      assertVersion(await transaction.loadVersion(command.versionId));
+      const report = await validateInTransaction(
+        transaction,
+        command.versionId,
+        command.occurredAt,
+      );
+      await transaction.appendAuditLog({
+        actorUserId: command.actorUserId,
+        action: 'QUESTION_VERSION_VALIDATED',
+        targetType: 'QUESTION_VERSION',
+        targetId: command.versionId,
+        summary: {
+          status: report.status,
+          issueCount: report.issues.length,
+        },
+        requestId: command.requestId,
+        occurredAt: command.occurredAt,
+      });
+      return report;
     });
   }
 
@@ -162,6 +183,7 @@ export class QuestionPublicationService {
           targetId: version.id,
           summary: { questionId: question.id },
           requestId: command.requestId,
+          occurredAt: command.occurredAt,
         });
         return { status: 'PUBLISHED' };
       },
@@ -202,6 +224,7 @@ export class QuestionPublicationService {
         targetId: version.id,
         summary: { questionId: question.id },
         requestId: command.requestId,
+        occurredAt: command.occurredAt,
       });
     });
   }
@@ -223,6 +246,7 @@ export class QuestionPublicationService {
         targetId: question.id,
         summary: {},
         requestId: command.requestId,
+        occurredAt: command.occurredAt,
       });
     });
   }
@@ -251,6 +275,7 @@ export class QuestionPublicationService {
         targetId: question.id,
         summary: { currentPublishedVersionId: version.id },
         requestId: command.requestId,
+        occurredAt: command.occurredAt,
       });
     });
   }

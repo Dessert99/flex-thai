@@ -50,6 +50,7 @@ export interface QuestionPublicationTransaction {
     targetId: string;
     summary: Record<string, unknown>;
     requestId: string;
+    occurredAt: Date;
   }): Promise<void>;
 }
 

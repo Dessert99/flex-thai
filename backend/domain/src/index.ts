@@ -67,6 +67,12 @@ export * from './questions/question-publication.repository.js';
 /** 문제 게시와 노출 상태 수명 use case를 공개한다 */
 export * from './questions/question-publication.js';
 
+/** 관리자 문제 초안 transaction port를 공개한다 */
+export * from './questions/question-admin.repository.js';
+
+/** 관리자 문제 버전 복제·전체 교체 use case를 공개한다 */
+export * from './questions/question-admin.js';
+
 /** 답안 transaction 저장소 port를 공개한다 */
 export * from './learning/question-attempt.repository.js';
 

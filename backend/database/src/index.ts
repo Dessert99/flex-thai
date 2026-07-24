@@ -34,6 +34,9 @@ export * from './repositories/drizzle-content-draft.repository.js';
 /** 동기 콘텐츠 가져오기 멱등·완료 transaction repository를 공개한다 */
 export * from './repositories/drizzle-content-import.repository.js';
 
+/** 관리자 문제 초안 복제·전체 교체 transaction repository를 공개한다 */
+export * from './repositories/drizzle-question-admin.repository.js';
+
 /** DB 최소 readiness query adapter를 공개한다 */
 export * from './repositories/drizzle-readiness.probe.js';
 
@@ -48,6 +51,9 @@ export * from './queries/drizzle-admin-media.query.js';
 
 /** 전체 관리자 콘텐츠 가져오기 이력 read model을 공개한다 */
 export * from './queries/drizzle-content-import.query.js';
+
+/** 관리자 문제 모든 상태·버전 read model을 공개한다 */
+export * from './queries/drizzle-admin-question.query.js';
 
 /** Cognito sub 기반 user repository adapter를 공개한다 */
 export * from './repositories/drizzle-user.repository.js';

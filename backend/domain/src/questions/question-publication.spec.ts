@@ -116,6 +116,9 @@ interface TransactionOverrides {
   versions?: Record<string, QuestionVersionRecord | null>;
   candidate?: QuestionVersionValidationCandidate | null;
   onRetireVersion?: (versionId: string, questionId: string) => void;
+  onAudit?: (
+    input: Parameters<QuestionPublicationTransaction['appendAuditLog']>[0],
+  ) => void;
 }
 
 const createTransaction = (
@@ -176,8 +179,9 @@ const createTransaction = (
     calls.push('restoreQuestion');
     return Promise.resolve();
   },
-  appendAuditLog: () => {
+  appendAuditLog: (input) => {
     calls.push('appendAuditLog');
+    overrides.onAudit?.(input);
     return Promise.resolve();
   },
 });
@@ -213,6 +217,13 @@ const invalidateCommand = {
 
 const restoreCommand = {
   questionId: 'question-id',
+  actorUserId: 'admin-id',
+  requestId: 'request-id',
+  occurredAt,
+};
+
+const validateCommand = {
+  versionId: 'draft-version-id',
   actorUserId: 'admin-id',
   requestId: 'request-id',
   occurredAt,
@@ -533,7 +544,7 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
     );
 
     await expect(
-      service.validateVersion('draft-version-id', occurredAt),
+      service.validateVersion(validateCommand),
     ).rejects.toMatchObject(
       expectedPublicationError('QUESTION_VERSION_NOT_FOUND'),
     );
@@ -548,11 +559,62 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
     );
 
     await expect(
-      service.validateVersion('draft-version-id', occurredAt),
+      service.validateVersion(validateCommand),
     ).rejects.toMatchObject(
       expectedPublicationError('QUESTION_VERSION_NOT_FOUND'),
     );
     expect(calls).toEqual(['loadVersion', 'loadValidationCandidate']);
+  });
+
+  it('FAILED 검증 보고서 저장과 구조화 audit을 같은 transaction에 둔다', async () => {
+    const calls: string[] = [];
+    const audits: Array<
+      Parameters<QuestionPublicationTransaction['appendAuditLog']>[0]
+    > = [];
+    const invalidCandidate = candidate();
+    invalidCandidate.difficulty = 6;
+    const service = createService(
+      createTransaction(calls, {
+        candidate: invalidCandidate,
+        onAudit: (input) => audits.push(input),
+      }),
+      calls,
+    );
+
+    await expect(service.validateVersion(validateCommand)).resolves.toEqual({
+      status: 'FAILED',
+      issues: [{ path: 'difficulty', code: 'DIFFICULTY_INVALID' }],
+    });
+    expect(calls).toEqual([
+      'loadVersion',
+      'loadValidationCandidate',
+      'saveValidation',
+      'appendAuditLog',
+      'transactionCommitted',
+    ]);
+    expect(audits).toEqual([
+      {
+        actorUserId: 'admin-id',
+        action: 'QUESTION_VERSION_VALIDATED',
+        targetType: 'QUESTION_VERSION',
+        targetId: 'draft-version-id',
+        summary: { status: 'FAILED', issueCount: 1 },
+        requestId: 'request-id',
+        occurredAt,
+      },
+    ]);
+  });
+
+  it('검증 audit 실패는 validation 저장을 commit하지 않는다', async () => {
+    const calls: string[] = [];
+    const transaction = createTransaction(calls);
+    transaction.appendAuditLog = () => Promise.reject(new Error('audit-fail'));
+    const service = createService(transaction, calls);
+
+    await expect(service.validateVersion(validateCommand)).rejects.toThrow(
+      'audit-fail',
+    );
+    expect(calls).not.toContain('transactionCommitted');
   });
 
   it('존재하지 않는 문제는 QUESTION_NOT_FOUND로 거절한다', async () => {
