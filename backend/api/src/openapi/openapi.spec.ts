@@ -75,6 +75,10 @@ type OpenApiSchemaNode = {
   additionalProperties?: boolean;
 };
 
+type OpenApiContentCarrier = {
+  content?: Record<string, { schema?: unknown }>;
+};
+
 type LearnerOperationExpectation = {
   method: 'get' | 'post' | 'put' | 'delete';
   path: string;
@@ -88,6 +92,100 @@ type LearnerOperationExpectation = {
 type AdminOperationExpectation = LearnerOperationExpectation & {
   headers?: readonly string[];
 };
+
+type IdentityOperationExpectation = {
+  method: 'get' | 'post';
+  path: string;
+  headers: readonly string[];
+  body?: string;
+  security: readonly Record<string, readonly never[]>[];
+  success: readonly [status: string, dto?: string];
+  errors: readonly string[];
+};
+
+type SystemOperationExpectation = {
+  path: '/health' | '/ready';
+  success: readonly [status: '200', dto: string];
+  errors: readonly string[];
+};
+
+const IDENTITY_OPERATIONS: readonly IdentityOperationExpectation[] = [
+  {
+    method: 'post',
+    path: '/api/v1/auth/login',
+    headers: ['Origin', 'X-CSRF-Protection'],
+    body: 'LoginRequestDto',
+    security: [],
+    success: ['201', 'authentication'],
+    errors: ['400', '401', '403', '429', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/auth/mfa/totp/challenge',
+    headers: ['Origin', 'X-CSRF-Protection'],
+    body: 'TotpChallengeRequestDto',
+    security: [],
+    success: ['201', 'authentication'],
+    errors: ['400', '401', '403', '429', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/auth/mfa/totp/setup',
+    headers: [],
+    security: [{ accessToken: [] }],
+    success: ['201', 'TotpSetupResponseDto'],
+    errors: ['401', '403', '429', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/auth/mfa/totp/setup/verify',
+    headers: [],
+    body: 'TotpSetupVerifyRequestDto',
+    security: [{ accessToken: [] }],
+    success: ['201', 'MeResponseDto'],
+    errors: ['400', '401', '403', '429', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/auth/refresh',
+    headers: ['Origin', 'X-CSRF-Protection'],
+    security: [{ refreshCookie: [] }],
+    success: ['201', 'authentication'],
+    errors: ['401', '403', '429', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/auth/logout',
+    headers: ['Origin', 'X-CSRF-Protection'],
+    security: [{ refreshCookie: [] }],
+    success: ['204'],
+    errors: ['403', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/me',
+    headers: [],
+    security: [{ accessToken: [] }],
+    success: ['200', 'MeResponseDto'],
+    errors: ['401', '403', '500'],
+  },
+];
+
+const SYSTEM_OPERATIONS: readonly SystemOperationExpectation[] = [
+  {
+    path: '/health',
+    success: ['200', 'HealthResponseDto'],
+    errors: [],
+  },
+  {
+    path: '/ready',
+    success: ['200', 'ReadinessResponseDto'],
+    errors: ['503'],
+  },
+];
+
+const hasOpenApiContent = (value: unknown): value is OpenApiContentCarrier =>
+  typeof value === 'object' && value !== null && 'content' in value;
 
 const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
   {
@@ -446,6 +544,144 @@ describe('OpenAPI 문서', () => {
 
     expect(response).toBeDefined();
     expect(response).not.toHaveProperty('content');
+  });
+
+  it('Identity operation 일곱 개의 요청·성공·보안·오류 계약을 모두 고정한다', () => {
+    if (!app)
+      throw new Error('OpenAPI test application이 초기화되지 않았습니다');
+    const document = createOpenApiDocument(app);
+
+    expect(IDENTITY_OPERATIONS).toHaveLength(7);
+    IDENTITY_OPERATIONS.forEach((expected) => {
+      const operation = document.paths[expected.path]?.[expected.method];
+      expect(
+        operation,
+        `${expected.method.toUpperCase()} ${expected.path}`,
+      ).toBeDefined();
+      if (!operation) return;
+
+      expect(operation.security ?? []).toEqual(expected.security);
+      const parameters = (operation.parameters ?? []).flatMap((parameter) =>
+        'name' in parameter ? [parameter] : [],
+      );
+      const headerParameters = parameters.filter(
+        (parameter) => parameter.in === 'header',
+      );
+      expect(parameters).toEqual(headerParameters);
+      expect(headerParameters.map(({ name }) => name).sort()).toEqual(
+        [...expected.headers].sort(),
+      );
+      headerParameters.forEach((parameter) => {
+        expect(parameter.required).toBe(true);
+
+        if (parameter.name === 'X-CSRF-Protection') {
+          expect(parameter.schema).toEqual({
+            type: 'string',
+            enum: ['1'],
+          });
+        }
+      });
+
+      if (expected.body) {
+        const requestBody = operation.requestBody;
+        const content = hasOpenApiContent(requestBody)
+          ? requestBody.content
+          : undefined;
+        expect(Object.keys(content ?? {})).toEqual(['application/json']);
+        expect(requestBody).toMatchObject({ required: true });
+        expect(content?.['application/json']?.schema).toEqual({
+          $ref: `#/components/schemas/${expected.body}`,
+        });
+      } else {
+        expect(operation.requestBody).toBeUndefined();
+      }
+
+      const [successStatus, successDto] = expected.success;
+      const success = operation.responses[successStatus];
+      expect(success).toBeDefined();
+      if (successDto === 'authentication') {
+        const content = hasOpenApiContent(success)
+          ? success.content
+          : undefined;
+        expect(Object.keys(content ?? {})).toEqual(['application/json']);
+        expect(content?.['application/json']?.schema).toEqual({
+          oneOf: [
+            {
+              $ref: '#/components/schemas/AuthenticatedResponseDto',
+            },
+            {
+              $ref: '#/components/schemas/MfaRequiredResponseDto',
+            },
+          ],
+        });
+      } else if (successDto) {
+        const content = hasOpenApiContent(success)
+          ? success.content
+          : undefined;
+        expect(Object.keys(content ?? {})).toEqual(['application/json']);
+        expect(content?.['application/json']?.schema).toEqual({
+          $ref: `#/components/schemas/${successDto}`,
+        });
+      } else {
+        expect(success).not.toHaveProperty('content');
+      }
+
+      expect(Object.keys(operation.responses).sort()).toEqual(
+        [successStatus, ...expected.errors].sort(),
+      );
+      expected.errors.forEach((status) => {
+        const error = operation.responses[status];
+        expect(
+          Object.keys(hasOpenApiContent(error) ? (error.content ?? {}) : {}),
+        ).toEqual(['application/problem+json']);
+        expect(
+          hasOpenApiContent(error)
+            ? error.content?.['application/problem+json']?.schema
+            : undefined,
+        ).toEqual({ $ref: '#/components/schemas/ProblemDetailsDto' });
+      });
+    });
+  });
+
+  it('system operation 두 개의 공개 성공·오류 계약과 인증 부재를 고정한다', () => {
+    if (!app)
+      throw new Error('OpenAPI test application이 초기화되지 않았습니다');
+    const document = createOpenApiDocument(app);
+
+    expect(SYSTEM_OPERATIONS).toHaveLength(2);
+    SYSTEM_OPERATIONS.forEach((expected) => {
+      const operation = document.paths[expected.path]?.get;
+      expect(operation, `GET ${expected.path}`).toBeDefined();
+      if (!operation) return;
+
+      expect(operation.security).toBeUndefined();
+      expect(operation.parameters ?? []).toEqual([]);
+      expect(operation.requestBody).toBeUndefined();
+
+      const [successStatus, successDto] = expected.success;
+      const success = operation.responses[successStatus];
+      const successContent = hasOpenApiContent(success)
+        ? success.content
+        : undefined;
+      expect(Object.keys(successContent ?? {})).toEqual(['application/json']);
+      expect(successContent?.['application/json']?.schema).toEqual({
+        $ref: `#/components/schemas/${successDto}`,
+      });
+      expect(Object.keys(operation.responses).sort()).toEqual(
+        [successStatus, ...expected.errors].sort(),
+      );
+      expected.errors.forEach((status) => {
+        const error = operation.responses[status];
+        expect(
+          Object.keys(hasOpenApiContent(error) ? (error.content ?? {}) : {}),
+        ).toEqual(['application/problem+json']);
+        expect(
+          hasOpenApiContent(error)
+            ? error.content?.['application/problem+json']?.schema
+            : undefined,
+        ).toEqual({ $ref: '#/components/schemas/ProblemDetailsDto' });
+      });
+    });
   });
 
   it('학습자 operation 열두 개의 요청·성공·보안·오류 계약을 모두 고정한다', () => {
