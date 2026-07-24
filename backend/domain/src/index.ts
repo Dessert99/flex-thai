@@ -40,6 +40,12 @@ export * from './vocabulary/normalize-thai-search-text.js';
 /** 공용 어휘의 생성·게시·숨김·복구 규칙을 공개한다 */
 export * from './vocabulary/vocabulary.js';
 
+/** 관리자 어휘 transaction port를 공개한다 */
+export * from './vocabulary/vocabulary-admin.repository.js';
+
+/** 관리자 어휘 전체 교체와 공개 상태 use case를 공개한다 */
+export * from './vocabulary/vocabulary-admin.js';
+
 /** upload repository port를 패키지 공개 경계에 노출한다 */
 export * from './uploads/upload.repository.js';
 
