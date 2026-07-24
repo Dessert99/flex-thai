@@ -56,12 +56,12 @@ describe('CloudFrontMediaReadUrlProvider', () => {
     );
 
     const result = await provider.createReadUrl(
-      'audio/태 국/?sample#.mp3',
+      'audio/태 국/?sample#*.mp3',
       EXPIRES_AT,
     );
 
     const resource =
-      'https://cdn.example.com/media/audio/%ED%83%9C%20%EA%B5%AD/%3Fsample%23.mp3';
+      'https://cdn.example.com/media/audio/%ED%83%9C%20%EA%B5%AD/%3Fsample%23%2A.mp3';
     const expires = Math.floor(EXPIRES_AT.getTime() / 1000);
     const policy = JSON.stringify({
       Statement: [
@@ -126,6 +126,46 @@ describe('CloudFrontMediaReadUrlProvider', () => {
     expect(send).toHaveBeenCalledTimes(1);
   });
 
+  it('동시 Secret 실패를 한 번만 조회하고 다음 호출에서 복구한다', async () => {
+    const leakedError = `AWS failure ${TEST_PRIVATE_KEY} audio/private.mp3`;
+    const send = vi
+      .fn()
+      .mockRejectedValueOnce(new Error(leakedError))
+      .mockResolvedValueOnce({ SecretString: TEST_PRIVATE_KEY });
+    const provider = new CloudFrontMediaReadUrlProvider(
+      { send } as never,
+      'https://cdn.example.com/media',
+      'K123EXAMPLE',
+      'secret-arn',
+      () => NOW,
+    );
+
+    const failed = await Promise.allSettled([
+      provider.createReadUrl('audio/first.mp3', EXPIRES_AT),
+      provider.createReadUrl('audio/second.mp3', EXPIRES_AT),
+    ]);
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(failed).toHaveLength(2);
+    for (const result of failed) {
+      expect(result.status).toBe('rejected');
+      if (result.status === 'rejected') {
+        const message =
+          result.reason instanceof Error
+            ? result.reason.message
+            : String(result.reason);
+        expect(message).toBe(GENERIC_SIGNING_ERROR);
+        expect(message).not.toContain(TEST_PRIVATE_KEY);
+        expect(message).not.toContain('audio/');
+      }
+    }
+
+    await expect(
+      provider.createReadUrl('audio/recovered.mp3', EXPIRES_AT),
+    ).resolves.toContain('Key-Pair-Id=K123EXAMPLE');
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+
   it.each([
     '',
     '/absolute.mp3',
@@ -135,6 +175,7 @@ describe('CloudFrontMediaReadUrlProvider', () => {
     'audio/../escape.mp3',
     'audio//empty.mp3',
     'audio/control\u0000.mp3',
+    'audio/control\u0085.mp3',
   ])(
     '안전하지 않은 storage key %j를 secret 조회 전에 거절한다',
     async (key) => {
@@ -254,7 +295,9 @@ describe('CloudFrontMediaReadUrlProvider', () => {
 
   it.each([
     'https://cdn.example.com/media?token=secret',
+    'https://cdn.example.com/media?',
     'https://cdn.example.com/media#fragment',
+    'https://cdn.example.com/media#',
   ])('query 또는 hash가 있는 CDN base URL을 거절한다', (baseUrl) => {
     expect(
       () =>
