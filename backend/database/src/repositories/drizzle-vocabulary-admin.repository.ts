@@ -46,6 +46,37 @@ const USAGE_CONSTRAINTS = new Set([
   'token_occurrences_pronunciation_vocabulary_fk',
   'token_occurrences_vocabulary_fk',
 ]);
+const DATA_API_CONSTRAINTS = [
+  {
+    code: '23505',
+    header: `ERROR: duplicate key value violates unique constraint "${DUPLICATE_CONSTRAINT}"`,
+    name: DUPLICATE_CONSTRAINT,
+  },
+  {
+    code: '23503',
+    header:
+      'ERROR: update or delete on table "vocabularies" violates foreign key constraint "expression_occurrences_vocabulary_kind_fk"',
+    name: 'expression_occurrences_vocabulary_kind_fk',
+  },
+  {
+    code: '23503',
+    header:
+      'ERROR: update or delete on table "vocabulary_meanings" violates foreign key constraint "token_occurrences_meaning_vocabulary_fk"',
+    name: 'token_occurrences_meaning_vocabulary_fk',
+  },
+  {
+    code: '23503',
+    header:
+      'ERROR: update or delete on table "vocabulary_pronunciations" violates foreign key constraint "token_occurrences_pronunciation_vocabulary_fk"',
+    name: 'token_occurrences_pronunciation_vocabulary_fk',
+  },
+  {
+    code: '23503',
+    header:
+      'ERROR: update or delete on table "vocabularies" violates foreign key constraint "token_occurrences_vocabulary_fk"',
+    name: 'token_occurrences_vocabulary_fk',
+  },
+] as const;
 
 const decodeDataApiError = (
   error: DatabaseErrorLike,
@@ -65,13 +96,10 @@ const decodeDataApiError = (
   );
   const headerEnd = message.indexOf('; ');
   const header = headerEnd === -1 ? message : message.slice(0, headerEnd);
-  const candidates = [DUPLICATE_CONSTRAINT, ...USAGE_CONSTRAINTS];
-  const constraint = candidates.find(
-    (name) =>
-      header.endsWith(` constraint "${name}"`) ||
-      header.includes(` violates foreign key constraint "${name}" on table "`),
+  const constraint = DATA_API_CONSTRAINTS.find(
+    (candidate) => candidate.code === code && candidate.header === header,
   );
-  return { code, constraint, dataApi: true };
+  return { code, constraint: constraint?.name, dataApi: true };
 };
 
 const decodePostgreSqlError = (
@@ -271,7 +299,6 @@ const createVocabularyAdminTransaction = (
           ne(vocabularies.id, excludeVocabularyId),
         ),
       )
-      .for('key share')
       .limit(2);
     if (rows.length > 1) {
       throw new VocabularyAdminRepositoryError(

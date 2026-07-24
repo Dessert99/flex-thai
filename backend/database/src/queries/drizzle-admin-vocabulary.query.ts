@@ -7,8 +7,8 @@ import {
   countDistinct,
   desc,
   eq,
-  ilike,
   inArray,
+  sql,
   type SQL,
 } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
@@ -120,6 +120,9 @@ const uniqueSortedIds = (values: readonly string[]): string[] =>
     left < right ? -1 : left > right ? 1 : 0,
   );
 
+const escapeLikeLiteral = (value: string): string =>
+  value.replaceAll('\\', '\\\\').replaceAll('%', '\\%').replaceAll('_', '\\_');
+
 const listSelection = {
   id: vocabularies.id,
   thai: vocabularies.thai,
@@ -140,10 +143,9 @@ export class DrizzleAdminVocabularyQuery {
   ): Promise<AdminVocabularyListProjection> {
     const conditions: Array<SQL<unknown> | undefined> = [
       query.query
-        ? ilike(
-            vocabularies.normalizedThai,
-            `%${normalizeThaiSearchText(query.query)}%`,
-          )
+        ? sql`${vocabularies.normalizedThai} ilike ${`%${escapeLikeLiteral(
+            normalizeThaiSearchText(query.query),
+          )}%`} escape ${'\\'}`
         : undefined,
       query.kind ? eq(vocabularies.kind, query.kind) : undefined,
       query.status ? eq(vocabularies.status, query.status) : undefined,

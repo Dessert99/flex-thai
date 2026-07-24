@@ -1,4 +1,5 @@
 /** 관리자 어휘 writer의 child lock·FK 삭제 순서·조건부 상태·audit transaction을 고정한다 */
+import { DatabaseErrorException } from '@aws-sdk/client-rds-data';
 import { randomUUID } from 'node:crypto';
 import type {
   VocabularyAdminAuditInput,
@@ -10,6 +11,7 @@ import {
   type ReplaceVocabularyCommand,
 } from '@flex-thia/domain';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { DrizzleQueryError } from 'drizzle-orm/errors';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import * as schema from '../schema/index.js';
@@ -148,6 +150,41 @@ const audit: VocabularyAdminAuditInput = {
   summary: { meaningCount: 1 },
   requestId: 'request-id',
   occurredAt: new Date('2026-07-24T00:00:00.000Z'),
+};
+
+type DataApiConstraintKind = 'foreign key' | 'unique';
+
+interface DataApiQueryErrorOptions {
+  constraint: string;
+  constraintKind: DataApiConstraintKind;
+  detail?: string;
+  messageOverride?: string;
+  sqlState: string;
+  table?: string;
+}
+
+const createDataApiQueryError = ({
+  constraint,
+  constraintKind,
+  detail = 'simulated private detail',
+  messageOverride,
+  sqlState,
+  table = 'vocabulary_meanings',
+}: DataApiQueryErrorOptions): DrizzleQueryError => {
+  const header =
+    constraintKind === 'unique'
+      ? `ERROR: duplicate key value violates unique constraint "${constraint}"`
+      : `ERROR: update or delete on table "${table}" violates foreign key constraint "${constraint}"`;
+  const cause = new DatabaseErrorException({
+    message:
+      messageOverride ?? `${header}; Detail: ${detail}; SQLState: ${sqlState}`,
+    $metadata: {},
+  });
+  return new DrizzleQueryError(
+    'update private_vocabulary set thai = $1',
+    ['private-param'],
+    cause,
+  );
 };
 
 describe('DrizzleVocabularyAdminRepository 잠금·전체 교체', () => {
@@ -402,6 +439,46 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
         [sameThai],
       );
       expect(stored.rows[0]?.count).toBe('1');
+    });
+
+    it('서로의 normalized Thai를 동시에 swap해도 raw deadlock 없이 둘 다 stable duplicate다', async () => {
+      const firstThai = `swap-alpha-${randomUUID()}`;
+      const secondThai = `swap-beta-${randomUUID()}`;
+      const firstFixture = await createIntegrationFixture(pool, {
+        normalizedThai: firstThai,
+      });
+      const secondFixture = await createIntegrationFixture(pool, {
+        normalizedThai: secondThai,
+      });
+      const database = drizzle({ client: pool, schema });
+      const first = new VocabularyAdminService(
+        new DrizzleVocabularyAdminRepository(database),
+      );
+      const second = new VocabularyAdminService(
+        new DrizzleVocabularyAdminRepository(database),
+      );
+
+      const results = await Promise.allSettled([
+        first.replace({
+          vocabularyId: firstFixture.vocabularyId,
+          input: replacementInput(firstFixture, secondThai),
+          ...commandContext(firstFixture),
+        }),
+        second.replace({
+          vocabularyId: secondFixture.vocabularyId,
+          input: replacementInput(secondFixture, firstThai),
+          ...commandContext(secondFixture),
+        }),
+      ]);
+
+      expect(results).toHaveLength(2);
+      for (const result of results) {
+        expect(result.status).toBe('rejected');
+        if (result.status !== 'rejected') continue;
+        const reason: unknown = result.reason;
+        expect(reason).toMatchObject({ code: 'VOCABULARY_DUPLICATE' });
+        expect(reason).not.toMatchObject({ code: '40P01' });
+      }
     });
 
     it('기존 child를 token이 참조하면 전체 교체와 audit을 막고 graph를 보존한다', async () => {
@@ -745,28 +822,103 @@ describe('DrizzleVocabularyAdminRepository 감사·오류 안정화', () => {
       },
       code: 'VOCABULARY_IN_USE',
     },
+  ])('$code local pg 제약을 stable 오류로 바꾼다', ({ error, code }) => {
+    expect(() =>
+      translateVocabularyAdminPersistenceError(error, 'replaceVocabulary'),
+    ).toThrow(expect.objectContaining({ code }));
+  });
+
+  it.each([
     {
-      error: {
-        name: 'DatabaseErrorException',
-        message:
-          'ERROR: duplicate key value violates unique constraint "vocabularies_normalized_thai_unique"; SQLState: 23505',
-      },
+      error: createDataApiQueryError({
+        constraint: 'vocabularies_normalized_thai_unique',
+        constraintKind: 'unique',
+        sqlState: '23505',
+      }),
       code: 'VOCABULARY_DUPLICATE',
     },
     {
-      error: {
-        name: 'DatabaseErrorException',
-        message:
-          'ERROR: update or delete on table "vocabulary_meanings" violates foreign key constraint "token_occurrences_meaning_vocabulary_fk" on table "token_occurrences"; SQLState: 23503',
-      },
+      error: createDataApiQueryError({
+        constraint: 'token_occurrences_meaning_vocabulary_fk',
+        constraintKind: 'foreign key',
+        sqlState: '23503',
+      }),
       code: 'VOCABULARY_IN_USE',
     },
   ])(
-    '$code 제약을 local/Data API에서 같은 stable 오류로 바꾼다',
+    '$code 실제 Data API·Drizzle wrapper 제약을 stable 오류로 바꾼다',
     ({ error, code }) => {
       expect(() =>
         translateVocabularyAdminPersistenceError(error, 'replaceVocabulary'),
       ).toThrow(expect.objectContaining({ code }));
+    },
+  );
+
+  it.each([
+    {
+      label: 'header prefix 위조',
+      message:
+        'ERROR: private prefix duplicate key value violates unique constraint "vocabularies_normalized_thai_unique"; SQLState: 23505',
+    },
+    {
+      label: 'header suffix 위조',
+      message:
+        'ERROR: duplicate key value violates unique constraint "vocabularies_normalized_thai_unique" private suffix; SQLState: 23505',
+    },
+    {
+      label: 'Detail known constraint 위조',
+      message:
+        'ERROR: duplicate key value violates unique constraint "unknown_private_unique"; Detail: violates unique constraint "vocabularies_normalized_thai_unique"; SQLState: 23505',
+    },
+    {
+      label: 'Hint known constraint 위조',
+      message:
+        'ERROR: duplicate key value violates unique constraint "unknown_private_unique"; Hint: violates unique constraint "vocabularies_normalized_thai_unique"; SQLState: 23505',
+    },
+    {
+      label: 'constraint kind 불일치',
+      message:
+        'ERROR: update or delete on table "vocabulary_meanings" violates foreign key constraint "vocabularies_normalized_thai_unique"; SQLState: 23505',
+    },
+    {
+      label: 'SQLSTATE 불일치',
+      message:
+        'ERROR: duplicate key value violates unique constraint "vocabularies_normalized_thai_unique"; SQLState: 23503',
+    },
+    {
+      label: 'unknown constraint',
+      message:
+        'ERROR: duplicate key value violates unique constraint "unknown_private_unique"; SQLState: 23505',
+    },
+  ])(
+    '$label Data API message는 generic non-leaking 오류로 감춘다',
+    ({ message }) => {
+      const error = createDataApiQueryError({
+        constraint: 'unused',
+        constraintKind: 'unique',
+        messageOverride: message,
+        sqlState: '23505',
+      });
+
+      const failure = (() => {
+        try {
+          translateVocabularyAdminPersistenceError(error, 'replaceVocabulary');
+        } catch (caught) {
+          return caught;
+        }
+      })();
+
+      expect(failure).toMatchObject({
+        code: 'VOCABULARY_PERSISTENCE_CONFLICT',
+        operation: 'replaceVocabulary',
+        message: 'VOCABULARY_PERSISTENCE_CONFLICT:replaceVocabulary',
+      });
+      expect(String(failure)).not.toContain('private_vocabulary');
+      expect(String(failure)).not.toContain('private-param');
+      expect(String(failure)).not.toContain('unknown_private_unique');
+      expect(String(failure)).not.toContain(
+        'vocabularies_normalized_thai_unique',
+      );
     },
   );
 });

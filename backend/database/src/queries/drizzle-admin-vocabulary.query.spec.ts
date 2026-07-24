@@ -1,6 +1,7 @@
 /** 관리자 어휘 list/detail의 정규화 검색·stable order·안전한 projection을 고정한다 */
 import { randomUUID } from 'node:crypto';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import * as schema from '../schema/index.js';
@@ -112,6 +113,23 @@ describe('DrizzleAdminVocabularyQuery 모든 상태 목록', () => {
       vocabularies,
       vocabularies,
     ]);
+  });
+
+  it('%·_·역슬래시를 wildcard가 아닌 literal substring으로 parameterize한다', async () => {
+    const fake = createSelectFake([[{ totalItems: 0 }], []]);
+    const query = new DrizzleAdminVocabularyQuery(fake.database as never);
+
+    await query.list({
+      query: '%_\\',
+      page: 1,
+      pageSize: 10,
+    });
+
+    const rendered = new PgDialect().sqlToQuery(fake.calls[0]?.where as never);
+    expect(rendered.sql).toContain(' ilike ');
+    expect(rendered.sql).toContain(' escape ');
+    expect(rendered.params).toContain('%\\%\\_\\\\%');
+    expect(rendered.sql).not.toContain('%_\\');
   });
 });
 
@@ -326,6 +344,37 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       expect(detail).not.toHaveProperty('referenceMap');
       expect(detail).not.toHaveProperty('actorUserId');
       expect(JSON.stringify(detail)).not.toContain('audio/private-');
+    });
+
+    it('%·_·역슬래시를 포함한 검색어는 literal substring만 찾는다', async () => {
+      const suffix = randomUUID();
+      const literalId = randomUUID();
+      const wildcardDecoyId = randomUUID();
+      await pool.query(
+        `insert into vocabularies (
+           id, thai, normalized_thai, kind, status
+         ) values
+           ($1, $2, $2, 'WORD', 'DRAFT'),
+           ($3, $4, $4, 'WORD', 'DRAFT')`,
+        [
+          literalId,
+          `literal%_\\needle-${suffix}`,
+          wildcardDecoyId,
+          `literalAB\\needle-${suffix}`,
+        ],
+      );
+      const query = new DrizzleAdminVocabularyQuery(
+        drizzle({ client: pool, schema }),
+      );
+
+      const result = await query.list({
+        query: `%_\\needle-${suffix}`,
+        page: 1,
+        pageSize: 20,
+      });
+
+      expect(result.items.map(({ id }) => id)).toEqual([literalId]);
+      expect(result.page.totalItems).toBe(1);
     });
   },
 );
