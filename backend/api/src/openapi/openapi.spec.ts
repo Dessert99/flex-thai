@@ -240,6 +240,111 @@ const collectOpenApiOperations = (
     )
     .sort();
 
+const expectProtectedOpenApiOperations = (
+  document: ReturnType<typeof createOpenApiDocument>,
+  expectations: readonly AdminOperationExpectation[],
+): void => {
+  expect(
+    collectOpenApiOperations(
+      document.paths,
+      new Set(expectations.map(({ path }) => path)),
+    ),
+  ).toEqual(expectations.map(({ method, path }) => `${method} ${path}`).sort());
+
+  expectations.forEach((expected) => {
+    const operation = document.paths[expected.path]?.[expected.method];
+    expect(
+      operation,
+      `${expected.method.toUpperCase()} ${expected.path}`,
+    ).toBeDefined();
+    if (!operation) return;
+
+    expect(operation.security).toEqual([{ accessToken: [] }]);
+    const parameters = (operation.parameters ?? []).map(
+      requireOpenApiInlineParameter,
+    );
+    const pathParameters = parameters.filter(
+      (parameter) => parameter.in === 'path',
+    );
+    const queryParameters = parameters.filter(
+      (parameter) => parameter.in === 'query',
+    );
+    const headerParameters = parameters.filter(
+      (parameter) => parameter.in === 'header',
+    );
+    expect(parameters).toHaveLength(
+      (expected.pathParameters?.length ?? 0) +
+        (expected.query?.length ?? 0) +
+        (expected.headers?.length ?? 0),
+    );
+    expect(pathParameters.map(({ name }) => name).sort()).toEqual(
+      [...(expected.pathParameters ?? [])].sort(),
+    );
+    pathParameters.forEach((parameter) => {
+      expect(parameter.required).toBe(true);
+      expect(parameter.schema).toEqual({
+        type: 'string',
+        format: 'uuid',
+      });
+    });
+    expect(queryParameters.map(({ name }) => name).sort()).toEqual(
+      [...(expected.query ?? [])].sort(),
+    );
+    expect(headerParameters.map(({ name }) => name).sort()).toEqual(
+      [...(expected.headers ?? [])].sort(),
+    );
+    headerParameters.forEach((parameter) => {
+      expect(parameter.required).toBe(true);
+
+      if (parameter.name === 'Idempotency-Key') {
+        expect(parameter.schema).toEqual({
+          type: 'string',
+          format: 'uuid',
+        });
+      }
+    });
+
+    if (expected.body) {
+      const requestBody = operation.requestBody;
+      const content = hasOpenApiContent(requestBody)
+        ? requestBody.content
+        : undefined;
+      expect(Object.keys(content ?? {})).toEqual(['application/json']);
+      expect(requestBody).toMatchObject({ required: true });
+      expect(content?.['application/json']?.schema).toEqual({
+        $ref: `#/components/schemas/${expected.body}`,
+      });
+    } else {
+      expect(operation.requestBody).toBeUndefined();
+    }
+
+    const [successStatus, successDto] = expected.success;
+    const success = operation.responses[successStatus];
+    expect(success).toBeDefined();
+    if (successDto) {
+      const content = hasOpenApiContent(success) ? success.content : undefined;
+      expect(Object.keys(content ?? {})).toEqual(['application/json']);
+      expect(content?.['application/json']?.schema).toEqual({
+        $ref: `#/components/schemas/${successDto}`,
+      });
+    } else {
+      expect(success).not.toHaveProperty('content');
+    }
+
+    expect(Object.keys(operation.responses).sort()).toEqual(
+      [successStatus, ...expected.errors].sort(),
+    );
+    expected.errors.forEach((status) => {
+      const error = operation.responses[status];
+      const content = hasOpenApiContent(error) ? error.content : undefined;
+      expect(Object.keys(content ?? {})).toEqual(['application/problem+json']);
+      expect(content?.['application/problem+json']?.schema).toEqual({
+        $ref: '#/components/schemas/ProblemDetailsDto',
+      });
+    });
+  });
+};
+
 const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
   {
     method: 'post',
@@ -763,82 +868,7 @@ describe('OpenAPI 문서', () => {
     const document = createOpenApiDocument(app);
 
     expect(LEARNER_OPERATIONS).toHaveLength(12);
-    LEARNER_OPERATIONS.forEach((expected) => {
-      const operation = document.paths[expected.path]?.[expected.method];
-      expect(
-        operation,
-        `${expected.method.toUpperCase()} ${expected.path}`,
-      ).toBeDefined();
-      if (!operation) return;
-
-      expect(operation.security).toContainEqual({ accessToken: [] });
-      const parameters = (operation.parameters ?? []).flatMap((parameter) =>
-        'name' in parameter ? [parameter] : [],
-      );
-      const pathParameters = parameters.filter(
-        (parameter) => parameter.in === 'path',
-      );
-      const queryParameters = parameters.filter(
-        (parameter) => parameter.in === 'query',
-      );
-      expect(pathParameters.map((parameter) => parameter.name).sort()).toEqual(
-        [...(expected.pathParameters ?? [])].sort(),
-      );
-      pathParameters.forEach((parameter) => {
-        expect(parameter.required).toBe(true);
-        expect(parameter.schema).toMatchObject({
-          type: 'string',
-          format: 'uuid',
-        });
-      });
-      expect(queryParameters.map((parameter) => parameter.name).sort()).toEqual(
-        [...(expected.query ?? [])].sort(),
-      );
-
-      if (expected.body) {
-        expect(operation.requestBody).toMatchObject({
-          content: {
-            'application/json': {
-              schema: {
-                $ref: `#/components/schemas/${expected.body}`,
-              },
-            },
-          },
-        });
-      } else {
-        expect(operation.requestBody).toBeUndefined();
-      }
-
-      const [successStatus, successDto] = expected.success;
-      const success = operation.responses[successStatus];
-      expect(success).toBeDefined();
-      if (successDto) {
-        expect(success).toMatchObject({
-          content: {
-            'application/json': {
-              schema: {
-                $ref: `#/components/schemas/${successDto}`,
-              },
-            },
-          },
-        });
-      } else {
-        expect(success).not.toHaveProperty('content');
-      }
-
-      expect(Object.keys(operation.responses).sort()).toEqual(
-        [successStatus, ...expected.errors].sort(),
-      );
-      expected.errors.forEach((status) => {
-        expect(operation.responses[status]).toMatchObject({
-          content: {
-            'application/problem+json': {
-              schema: { $ref: '#/components/schemas/ProblemDetailsDto' },
-            },
-          },
-        });
-      });
-    });
+    expectProtectedOpenApiOperations(document, LEARNER_OPERATIONS);
   });
 
   it('관리자 operation 스물한 개의 입력·성공·Bearer·오류 계약을 모두 고정한다', () => {
@@ -847,98 +877,7 @@ describe('OpenAPI 문서', () => {
     const document = createOpenApiDocument(app);
 
     expect(ADMIN_OPERATIONS).toHaveLength(21);
-    ADMIN_OPERATIONS.forEach((expected) => {
-      const operation = document.paths[expected.path]?.[expected.method];
-      expect(
-        operation,
-        `${expected.method.toUpperCase()} ${expected.path}`,
-      ).toBeDefined();
-      if (!operation) return;
-
-      expect(operation.security).toContainEqual({ accessToken: [] });
-      const parameters = (operation.parameters ?? []).flatMap((parameter) =>
-        'name' in parameter ? [parameter] : [],
-      );
-      const pathParameters = parameters.filter(
-        (parameter) => parameter.in === 'path',
-      );
-      const queryParameters = parameters.filter(
-        (parameter) => parameter.in === 'query',
-      );
-      const headerParameters = parameters.filter(
-        (parameter) => parameter.in === 'header',
-      );
-      expect(pathParameters.map(({ name }) => name).sort()).toEqual(
-        [...(expected.pathParameters ?? [])].sort(),
-      );
-      pathParameters.forEach((parameter) => {
-        expect(parameter.required).toBe(true);
-        expect(parameter.schema).toMatchObject({
-          type: 'string',
-          format: 'uuid',
-        });
-      });
-      expect(queryParameters.map(({ name }) => name).sort()).toEqual(
-        [...(expected.query ?? [])].sort(),
-      );
-      expect(headerParameters.map(({ name }) => name).sort()).toEqual(
-        [...(expected.headers ?? [])].sort(),
-      );
-      headerParameters.forEach((parameter) => {
-        expect(parameter.required).toBe(true);
-
-        if (parameter.name === 'Idempotency-Key') {
-          expect(parameter.schema).toMatchObject({
-            type: 'string',
-            format: 'uuid',
-          });
-        }
-      });
-
-      if (expected.body) {
-        expect(operation.requestBody).toMatchObject({
-          content: {
-            'application/json': {
-              schema: {
-                $ref: `#/components/schemas/${expected.body}`,
-              },
-            },
-          },
-        });
-      } else {
-        expect(operation.requestBody).toBeUndefined();
-      }
-
-      const [successStatus, successDto] = expected.success;
-      const success = operation.responses[successStatus];
-      expect(success).toBeDefined();
-      if (successDto) {
-        expect(success).toMatchObject({
-          content: {
-            'application/json': {
-              schema: {
-                $ref: `#/components/schemas/${successDto}`,
-              },
-            },
-          },
-        });
-      } else {
-        expect(success).not.toHaveProperty('content');
-      }
-
-      expect(Object.keys(operation.responses).sort()).toEqual(
-        [successStatus, ...expected.errors].sort(),
-      );
-      expected.errors.forEach((status) => {
-        expect(operation.responses[status]).toMatchObject({
-          content: {
-            'application/problem+json': {
-              schema: { $ref: '#/components/schemas/ProblemDetailsDto' },
-            },
-          },
-        });
-      });
-    });
+    expectProtectedOpenApiOperations(document, ADMIN_OPERATIONS);
   });
 
   it('관리자 DTO component JSON에는 private 내부 필드가 없다', () => {

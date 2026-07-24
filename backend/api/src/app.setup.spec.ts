@@ -3,7 +3,7 @@ import { RequestMethod } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { configureApp } from './app.setup.js';
 
-describe('configureApp', () => {
+describe('configureApp 애플리케이션 공통 설정', () => {
   it('/health와 /ready만 api/v1 prefix에서 제외한다', () => {
     const app = {
       setGlobalPrefix: vi.fn(),

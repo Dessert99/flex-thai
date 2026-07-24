@@ -13,7 +13,7 @@ const createContext = (request: Record<string, unknown>) =>
     getClass: () => undefined,
   }) as never;
 
-describe('refresh cookie', () => {
+describe('refresh cookie 보안 속성', () => {
   it('7일 Strict __Host- cookie로만 refresh token을 저장한다', () => {
     const response = { cookie: vi.fn() };
 
@@ -33,7 +33,7 @@ describe('refresh cookie', () => {
   });
 });
 
-describe('ApplicationRoleGuard', () => {
+describe('ApplicationRoleGuard 역할 상속', () => {
   it('ADMIN은 LEARNER 요구 route를 사용할 수 있다', () => {
     const reflector = {
       getAllAndOverride: vi.fn().mockReturnValue('LEARNER'),
@@ -88,7 +88,7 @@ describe('ApplicationRoleGuard', () => {
   });
 });
 
-describe('AdminMfaGuard', () => {
+describe('AdminMfaGuard 관리자 MFA 검증', () => {
   it('ADMIN이 TOTP 등록 전이면 관리자 route를 거부한다', () => {
     const guard = new AdminMfaGuard();
 
@@ -131,7 +131,7 @@ describe('AdminMfaGuard', () => {
   });
 });
 
-describe('CognitoAuthorizerGuard', () => {
+describe('CognitoAuthorizerGuard 요청 사용자 인증', () => {
   it('검증된 access claim을 최신 ACTIVE DB 사용자와 연결한다', async () => {
     const users = {
       findBySub: vi.fn().mockResolvedValue({
@@ -300,7 +300,7 @@ describe('CognitoAuthorizerGuard', () => {
   });
 });
 
-describe('CsrfGuard', () => {
+describe('CsrfGuard 출처 보호', () => {
   it('exact Origin과 custom header가 모두 있어야 통과한다', () => {
     const guard = new CsrfGuard(['https://app.example.com']);
 

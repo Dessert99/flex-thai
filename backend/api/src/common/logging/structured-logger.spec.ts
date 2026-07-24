@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { StructuredLogger } from './structured-logger.js';
 
-describe('StructuredLogger', () => {
+describe('StructuredLogger 민감 정보 제거', () => {
   it('민감한 key는 중첩 위치와 관계없이 로그에 남기지 않는다', () => {
     const write = vi.fn();
     const logger = new StructuredLogger('api', write);

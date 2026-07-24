@@ -21,7 +21,7 @@ const tokens = {
 
 const response = () => ({ cookie: vi.fn(), clearCookie: vi.fn() });
 
-describe('IdentityController', () => {
+describe('IdentityController 인증 흐름', () => {
   it('공개 signup·password reset·phone·SMS method를 제공하지 않는다', () => {
     [
       'signup',
