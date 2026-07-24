@@ -6,6 +6,8 @@
     "node": ">=22 <23"
   },
   "scripts": {
+    "swagger": "pnpm --filter @flex-thia/api run swagger",
+    "structure:check": "node scripts/check-project-structure.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
@@ -17,7 +19,7 @@
     "infra:synth": "pnpm --filter @flex-thia/infra synth",
     "infra:diff": "pnpm --filter @flex-thia/infra exec cdk diff",
     "infra:diff:prod": "pnpm --filter @flex-thia/infra diff:prod",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+    "check": "pnpm structure:check && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "devDependencies": {
     "@typescript/native": "npm:typescript@7.0.2",

@@ -28,12 +28,12 @@
 
 | 단계 | 위치 | 결과 |
 | --- | --- | --- |
-| 1 | [auth.controller.ts:58](../../../apps/api/src/auth/auth.controller.ts#L58) | 인증 검사 없이 진입 |
-| 2 | [passwordless-auth.service.ts:83](../../../packages/domain/src/auth/passwordless-auth.service.ts#L83) | 이메일 도메인만 검사 |
-| 3 | [cognito-identity.provider.ts:64](../../../packages/providers/src/aws/cognito-identity.provider.ts#L64) | `AdminGetUser` |
-| 4 | [cognito-identity.provider.ts:75](../../../packages/providers/src/aws/cognito-identity.provider.ts#L75) | **`AdminCreateUser` — Cognito 회원 영구 생성** |
-| 5 | [cognito-identity.provider.ts:90](../../../packages/providers/src/aws/cognito-identity.provider.ts#L90) | `InitiateAuth CUSTOM_AUTH` |
-| 6 | [create-auth-challenge.ts:43-55](../../../apps/worker/src/auth/create-auth-challenge.ts#L43-L55) | Aurora INSERT + SES 발송 |
+| 1 | `backend/api/src/auth/auth.controller.ts:58` (삭제된 당시 경로) | 인증 검사 없이 진입 |
+| 2 | [passwordless-auth.service.ts:83](../../../backend/domain/src/auth/passwordless-auth.service.ts#L83) | 이메일 도메인만 검사 |
+| 3 | [cognito-identity.provider.ts:64](../../../backend/providers/src/aws/cognito-identity.provider.ts#L64) | `AdminGetUser` |
+| 4 | [cognito-identity.provider.ts:75](../../../backend/providers/src/aws/cognito-identity.provider.ts#L75) | **`AdminCreateUser` — Cognito 회원 영구 생성** |
+| 5 | [cognito-identity.provider.ts:90](../../../backend/providers/src/aws/cognito-identity.provider.ts#L90) | `InitiateAuth CUSTOM_AUTH` |
+| 6 | `backend/worker/src/auth/create-auth-challenge.ts:43-55` (삭제된 당시 경로) | Aurora INSERT + SES 발송 |
 
 ### 2.2 근본 원인
 
@@ -226,11 +226,12 @@ HTTPS 요청을 처리하는 동안 API 프로세스 메모리에만 잠시 존�
 
 ## 6. 작업 계획
 
-의존 방향(`packages` → `apps` → `infra`)을 따라 안쪽부터 진행한다.
+의존 방향(`backend/domain`·`shared/contracts` → `backend/api` → `infra`)을
+따라 안쪽부터 진행한다.
 
 ### 1단계 — DB 스키마
 
-- [identity.schema.ts:52-68](../../../packages/database/src/schema/identity.schema.ts#L52-L68) `authChallenges` 변경
+- [identity.schema.ts:52-68](../../../backend/database/src/schema/identity.schema.ts#L52-L68) `authChallenges` 변경
   - 제거: `emailHash`, `cognitoSessionCiphertext`, `linkHmac`
   - 추가: 정규화한 `email`, `purpose` (`SIGNUP` | `PASSWORD_RESET`),
     `email + createdAt` 및 `createdAt` 인덱스(상한 카운트용)
@@ -239,7 +240,7 @@ HTTPS 요청을 처리하는 동안 API 프로세스 메모리에만 잠시 존�
 
 ### 2단계 — 도메인
 
-- `packages/domain/src/auth/passwordless-auth.service.ts`를 가입·로그인·재설정 서비스로 교체
+- `backend/domain/src/auth/passwordless-auth.service.ts`를 가입·로그인·재설정 서비스로 교체
 - 발송 상한 로직 추가
 - `challenge.repository.ts`의 `IdentityProvider`·`AuthChallengeRepository` port 재정의
 - **검증:** 단위 테스트 통과. `describe`/`it` 설명은 한국어
@@ -260,7 +261,7 @@ HTTPS 요청을 처리하는 동안 API 프로세스 메모리에만 잠시 존�
 
 ### 5단계 — worker 정리
 
-- 삭제: `apps/worker/src/auth/define-auth-challenge.ts`, `create-auth-challenge.ts`,
+- 삭제: `backend/worker/src/auth/define-auth-challenge.ts`, `create-auth-challenge.ts`,
   `verify-auth-challenge.ts`, `runtime.ts`와 각 spec
 - **검증:** `pnpm build:lambda` 성공
 
@@ -276,7 +277,7 @@ HTTPS 요청을 처리하는 동안 API 프로세스 메모리에만 잠시 존�
 - [http-api.ts:158-188](../../../infra/src/constructs/http-api.ts#L158-L188) 라우트 목록 갱신,
   환경변수에서 `CHALLENGE_SESSION_KEY_SECRET_ARN` 제거
 - [config.ts:17](../../../infra/src/config.ts#L17)과
-  [api-env.ts:28](../../../packages/config/src/api-env.ts#L28) 도메인 기본값 → `hufs.ac.kr`
+  [api-env.ts:28](../../../backend/config/src/api-env.ts#L28) 도메인 기본값 → `hufs.ac.kr`
   (테스트·문서의 `school.ac.kr` 자리표시자도 함께 정리)
 - 상한값 3개를 Parameter Store에 추가
 - **검증:** `pnpm infra:test`, `pnpm infra:synth` 성공
@@ -290,7 +291,8 @@ HTTPS 요청을 처리하는 동안 API 프로세스 메모리에만 잠시 존�
 ## 7. 범위 밖 (건드리지 않는다)
 
 - 관리자 step-up 인증, 전화번호 검증, 업로드, jobs — 모두 JWT 기반이라 영향 없음
-- **P0-2 (SMS 펌핑)**: [phone-verification.controller.ts:49](../../../apps/api/src/auth/phone-verification.controller.ts#L49)의
+- **P0-2 (SMS 펌핑)**: 삭제된 당시
+  `backend/api/src/auth/phone-verification.controller.ts:49`의
   정규식 `/^\+[1-9]\d{7,14}$/`가 전 세계 번호를 허용하고 쿨다운·국가 제한이 없다.
   현재 유일한 방어는 SNS 계정 월 SMS 지출 한도(수동 콘솔 설정)뿐이다.
   **이번 작업 범위 밖이지만 배포 전에 반드시 별건으로 처리해야 한다.**

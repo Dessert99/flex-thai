@@ -29,7 +29,7 @@ CLI는 터미널에서 실행하는 프로그램이다. Drizzle Kit CLI는 편�
 ### Runtime migrator
 
 Runtime migrator는 별도 CLI가 아니라 애플리케이션 코드가 직접 migration 함수를
-호출하는 방식이다. 이 프로젝트에서는 같은 `packages/database`에 설치된
+호출하는 방식이다. 이 프로젝트에서는 같은 `backend/database`에 설치된
 `RDSDataClient`와 Drizzle ORM의 `migrate()`를 연결하므로 client와 command가 같은
 의존성 그래프를 사용한다.
 

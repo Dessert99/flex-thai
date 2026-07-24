@@ -529,7 +529,7 @@ git commit -m "feat: add cognito passwordless infrastructure"
 
 **Interfaces:**
 - Produces: `AsyncJobs.queue`, `deadLetterQueue`, `stateMachine`
-- Consumes: `apps/worker/dist/job-starter.js`, `foundation-task.js`
+- Consumes: `backend/worker/dist/job-starter.js`, `foundation-task.js`
 
 - [ ] **Step 1: 보존·재시도·동시성 assertion을 작성한다**
 
@@ -671,7 +671,7 @@ template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
 
 - [ ] **Step 2: API Lambda를 구현한다**
 
-Lambda는 `apps/api/dist/lambda.js` asset을 사용하고 Node.js 22, 1024MB,
+Lambda는 `backend/api/dist/lambda.js` asset을 사용하고 Node.js 22, 1024MB,
 29초, reserved concurrency 5, logs 14일로 만든다. 환경 변수에는
 `DATABASE_MODE=data-api`, cluster ARN, DB secret ARN, Cognito pool/client,
 Input bucket, Job queue URL, exact allowed origin만 넣는다. secret 원문은

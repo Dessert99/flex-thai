@@ -63,7 +63,7 @@ SQL을 보내 성공 여부를 보는 방식이다.
 
 ## 해결
 
-1. `packages/database/src/commands/wait-for-data-api.ts`에서 Data API로 `select 1`을 보내는 준비 확인 명령을 추가했다.
+1. `backend/database/src/commands/wait-for-data-api.ts`에서 Data API로 `select 1`을 보내는 준비 확인 명령을 추가했다.
 2. `DatabaseResumingException`이면 5초 간격으로 최대 20회 재시도하고, 다른 오류는 첫 시도에서 그대로 반환하게 했다.
 3. `.github/workflows/deploy-production.yml`에서 준비 확인이 성공한 경우에만 운영 migration을 실행하게 했다.
 4. 고정 `sleep`은 빠르게 준비된 경우에도 기다리고 느린 경우를 보장하지 못하므로 사용하지 않았다.

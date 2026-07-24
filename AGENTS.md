@@ -94,11 +94,19 @@ Vitest/Jest 계열 테스트의 `describe`, `it`, `test` 설명 문자열은 한
 - 코드 식별자가 필요하면 설명 안에 식별자를 섞되, 문장 자체는 한국어로 쓴다.
 - 기존 테스트를 수정할 때는 해당 파일의 `describe`, `it`, `test` 설명 문자열도 함께 한국어로 맞춘다.
 
-### 7. 프론트엔드 컨벤션
+### 7. 프로젝트 구조와 프론트엔드 컨벤션
 
-`apps/web` 작업은 `conventions/structure-convention.md`와 `conventions/frontend/component-convention.md`를 따른다.
+코드 위치와 의존성 방향은 `conventions/structure-convention.md`를 단일
+기준으로 따른다. 프론트엔드 컴포넌트 작업은
+`conventions/frontend/component-convention.md`도 함께 따른다.
 
-### 8. E2E 테스트는 두지 않는다
+### 8. 백엔드 아키텍처
+
+백엔드 작업은 `conventions/structure-convention.md`와
+`docs/development/backend-architecture.md`를 작업 전에 읽고 따른다.
+경로 목록과 배치 규칙은 이 문서에 복제하지 않는다.
+
+### 9. E2E 테스트는 두지 않는다
 
 이 프로젝트는 E2E 테스트(브라우저·API 통합 포함)를 추가하지 않는다.
 

@@ -8,8 +8,9 @@ export default defineConfig({
     // CDK 테스트의 동시 Lambda 번들링이 5초 제한을 넘기지 않게 파일을 직렬 실행
     fileParallelism: false,
     include: [
-      'apps/**/src/**/*.spec.ts',
-      'packages/**/src/**/*.spec.ts',
+      'backend/**/src/**/*.spec.ts',
+      'frontend/**/src/**/*.spec.ts',
+      'shared/**/src/**/*.spec.ts',
       'infra/test/**/*.spec.ts',
     ],
   },

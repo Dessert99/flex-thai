@@ -1,0 +1,246 @@
+/** MVP root가 Identity·Learning·Admin과 환경별 provider를 조립하는지 검증한다 */
+import {
+  completeMediaAsset,
+  type MediaAdminRepository,
+  type MediaAsset,
+  type MediaAdminService,
+} from '@flex-thia/domain';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  CloudFrontMediaReadUrlProvider,
+  FakeAudioUploadProvider,
+  FakeMediaReadUrlProvider,
+  S3AudioUploadProvider,
+} from '@flex-thia/providers';
+import { AdminContentService } from './admin/admin-content.service.js';
+import { LearnerContentService } from './learning/learner-content.service.js';
+import { createApplicationModule } from './app.module.js';
+
+describe('createApplicationModule 조립', () => {
+  it('로컬 설정에서 Identity·Learning·Admin과 health만 조립한다', () => {
+    const application = createApplicationModule({
+      NODE_ENV: 'test',
+      AUTH_MODE: 'fake',
+      DATABASE_MODE: 'local',
+      DATABASE_URL: 'postgres://local/test',
+    });
+
+    const importedModuleNames = application.imports?.map(
+      (entry) => (entry as { module: { name: string } }).module.name,
+    );
+    const rootControllerNames = application.controllers?.map(
+      (controller) => (controller as { name: string }).name,
+    );
+
+    expect(importedModuleNames).toEqual([
+      'IdentityModule',
+      'LearningModule',
+      'AdminModule',
+    ]);
+    expect(importedModuleNames).not.toContain('JobsModule');
+    expect(importedModuleNames).not.toContain('UploadsModule');
+    expect(rootControllerNames).toEqual([
+      'HealthController',
+      'ReadinessController',
+    ]);
+    expect(rootControllerNames).not.toContain('JobsController');
+    expect(rootControllerNames).not.toContain('UploadsController');
+    expect(application.providers).toHaveLength(1);
+
+    const learning = application.imports?.[1] as {
+      providers: { provide: unknown; useValue: unknown }[];
+    };
+    const content = learning.providers.find(
+      (provider) => provider.provide === LearnerContentService,
+    )?.useValue as {
+      dependencies: {
+        questionQuery: { database: unknown };
+        vocabularyQuery: { database: unknown };
+        questionAttempts: { repository: { database: unknown } };
+        savedContent: { repository: unknown };
+        mediaReadUrls: unknown;
+      };
+    };
+
+    expect(content.dependencies.mediaReadUrls).toBeInstanceOf(
+      FakeMediaReadUrlProvider,
+    );
+    expect(content.dependencies.questionQuery.database).toBe(
+      content.dependencies.vocabularyQuery.database,
+    );
+    expect(content.dependencies.questionQuery.database).toBe(
+      content.dependencies.questionAttempts.repository.database,
+    );
+    expect(content.dependencies.questionAttempts.repository).toBe(
+      content.dependencies.savedContent.repository,
+    );
+
+    const admin = application.imports?.[2] as {
+      providers: { provide: unknown; useValue: unknown }[];
+    };
+    const adminContent = admin.providers.find(
+      (provider) => provider.provide === AdminContentService,
+    )?.useValue as {
+      dependencies: {
+        contentImports: {
+          repository: { database: unknown };
+          drafts: { repository: { database: unknown } };
+        };
+        contentImportQuery: { database: unknown };
+        media: { repository: { database: unknown }; storage: unknown };
+        mediaQuery: { database: unknown };
+        questions: { repository: { database: unknown } };
+        questionPublication: { repository: { database: unknown } };
+        questionQuery: { database: unknown };
+        vocabularies: { repository: { database: unknown } };
+        vocabularyQuery: { database: unknown };
+      };
+    };
+    const adminDatabase = adminContent.dependencies.contentImportQuery.database;
+
+    expect(adminContent.dependencies.contentImports.repository.database).toBe(
+      adminDatabase,
+    );
+    expect(
+      adminContent.dependencies.contentImports.drafts.repository.database,
+    ).toBe(adminDatabase);
+    expect(adminContent.dependencies.media.storage).toBeInstanceOf(
+      FakeAudioUploadProvider,
+    );
+    expect(adminContent.dependencies.media.repository.database).toBe(
+      adminDatabase,
+    );
+    expect(adminContent.dependencies.mediaQuery.database).toBe(adminDatabase);
+    expect(adminContent.dependencies.questions.repository.database).toBe(
+      adminDatabase,
+    );
+    expect(
+      adminContent.dependencies.questionPublication.repository.database,
+    ).toBe(adminDatabase);
+    expect(adminContent.dependencies.questionQuery.database).toBe(
+      adminDatabase,
+    );
+    expect(adminContent.dependencies.vocabularies.repository.database).toBe(
+      adminDatabase,
+    );
+    expect(adminContent.dependencies.vocabularyQuery.database).toBe(
+      adminDatabase,
+    );
+  });
+
+  it('로컬 기본 fake는 upload 요청 직후 선언 metadata로 READY 완료를 지원한다', async () => {
+    const application = createApplicationModule({
+      NODE_ENV: 'test',
+      AUTH_MODE: 'fake',
+      DATABASE_MODE: 'local',
+      DATABASE_URL: 'postgres://local/test',
+    });
+    const admin = application.imports?.[2] as {
+      providers: { provide: unknown; useValue: unknown }[];
+    };
+    const adminContent = admin.providers.find(
+      (provider) => provider.provide === AdminContentService,
+    )?.useValue as {
+      dependencies: {
+        media: Pick<
+          MediaAdminService,
+          'completeAudioUpload' | 'requestAudioUpload'
+        > & {
+          repository: MediaAdminRepository;
+        };
+      };
+    };
+    const media = adminContent.dependencies.media;
+    let storedAsset: MediaAsset | null = null;
+    vi.spyOn(media.repository, 'findReadyByMetadata').mockResolvedValue(null);
+    vi.spyOn(media.repository, 'createUploadingWithAudit').mockImplementation(
+      ({ asset }) => {
+        storedAsset = asset;
+        return Promise.resolve();
+      },
+    );
+    vi.spyOn(media.repository, 'findById').mockImplementation(() => {
+      return Promise.resolve(storedAsset);
+    });
+    vi.spyOn(media.repository, 'finalizeWithAudit').mockImplementation(
+      ({ inspection, readyAt }) => {
+        if (!storedAsset) return Promise.resolve(null);
+        const ready = completeMediaAsset(storedAsset, inspection, readyAt);
+        storedAsset = ready;
+        return Promise.resolve({ outcome: 'READY', asset: ready });
+      },
+    );
+    const declaredSha256 = 'A'.repeat(64);
+
+    const requested = await media.requestAudioUpload({
+      filename: 'voice.mp3',
+      mimeType: 'audio/mpeg',
+      sizeBytes: 3,
+      sha256: declaredSha256,
+      context: {
+        actorSub: 'cognito-sub',
+        actorUserId: '00000000-0000-4000-8000-000000000001',
+        requestId: 'request-id',
+      },
+    });
+    if (!requested.uploadRequired) {
+      throw new Error('새 local upload form이 필요합니다');
+    }
+    const completed = await media.completeAudioUpload(requested.mediaAssetId, {
+      actorSub: 'cognito-sub',
+      actorUserId: '00000000-0000-4000-8000-000000000001',
+      requestId: 'request-id',
+    });
+
+    expect(requested.upload.url).toBe('http://localhost/__fake_audio_upload__');
+    expect(completed).toMatchObject({
+      id: requested.mediaAssetId,
+      status: 'READY',
+      mimeType: 'audio/mpeg',
+      sizeBytes: 3,
+      sha256: declaredSha256.toLowerCase(),
+    });
+  });
+
+  it('운영 환경은 같은 Learning 조립에서 CloudFront signer를 선택한다', () => {
+    const application = createApplicationModule({
+      NODE_ENV: 'production',
+      AUTH_MODE: 'cognito',
+      DATABASE_MODE: 'data-api',
+      AWS_REGION: 'ap-northeast-2',
+      DATABASE_NAME: 'flex_thia',
+      RDS_RESOURCE_ARN: 'arn:rds',
+      RDS_SECRET_ARN: 'arn:secret',
+      COGNITO_USER_POOL_ID: 'pool',
+      COGNITO_CLIENT_ID: 'client',
+      MEDIA_CDN_BASE_URL: 'https://media.example.com',
+      MEDIA_KEY_PAIR_ID: 'key-pair',
+      MEDIA_PRIVATE_KEY_SECRET_ARN: 'arn:media-secret',
+      MEDIA_BUCKET_NAME: 'media-bucket',
+    });
+    const learning = application.imports?.[1] as {
+      providers: { provide: unknown; useValue: unknown }[];
+    };
+    const content = learning.providers.find(
+      (provider) => provider.provide === LearnerContentService,
+    )?.useValue as {
+      dependencies: { mediaReadUrls: unknown };
+    };
+
+    expect(content.dependencies.mediaReadUrls).toBeInstanceOf(
+      CloudFrontMediaReadUrlProvider,
+    );
+
+    const admin = application.imports?.[2] as {
+      providers: { provide: unknown; useValue: unknown }[];
+    };
+    const adminContent = admin.providers.find(
+      (provider) => provider.provide === AdminContentService,
+    )?.useValue as {
+      dependencies: { media: { storage: unknown } };
+    };
+    expect(adminContent.dependencies.media.storage).toBeInstanceOf(
+      S3AudioUploadProvider,
+    );
+  });
+});

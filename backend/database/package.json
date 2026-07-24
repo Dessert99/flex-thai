@@ -1,0 +1,26 @@
+{
+  "name": "@flex-thia/database",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --root ../.. backend/database/src",
+    "build": "tsc -p tsconfig.json",
+    "db:generate": "drizzle-kit generate --config drizzle.local.config.ts",
+    "db:migrate:local": "drizzle-kit migrate --config drizzle.local.config.ts",
+    "db:wait:data-api": "tsx src/commands/wait-for-data-api.ts",
+    "db:migrate:data-api": "tsx src/commands/migrate-data-api.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-rds-data": "^3.900.0",
+    "@flex-thia/domain": "workspace:*",
+    "drizzle-orm": "0.45.2",
+    "pg": "^8.16.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.15.0",
+    "drizzle-kit": "^0.31.0",
+    "tsx": "^4.20.0"
+  }
+}

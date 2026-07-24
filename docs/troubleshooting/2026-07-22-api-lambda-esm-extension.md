@@ -46,7 +46,7 @@ CI에서 TypeScript 검사와 bundle 생성에 성공했다는 사실은 결과�
 
 ## 원인
 
-1. `apps/api/esbuild.config.mjs`는 `format: 'esm'`으로 `import`가 들어 있는 ESM bundle을 만들었다.
+1. `backend/api/esbuild.config.mjs`는 `format: 'esm'`으로 `import`가 들어 있는 ESM bundle을 만들었다.
 2. 출력 파일명은 `dist/lambda.js`였고 배포 artifact에는 이 `.js`를 ESM으로 지정할 `package.json`의 `type: module`이 없었다.
 3. Lambda의 Node.js 런타임은 `lambda.js`를 CommonJS로 해석한 뒤 ESM `import` 문을 만나 구문 오류를 냈다.
 4. esbuild의 출력 형식을 ESM으로 설정하면 어떤 배포 환경에서도 `.js`가 자동으로 ESM으로 해석될 것이라는 가정이 깨졌다.
@@ -68,5 +68,5 @@ CI에서 TypeScript 검사와 bundle 생성에 성공했다는 사실은 결과�
 
 ## 재발 방지
 
-1. `apps/api/src/lambda-bundle.spec.ts`에서 `dist/lambda.mjs`가 존재하고 모호한 `dist/lambda.js`가 남지 않는지 검증한다.
+1. `backend/api/src/lambda-bundle.spec.ts`에서 `dist/lambda.mjs`가 존재하고 모호한 `dist/lambda.js`가 남지 않는지 검증한다.
 2. Lambda bundle 변경은 로컬 build 성공뿐 아니라 실제 런타임 log와 배포 probe까지 구분해 확인한다.

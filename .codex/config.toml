@@ -1,0 +1,4 @@
+# 이 프로젝트에서 Claude Code를 MCP 리뷰어로 연결한다.
+[mcp_servers.claude]
+command = "/Users/limjaejoon/.local/bin/claude"
+args = ["mcp", "serve"]

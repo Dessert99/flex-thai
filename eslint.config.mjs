@@ -12,7 +12,7 @@ export default tseslint.config(
       '**/coverage/**',
       '**/node_modules/**',
       '**/cdk.out/**',
-      'packages/database/drizzle/**',
+      'backend/database/drizzle/**',
     ],
   },
   {

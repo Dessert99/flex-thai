@@ -1,0 +1,44 @@
+{
+  "name": "@flex-thia/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bootstrap-admin": "tsx src/commands/bootstrap-admin.ts",
+    "dev": "tsx watch src/main.ts",
+    "swagger": "tsx src/swagger.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --root ../.. backend/api/src",
+    "build": "tsc -p tsconfig.json",
+    "build:lambda": "node esbuild.config.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.900.0",
+    "@aws-sdk/client-s3": "^3.900.0",
+    "@aws-sdk/client-secrets-manager": "^3.900.0",
+    "@aws-sdk/client-sesv2": "^3.900.0",
+    "@aws-sdk/client-sns": "^3.900.0",
+    "@aws-sdk/client-sqs": "^3.900.0",
+    "@aws-sdk/client-ssm": "^3.900.0",
+    "@codegenie/serverless-express": "^4.17.0",
+    "@flex-thia/config": "workspace:*",
+    "@flex-thia/contracts": "workspace:*",
+    "@flex-thia/database": "workspace:*",
+    "@flex-thia/domain": "workspace:*",
+    "@flex-thia/providers": "workspace:*",
+    "@nestjs/common": "11.1.28",
+    "@nestjs/core": "11.1.28",
+    "@nestjs/platform-express": "11.1.28",
+    "@nestjs/swagger": "11.4.6",
+    "nestjs-zod": "5.4.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.0",
+    "@types/aws-lambda": "^8.10.0",
+    "esbuild": "^0.25.0",
+    "open": "11.0.0",
+    "tsx": "^4.20.0"
+  }
+}
