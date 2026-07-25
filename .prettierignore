@@ -29,6 +29,7 @@ tmp/
 **/.hg/
 
 .claude/
+.agents/
 
 *.md
 
