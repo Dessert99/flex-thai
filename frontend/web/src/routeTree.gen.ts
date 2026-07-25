@@ -29,9 +29,13 @@ import { Route as AuthenticatedLearnerVocabulariesIndexRouteImport } from './app
 import { Route as AuthenticatedLearnerVocabulariesVocabularyIdRouteImport } from './app/routes/_authenticated._learner.vocabularies.$vocabularyId'
 import { Route as AuthenticatedAdminEnrolledIndexRouteImport } from './app/routes/_authenticated.admin._enrolled.index'
 import { Route as AuthenticatedAdminEnrolledContentImportsRouteImport } from './app/routes/_authenticated.admin._enrolled.content-imports'
+import { Route as AuthenticatedAdminEnrolledQuestionsRouteImport } from './app/routes/_authenticated.admin._enrolled.questions'
 import { Route as AuthenticatedAdminEnrollmentTotpSetupRouteImport } from './app/routes/_authenticated.admin._enrollment.totp-setup'
 import { Route as AuthenticatedAdminEnrolledContentImportsIndexRouteImport } from './app/routes/_authenticated.admin._enrolled.content-imports.index'
 import { Route as AuthenticatedAdminEnrolledContentImportsImportIdRouteImport } from './app/routes/_authenticated.admin._enrolled.content-imports.$importId'
+import { Route as AuthenticatedAdminEnrolledQuestionsIndexRouteImport } from './app/routes/_authenticated.admin._enrolled.questions.index'
+import { Route as AuthenticatedAdminEnrolledQuestionsQuestionIdRouteImport } from './app/routes/_authenticated.admin._enrolled.questions.$questionId'
+import { Route as AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRouteImport } from './app/routes/_authenticated.admin._enrolled.questions.$questionId.index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -142,6 +146,12 @@ const AuthenticatedAdminEnrolledContentImportsRoute =
     path: '/content-imports',
     getParentRoute: () => AuthenticatedAdminEnrolledRoute,
   } as any)
+const AuthenticatedAdminEnrolledQuestionsRoute =
+  AuthenticatedAdminEnrolledQuestionsRouteImport.update({
+    id: '/questions',
+    path: '/questions',
+    getParentRoute: () => AuthenticatedAdminEnrolledRoute,
+  } as any)
 const AuthenticatedAdminEnrollmentTotpSetupRoute =
   AuthenticatedAdminEnrollmentTotpSetupRouteImport.update({
     id: '/totp-setup',
@@ -160,6 +170,24 @@ const AuthenticatedAdminEnrolledContentImportsImportIdRoute =
     path: '/$importId',
     getParentRoute: () => AuthenticatedAdminEnrolledContentImportsRoute,
   } as any)
+const AuthenticatedAdminEnrolledQuestionsIndexRoute =
+  AuthenticatedAdminEnrolledQuestionsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAdminEnrolledQuestionsRoute,
+  } as any)
+const AuthenticatedAdminEnrolledQuestionsQuestionIdRoute =
+  AuthenticatedAdminEnrolledQuestionsQuestionIdRouteImport.update({
+    id: '/$questionId',
+    path: '/$questionId',
+    getParentRoute: () => AuthenticatedAdminEnrolledQuestionsRoute,
+  } as any)
+const AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute =
+  AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAdminEnrolledQuestionsQuestionIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -175,12 +203,16 @@ export interface FileRoutesByFullPath {
   '/questions/$questionId': typeof AuthenticatedLearnerQuestionsQuestionIdRoute
   '/vocabularies/$vocabularyId': typeof AuthenticatedLearnerVocabulariesVocabularyIdRoute
   '/admin/content-imports': typeof AuthenticatedAdminEnrolledContentImportsRouteWithChildren
+  '/admin/questions': typeof AuthenticatedAdminEnrolledQuestionsRouteWithChildren
   '/admin/totp-setup': typeof AuthenticatedAdminEnrollmentTotpSetupRoute
   '/questions/': typeof AuthenticatedLearnerQuestionsIndexRoute
   '/vocabularies/': typeof AuthenticatedLearnerVocabulariesIndexRoute
   '/admin/': typeof AuthenticatedAdminEnrolledIndexRoute
   '/admin/content-imports/$importId': typeof AuthenticatedAdminEnrolledContentImportsImportIdRoute
+  '/admin/questions/$questionId': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdRouteWithChildren
   '/admin/content-imports/': typeof AuthenticatedAdminEnrolledContentImportsIndexRoute
+  '/admin/questions/': typeof AuthenticatedAdminEnrolledQuestionsIndexRoute
+  '/admin/questions/$questionId/': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -197,6 +229,8 @@ export interface FileRoutesByTo {
   '/vocabularies': typeof AuthenticatedLearnerVocabulariesIndexRoute
   '/admin/content-imports/$importId': typeof AuthenticatedAdminEnrolledContentImportsImportIdRoute
   '/admin/content-imports': typeof AuthenticatedAdminEnrolledContentImportsIndexRoute
+  '/admin/questions': typeof AuthenticatedAdminEnrolledQuestionsIndexRoute
+  '/admin/questions/$questionId': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -217,12 +251,16 @@ export interface FileRoutesById {
   '/_authenticated/_learner/questions/$questionId': typeof AuthenticatedLearnerQuestionsQuestionIdRoute
   '/_authenticated/_learner/vocabularies/$vocabularyId': typeof AuthenticatedLearnerVocabulariesVocabularyIdRoute
   '/_authenticated/admin/_enrolled/content-imports': typeof AuthenticatedAdminEnrolledContentImportsRouteWithChildren
+  '/_authenticated/admin/_enrolled/questions': typeof AuthenticatedAdminEnrolledQuestionsRouteWithChildren
   '/_authenticated/admin/_enrollment/totp-setup': typeof AuthenticatedAdminEnrollmentTotpSetupRoute
   '/_authenticated/_learner/questions/': typeof AuthenticatedLearnerQuestionsIndexRoute
   '/_authenticated/_learner/vocabularies/': typeof AuthenticatedLearnerVocabulariesIndexRoute
   '/_authenticated/admin/_enrolled/': typeof AuthenticatedAdminEnrolledIndexRoute
   '/_authenticated/admin/_enrolled/content-imports/$importId': typeof AuthenticatedAdminEnrolledContentImportsImportIdRoute
+  '/_authenticated/admin/_enrolled/questions/$questionId': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdRouteWithChildren
   '/_authenticated/admin/_enrolled/content-imports/': typeof AuthenticatedAdminEnrolledContentImportsIndexRoute
+  '/_authenticated/admin/_enrolled/questions/': typeof AuthenticatedAdminEnrolledQuestionsIndexRoute
+  '/_authenticated/admin/_enrolled/questions/$questionId/': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -240,12 +278,16 @@ export interface FileRouteTypes {
     | '/questions/$questionId'
     | '/vocabularies/$vocabularyId'
     | '/admin/content-imports'
+    | '/admin/questions'
     | '/admin/totp-setup'
     | '/questions/'
     | '/vocabularies/'
     | '/admin/'
     | '/admin/content-imports/$importId'
+    | '/admin/questions/$questionId'
     | '/admin/content-imports/'
+    | '/admin/questions/'
+    | '/admin/questions/$questionId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -262,6 +304,8 @@ export interface FileRouteTypes {
     | '/vocabularies'
     | '/admin/content-imports/$importId'
     | '/admin/content-imports'
+    | '/admin/questions'
+    | '/admin/questions/$questionId'
   id:
     | '__root__'
     | '/'
@@ -281,12 +325,16 @@ export interface FileRouteTypes {
     | '/_authenticated/_learner/questions/$questionId'
     | '/_authenticated/_learner/vocabularies/$vocabularyId'
     | '/_authenticated/admin/_enrolled/content-imports'
+    | '/_authenticated/admin/_enrolled/questions'
     | '/_authenticated/admin/_enrollment/totp-setup'
     | '/_authenticated/_learner/questions/'
     | '/_authenticated/_learner/vocabularies/'
     | '/_authenticated/admin/_enrolled/'
     | '/_authenticated/admin/_enrolled/content-imports/$importId'
+    | '/_authenticated/admin/_enrolled/questions/$questionId'
     | '/_authenticated/admin/_enrolled/content-imports/'
+    | '/_authenticated/admin/_enrolled/questions/'
+    | '/_authenticated/admin/_enrolled/questions/$questionId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -437,6 +485,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminEnrolledContentImportsRouteImport
       parentRoute: typeof AuthenticatedAdminEnrolledRoute
     }
+    '/_authenticated/admin/_enrolled/questions': {
+      id: '/_authenticated/admin/_enrolled/questions'
+      path: '/questions'
+      fullPath: '/admin/questions'
+      preLoaderRoute: typeof AuthenticatedAdminEnrolledQuestionsRouteImport
+      parentRoute: typeof AuthenticatedAdminEnrolledRoute
+    }
     '/_authenticated/admin/_enrollment/totp-setup': {
       id: '/_authenticated/admin/_enrollment/totp-setup'
       path: '/totp-setup'
@@ -457,6 +512,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/content-imports/$importId'
       preLoaderRoute: typeof AuthenticatedAdminEnrolledContentImportsImportIdRouteImport
       parentRoute: typeof AuthenticatedAdminEnrolledContentImportsRoute
+    }
+    '/_authenticated/admin/_enrolled/questions/': {
+      id: '/_authenticated/admin/_enrolled/questions/'
+      path: '/'
+      fullPath: '/admin/questions/'
+      preLoaderRoute: typeof AuthenticatedAdminEnrolledQuestionsIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminEnrolledQuestionsRoute
+    }
+    '/_authenticated/admin/_enrolled/questions/$questionId': {
+      id: '/_authenticated/admin/_enrolled/questions/$questionId'
+      path: '/$questionId'
+      fullPath: '/admin/questions/$questionId'
+      preLoaderRoute: typeof AuthenticatedAdminEnrolledQuestionsQuestionIdRouteImport
+      parentRoute: typeof AuthenticatedAdminEnrolledQuestionsRoute
+    }
+    '/_authenticated/admin/_enrolled/questions/$questionId/': {
+      id: '/_authenticated/admin/_enrolled/questions/$questionId/'
+      path: '/'
+      fullPath: '/admin/questions/$questionId/'
+      preLoaderRoute: typeof AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminEnrolledQuestionsQuestionIdRoute
     }
   }
 }
@@ -537,8 +613,42 @@ const AuthenticatedAdminEnrolledContentImportsRouteWithChildren =
     AuthenticatedAdminEnrolledContentImportsRouteChildren,
   )
 
+interface AuthenticatedAdminEnrolledQuestionsQuestionIdRouteChildren {
+  AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute: typeof AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute
+}
+
+const AuthenticatedAdminEnrolledQuestionsQuestionIdRouteChildren: AuthenticatedAdminEnrolledQuestionsQuestionIdRouteChildren =
+  {
+    AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute:
+      AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute,
+  }
+
+const AuthenticatedAdminEnrolledQuestionsQuestionIdRouteWithChildren =
+  AuthenticatedAdminEnrolledQuestionsQuestionIdRoute._addFileChildren(
+    AuthenticatedAdminEnrolledQuestionsQuestionIdRouteChildren,
+  )
+
+interface AuthenticatedAdminEnrolledQuestionsRouteChildren {
+  AuthenticatedAdminEnrolledQuestionsQuestionIdRoute: typeof AuthenticatedAdminEnrolledQuestionsQuestionIdRouteWithChildren
+  AuthenticatedAdminEnrolledQuestionsIndexRoute: typeof AuthenticatedAdminEnrolledQuestionsIndexRoute
+}
+
+const AuthenticatedAdminEnrolledQuestionsRouteChildren: AuthenticatedAdminEnrolledQuestionsRouteChildren =
+  {
+    AuthenticatedAdminEnrolledQuestionsQuestionIdRoute:
+      AuthenticatedAdminEnrolledQuestionsQuestionIdRouteWithChildren,
+    AuthenticatedAdminEnrolledQuestionsIndexRoute:
+      AuthenticatedAdminEnrolledQuestionsIndexRoute,
+  }
+
+const AuthenticatedAdminEnrolledQuestionsRouteWithChildren =
+  AuthenticatedAdminEnrolledQuestionsRoute._addFileChildren(
+    AuthenticatedAdminEnrolledQuestionsRouteChildren,
+  )
+
 interface AuthenticatedAdminEnrolledRouteChildren {
   AuthenticatedAdminEnrolledContentImportsRoute: typeof AuthenticatedAdminEnrolledContentImportsRouteWithChildren
+  AuthenticatedAdminEnrolledQuestionsRoute: typeof AuthenticatedAdminEnrolledQuestionsRouteWithChildren
   AuthenticatedAdminEnrolledIndexRoute: typeof AuthenticatedAdminEnrolledIndexRoute
 }
 
@@ -546,6 +656,8 @@ const AuthenticatedAdminEnrolledRouteChildren: AuthenticatedAdminEnrolledRouteCh
   {
     AuthenticatedAdminEnrolledContentImportsRoute:
       AuthenticatedAdminEnrolledContentImportsRouteWithChildren,
+    AuthenticatedAdminEnrolledQuestionsRoute:
+      AuthenticatedAdminEnrolledQuestionsRouteWithChildren,
     AuthenticatedAdminEnrolledIndexRoute: AuthenticatedAdminEnrolledIndexRoute,
   }
 
