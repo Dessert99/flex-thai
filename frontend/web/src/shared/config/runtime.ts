@@ -1,6 +1,6 @@
 /** 배포 환경의 API base URL을 시작 시 검증하고 정규화한다 */
 interface RuntimeEnvironment {
-  VITE_API_BASE_URL?: string;
+  VITE_API_BASE_URL?: string | undefined;
 }
 
 /** 브라우저 transport가 사용하는 검증된 런타임 설정 */
