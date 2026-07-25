@@ -128,27 +128,38 @@ infra ─────────────────> backend 실행 산출
 ```text
 frontend/web/src/
 ├── app/                       # 라우터·전역 provider
-├── pages/{domain}/            # 라우트 단위 화면
-├── features/{domain}/
-│   ├── components/
-│   ├── hooks/
-│   ├── types/
-│   └── utils/
+├── pages/{slice}/             # 라우트 단위 화면과 화면 전용 서버 상태
+│   ├── ui/
+│   ├── api/
+│   ├── model/
+│   └── lib/
+├── features/{slice}/          # 재사용되는 사용자 행동과 그 상태
+│   ├── ui/
+│   ├── api/
+│   ├── model/
+│   └── lib/
 ├── shared/
 │   ├── ui/
 │   ├── api/
-│   ├── hooks/
-│   ├── types/
-│   ├── utils/
+│   ├── model/
+│   ├── lib/
 │   └── test/
 └── main.tsx
 ```
 
-- 빈 `components`, `hooks`, `types`, `utils` 폴더는 미리 만들지 않는다.
-- 한 기능에서만 쓰는 코드는 해당 `features/{domain}`에 유지한다.
+- 의존성은 `app -> pages -> features -> shared` 방향으로만 흐르며 같은
+  layer의 다른 slice를 직접 import하지 않는다.
+- 빈 `ui`, `api`, `model`, `lib` 폴더는 미리 만들지 않는다.
+- 한 화면에서만 쓰는 조회·필터·조립 코드는 해당 `pages/{slice}`에
+  유지하고, 둘 이상의 화면에서 재사용되는 사용자 행동만
+  `features/{slice}`로 분리한다.
 - 도메인 규칙을 몰라도 이해할 수 있고 여러 기능이 실제로 사용할 때만
   프론트엔드 내부 `shared`로 옮긴다.
 - 공용 UI는 `shared/ui`에 두며 `shared/components`는 만들지 않는다.
+- 다른 layer가 slice를 사용할 때만 slice root `index.ts`를 공개 API로
+  두며, 소비자는 내부 segment를 우회하거나 재귀 barrel을 만들지 않는다.
+- 프론트엔드 테스트는 대상 옆에 `*.test.ts` 또는 `*.test.tsx`로 두고,
+  백엔드 테스트의 `*.spec.ts` 규칙은 유지한다.
 
 주석 규칙은 [comment-convention.md](comment-convention.md), 프론트엔드
 컴포넌트 규칙은

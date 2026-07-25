@@ -4,7 +4,8 @@
 
 ## 위치
 
-- 도메인 전용 컴포넌트는 `features/{domain}/components`에 둔다.
+- 라우트 화면과 화면 전용 컴포넌트는 `pages/{slice}/ui`에 둔다.
+- 재사용되는 사용자 행동 컴포넌트는 `features/{slice}/ui`에 둔다.
 - 여러 도메인에서 재사용하고 도메인 규칙을 모르는 컴포넌트만 `shared/ui`에 둔다.
 - `shared/components`는 만들지 않으며 실제 재사용 전에는 `shared`로 옮기지 않는다.
 
@@ -15,6 +16,7 @@
 - `pages` 컴포넌트는 화면을 조립하고 도메인 행동은 `features`에 위임한다.
 - `features` 컴포넌트는 하나의 사용자 행동과 그 상태를 담당한다.
 - `shared/ui` 컴포넌트는 도메인과 서버 통신을 모르며 여러 화면에서 재사용할 수 있어야 한다.
+- 화면 전용 조회·필터·Container는 해당 Page slice가 소유하며 공용 API로 성급히 올리지 않는다.
 - 줄 수가 아니라 책임이 둘 이상일 때 분리하고, 실제 재사용 전에는 범용 컴포넌트로 추상화하지 않는다.
 
 ## Props와 상태
@@ -22,13 +24,15 @@
 - Props 타입은 컴포넌트 가까이에 명시하고 구현 세부가 아니라 역할을 드러내는 이름을 쓴다.
 - 이벤트 Props는 `onSave`, `onSelect`처럼 `on{행동}`으로 이름 짓는다.
 - 상태는 사용하는 가장 가까운 컴포넌트에 두고, 여러 컴포넌트가 함께 소유할 때만 끌어올린다.
-- 서버 상태는 `shared/hooks`의 React Query 경계에서 관리하며 `shared/ui`에 넣지 않는다.
+- 서버 상태는 소유 Page 또는 Feature의 `api` segment에 둔 React Query 경계에서 관리하며 `shared/ui`에 넣지 않는다.
 - 렌더링 중에는 요청·저장 같은 부수효과를 실행하지 않는다.
 
 ## UI와 스타일
 
-- 새 UI 프리미티브는 shadcn 레지스트리를 먼저 확인하고, 있으면 `pnpm --filter @thai-flex/web dlx shadcn@latest add <name>`으로 추가한다.
+- 새 UI 프리미티브는 shadcn 레지스트리를 먼저 확인하고, 있으면 `pnpm --filter @flex-thia/web dlx shadcn@latest add <name>`으로 추가한다.
 - shadcn 생성물은 vendored 코드로 취급해 직접 수정하지 않고 상위 컴포넌트에서 조합한다.
+- shadcn CLI 실행 전 `shared/ui`에 같은 primitive나 wrapper가 있는지 먼저 확인한다.
+- 생성물이 도메인 중립 기능을 충분히 제공하지 않으면 `shared/ui`의 프로젝트 작성 wrapper로 확장하고 생성물을 복제하거나 직접 수정하지 않는다.
 - 화면 코드에서는 원시 `<button>`, `<input>`, `<select>`, `<textarea>` 대신 `shared/ui`를 사용한다.
 - 색과 반경은 향후 `frontend/web/src/app/styles/theme.css`의 토큰을 시맨틱 Tailwind 클래스로 참조하며 리터럴 색상을 쓰지 않는다.
 

@@ -7,11 +7,21 @@ export default defineConfig({
     environment: 'node',
     // CDK 테스트의 동시 Lambda 번들링이 5초 제한을 넘기지 않게 파일을 직렬 실행
     fileParallelism: false,
-    include: [
-      'backend/**/src/**/*.spec.ts',
-      'frontend/**/src/**/*.spec.ts',
-      'shared/**/src/**/*.spec.ts',
-      'infra/test/**/*.spec.ts',
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'node',
+          environment: 'node',
+          include: [
+            'backend/**/src/**/*.spec.ts',
+            'shared/**/src/**/*.spec.ts',
+            'infra/test/**/*.spec.ts',
+            'scripts/**/*.spec.mjs',
+          ],
+        },
+      },
+      './frontend/web/vitest.config.ts',
     ],
   },
 });

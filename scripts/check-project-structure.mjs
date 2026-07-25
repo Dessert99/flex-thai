@@ -11,6 +11,9 @@ const requiredFiles = [
   'backend/database/package.json',
   'backend/providers/package.json',
   'backend/config/package.json',
+  'frontend/web/package.json',
+  'frontend/web/tsconfig.json',
+  'frontend/web/src/main.tsx',
   'shared/contracts/package.json',
   'conventions/structure-convention.md',
 ];

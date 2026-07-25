@@ -1,0 +1,14 @@
+/** 프론트엔드가 raw foundation 값 대신 의미 기반 색상 이름을 사용하게 한다 */
+@import 'tailwindcss';
+
+:root {
+  --foundation-white: oklch(1 0 0);
+  --foundation-ink: oklch(0.21 0.01 270);
+  --semantic-surface: var(--foundation-white);
+  --semantic-text-primary: var(--foundation-ink);
+}
+
+@theme inline {
+  --color-surface: var(--semantic-surface);
+  --color-primary: var(--semantic-text-primary);
+}
