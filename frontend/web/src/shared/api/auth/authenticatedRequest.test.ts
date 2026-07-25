@@ -122,6 +122,22 @@ describe('authenticatedRequest', () => {
     });
   });
 
+  it('일반 403은 refresh하거나 인증 세션을 종료하지 않는다', async () => {
+    const { authenticatedRequest, authSessionStore } =
+      await restoreAuthenticated();
+    const authenticatedState = authSessionStore.getSnapshot();
+    mocks.requestRefresh.mockClear();
+    mocks.apiRequest.mockRejectedValue(
+      createProblemError(403, 'FORBIDDEN_OPERATION'),
+    );
+
+    await expect(authenticatedRequest(requestOptions)).rejects.toBeInstanceOf(
+      ApiError,
+    );
+    expect(mocks.requestRefresh).not.toHaveBeenCalled();
+    expect(authSessionStore.getSnapshot()).toBe(authenticatedState);
+  });
+
   it('auth endpoint의 401은 refresh하거나 replay하지 않는다', async () => {
     const { authenticatedRequest } = await restoreAuthenticated();
     mocks.requestRefresh.mockClear();
