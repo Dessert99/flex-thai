@@ -11,10 +11,16 @@ export default defineConfig([
     },
   },
   {
+    files: ['src/app/providers/**'],
+    rules: {
+      'fsd/segments-by-purpose': 'off',
+    },
+  },
+  {
     ignores: [
       'coverage/**',
       'dist/**',
-      'src/app/routeTree.gen.ts',
+      'src/routeTree.gen.ts',
       'src/shared/ui/*.{ts,tsx}',
     ],
   },

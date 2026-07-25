@@ -8,7 +8,7 @@ import { semanticTailwindTokensRule } from './scripts/eslint-rules/semantic-tail
 const typescriptFiles = ['**/*.{ts,tsx}'];
 const frontendFiles = ['frontend/web/src/**/*.{ts,tsx}'];
 const generatedFrontendFiles = [
-  'frontend/web/src/app/routeTree.gen.ts',
+  'frontend/web/src/routeTree.gen.ts',
   'frontend/web/src/shared/ui/*.{ts,tsx}',
 ];
 
