@@ -1,5 +1,6 @@
 /** 학습자 pathless shell의 승인된 `/learn` 자식 route를 등록한다 */
 import { createFileRoute } from '@tanstack/react-router';
+import { LogoutButton } from '@/features/logout';
 
 /** Task 8 Page 연결 전 route generator 충돌을 막는 빈 route shell */
 export const Route = createFileRoute('/_authenticated/_learner/learn')({
@@ -7,5 +8,5 @@ export const Route = createFileRoute('/_authenticated/_learner/learn')({
 });
 
 function LearnerHomeRoute() {
-  return null;
+  return <LogoutButton />;
 }

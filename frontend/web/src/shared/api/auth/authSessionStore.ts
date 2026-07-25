@@ -1,11 +1,23 @@
 /** access token을 메모리에만 보관하는 인증 세션 store를 제공한다 */
 import type {
   AuthenticatedResponse,
+  LoginInput,
+  LoginResponse,
   MeResponse,
   ProblemDetailsResponse,
+  TotpSetupResponse,
+  TotpSetupVerifyInput,
 } from '@flex-thia/contracts';
 import { isApiError } from '../ApiError';
-import { requestLogout, requestMe, requestRefresh } from './authApi';
+import {
+  requestLogin,
+  requestLoginTotp,
+  requestLogout,
+  requestMe,
+  requestRefresh,
+  requestTotpSetup,
+  requestTotpSetupVerification,
+} from './authApi';
 import {
   clearSessionRefresh,
   runSessionRefresh,
@@ -44,6 +56,7 @@ export interface AuthSessionStore {
 type RefreshContext = 'restore' | 'refresh';
 
 let accessToken: string | undefined;
+let loginChallenge: { email: string; challengeToken: string } | undefined;
 let sessionState: AuthSessionState = { status: 'restoring' };
 const listeners = new Set<() => void>();
 
@@ -74,6 +87,58 @@ export async function logoutSession(): Promise<void> {
   await requestLogout();
   accessToken = undefined;
   publish({ status: 'anonymous', reason: 'logged-out' });
+}
+
+/** 로그인 성공을 세션에 반영하거나 TOTP challenge를 메모리에만 보관한다 */
+export async function loginSession(
+  input: LoginInput,
+): Promise<LoginSessionResult> {
+  const response = await requestLogin(input);
+  return acceptLoginResponse(response, input.email);
+}
+
+/** 저장된 로그인 challenge로 TOTP 인증을 완료한다 */
+export async function completeLoginTotpSession(
+  code: string,
+): Promise<AuthenticatedLoginResult> {
+  if (loginChallenge === undefined) {
+    throw new Error('로그인 TOTP challenge가 없습니다.');
+  }
+
+  const response = await requestLoginTotp({
+    ...loginChallenge,
+    code,
+  });
+  if (response.status !== 'AUTHENTICATED') {
+    throw new Error('로그인 TOTP challenge가 완료되지 않았습니다.');
+  }
+
+  loginChallenge = undefined;
+  acceptAuthenticatedResponse(response);
+  return { status: 'authenticated', user: response.user };
+}
+
+/** reload 뒤에도 사용할 로그인 TOTP challenge가 메모리에 있는지 확인한다 */
+export function hasLoginTotpChallenge(): boolean {
+  return loginChallenge !== undefined;
+}
+
+/** 인증된 관리자 세션으로 TOTP enrollment secret을 요청한다 */
+export function beginTotpSetup(): Promise<TotpSetupResponse> {
+  return runWithAccessToken(requestTotpSetup);
+}
+
+/** TOTP enrollment 확인 결과를 현재 사용자 snapshot에 반영한다 */
+export async function verifyTotpSetup(
+  input: TotpSetupVerifyInput,
+): Promise<MeResponse> {
+  const user = await runWithAccessToken((token) =>
+    requestTotpSetupVerification(token, input),
+  );
+  if (sessionState.status === 'authenticated') {
+    publish({ ...sessionState, user });
+  }
+  return user;
 }
 
 /** token 원문을 노출하지 않고 인증된 callback만 실행한다 */
@@ -121,6 +186,39 @@ function acceptRefreshedSession(
   const expiresAt = Date.now() + refreshed.expiresIn * 1_000;
   accessToken = refreshed.accessToken;
   publish({ status: 'authenticated', user, expiresAt });
+}
+
+/** 로그인 UI가 분기할 수 있는 token 비노출 인증 완료 결과 */
+export interface AuthenticatedLoginResult {
+  status: 'authenticated';
+  user: MeResponse;
+}
+
+/** 로그인 UI가 분기할 수 있는 token·challenge 비노출 결과 */
+export type LoginSessionResult =
+  AuthenticatedLoginResult | { status: 'mfa-required' };
+
+function acceptLoginResponse(
+  response: LoginResponse,
+  email: string,
+): LoginSessionResult {
+  if (response.status === 'MFA_REQUIRED') {
+    loginChallenge = {
+      email,
+      challengeToken: response.challengeToken,
+    };
+    return { status: 'mfa-required' };
+  }
+
+  loginChallenge = undefined;
+  acceptAuthenticatedResponse(response);
+  return { status: 'authenticated', user: response.user };
+}
+
+function acceptAuthenticatedResponse(response: AuthenticatedResponse): void {
+  const expiresAt = Date.now() + response.expiresIn * 1_000;
+  accessToken = response.accessToken;
+  publish({ status: 'authenticated', user: response.user, expiresAt });
 }
 
 function publish(nextState: AuthSessionState): void {

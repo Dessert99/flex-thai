@@ -5,16 +5,24 @@ import { ApiError } from '../ApiError';
 
 const mocks = vi.hoisted(() => ({
   apiRequest: vi.fn(),
+  requestLogin: vi.fn(),
+  requestLoginTotp: vi.fn(),
   requestLogout: vi.fn(),
   requestMe: vi.fn(),
   requestRefresh: vi.fn(),
+  requestTotpSetup: vi.fn(),
+  requestTotpSetupVerification: vi.fn(),
 }));
 
 vi.mock('../apiRequest', () => ({ apiRequest: mocks.apiRequest }));
 vi.mock('./authApi', () => ({
+  requestLogin: mocks.requestLogin,
+  requestLoginTotp: mocks.requestLoginTotp,
   requestLogout: mocks.requestLogout,
   requestMe: mocks.requestMe,
   requestRefresh: mocks.requestRefresh,
+  requestTotpSetup: mocks.requestTotpSetup,
+  requestTotpSetupVerification: mocks.requestTotpSetupVerification,
 }));
 
 const user: MeResponse = {

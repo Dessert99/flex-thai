@@ -11,8 +11,11 @@
 import { Route as rootRouteImport } from './app/routes/__root'
 import { Route as IndexRouteImport } from './app/routes/index'
 import { Route as AuthenticatedRouteImport } from './app/routes/_authenticated'
+import { Route as LoginRouteImport } from './app/routes/login'
 import { Route as AuthenticatedLearnerRouteImport } from './app/routes/_authenticated._learner'
 import { Route as AuthenticatedAdminRouteImport } from './app/routes/_authenticated.admin'
+import { Route as LoginIndexRouteImport } from './app/routes/login.index'
+import { Route as LoginMfaRouteImport } from './app/routes/login.mfa'
 import { Route as AuthenticatedLearnerLearnRouteImport } from './app/routes/_authenticated._learner.learn'
 import { Route as AuthenticatedAdminEnrolledRouteImport } from './app/routes/_authenticated.admin._enrolled'
 import { Route as AuthenticatedAdminEnrollmentRouteImport } from './app/routes/_authenticated.admin._enrollment'
@@ -28,6 +31,11 @@ const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedLearnerRoute = AuthenticatedLearnerRouteImport.update({
   id: '/_learner',
   getParentRoute: () => AuthenticatedRoute,
@@ -36,6 +44,16 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
   getParentRoute: () => AuthenticatedRoute,
+} as any)
+const LoginIndexRoute = LoginIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => LoginRoute,
+} as any)
+const LoginMfaRoute = LoginMfaRouteImport.update({
+  id: '/mfa',
+  path: '/mfa',
+  getParentRoute: () => LoginRoute,
 } as any)
 const AuthenticatedLearnerLearnRoute =
   AuthenticatedLearnerLearnRouteImport.update({
@@ -68,7 +86,10 @@ const AuthenticatedAdminEnrollmentTotpSetupRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/login': typeof LoginRouteWithChildren
   '/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/login/mfa': typeof LoginMfaRoute
+  '/login/': typeof LoginIndexRoute
   '/learn': typeof AuthenticatedLearnerLearnRoute
   '/admin/totp-setup': typeof AuthenticatedAdminEnrollmentTotpSetupRoute
   '/admin/': typeof AuthenticatedAdminEnrolledIndexRoute
@@ -76,6 +97,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AuthenticatedAdminEnrolledIndexRoute
+  '/login/mfa': typeof LoginMfaRoute
+  '/login': typeof LoginIndexRoute
   '/learn': typeof AuthenticatedLearnerLearnRoute
   '/admin/totp-setup': typeof AuthenticatedAdminEnrollmentTotpSetupRoute
 }
@@ -83,8 +106,11 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/login': typeof LoginRouteWithChildren
   '/_authenticated/_learner': typeof AuthenticatedLearnerRouteWithChildren
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/login/mfa': typeof LoginMfaRoute
+  '/login/': typeof LoginIndexRoute
   '/_authenticated/_learner/learn': typeof AuthenticatedLearnerLearnRoute
   '/_authenticated/admin/_enrolled': typeof AuthenticatedAdminEnrolledRouteWithChildren
   '/_authenticated/admin/_enrollment': typeof AuthenticatedAdminEnrollmentRouteWithChildren
@@ -93,15 +119,26 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/learn' | '/admin/totp-setup' | '/admin/'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/admin'
+    | '/login/mfa'
+    | '/login/'
+    | '/learn'
+    | '/admin/totp-setup'
+    | '/admin/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/learn' | '/admin/totp-setup'
+  to: '/' | '/admin' | '/login/mfa' | '/login' | '/learn' | '/admin/totp-setup'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/login'
     | '/_authenticated/_learner'
     | '/_authenticated/admin'
+    | '/login/mfa'
+    | '/login/'
     | '/_authenticated/_learner/learn'
     | '/_authenticated/admin/_enrolled'
     | '/_authenticated/admin/_enrollment'
@@ -112,6 +149,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  LoginRoute: typeof LoginRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -130,6 +168,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/_learner': {
       id: '/_authenticated/_learner'
       path: ''
@@ -143,6 +188,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin'
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/login/': {
+      id: '/login/'
+      path: '/'
+      fullPath: '/login/'
+      preLoaderRoute: typeof LoginIndexRouteImport
+      parentRoute: typeof LoginRoute
+    }
+    '/login/mfa': {
+      id: '/login/mfa'
+      path: '/mfa'
+      fullPath: '/login/mfa'
+      preLoaderRoute: typeof LoginMfaRouteImport
+      parentRoute: typeof LoginRoute
     }
     '/_authenticated/_learner/learn': {
       id: '/_authenticated/_learner/learn'
@@ -250,9 +309,22 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
   AuthenticatedRouteChildren,
 )
 
+interface LoginRouteChildren {
+  LoginMfaRoute: typeof LoginMfaRoute
+  LoginIndexRoute: typeof LoginIndexRoute
+}
+
+const LoginRouteChildren: LoginRouteChildren = {
+  LoginMfaRoute: LoginMfaRoute,
+  LoginIndexRoute: LoginIndexRoute,
+}
+
+const LoginRouteWithChildren = LoginRoute._addFileChildren(LoginRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  LoginRoute: LoginRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

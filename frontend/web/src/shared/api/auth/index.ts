@@ -2,9 +2,16 @@
 
 export {
   authSessionStore,
+  beginTotpSetup,
+  completeLoginTotpSession,
+  hasLoginTotpChallenge,
+  loginSession,
   logoutSession,
   refreshSession,
   restoreSession,
+  verifyTotpSetup,
+  type AuthenticatedLoginResult,
+  type LoginSessionResult,
   type AuthSessionState,
   type AuthSessionStore,
 } from './authSessionStore';

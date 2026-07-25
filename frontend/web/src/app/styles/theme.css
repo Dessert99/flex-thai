@@ -25,6 +25,7 @@
   --foundation-size-control: 2.75rem;
   --foundation-size-collapsible: 0;
   --foundation-size-icon: 1.25rem;
+  --foundation-size-form: 28rem;
   --foundation-size-state: 16rem;
   --foundation-radius-control: 0.5rem;
   --foundation-radius-panel: 0.75rem;
@@ -46,6 +47,7 @@
   --semantic-size-control: var(--foundation-size-control);
   --semantic-size-collapsible: var(--foundation-size-collapsible);
   --semantic-size-icon: var(--foundation-size-icon);
+  --semantic-size-form: var(--foundation-size-form);
   --semantic-size-state: var(--foundation-size-state);
   --semantic-radius-control: var(--foundation-radius-control);
   --semantic-radius-panel: var(--foundation-radius-panel);
@@ -115,6 +117,7 @@
   --spacing-icon: var(--semantic-size-icon);
   --spacing-state: var(--semantic-size-state);
   --container-content: 80rem;
+  --container-form: var(--semantic-size-form);
   --radius-control: var(--semantic-radius-control);
   --radius-panel: var(--semantic-radius-panel);
   --shadow-overlay: var(--semantic-shadow-overlay);

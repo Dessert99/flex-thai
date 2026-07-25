@@ -4,9 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../ApiError';
 
 const authApiMocks = vi.hoisted(() => ({
+  requestLogin: vi.fn(),
+  requestLoginTotp: vi.fn(),
   requestLogout: vi.fn(),
   requestMe: vi.fn(),
   requestRefresh: vi.fn(),
+  requestTotpSetup: vi.fn(),
+  requestTotpSetupVerification: vi.fn(),
 }));
 
 vi.mock('./authApi', () => authApiMocks);
@@ -29,9 +33,13 @@ beforeEach(() => {
   vi.resetModules();
   vi.useFakeTimers();
   vi.setSystemTime(new Date('2026-07-25T00:00:00.000Z'));
+  authApiMocks.requestLogin.mockReset();
+  authApiMocks.requestLoginTotp.mockReset();
   authApiMocks.requestLogout.mockReset();
   authApiMocks.requestMe.mockReset();
   authApiMocks.requestRefresh.mockReset();
+  authApiMocks.requestTotpSetup.mockReset();
+  authApiMocks.requestTotpSetupVerification.mockReset();
 });
 
 afterEach(() => {
@@ -144,6 +152,45 @@ describe('인증 세션 로그아웃', () => {
       status: 'authenticated',
       user: learner,
     });
+  });
+});
+
+describe('로그인 TOTP challenge', () => {
+  it('challenge token을 결과에 노출하지 않고 완료 요청 내부에서만 사용한다', async () => {
+    authApiMocks.requestLogin.mockResolvedValue({
+      status: 'MFA_REQUIRED',
+      challengeToken: 'private-challenge',
+    });
+    authApiMocks.requestLoginTotp.mockResolvedValue(refreshed);
+    const {
+      authSessionStore,
+      completeLoginTotpSession,
+      hasLoginTotpChallenge,
+      loginSession,
+    } = await loadStore();
+
+    const loginResult = await loginSession({
+      email: 'admin@example.com',
+      password: 'password',
+    });
+
+    expect(loginResult).toEqual({ status: 'mfa-required' });
+    expect(loginResult).not.toHaveProperty('challengeToken');
+    expect(hasLoginTotpChallenge()).toBe(true);
+
+    await completeLoginTotpSession('123456');
+
+    expect(authApiMocks.requestLoginTotp).toHaveBeenCalledWith({
+      email: 'admin@example.com',
+      challengeToken: 'private-challenge',
+      code: '123456',
+    });
+    expect(hasLoginTotpChallenge()).toBe(false);
+    expect(authSessionStore.getSnapshot()).toMatchObject({
+      status: 'authenticated',
+      user: refreshed.user,
+    });
+    expect(authSessionStore.getSnapshot()).not.toHaveProperty('accessToken');
   });
 });
 
