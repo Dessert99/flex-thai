@@ -18,6 +18,7 @@ export default defineConfig([
   },
   {
     files: [
+      'src/features/change-question-state/**',
       'src/features/submit-answer/**',
       'src/features/toggle-saved-question/**',
       'src/features/toggle-saved-vocabulary/**',

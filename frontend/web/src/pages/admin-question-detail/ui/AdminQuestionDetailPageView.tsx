@@ -12,6 +12,7 @@ interface AdminQuestionDetailPageViewProps {
   error: unknown;
   loading: boolean;
   onRetry: () => void;
+  renderVersionAction: (version: Version) => ReactNode;
 }
 
 type Version = AdminQuestionDetailResponse['versions'][number];
@@ -23,6 +24,7 @@ export function AdminQuestionDetailPageView({
   error,
   loading,
   onRetry,
+  renderVersionAction,
 }: AdminQuestionDetailPageViewProps) {
   if (loading) {
     return <PageLoading message='문제 상세를 불러오고 있습니다.' />;
@@ -60,6 +62,7 @@ export function AdminQuestionDetailPageView({
           <QuestionVersionCard
             key={version.id}
             questionId={data.questionId}
+            stateAction={renderVersionAction(version)}
             version={version}
           />
         ))}
@@ -70,9 +73,11 @@ export function AdminQuestionDetailPageView({
 
 function QuestionVersionCard({
   questionId,
+  stateAction,
   version,
 }: {
   questionId: string;
+  stateAction: ReactNode;
   version: Version;
 }) {
   return (
@@ -139,6 +144,7 @@ function QuestionVersionCard({
             버전 {version.version} 전체 교체
           </a>
         ) : null}
+        {stateAction}
       </CardContent>
     </Card>
   );
