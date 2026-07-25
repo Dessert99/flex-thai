@@ -1,0 +1,12 @@
+# 호스트 생성물과 개인 설정이 로컬 이미지의 재현성과 build context를 흔들지 않게 한다.
+.git
+.superpowers
+node_modules
+**/node_modules
+**/dist
+cdk.out
+infra/cdk.out
+.env
+.env.*
+!.env.example
+*.tsbuildinfo

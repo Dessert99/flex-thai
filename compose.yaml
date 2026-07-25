@@ -1,3 +1,13 @@
+# 로컬 DB 초기화와 API·프론트 실행 모드를 같은 서비스 정의로 재현한다.
+x-app-environment: &app-environment
+  AUTH_MODE: fake
+  DATABASE_MODE: local
+  DATABASE_URL: postgres://flex_thia:local_only_password@postgres:5432/flex_thia
+  FAKE_USER_SUB: local-admin-sub
+  FAKE_USER_EMAIL: admin@hufs.ac.kr
+  FAKE_USER_PASSWORD: 'qwer1234!@#'
+  ALLOWED_ORIGINS: http://localhost:5173
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -12,3 +22,51 @@ services:
       interval: 2s
       timeout: 2s
       retries: 15
+
+  db-setup:
+    profiles: [test, frontend-dev]
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+      target: workspace
+    command: pnpm --filter @flex-thia/database db:reset-seed:local
+    environment:
+      <<: *app-environment
+      LOCAL_DATABASE_RESET: 'true'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  api:
+    profiles: [test, frontend-dev]
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+      target: api
+    environment:
+      <<: *app-environment
+      NODE_ENV: development
+      PORT: '3000'
+    ports:
+      - '3000:3000'
+    depends_on:
+      db-setup:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/ready >/dev/null']
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  web:
+    profiles: [test]
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+      target: web
+    ports:
+      - '5173:80'
+    depends_on:
+      api:
+        condition: service_healthy
