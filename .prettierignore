@@ -35,3 +35,6 @@ tmp/
 *.mdx
 .turbo
 backend/database/drizzle/
+
+# shadcn registry 생성물은 upstream 포맷을 보존한다
+frontend/web/src/shared/ui/*.tsx

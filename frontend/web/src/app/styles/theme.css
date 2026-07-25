@@ -1,14 +1,151 @@
-/** 프론트엔드가 raw foundation 값 대신 의미 기반 색상 이름을 사용하게 한다 */
+/** 원시 foundation 값을 light 전용 semantic Tailwind token으로 제한해 공개한다 */
 @import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
 
 :root {
-  --foundation-white: oklch(1 0 0);
-  --foundation-ink: oklch(0.21 0.01 270);
-  --semantic-surface: var(--foundation-white);
-  --semantic-text-primary: var(--foundation-ink);
+  --foundation-color-white: oklch(1 0 0);
+  --foundation-color-ink: oklch(0.2 0.02 260);
+  --foundation-color-slate-700: oklch(0.4 0.03 260);
+  --foundation-color-slate-200: oklch(0.9 0.01 260);
+  --foundation-color-slate-100: oklch(0.96 0.01 260);
+  --foundation-color-blue-600: oklch(0.55 0.19 258);
+  --foundation-color-red-700: oklch(0.5 0.2 28);
+  --foundation-color-red-50: oklch(0.97 0.02 28);
+  --foundation-font-korean:
+    system-ui, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo',
+    'Noto Sans KR', 'Malgun Gothic', sans-serif;
+  --foundation-font-thai:
+    'Noto Sans Thai', 'Leelawadee UI', Tahoma, var(--foundation-font-korean);
+  --foundation-space-cluster: 0.75rem;
+  --foundation-space-page: clamp(1rem, 3vw, 2rem);
+  --foundation-space-section: 2rem;
+  --foundation-size-control: 2.75rem;
+  --foundation-size-collapsible: 0;
+  --foundation-size-icon: 1.25rem;
+  --foundation-size-state: 16rem;
+  --foundation-radius-control: 0.5rem;
+  --foundation-radius-panel: 0.75rem;
+  --foundation-shadow-overlay: 0 1rem 3rem oklch(0.2 0.02 260 / 18%);
+  --foundation-duration-feedback: 160ms;
+  --semantic-color-surface: var(--foundation-color-white);
+  --semantic-color-surface-muted: var(--foundation-color-slate-100);
+  --semantic-color-text-primary: var(--foundation-color-ink);
+  --semantic-color-text-secondary: var(--foundation-color-slate-700);
+  --semantic-color-border-default: var(--foundation-color-slate-200);
+  --semantic-color-focus: var(--foundation-color-blue-600);
+  --semantic-color-danger: var(--foundation-color-red-700);
+  --semantic-color-danger-surface: var(--foundation-color-red-50);
+  --semantic-font-body: var(--foundation-font-korean);
+  --semantic-font-thai: var(--foundation-font-thai);
+  --semantic-space-cluster: var(--foundation-space-cluster);
+  --semantic-space-page: var(--foundation-space-page);
+  --semantic-space-section: var(--foundation-space-section);
+  --semantic-size-control: var(--foundation-size-control);
+  --semantic-size-collapsible: var(--foundation-size-collapsible);
+  --semantic-size-icon: var(--foundation-size-icon);
+  --semantic-size-state: var(--foundation-size-state);
+  --semantic-radius-control: var(--foundation-radius-control);
+  --semantic-radius-panel: var(--foundation-radius-panel);
+  --semantic-shadow-overlay: var(--foundation-shadow-overlay);
+  --semantic-duration-feedback: var(--foundation-duration-feedback);
+  --background: var(--semantic-color-surface);
+  --foreground: var(--semantic-color-text-primary);
+  --card: var(--semantic-color-surface);
+  --card-foreground: var(--semantic-color-text-primary);
+  --popover: var(--semantic-color-surface);
+  --popover-foreground: var(--semantic-color-text-primary);
+  --primary: var(--semantic-color-text-primary);
+  --primary-foreground: var(--semantic-color-surface);
+  --secondary: var(--semantic-color-surface-muted);
+  --secondary-foreground: var(--semantic-color-text-primary);
+  --muted: var(--semantic-color-surface-muted);
+  --muted-foreground: var(--semantic-color-text-secondary);
+  --accent: var(--semantic-color-surface-muted);
+  --accent-foreground: var(--semantic-color-text-primary);
+  --destructive: var(--semantic-color-danger);
+  --border: var(--semantic-color-border-default);
+  --input: var(--semantic-color-border-default);
+  --ring: var(--semantic-color-focus);
+  --radius: var(--semantic-radius-control);
 }
 
 @theme inline {
-  --color-surface: var(--semantic-surface);
-  --color-primary: var(--semantic-text-primary);
+  --color-surface: var(--semantic-color-surface);
+  --color-surface-muted: var(--semantic-color-surface-muted);
+  --color-primary: var(--semantic-color-text-primary);
+  --color-subtle: var(--semantic-color-text-secondary);
+  --color-danger: var(--semantic-color-danger);
+  --color-danger-surface: var(--semantic-color-danger-surface);
+  --color-default: var(--semantic-color-border-default);
+  --color-focus: var(--semantic-color-focus);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --font-sans: var(--semantic-font-body);
+  --font-thai: var(--semantic-font-thai);
+  --text-body: 1rem;
+  --text-body--line-height: 1.625;
+  --text-title: 1.25rem;
+  --text-title--line-height: 1.4;
+  --text-title--font-weight: 700;
+  --text-caption: 0.875rem;
+  --text-caption--line-height: 1.5;
+  --spacing-cluster: var(--semantic-space-cluster);
+  --spacing-control: var(--semantic-size-control);
+  --spacing-collapsible: var(--semantic-size-collapsible);
+  --spacing-page: var(--semantic-space-page);
+  --spacing-section: var(--semantic-space-section);
+  --spacing-icon: var(--semantic-size-icon);
+  --spacing-state: var(--semantic-size-state);
+  --container-content: 80rem;
+  --radius-control: var(--semantic-radius-control);
+  --radius-panel: var(--semantic-radius-panel);
+  --shadow-overlay: var(--semantic-shadow-overlay);
+}
+
+@utility duration-feedback {
+  transition-duration: var(--semantic-duration-feedback);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-surface font-sans text-primary;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--semantic-color-focus);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
