@@ -1,12 +1,8 @@
-/** 학습자 pathless shell의 승인된 `/learn` 자식 route를 등록한다 */
+/** 학습자 홈 Page를 승인된 `/learn` 경로에 연결한다 */
 import { createFileRoute } from '@tanstack/react-router';
-import { LogoutButton } from '@/features/logout';
+import { LearnerHomePageContainer } from '@/pages/learner-home';
 
-/** Task 8 Page 연결 전 route generator 충돌을 막는 빈 route shell */
+/** 학습자 홈의 서버 상태 소유 Page를 route에 연결한다 */
 export const Route = createFileRoute('/_authenticated/_learner/learn')({
-  component: LearnerHomeRoute,
+  component: LearnerHomePageContainer,
 });
-
-function LearnerHomeRoute() {
-  return <LogoutButton />;
-}

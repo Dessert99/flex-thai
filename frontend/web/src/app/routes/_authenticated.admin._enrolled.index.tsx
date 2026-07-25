@@ -1,12 +1,8 @@
-/** enrolled 관리자 shell의 승인된 `/admin` index route를 등록한다 */
+/** 관리자 홈 Page를 승인된 `/admin` index 경로에 연결한다 */
 import { createFileRoute } from '@tanstack/react-router';
-import { LogoutButton } from '@/features/logout';
+import { AdminHomePageContainer } from '@/pages/admin-home';
 
-/** Task 8 Page 연결 전 route generator 충돌을 막는 빈 route shell */
+/** 관리자 홈의 서버 상태 소유 Page를 route에 연결한다 */
 export const Route = createFileRoute('/_authenticated/admin/_enrolled/')({
-  component: AdminHomeRoute,
+  component: AdminHomePageContainer,
 });
-
-function AdminHomeRoute() {
-  return <LogoutButton />;
-}
