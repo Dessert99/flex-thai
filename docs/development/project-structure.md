@@ -113,14 +113,52 @@ DB가 아닌 외부 기술을 domain port에 연결한다. 새 adapter는 AWS라
 
 ## `frontend`: 프론트엔드 제품 영역
 
-아직 프론트엔드 애플리케이션은 생성되지 않았다. 구현을 시작할 때
-`frontend/web`에 Vite + React 앱을 만들며 빈 scaffold는 미리 만들지
-않는다.
+`frontend/web`은 Vite와 React로 실행되는 학습자·관리자 웹
+애플리케이션이다. TanStack Router가 URL과 접근 경계를, TanStack
+Query가 서버 상태를, React Hook Form이 폼 상태를 소유한다.
+
+```text
+frontend/web/
+├── src/
+│   ├── app/                    # provider·router·전역 스타일·file route
+│   ├── pages/                  # route 단위 화면과 화면 소유 API
+│   ├── features/               # 사용자가 시작하는 재사용 상호작용
+│   ├── shared/                 # 웹 내부 API·설정·UI·테스트 기반
+│   ├── main.tsx                # 브라우저 진입점
+│   └── routeTree.gen.ts        # Router plugin 생성 결과
+├── components.json             # shadcn CLI 설정
+├── vite.config.ts              # Vite·Router·Tailwind 설정
+└── package.json                # 웹 workspace 명령
+```
+
+의존성은 `app -> pages -> features -> shared` 방향으로만 흐른다. 새
+slice는 실제 화면이나 상호작용 소유권이 생길 때만 만들고 다른 slice는
+root `index.ts` 공개 API로 접근한다. `routeTree.gen.ts`와 shadcn vendored
+primitive는 직접 복사하거나 임의 수정하지 않고 각각 Router plugin과
+shadcn CLI로 관리한다.
 
 프론트엔드 내부의 `src/shared`는 UI와 hook 같은 웹 내부 공용 코드다.
 최상위 `shared`와 다른 경계이며 자세한 배치는
 [프론트엔드 컴포넌트 컨벤션](../../conventions/frontend/component-convention.md)을
 따른다.
+
+### 로컬 실행과 검증
+
+저장소 root에서 의존성을 설치한 뒤 다음 명령을 사용한다.
+
+```bash
+pnpm web:dev
+pnpm --filter @flex-thia/web test
+pnpm --filter @flex-thia/web typecheck
+pnpm --filter @flex-thia/web architecture:check
+pnpm --filter @flex-thia/web coverage
+pnpm --filter @flex-thia/web build
+```
+
+개발 서버의 API 기본 경로는 `/api/v1`이며 Vite가 로컬 API로 proxy한다.
+배포 환경에서 다른 경로가 필요할 때만 `VITE_API_BASE_URL`을 설정한다.
+전체 저장소 제출 전에는 root의 `pnpm check`와 동일한 품질 gate를
+통과해야 한다.
 
 ## `shared`: 제품 영역 간 공개 코드
 
@@ -184,6 +222,7 @@ AWS 이벤트 ──> backend/worker ──> 같은 backend workspace
 | Cognito·S3·AI adapter | `backend/providers/src/<능력>` |
 | 환경 변수 schema | `backend/config/src` |
 | 공개 요청·응답 schema | `shared/contracts/src/<기능>` |
+| 프론트엔드 route 화면 | `frontend/web/src/pages/<기능>` |
 | 프론트엔드 기능 | `frontend/web/src/features/<기능>` |
 | 새 AWS 리소스 | `infra/src` 또는 `infra/src/constructs` |
 | 실행·설계 설명 | `docs` |
@@ -197,6 +236,8 @@ AWS 이벤트 ──> backend/worker ──> 같은 backend workspace
 - `pnpm lint`: TypeScript와 JavaScript 정적 검사
 - `pnpm typecheck`: 전체 workspace 타입 검사
 - `pnpm test`: Lambda bundle과 단위 테스트
+- `pnpm architecture:check`: 프론트엔드 FSD 의존성 검사
+- `pnpm coverage:web`: 프론트엔드 컴포넌트·단위 테스트 coverage 검사
 - `pnpm build`: 전체 workspace TypeScript build
 
 `node_modules`, `dist`, `infra/cdk.out`, `.pnpm-store`는 명령으로 다시
