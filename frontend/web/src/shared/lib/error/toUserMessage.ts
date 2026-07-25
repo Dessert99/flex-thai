@@ -19,10 +19,9 @@ export function toUserMessage(error: unknown): UserMessage | null {
     return null;
   }
   if (error.detail.kind === 'problem') {
-    const { requestId } = error.detail.problem;
     return {
       message: '요청을 처리하지 못했습니다. 다시 시도해 주세요.',
-      ...(requestId === undefined ? {} : { requestId }),
+      requestId: error.detail.problem.requestId,
     };
   }
   if (error.detail.kind === 'network') {

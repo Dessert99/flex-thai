@@ -1,5 +1,5 @@
 /** 문제 탐색의 URL 소유 필터·페이지 상태·복구 가능한 화면 상태를 검증한다 */
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '@/shared/test';
@@ -145,7 +145,9 @@ describe('문제 목록 페이지', () => {
 
     expect(mocks.authenticatedRequest).toHaveBeenCalledTimes(2);
   });
+});
 
+describe('문제 목록 모바일 필터', () => {
   it('모바일 필터 Sheet를 이름 있는 버튼으로 연다', async () => {
     const user = userEvent.setup();
     renderQuestionList();
@@ -158,6 +160,20 @@ describe('문제 목록 페이지', () => {
     expect(
       screen.getByRole('dialog', { name: '문제 필터' }),
     ).toBeInTheDocument();
+  });
+
+  it('모바일 필터 Sheet를 닫으면 trigger로 초점을 돌려준다', async () => {
+    const user = userEvent.setup();
+    renderQuestionList();
+    await screen.findByRole('heading', {
+      name: '게시된 문제가 없습니다.',
+    });
+    const trigger = screen.getByRole('button', { name: '필터 열기' });
+
+    await user.click(trigger);
+    await user.click(screen.getByRole('button', { name: '필터 닫기' }));
+
+    await waitFor(() => expect(trigger).toHaveFocus());
   });
 });
 

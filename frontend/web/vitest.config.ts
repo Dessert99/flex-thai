@@ -15,6 +15,13 @@ export default defineConfig({
     include: ['src/**/*.test.{ts,tsx}'],
     setupFiles: ['./src/shared/test/setupTests.ts'],
     coverage: {
+      // 선언형 file-route 접착부는 routeReachability에서 typed 경로 조립으로 검증한다
+      exclude: [
+        'src/app/routes/_authenticated*.tsx',
+        'src/app/routes/forbidden.tsx',
+        'src/app/routes/index.tsx',
+        'src/app/routes/login*.tsx',
+      ],
       provider: 'v8',
       reporter: ['text'],
       thresholds: {

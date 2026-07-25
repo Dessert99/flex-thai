@@ -34,4 +34,32 @@ describe('AppShell', () => {
     );
     expect(screen.getByRole('button', { name: '프로필' })).toBeInTheDocument();
   });
+
+  it.each([360, 768, 1280])(
+    '%ipx viewport에서 단일 main과 반응형 navigation 계약을 유지한다',
+    (width) => {
+      setViewportWidth(width);
+      render(<AppShell navigation={navigation}>반응형 본문</AppShell>);
+
+      const navigationLandmark = screen.getByRole('navigation', {
+        name: '주요 메뉴',
+      });
+      const main = screen.getByRole('main');
+
+      expect(screen.getAllByRole('main')).toHaveLength(1);
+      expect(navigationLandmark.querySelector('ul')).toHaveClass(
+        'overflow-auto',
+        'md:flex-col',
+      );
+      expect(main.parentElement).toHaveClass('md:grid-cols-4');
+    },
+  );
 });
+
+function setViewportWidth(width: number): void {
+  Object.defineProperty(window, 'innerWidth', {
+    configurable: true,
+    value: width,
+  });
+  window.dispatchEvent(new Event('resize'));
+}

@@ -66,6 +66,13 @@ describe('관리자 문제 목록 상태', () => {
     expect(
       screen.getByRole('list', { name: '모바일 문제 목록' }),
     ).toBeInTheDocument();
+    expect(screen.getByRole('table').closest('.hidden')).toHaveClass(
+      'hidden',
+      'md:block',
+    );
+    expect(screen.getByRole('list', { name: '모바일 문제 목록' })).toHaveClass(
+      'md:hidden',
+    );
     expect(
       screen.getAllByText('게시')[0]?.closest('[data-slot=badge]'),
     ).toHaveAttribute('data-variant', 'secondary');

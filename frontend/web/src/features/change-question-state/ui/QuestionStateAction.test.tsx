@@ -21,6 +21,23 @@ beforeEach(() => {
 });
 
 describe('문제 상태 변경 확인', () => {
+  it('Dialog를 취소하면 상태 action trigger로 초점을 돌려준다', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <QuestionStateAction
+        command={{ action: 'hide', questionId }}
+        onConfirmed={vi.fn()}
+      />,
+    );
+    const trigger = screen.getByRole('button', { name: '문제 숨기기' });
+
+    await user.click(trigger);
+    await user.click(screen.getByRole('button', { name: '취소' }));
+
+    expect(trigger).toHaveFocus();
+    expect(mocks.authenticatedRequest).not.toHaveBeenCalled();
+  });
+
   it('숨김은 확인 전 전송하지 않고 서버 성공 뒤 confirmed event를 보낸다', async () => {
     mocks.authenticatedRequest.mockResolvedValue(undefined);
     const onConfirmed = vi.fn();

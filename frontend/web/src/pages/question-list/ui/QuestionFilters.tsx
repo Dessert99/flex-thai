@@ -12,6 +12,7 @@ import {
 } from '@/shared/ui/select';
 import {
   Sheet,
+  SheetClose,
   SheetContent,
   SheetDescription,
   SheetHeader,
@@ -52,20 +53,31 @@ export function QuestionFilters({
               필터 열기
             </Button>
           </SheetTrigger>
-          <SheetContent className='bg-surface'>
+          <SheetContent
+            className='bg-surface'
+            showCloseButton={false}
+          >
             <SheetHeader>
               <SheetTitle>문제 필터</SheetTitle>
               <SheetDescription>
                 URL에 저장할 문제 조건을 선택하세요.
               </SheetDescription>
             </SheetHeader>
-            <div className='p-page'>
+            <div className='grid gap-cluster p-page'>
               <FilterFields
                 idPrefix='mobile'
                 onChange={onChange}
                 onReset={onReset}
                 search={search}
               />
+              <SheetClose asChild>
+                <Button
+                  type='button'
+                  variant='outline'
+                >
+                  필터 닫기
+                </Button>
+              </SheetClose>
             </div>
           </SheetContent>
         </Sheet>

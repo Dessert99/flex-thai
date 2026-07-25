@@ -35,4 +35,21 @@ describe('toUserMessage', () => {
       message: '예상하지 못한 문제가 발생했습니다. 다시 시도해 주세요.',
     });
   });
+
+  it.each([
+    [
+      new ApiError({ kind: 'network' }),
+      '서비스에 연결할 수 없습니다. 연결을 확인해 주세요.',
+    ],
+    [
+      new ApiError({ kind: 'timeout' }),
+      '요청 시간이 초과되었습니다. 다시 시도해 주세요.',
+    ],
+    [
+      new ApiError({ kind: 'invalid-response' }),
+      '응답을 확인하지 못했습니다. 다시 시도해 주세요.',
+    ],
+  ])('%s를 안전한 기술 오류 문구로 변환한다', (error, message) => {
+    expect(toUserMessage(error)).toEqual({ message });
+  });
 });
