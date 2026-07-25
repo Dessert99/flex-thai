@@ -21,6 +21,7 @@ import { Route as AuthenticatedLearnerQuestionsRouteImport } from './app/routes/
 import { Route as AuthenticatedAdminEnrolledRouteImport } from './app/routes/_authenticated.admin._enrolled'
 import { Route as AuthenticatedAdminEnrollmentRouteImport } from './app/routes/_authenticated.admin._enrollment'
 import { Route as AuthenticatedLearnerQuestionsIndexRouteImport } from './app/routes/_authenticated._learner.questions.index'
+import { Route as AuthenticatedLearnerQuestionsQuestionIdRouteImport } from './app/routes/_authenticated._learner.questions.$questionId'
 import { Route as AuthenticatedAdminEnrolledIndexRouteImport } from './app/routes/_authenticated.admin._enrolled.index'
 import { Route as AuthenticatedAdminEnrollmentTotpSetupRouteImport } from './app/routes/_authenticated.admin._enrollment.totp-setup'
 
@@ -85,6 +86,12 @@ const AuthenticatedLearnerQuestionsIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedLearnerQuestionsRoute,
   } as any)
+const AuthenticatedLearnerQuestionsQuestionIdRoute =
+  AuthenticatedLearnerQuestionsQuestionIdRouteImport.update({
+    id: '/$questionId',
+    path: '/$questionId',
+    getParentRoute: () => AuthenticatedLearnerQuestionsRoute,
+  } as any)
 const AuthenticatedAdminEnrolledIndexRoute =
   AuthenticatedAdminEnrolledIndexRouteImport.update({
     id: '/',
@@ -106,6 +113,7 @@ export interface FileRoutesByFullPath {
   '/login/': typeof LoginIndexRoute
   '/learn': typeof AuthenticatedLearnerLearnRoute
   '/questions': typeof AuthenticatedLearnerQuestionsRouteWithChildren
+  '/questions/$questionId': typeof AuthenticatedLearnerQuestionsQuestionIdRoute
   '/admin/totp-setup': typeof AuthenticatedAdminEnrollmentTotpSetupRoute
   '/questions/': typeof AuthenticatedLearnerQuestionsIndexRoute
   '/admin/': typeof AuthenticatedAdminEnrolledIndexRoute
@@ -116,6 +124,7 @@ export interface FileRoutesByTo {
   '/login/mfa': typeof LoginMfaRoute
   '/login': typeof LoginIndexRoute
   '/learn': typeof AuthenticatedLearnerLearnRoute
+  '/questions/$questionId': typeof AuthenticatedLearnerQuestionsQuestionIdRoute
   '/admin/totp-setup': typeof AuthenticatedAdminEnrollmentTotpSetupRoute
   '/questions': typeof AuthenticatedLearnerQuestionsIndexRoute
 }
@@ -132,6 +141,7 @@ export interface FileRoutesById {
   '/_authenticated/_learner/questions': typeof AuthenticatedLearnerQuestionsRouteWithChildren
   '/_authenticated/admin/_enrolled': typeof AuthenticatedAdminEnrolledRouteWithChildren
   '/_authenticated/admin/_enrollment': typeof AuthenticatedAdminEnrollmentRouteWithChildren
+  '/_authenticated/_learner/questions/$questionId': typeof AuthenticatedLearnerQuestionsQuestionIdRoute
   '/_authenticated/admin/_enrollment/totp-setup': typeof AuthenticatedAdminEnrollmentTotpSetupRoute
   '/_authenticated/_learner/questions/': typeof AuthenticatedLearnerQuestionsIndexRoute
   '/_authenticated/admin/_enrolled/': typeof AuthenticatedAdminEnrolledIndexRoute
@@ -146,6 +156,7 @@ export interface FileRouteTypes {
     | '/login/'
     | '/learn'
     | '/questions'
+    | '/questions/$questionId'
     | '/admin/totp-setup'
     | '/questions/'
     | '/admin/'
@@ -156,6 +167,7 @@ export interface FileRouteTypes {
     | '/login/mfa'
     | '/login'
     | '/learn'
+    | '/questions/$questionId'
     | '/admin/totp-setup'
     | '/questions'
   id:
@@ -171,6 +183,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_learner/questions'
     | '/_authenticated/admin/_enrolled'
     | '/_authenticated/admin/_enrollment'
+    | '/_authenticated/_learner/questions/$questionId'
     | '/_authenticated/admin/_enrollment/totp-setup'
     | '/_authenticated/_learner/questions/'
     | '/_authenticated/admin/_enrolled/'
@@ -268,6 +281,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLearnerQuestionsIndexRouteImport
       parentRoute: typeof AuthenticatedLearnerQuestionsRoute
     }
+    '/_authenticated/_learner/questions/$questionId': {
+      id: '/_authenticated/_learner/questions/$questionId'
+      path: '/$questionId'
+      fullPath: '/questions/$questionId'
+      preLoaderRoute: typeof AuthenticatedLearnerQuestionsQuestionIdRouteImport
+      parentRoute: typeof AuthenticatedLearnerQuestionsRoute
+    }
     '/_authenticated/admin/_enrolled/': {
       id: '/_authenticated/admin/_enrolled/'
       path: '/'
@@ -286,11 +306,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedLearnerQuestionsRouteChildren {
+  AuthenticatedLearnerQuestionsQuestionIdRoute: typeof AuthenticatedLearnerQuestionsQuestionIdRoute
   AuthenticatedLearnerQuestionsIndexRoute: typeof AuthenticatedLearnerQuestionsIndexRoute
 }
 
 const AuthenticatedLearnerQuestionsRouteChildren: AuthenticatedLearnerQuestionsRouteChildren =
   {
+    AuthenticatedLearnerQuestionsQuestionIdRoute:
+      AuthenticatedLearnerQuestionsQuestionIdRoute,
     AuthenticatedLearnerQuestionsIndexRoute:
       AuthenticatedLearnerQuestionsIndexRoute,
   }

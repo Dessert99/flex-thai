@@ -17,6 +17,15 @@ export default defineConfig([
     },
   },
   {
+    files: [
+      'src/features/submit-answer/**',
+      'src/features/toggle-saved-question/**',
+    ],
+    rules: {
+      'fsd/insignificant-slice': 'off',
+    },
+  },
+  {
     ignores: [
       'coverage/**',
       'dist/**',
