@@ -273,7 +273,7 @@ git commit -m "feat(local-auth): support admin and learner subjects"
 ### Task 3: 역할에 맞는 시드 연결과 두 Docker 프로필 프록시
 
 **Files:**
-- Modify: `backend/database/src/commands/reset-seed-local.spec.ts`
+- Create: `backend/database/src/commands/local-seed.integration.spec.ts`
 - Modify: `backend/database/seed/local.sql`
 - Modify: `compose.yaml`
 - Modify: `frontend/web/vite.config.ts`
@@ -284,35 +284,57 @@ git commit -m "feat(local-auth): support admin and learner subjects"
 - Produces: 학생 user ID `00000000-0000-4000-8000-000000000002`
 - Produces: 프록시가 Authorization header를 그대로 전달하는 `/api` 경로
 
-- [ ] **Step 1: 시드 역할 연결 실패 테스트 작성**
+- [ ] **Step 1: 실제 PostgreSQL 시드 역할 연결 실패 테스트 작성**
 
-`reset-seed-local.spec.ts`에서 `backend/database/seed/local.sql`을 읽고 다음을
-검증한다.
+`LOCAL_SEED_TEST_DATABASE_URL`이 있을 때만 실행되는 DB 통합 테스트를 만든다.
+테스트는 적용된 시드를 직접 조회하며 SQL 원문은 검사하지 않는다.
 
 ```ts
 it('학생 개인 데이터와 관리자 작업을 역할에 맞는 사용자에게 연결한다', async () => {
-  const seedSql = await readFile(
-    new URL('../../seed/local.sql', import.meta.url),
-    'utf8',
+  const users = await pool.query(
+    `select cognito_sub, email, role, mfa_enrolled_at
+     from users
+     where cognito_sub in ('local-admin-sub', 'local-learner-sub')
+     order by cognito_sub`,
+  );
+  const owners = await pool.query(
+    `select
+       (select u.cognito_sub from question_attempts qa join users u on u.id = qa.user_id limit 1) as attempt_owner,
+       (select u.cognito_sub from saved_questions sq join users u on u.id = sq.user_id limit 1) as question_owner,
+       (select u.cognito_sub from saved_vocabularies sv join users u on u.id = sv.user_id limit 1) as vocabulary_owner,
+       (select u.cognito_sub from content_imports ci join users u on u.id = ci.requested_by limit 1) as import_owner`,
   );
 
-  expect(seedSql).toContain("'local-learner-sub'");
-  expect(seedSql).toContain("'learner@hufs.ac.kr'");
-  expect(seedSql.match(/00000000-0000-4000-8000-000000000002/gu)).toHaveLength(
-    4,
-  );
-  expect(seedSql).toMatch(
-    /insert into content_imports[\s\S]*?'00000000-0000-4000-8000-000000000001'/u,
-  );
+  expect(users.rows).toEqual([
+    {
+      cognito_sub: 'local-admin-sub',
+      email: 'admin@hufs.ac.kr',
+      role: 'ADMIN',
+      mfa_enrolled_at: new Date('2026-07-01T00:00:00.000Z'),
+    },
+    {
+      cognito_sub: 'local-learner-sub',
+      email: 'learner@hufs.ac.kr',
+      role: 'LEARNER',
+      mfa_enrolled_at: null,
+    },
+  ]);
+  expect(owners.rows[0]).toEqual({
+    attempt_owner: 'local-learner-sub',
+    question_owner: 'local-learner-sub',
+    vocabulary_owner: 'local-learner-sub',
+    import_owner: 'local-admin-sub',
+  });
 });
 ```
 
-학생 ID 네 번은 users row, question attempt, saved question, saved vocabulary를
-의미한다.
-
 - [ ] **Step 2: database 테스트의 예상 실패 확인**
 
-Run: `pnpm --filter @flex-thia/database test -- backend/database/src/commands/reset-seed-local.spec.ts`
+Run: `docker compose up -d postgres`
+
+Run: `LOCAL_DATABASE_RESET=true DATABASE_URL=postgres://flex_thia:local_only_password@localhost:5432/flex_thia pnpm --filter @flex-thia/database db:reset-seed:local`
+
+Run: `LOCAL_SEED_TEST_DATABASE_URL=postgres://flex_thia:local_only_password@localhost:5432/flex_thia pnpm exec vitest run backend/database/src/commands/local-seed.integration.spec.ts`
 
 Expected: FAIL — learner 시드와 학생 ID 연결이 없음
 
@@ -331,7 +353,9 @@ fallback은 유지한다.
 
 - [ ] **Step 5: 시드 테스트와 Compose 정적 구성 검증**
 
-Run: `pnpm --filter @flex-thia/database test -- backend/database/src/commands/reset-seed-local.spec.ts`
+Run: `LOCAL_DATABASE_RESET=true DATABASE_URL=postgres://flex_thia:local_only_password@localhost:5432/flex_thia pnpm --filter @flex-thia/database db:reset-seed:local`
+
+Run: `LOCAL_SEED_TEST_DATABASE_URL=postgres://flex_thia:local_only_password@localhost:5432/flex_thia pnpm exec vitest run backend/database/src/commands/local-seed.integration.spec.ts`
 
 Expected: PASS
 
@@ -346,7 +370,7 @@ Expected: `db-setup`, `api`가 렌더링되고 api에 관리자·학생 환경 �
 - [ ] **Step 6: 시드·프로필 구현 커밋**
 
 ```bash
-git add backend/database/src/commands/reset-seed-local.spec.ts backend/database/seed/local.sql compose.yaml frontend/web/vite.config.ts docker/nginx.local.conf
+git add backend/database/src/commands/local-seed.integration.spec.ts backend/database/seed/local.sql compose.yaml frontend/web/vite.config.ts docker/nginx.local.conf
 git commit -m "feat(local): connect learner seed and proxy authentication"
 ```
 
@@ -399,4 +423,3 @@ Expected: PASS
 검증에 시작한 Compose 서비스만 종료한다. `git diff --check`,
 `git status --short`, `git log --oneline`으로 사용자 파일이 커밋되지 않았고
 요청 범위의 논리적 커밋만 남았는지 확인한다.
-
