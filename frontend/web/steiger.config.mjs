@@ -20,6 +20,7 @@ export default defineConfig([
     files: [
       'src/features/submit-answer/**',
       'src/features/toggle-saved-question/**',
+      'src/features/toggle-saved-vocabulary/**',
     ],
     rules: {
       'fsd/insignificant-slice': 'off',
