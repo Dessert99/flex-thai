@@ -124,7 +124,11 @@ function readSubject(state: AuthSessionState): string | undefined {
 
 function RecoveryShell({ children }: { children: React.ReactNode }) {
   return (
-    <main className='grid min-h-screen place-items-center bg-surface p-page'>
+    <main
+      className='grid min-h-screen place-items-center bg-surface p-page'
+      id='app-main'
+      tabIndex={-1}
+    >
       <div className='w-full max-w-content'>{children}</div>
     </main>
   );
