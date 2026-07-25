@@ -7,48 +7,69 @@ import {
   type ProviderLoginResult,
 } from '@flex-thia/domain';
 
-/** local fake에 사전 준비할 한 계정의 인증 설정 */
-export interface FakeAuthenticationOptions {
+/** local fake에 사전 준비할 계정별 인증 설정 */
+export interface FakeAuthenticationAccountOptions {
   email: string;
   password: string;
   subject: string;
   requireTotp: boolean;
 }
 
+/** local fake가 함께 제공할 사전 준비 계정 목록 */
+export interface FakeAuthenticationOptions {
+  accounts: FakeAuthenticationAccountOptions[];
+}
+
+type PreparedAccount = FakeAuthenticationAccountOptions & {
+  passwordDigest: Buffer;
+  salt: Buffer;
+};
+
 /** 비밀번호 원문을 저장하지 않고 회전 token 수명주기를 재현한다 */
 export class FakeAuthenticationProvider implements AuthenticationProvider {
-  private readonly salt = randomBytes(16);
-  private readonly passwordDigest: Buffer;
-  private readonly challenges = new Map<string, string>();
-  private readonly refreshTokens = new Set<string>();
+  private readonly accessTokenSubjects = new Map<string, string>();
+  private readonly accounts = new Map<string, PreparedAccount>();
+  private readonly challenges = new Map<string, PreparedAccount>();
+  private readonly refreshTokenAccounts = new Map<string, PreparedAccount>();
   private readonly revokedTokens = new Set<string>();
   private sequence = 0;
 
-  constructor(private readonly options: FakeAuthenticationOptions) {
-    this.passwordDigest = scryptSync(options.password, this.salt, 32);
+  constructor(options: FakeAuthenticationOptions) {
+    for (const account of options.accounts) {
+      const salt = randomBytes(16);
+      this.accounts.set(account.email, {
+        ...account,
+        salt,
+        passwordDigest: scryptSync(account.password, salt, 32),
+      });
+    }
   }
 
   /** 사전 준비 계정의 scrypt digest가 일치할 때만 인증을 계속한다 */
   login(email: string, password: string): Promise<ProviderLoginResult> {
-    const actual = scryptSync(password, this.salt, 32);
-    if (
-      email !== this.options.email ||
-      !timingSafeEqual(this.passwordDigest, actual)
-    ) {
+    const account = this.accounts.get(email);
+    if (!account) {
       return Promise.reject(
         new AuthenticationProviderError('INVALID_CREDENTIALS'),
       );
     }
 
-    if (this.options.requireTotp) {
+    const actual = scryptSync(password, account.salt, 32);
+    if (!timingSafeEqual(account.passwordDigest, actual)) {
+      return Promise.reject(
+        new AuthenticationProviderError('INVALID_CREDENTIALS'),
+      );
+    }
+
+    if (account.requireTotp) {
       const challengeToken = `fake-mfa-${++this.sequence}`;
-      this.challenges.set(challengeToken, email);
+      this.challenges.set(challengeToken, account);
       return Promise.resolve({ kind: 'MFA_REQUIRED', challengeToken });
     }
 
     return Promise.resolve({
       kind: 'AUTHENTICATED',
-      tokens: this.issueTokens(),
+      tokens: this.issueTokens(account),
     });
   }
 
@@ -58,8 +79,8 @@ export class FakeAuthenticationProvider implements AuthenticationProvider {
     challengeToken: string;
     code: string;
   }): Promise<IdentityTokenSet> {
-    const challengeEmail = this.challenges.get(input.challengeToken);
-    if (!challengeEmail || challengeEmail !== input.email) {
+    const account = this.challenges.get(input.challengeToken);
+    if (!account || account.email !== input.email) {
       return Promise.reject(
         new AuthenticationProviderError('INVALID_MFA_CHALLENGE'),
       );
@@ -69,7 +90,7 @@ export class FakeAuthenticationProvider implements AuthenticationProvider {
     }
 
     this.challenges.delete(input.challengeToken);
-    return Promise.resolve(this.issueTokens());
+    return Promise.resolve(this.issueTokens(account));
   }
 
   /** local 인증 앱 등록에 사용할 비밀값을 고정해 테스트를 재현한다 */
@@ -89,31 +110,40 @@ export class FakeAuthenticationProvider implements AuthenticationProvider {
 
   /** 활성 refresh token을 소비하고 suffix가 증가한 새 token을 발급한다 */
   refresh(refreshToken: string): Promise<IdentityTokenSet> {
-    if (!this.refreshTokens.delete(refreshToken)) {
+    const account = this.refreshTokenAccounts.get(refreshToken);
+    if (!account) {
       return Promise.reject(
         new AuthenticationProviderError('INVALID_REFRESH_TOKEN'),
       );
     }
-    return Promise.resolve(this.issueTokens());
+    this.refreshTokenAccounts.delete(refreshToken);
+    return Promise.resolve(this.issueTokens(account));
   }
 
   /** 폐기한 refresh token을 활성 집합에서 제거한다 */
   revoke(refreshToken: string): Promise<void> {
-    this.refreshTokens.delete(refreshToken);
+    this.refreshTokenAccounts.delete(refreshToken);
     this.revokedTokens.add(refreshToken);
     return Promise.resolve();
   }
 
-  private issueTokens(): IdentityTokenSet {
+  /** 발급한 local access token에 연결된 subject만 반환한다 */
+  resolveAccessTokenSubject(accessToken: string): string | undefined {
+    return this.accessTokenSubjects.get(accessToken);
+  }
+
+  private issueTokens(account: PreparedAccount): IdentityTokenSet {
     const suffix = ++this.sequence;
+    const accessToken = `fake-access-${suffix}`;
     const refreshToken = `fake-refresh-${suffix}`;
-    this.refreshTokens.add(refreshToken);
+    this.accessTokenSubjects.set(accessToken, account.subject);
+    this.refreshTokenAccounts.set(refreshToken, account);
     return {
-      accessToken: `fake-access-${suffix}`,
+      accessToken,
       refreshToken,
       expiresIn: 900,
-      subject: this.options.subject,
-      email: this.options.email,
+      subject: account.subject,
+      email: account.email,
     };
   }
 }

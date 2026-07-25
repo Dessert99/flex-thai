@@ -78,19 +78,32 @@ export const createApplicationModule = (
           secretArn: requireValue(env.RDS_SECRET_ARN, 'RDS_SECRET_ARN'),
         });
   const users = new DrizzleUserRepository(database);
+  const fakeAuthenticationProvider =
+    env.AUTH_MODE === 'fake'
+      ? new FakeAuthenticationProvider({
+          accounts: [
+            {
+              email: env.FAKE_USER_EMAIL,
+              password: env.FAKE_USER_PASSWORD,
+              subject: env.FAKE_USER_SUB,
+              requireTotp: true,
+            },
+            {
+              email: env.FAKE_LEARNER_EMAIL,
+              password: env.FAKE_LEARNER_PASSWORD,
+              subject: env.FAKE_LEARNER_SUB,
+              requireTotp: false,
+            },
+          ],
+        })
+      : undefined;
   const authenticationProvider =
-    env.AUTH_MODE === 'cognito'
-      ? new CognitoAuthenticationProvider(
-          new CognitoIdentityProviderClient({ region: env.AWS_REGION }),
-          requireValue(env.COGNITO_USER_POOL_ID, 'COGNITO_USER_POOL_ID'),
-          requireValue(env.COGNITO_CLIENT_ID, 'COGNITO_CLIENT_ID'),
-        )
-      : new FakeAuthenticationProvider({
-          email: env.FAKE_USER_EMAIL,
-          password: env.FAKE_USER_PASSWORD,
-          subject: env.FAKE_USER_SUB,
-          requireTotp: true,
-        });
+    fakeAuthenticationProvider ??
+    new CognitoAuthenticationProvider(
+      new CognitoIdentityProviderClient({ region: env.AWS_REGION }),
+      requireValue(env.COGNITO_USER_POOL_ID, 'COGNITO_USER_POOL_ID'),
+      requireValue(env.COGNITO_CLIENT_ID, 'COGNITO_CLIENT_ID'),
+    );
   const identity = new IdentityAuthenticationService(
     authenticationProvider,
     users,
@@ -109,6 +122,12 @@ export const createApplicationModule = (
     authMode: env.AUTH_MODE,
     cognitoClientId: env.COGNITO_CLIENT_ID ?? 'local-client',
     nodeEnv: env.NODE_ENV,
+    ...(fakeAuthenticationProvider
+      ? {
+          resolveFakeAccessTokenSubject: (accessToken: string) =>
+            fakeAuthenticationProvider.resolveAccessTokenSubject(accessToken),
+        }
+      : {}),
   };
   const contentDraftRepository = new DrizzleContentDraftRepository(database);
   const contentImportRepository = new DrizzleContentImportRepository(database);

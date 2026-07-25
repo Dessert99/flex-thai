@@ -241,6 +241,77 @@ describe('CognitoAuthorizerGuard 요청 사용자 인증', () => {
     expect(request).not.toHaveProperty('user');
   });
 
+  it('fake access token에 연결된 subject를 최신 DB 사용자와 연결한다', async () => {
+    const users = {
+      findBySub: vi.fn().mockImplementation((subject: string) =>
+        Promise.resolve(
+          subject === 'local-learner-sub'
+            ? {
+                id: 'learner-id',
+                cognitoSub: 'local-learner-sub',
+                email: 'learner@hufs.ac.kr',
+                role: 'LEARNER',
+                status: 'ACTIVE',
+                mfaEnrolledAt: null,
+              }
+            : undefined,
+        ),
+      ),
+    };
+    const guard = new CognitoAuthorizerGuard(users as never, {
+      authMode: 'fake',
+      cognitoClientId: 'local-client',
+      nodeEnv: 'development',
+      resolveFakeAccessTokenSubject: (accessToken) =>
+        accessToken === 'learner-access' ? 'local-learner-sub' : undefined,
+    });
+    const request = {
+      headers: {
+        authorization: 'Bearer learner-access',
+        'x-dev-user-sub': 'local-admin-sub',
+      },
+    };
+
+    await expect(guard.canActivate(createContext(request))).resolves.toBe(true);
+    expect(request).toMatchObject({
+      user: {
+        sub: 'local-learner-sub',
+        email: 'learner@hufs.ac.kr',
+        role: 'LEARNER',
+      },
+    });
+  });
+
+  it('fake access token이 resolver에 등록되지 않았으면 인증하지 않는다', async () => {
+    const users = {
+      findBySub: vi.fn().mockResolvedValue({
+        id: 'admin-id',
+        cognitoSub: 'local-admin-sub',
+        email: 'admin@hufs.ac.kr',
+        role: 'ADMIN',
+        status: 'ACTIVE',
+        mfaEnrolledAt: new Date('2026-07-23T00:00:00.000Z'),
+      }),
+    };
+    const guard = new CognitoAuthorizerGuard(users as never, {
+      authMode: 'fake',
+      cognitoClientId: 'local-client',
+      nodeEnv: 'development',
+      resolveFakeAccessTokenSubject: () => undefined,
+    });
+    const request = {
+      headers: {
+        authorization: 'Bearer unknown-access',
+        'x-dev-user-sub': 'local-admin-sub',
+      },
+    };
+
+    await expect(
+      guard.canActivate(createContext(request)),
+    ).rejects.toMatchObject({ status: 401 });
+    expect(request).not.toHaveProperty('user');
+  });
+
   it('production에서는 fake 사용자 header를 인증에 사용하지 않는다', async () => {
     const users = { findBySub: vi.fn() };
     const guard = new CognitoAuthorizerGuard(users as never, {

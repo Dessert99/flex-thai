@@ -40,7 +40,10 @@ const apiEnvSchema = z
     MEDIA_PRIVATE_KEY_SECRET_ARN: z.string().trim().min(1).optional(),
     FAKE_USER_SUB: z.string().default('local-admin-sub'),
     FAKE_USER_EMAIL: z.string().default('admin@hufs.ac.kr'),
-    FAKE_USER_PASSWORD: z.string().default('LocalOnly1!'),
+    FAKE_USER_PASSWORD: z.string().default('qwer1234!@#'),
+    FAKE_LEARNER_SUB: z.string().default('local-learner-sub'),
+    FAKE_LEARNER_EMAIL: z.string().default('learner@hufs.ac.kr'),
+    FAKE_LEARNER_PASSWORD: z.string().default('qwer1234!@#'),
     FAKE_PHONE_NUMBER: z.string().default('+821000000000'),
     ALLOWED_ORIGINS: z.string().default('http://localhost:5173'),
   })

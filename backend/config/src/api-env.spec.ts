@@ -114,7 +114,14 @@ describe('readApiEnv가 API 환경 변수를 검증한다', () => {
     });
   });
 
-  it('local fake 관리자 비밀번호 기본값을 제공한다', () => {
-    expect(readApiEnv({}).FAKE_USER_PASSWORD).toBe('LocalOnly1!');
+  it('local fake 관리자와 학생 계정 기본값을 제공한다', () => {
+    expect(readApiEnv({})).toMatchObject({
+      FAKE_USER_SUB: 'local-admin-sub',
+      FAKE_USER_EMAIL: 'admin@hufs.ac.kr',
+      FAKE_USER_PASSWORD: 'qwer1234!@#',
+      FAKE_LEARNER_SUB: 'local-learner-sub',
+      FAKE_LEARNER_EMAIL: 'learner@hufs.ac.kr',
+      FAKE_LEARNER_PASSWORD: 'qwer1234!@#',
+    });
   });
 });

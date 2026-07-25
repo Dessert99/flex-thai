@@ -2,12 +2,22 @@
 import { describe, expect, it } from 'vitest';
 import { FakeAuthenticationProvider } from './fake-authentication.provider.js';
 
-const createProvider = (requireTotp = true) =>
+const createProvider = () =>
   new FakeAuthenticationProvider({
-    email: 'admin@example.com',
-    password: 'Strong1!',
-    subject: 'cognito-sub',
-    requireTotp,
+    accounts: [
+      {
+        email: 'admin@example.com',
+        password: 'Strong1!',
+        subject: 'admin-sub',
+        requireTotp: true,
+      },
+      {
+        email: 'learner@example.com',
+        password: 'Strong1!',
+        subject: 'learner-sub',
+        requireTotp: false,
+      },
+    ],
   });
 
 describe('FakeAuthenticationProvider', () => {
@@ -37,14 +47,33 @@ describe('FakeAuthenticationProvider', () => {
         code: '123456',
       }),
     ).resolves.toMatchObject({
-      subject: 'cognito-sub',
+      subject: 'admin-sub',
       email: 'admin@example.com',
     });
   });
 
+  it('학생은 MFA 없이 자신의 subject로 로그인한다', async () => {
+    const provider = createProvider();
+    const result = await provider.login('learner@example.com', 'Strong1!');
+
+    expect(result).toMatchObject({
+      kind: 'AUTHENTICATED',
+      tokens: {
+        subject: 'learner-sub',
+        email: 'learner@example.com',
+      },
+    });
+    if (result.kind !== 'AUTHENTICATED') {
+      throw new Error('즉시 인증 결과가 필요합니다');
+    }
+    expect(provider.resolveAccessTokenSubject(result.tokens.accessToken)).toBe(
+      'learner-sub',
+    );
+  });
+
   it('refresh할 때마다 새 token suffix를 발급한다', async () => {
-    const provider = createProvider(false);
-    const login = await provider.login('admin@example.com', 'Strong1!');
+    const provider = createProvider();
+    const login = await provider.login('learner@example.com', 'Strong1!');
 
     if (login.kind !== 'AUTHENTICATED') {
       throw new Error('즉시 인증 결과가 필요합니다');
@@ -55,11 +84,19 @@ describe('FakeAuthenticationProvider', () => {
 
     expect(first.refreshToken).not.toBe(login.tokens.refreshToken);
     expect(second.refreshToken).not.toBe(first.refreshToken);
+    expect(second).toMatchObject({
+      subject: 'learner-sub',
+      email: 'learner@example.com',
+    });
+    expect(provider.resolveAccessTokenSubject(second.accessToken)).toBe(
+      'learner-sub',
+    );
+    expect(provider.resolveAccessTokenSubject('unknown')).toBeUndefined();
   });
 
   it('폐기한 refresh token은 재사용하지 못한다', async () => {
-    const provider = createProvider(false);
-    const login = await provider.login('admin@example.com', 'Strong1!');
+    const provider = createProvider();
+    const login = await provider.login('learner@example.com', 'Strong1!');
 
     if (login.kind !== 'AUTHENTICATED') {
       throw new Error('즉시 인증 결과가 필요합니다');
@@ -73,7 +110,7 @@ describe('FakeAuthenticationProvider', () => {
   });
 
   it('TOTP 설정은 고정 secret과 code로 재현한다', async () => {
-    const provider = createProvider(false);
+    const provider = createProvider();
 
     await expect(provider.startTotpSetup('access')).resolves.toEqual({
       secretCode: 'LOCALONLYTOTPSECRET',

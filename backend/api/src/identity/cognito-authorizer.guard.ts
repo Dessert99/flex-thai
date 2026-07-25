@@ -14,6 +14,7 @@ export interface AuthorizerGuardOptions {
   authMode: 'fake' | 'cognito';
   cognitoClientId: string;
   nodeEnv?: 'development' | 'test' | 'production';
+  resolveFakeAccessTokenSubject?: (accessToken: string) => string | undefined;
 }
 
 /** Cognito guard가 사용할 사용자 repository 주입 token */
@@ -93,12 +94,23 @@ export class CognitoAuthorizerGuard implements CanActivate {
       throw new UnauthorizedException();
     }
 
-    const value = request.headers?.['x-dev-user-sub'];
-
-    if (typeof value !== 'string' || !value) {
+    const authorization = request.headers?.authorization;
+    const bearerPrefix = 'Bearer ';
+    if (
+      typeof authorization !== 'string' ||
+      !authorization.startsWith(bearerPrefix) ||
+      authorization.length === bearerPrefix.length
+    ) {
       throw new UnauthorizedException();
     }
 
-    return value;
+    const subject = this.options.resolveFakeAccessTokenSubject?.(
+      authorization.slice(bearerPrefix.length),
+    );
+    if (!subject) {
+      throw new UnauthorizedException();
+    }
+
+    return subject;
   }
 }
