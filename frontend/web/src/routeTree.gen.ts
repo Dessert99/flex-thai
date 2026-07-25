@@ -36,6 +36,7 @@ import { Route as AuthenticatedAdminEnrolledContentImportsImportIdRouteImport } 
 import { Route as AuthenticatedAdminEnrolledQuestionsIndexRouteImport } from './app/routes/_authenticated.admin._enrolled.questions.index'
 import { Route as AuthenticatedAdminEnrolledQuestionsQuestionIdRouteImport } from './app/routes/_authenticated.admin._enrolled.questions.$questionId'
 import { Route as AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRouteImport } from './app/routes/_authenticated.admin._enrolled.questions.$questionId.index'
+import { Route as AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRouteImport } from './app/routes/_authenticated.admin._enrolled.questions.$questionId.versions.$versionId.replace'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -188,6 +189,14 @@ const AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedAdminEnrolledQuestionsQuestionIdRoute,
   } as any)
+const AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRoute =
+  AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRouteImport.update(
+    {
+      id: '/versions/$versionId/replace',
+      path: '/versions/$versionId/replace',
+      getParentRoute: () => AuthenticatedAdminEnrolledQuestionsQuestionIdRoute,
+    } as any,
+  )
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -213,6 +222,7 @@ export interface FileRoutesByFullPath {
   '/admin/content-imports/': typeof AuthenticatedAdminEnrolledContentImportsIndexRoute
   '/admin/questions/': typeof AuthenticatedAdminEnrolledQuestionsIndexRoute
   '/admin/questions/$questionId/': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute
+  '/admin/questions/$questionId/versions/$versionId/replace': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -231,6 +241,7 @@ export interface FileRoutesByTo {
   '/admin/content-imports': typeof AuthenticatedAdminEnrolledContentImportsIndexRoute
   '/admin/questions': typeof AuthenticatedAdminEnrolledQuestionsIndexRoute
   '/admin/questions/$questionId': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute
+  '/admin/questions/$questionId/versions/$versionId/replace': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -261,6 +272,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/_enrolled/content-imports/': typeof AuthenticatedAdminEnrolledContentImportsIndexRoute
   '/_authenticated/admin/_enrolled/questions/': typeof AuthenticatedAdminEnrolledQuestionsIndexRoute
   '/_authenticated/admin/_enrolled/questions/$questionId/': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute
+  '/_authenticated/admin/_enrolled/questions/$questionId/versions/$versionId/replace': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -288,6 +300,7 @@ export interface FileRouteTypes {
     | '/admin/content-imports/'
     | '/admin/questions/'
     | '/admin/questions/$questionId/'
+    | '/admin/questions/$questionId/versions/$versionId/replace'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -306,6 +319,7 @@ export interface FileRouteTypes {
     | '/admin/content-imports'
     | '/admin/questions'
     | '/admin/questions/$questionId'
+    | '/admin/questions/$questionId/versions/$versionId/replace'
   id:
     | '__root__'
     | '/'
@@ -335,6 +349,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/_enrolled/content-imports/'
     | '/_authenticated/admin/_enrolled/questions/'
     | '/_authenticated/admin/_enrolled/questions/$questionId/'
+    | '/_authenticated/admin/_enrolled/questions/$questionId/versions/$versionId/replace'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -534,6 +549,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRouteImport
       parentRoute: typeof AuthenticatedAdminEnrolledQuestionsQuestionIdRoute
     }
+    '/_authenticated/admin/_enrolled/questions/$questionId/versions/$versionId/replace': {
+      id: '/_authenticated/admin/_enrolled/questions/$questionId/versions/$versionId/replace'
+      path: '/versions/$versionId/replace'
+      fullPath: '/admin/questions/$questionId/versions/$versionId/replace'
+      preLoaderRoute: typeof AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRouteImport
+      parentRoute: typeof AuthenticatedAdminEnrolledQuestionsQuestionIdRoute
+    }
   }
 }
 
@@ -615,12 +637,15 @@ const AuthenticatedAdminEnrolledContentImportsRouteWithChildren =
 
 interface AuthenticatedAdminEnrolledQuestionsQuestionIdRouteChildren {
   AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute: typeof AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute
+  AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRoute: typeof AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRoute
 }
 
 const AuthenticatedAdminEnrolledQuestionsQuestionIdRouteChildren: AuthenticatedAdminEnrolledQuestionsQuestionIdRouteChildren =
   {
     AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute:
       AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute,
+    AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRoute:
+      AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRoute,
   }
 
 const AuthenticatedAdminEnrolledQuestionsQuestionIdRouteWithChildren =

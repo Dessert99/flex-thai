@@ -11,5 +11,18 @@ export const Route = createFileRoute(
 
 function AdminQuestionDetailRoute() {
   const { questionId } = Route.useParams();
-  return <AdminQuestionDetailPageContainer questionId={questionId} />;
+  const navigate = Route.useNavigate();
+  const search = Route.useSearch();
+  return (
+    <AdminQuestionDetailPageContainer
+      onCloned={({ questionId: nextQuestionId, versionId }) =>
+        void navigate({
+          params: { questionId: nextQuestionId, versionId },
+          search,
+          to: '/admin/questions/$questionId/versions/$versionId/replace',
+        })
+      }
+      questionId={questionId}
+    />
+  );
 }

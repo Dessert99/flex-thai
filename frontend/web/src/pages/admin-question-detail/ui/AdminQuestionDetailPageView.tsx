@@ -1,11 +1,13 @@
 /** 관리자 문제의 공개 구조·버전·검증 결과만 계약 그대로 표현한다 */
 import type { AdminQuestionDetailResponse } from '@flex-thia/contracts';
+import type { ReactNode } from 'react';
 import { isApiError } from '@/shared/api';
 import { Badge } from '@/shared/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { PageError, PageLoading } from '@/shared/ui/page-state';
 
 interface AdminQuestionDetailPageViewProps {
+  actions: ReactNode;
   data: AdminQuestionDetailResponse | undefined;
   error: unknown;
   loading: boolean;
@@ -16,6 +18,7 @@ type Version = AdminQuestionDetailResponse['versions'][number];
 
 /** 공개되지 않은 본문을 추정하지 않고 DRAFT에만 전체 교체 진입점을 둔다 */
 export function AdminQuestionDetailPageView({
+  actions,
   data,
   error,
   loading,
@@ -50,6 +53,7 @@ export function AdminQuestionDetailPageView({
         <Badge variant={data.status === 'HIDDEN' ? 'destructive' : 'secondary'}>
           {{ DRAFT: '초안', HIDDEN: '숨김', PUBLISHED: '게시' }[data.status]}
         </Badge>
+        <div className='flex flex-wrap gap-cluster'>{actions}</div>
       </header>
       <div className='grid gap-section'>
         {data.versions.map((version) => (

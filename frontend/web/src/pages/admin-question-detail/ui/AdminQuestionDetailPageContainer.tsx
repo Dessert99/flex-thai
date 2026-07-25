@@ -2,18 +2,31 @@
 import { useQuery } from '@tanstack/react-query';
 import { adminQuestionDetailQueryOptions } from '../api/adminQuestionDetailQueries';
 import { AdminQuestionDetailPageView } from './AdminQuestionDetailPageView';
+import { CloneQuestionVersionButton } from './CloneQuestionVersionButton';
 
 interface AdminQuestionDetailPageContainerProps {
+  onCloned?: (result: { questionId: string; versionId: string }) => void;
   questionId: string;
 }
 
 /** route가 검증한 문제 UUID의 서버 상세 상태를 소유한다 */
 export function AdminQuestionDetailPageContainer({
+  onCloned = () => undefined,
   questionId,
 }: AdminQuestionDetailPageContainerProps) {
   const detail = useQuery(adminQuestionDetailQueryOptions(questionId));
   return (
     <AdminQuestionDetailPageView
+      actions={
+        detail.data ? (
+          <>
+            <CloneQuestionVersionButton
+              onCloned={onCloned}
+              questionId={questionId}
+            />
+          </>
+        ) : null
+      }
       data={detail.data}
       error={detail.error}
       loading={detail.isPending}
