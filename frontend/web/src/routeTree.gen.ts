@@ -30,11 +30,14 @@ import { Route as AuthenticatedLearnerVocabulariesVocabularyIdRouteImport } from
 import { Route as AuthenticatedAdminEnrolledIndexRouteImport } from './app/routes/_authenticated.admin._enrolled.index'
 import { Route as AuthenticatedAdminEnrolledContentImportsRouteImport } from './app/routes/_authenticated.admin._enrolled.content-imports'
 import { Route as AuthenticatedAdminEnrolledQuestionsRouteImport } from './app/routes/_authenticated.admin._enrolled.questions'
+import { Route as AuthenticatedAdminEnrolledVocabulariesRouteImport } from './app/routes/_authenticated.admin._enrolled.vocabularies'
 import { Route as AuthenticatedAdminEnrollmentTotpSetupRouteImport } from './app/routes/_authenticated.admin._enrollment.totp-setup'
 import { Route as AuthenticatedAdminEnrolledContentImportsIndexRouteImport } from './app/routes/_authenticated.admin._enrolled.content-imports.index'
 import { Route as AuthenticatedAdminEnrolledContentImportsImportIdRouteImport } from './app/routes/_authenticated.admin._enrolled.content-imports.$importId'
 import { Route as AuthenticatedAdminEnrolledQuestionsIndexRouteImport } from './app/routes/_authenticated.admin._enrolled.questions.index'
 import { Route as AuthenticatedAdminEnrolledQuestionsQuestionIdRouteImport } from './app/routes/_authenticated.admin._enrolled.questions.$questionId'
+import { Route as AuthenticatedAdminEnrolledVocabulariesIndexRouteImport } from './app/routes/_authenticated.admin._enrolled.vocabularies.index'
+import { Route as AuthenticatedAdminEnrolledVocabulariesVocabularyIdRouteImport } from './app/routes/_authenticated.admin._enrolled.vocabularies.$vocabularyId'
 import { Route as AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRouteImport } from './app/routes/_authenticated.admin._enrolled.questions.$questionId.index'
 import { Route as AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRouteImport } from './app/routes/_authenticated.admin._enrolled.questions.$questionId.versions.$versionId.replace'
 
@@ -153,6 +156,12 @@ const AuthenticatedAdminEnrolledQuestionsRoute =
     path: '/questions',
     getParentRoute: () => AuthenticatedAdminEnrolledRoute,
   } as any)
+const AuthenticatedAdminEnrolledVocabulariesRoute =
+  AuthenticatedAdminEnrolledVocabulariesRouteImport.update({
+    id: '/vocabularies',
+    path: '/vocabularies',
+    getParentRoute: () => AuthenticatedAdminEnrolledRoute,
+  } as any)
 const AuthenticatedAdminEnrollmentTotpSetupRoute =
   AuthenticatedAdminEnrollmentTotpSetupRouteImport.update({
     id: '/totp-setup',
@@ -182,6 +191,18 @@ const AuthenticatedAdminEnrolledQuestionsQuestionIdRoute =
     id: '/$questionId',
     path: '/$questionId',
     getParentRoute: () => AuthenticatedAdminEnrolledQuestionsRoute,
+  } as any)
+const AuthenticatedAdminEnrolledVocabulariesIndexRoute =
+  AuthenticatedAdminEnrolledVocabulariesIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAdminEnrolledVocabulariesRoute,
+  } as any)
+const AuthenticatedAdminEnrolledVocabulariesVocabularyIdRoute =
+  AuthenticatedAdminEnrolledVocabulariesVocabularyIdRouteImport.update({
+    id: '/$vocabularyId',
+    path: '/$vocabularyId',
+    getParentRoute: () => AuthenticatedAdminEnrolledVocabulariesRoute,
   } as any)
 const AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute =
   AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRouteImport.update({
@@ -213,14 +234,17 @@ export interface FileRoutesByFullPath {
   '/vocabularies/$vocabularyId': typeof AuthenticatedLearnerVocabulariesVocabularyIdRoute
   '/admin/content-imports': typeof AuthenticatedAdminEnrolledContentImportsRouteWithChildren
   '/admin/questions': typeof AuthenticatedAdminEnrolledQuestionsRouteWithChildren
+  '/admin/vocabularies': typeof AuthenticatedAdminEnrolledVocabulariesRouteWithChildren
   '/admin/totp-setup': typeof AuthenticatedAdminEnrollmentTotpSetupRoute
   '/questions/': typeof AuthenticatedLearnerQuestionsIndexRoute
   '/vocabularies/': typeof AuthenticatedLearnerVocabulariesIndexRoute
   '/admin/': typeof AuthenticatedAdminEnrolledIndexRoute
   '/admin/content-imports/$importId': typeof AuthenticatedAdminEnrolledContentImportsImportIdRoute
   '/admin/questions/$questionId': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdRouteWithChildren
+  '/admin/vocabularies/$vocabularyId': typeof AuthenticatedAdminEnrolledVocabulariesVocabularyIdRoute
   '/admin/content-imports/': typeof AuthenticatedAdminEnrolledContentImportsIndexRoute
   '/admin/questions/': typeof AuthenticatedAdminEnrolledQuestionsIndexRoute
+  '/admin/vocabularies/': typeof AuthenticatedAdminEnrolledVocabulariesIndexRoute
   '/admin/questions/$questionId/': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute
   '/admin/questions/$questionId/versions/$versionId/replace': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRoute
 }
@@ -238,8 +262,10 @@ export interface FileRoutesByTo {
   '/questions': typeof AuthenticatedLearnerQuestionsIndexRoute
   '/vocabularies': typeof AuthenticatedLearnerVocabulariesIndexRoute
   '/admin/content-imports/$importId': typeof AuthenticatedAdminEnrolledContentImportsImportIdRoute
+  '/admin/vocabularies/$vocabularyId': typeof AuthenticatedAdminEnrolledVocabulariesVocabularyIdRoute
   '/admin/content-imports': typeof AuthenticatedAdminEnrolledContentImportsIndexRoute
   '/admin/questions': typeof AuthenticatedAdminEnrolledQuestionsIndexRoute
+  '/admin/vocabularies': typeof AuthenticatedAdminEnrolledVocabulariesIndexRoute
   '/admin/questions/$questionId': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute
   '/admin/questions/$questionId/versions/$versionId/replace': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRoute
 }
@@ -263,14 +289,17 @@ export interface FileRoutesById {
   '/_authenticated/_learner/vocabularies/$vocabularyId': typeof AuthenticatedLearnerVocabulariesVocabularyIdRoute
   '/_authenticated/admin/_enrolled/content-imports': typeof AuthenticatedAdminEnrolledContentImportsRouteWithChildren
   '/_authenticated/admin/_enrolled/questions': typeof AuthenticatedAdminEnrolledQuestionsRouteWithChildren
+  '/_authenticated/admin/_enrolled/vocabularies': typeof AuthenticatedAdminEnrolledVocabulariesRouteWithChildren
   '/_authenticated/admin/_enrollment/totp-setup': typeof AuthenticatedAdminEnrollmentTotpSetupRoute
   '/_authenticated/_learner/questions/': typeof AuthenticatedLearnerQuestionsIndexRoute
   '/_authenticated/_learner/vocabularies/': typeof AuthenticatedLearnerVocabulariesIndexRoute
   '/_authenticated/admin/_enrolled/': typeof AuthenticatedAdminEnrolledIndexRoute
   '/_authenticated/admin/_enrolled/content-imports/$importId': typeof AuthenticatedAdminEnrolledContentImportsImportIdRoute
   '/_authenticated/admin/_enrolled/questions/$questionId': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdRouteWithChildren
+  '/_authenticated/admin/_enrolled/vocabularies/$vocabularyId': typeof AuthenticatedAdminEnrolledVocabulariesVocabularyIdRoute
   '/_authenticated/admin/_enrolled/content-imports/': typeof AuthenticatedAdminEnrolledContentImportsIndexRoute
   '/_authenticated/admin/_enrolled/questions/': typeof AuthenticatedAdminEnrolledQuestionsIndexRoute
+  '/_authenticated/admin/_enrolled/vocabularies/': typeof AuthenticatedAdminEnrolledVocabulariesIndexRoute
   '/_authenticated/admin/_enrolled/questions/$questionId/': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute
   '/_authenticated/admin/_enrolled/questions/$questionId/versions/$versionId/replace': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRoute
 }
@@ -291,14 +320,17 @@ export interface FileRouteTypes {
     | '/vocabularies/$vocabularyId'
     | '/admin/content-imports'
     | '/admin/questions'
+    | '/admin/vocabularies'
     | '/admin/totp-setup'
     | '/questions/'
     | '/vocabularies/'
     | '/admin/'
     | '/admin/content-imports/$importId'
     | '/admin/questions/$questionId'
+    | '/admin/vocabularies/$vocabularyId'
     | '/admin/content-imports/'
     | '/admin/questions/'
+    | '/admin/vocabularies/'
     | '/admin/questions/$questionId/'
     | '/admin/questions/$questionId/versions/$versionId/replace'
   fileRoutesByTo: FileRoutesByTo
@@ -316,8 +348,10 @@ export interface FileRouteTypes {
     | '/questions'
     | '/vocabularies'
     | '/admin/content-imports/$importId'
+    | '/admin/vocabularies/$vocabularyId'
     | '/admin/content-imports'
     | '/admin/questions'
+    | '/admin/vocabularies'
     | '/admin/questions/$questionId'
     | '/admin/questions/$questionId/versions/$versionId/replace'
   id:
@@ -340,14 +374,17 @@ export interface FileRouteTypes {
     | '/_authenticated/_learner/vocabularies/$vocabularyId'
     | '/_authenticated/admin/_enrolled/content-imports'
     | '/_authenticated/admin/_enrolled/questions'
+    | '/_authenticated/admin/_enrolled/vocabularies'
     | '/_authenticated/admin/_enrollment/totp-setup'
     | '/_authenticated/_learner/questions/'
     | '/_authenticated/_learner/vocabularies/'
     | '/_authenticated/admin/_enrolled/'
     | '/_authenticated/admin/_enrolled/content-imports/$importId'
     | '/_authenticated/admin/_enrolled/questions/$questionId'
+    | '/_authenticated/admin/_enrolled/vocabularies/$vocabularyId'
     | '/_authenticated/admin/_enrolled/content-imports/'
     | '/_authenticated/admin/_enrolled/questions/'
+    | '/_authenticated/admin/_enrolled/vocabularies/'
     | '/_authenticated/admin/_enrolled/questions/$questionId/'
     | '/_authenticated/admin/_enrolled/questions/$questionId/versions/$versionId/replace'
   fileRoutesById: FileRoutesById
@@ -507,6 +544,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminEnrolledQuestionsRouteImport
       parentRoute: typeof AuthenticatedAdminEnrolledRoute
     }
+    '/_authenticated/admin/_enrolled/vocabularies': {
+      id: '/_authenticated/admin/_enrolled/vocabularies'
+      path: '/vocabularies'
+      fullPath: '/admin/vocabularies'
+      preLoaderRoute: typeof AuthenticatedAdminEnrolledVocabulariesRouteImport
+      parentRoute: typeof AuthenticatedAdminEnrolledRoute
+    }
     '/_authenticated/admin/_enrollment/totp-setup': {
       id: '/_authenticated/admin/_enrollment/totp-setup'
       path: '/totp-setup'
@@ -541,6 +585,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/questions/$questionId'
       preLoaderRoute: typeof AuthenticatedAdminEnrolledQuestionsQuestionIdRouteImport
       parentRoute: typeof AuthenticatedAdminEnrolledQuestionsRoute
+    }
+    '/_authenticated/admin/_enrolled/vocabularies/': {
+      id: '/_authenticated/admin/_enrolled/vocabularies/'
+      path: '/'
+      fullPath: '/admin/vocabularies/'
+      preLoaderRoute: typeof AuthenticatedAdminEnrolledVocabulariesIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminEnrolledVocabulariesRoute
+    }
+    '/_authenticated/admin/_enrolled/vocabularies/$vocabularyId': {
+      id: '/_authenticated/admin/_enrolled/vocabularies/$vocabularyId'
+      path: '/$vocabularyId'
+      fullPath: '/admin/vocabularies/$vocabularyId'
+      preLoaderRoute: typeof AuthenticatedAdminEnrolledVocabulariesVocabularyIdRouteImport
+      parentRoute: typeof AuthenticatedAdminEnrolledVocabulariesRoute
     }
     '/_authenticated/admin/_enrolled/questions/$questionId/': {
       id: '/_authenticated/admin/_enrolled/questions/$questionId/'
@@ -671,9 +729,28 @@ const AuthenticatedAdminEnrolledQuestionsRouteWithChildren =
     AuthenticatedAdminEnrolledQuestionsRouteChildren,
   )
 
+interface AuthenticatedAdminEnrolledVocabulariesRouteChildren {
+  AuthenticatedAdminEnrolledVocabulariesVocabularyIdRoute: typeof AuthenticatedAdminEnrolledVocabulariesVocabularyIdRoute
+  AuthenticatedAdminEnrolledVocabulariesIndexRoute: typeof AuthenticatedAdminEnrolledVocabulariesIndexRoute
+}
+
+const AuthenticatedAdminEnrolledVocabulariesRouteChildren: AuthenticatedAdminEnrolledVocabulariesRouteChildren =
+  {
+    AuthenticatedAdminEnrolledVocabulariesVocabularyIdRoute:
+      AuthenticatedAdminEnrolledVocabulariesVocabularyIdRoute,
+    AuthenticatedAdminEnrolledVocabulariesIndexRoute:
+      AuthenticatedAdminEnrolledVocabulariesIndexRoute,
+  }
+
+const AuthenticatedAdminEnrolledVocabulariesRouteWithChildren =
+  AuthenticatedAdminEnrolledVocabulariesRoute._addFileChildren(
+    AuthenticatedAdminEnrolledVocabulariesRouteChildren,
+  )
+
 interface AuthenticatedAdminEnrolledRouteChildren {
   AuthenticatedAdminEnrolledContentImportsRoute: typeof AuthenticatedAdminEnrolledContentImportsRouteWithChildren
   AuthenticatedAdminEnrolledQuestionsRoute: typeof AuthenticatedAdminEnrolledQuestionsRouteWithChildren
+  AuthenticatedAdminEnrolledVocabulariesRoute: typeof AuthenticatedAdminEnrolledVocabulariesRouteWithChildren
   AuthenticatedAdminEnrolledIndexRoute: typeof AuthenticatedAdminEnrolledIndexRoute
 }
 
@@ -683,6 +760,8 @@ const AuthenticatedAdminEnrolledRouteChildren: AuthenticatedAdminEnrolledRouteCh
       AuthenticatedAdminEnrolledContentImportsRouteWithChildren,
     AuthenticatedAdminEnrolledQuestionsRoute:
       AuthenticatedAdminEnrolledQuestionsRouteWithChildren,
+    AuthenticatedAdminEnrolledVocabulariesRoute:
+      AuthenticatedAdminEnrolledVocabulariesRouteWithChildren,
     AuthenticatedAdminEnrolledIndexRoute: AuthenticatedAdminEnrolledIndexRoute,
   }
 
