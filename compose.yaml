@@ -6,6 +6,9 @@ x-app-environment: &app-environment
   FAKE_USER_SUB: local-admin-sub
   FAKE_USER_EMAIL: admin@hufs.ac.kr
   FAKE_USER_PASSWORD: 'qwer1234!@#'
+  FAKE_LEARNER_SUB: local-learner-sub
+  FAKE_LEARNER_EMAIL: learner@hufs.ac.kr
+  FAKE_LEARNER_PASSWORD: 'qwer1234!@#'
   ALLOWED_ORIGINS: http://localhost:5173
 
 services:

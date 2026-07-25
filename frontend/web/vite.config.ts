@@ -25,8 +25,6 @@ export default defineConfig({
     proxy: {
       '/api': {
         changeOrigin: true,
-        // 브라우저 bundle에 개발 신원을 넣지 않고 로컬 API Gateway claim만 흉내 낸다.
-        headers: { 'X-Dev-User-Sub': 'local-admin-sub' },
         target: 'http://localhost:3000',
       },
     },
