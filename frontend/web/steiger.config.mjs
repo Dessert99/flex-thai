@@ -21,6 +21,7 @@ export default defineConfig([
       'src/features/submit-answer/**',
       'src/features/toggle-saved-question/**',
       'src/features/toggle-saved-vocabulary/**',
+      'src/features/upload-audio/**',
     ],
     rules: {
       'fsd/insignificant-slice': 'off',
