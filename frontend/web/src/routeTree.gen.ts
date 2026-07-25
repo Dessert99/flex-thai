@@ -16,6 +16,7 @@ import { Route as AuthenticatedLearnerRouteImport } from './app/routes/_authenti
 import { Route as AuthenticatedAdminRouteImport } from './app/routes/_authenticated.admin'
 import { Route as LoginIndexRouteImport } from './app/routes/login.index'
 import { Route as LoginMfaRouteImport } from './app/routes/login.mfa'
+import { Route as AuthenticatedLearnerHistoryRouteImport } from './app/routes/_authenticated._learner.history'
 import { Route as AuthenticatedLearnerLearnRouteImport } from './app/routes/_authenticated._learner.learn'
 import { Route as AuthenticatedLearnerQuestionsRouteImport } from './app/routes/_authenticated._learner.questions'
 import { Route as AuthenticatedAdminEnrolledRouteImport } from './app/routes/_authenticated.admin._enrolled'
@@ -58,6 +59,12 @@ const LoginMfaRoute = LoginMfaRouteImport.update({
   path: '/mfa',
   getParentRoute: () => LoginRoute,
 } as any)
+const AuthenticatedLearnerHistoryRoute =
+  AuthenticatedLearnerHistoryRouteImport.update({
+    id: '/history',
+    path: '/history',
+    getParentRoute: () => AuthenticatedLearnerRoute,
+  } as any)
 const AuthenticatedLearnerLearnRoute =
   AuthenticatedLearnerLearnRouteImport.update({
     id: '/learn',
@@ -111,6 +118,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/login/mfa': typeof LoginMfaRoute
   '/login/': typeof LoginIndexRoute
+  '/history': typeof AuthenticatedLearnerHistoryRoute
   '/learn': typeof AuthenticatedLearnerLearnRoute
   '/questions': typeof AuthenticatedLearnerQuestionsRouteWithChildren
   '/questions/$questionId': typeof AuthenticatedLearnerQuestionsQuestionIdRoute
@@ -123,6 +131,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminEnrolledIndexRoute
   '/login/mfa': typeof LoginMfaRoute
   '/login': typeof LoginIndexRoute
+  '/history': typeof AuthenticatedLearnerHistoryRoute
   '/learn': typeof AuthenticatedLearnerLearnRoute
   '/questions/$questionId': typeof AuthenticatedLearnerQuestionsQuestionIdRoute
   '/admin/totp-setup': typeof AuthenticatedAdminEnrollmentTotpSetupRoute
@@ -137,6 +146,7 @@ export interface FileRoutesById {
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/login/mfa': typeof LoginMfaRoute
   '/login/': typeof LoginIndexRoute
+  '/_authenticated/_learner/history': typeof AuthenticatedLearnerHistoryRoute
   '/_authenticated/_learner/learn': typeof AuthenticatedLearnerLearnRoute
   '/_authenticated/_learner/questions': typeof AuthenticatedLearnerQuestionsRouteWithChildren
   '/_authenticated/admin/_enrolled': typeof AuthenticatedAdminEnrolledRouteWithChildren
@@ -154,6 +164,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/login/mfa'
     | '/login/'
+    | '/history'
     | '/learn'
     | '/questions'
     | '/questions/$questionId'
@@ -166,6 +177,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/login/mfa'
     | '/login'
+    | '/history'
     | '/learn'
     | '/questions/$questionId'
     | '/admin/totp-setup'
@@ -179,6 +191,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin'
     | '/login/mfa'
     | '/login/'
+    | '/_authenticated/_learner/history'
     | '/_authenticated/_learner/learn'
     | '/_authenticated/_learner/questions'
     | '/_authenticated/admin/_enrolled'
@@ -245,6 +258,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/login/mfa'
       preLoaderRoute: typeof LoginMfaRouteImport
       parentRoute: typeof LoginRoute
+    }
+    '/_authenticated/_learner/history': {
+      id: '/_authenticated/_learner/history'
+      path: '/history'
+      fullPath: '/history'
+      preLoaderRoute: typeof AuthenticatedLearnerHistoryRouteImport
+      parentRoute: typeof AuthenticatedLearnerRoute
     }
     '/_authenticated/_learner/learn': {
       id: '/_authenticated/_learner/learn'
@@ -324,11 +344,13 @@ const AuthenticatedLearnerQuestionsRouteWithChildren =
   )
 
 interface AuthenticatedLearnerRouteChildren {
+  AuthenticatedLearnerHistoryRoute: typeof AuthenticatedLearnerHistoryRoute
   AuthenticatedLearnerLearnRoute: typeof AuthenticatedLearnerLearnRoute
   AuthenticatedLearnerQuestionsRoute: typeof AuthenticatedLearnerQuestionsRouteWithChildren
 }
 
 const AuthenticatedLearnerRouteChildren: AuthenticatedLearnerRouteChildren = {
+  AuthenticatedLearnerHistoryRoute: AuthenticatedLearnerHistoryRoute,
   AuthenticatedLearnerLearnRoute: AuthenticatedLearnerLearnRoute,
   AuthenticatedLearnerQuestionsRoute:
     AuthenticatedLearnerQuestionsRouteWithChildren,
