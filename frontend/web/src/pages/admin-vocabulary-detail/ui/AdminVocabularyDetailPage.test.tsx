@@ -1,7 +1,8 @@
-/** 관리자 어휘 상세의 음성 readiness와 form 검증을 확인한다 */
+/** 관리자 어휘 상세의 음성 readiness·form 검증·409를 검증한다 */
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ApiError } from '@/shared/api';
 import { renderWithProviders } from '@/shared/test';
 import { AdminVocabularyDetailPageContainer } from './AdminVocabularyDetailPageContainer';
 
@@ -33,6 +34,19 @@ describe('관리자 어휘 상세', () => {
       await screen.findByText('태국어 표기를 입력해 주세요.'),
     ).toBeInTheDocument();
     expect(mocks.authenticatedRequest).toHaveBeenCalledOnce();
+  });
+
+  it('게시 prerequisite 409를 서버 확인 결과로 표시한다', async () => {
+    mocks.authenticatedRequest
+      .mockResolvedValueOnce(createDetail())
+      .mockRejectedValueOnce(createProblemError(409));
+    const user = userEvent.setup();
+    renderDetail();
+    await user.click(await screen.findByRole('button', { name: '어휘 게시' }));
+    await user.click(screen.getByRole('button', { name: '게시 확인' }));
+    expect(
+      await screen.findByText('현재 상태에서는 이 작업을 수행할 수 없습니다.'),
+    ).toBeInTheDocument();
   });
 });
 
@@ -79,4 +93,18 @@ function createDetail() {
     createdAt: '2026-07-25T00:00:00.000Z',
     updatedAt: '2026-07-25T00:00:00.000Z',
   };
+}
+
+function createProblemError(status: number) {
+  return new ApiError({
+    kind: 'problem',
+    problem: {
+      type: `https://flex-thia.dev/problems/http-${status}`,
+      title: '게시할 수 없습니다.',
+      status,
+      code: 'VOCABULARY_NOT_READY',
+      requestId: 'request-vocabulary',
+      fieldErrors: [],
+    },
+  });
 }

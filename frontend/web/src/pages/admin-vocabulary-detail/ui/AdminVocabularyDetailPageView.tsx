@@ -3,12 +3,14 @@ import type {
   AdminVocabularyDetailResponse,
   AdminVocabularyReplaceRequest,
 } from '@flex-thia/contracts';
+import type { ReactNode } from 'react';
 import { Badge } from '@/shared/ui/badge';
 import { PageError, PageLoading } from '@/shared/ui/page-state';
 import { mapVocabularyDetailToForm } from '../model/mapVocabularyForm';
 import { VocabularyForm } from './VocabularyForm';
 
 interface Props {
+  actions: ReactNode;
   data: AdminVocabularyDetailResponse | undefined;
   error: boolean;
   onReplace: (payload: AdminVocabularyReplaceRequest) => void;
@@ -19,6 +21,7 @@ interface Props {
 
 /** 공개 상세의 child order를 보존하고 DRAFT만 교체 form을 표시한다 */
 export function AdminVocabularyDetailPageView({
+  actions,
   data,
   error,
   onReplace,
@@ -38,12 +41,15 @@ export function AdminVocabularyDetailPageView({
   }
   return (
     <section className='grid gap-section'>
-      <h1
-        className='font-thai text-title text-primary'
-        lang='th'
-      >
-        {data.thai}
-      </h1>
+      <header className='grid gap-cluster'>
+        <h1
+          className='font-thai text-title text-primary'
+          lang='th'
+        >
+          {data.thai}
+        </h1>
+        <div className='flex gap-cluster'>{actions}</div>
+      </header>
       <div className='grid gap-cluster'>
         {data.pronunciations.map((pronunciation) => (
           <p key={pronunciation.id}>

@@ -1,6 +1,7 @@
-/** 관리자 어휘 상세·교체와 exact cache invalidation을 조립한다 */
+/** 관리자 어휘 상세·교체·상태 action과 exact cache invalidation을 조립한다 */
 import type { AdminVocabularyReplaceRequest } from '@flex-thia/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { VocabularyStateAction } from '@/features/change-vocabulary-state';
 import {
   adminVocabularyDetailQueryOptions,
   replaceAdminVocabulary,
@@ -33,8 +34,18 @@ export function AdminVocabularyDetailPageContainer({
         queryKey: ['admin', 'vocabularies', 'list'],
       }),
     ]);
+  const action = toStateAction(detail.data?.status);
   return (
     <AdminVocabularyDetailPageView
+      actions={
+        detail.data ? (
+          <VocabularyStateAction
+            action={action}
+            onConfirmed={() => void refresh()}
+            vocabularyId={vocabularyId}
+          />
+        ) : null
+      }
       data={detail.data}
       error={detail.isError}
       onReplace={(payload) => replace.mutate(payload)}
@@ -43,4 +54,10 @@ export function AdminVocabularyDetailPageContainer({
       replacing={replace.isPending}
     />
   );
+}
+
+function toStateAction(status: 'DRAFT' | 'HIDDEN' | 'PUBLISHED' | undefined) {
+  if (status === 'DRAFT') return 'publish' as const;
+  if (status === 'HIDDEN') return 'restore' as const;
+  return 'hide' as const;
 }
