@@ -17,8 +17,10 @@ import { Route as AuthenticatedAdminRouteImport } from './app/routes/_authentica
 import { Route as LoginIndexRouteImport } from './app/routes/login.index'
 import { Route as LoginMfaRouteImport } from './app/routes/login.mfa'
 import { Route as AuthenticatedLearnerLearnRouteImport } from './app/routes/_authenticated._learner.learn'
+import { Route as AuthenticatedLearnerQuestionsRouteImport } from './app/routes/_authenticated._learner.questions'
 import { Route as AuthenticatedAdminEnrolledRouteImport } from './app/routes/_authenticated.admin._enrolled'
 import { Route as AuthenticatedAdminEnrollmentRouteImport } from './app/routes/_authenticated.admin._enrollment'
+import { Route as AuthenticatedLearnerQuestionsIndexRouteImport } from './app/routes/_authenticated._learner.questions.index'
 import { Route as AuthenticatedAdminEnrolledIndexRouteImport } from './app/routes/_authenticated.admin._enrolled.index'
 import { Route as AuthenticatedAdminEnrollmentTotpSetupRouteImport } from './app/routes/_authenticated.admin._enrollment.totp-setup'
 
@@ -61,6 +63,12 @@ const AuthenticatedLearnerLearnRoute =
     path: '/learn',
     getParentRoute: () => AuthenticatedLearnerRoute,
   } as any)
+const AuthenticatedLearnerQuestionsRoute =
+  AuthenticatedLearnerQuestionsRouteImport.update({
+    id: '/questions',
+    path: '/questions',
+    getParentRoute: () => AuthenticatedLearnerRoute,
+  } as any)
 const AuthenticatedAdminEnrolledRoute =
   AuthenticatedAdminEnrolledRouteImport.update({
     id: '/_enrolled',
@@ -70,6 +78,12 @@ const AuthenticatedAdminEnrollmentRoute =
   AuthenticatedAdminEnrollmentRouteImport.update({
     id: '/_enrollment',
     getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedLearnerQuestionsIndexRoute =
+  AuthenticatedLearnerQuestionsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedLearnerQuestionsRoute,
   } as any)
 const AuthenticatedAdminEnrolledIndexRoute =
   AuthenticatedAdminEnrolledIndexRouteImport.update({
@@ -91,7 +105,9 @@ export interface FileRoutesByFullPath {
   '/login/mfa': typeof LoginMfaRoute
   '/login/': typeof LoginIndexRoute
   '/learn': typeof AuthenticatedLearnerLearnRoute
+  '/questions': typeof AuthenticatedLearnerQuestionsRouteWithChildren
   '/admin/totp-setup': typeof AuthenticatedAdminEnrollmentTotpSetupRoute
+  '/questions/': typeof AuthenticatedLearnerQuestionsIndexRoute
   '/admin/': typeof AuthenticatedAdminEnrolledIndexRoute
 }
 export interface FileRoutesByTo {
@@ -101,6 +117,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginIndexRoute
   '/learn': typeof AuthenticatedLearnerLearnRoute
   '/admin/totp-setup': typeof AuthenticatedAdminEnrollmentTotpSetupRoute
+  '/questions': typeof AuthenticatedLearnerQuestionsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -112,9 +129,11 @@ export interface FileRoutesById {
   '/login/mfa': typeof LoginMfaRoute
   '/login/': typeof LoginIndexRoute
   '/_authenticated/_learner/learn': typeof AuthenticatedLearnerLearnRoute
+  '/_authenticated/_learner/questions': typeof AuthenticatedLearnerQuestionsRouteWithChildren
   '/_authenticated/admin/_enrolled': typeof AuthenticatedAdminEnrolledRouteWithChildren
   '/_authenticated/admin/_enrollment': typeof AuthenticatedAdminEnrollmentRouteWithChildren
   '/_authenticated/admin/_enrollment/totp-setup': typeof AuthenticatedAdminEnrollmentTotpSetupRoute
+  '/_authenticated/_learner/questions/': typeof AuthenticatedLearnerQuestionsIndexRoute
   '/_authenticated/admin/_enrolled/': typeof AuthenticatedAdminEnrolledIndexRoute
 }
 export interface FileRouteTypes {
@@ -126,10 +145,19 @@ export interface FileRouteTypes {
     | '/login/mfa'
     | '/login/'
     | '/learn'
+    | '/questions'
     | '/admin/totp-setup'
+    | '/questions/'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/login/mfa' | '/login' | '/learn' | '/admin/totp-setup'
+  to:
+    | '/'
+    | '/admin'
+    | '/login/mfa'
+    | '/login'
+    | '/learn'
+    | '/admin/totp-setup'
+    | '/questions'
   id:
     | '__root__'
     | '/'
@@ -140,9 +168,11 @@ export interface FileRouteTypes {
     | '/login/mfa'
     | '/login/'
     | '/_authenticated/_learner/learn'
+    | '/_authenticated/_learner/questions'
     | '/_authenticated/admin/_enrolled'
     | '/_authenticated/admin/_enrollment'
     | '/_authenticated/admin/_enrollment/totp-setup'
+    | '/_authenticated/_learner/questions/'
     | '/_authenticated/admin/_enrolled/'
   fileRoutesById: FileRoutesById
 }
@@ -210,6 +240,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLearnerLearnRouteImport
       parentRoute: typeof AuthenticatedLearnerRoute
     }
+    '/_authenticated/_learner/questions': {
+      id: '/_authenticated/_learner/questions'
+      path: '/questions'
+      fullPath: '/questions'
+      preLoaderRoute: typeof AuthenticatedLearnerQuestionsRouteImport
+      parentRoute: typeof AuthenticatedLearnerRoute
+    }
     '/_authenticated/admin/_enrolled': {
       id: '/_authenticated/admin/_enrolled'
       path: ''
@@ -223,6 +260,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin'
       preLoaderRoute: typeof AuthenticatedAdminEnrollmentRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/_learner/questions/': {
+      id: '/_authenticated/_learner/questions/'
+      path: '/'
+      fullPath: '/questions/'
+      preLoaderRoute: typeof AuthenticatedLearnerQuestionsIndexRouteImport
+      parentRoute: typeof AuthenticatedLearnerQuestionsRoute
     }
     '/_authenticated/admin/_enrolled/': {
       id: '/_authenticated/admin/_enrolled/'
@@ -241,12 +285,30 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedLearnerQuestionsRouteChildren {
+  AuthenticatedLearnerQuestionsIndexRoute: typeof AuthenticatedLearnerQuestionsIndexRoute
+}
+
+const AuthenticatedLearnerQuestionsRouteChildren: AuthenticatedLearnerQuestionsRouteChildren =
+  {
+    AuthenticatedLearnerQuestionsIndexRoute:
+      AuthenticatedLearnerQuestionsIndexRoute,
+  }
+
+const AuthenticatedLearnerQuestionsRouteWithChildren =
+  AuthenticatedLearnerQuestionsRoute._addFileChildren(
+    AuthenticatedLearnerQuestionsRouteChildren,
+  )
+
 interface AuthenticatedLearnerRouteChildren {
   AuthenticatedLearnerLearnRoute: typeof AuthenticatedLearnerLearnRoute
+  AuthenticatedLearnerQuestionsRoute: typeof AuthenticatedLearnerQuestionsRouteWithChildren
 }
 
 const AuthenticatedLearnerRouteChildren: AuthenticatedLearnerRouteChildren = {
   AuthenticatedLearnerLearnRoute: AuthenticatedLearnerLearnRoute,
+  AuthenticatedLearnerQuestionsRoute:
+    AuthenticatedLearnerQuestionsRouteWithChildren,
 }
 
 const AuthenticatedLearnerRouteWithChildren =
