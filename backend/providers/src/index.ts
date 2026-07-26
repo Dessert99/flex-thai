@@ -28,8 +28,17 @@ export * from './crypto/challenge-crypto.js';
 /** Cognito 비밀번호·TOTP 인증 adapter를 공개한다 */
 export * from './identity/cognito-authentication.provider.js';
 
+/** Cognito CUSTOM_AUTH passwordless adapter를 공개한다 */
+export * from './identity/cognito-passwordless-authentication.provider.js';
+
 /** local Identity 인증 adapter를 공개한다 */
 export * from './identity/fake-authentication.provider.js';
+
+/** local passwordless Identity 인증 adapter를 공개한다 */
+export * from './identity/fake-passwordless-authentication.provider.js';
+
+/** SES passwordless code·link sender를 공개한다 */
+export * from './messaging/ses-email-challenge.sender.js';
 
 /** private CloudFront media read URL signer를 공개한다 */
 export * from './storage/cloudfront-media-read-url.provider.js';

@@ -4,13 +4,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../ApiError';
 
 const authApiMocks = vi.hoisted(() => ({
-  requestLogin: vi.fn(),
+  confirmEmailLink: vi.fn(),
+  resendEmailChallenge: vi.fn(),
   requestLoginTotp: vi.fn(),
   requestLogout: vi.fn(),
   requestMe: vi.fn(),
   requestRefresh: vi.fn(),
   requestTotpSetup: vi.fn(),
   requestTotpSetupVerification: vi.fn(),
+  startEmailAuthentication: vi.fn(),
+  verifyEmailCode: vi.fn(),
 }));
 
 vi.mock('./authApi', () => authApiMocks);
@@ -33,13 +36,16 @@ beforeEach(() => {
   vi.resetModules();
   vi.useFakeTimers();
   vi.setSystemTime(new Date('2026-07-25T00:00:00.000Z'));
-  authApiMocks.requestLogin.mockReset();
   authApiMocks.requestLoginTotp.mockReset();
   authApiMocks.requestLogout.mockReset();
   authApiMocks.requestMe.mockReset();
   authApiMocks.requestRefresh.mockReset();
   authApiMocks.requestTotpSetup.mockReset();
   authApiMocks.requestTotpSetupVerification.mockReset();
+  authApiMocks.confirmEmailLink.mockReset();
+  authApiMocks.resendEmailChallenge.mockReset();
+  authApiMocks.startEmailAuthentication.mockReset();
+  authApiMocks.verifyEmailCode.mockReset();
 });
 
 afterEach(() => {
@@ -155,42 +161,57 @@ describe('인증 세션 로그아웃', () => {
   });
 });
 
-describe('로그인 TOTP challenge', () => {
-  it('challenge token을 결과에 노출하지 않고 완료 요청 내부에서만 사용한다', async () => {
-    authApiMocks.requestLogin.mockResolvedValue({
-      status: 'MFA_REQUIRED',
-      challengeToken: 'private-challenge',
+describe('passwordless challenge 메모리 상태', () => {
+  it('시작한 challenge와 access token을 Web Storage에 기록하지 않는다', async () => {
+    const storageSetItem = vi.spyOn(Storage.prototype, 'setItem');
+    authApiMocks.startEmailAuthentication.mockResolvedValue({
+      challengeId: '00000000-0000-4000-8000-000000000001',
+      expiresAt: '2026-07-26T00:10:00.000Z',
+      resendAt: '2026-07-26T00:01:00.000Z',
     });
-    authApiMocks.requestLoginTotp.mockResolvedValue(refreshed);
+    authApiMocks.verifyEmailCode.mockResolvedValue(refreshed);
     const {
-      authSessionStore,
-      completeLoginTotpSession,
-      hasLoginTotpChallenge,
-      loginSession,
+      getPendingEmailChallenge,
+      startEmailAuthenticationSession,
+      verifyEmailCodeSession,
     } = await loadStore();
 
-    const loginResult = await loginSession({
-      email: 'admin@example.com',
-      password: 'password',
+    await startEmailAuthenticationSession('user@hufs.ac.kr');
+    expect(getPendingEmailChallenge()).toEqual({
+      challengeId: '00000000-0000-4000-8000-000000000001',
+      email: 'user@hufs.ac.kr',
+      expiresAt: '2026-07-26T00:10:00.000Z',
+      resendAt: '2026-07-26T00:01:00.000Z',
     });
 
-    expect(loginResult).toEqual({ status: 'mfa-required' });
-    expect(loginResult).not.toHaveProperty('challengeToken');
-    expect(hasLoginTotpChallenge()).toBe(true);
+    await verifyEmailCodeSession('123456');
 
+    expect(storageSetItem).not.toHaveBeenCalled();
+  });
+
+  it('fresh link의 MFA email과 challenge token을 메모리로 TOTP 완료에 전달한다', async () => {
+    authApiMocks.confirmEmailLink.mockResolvedValue({
+      status: 'MFA_REQUIRED',
+      challengeToken: 'private-link-session',
+      email: 'admin@hufs.ac.kr',
+    });
+    authApiMocks.requestLoginTotp.mockResolvedValue(refreshed);
+    const { completeLoginTotpSession, confirmEmailLinkSession } =
+      await loadStore();
+
+    await expect(
+      confirmEmailLinkSession(
+        '00000000-0000-4000-8000-000000000001',
+        'A'.repeat(43),
+      ),
+    ).resolves.toEqual({ status: 'mfa-required' });
     await completeLoginTotpSession('123456');
 
     expect(authApiMocks.requestLoginTotp).toHaveBeenCalledWith({
-      email: 'admin@example.com',
-      challengeToken: 'private-challenge',
+      email: 'admin@hufs.ac.kr',
+      challengeToken: 'private-link-session',
       code: '123456',
     });
-    expect(hasLoginTotpChallenge()).toBe(false);
-    expect(authSessionStore.getSnapshot()).toMatchObject({
-      status: 'authenticated',
-      user: refreshed.user,
-    });
-    expect(authSessionStore.getSnapshot()).not.toHaveProperty('accessToken');
   });
 });
 

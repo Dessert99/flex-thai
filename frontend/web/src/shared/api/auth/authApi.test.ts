@@ -3,13 +3,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../ApiError';
 import type { ApiRequestOptions } from '../apiRequest';
 import {
-  requestLogin,
+  confirmEmailLink,
+  resendEmailChallenge,
   requestLoginTotp,
   requestLogout,
   requestMe,
   requestRefresh,
   requestTotpSetup,
   requestTotpSetupVerification,
+  startEmailAuthentication,
+  verifyEmailCode,
 } from './authApi';
 
 const apiRequestMock = vi.hoisted(() =>
@@ -23,20 +26,59 @@ beforeEach(() => {
 });
 
 describe('인증 endpoint adapter', () => {
-  it('로그인·TOTP·refresh·logout에 cookie credential을 요청한다', async () => {
+  it('password 없이 challenge 시작·코드·링크·재전송 POST를 보낸다', async () => {
     apiRequestMock
-      .mockResolvedValueOnce({
-        status: 'MFA_REQUIRED',
-        challengeToken: 'challenge',
-      })
+      .mockResolvedValueOnce(createChallengeResponse())
+      .mockResolvedValueOnce(createAuthenticatedResponse())
+      .mockResolvedValueOnce(createAuthenticatedResponse())
+      .mockResolvedValueOnce(createChallengeResponse());
+
+    await startEmailAuthentication('user@hufs.ac.kr');
+    await verifyEmailCode('00000000-0000-4000-8000-000000000001', '123456');
+    await confirmEmailLink(
+      '00000000-0000-4000-8000-000000000001',
+      'A'.repeat(43),
+    );
+    await resendEmailChallenge('00000000-0000-4000-8000-000000000001');
+
+    expect(apiRequestMock.mock.calls.map(([options]) => options)).toMatchObject(
+      [
+        {
+          body: { email: 'user@hufs.ac.kr' },
+          includeCredentials: true,
+          method: 'POST',
+          path: '/auth/challenges',
+        },
+        {
+          body: { code: '123456' },
+          includeCredentials: true,
+          method: 'POST',
+          path: '/auth/challenges/00000000-0000-4000-8000-000000000001/code',
+        },
+        {
+          body: { token: 'A'.repeat(43) },
+          includeCredentials: true,
+          method: 'POST',
+          path: '/auth/challenges/00000000-0000-4000-8000-000000000001/link',
+        },
+        {
+          includeCredentials: true,
+          method: 'POST',
+          path: '/auth/challenges/00000000-0000-4000-8000-000000000001/resend',
+        },
+      ],
+    );
+    expect(JSON.stringify(apiRequestMock.mock.calls)).not.toContain('password');
+  });
+});
+
+describe('인증 세션 endpoint adapter', () => {
+  it('TOTP·refresh·logout에 cookie credential을 요청한다', async () => {
+    apiRequestMock
       .mockResolvedValueOnce(createAuthenticatedResponse())
       .mockResolvedValueOnce(createAuthenticatedResponse())
       .mockResolvedValueOnce(undefined);
 
-    await requestLogin({
-      email: 'admin@example.com',
-      password: 'password',
-    });
     await requestLoginTotp({
       email: 'admin@example.com',
       challengeToken: 'challenge',
@@ -47,11 +89,6 @@ describe('인증 endpoint adapter', () => {
 
     expect(apiRequestMock.mock.calls.map(([options]) => options)).toMatchObject(
       [
-        {
-          includeCredentials: true,
-          method: 'POST',
-          path: '/auth/login',
-        },
         {
           includeCredentials: true,
           method: 'POST',
@@ -103,6 +140,7 @@ describe('인증 endpoint adapter', () => {
     apiRequestMock.mockResolvedValue({
       status: 'MFA_REQUIRED',
       challengeToken: 'unexpected',
+      email: 'admin@example.com',
     });
 
     await expect(requestRefresh()).rejects.toEqual(
@@ -126,5 +164,13 @@ function createAuthenticatedResponse() {
     accessToken: 'access-token',
     expiresIn: 3_600,
     user: createUser(),
+  };
+}
+
+function createChallengeResponse() {
+  return {
+    challengeId: '00000000-0000-4000-8000-000000000001',
+    expiresAt: '2026-07-26T00:10:00.000Z',
+    resendAt: '2026-07-26T00:01:00.000Z',
   };
 }

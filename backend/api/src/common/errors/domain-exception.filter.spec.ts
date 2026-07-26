@@ -10,11 +10,13 @@ import { loginRequestSchema, problemDetailsSchema } from '@flex-thia/contracts';
 import {
   AuthDomainError,
   ContentImportError,
+  EmailChallengeError,
   IdentityDomainError,
   LearningDomainError,
   MediaAssetDomainError,
   QuestionAdminError,
   QuestionPublicationError,
+  UserManagementError,
   VocabularyAdminError,
 } from '@flex-thia/domain';
 import { LearnerPublicResponseError } from '../../learning/learner-content.service.js';
@@ -26,6 +28,32 @@ import {
 } from './domain-exception.filter.js';
 
 describe('공개 오류 응답 변환', () => {
+  it.each([
+    ['INVALID_SCHOOL_EMAIL', 400],
+    ['CHALLENGE_NOT_FOUND', 404],
+    ['CHALLENGE_EXPIRED', 401],
+    ['CHALLENGE_ALREADY_USED', 409],
+    ['CHALLENGE_IN_PROGRESS', 409],
+    ['INVALID_CHALLENGE_ANSWER', 401],
+    ['CHALLENGE_ATTEMPTS_EXCEEDED', 401],
+    ['CHALLENGE_RESEND_COOLDOWN', 429],
+    ['EMAIL_DAILY_LIMIT_EXCEEDED', 429],
+    ['GLOBAL_DAILY_LIMIT_EXCEEDED', 429],
+  ] as const)(
+    '이메일 challenge 오류 %s를 공개 상태 %i로 변환한다',
+    (code, status) => {
+      const result = buildErrorResponse(
+        new EmailChallengeError(code),
+        'request-challenge',
+      );
+
+      expect(result).toMatchObject({
+        status,
+        body: { code, status, requestId: 'request-challenge' },
+      });
+    },
+  );
+
   it('운영 응답에는 stack 없이 code와 request id만 남긴다', () => {
     const error = new AuthDomainError('STEP_UP_INVALID');
     error.stack = 'sensitive stack';
@@ -209,6 +237,9 @@ describe('공개 오류 응답 변환', () => {
     [new QuestionPublicationError('QUESTION_VERSION_NOT_FOUND'), 404],
     [new QuestionPublicationError('QUESTION_VERSION_NOT_PUBLISHABLE'), 409],
     [new QuestionPublicationError('QUESTION_STATE_CONFLICT'), 409],
+    [new UserManagementError('ADMIN_REQUIRED'), 403],
+    [new UserManagementError('INVALID_SCHOOL_EMAIL'), 400],
+    [new UserManagementError('USER_NOT_FOUND'), 404],
     [new VocabularyAdminError('VOCABULARY_NOT_FOUND'), 404],
     [new VocabularyAdminError('VOCABULARY_MEDIA_NOT_FOUND'), 404],
     [new VocabularyAdminError('VOCABULARY_CONTENT_INVALID'), 400],

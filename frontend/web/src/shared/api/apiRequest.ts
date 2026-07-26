@@ -25,11 +25,15 @@ export interface ApiRequestOptions<T> {
 }
 
 const csrfProtectedPaths = new Set([
-  '/auth/login',
   '/auth/mfa/totp/challenge',
   '/auth/refresh',
   '/auth/logout',
 ]);
+
+const isCsrfProtectedPath = (path: string): boolean =>
+  csrfProtectedPaths.has(path) ||
+  path === '/auth/challenges' ||
+  path.startsWith('/auth/challenges/');
 
 function createHeaders<T>(options: ApiRequestOptions<T>) {
   const headers = new Headers(options.headers);
@@ -45,7 +49,7 @@ function createHeaders<T>(options: ApiRequestOptions<T>) {
   }
   if (
     options.method === 'POST' &&
-    csrfProtectedPaths.has(options.path.split('?')[0] ?? '')
+    isCsrfProtectedPath(options.path.split('?')[0] ?? '')
   ) {
     headers.set('X-CSRF-Protection', '1');
   }

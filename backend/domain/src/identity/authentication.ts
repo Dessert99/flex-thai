@@ -16,7 +16,6 @@ export type ProviderLoginResult =
 
 /** 외부 인증 공급자가 구현해야 하는 Identity 동작 */
 export interface AuthenticationProvider {
-  login(email: string, password: string): Promise<ProviderLoginResult>;
   completeTotpChallenge(input: {
     email: string;
     challengeToken: string;

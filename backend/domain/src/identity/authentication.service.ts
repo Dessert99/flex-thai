@@ -8,6 +8,7 @@ import type {
   IdentityUser,
   IdentityUserRepository,
 } from './user.repository.js';
+import type { PasswordlessAuthenticationResult } from './passwordless-authentication.js';
 
 /** 인증 흐름이 호출자에게 노출하는 안정적인 Identity 오류 */
 export class IdentityDomainError extends Error {
@@ -32,7 +33,7 @@ export type AuthenticationResult =
       tokens: IdentityTokenSet;
       user: IdentityUser;
     }
-  | { kind: 'MFA_REQUIRED'; challengeToken: string };
+  | { kind: 'MFA_REQUIRED'; challengeToken: string; email: string };
 
 /** Cognito 결과를 최신 DB 사용자 상태와 결합하는 Identity use case */
 export class IdentityAuthenticationService {
@@ -42,20 +43,13 @@ export class IdentityAuthenticationService {
     private readonly now: () => Date = () => new Date(),
   ) {}
 
-  /** 이메일·비밀번호 인증 뒤 활성 사용자만 token을 받게 한다 */
-  async login(
-    emailInput: string,
-    password: string,
+  /** passwordless provider 결과를 최신 활성 사용자와 결합한다 */
+  async completePasswordless(
+    result: PasswordlessAuthenticationResult,
   ): Promise<AuthenticationResult> {
-    const email = normalizeEmail(emailInput);
-    const result = await this.callProvider(() =>
-      this.provider.login(email, password),
-    );
-
     if (result.kind === 'MFA_REQUIRED') {
       return result;
     }
-
     return this.completeAuthentication(result.tokens);
   }
 

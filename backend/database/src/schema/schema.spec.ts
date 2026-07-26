@@ -12,17 +12,25 @@ describe('기초 데이터베이스 schema', () => {
     expect(Object.keys(getTableColumns(users))).toContain('mfaEnrolledAt');
   });
 
-  it('인증 challenge는 이메일·목적·코드 HMAC만 저장하고 비밀번호와 session은 저장하지 않는다', () => {
+  it('인증 challenge는 코드·링크 HMAC과 소비 예약 상태만 저장한다', () => {
     const columns = Object.keys(getTableColumns(authChallenges));
 
     expect(columns).toEqual(
-      expect.arrayContaining(['email', 'purpose', 'codeHmac', 'expiresAt']),
+      expect.arrayContaining([
+        'email',
+        'codeHmac',
+        'linkHmac',
+        'resendAt',
+        'reservedAt',
+        'consumedAt',
+        'deliveryStatus',
+        'expiresAt',
+      ]),
     );
     expect(columns).not.toEqual(
       expect.arrayContaining([
         'password',
         'emailHash',
-        'linkHmac',
         'cognitoSessionCiphertext',
       ]),
     );

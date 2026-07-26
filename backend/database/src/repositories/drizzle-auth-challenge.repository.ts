@@ -16,16 +16,21 @@ import * as schema from '../schema/index.js';
 type AuthDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 type AuthChallengeRow = typeof authChallenges.$inferSelect;
 
-const toAuthChallenge = (row: AuthChallengeRow): AuthChallenge => ({
-  id: row.id,
-  email: row.email,
-  purpose: row.purpose,
-  codeHmac: row.codeHmac,
-  attempts: row.attempts,
-  status: row.status,
-  expiresAt: row.expiresAt,
-  createdAt: row.createdAt,
-});
+const toAuthChallenge = (row: AuthChallengeRow): AuthChallenge => {
+  if (row.purpose === 'LOGIN' || row.status === 'RESERVED') {
+    throw new Error('legacy challenge repository가 passwordless 행을 읽었습니다');
+  }
+  return {
+    id: row.id,
+    email: row.email,
+    purpose: row.purpose,
+    codeHmac: row.codeHmac,
+    attempts: row.attempts,
+    status: row.status,
+    expiresAt: row.expiresAt,
+    createdAt: row.createdAt,
+  };
+};
 
 /** 동시 요청도 전체 발송 상한을 넘지 못하게 transaction lock으로 직렬화한다 */
 export class DrizzleAuthChallengeRepository implements AuthChallengeRepository {
@@ -94,7 +99,9 @@ export class DrizzleAuthChallengeRepository implements AuthChallengeRepository {
           email: input.email,
           purpose: input.purpose,
           codeHmac: input.codeHmac,
+          linkHmac: input.codeHmac,
           expiresAt: input.expiresAt,
+          resendAt: input.createdAt,
           createdAt: input.createdAt,
         })
         .returning();

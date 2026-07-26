@@ -1,4 +1,4 @@
-/** 로그인 검증·MFA 전환·인증 완료 redirect·안전한 오류 안내를 검증한다 */
+/** 학교 이메일 challenge 시작 화면의 입력·이동·오류를 검증한다 */
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -7,13 +7,16 @@ import { renderWithProviders } from '@/shared/test';
 import { LoginPageContainer } from './LoginPageContainer';
 
 const mocks = vi.hoisted(() => ({
-  loginSession: vi.fn(),
   navigate: vi.fn(),
+  startEmailAuthenticationSession: vi.fn(),
 }));
 
 vi.mock('@/shared/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/shared/api')>();
-  return { ...actual, loginSession: mocks.loginSession };
+  return {
+    ...actual,
+    startEmailAuthenticationSession: mocks.startEmailAuthenticationSession,
+  };
 });
 
 vi.mock('@tanstack/react-router', async (importOriginal) => {
@@ -23,75 +26,61 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
 });
 
 beforeEach(() => {
-  mocks.loginSession.mockReset();
   mocks.navigate.mockReset();
+  mocks.startEmailAuthenticationSession.mockReset();
 });
 
 describe('로그인 페이지', () => {
-  it('잘못된 입력을 서버에 보내지 않고 첫 오류 입력에 초점을 둔다', async () => {
+  it('로그인 화면은 학교 이메일만 요청한다', () => {
+    renderWithProviders(<LoginPageContainer />);
+
+    expect(screen.getByLabelText('학교 이메일')).toBeVisible();
+    expect(screen.queryByLabelText('비밀번호')).not.toBeInTheDocument();
+  });
+
+  it('잘못된 이메일을 서버에 보내지 않고 입력에 초점을 둔다', async () => {
     const user = userEvent.setup();
     renderWithProviders(<LoginPageContainer />);
 
-    await user.click(screen.getByRole('button', { name: '로그인' }));
+    await user.click(screen.getByRole('button', { name: '인증 메일 받기' }));
 
-    expect(mocks.loginSession).not.toHaveBeenCalled();
-    expect(screen.getByLabelText('이메일')).toHaveFocus();
-    expect(screen.getByLabelText('이메일')).toHaveAttribute(
-      'aria-invalid',
-      'true',
+    expect(mocks.startEmailAuthenticationSession).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('학교 이메일')).toHaveFocus();
+  });
+
+  it('challenge 시작 뒤 코드 입력 화면으로 이동한다', async () => {
+    mocks.startEmailAuthenticationSession.mockResolvedValue({
+      challengeId: '00000000-0000-4000-8000-000000000001',
+      email: 'learner@hufs.ac.kr',
+      expiresAt: '2026-07-26T00:10:00.000Z',
+      resendAt: '2026-07-26T00:01:00.000Z',
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<LoginPageContainer />);
+
+    await user.type(screen.getByLabelText('학교 이메일'), 'learner@hufs.ac.kr');
+    await user.click(screen.getByRole('button', { name: '인증 메일 받기' }));
+
+    expect(mocks.startEmailAuthenticationSession).toHaveBeenCalledWith(
+      'learner@hufs.ac.kr',
     );
-  });
-
-  it('인증된 학습자를 SPA replace로 학습 홈에 보낸다', async () => {
-    mocks.loginSession.mockResolvedValue({
-      status: 'authenticated',
-      user: {
-        id: '01933b6a-8f13-7a19-b7e5-536d70f57aaa',
-        email: 'learner@example.com',
-        role: 'LEARNER',
-        mfaEnrolled: false,
-      },
-    });
-    const user = userEvent.setup();
-    renderWithProviders(<LoginPageContainer />);
-
-    await user.type(screen.getByLabelText('이메일'), 'learner@example.com');
-    await user.type(screen.getByLabelText('비밀번호'), 'password');
-    await user.click(screen.getByRole('button', { name: '로그인' }));
-
     expect(mocks.navigate).toHaveBeenCalledWith({
-      replace: true,
-      to: '/learn',
+      to: '/login/challenge',
     });
   });
 
-  it('MFA_REQUIRED에서 challenge 원문 없이 TOTP 페이지로 이동한다', async () => {
-    mocks.loginSession.mockResolvedValue({ status: 'mfa-required' });
+  it('실패 응답에서 계정 존재 여부 대신 일반 문구와 requestId를 표시한다', async () => {
+    mocks.startEmailAuthenticationSession.mockRejectedValue(createAuthError());
     const user = userEvent.setup();
     renderWithProviders(<LoginPageContainer />);
 
-    await user.type(screen.getByLabelText('이메일'), 'admin@example.com');
-    await user.type(screen.getByLabelText('비밀번호'), 'password');
-    await user.click(screen.getByRole('button', { name: '로그인' }));
-
-    expect(mocks.navigate).toHaveBeenCalledWith({
-      replace: true,
-      to: '/login/mfa',
-    });
-    expect(screen.queryByText(/challenge/iu)).not.toBeInTheDocument();
-  });
-
-  it('인증 실패에 서버 title 대신 일반 문구와 requestId를 표시한다', async () => {
-    mocks.loginSession.mockRejectedValue(createAuthError());
-    const user = userEvent.setup();
-    renderWithProviders(<LoginPageContainer />);
-
-    await user.type(screen.getByLabelText('이메일'), 'admin@example.com');
-    await user.type(screen.getByLabelText('비밀번호'), 'wrong-password');
-    await user.click(screen.getByRole('button', { name: '로그인' }));
+    await user.type(screen.getByLabelText('학교 이메일'), 'new@hufs.ac.kr');
+    await user.click(screen.getByRole('button', { name: '인증 메일 받기' }));
 
     expect(
-      await screen.findByText('이메일 또는 비밀번호를 확인해 주세요.'),
+      await screen.findByText(
+        '인증 메일을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.',
+      ),
     ).toBeInTheDocument();
     expect(screen.getByText('요청 ID: request-login')).toBeInTheDocument();
     expect(
@@ -106,8 +95,8 @@ function createAuthError() {
     problem: {
       type: 'https://flex-thia.dev/problems/auth',
       title: '계정이 존재하지 않습니다',
-      status: 401,
-      code: 'INVALID_CREDENTIALS',
+      status: 429,
+      code: 'EMAIL_DAILY_LIMIT_EXCEEDED',
       requestId: 'request-login',
       fieldErrors: [],
     },

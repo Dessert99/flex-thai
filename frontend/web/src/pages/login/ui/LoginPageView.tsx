@@ -1,5 +1,5 @@
-/** 키보드 접근 가능한 로그인 form과 안전한 server feedback을 렌더링한다 */
-import type { LoginInput } from '@flex-thia/contracts';
+/** 키보드 접근 가능한 학교 이메일 form과 안전한 feedback을 렌더링한다 */
+import type { StartEmailAuthenticationInput } from '@flex-thia/contracts';
 import type { FormEventHandler } from 'react';
 import type { UseFormReturn } from 'react-hook-form';
 import { Button } from '@/shared/ui/button';
@@ -20,7 +20,7 @@ import {
 import { Input } from '@/shared/ui/input';
 
 interface LoginPageViewProps {
-  form: UseFormReturn<LoginInput>;
+  form: UseFormReturn<StartEmailAuthenticationInput>;
   onSubmit: FormEventHandler<HTMLFormElement>;
   pending: boolean;
   requestId?: string;
@@ -54,29 +54,12 @@ export function LoginPageView({
                 name='email'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>이메일</FormLabel>
+                    <FormLabel>학교 이메일</FormLabel>
                     <FormControl>
                       <Input
                         autoComplete='email'
                         inputMode='email'
                         type='email'
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name='password'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>비밀번호</FormLabel>
-                    <FormControl>
-                      <Input
-                        autoComplete='current-password'
-                        type='password'
                         {...field}
                       />
                     </FormControl>
@@ -99,7 +82,7 @@ export function LoginPageView({
                 disabled={pending}
                 type='submit'
               >
-                {pending ? '로그인 중' : '로그인'}
+                {pending ? '메일 보내는 중' : '인증 메일 받기'}
               </Button>
             </form>
           </Form>

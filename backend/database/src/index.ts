@@ -7,6 +7,9 @@ export * from './clients/local.js';
 /** 이메일 인증 challenge repository adapter를 공개한다 */
 export * from './repositories/drizzle-auth-challenge.repository.js';
 
+/** passwordless 이메일 challenge repository adapter를 공개한다 */
+export * from './repositories/drizzle-email-challenge.repository.js';
+
 /** 최초 ADMIN bootstrap transaction adapter를 공개한다 */
 export * from './repositories/drizzle-admin-bootstrap.repository.js';
 
@@ -66,6 +69,9 @@ export * from './queries/drizzle-admin-question.query.js';
 
 /** 관리자 어휘 모든 상태·뜻·발음·사용처 read model을 공개한다 */
 export * from './queries/drizzle-admin-vocabulary.query.js';
+
+/** 관리자 사용자 목록·상태·beta 안내 추적 adapter를 공개한다 */
+export * from './queries/drizzle-user-management.query.js';
 
 /** Cognito sub 기반 user repository adapter를 공개한다 */
 export * from './repositories/drizzle-user.repository.js';
