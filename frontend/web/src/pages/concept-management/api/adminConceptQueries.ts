@@ -1,7 +1,10 @@
 /** 관리자 개념 목록 query를 정의한다 */
 import {
   adminConceptListResponseSchema,
+  conceptVersionResponseSchema,
+  createConceptRequestSchema,
   type AdminConceptListQuery,
+  type CreateConceptRequest,
 } from '@flex-thia/contracts';
 import { queryOptions } from '@tanstack/react-query';
 import { authenticatedRequest } from '@/shared/api';
@@ -19,5 +22,15 @@ export function adminConceptListQueryOptions(query: AdminConceptListQuery) {
         path: `/admin/concepts?${params}`,
         response: { kind: 'json', schema: adminConceptListResponseSchema },
       }),
+  });
+}
+
+/** 개념과 첫 설명 초안을 strict 계약으로 생성한다 */
+export function createConcept(input: CreateConceptRequest) {
+  return authenticatedRequest({
+    body: createConceptRequestSchema.parse(input),
+    method: 'POST',
+    path: '/admin/concepts',
+    response: { kind: 'json', schema: conceptVersionResponseSchema },
   });
 }

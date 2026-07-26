@@ -25,6 +25,7 @@ describe('ConceptManagementPageView', () => {
         error={false}
         loading={false}
         onFilterChange={onFilterChange}
+        onCreate={vi.fn()}
         onRetry={vi.fn()}
         search={{ page: 1, pageSize: 20 }}
       />,

@@ -85,6 +85,23 @@ export function ConceptBlockEditor({
         heading: '새 설명',
         paragraphs: ['새 문단'],
       }])} type='button'>설명 블록 추가</Button>
+      <Button onClick={() => onChange([...blocks, {
+        kind: 'RULE_TABLE',
+        position: blocks.length,
+        heading: '새 규칙 표',
+        headers: ['항목'],
+        rows: [['값']],
+      }])} type='button'>규칙 표 블록 추가</Button>
+      <Button onClick={() => onChange([...blocks, {
+        kind: 'THAI_EXAMPLES',
+        position: blocks.length,
+        heading: '새 태국어 예시',
+        examples: [{
+          position: 0,
+          sentenceVersionId: '',
+          noteKo: null,
+        }],
+      }])} type='button'>태국어 예시 블록 추가</Button>
     </div>
   );
 }
