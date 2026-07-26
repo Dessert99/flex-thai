@@ -12,23 +12,25 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiCreatedResponse,
+  ApiExtraModels,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
   ApiTags,
+  getSchemaPath,
 } from '@nestjs/swagger';
 import {
+  activeVocabularyPracticeSessionSchema,
+  completedVocabularyPracticeSessionSchema,
   createVocabularyPracticeRequestSchema,
   submitVocabularyPracticeAnswerRequestSchema,
   vocabularyPracticeAnswerResponseSchema,
   vocabularyPracticeQuestionPathSchema,
   vocabularyPracticeSessionPathSchema,
-  vocabularyPracticeSessionResponseSchema,
   type VocabularyPracticeAnswerResponse,
   type VocabularyPracticeSessionResponse,
 } from '@flex-thia/contracts';
 import { createZodDto } from 'nestjs-zod';
-import type { ZodObject } from 'zod';
 import {
   CurrentUser,
   type AuthenticatedUser,
@@ -37,13 +39,17 @@ import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
 import { CognitoAuthorizerGuard } from '../identity/cognito-authorizer.guard.js';
 import { RequireRole } from '../identity/require-role.decorator.js';
 import { ApiProblemResponse } from '../openapi/openapi.decorators.js';
+import { ProblemDetailsDto } from '../openapi/openapi.dto.js';
 import { LearnerVocabularyPracticeService } from './learner-vocabulary-practice.service.js';
 
 class CreateVocabularyPracticeRequestDto extends createZodDto(
   createVocabularyPracticeRequestSchema,
 ) {}
-class VocabularyPracticeSessionResponseDto extends createZodDto(
-  vocabularyPracticeSessionResponseSchema as unknown as ZodObject,
+class ActiveVocabularyPracticeSessionResponseDto extends createZodDto(
+  activeVocabularyPracticeSessionSchema,
+) {}
+class CompletedVocabularyPracticeSessionResponseDto extends createZodDto(
+  completedVocabularyPracticeSessionSchema,
 ) {}
 class SubmitVocabularyPracticeAnswerRequestDto extends createZodDto(
   submitVocabularyPracticeAnswerRequestSchema,
@@ -65,8 +71,22 @@ const ApiVocabularyPracticeProblems = () =>
     ApiProblemResponse(500, '예상하지 못한 서버 오류'),
   );
 
+const vocabularyPracticeSessionResponse = {
+  schema: {
+    oneOf: [
+      { $ref: getSchemaPath(ActiveVocabularyPracticeSessionResponseDto) },
+      { $ref: getSchemaPath(CompletedVocabularyPracticeSessionResponseDto) },
+    ],
+  },
+};
+
 /** LEARNER와 상속된 ADMIN이 사용하는 단어 연습 endpoint */
 @ApiTags('Learner Vocabulary Practice')
+@ApiExtraModels(
+  ActiveVocabularyPracticeSessionResponseDto,
+  CompletedVocabularyPracticeSessionResponseDto,
+  ProblemDetailsDto,
+)
 @ApiBearerAuth('accessToken')
 @Controller()
 @UseGuards(CognitoAuthorizerGuard, ApplicationRoleGuard)
@@ -79,7 +99,7 @@ export class LearnerVocabularyPracticeController {
   /** 선택 source와 설정으로 단어 연습 세션을 생성한다 */
   @ApiOperation({ summary: '단어 연습 세션을 생성한다' })
   @ApiBody({ type: CreateVocabularyPracticeRequestDto })
-  @ApiCreatedResponse({ type: VocabularyPracticeSessionResponseDto })
+  @ApiCreatedResponse(vocabularyPracticeSessionResponse)
   @ApiVocabularyPracticeProblems()
   @Post('me/vocabulary-practice/sessions')
   create(
@@ -93,7 +113,7 @@ export class LearnerVocabularyPracticeController {
   /** 현재 사용자의 세션과 답변 진행을 조회한다 */
   @ApiOperation({ summary: '단어 연습 세션을 조회한다' })
   @ApiParam({ name: 'sessionId', type: 'string', format: 'uuid' })
-  @ApiOkResponse({ type: VocabularyPracticeSessionResponseDto })
+  @ApiOkResponse(vocabularyPracticeSessionResponse)
   @ApiVocabularyPracticeProblems()
   @Get('me/vocabulary-practice/sessions/:sessionId')
   get(
