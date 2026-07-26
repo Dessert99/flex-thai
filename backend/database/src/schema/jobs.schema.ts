@@ -32,6 +32,12 @@ export const contentProductionPurposeEnum = pgEnum(
   ],
 );
 
+/** 콘텐츠 제작 항목의 한 단계 작업 */
+export const contentProductionOperationEnum = pgEnum(
+  'content_production_operation',
+  ['VOCABULARY_EXTRACTION', 'QUESTION_GENERATION'],
+);
+
 /** 지원하는 원본 형식 */
 export const inputTypeEnum = pgEnum('input_type', ['TEXT', 'PDF', 'IMAGE']);
 
@@ -59,6 +65,14 @@ export const uploadStatusEnum = pgEnum('upload_status', [
   'PENDING',
   'VERIFIED',
   'REJECTED',
+]);
+
+/** 외부 provider 실행의 비용 안전한 수명 */
+export const providerRunStatusEnum = pgEnum('provider_run_status', [
+  'STARTED',
+  'SUCCEEDED',
+  'FAILED',
+  'OUTCOME_UNKNOWN',
 ]);
 
 /** 사전 서명 정책과 실제 S3 object 검증 결과를 연결한다 */
@@ -170,6 +184,8 @@ export const jobItems = pgTable(
     jobId: uuid('job_id')
       .references(() => jobs.id)
       .notNull(),
+    jobInputId: uuid('job_input_id').references(() => jobInputs.id),
+    operation: contentProductionOperationEnum('operation'),
     status: jobItemStatusEnum('status').default('PENDING').notNull(),
     sourceRef: text('source_ref'),
     attempt: integer('attempt').default(0).notNull(),
@@ -199,25 +215,36 @@ export const providerRuns = pgTable(
       .references(() => jobItems.id)
       .notNull(),
     operation: text('operation').notNull(),
+    sequence: integer('sequence').default(0).notNull(),
     provider: text('provider').notNull(),
     model: text('model').notNull(),
+    promptVersion: text('prompt_version').default('legacy').notNull(),
+    itemLeaseToken: text('item_lease_token').default('legacy').notNull(),
     attempt: integer('attempt').notNull(),
-    usage: jsonb('usage').$type<Record<string, number>>().notNull(),
+    status: providerRunStatusEnum('status').default('STARTED').notNull(),
+    usage: jsonb('usage').$type<Record<string, number>>().default({}).notNull(),
     estimatedCostUsd: numeric('estimated_cost_usd', {
       precision: 12,
       scale: 6,
-    }).notNull(),
-    success: boolean('success').notNull(),
+    })
+      .default('0')
+      .notNull(),
+    success: boolean('success'),
+    result: jsonb('result').$type<Record<string, unknown>>(),
+    retryable: boolean('retryable').default(false).notNull(),
     errorCode: text('error_code'),
     providerRequestId: text('provider_request_id'),
-    startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
-    finishedAt: timestamp('finished_at', { withTimezone: true }).notNull(),
+    startedAt: timestamp('started_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
   },
   (table) => [
-    uniqueIndex('provider_runs_item_operation_attempt_unique').on(
+    uniqueIndex('provider_runs_item_attempt_operation_sequence_unique').on(
       table.jobItemId,
-      table.operation,
       table.attempt,
+      table.operation,
+      table.sequence,
     ),
   ],
 );

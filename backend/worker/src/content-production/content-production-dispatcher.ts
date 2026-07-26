@@ -6,6 +6,7 @@ import type {
   ContentProductionItemSeed,
   ContentProductionWorkerJob,
   ContentProductionWorkItem,
+  VocabularyProductionArtifacts,
 } from '@flex-thia/domain';
 import {
   CONTENT_PRODUCTION_ITEM_LEASE_MS,
@@ -19,7 +20,13 @@ const CONTENT_PRODUCTION_ITEM_HEARTBEAT_RETRY_MS = 5 * 1000;
 
 type ContentProductionWorkerJobSnapshot = Pick<
   ContentProductionJob,
-  'id' | 'attempt' | 'status' | 'requestedBy' | 'purpose' | 'presetSnapshot' | 'inputs'
+  | 'id'
+  | 'attempt'
+  | 'status'
+  | 'requestedBy'
+  | 'purpose'
+  | 'presetSnapshot'
+  | 'inputs'
 >;
 
 /** worker가 요구하는 조건부 콘텐츠 제작 저장소 */
@@ -63,6 +70,7 @@ export interface ContentProductionItemOutcome {
   retryable: boolean;
   errorCode: string | null;
   result?: Record<string, unknown>;
+  artifacts?: VocabularyProductionArtifacts;
 }
 
 /** 입력 항목을 local fake 또는 실제 provider로 처리하는 port */
@@ -290,16 +298,13 @@ export const createContentProductionDispatcher =
           );
         }
         outcome = await processor.process(
-          createContentProductionWorkItem(
-            job as ContentProductionWorkerJob,
-            {
-              ...claimed,
-              jobInputId: seed.jobInputId,
-              operation: seed.operation,
-              leaseUntil: claimed.leaseUntil,
-              leaseToken: claimed.leaseToken,
-            },
-          ),
+          createContentProductionWorkItem(job as ContentProductionWorkerJob, {
+            ...claimed,
+            jobInputId: seed.jobInputId,
+            operation: seed.operation,
+            leaseUntil: claimed.leaseUntil,
+            leaseToken: claimed.leaseToken,
+          }),
           controller.signal,
         );
       } catch {

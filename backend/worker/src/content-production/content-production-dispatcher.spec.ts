@@ -9,6 +9,7 @@ import type {
   ContentProductionInput,
   ContentProductionItemSeed,
   ContentProductionPresetSnapshot,
+  ContentProductionWorkItem,
   ContentProductionWorkerJob,
 } from '@flex-thia/domain';
 
@@ -27,9 +28,7 @@ type WorkerJobFixture = Omit<
   status: 'RUNNING';
 };
 
-const createRepository = (
-  startAttemptResult: WorkerJobFixture | null,
-) => {
+const createRepository = (startAttemptResult: WorkerJobFixture | null) => {
   const items = [
     {
       id: 'item-1',
@@ -243,7 +242,7 @@ describe('콘텐츠 제작 dispatcher', () => {
       jobInputId: 'job-input-1',
       operation: 'VOCABULARY_EXTRACTION',
     });
-    const workItems: unknown[] = [];
+    const workItems: ContentProductionWorkItem[] = [];
     const dispatch = createContentProductionDispatcher(repository, {
       process(workItem) {
         workItems.push(workItem);
@@ -257,19 +256,13 @@ describe('콘텐츠 제작 dispatcher', () => {
 
     await dispatch({ jobId: 'job-id', attempt: 0 });
 
-    expect(workItems).toEqual([
-      expect.objectContaining({
-        jobId: 'job-id',
-        requestedBy: 'admin-id',
-        input: expect.objectContaining({
-          jobInputId: 'job-input-1',
-          inputKey: 'private/input.txt',
-        }),
-        item: expect.objectContaining({
-          operation: 'VOCABULARY_EXTRACTION',
-        }),
-      }),
-    ]);
+    expect(workItems[0]?.jobId).toBe('job-id');
+    expect(workItems[0]?.requestedBy).toBe('admin-id');
+    expect(workItems[0]?.input).toMatchObject({
+      jobInputId: 'job-input-1',
+      inputKey: 'private/input.txt',
+    });
+    expect(workItems[0]?.item.operation).toBe('VOCABULARY_EXTRACTION');
   });
 
   it('stale attempt와 terminal 재전달은 항목을 다시 처리하지 않는다', async () => {

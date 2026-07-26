@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   evaluateVocabularyCandidate,
   readVocabularyProductionPolicy,
+  runVocabularyProviderOperation,
+  VocabularyProviderCallError,
   type VocabularyProductionLookup,
 } from './ai-vocabulary-production.js';
 
@@ -123,5 +125,118 @@ describe('AI 어휘 후보 결정 규칙', () => {
         suspectedDuplicateMaxCodePointDistance: 4,
       }),
     ).toThrowError('INVALID_DUPLICATE_POLICY');
+  });
+});
+
+describe('AI 어휘 provider 실행 수명', () => {
+  const execution = {
+    jobItemId: 'item-id',
+    jobAttempt: 1,
+    operation: 'VOCABULARY_EXTRACTION',
+    sequence: 0,
+    provider: 'LOCAL_FAKE',
+    model: 'deterministic-v1',
+    promptVersion: 'v1',
+    itemLeaseToken: 'lease-token',
+  } as const;
+
+  it('이미 성공한 실행은 저장 결과를 replay하고 provider를 호출하지 않는다', async () => {
+    let callCount = 0;
+    const result = await runVocabularyProviderOperation(
+      execution,
+      {
+        claim: () =>
+          Promise.resolve({
+            kind: 'REPLAY',
+            result: { kind: 'TEXT', text: '저장 결과' },
+          }),
+        succeed: () => Promise.resolve(true),
+        fail: () => Promise.resolve(true),
+      },
+      () => {
+        callCount += 1;
+        return Promise.resolve({ kind: 'TEXT', text: '새 결과' });
+      },
+    );
+
+    expect(callCount).toBe(0);
+    expect(result).toEqual({
+      status: 'SUCCEEDED',
+      result: { kind: 'TEXT', text: '저장 결과' },
+    });
+  });
+
+  it('결과 불명 실행은 같은 attempt에서 provider를 다시 호출하지 않는다', async () => {
+    let callCount = 0;
+    const result = await runVocabularyProviderOperation(
+      execution,
+      {
+        claim: () => Promise.resolve({ kind: 'OUTCOME_UNKNOWN' }),
+        succeed: () => Promise.resolve(true),
+        fail: () => Promise.resolve(true),
+      },
+      () => {
+        callCount += 1;
+        return Promise.resolve({ kind: 'TEXT', text: '새 결과' });
+      },
+    );
+
+    expect(callCount).toBe(0);
+    expect(result).toEqual({
+      status: 'OUTCOME_UNKNOWN',
+      errorCode: 'PROVIDER_OUTCOME_UNKNOWN',
+      retryable: true,
+    });
+  });
+
+  it('새 실행 결과를 terminal로 저장한 뒤 반환한다', async () => {
+    const completed: unknown[] = [];
+    const result = await runVocabularyProviderOperation(
+      execution,
+      {
+        claim: () => Promise.resolve({ kind: 'CLAIMED', runId: 'run-id' }),
+        succeed: (_runId, value) => {
+          completed.push(value);
+          return Promise.resolve(true);
+        },
+        fail: () => Promise.resolve(true),
+      },
+      () => Promise.resolve({ kind: 'TEXT', text: '새 결과' }),
+    );
+
+    expect(completed).toEqual([{ kind: 'TEXT', text: '새 결과' }]);
+    expect(result.status).toBe('SUCCEEDED');
+  });
+
+  it('응답 수신 여부가 불명확한 오류를 outcome unknown으로 저장한다', async () => {
+    const failures: unknown[] = [];
+    const result = await runVocabularyProviderOperation(
+      execution,
+      {
+        claim: () => Promise.resolve({ kind: 'CLAIMED', runId: 'run-id' }),
+        succeed: () => Promise.resolve(true),
+        fail: (_runId, failure) => {
+          failures.push(failure);
+          return Promise.resolve(true);
+        },
+      },
+      () =>
+        Promise.reject(
+          new VocabularyProviderCallError(
+            'PROVIDER_TRANSPORT_CLOSED',
+            true,
+            false,
+          ),
+        ),
+    );
+
+    expect(failures).toEqual([
+      {
+        status: 'OUTCOME_UNKNOWN',
+        errorCode: 'PROVIDER_OUTCOME_UNKNOWN',
+        retryable: true,
+      },
+    ]);
+    expect(result.status).toBe('OUTCOME_UNKNOWN');
   });
 });

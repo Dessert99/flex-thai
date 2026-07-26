@@ -1,4 +1,5 @@
 /** 콘텐츠 제작 작업 생성·조회·재시도를 조율하는 도메인 경계 */
+import type { VocabularyProductionArtifacts } from './ai-vocabulary-production.js';
 
 /** 콘텐츠 제작 작업 목적 */
 export type ContentProductionPurpose =
@@ -135,6 +136,7 @@ export interface ContentProductionRepository {
       retryable: boolean;
       errorCode: string | null;
       result?: Record<string, unknown>;
+      artifacts?: VocabularyProductionArtifacts;
     },
   ): Promise<boolean>;
   finalizeAttempt(
@@ -290,7 +292,11 @@ export class ContentProductionService {
     }
 
     const hasRetryableItem = current.items.some(
-      (item) => item.status === 'FAILED' && item.retryable,
+      (item) =>
+        item.retryable &&
+        (item.status === 'FAILED' ||
+          (item.status === 'NEEDS_ATTENTION' &&
+            item.errorCode === 'PROVIDER_OUTCOME_UNKNOWN')),
     );
     const hasWorkflowFailure =
       current.status === 'FAILED' &&

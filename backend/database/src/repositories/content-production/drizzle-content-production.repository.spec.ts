@@ -3,6 +3,39 @@ import { describe, expect, it, vi } from 'vitest';
 import { DrizzleContentProductionRepository } from './drizzle-content-production.repository.js';
 
 describe('DrizzleContentProductionRepository 조건부 전이', () => {
+  it('구조화된 item seed의 input과 operation을 row에 보존한다', async () => {
+    const returning = vi.fn().mockResolvedValue([]);
+    const limit = vi.fn().mockResolvedValue([{ attempt: 0 }]);
+    const where = vi.fn(() => ({ limit }));
+    const from = vi.fn(() => ({ where }));
+    const select = vi.fn(() => ({ from }));
+    const onConflictDoNothing = vi.fn(() => ({ returning }));
+    const values = vi.fn(() => ({ onConflictDoNothing }));
+    const insert = vi.fn(() => ({ values }));
+    const repository = new DrizzleContentProductionRepository({
+      insert,
+      select,
+    } as never);
+
+    await repository.ensureItems('job-id', [
+      {
+        sourceRef: 'opaque',
+        jobInputId: 'input-id',
+        operation: 'VOCABULARY_EXTRACTION',
+      },
+    ]);
+
+    expect(values).toHaveBeenCalledWith([
+      {
+        jobId: 'job-id',
+        sourceRef: 'opaque',
+        jobInputId: 'input-id',
+        operation: 'VOCABULARY_EXTRACTION',
+        attempt: 0,
+      },
+    ]);
+  });
+
   it('legacy Job의 unique 충돌을 콘텐츠 제작 멱등 충돌로 반환한다', async () => {
     const returning = vi.fn().mockResolvedValue([]);
     const onConflictDoNothing = vi.fn(() => ({ returning }));
@@ -85,8 +118,12 @@ describe('DrizzleContentProductionRepository 조건부 전이', () => {
     const where = vi.fn(() => ({ returning }));
     const set = vi.fn(() => ({ where }));
     const update = vi.fn(() => ({ set }));
+    const transaction = vi.fn(
+      (callback: (executor: unknown) => Promise<unknown>) =>
+        callback({ update }),
+    );
     const repository = new DrizzleContentProductionRepository({
-      update,
+      transaction,
     } as never);
 
     await expect(
@@ -96,6 +133,35 @@ describe('DrizzleContentProductionRepository 조건부 전이', () => {
         errorCode: 'LOCAL_FAKE_FAILURE',
       }),
     ).resolves.toBe(false);
+  });
+
+  it('stale lease면 AI 후보와 terminal 결과를 모두 저장하지 않는다', async () => {
+    const returning = vi.fn().mockResolvedValue([]);
+    const where = vi.fn(() => ({ returning }));
+    const set = vi.fn(() => ({ where }));
+    const update = vi.fn(() => ({ set }));
+    const insert = vi.fn();
+    const transaction = vi.fn(
+      (callback: (executor: unknown) => Promise<unknown>) =>
+        callback({ insert, update }),
+    );
+    const repository = new DrizzleContentProductionRepository({
+      transaction,
+    } as never);
+
+    await expect(
+      repository.finishItem('job-id', 'item-id', 1, 'stale-token', {
+        status: 'SUCCEEDED',
+        retryable: false,
+        errorCode: null,
+        artifacts: {
+          kind: 'VOCABULARY_CANDIDATES',
+          candidates: [],
+          validations: [],
+        },
+      }),
+    ).resolves.toBe(false);
+    expect(insert).not.toHaveBeenCalled();
   });
 
   it('현재 QUEUED 또는 RUNNING attempt가 아니면 failure marker를 무시한다', async () => {

@@ -31,15 +31,11 @@ export type VocabularyDuplicateClassification =
 
 /** 후보 검토 우선순위를 나타내는 내부 그룹 */
 export type VocabularyCandidateResultGroup =
-  | 'NORMAL'
-  | 'NEEDS_ATTENTION'
-  | 'FAILED';
+  'NORMAL' | 'NEEDS_ATTENTION' | 'FAILED';
 
 /** 후보 검증 단계 */
 export type VocabularyValidationStage =
-  | 'SCHEMA'
-  | 'DECISION_RULE'
-  | 'AI_CROSS_VALIDATION';
+  'SCHEMA' | 'DECISION_RULE' | 'AI_CROSS_VALIDATION';
 
 /** preset에서 고정되는 의심 중복 정책 */
 export interface VocabularyProductionPolicy {
@@ -110,6 +106,117 @@ export interface VocabularyCrossValidationProvider {
     signal: AbortSignal;
   }): Promise<{ status: 'PASSED' | 'FAILED'; code: string | null }>;
 }
+
+/** 한 provider 호출을 중복 없이 식별하는 실행 key */
+export interface VocabularyProviderExecution {
+  jobItemId: string;
+  jobAttempt: number;
+  operation: string;
+  sequence: number;
+  provider: string;
+  model: string;
+  promptVersion: string;
+  itemLeaseToken: string;
+}
+
+/** replay 가능한 provider 정규화 결과 */
+export type VocabularyProviderNormalizedResult =
+  | { kind: 'TEXT'; text: string }
+  | { kind: 'CANDIDATES'; candidates: ExtractedVocabularyCandidate[] }
+  | {
+      kind: 'VALIDATION';
+      status: 'PASSED' | 'FAILED';
+      code: string | null;
+    };
+
+/** provider 실행의 terminal 실패 */
+export interface VocabularyProviderFailure {
+  status: 'FAILED' | 'OUTCOME_UNKNOWN';
+  errorCode: string;
+  retryable: boolean;
+}
+
+/** provider 재호출 여부를 transaction claim으로 결정하는 저장 port */
+export interface VocabularyProviderRunRepository {
+  claim(
+    execution: VocabularyProviderExecution,
+  ): Promise<
+    | { kind: 'CLAIMED'; runId: string }
+    | { kind: 'REPLAY'; result: VocabularyProviderNormalizedResult }
+    | { kind: 'OUTCOME_UNKNOWN' }
+  >;
+  succeed(
+    runId: string,
+    result: VocabularyProviderNormalizedResult,
+  ): Promise<boolean>;
+  fail(runId: string, failure: VocabularyProviderFailure): Promise<boolean>;
+}
+
+/** provider 오류의 retry 가능성과 응답 수신 확실성을 보존한다 */
+export class VocabularyProviderCallError extends Error {
+  constructor(
+    readonly code: string,
+    readonly retryable: boolean,
+    readonly outcomeKnown: boolean,
+  ) {
+    super(code);
+    this.name = 'VocabularyProviderCallError';
+  }
+}
+
+/** claim을 획득한 경우에만 provider를 호출하고 terminal 결과를 재사용한다 */
+export const runVocabularyProviderOperation = async (
+  execution: VocabularyProviderExecution,
+  repository: VocabularyProviderRunRepository,
+  call: () => Promise<VocabularyProviderNormalizedResult>,
+): Promise<
+  | { status: 'SUCCEEDED'; result: VocabularyProviderNormalizedResult }
+  | ({ status: 'FAILED' | 'OUTCOME_UNKNOWN' } & Omit<
+      VocabularyProviderFailure,
+      'status'
+    >)
+> => {
+  const claim = await repository.claim(execution);
+
+  if (claim.kind === 'REPLAY') {
+    return { status: 'SUCCEEDED', result: claim.result };
+  }
+
+  if (claim.kind === 'OUTCOME_UNKNOWN') {
+    return {
+      status: 'OUTCOME_UNKNOWN',
+      errorCode: 'PROVIDER_OUTCOME_UNKNOWN',
+      retryable: true,
+    };
+  }
+
+  try {
+    const result = await call();
+    await repository.succeed(claim.runId, result);
+    return { status: 'SUCCEEDED', result };
+  } catch (error) {
+    const failure: VocabularyProviderFailure =
+      error instanceof VocabularyProviderCallError && !error.outcomeKnown
+        ? {
+            status: 'OUTCOME_UNKNOWN',
+            errorCode: 'PROVIDER_OUTCOME_UNKNOWN',
+            retryable: true,
+          }
+        : {
+            status: 'FAILED',
+            errorCode:
+              error instanceof VocabularyProviderCallError
+                ? error.code
+                : 'PROVIDER_CALL_FAILED',
+            retryable:
+              error instanceof VocabularyProviderCallError
+                ? error.retryable
+                : true,
+          };
+    await repository.fail(claim.runId, failure);
+    return failure;
+  }
+};
 
 /** preset snapshot의 의심 중복 정책을 검증한다 */
 export const readVocabularyProductionPolicy = (

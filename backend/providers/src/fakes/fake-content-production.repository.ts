@@ -348,7 +348,11 @@ export class FakeContentProductionRepository implements ContentProductionReposit
     }
 
     const retryableItems = job.items.filter(
-      (item) => item.status === 'FAILED' && item.retryable,
+      (item) =>
+        item.retryable &&
+        (item.status === 'FAILED' ||
+          (item.status === 'NEEDS_ATTENTION' &&
+            item.errorCode === 'PROVIDER_OUTCOME_UNKNOWN')),
     );
 
     const hasWorkflowFailure =

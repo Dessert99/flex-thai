@@ -281,4 +281,36 @@ describe('ContentProductionService 콘텐츠 제작 규칙', () => {
       { jobId: repository.stored.id, attempt: 1 },
     ]);
   });
+
+  it('provider 결과 불명 주의 항목은 관리자 요청으로만 새 attempt를 만든다', async () => {
+    const repository = createRepository();
+    const service = new ContentProductionService(repository, {
+      send: () => Promise.resolve(),
+    });
+    await service.create(command);
+    repository.stored = {
+      ...repository.stored!,
+      status: 'COMPLETED_WITH_FAILURES',
+      counts: { total: 1, succeeded: 0, needsAttention: 1, failed: 0 },
+      items: [
+        {
+          id: 'cbb22737-6f3d-4112-bb0e-8e4f005c810b',
+          sourceRef: 'input:0',
+          status: 'NEEDS_ATTENTION',
+          attempt: 0,
+          retryable: true,
+          errorCode: 'PROVIDER_OUTCOME_UNKNOWN',
+          leaseUntil: null,
+          leaseToken: null,
+        },
+      ],
+    };
+
+    await expect(
+      service.retry(ownerId, repository.stored.id),
+    ).resolves.toMatchObject({
+      attempt: 1,
+      status: 'QUEUED',
+    });
+  });
 });
