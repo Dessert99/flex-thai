@@ -19,6 +19,18 @@ export * from './identity/authentication.js';
 /** 사전 준비 계정의 Identity 인증 use case를 공개한다 */
 export * from './identity/authentication.service.js';
 
+/** passwordless 이메일 challenge 상태와 오류를 공개한다 */
+export * from './identity/email-challenge.js';
+
+/** passwordless 이메일 challenge persistence port를 공개한다 */
+export * from './identity/email-challenge.repository.js';
+
+/** passwordless provider·sender·secret 생성 port를 공개한다 */
+export * from './identity/passwordless-authentication.js';
+
+/** passwordless 이메일 challenge use case를 공개한다 */
+export * from './identity/passwordless-authentication.service.js';
+
 /** Identity 사용자 repository port를 공개한다 */
 export * from './identity/user.repository.js';
 
