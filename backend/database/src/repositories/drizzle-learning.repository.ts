@@ -1,4 +1,4 @@
-/** 학습 답안 transaction과 저장 문제·어휘 연결을 Drizzle로 구현한다 */
+/** 학습 답안 transaction과 저장 문제 연결을 Drizzle로 구현한다 */
 import type {
   InsertQuestionAttemptInput,
   QuestionAttemptRepository,
@@ -212,7 +212,7 @@ export class DrizzleLearningRepository
     return rows.length === 1;
   }
 
-  /** 게시된 공용 어휘만 저장 대상으로 인정한다 */
+  /** 통합 전 기존 endpoint가 게시 어휘만 저장하도록 유지한다 */
   async isVocabularyAvailable(vocabularyId: string): Promise<boolean> {
     const rows = await this.database
       .select({ id: vocabularies.id })
@@ -251,7 +251,7 @@ export class DrizzleLearningRepository
       );
   }
 
-  /** 중복 저장 요청은 기존 어휘 연결을 그대로 유지한다 */
+  /** 통합 전 기존 저장 어휘 연결의 conflict를 멱등 처리한다 */
   async saveVocabulary(
     userId: string,
     vocabularyId: string,
@@ -263,7 +263,7 @@ export class DrizzleLearningRepository
       .onConflictDoNothing();
   }
 
-  /** 대상 노출 상태와 무관하게 어휘 연결 삭제를 멱등 처리한다 */
+  /** 통합 전 기존 저장 어휘 연결 삭제를 멱등 처리한다 */
   async removeVocabulary(userId: string, vocabularyId: string): Promise<void> {
     await this.database
       .delete(savedVocabularies)

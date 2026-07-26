@@ -1,4 +1,4 @@
-/** 저장 문제·어휘의 가용성 확인과 멱등 연결 변경 port를 정의한다 */
+/** 저장 문제의 가용성 확인과 멱등 연결 변경 port를 정의한다 */
 
 /** 저장 대상의 현재 공개 상태를 확인하고 사용자 연결만 변경한다 */
 export interface SavedContentRepository {

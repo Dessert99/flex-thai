@@ -4,7 +4,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import * as schema from '../schema/index.js';
-import { questions, savedVocabularies, vocabularies } from '../schema/index.js';
+import { questions, vocabularies } from '../schema/index.js';
 import { DrizzleLearnerVocabularyQuery } from './drizzle-learner-vocabulary.query.js';
 
 type QueryResult = Array<Record<string, unknown>>;
@@ -135,6 +135,30 @@ const summaryRows = {
 } as const;
 
 describe('DrizzleLearnerVocabularyQuery 공용 어휘 검색', () => {
+  it('통합 전 저장 여부는 legacy 저장 목록 membership으로 계산한다', async () => {
+    const fake = createSelectFake([
+      [{ totalItems: 2 }],
+      [...summaryRows.bases],
+      [...summaryRows.meanings],
+      [...summaryRows.pronunciations],
+    ]);
+    const query = new DrizzleLearnerVocabularyQuery(fake.database as never);
+
+    const result = await query.listVocabularies('user-id', {
+      page: 1,
+      pageSize: 20,
+    });
+
+    expect(result.items.map(({ saved }) => saved)).toEqual([false, true]);
+    const savedSql = toSql(fake.selectCalls[1]?.fields.saved);
+    expect(savedSql.sql).toContain('exists');
+    expect(savedSql.sql).toContain('saved_vocabularies');
+    expect(savedSql.sql).not.toContain('wordbooks');
+    expect(savedSql.sql).not.toContain('wordbook_items');
+    expect(savedSql.params).toContain('user-id');
+    expect(fake.selectCalls[1]?.joins).toHaveLength(0);
+  });
+
   it('정규화 태국어와 한국어·분류 필터를 같은 게시 어휘에 적용한다', async () => {
     const fake = createSelectFake([
       [{ totalItems: 2 }],
@@ -447,39 +471,6 @@ describe('DrizzleLearnerVocabularyQuery 관련 문제와 저장 목록', () => {
       '"questions"."id" asc',
     );
   });
-
-  it('저장 사용자 연결과 현재 게시 상태로 제한하고 savedAt과 ID로 정렬한다', async () => {
-    const fake = createSelectFake([
-      [{ totalItems: 1 }],
-      [summaryRows.bases[1]],
-      [...summaryRows.meanings.slice(0, 2)],
-      [...summaryRows.pronunciations.slice(0, 2)],
-    ]);
-    const query = new DrizzleLearnerVocabularyQuery(fake.database as never);
-
-    const result = await query.listSavedVocabularies('user-id', {
-      page: 1,
-      pageSize: 20,
-    });
-
-    expect(result.items[0]).toMatchObject({
-      id: 'vocabulary-1',
-      saved: true,
-    });
-    expect(fake.selectCalls[0]?.from).toBe(savedVocabularies);
-    expect(fake.selectCalls[1]?.from).toBe(savedVocabularies);
-    expect(
-      fake.selectCalls[1]?.orderBy.map((order) => toSql(order).sql),
-    ).toEqual(
-      expect.arrayContaining([
-        expect.stringContaining('"saved_at" desc'),
-        expect.stringContaining('"vocabularies"."id" asc'),
-      ]),
-    );
-    expect(toSql(fake.selectCalls[1]?.condition).params).toEqual(
-      expect.arrayContaining(['user-id', 'PUBLISHED']),
-    );
-  });
 });
 
 const integrationDatabaseUrl =
@@ -515,6 +506,7 @@ const ids = {
   questionVersion: '62000000-0000-4000-8000-000000000001',
   block: '71000000-0000-4000-8000-000000000001',
   option: '81000000-0000-4000-8000-000000000001',
+  wordbook: '91000000-0000-4000-8000-000000000001',
 } as const;
 
 const createVocabularyQueryFixture = async (pool: Pool): Promise<void> => {
@@ -659,9 +651,14 @@ const createVocabularyQueryFixture = async (pool: Pool): Promise<void> => {
     [ids.option, ids.questionVersion, ids.sentenceVersion],
   );
   await pool.query(
-    `insert into saved_vocabularies (user_id, vocabulary_id, saved_at)
+    `insert into wordbooks (id, user_id, name, created_at, updated_at)
+     values ($1, $2, '통합 어휘', now(), now())`,
+    [ids.wordbook, ids.user],
+  );
+  await pool.query(
+    `insert into wordbook_items (wordbook_id, vocabulary_id, added_at)
      values ($1, $2, now())`,
-    [ids.user, ids.vocabulary[0]],
+    [ids.wordbook, ids.vocabulary[0]],
   );
 };
 
@@ -738,15 +735,6 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
           ids.question,
         ]);
       }
-    });
-
-    it('사용자가 저장한 현재 게시 어휘만 반환한다', async () => {
-      const saved = await query.listSavedVocabularies(ids.user, {
-        page: 1,
-        pageSize: 20,
-      });
-
-      expect(saved.items.map((item) => item.id)).toEqual([ids.vocabulary[0]]);
     });
 
     it('게시 어휘의 발음 media 불변식 손상을 stable 오류로 전달한다', async () => {

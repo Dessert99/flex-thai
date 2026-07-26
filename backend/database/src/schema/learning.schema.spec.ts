@@ -7,6 +7,8 @@ import {
   questionAttempts,
   savedQuestions,
   savedVocabularies,
+  wordbookItems,
+  wordbooks,
 } from './index.js';
 
 const questionMigrationSql = readFileSync(
@@ -92,6 +94,142 @@ describe('학습 기록 데이터베이스 schema', () => {
     expect(questionAttempts).toBeDefined();
     expect(savedQuestions).toBeDefined();
     expect(savedVocabularies).toBeDefined();
+  });
+
+  it('기존 저장 어휘를 보존하면서 단어장 table 두 개를 공개한다', () => {
+    expect(savedVocabularies).toBeDefined();
+    expect(getTableName(wordbooks)).toBe('wordbooks');
+    expect(getTableName(wordbookItems)).toBe('wordbook_items');
+    expect(columnSummaries(wordbooks)).toEqual({
+      id: {
+        name: 'id',
+        sqlType: 'uuid',
+        dataType: 'string',
+        notNull: true,
+        hasDefault: true,
+        primary: true,
+      },
+      userId: {
+        name: 'user_id',
+        sqlType: 'uuid',
+        dataType: 'string',
+        notNull: true,
+        hasDefault: false,
+        primary: false,
+      },
+      name: {
+        name: 'name',
+        sqlType: 'varchar(50)',
+        dataType: 'string',
+        notNull: true,
+        hasDefault: false,
+        primary: false,
+      },
+      createdAt: {
+        name: 'created_at',
+        sqlType: 'timestamp with time zone',
+        dataType: 'date',
+        notNull: true,
+        hasDefault: false,
+        primary: false,
+      },
+      updatedAt: {
+        name: 'updated_at',
+        sqlType: 'timestamp with time zone',
+        dataType: 'date',
+        notNull: true,
+        hasDefault: false,
+        primary: false,
+      },
+    });
+    expect(columnSummaries(wordbookItems)).toEqual({
+      wordbookId: {
+        name: 'wordbook_id',
+        sqlType: 'uuid',
+        dataType: 'string',
+        notNull: true,
+        hasDefault: false,
+        primary: false,
+      },
+      vocabularyId: {
+        name: 'vocabulary_id',
+        sqlType: 'uuid',
+        dataType: 'string',
+        notNull: true,
+        hasDefault: false,
+        primary: false,
+      },
+      addedAt: {
+        name: 'added_at',
+        sqlType: 'timestamp with time zone',
+        dataType: 'date',
+        notNull: true,
+        hasDefault: false,
+        primary: false,
+      },
+    });
+  });
+
+  it('사용자 안의 exact 이름과 단어장 안의 어휘 중복을 막는다', () => {
+    expect(uniqueSummaries(wordbooks)).toEqual([
+      {
+        name: 'wordbooks_user_name_unique',
+        columns: ['user_id', 'name'],
+      },
+    ]);
+    expect(primaryKeySummaries(wordbookItems)).toEqual([
+      {
+        name: 'wordbook_items_pk',
+        columns: ['wordbook_id', 'vocabulary_id'],
+      },
+    ]);
+  });
+
+  it('단어장 삭제만 항목을 cascade하고 사용자·어휘 삭제는 제한한다', () => {
+    expect([
+      ...foreignKeySummaries(wordbooks),
+      ...foreignKeySummaries(wordbookItems),
+    ]).toEqual([
+      {
+        name: 'wordbooks_user_id_users_id_fk',
+        sourceTable: 'wordbooks',
+        targetTable: 'users',
+        columns: ['user_id'],
+        foreignColumns: ['id'],
+        onDelete: 'restrict',
+      },
+      {
+        name: 'wordbook_items_wordbook_id_wordbooks_id_fk',
+        sourceTable: 'wordbook_items',
+        targetTable: 'wordbooks',
+        columns: ['wordbook_id'],
+        foreignColumns: ['id'],
+        onDelete: 'cascade',
+      },
+      {
+        name: 'wordbook_items_vocabulary_id_vocabularies_id_fk',
+        sourceTable: 'wordbook_items',
+        targetTable: 'vocabularies',
+        columns: ['vocabulary_id'],
+        foreignColumns: ['id'],
+        onDelete: 'restrict',
+      },
+    ]);
+  });
+
+  it('어휘 membership 조회와 고정 페이지 정렬 index를 제공한다', () => {
+    expect(indexSummaries(wordbookItems)).toEqual([
+      {
+        name: 'wordbook_items_vocabulary_id_idx',
+        columns: ['vocabulary_id'],
+        unique: false,
+      },
+      {
+        name: 'wordbook_items_page_idx',
+        columns: ['wordbook_id', 'added_at', 'vocabulary_id'],
+        unique: false,
+      },
+    ]);
   });
 
   it('답안은 제출 당시 사실만 append-only column으로 보존한다', () => {

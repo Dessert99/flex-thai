@@ -236,6 +236,15 @@ const buildVocabularyFilter = (query: LearnerVocabularyListQuery): SQL[] => {
   return conditions;
 };
 
+const savedInLegacyList = (
+  userId: string,
+): SQL<boolean> => sql<boolean>`exists (
+  select 1
+  from ${savedVocabularies}
+  where ${savedVocabularies.vocabularyId} = ${vocabularies.id}
+    and ${savedVocabularies.userId} = ${userId}
+)`;
+
 const currentQuestionUsesSentence = (): SQL => sql`(
   exists (
     select 1
@@ -347,16 +356,9 @@ export class DrizzleLearnerVocabularyQuery {
         id: vocabularies.id,
         thai: vocabularies.thai,
         kind: vocabularies.kind,
-        saved: sql<boolean>`${savedVocabularies.vocabularyId} is not null`,
+        saved: savedInLegacyList(userId),
       })
       .from(vocabularies)
-      .leftJoin(
-        savedVocabularies,
-        and(
-          eq(savedVocabularies.vocabularyId, vocabularies.id),
-          eq(savedVocabularies.userId, userId),
-        ),
-      )
       .where(and(...conditions))
       .orderBy(asc(vocabularies.id))
       .limit(query.pageSize)
@@ -378,16 +380,9 @@ export class DrizzleLearnerVocabularyQuery {
         id: vocabularies.id,
         thai: vocabularies.thai,
         kind: vocabularies.kind,
-        saved: sql<boolean>`${savedVocabularies.vocabularyId} is not null`,
+        saved: savedInLegacyList(userId),
       })
       .from(vocabularies)
-      .leftJoin(
-        savedVocabularies,
-        and(
-          eq(savedVocabularies.vocabularyId, vocabularies.id),
-          eq(savedVocabularies.userId, userId),
-        ),
-      )
       .where(
         and(
           eq(vocabularies.id, vocabularyId),
@@ -571,7 +566,7 @@ export class DrizzleLearnerVocabularyQuery {
     };
   }
 
-  /** 현재 사용자가 저장한 현재 게시 어휘만 저장 시각 역순으로 반환한다 */
+  /** 통합 전 기존 저장 어휘 목록 endpoint의 read model을 유지한다 */
   async listSavedVocabularies(
     userId: string,
     query: LearnerVocabularyPageQuery,
@@ -605,7 +600,6 @@ export class DrizzleLearnerVocabularyQuery {
       .orderBy(desc(savedVocabularies.savedAt), asc(vocabularies.id))
       .limit(query.pageSize)
       .offset((query.page - 1) * query.pageSize);
-
     return {
       items: await this.loadSummaries(bases),
       page: toPageMetadata(query, totalItems),

@@ -136,10 +136,10 @@ export const vocabularyRelatedQuestionsResponseSchema = z
   })
   .strict();
 
-/** 현재 사용자가 저장한 게시 어휘의 페이지 query */
+/** 통합 전 기존 저장 어휘 목록의 페이지 query */
 export const savedVocabularyListQuerySchema = z.object(pageQueryShape).strict();
 
-/** 현재 사용자가 저장한 게시 어휘의 페이지 응답 */
+/** 통합 전 기존 저장 어휘 목록의 페이지 응답 */
 export const savedVocabularyListResponseSchema = z
   .object({
     items: z.array(vocabularySummarySchema),
@@ -178,12 +178,12 @@ export type VocabularyRelatedQuestionsResponse = z.infer<
   typeof vocabularyRelatedQuestionsResponseSchema
 >;
 
-/** 검증된 저장 어휘 목록 query type */
+/** 통합 전 기존 저장 어휘 목록 query type */
 export type SavedVocabularyListQuery = z.infer<
   typeof savedVocabularyListQuerySchema
 >;
 
-/** 직렬화 가능한 저장 어휘 목록 응답 type */
+/** 통합 전 기존 저장 어휘 목록 응답 type */
 export type SavedVocabularyListResponse = z.infer<
   typeof savedVocabularyListResponseSchema
 >;

@@ -15,9 +15,7 @@ import {
   questionOptions,
   questions,
   savedQuestions,
-  savedVocabularies,
   users,
-  vocabularies,
 } from '../schema/index.js';
 import {
   DrizzleLearningRepository,
@@ -434,25 +432,6 @@ describe('DrizzleLearningRepository 저장 콘텐츠', () => {
     ).resolves.toBe(false);
   });
 
-  it('PUBLISHED vocabulary만 가용하다', async () => {
-    const fake = createFake({
-      selectResults: [[{ id: 'vocabulary-id' }], []],
-    });
-    const repository = new DrizzleLearningRepository(fake.database as never);
-
-    await expect(
-      repository.isVocabularyAvailable('vocabulary-id'),
-    ).resolves.toBe(true);
-    await expect(
-      repository.isVocabularyAvailable('hidden-vocabulary-id'),
-    ).resolves.toBe(false);
-    expect(fake.selectCalls[0]?.from).toBe(vocabularies);
-    expect(toSql(fake.selectCalls[0]?.condition).params).toEqual([
-      'vocabulary-id',
-      'PUBLISHED',
-    ]);
-  });
-
   it('저장은 conflict를 무시하고 삭제는 0 row도 반복 허용한다', async () => {
     const savedAt = new Date('2026-07-24T00:00:00.000Z');
     const fake = createFake();
@@ -460,12 +439,8 @@ describe('DrizzleLearningRepository 저장 콘텐츠', () => {
 
     await repository.saveQuestion('user-id', 'question-id', savedAt);
     await repository.saveQuestion('user-id', 'question-id', savedAt);
-    await repository.saveVocabulary('user-id', 'vocabulary-id', savedAt);
-    await repository.saveVocabulary('user-id', 'vocabulary-id', savedAt);
     await repository.removeQuestion('user-id', 'question-id');
     await repository.removeQuestion('user-id', 'question-id');
-    await repository.removeVocabulary('user-id', 'vocabulary-id');
-    await repository.removeVocabulary('user-id', 'vocabulary-id');
 
     expect(fake.insertCalls).toEqual([
       {
@@ -478,30 +453,14 @@ describe('DrizzleLearningRepository 저장 콘텐츠', () => {
         values: { userId: 'user-id', questionId: 'question-id', savedAt },
         onConflictDoNothing: true,
       },
-      {
-        table: savedVocabularies,
-        values: { userId: 'user-id', vocabularyId: 'vocabulary-id', savedAt },
-        onConflictDoNothing: true,
-      },
-      {
-        table: savedVocabularies,
-        values: { userId: 'user-id', vocabularyId: 'vocabulary-id', savedAt },
-        onConflictDoNothing: true,
-      },
     ]);
     expect(fake.deleteCalls.map((call) => call.table)).toEqual([
       savedQuestions,
       savedQuestions,
-      savedVocabularies,
-      savedVocabularies,
     ]);
     expect(toSql(fake.deleteCalls[0]?.condition).params).toEqual([
       'user-id',
       'question-id',
-    ]);
-    expect(toSql(fake.deleteCalls[2]?.condition).params).toEqual([
-      'user-id',
-      'vocabulary-id',
     ]);
   });
 });
@@ -817,54 +776,30 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       await expect(service.submit(input)).resolves.toEqual(first);
     });
 
-    it('저장 PUT·DELETE를 문제와 어휘 각각 1·0개 연결로 멱등 처리한다', async () => {
+    it('저장 PUT·DELETE를 문제 1·0개 연결로 멱등 처리한다', async () => {
       const fixture = await createIntegrationFixture(pool);
       const service = new SavedContentService(repository);
       const savedAt = new Date('2026-07-24T00:00:00.000Z');
 
       await service.saveQuestion(fixture.userId, fixture.questionId, savedAt);
       await service.saveQuestion(fixture.userId, fixture.questionId, savedAt);
-      await service.saveVocabulary(
-        fixture.userId,
-        fixture.vocabularyId,
-        savedAt,
-      );
-      await service.saveVocabulary(
-        fixture.userId,
-        fixture.vocabularyId,
-        savedAt,
-      );
-      const savedCount = await pool.query<{
-        questions: string;
-        vocabularies: string;
-      }>(
-        `select
-           (select count(*) from saved_questions where user_id = $1) questions,
-           (select count(*) from saved_vocabularies where user_id = $1) vocabularies`,
+      const savedCount = await pool.query<{ questions: string }>(
+        `select count(*) questions
+           from saved_questions
+          where user_id = $1`,
         [fixture.userId],
       );
-      expect(savedCount.rows[0]).toEqual({
-        questions: '1',
-        vocabularies: '1',
-      });
+      expect(savedCount.rows[0]).toEqual({ questions: '1' });
 
       await service.removeQuestion(fixture.userId, fixture.questionId);
       await service.removeQuestion(fixture.userId, fixture.questionId);
-      await service.removeVocabulary(fixture.userId, fixture.vocabularyId);
-      await service.removeVocabulary(fixture.userId, fixture.vocabularyId);
-      const removedCount = await pool.query<{
-        questions: string;
-        vocabularies: string;
-      }>(
-        `select
-           (select count(*) from saved_questions where user_id = $1) questions,
-           (select count(*) from saved_vocabularies where user_id = $1) vocabularies`,
+      const removedCount = await pool.query<{ questions: string }>(
+        `select count(*) questions
+           from saved_questions
+          where user_id = $1`,
         [fixture.userId],
       );
-      expect(removedCount.rows[0]).toEqual({
-        questions: '0',
-        vocabularies: '0',
-      });
+      expect(removedCount.rows[0]).toEqual({ questions: '0' });
     });
 
     it('다른 version 선택지의 직접 insert를 composite FK가 거절한다', async () => {

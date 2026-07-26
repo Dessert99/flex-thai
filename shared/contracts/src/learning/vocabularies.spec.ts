@@ -1,8 +1,6 @@
 /** 학습자 어휘 API의 검색·상세·저장 공개 계약을 검증한다 */
 import { describe, expect, it } from 'vitest';
 import {
-  savedVocabularyListQuerySchema,
-  savedVocabularyListResponseSchema,
   vocabularyDetailResponseSchema,
   vocabularyIdPathSchema,
   vocabularyListQuerySchema,
@@ -92,21 +90,14 @@ describe('학습자 어휘 query와 path 계약', () => {
     ).toThrow();
   });
 
-  it('관련 문제와 저장 목록은 페이지 query만 받고 path는 UUID만 받는다', () => {
+  it('관련 문제는 페이지 query만 받고 path는 UUID만 받는다', () => {
     expect(vocabularyRelatedQuestionsQuerySchema.parse({})).toEqual({
       page: 1,
       pageSize: 20,
     });
-    expect(savedVocabularyListQuerySchema.parse({ pageSize: '100' })).toEqual({
-      page: 1,
-      pageSize: 100,
-    });
     expect(
       vocabularyIdPathSchema.parse({ vocabularyId: ids.vocabulary }),
     ).toEqual({ vocabularyId: ids.vocabulary });
-    expect(() =>
-      savedVocabularyListQuerySchema.parse({ query: 'สวัสดี' }),
-    ).toThrow();
     expect(() =>
       vocabularyIdPathSchema.parse({ vocabularyId: 'invalid' }),
     ).toThrow();
@@ -261,11 +252,5 @@ describe('학습자 어휘 공개 응답 계약', () => {
         page,
       }),
     ).toEqual({ items: [relatedQuestion], page });
-    expect(
-      savedVocabularyListResponseSchema.parse({
-        items: [vocabulary],
-        page,
-      }),
-    ).toEqual({ items: [vocabulary], page });
   });
 });
