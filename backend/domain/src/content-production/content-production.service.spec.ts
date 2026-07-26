@@ -140,7 +140,9 @@ describe('ContentProductionService 콘텐츠 제작 규칙', () => {
           purpose: 'VOCABULARY_EXTRACTION',
         },
       }),
-    ).rejects.toMatchObject({ code: 'IDEMPOTENCY_CONFLICT' });
+    ).rejects.toMatchObject({
+      code: 'CONTENT_PRODUCTION_IDEMPOTENCY_CONFLICT',
+    });
   });
 
   it('동일한 canonical 요청 replay는 같은 작업을 다시 queue에 넣지 않는다', async () => {
@@ -187,6 +189,7 @@ describe('ContentProductionService 콘텐츠 제작 규칙', () => {
           attempt: 3,
           retryable: true,
           errorCode: 'LOCAL_FAKE_FAILURE',
+          leaseUntil: null,
         },
       ],
     };
@@ -224,6 +227,7 @@ describe('ContentProductionService 콘텐츠 제작 규칙', () => {
           attempt: 0,
           retryable: true,
           errorCode: 'LOCAL_FAKE_FAILURE',
+          leaseUntil: null,
         },
       ],
     };

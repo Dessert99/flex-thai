@@ -122,7 +122,7 @@ const executeContentProductionOperation = async <Result>(
 
       if (
         [
-          'IDEMPOTENCY_CONFLICT',
+          'CONTENT_PRODUCTION_IDEMPOTENCY_CONFLICT',
           'JOB_NOT_RETRYABLE',
           'JOB_RETRY_LIMIT_EXCEEDED',
         ].includes(error.code)

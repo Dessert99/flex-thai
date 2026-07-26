@@ -28,6 +28,7 @@ export interface ContentProductionWorkerRepository {
     jobId: string,
     itemId: string,
     attempt: number,
+    leaseUntil: Date,
     outcome: ContentProductionItemOutcome,
   ): Promise<boolean>;
   finalizeAttempt(
@@ -97,6 +98,10 @@ export const createContentProductionDispatcher =
         continue;
       }
 
+      if (!claimed.leaseUntil) {
+        throw new Error(`lease 없는 PROCESSING 항목입니다: ${claimed.id}`);
+      }
+
       let outcome: ContentProductionItemOutcome;
 
       try {
@@ -109,7 +114,13 @@ export const createContentProductionDispatcher =
         };
       }
 
-      await repository.finishItem(job.id, claimed.id, input.attempt, outcome);
+      await repository.finishItem(
+        job.id,
+        claimed.id,
+        input.attempt,
+        claimed.leaseUntil,
+        outcome,
+      );
     }
 
     return (

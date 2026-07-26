@@ -1,5 +1,19 @@
 /** 콘텐츠 제작 작업·항목 조건부 전이와 preset 조회를 Drizzle로 구현한다 */
-import { and, asc, desc, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+  lte,
+  or,
+} from 'drizzle-orm';
+import {
+  CONTENT_PRODUCTION_ITEM_LEASE_MS,
+  ContentProductionDomainError,
+} from '@flex-thia/domain';
 import type {
   ContentProductionItem,
   ContentProductionJob,
@@ -36,6 +50,7 @@ const toItem = (row: typeof jobItems.$inferSelect): ContentProductionItem => {
     attempt: row.attempt,
     retryable: row.retryable,
     errorCode: row.errorCode,
+    leaseUntil: row.leaseUntil,
   };
 };
 
@@ -165,6 +180,12 @@ export class DrizzleContentProductionRepository implements ContentProductionRepo
 
       const created = inserted.length > 0;
 
+      if (!created && (!row.purpose || !row.presetSnapshot)) {
+        throw new ContentProductionDomainError(
+          'CONTENT_PRODUCTION_IDEMPOTENCY_CONFLICT',
+        );
+      }
+
       if (created) {
         await transaction.insert(jobInputs).values(
           command.inputs.map((input, ordinal) => ({
@@ -291,11 +312,12 @@ export class DrizzleContentProductionRepository implements ContentProductionRepo
       });
   }
 
-  /** 현재 attempt에서 처리할 PENDING 항목만 반환한다 */
+  /** 현재 attempt의 PENDING 또는 lease 만료 PROCESSING 항목만 반환한다 */
   async listAttemptItems(
     jobId: string,
     attempt: number,
   ): Promise<ContentProductionItem[]> {
+    const now = this.now();
     return (
       await this.database
         .select()
@@ -304,39 +326,59 @@ export class DrizzleContentProductionRepository implements ContentProductionRepo
           and(
             eq(jobItems.jobId, jobId),
             eq(jobItems.attempt, attempt),
-            eq(jobItems.status, 'PENDING'),
+            or(
+              eq(jobItems.status, 'PENDING'),
+              and(
+                eq(jobItems.status, 'PROCESSING'),
+                or(isNull(jobItems.leaseUntil), lte(jobItems.leaseUntil, now)),
+              ),
+            ),
           ),
         )
         .orderBy(asc(jobItems.createdAt), asc(jobItems.id))
     ).map(toItem);
   }
 
-  /** 정확한 PENDING 항목만 PROCESSING으로 claim한다 */
+  /** PENDING 또는 lease 만료 PROCESSING 항목만 새 lease로 claim한다 */
   async startItem(
     jobId: string,
     itemId: string,
     attempt: number,
   ): Promise<ContentProductionItem | null> {
+    const claimedAt = this.now();
+    const leaseUntil = new Date(
+      claimedAt.getTime() + CONTENT_PRODUCTION_ITEM_LEASE_MS,
+    );
     const [row] = await this.database
       .update(jobItems)
-      .set({ status: 'PROCESSING', updatedAt: this.now() })
+      .set({ status: 'PROCESSING', leaseUntil, updatedAt: claimedAt })
       .where(
         and(
           eq(jobItems.jobId, jobId),
           eq(jobItems.id, itemId),
           eq(jobItems.attempt, attempt),
-          eq(jobItems.status, 'PENDING'),
+          or(
+            eq(jobItems.status, 'PENDING'),
+            and(
+              eq(jobItems.status, 'PROCESSING'),
+              or(
+                isNull(jobItems.leaseUntil),
+                lte(jobItems.leaseUntil, claimedAt),
+              ),
+            ),
+          ),
         ),
       )
       .returning();
     return row ? toItem(row) : null;
   }
 
-  /** stale 완료 결과를 버리고 현재 PROCESSING 항목만 terminal로 바꾼다 */
+  /** 현재 lease 소유자의 완료 결과만 terminal 상태로 반영한다 */
   async finishItem(
     jobId: string,
     itemId: string,
     attempt: number,
+    leaseUntil: Date,
     outcome: {
       status: 'SUCCEEDED' | 'NEEDS_ATTENTION' | 'FAILED';
       retryable: boolean;
@@ -348,6 +390,7 @@ export class DrizzleContentProductionRepository implements ContentProductionRepo
       .update(jobItems)
       .set({
         ...outcome,
+        leaseUntil: null,
         updatedAt: this.now(),
       })
       .where(
@@ -356,6 +399,7 @@ export class DrizzleContentProductionRepository implements ContentProductionRepo
           eq(jobItems.id, itemId),
           eq(jobItems.attempt, attempt),
           eq(jobItems.status, 'PROCESSING'),
+          eq(jobItems.leaseUntil, leaseUntil),
         ),
       )
       .returning({ id: jobItems.id });
@@ -472,6 +516,7 @@ export class DrizzleContentProductionRepository implements ContentProductionRepo
           attempt: nextAttempt,
           retryable: false,
           errorCode: null,
+          leaseUntil: null,
           result: null,
           updatedAt: this.now(),
         })

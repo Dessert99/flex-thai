@@ -1,5 +1,6 @@
 /** DB 없이 콘텐츠 제작 작업·항목의 조건부 상태 전이를 재현한다 */
 import { randomUUID } from 'node:crypto';
+import { CONTENT_PRODUCTION_ITEM_LEASE_MS } from '@flex-thia/domain';
 import type {
   ContentProductionItem,
   ContentProductionJob,
@@ -16,7 +17,10 @@ const cloneJob = (job: ContentProductionJob): ContentProductionJob => ({
   },
   inputs: job.inputs.map((input) => ({ ...input })),
   counts: { ...job.counts },
-  items: job.items.map((item) => ({ ...item })),
+  items: job.items.map((item) => ({
+    ...item,
+    leaseUntil: item.leaseUntil ? new Date(item.leaseUntil) : null,
+  })),
 });
 
 /** local 개발과 단위 테스트용 콘텐츠 제작 in-memory repository */
@@ -141,6 +145,7 @@ export class FakeContentProductionRepository implements ContentProductionReposit
         attempt: job.attempt,
         retryable: false,
         errorCode: null,
+        leaseUntil: null,
       });
     }
 
@@ -148,21 +153,29 @@ export class FakeContentProductionRepository implements ContentProductionReposit
     return Promise.resolve();
   }
 
-  /** 현재 attempt에서 처리할 PENDING 항목만 반환한다 */
+  /** 현재 attempt의 PENDING 또는 lease 만료 PROCESSING 항목만 반환한다 */
   listAttemptItems(
     jobId: string,
     attempt: number,
   ): Promise<ContentProductionItem[]> {
     return Promise.resolve(
       this.requireJob(jobId)
-        .items.filter(
-          (item) => item.attempt === attempt && item.status === 'PENDING',
-        )
+        .items.filter((item) => {
+          if (item.attempt !== attempt) {
+            return false;
+          }
+
+          return (
+            item.status === 'PENDING' ||
+            (item.status === 'PROCESSING' &&
+              (!item.leaseUntil || item.leaseUntil <= this.now()))
+          );
+        })
         .map((item) => ({ ...item })),
     );
   }
 
-  /** 정확한 PENDING 항목만 PROCESSING으로 claim한다 */
+  /** PENDING 또는 lease 만료 PROCESSING 항목만 새 lease로 claim한다 */
   startItem(
     jobId: string,
     itemId: string,
@@ -172,19 +185,29 @@ export class FakeContentProductionRepository implements ContentProductionReposit
       (candidate) => candidate.id === itemId,
     );
 
-    if (!item || item.attempt !== attempt || item.status !== 'PENDING') {
+    const claimedAt = this.now();
+    const claimable =
+      item?.status === 'PENDING' ||
+      (item?.status === 'PROCESSING' &&
+        (!item.leaseUntil || item.leaseUntil <= claimedAt));
+
+    if (!item || item.attempt !== attempt || !claimable) {
       return Promise.resolve(null);
     }
 
     item.status = 'PROCESSING';
+    item.leaseUntil = new Date(
+      claimedAt.getTime() + CONTENT_PRODUCTION_ITEM_LEASE_MS,
+    );
     return Promise.resolve({ ...item });
   }
 
-  /** stale 완료 결과는 버리고 현재 PROCESSING 항목만 terminal로 바꾼다 */
+  /** 현재 lease 소유자의 완료 결과만 terminal 상태로 반영한다 */
   finishItem(
     jobId: string,
     itemId: string,
     attempt: number,
+    leaseUntil: Date,
     outcome: {
       status: 'SUCCEEDED' | 'NEEDS_ATTENTION' | 'FAILED';
       retryable: boolean;
@@ -195,11 +218,17 @@ export class FakeContentProductionRepository implements ContentProductionReposit
       (candidate) => candidate.id === itemId,
     );
 
-    if (!item || item.attempt !== attempt || item.status !== 'PROCESSING') {
+    if (
+      !item ||
+      item.attempt !== attempt ||
+      item.status !== 'PROCESSING' ||
+      item.leaseUntil?.getTime() !== leaseUntil.getTime()
+    ) {
       return Promise.resolve(false);
     }
 
     Object.assign(item, outcome);
+    item.leaseUntil = null;
     return Promise.resolve(true);
   }
 
@@ -265,6 +294,7 @@ export class FakeContentProductionRepository implements ContentProductionReposit
       item.attempt = job.attempt;
       item.retryable = false;
       item.errorCode = null;
+      item.leaseUntil = null;
     }
 
     return Promise.resolve(cloneJob(job));

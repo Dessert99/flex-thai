@@ -18,6 +18,7 @@ const createRepository = (
       attempt: 0,
       retryable: false,
       errorCode: null,
+      leaseUntil: null,
     },
     {
       id: 'item-2',
@@ -26,6 +27,7 @@ const createRepository = (
       attempt: 0,
       retryable: false,
       errorCode: null,
+      leaseUntil: null,
     },
   ];
   const finished: Array<{ itemId: string; status: string }> = [];
@@ -37,9 +39,19 @@ const createRepository = (
       return Promise.resolve();
     },
     listAttemptItems: () => Promise.resolve(items),
-    startItem: (_jobId, itemId) =>
-      Promise.resolve(items.find((item) => item.id === itemId) ?? null),
-    finishItem: (_jobId, itemId, _attempt, outcome) => {
+    startItem: (_jobId, itemId) => {
+      const item = items.find((candidate) => candidate.id === itemId);
+      return Promise.resolve(
+        item
+          ? {
+              ...item,
+              status: 'PROCESSING',
+              leaseUntil: new Date('2026-07-27T00:05:00.000Z'),
+            }
+          : null,
+      );
+    },
+    finishItem: (_jobId, itemId, _attempt, _leaseUntil, outcome) => {
       finished.push({ itemId, status: outcome.status });
       return Promise.resolve(true);
     },

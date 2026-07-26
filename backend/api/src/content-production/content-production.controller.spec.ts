@@ -100,7 +100,9 @@ describe('ContentProductionController 공개 경계', () => {
       create: vi
         .fn()
         .mockRejectedValue(
-          new ContentProductionDomainError('IDEMPOTENCY_CONFLICT'),
+          new ContentProductionDomainError(
+            'CONTENT_PRODUCTION_IDEMPOTENCY_CONFLICT',
+          ),
         ),
     } as never);
 
@@ -115,7 +117,7 @@ describe('ContentProductionController 공개 경계', () => {
 
     expect(error).toMatchObject({
       status: 409,
-      response: { code: 'IDEMPOTENCY_CONFLICT' },
+      response: { code: 'CONTENT_PRODUCTION_IDEMPOTENCY_CONFLICT' },
     });
   });
 });

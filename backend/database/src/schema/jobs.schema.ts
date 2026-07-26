@@ -174,6 +174,7 @@ export const jobItems = pgTable(
     sourceRef: text('source_ref'),
     attempt: integer('attempt').default(0).notNull(),
     retryable: boolean('retryable').default(false).notNull(),
+    leaseUntil: timestamp('lease_until', { withTimezone: true }),
     result: jsonb('result').$type<Record<string, unknown>>(),
     errorCode: text('error_code'),
     createdAt: timestamp('created_at', { withTimezone: true })

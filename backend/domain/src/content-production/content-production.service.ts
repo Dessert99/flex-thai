@@ -17,6 +17,9 @@ export type ContentProductionJobStatus =
 export type ContentProductionItemStatus =
   'PENDING' | 'PROCESSING' | 'SUCCEEDED' | 'NEEDS_ATTENTION' | 'FAILED';
 
+/** worker kill 뒤 항목을 회수하되 정상 실행 중에는 중복 claim하지 않는 lease */
+export const CONTENT_PRODUCTION_ITEM_LEASE_MS = 5 * 60 * 1000;
+
 /** 작업에 고정되는 preset snapshot */
 export interface ContentProductionPresetSnapshot {
   id: string;
@@ -42,6 +45,7 @@ export interface ContentProductionItem {
   attempt: number;
   retryable: boolean;
   errorCode: string | null;
+  leaseUntil: Date | null;
 }
 
 /** 콘텐츠 제작 작업 aggregate */
@@ -112,6 +116,7 @@ export interface ContentProductionRepository {
     jobId: string,
     itemId: string,
     attempt: number,
+    leaseUntil: Date,
     outcome: {
       status: 'SUCCEEDED' | 'NEEDS_ATTENTION' | 'FAILED';
       retryable: boolean;
@@ -149,7 +154,7 @@ export class ContentProductionDomainError extends Error {
     readonly code:
       | 'MIXED_INPUT_TYPES'
       | 'PRESET_PURPOSE_MISMATCH'
-      | 'IDEMPOTENCY_CONFLICT'
+      | 'CONTENT_PRODUCTION_IDEMPOTENCY_CONFLICT'
       | 'JOB_NOT_FOUND'
       | 'JOB_NOT_RETRYABLE'
       | 'JOB_RETRY_LIMIT_EXCEEDED',
@@ -224,7 +229,9 @@ export class ContentProductionService {
     const { job, created } = await this.repository.createOrFind(command);
 
     if (!created && canonicalJob(job) !== canonicalRequest(command)) {
-      throw new ContentProductionDomainError('IDEMPOTENCY_CONFLICT');
+      throw new ContentProductionDomainError(
+        'CONTENT_PRODUCTION_IDEMPOTENCY_CONFLICT',
+      );
     }
 
     if (job.enqueuedAt) {
