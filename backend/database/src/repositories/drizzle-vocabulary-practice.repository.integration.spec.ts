@@ -299,6 +299,7 @@ integration('DrizzleVocabularyPracticeRepository PostgreSQL', () => {
     );
     try {
       const session = await repository.getSession(ids.user, sessionId);
+      expect(session?.modes).toEqual(['THAI_TO_MEANING']);
       expect(session?.questions[0]?.card).toEqual(card);
       expect(session?.questions[0]?.prompt).toEqual({
         type: 'TEXT',

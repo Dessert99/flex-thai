@@ -194,7 +194,7 @@ export class DrizzleVocabularyPracticeQuery {
         source_type as "sourceType",
         source_wordbook_id as "sourceWordbookId",
         source_label as "sourceLabel",
-        modes,
+        modes::text[] as modes,
         requested_question_count as "requestedQuestionCount",
         question_order as "questionOrder",
         status,
