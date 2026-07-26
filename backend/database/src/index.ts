@@ -55,6 +55,12 @@ export * from './queries/drizzle-wordbook.query.js';
 /** 사용자 단어장 원자 write adapter를 공개한다 */
 export * from './repositories/drizzle-wordbook.repository.js';
 
+/** 단어 연습 source·세션 read model을 공개한다 */
+export * from './queries/drizzle-vocabulary-practice.query.js';
+
+/** 단어 연습 세션·답안 transaction adapter를 공개한다 */
+export * from './repositories/drizzle-vocabulary-practice.repository.js';
+
 /** 관리자 media 상태와 발음·문장 사용처 read model을 공개한다 */
 export * from './queries/drizzle-admin-media.query.js';
 

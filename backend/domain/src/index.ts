@@ -112,6 +112,12 @@ export * from './learning/wordbook.repository.js';
 /** 단어장 업무 규칙 use case를 공개한다 */
 export * from './learning/wordbook.js';
 
+/** 단어 연습 source·세션·답안 port를 공개한다 */
+export * from './learning/vocabulary-practice.repository.js';
+
+/** 단어 연습 materialize와 상태 전이 use case를 공개한다 */
+export * from './learning/vocabulary-practice.js';
+
 /** private media 읽기 URL provider port를 공개한다 */
 export * from './media/media-read-url.provider.js';
 
