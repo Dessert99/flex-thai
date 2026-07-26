@@ -21,4 +21,12 @@ describe('로컬 seed SQL', () => {
     expect(seedSql).not.toMatch(/insert into saved_vocabularies/iu);
     expect(seedSql).toContain("'저장한 어휘'");
   });
+
+  it('단어 연습·개념 학습·오류 신고를 직접 확인할 대표 데이터를 만든다', () => {
+    expect(seedSql).toContain("'ขอโทษ'");
+    expect(seedSql).toMatch(/insert into concepts/iu);
+    expect(seedSql).toMatch(/insert into concept_versions/iu);
+    expect(seedSql).toMatch(/insert into content_error_reports/iu);
+    expect(seedSql).toMatch(/insert into content_error_report_history/iu);
+  });
 });
