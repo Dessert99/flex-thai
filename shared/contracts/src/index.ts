@@ -11,3 +11,6 @@ export * from './thai-content/sentences.js';
 
 /** 사용자 단어장 HTTP 계약을 공개한다 */
 export * from './learning/wordbooks.js';
+
+/** 단어 연습 생성·진행·답안 계약을 공개한다 */
+export * from './learning/vocabulary-practice.js';
