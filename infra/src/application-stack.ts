@@ -95,8 +95,5 @@ export class ApplicationStack extends Stack {
       this.observability.alarmTopic.topicArn,
     );
     this.observability.alarmTopic.grantPublish(this.httpApi.apiFunction);
-    for (const parameter of this.observability.authLimitParameters) {
-      parameter.grantRead(this.httpApi.apiFunction);
-    }
   }
 }

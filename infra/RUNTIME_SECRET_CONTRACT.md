@@ -4,10 +4,9 @@ Infrastructure passes secret identifiers only. Neither the API Lambda nor Cognit
 
 | Environment variable | Consumer | Runtime output |
 | --- | --- | --- |
-| `CUSTOM_AUTH_SECRET_ARN` | API, Create Auth Challenge | `CUSTOM_AUTH_SECRET` |
-| `CHALLENGE_HMAC_PEPPER_SECRET_ARN` | API | `CHALLENGE_HMAC_PEPPER` |
-| `MEDIA_PRIVATE_KEY_SECRET_ARN` | API | CloudFront signing private key |
+| `CUSTOM_AUTH_SECRET_ARN` | Create Auth Challenge | HMAC proof 생성용 secret |
+| `MEDIA_PRIVATE_KEY_SECRET_ARN` | API media provider | CloudFront signing private key |
 
-The runtime integration branch must fetch each ARN with Secrets Manager during cold start, cache the resolved value for the execution environment, and finish resolution before `readApiEnv()` constructs the Nest application or the Cognito trigger handles an event. IAM grants are limited to `GetSecretValue` and `DescribeSecret` for the referenced secret resources.
+Create Auth Challenge fetches its ARN during the first invocation and caches the in-flight or resolved promise for the warm execution environment. A failed fetch is evicted so the next invocation can retry. The plaintext is never written back to an environment variable. IAM grants are limited to `GetSecretValue` and `DescribeSecret` for the referenced secret resource.
 
 The API also receives the non-secret production settings `EMAIL_LINK_CONFIRMATION_URL`, `MEDIA_CDN_BASE_URL`, `MEDIA_BUCKET_NAME`, and `MEDIA_KEY_PAIR_ID`.

@@ -193,6 +193,10 @@ describe('HttpApi 운영 API 경계', () => {
     expect(
       apiFunctions[0]?.Properties.Environment?.Variables?.CHALLENGE_HMAC_PEPPER,
     ).toBe(undefined);
+    expect(
+      apiFunctions[0]?.Properties.Environment?.Variables
+        ?.AUTH_LIMIT_PARAMETER_PREFIX,
+    ).toBe(undefined);
   });
 
   it('api custom domain과 www CORS origin을 사용한다', () => {

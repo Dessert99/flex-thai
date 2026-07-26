@@ -22,6 +22,9 @@ type SynthesizedLambda = {
       Variables?: Record<string, unknown>;
     };
     Handler?: string;
+    Role?: {
+      'Fn::GetAtt': [string, string];
+    };
   };
 };
 
@@ -119,7 +122,7 @@ describe('Identity 학교 이메일 인증 경계', () => {
     const createChallenge = functions.find(
       ({ Properties }) =>
         Properties.Environment?.Variables?.CUSTOM_AUTH_SECRET_ARN !==
-          undefined && Properties.Handler !== 'lambda.handler',
+          undefined && Properties.Handler === 'index.createAuthChallenge',
     );
 
     expect(
@@ -158,6 +161,29 @@ describe('Identity 학교 이메일 인증 경계', () => {
           }),
         ]),
       },
+    });
+
+    const customAuthSecretLogicalId = Object.keys(
+      template.findResources('AWS::SecretsManager::Secret'),
+    )[0];
+    const createChallengeRoleLogicalId =
+      createChallenge?.Properties.Role?.['Fn::GetAtt'][0];
+    expect(customAuthSecretLogicalId).toBeDefined();
+    expect(createChallengeRoleLogicalId).toBeDefined();
+    template.hasResourceProperties('AWS::IAM::Policy', {
+      PolicyDocument: {
+        Statement: Match.arrayWith([
+          {
+            Action: [
+              'secretsmanager:GetSecretValue',
+              'secretsmanager:DescribeSecret',
+            ],
+            Effect: 'Allow',
+            Resource: { Ref: customAuthSecretLogicalId },
+          },
+        ]),
+      },
+      Roles: Match.arrayWith([{ Ref: createChallengeRoleLogicalId }]),
     });
   });
 

@@ -32,7 +32,6 @@ const apiEnvSchema = z
     CHALLENGE_HMAC_PEPPER_SECRET_ARN: z.string().optional(),
     SCHOOL_EMAIL_DOMAINS: z.string().default('hufs.ac.kr'),
     FROM_EMAIL: z.string().optional(),
-    AUTH_LIMIT_PARAMETER_PREFIX: z.string().default('/flex-thia/prod/auth'),
     ALARM_TOPIC_ARN: z.string().optional(),
     MEDIA_CDN_BASE_URL: z.string().trim().url().optional(),
     MEDIA_BUCKET_NAME: z.string().trim().min(1).optional(),

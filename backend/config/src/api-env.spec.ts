@@ -115,7 +115,8 @@ describe('readApiEnv가 API 환경 변수를 검증한다', () => {
   });
 
   it('local fake 관리자와 학생 계정 기본값을 제공한다', () => {
-    expect(readApiEnv({})).toMatchObject({
+    const env = readApiEnv({});
+    expect(env).toMatchObject({
       FAKE_USER_SUB: 'local-admin-sub',
       FAKE_USER_EMAIL: 'admin@hufs.ac.kr',
       FAKE_USER_PASSWORD: 'qwer1234!@#',
@@ -123,5 +124,6 @@ describe('readApiEnv가 API 환경 변수를 검증한다', () => {
       FAKE_LEARNER_EMAIL: 'learner@hufs.ac.kr',
       FAKE_LEARNER_PASSWORD: 'qwer1234!@#',
     });
+    expect(env).not.toHaveProperty('AUTH_LIMIT_PARAMETER_PREFIX');
   });
 });

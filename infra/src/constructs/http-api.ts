@@ -85,7 +85,6 @@ export class HttpApi extends Construct {
         MEDIA_CDN_BASE_URL: props.mediaCdnBaseUrl,
         MEDIA_KEY_PAIR_ID: props.mediaKeyPairId,
         MEDIA_PRIVATE_KEY_SECRET_ARN: props.mediaPrivateKey.secretArn,
-        AUTH_LIMIT_PARAMETER_PREFIX: '/flex-thia/prod/auth',
         ALLOWED_ORIGINS: props.allowedOrigins.join(','),
       },
     });
