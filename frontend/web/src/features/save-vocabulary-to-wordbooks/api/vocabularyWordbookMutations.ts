@@ -1,7 +1,22 @@
 /** 어휘별 단어장 membership 조회·추가·제거 요청을 제공한다 */
-import { vocabularyWordbookMembershipResponseSchema } from '@flex-thia/contracts';
+import {
+  vocabularyWordbookMembershipResponseSchema,
+  wordbookListResponseSchema,
+} from '@flex-thia/contracts';
 import { queryOptions } from '@tanstack/react-query';
 import { authenticatedRequest } from '@/shared/api';
+
+/** picker가 higher layer 없이 소비하는 단어장 목록 query option */
+export function pickerWordbookListQueryOptions() {
+  return queryOptions({
+    queryKey: ['learner', 'wordbooks'] as const,
+    queryFn: () =>
+      authenticatedRequest({
+        path: '/me/wordbooks',
+        response: { kind: 'json', schema: wordbookListResponseSchema },
+      }),
+  });
+}
 
 /** 어휘의 현재 사용자 단어장 membership query option을 만든다 */
 export function vocabularyWordbookMembershipQueryOptions(

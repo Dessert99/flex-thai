@@ -1,8 +1,23 @@
 /** 단어장 상세 검색 상태를 strict 응답 query로 변환한다 */
-import { wordbookItemListResponseSchema } from '@flex-thia/contracts';
+import {
+  wordbookItemListResponseSchema,
+  wordbookListResponseSchema,
+} from '@flex-thia/contracts';
 import { queryOptions } from '@tanstack/react-query';
 import { authenticatedRequest } from '@/shared/api';
 import type { WordbookDetailSearch } from '../model/wordbookDetailSearch';
+
+/** 상세 Page가 cross-slice import 없이 쓰는 단어장 목록 query option */
+export function detailWordbookListQueryOptions() {
+  return queryOptions({
+    queryKey: ['learner', 'wordbooks'] as const,
+    queryFn: () =>
+      authenticatedRequest({
+        path: '/me/wordbooks',
+        response: { kind: 'json', schema: wordbookListResponseSchema },
+      }),
+  });
+}
 
 /** 단어장 ID와 URL 검색값을 포함한 상세 query option을 만든다 */
 export function wordbookDetailQueryOptions(

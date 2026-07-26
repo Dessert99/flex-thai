@@ -24,9 +24,19 @@ export default defineConfig([
       'src/features/toggle-saved-question/**',
       'src/features/toggle-saved-vocabulary/**',
       'src/features/upload-audio/**',
+      'src/features/manage-wordbook/**',
+      'src/features/manage-wordbook-items/**',
+      'src/features/save-vocabulary-to-wordbooks/**',
     ],
     rules: {
       'fsd/insignificant-slice': 'off',
+    },
+  },
+  {
+    files: ['src/pages/**'],
+    rules: {
+      // 통합 Task 15에서 old saved-vocabularies slice가 제거될 때 20개 이하로 복귀한다.
+      'fsd/excessive-slicing': 'off',
     },
   },
   {

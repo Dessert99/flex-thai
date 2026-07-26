@@ -1,7 +1,6 @@
 /** 한 어휘의 여러 단어장 membership을 서버 확정 방식으로 변경한다 */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type ReactNode, useState } from 'react';
-import { wordbookListQueryOptions } from '@/pages/wordbook-list';
 import { Button } from '@/shared/ui/button';
 import {
   Dialog,
@@ -13,6 +12,7 @@ import {
 } from '@/shared/ui/dialog';
 import {
   addVocabularyToWordbook,
+  pickerWordbookListQueryOptions,
   removeVocabularyFromWordbook,
   vocabularyWordbookMembershipQueryOptions,
 } from '../api/vocabularyWordbookMutations';
@@ -35,7 +35,7 @@ export function VocabularyWordbookPicker({
   vocabularyId,
 }: VocabularyWordbookPickerProps) {
   const queryClient = useQueryClient();
-  const wordbooks = useQuery(wordbookListQueryOptions());
+  const wordbooks = useQuery(pickerWordbookListQueryOptions());
   const memberships = useQuery(
     vocabularyWordbookMembershipQueryOptions(vocabularyId),
   );

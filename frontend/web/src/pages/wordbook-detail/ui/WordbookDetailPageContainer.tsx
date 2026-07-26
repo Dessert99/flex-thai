@@ -2,8 +2,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { WordbookItemActions } from '@/features/manage-wordbook-items';
-import { wordbookListQueryOptions } from '@/pages/wordbook-list';
-import { wordbookDetailQueryOptions } from '../api/wordbookDetailQueries';
+import {
+  detailWordbookListQueryOptions,
+  wordbookDetailQueryOptions,
+} from '../api/wordbookDetailQueries';
 import type { WordbookDetailSearch } from '../model/wordbookDetailSearch';
 import { WordbookDetailPageView } from './WordbookDetailPageView';
 
@@ -20,7 +22,7 @@ export function WordbookDetailPageContainer({
   wordbookId,
 }: WordbookDetailPageContainerProps) {
   const detail = useQuery(wordbookDetailQueryOptions(wordbookId, search));
-  const wordbooks = useQuery(wordbookListQueryOptions());
+  const wordbooks = useQuery(detailWordbookListQueryOptions());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const toggleSelection = (vocabularyId: string) => {
     setSelectedIds((current) => {
