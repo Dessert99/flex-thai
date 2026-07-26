@@ -9,8 +9,9 @@ import type {
 export class UnavailableConceptContentValidator implements ConceptContentValidator {
   /** 미구성 상태를 저장 가능한 외부 검증 문제로 반환한다 */
   validate(
-    _input: ConceptValidationCandidate,
+    input: ConceptValidationCandidate,
   ): Promise<ConceptValidationIssue[]> {
+    void input;
     return Promise.resolve([
       {
         source: 'EXTERNAL',

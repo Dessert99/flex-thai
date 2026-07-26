@@ -9,8 +9,9 @@ import type {
 export class FakeConceptContentValidator implements ConceptContentValidator {
   /** 외부 서비스 없이 추가 검증 문제를 만들지 않는다 */
   validate(
-    _input: ConceptValidationCandidate,
+    input: ConceptValidationCandidate,
   ): Promise<ConceptValidationIssue[]> {
+    void input;
     return Promise.resolve([]);
   }
 }
