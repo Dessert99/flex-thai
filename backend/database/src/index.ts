@@ -91,6 +91,9 @@ export * from './queries/drizzle-learner-concept.query.js';
 /** 관리자 모든 상태 개념 read model을 공개한다 */
 export * from './queries/drizzle-admin-concept.query.js';
 
+/** 개념 학습 화면의 콘텐츠 오류 신고 target lookup을 공개한다 */
+export * from './queries/drizzle-concept-error-report-target.lookup.js';
+
 /** 콘텐츠 오류 신고 transaction adapter를 공개한다 */
 export * from './repositories/drizzle-content-error-report.repository.js';
 
