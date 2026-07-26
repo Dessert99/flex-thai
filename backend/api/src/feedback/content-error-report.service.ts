@@ -33,6 +33,7 @@ const mapSummary = (
   status: item.status,
   assignee: item.assignee,
   description: item.description,
+  canonicalReference: item.canonicalReference,
   snapshot: item.snapshot,
   createdAt: item.createdAt.toISOString(),
   updatedAt: item.updatedAt.toISOString(),
@@ -118,7 +119,6 @@ export class ContentErrorReportHttpService {
         reporter: detail.reporter,
         assignee: detail.assignee,
       }),
-      canonicalReference: detail.report.canonicalReference,
       history: detail.history.map((entry) => ({
         ...entry,
         actor: { id: entry.actorUserId, email: entry.actorEmail },
