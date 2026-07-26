@@ -242,25 +242,23 @@ const savedInAnyWordbook = (
   userId: string,
 ): SQL<boolean> => sql<boolean>`exists (
   select 1
-  from ${wordbookItems}
-  inner join ${wordbooks}
-    on ${wordbooks.id} = ${wordbookItems.wordbookId}
-  where ${wordbookItems.vocabularyId} = ${vocabularies.id}
-    and ${wordbooks.userId} = ${userId}
+  from ${wordbookItems} saved_items
+  inner join ${wordbooks} saved_wordbooks
+    on saved_wordbooks.id = saved_items.wordbook_id
+  where saved_items.vocabulary_id = "vocabularies"."id"
+    and saved_wordbooks.user_id = ${userId}
 )`;
 
 const audioEligibleMeaningCount = (): SQL<number> => sql<number>`(
-  select count(distinct ${vocabularyMeaningPronunciations.meaningId})::integer
-  from ${vocabularyMeaningPronunciations}
-  inner join ${vocabularyPronunciations}
-    on ${vocabularyPronunciations.id} =
-      ${vocabularyMeaningPronunciations.pronunciationId}
-    and ${vocabularyPronunciations.vocabularyId} =
-      ${vocabularyMeaningPronunciations.vocabularyId}
-  inner join ${mediaAssets}
-    on ${mediaAssets.id} = ${vocabularyPronunciations.mediaAssetId}
-    and ${mediaAssets.status} = ${'READY'}
-  where ${vocabularyMeaningPronunciations.vocabularyId} = ${vocabularies.id}
+  select count(distinct eligible_links.meaning_id)::integer
+  from ${vocabularyMeaningPronunciations} eligible_links
+  inner join ${vocabularyPronunciations} eligible_pronunciations
+    on eligible_pronunciations.id = eligible_links.pronunciation_id
+    and eligible_pronunciations.vocabulary_id = eligible_links.vocabulary_id
+  inner join ${mediaAssets} eligible_media
+    on eligible_media.id = eligible_pronunciations.media_asset_id
+    and eligible_media.status = ${'READY'}
+  where eligible_links.vocabulary_id = "vocabularies"."id"
 )`;
 
 const currentQuestionUsesSentence = (): SQL => sql`(

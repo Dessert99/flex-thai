@@ -1,6 +1,8 @@
 /** 단어장 read model의 소유권·중복 없는 검색·페이지 projection을 검증한다 */
+import { drizzle } from 'drizzle-orm/node-postgres';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import { describe, expect, it, vi } from 'vitest';
+import * as schema from '../schema/index.js';
 import {
   vocabularies,
   vocabularyMeanings,
@@ -71,6 +73,20 @@ const createSelectFake = (selectResults: QueryResult[]) => {
   return { database: { select }, selectCalls };
 };
 
+const createSqlCaptureDatabase = (results: unknown[][][]) => {
+  const queries: string[] = [];
+  const client = {
+    query(config: { text: string }) {
+      queries.push(config.text);
+      return Promise.resolve({ rows: results.shift() ?? [] });
+    },
+  };
+  return {
+    database: drizzle({ client: client as never, schema }),
+    queries,
+  };
+};
+
 const createdAt = new Date('2026-07-26T00:00:00.000Z');
 const updatedAt = new Date('2026-07-26T01:00:00.000Z');
 const wordbook = {
@@ -82,6 +98,16 @@ const wordbook = {
 };
 
 describe('DrizzleWordbookQuery 목록과 membership', () => {
+  it('전체 SELECT에서도 단어장 item count 컬럼을 명시적으로 한정한다', async () => {
+    const capture = createSqlCaptureDatabase([[]]);
+    const query = new DrizzleWordbookQuery(capture.database);
+
+    await query.listWordbooks('user-id');
+
+    expect(capture.queries[0]).toContain('counted_items.wordbook_id');
+    expect(capture.queries[0]).toContain('"wordbooks"."id"');
+  });
+
   it('사용자 단어장을 빈 단어장까지 생성 시각·ID 순서로 반환한다', async () => {
     const fake = createSelectFake([[wordbook]]);
     const query = new DrizzleWordbookQuery(fake.database as never);
@@ -113,6 +139,26 @@ describe('DrizzleWordbookQuery 목록과 membership', () => {
 });
 
 describe('DrizzleWordbookQuery 검색·필터·페이지', () => {
+  it('항목 SELECT의 음성 가능 뜻 count 컬럼을 명시적으로 한정한다', async () => {
+    const capture = createSqlCaptureDatabase([
+      [['wordbook-id', 'FLEX 어휘', 1, createdAt, updatedAt]],
+      [[0]],
+      [],
+    ]);
+    const query = new DrizzleWordbookQuery(capture.database);
+
+    await query.listItems('user-id', 'wordbook-id', {
+      page: 1,
+      pageSize: 20,
+    });
+
+    expect(capture.queries[2]).toContain('eligible_links.vocabulary_id');
+    expect(capture.queries[2]).toContain(
+      'eligible_pronunciations.vocabulary_id',
+    );
+    expect(capture.queries[2]).toContain('"vocabularies"."id"');
+  });
+
   it('타 사용자 단어장은 상세 대신 null을 반환한다', async () => {
     const fake = createSelectFake([[]]);
     const query = new DrizzleWordbookQuery(fake.database as never);

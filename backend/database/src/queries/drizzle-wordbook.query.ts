@@ -119,8 +119,8 @@ const wordbookFields = {
   name: wordbooks.name,
   itemCount: sql<number>`(
     select count(*)::integer
-    from ${wordbookItems}
-    where ${wordbookItems.wordbookId} = ${wordbooks.id}
+    from ${wordbookItems} counted_items
+    where counted_items.wordbook_id = "wordbooks"."id"
   )`,
   createdAt: wordbooks.createdAt,
   updatedAt: wordbooks.updatedAt,
@@ -169,18 +169,16 @@ export class DrizzleWordbookQuery {
         thai: vocabularies.thai,
         kind: vocabularies.kind,
         audioEligibleMeaningCount: sql<number>`(
-          select count(distinct ${vocabularyMeaningPronunciations.meaningId})::integer
-          from ${vocabularyMeaningPronunciations}
-          inner join ${vocabularyPronunciations}
-            on ${vocabularyPronunciations.id} =
-              ${vocabularyMeaningPronunciations.pronunciationId}
-            and ${vocabularyPronunciations.vocabularyId} =
-              ${vocabularyMeaningPronunciations.vocabularyId}
-          inner join ${mediaAssets}
-            on ${mediaAssets.id} = ${vocabularyPronunciations.mediaAssetId}
-            and ${mediaAssets.status} = ${'READY'}
-          where ${vocabularyMeaningPronunciations.vocabularyId} =
-            ${vocabularies.id}
+          select count(distinct eligible_links.meaning_id)::integer
+          from ${vocabularyMeaningPronunciations} eligible_links
+          inner join ${vocabularyPronunciations} eligible_pronunciations
+            on eligible_pronunciations.id = eligible_links.pronunciation_id
+            and eligible_pronunciations.vocabulary_id =
+              eligible_links.vocabulary_id
+          inner join ${mediaAssets} eligible_media
+            on eligible_media.id = eligible_pronunciations.media_asset_id
+            and eligible_media.status = ${'READY'}
+          where eligible_links.vocabulary_id = "vocabularies"."id"
         )`,
         addedAt: wordbookItems.addedAt,
       })
