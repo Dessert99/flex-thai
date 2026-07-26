@@ -7,8 +7,11 @@ import type {
   ConceptDomainErrorCode,
   ConceptDraftBlock,
   ConceptDraftRecord,
+  ConceptValidationReport,
   ConceptValidationCandidate,
   ConceptValidationIssue,
+  CreateConceptCommand,
+  ReplaceConceptDraftCommand,
 } from '@flex-thia/domain';
 import {
   and,
@@ -263,7 +266,10 @@ export class DrizzleConceptAdminRepository implements ConceptAdminRepository {
   constructor(private readonly database: ConceptDatabase) {}
 
   /** 논리 개념과 첫 초안을 한 transaction에 생성한다 */
-  async createConcept(input, context): Promise<ConceptDraftRecord> {
+  async createConcept(
+    input: CreateConceptCommand,
+    context: ConceptCommandContext,
+  ): Promise<ConceptDraftRecord> {
     return this.database.transaction(async (transaction) => {
       const conceptId = randomUUID();
       const versionId = randomUUID();
@@ -287,7 +293,10 @@ export class DrizzleConceptAdminRepository implements ConceptAdminRepository {
   }
 
   /** 최신 버전을 복제해 다음 초안을 만든다 */
-  async createNextDraft(conceptId, context): Promise<ConceptDraftRecord> {
+  async createNextDraft(
+    conceptId: string,
+    context: ConceptCommandContext,
+  ): Promise<ConceptDraftRecord> {
     return this.database.transaction(async (transaction) => {
       const [concept] = await transaction.select({ id: concepts.id })
         .from(concepts).where(eq(concepts.id, conceptId)).for('update').limit(1);
@@ -326,7 +335,11 @@ export class DrizzleConceptAdminRepository implements ConceptAdminRepository {
   }
 
   /** revision이 일치하는 초안 전체를 교체한다 */
-  async replaceDraft(versionId, input, context): Promise<ConceptDraftRecord> {
+  async replaceDraft(
+    versionId: string,
+    input: ReplaceConceptDraftCommand,
+    context: ConceptCommandContext,
+  ): Promise<ConceptDraftRecord> {
     return this.database.transaction(async (transaction) => {
       const rows = await transaction.update(conceptVersions).set({
         revision: input.revision + 1,
@@ -384,9 +397,18 @@ export class DrizzleConceptAdminRepository implements ConceptAdminRepository {
   }
 
   /** 같은 revision에 검증 결과를 저장한다 */
-  async saveValidation(input, context) {
+  async saveValidation(
+    input: {
+      versionId: string;
+      expectedRevision: number;
+      issues: ConceptValidationIssue[];
+      validatedAt: Date;
+    },
+    context: ConceptCommandContext,
+  ): Promise<ConceptValidationReport> {
     return this.database.transaction(async (transaction) => {
-      const status = input.issues.length === 0 ? 'PASSED' : 'FAILED';
+      const status: 'PASSED' | 'FAILED' =
+        input.issues.length === 0 ? 'PASSED' : 'FAILED';
       const rows = await transaction.update(conceptVersions).set({
         validationStatus: status,
         validationIssues: input.issues,
@@ -405,7 +427,10 @@ export class DrizzleConceptAdminRepository implements ConceptAdminRepository {
   }
 
   /** 검증된 같은 revision의 초안을 게시한다 */
-  async publish(input, context): Promise<void> {
+  async publish(
+    input: { versionId: string; expectedRevision: number },
+    context: ConceptCommandContext,
+  ): Promise<void> {
     await this.database.transaction(async (transaction) => {
       const [versionIdentity] = await transaction.select({
         conceptId: conceptVersions.conceptId,
@@ -469,7 +494,10 @@ export class DrizzleConceptAdminRepository implements ConceptAdminRepository {
   }
 
   /** 게시 개념을 숨긴다 */
-  async hide(conceptId, context): Promise<void> {
+  async hide(
+    conceptId: string,
+    context: ConceptCommandContext,
+  ): Promise<void> {
     await this.database.transaction(async (transaction) => {
       const rows = await transaction.update(concepts).set({
         status: 'HIDDEN',
@@ -484,7 +512,10 @@ export class DrizzleConceptAdminRepository implements ConceptAdminRepository {
   }
 
   /** 유효한 현재 게시 버전이 있는 숨김 개념을 복구한다 */
-  async restore(conceptId, context): Promise<void> {
+  async restore(
+    conceptId: string,
+    context: ConceptCommandContext,
+  ): Promise<void> {
     await this.database.transaction(async (transaction) => {
       const [concept] = await transaction.select({
         id: concepts.id,

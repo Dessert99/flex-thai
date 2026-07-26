@@ -15,7 +15,7 @@ export type ConceptVersionStatus = 'DRAFT' | 'PUBLISHED' | 'RETIRED';
 /** 개념 검증 상태 */
 export type ConceptValidationStatus = 'PENDING' | 'PASSED' | 'FAILED';
 /** 참조 음성 자산 상태 */
-export type MediaAssetStatus =
+type ConceptMediaAssetStatus =
   | 'UPLOADING'
   | 'READY'
   | 'REJECTED'
@@ -49,7 +49,7 @@ export interface ConceptExampleInput {
 export interface ConceptExampleReference extends ConceptExampleInput {
   sentenceExists: boolean;
   audioAssetExists: boolean;
-  audioAssetStatus: MediaAssetStatus;
+  audioAssetStatus: ConceptMediaAssetStatus;
 }
 
 /** 태국어 예시 블록 */

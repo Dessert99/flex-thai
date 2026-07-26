@@ -16,7 +16,8 @@ import {
 } from 'drizzle-orm/pg-core';
 import { thaiSentenceVersions } from './thai-content.schema.js';
 
-interface StoredConceptValidationIssue {
+/** JSONB에 저장하는 개념 검증 문제 */
+export interface StoredConceptValidationIssue {
   source: 'STRUCTURE' | 'REFERENCE' | 'EXTERNAL';
   path: string;
   code: string;
