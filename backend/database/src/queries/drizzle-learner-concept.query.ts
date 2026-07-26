@@ -32,9 +32,7 @@ type LearnerConceptDatabase = PgDatabase<
   typeof conceptQuerySchema
 >;
 
-export type LearnerConceptCategory =
-  | 'THAI_SCRIPT_PRONUNCIATION'
-  | 'GRAMMAR';
+export type LearnerConceptCategory = 'THAI_SCRIPT_PRONUNCIATION' | 'GRAMMAR';
 
 /** 게시 graph 훼손을 부분 응답 대신 fail-closed 오류로 전달한다 */
 export class LearnerConceptQueryError extends Error {
@@ -169,14 +167,16 @@ const byPosition = (
 
 /** logical/current 게시 상태와 선택적 영역을 함께 고정한다 */
 export const publishedConceptCondition = (
-  conceptIdOrCategory: { conceptId: string } | { category: LearnerConceptCategory },
-): SQL => and(
-  eq(concepts.status, 'PUBLISHED'),
-  eq(conceptVersions.status, 'PUBLISHED'),
-  'conceptId' in conceptIdOrCategory
-    ? eq(concepts.id, conceptIdOrCategory.conceptId)
-    : eq(conceptVersions.category, conceptIdOrCategory.category),
-)!;
+  conceptIdOrCategory:
+    { conceptId: string } | { category: LearnerConceptCategory },
+): SQL =>
+  and(
+    eq(concepts.status, 'PUBLISHED'),
+    eq(conceptVersions.status, 'PUBLISHED'),
+    'conceptId' in conceptIdOrCategory
+      ? eq(concepts.id, conceptIdOrCategory.conceptId)
+      : eq(conceptVersions.category, conceptIdOrCategory.category),
+  )!;
 
 /** READY join 결과가 원본 graph 개수와 같지 않으면 전체 상세을 실패시킨다 */
 export const assertCompleteConceptGraph = (counts: {
@@ -348,12 +348,14 @@ export class DrizzleLearnerConceptQuery {
         ),
       )
       .where(eq(conceptBlocks.conceptVersionId, concept.versionId))
-      .orderBy(
-        asc(conceptBlocks.position),
-        asc(conceptBlockExamples.position),
-      );
-    const sentenceIds = sentenceRows.map(({ sentenceVersionId }) => sentenceVersionId);
-    const pronunciationMedia = alias(mediaAssets, 'concept_pronunciation_media');
+      .orderBy(asc(conceptBlocks.position), asc(conceptBlockExamples.position));
+    const sentenceIds = sentenceRows.map(
+      ({ sentenceVersionId }) => sentenceVersionId,
+    );
+    const pronunciationMedia = alias(
+      mediaAssets,
+      'concept_pronunciation_media',
+    );
     const tokenRows =
       sentenceIds.length === 0
         ? []
@@ -381,7 +383,10 @@ export class DrizzleLearnerConceptQuery {
             .innerJoin(
               pronunciationMedia,
               and(
-                eq(vocabularyPronunciations.mediaAssetId, pronunciationMedia.id),
+                eq(
+                  vocabularyPronunciations.mediaAssetId,
+                  pronunciationMedia.id,
+                ),
                 eq(pronunciationMedia.status, 'READY'),
               ),
             )
@@ -418,11 +423,16 @@ export class DrizzleLearnerConceptQuery {
             .innerJoin(
               pronunciationMedia,
               and(
-                eq(vocabularyPronunciations.mediaAssetId, pronunciationMedia.id),
+                eq(
+                  vocabularyPronunciations.mediaAssetId,
+                  pronunciationMedia.id,
+                ),
                 eq(pronunciationMedia.status, 'READY'),
               ),
             )
-            .where(inArray(expressionOccurrences.sentenceVersionId, sentenceIds))
+            .where(
+              inArray(expressionOccurrences.sentenceVersionId, sentenceIds),
+            )
             .orderBy(
               asc(expressionOccurrences.sentenceVersionId),
               asc(expressionOccurrences.startTokenIndex),
@@ -463,13 +473,19 @@ export class DrizzleLearnerConceptQuery {
         toneMarks: row.toneMarks,
         media: { storageKey: row.storageKey },
         tokens: tokenRows
-          .filter(({ sentenceVersionId }) => sentenceVersionId === row.sentenceVersionId)
+          .filter(
+            ({ sentenceVersionId }) =>
+              sentenceVersionId === row.sentenceVersionId,
+          )
           .map(({ sentenceVersionId: _id, storageKey, ...token }) => ({
             ...token,
             media: { storageKey },
           })),
         expressions: expressionRows
-          .filter(({ sentenceVersionId }) => sentenceVersionId === row.sentenceVersionId)
+          .filter(
+            ({ sentenceVersionId }) =>
+              sentenceVersionId === row.sentenceVersionId,
+          )
           .map(({ sentenceVersionId: _id, storageKey, ...expression }) => ({
             ...expression,
             media: { storageKey },

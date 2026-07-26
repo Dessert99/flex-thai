@@ -29,8 +29,6 @@ describe('ConceptListPageView', () => {
 
     expect(screen.getByText('기본 어순')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: '태국 문자·발음' }));
-    expect(onCategoryChange).toHaveBeenCalledWith(
-      'THAI_SCRIPT_PRONUNCIATION',
-    );
+    expect(onCategoryChange).toHaveBeenCalledWith('THAI_SCRIPT_PRONUNCIATION');
   });
 });

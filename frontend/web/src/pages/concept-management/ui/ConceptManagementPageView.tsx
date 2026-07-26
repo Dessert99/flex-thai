@@ -47,22 +47,40 @@ export function ConceptManagementPageView({
             position,
             title,
             summary,
-            blocks: [{
-              kind: 'EXPLANATION',
-              position: 0,
-              heading: '설명',
-              paragraphs: [paragraph],
-            }],
+            blocks: [
+              {
+                kind: 'EXPLANATION',
+                position: 0,
+                heading: '설명',
+                paragraphs: [paragraph],
+              },
+            ],
           });
         }}
       >
         <h2>새 개념</h2>
-        <select aria-label='새 개념 영역' onChange={(event) => setCategory(event.target.value as ConceptCategory)} value={category}>
+        <select
+          aria-label='새 개념 영역'
+          onChange={(event) =>
+            setCategory(event.target.value as ConceptCategory)
+          }
+          value={category}
+        >
           <option value='THAI_SCRIPT_PRONUNCIATION'>태국 문자·발음</option>
           <option value='GRAMMAR'>문법</option>
         </select>
-        <Input aria-label='새 개념 제목' onChange={(event) => setTitle(event.target.value)} required value={title} />
-        <Input aria-label='새 개념 요약' onChange={(event) => setSummary(event.target.value)} required value={summary} />
+        <Input
+          aria-label='새 개념 제목'
+          onChange={(event) => setTitle(event.target.value)}
+          required
+          value={title}
+        />
+        <Input
+          aria-label='새 개념 요약'
+          onChange={(event) => setSummary(event.target.value)}
+          required
+          value={summary}
+        />
         <Input
           aria-label='새 개념 교육 순서'
           min={0}
@@ -71,7 +89,12 @@ export function ConceptManagementPageView({
           type='number'
           value={position}
         />
-        <Input aria-label='첫 설명 문단' onChange={(event) => setParagraph(event.target.value)} required value={paragraph} />
+        <Input
+          aria-label='첫 설명 문단'
+          onChange={(event) => setParagraph(event.target.value)}
+          required
+          value={paragraph}
+        />
         <Button type='submit'>개념 만들기</Button>
       </form>
       <div className='flex gap-cluster'>
@@ -112,15 +135,31 @@ export function ConceptManagementPageView({
         </select>
       </div>
       {loading ? <PageLoading message='개념을 불러오고 있습니다.' /> : null}
-      {error ? <PageError message='개념 목록을 불러오지 못했습니다.' onRetry={onRetry} /> : null}
-      {!loading && !error && data?.items.length === 0 ? <PageEmpty title='등록된 개념이 없습니다.' /> : null}
+      {error ? (
+        <PageError
+          message='개념 목록을 불러오지 못했습니다.'
+          onRetry={onRetry}
+        />
+      ) : null}
+      {!loading && !error && data?.items.length === 0 ? (
+        <PageEmpty title='등록된 개념이 없습니다.' />
+      ) : null}
       {data?.items.length ? (
         <table>
-          <thead><tr><th>제목</th><th>상태</th><th>최신 버전</th><th>검증</th></tr></thead>
+          <thead>
+            <tr>
+              <th>제목</th>
+              <th>상태</th>
+              <th>최신 버전</th>
+              <th>검증</th>
+            </tr>
+          </thead>
           <tbody>
             {data.items.map((item) => (
               <tr key={item.id}>
-                <td><a href={`/admin/concepts/${item.id}`}>{item.title}</a></td>
+                <td>
+                  <a href={`/admin/concepts/${item.id}`}>{item.title}</a>
+                </td>
                 <td>{item.status}</td>
                 <td>v{item.latestVersion}</td>
                 <td>{item.validationStatus}</td>

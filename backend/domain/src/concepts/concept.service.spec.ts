@@ -1,9 +1,6 @@
 /** 개념 검증과 게시 use case를 검증한다 */
 import { describe, expect, it, vi } from 'vitest';
-import {
-  ConceptDomainError,
-  ConceptService,
-} from './concept.service.js';
+import { ConceptDomainError, ConceptService } from './concept.service.js';
 import type { ConceptAdminRepository } from './concept.repository.js';
 import type { ConceptValidationCandidate } from './concept.js';
 

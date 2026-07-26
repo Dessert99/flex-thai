@@ -1,14 +1,5 @@
 /** 관리자에게 개념의 모든 상태·버전·검증 정보를 조회한다 */
-import {
-  and,
-  asc,
-  count,
-  desc,
-  eq,
-  inArray,
-  type SQL,
-  sql,
-} from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, type SQL, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import {
@@ -215,9 +206,7 @@ export class DrizzleAdminConceptQuery {
   constructor(private readonly database: AdminConceptDatabase) {}
 
   /** latest version 기준 필터와 stable page를 반환한다 */
-  async list(
-    filter: AdminConceptListFilter,
-  ): Promise<AdminConceptListResult> {
+  async list(filter: AdminConceptListFilter): Promise<AdminConceptListResult> {
     const latest = this.database
       .select({
         conceptId: conceptVersions.conceptId,

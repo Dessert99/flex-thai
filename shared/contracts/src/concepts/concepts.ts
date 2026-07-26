@@ -171,15 +171,17 @@ const publicConceptBlockSchema = z.discriminatedUnion('kind', [
     .object({
       ...publicBlockBase,
       kind: z.literal('THAI_EXAMPLES'),
-      examples: z.array(
-        z
-          .object({
-            position: positionSchema,
-            noteKo: z.string().min(1).nullable(),
-            sentence: publicThaiSentenceSchema,
-          })
-          .strict(),
-      ).min(1),
+      examples: z
+        .array(
+          z
+            .object({
+              position: positionSchema,
+              noteKo: z.string().min(1).nullable(),
+              sentence: publicThaiSentenceSchema,
+            })
+            .strict(),
+        )
+        .min(1),
     })
     .strict(),
 ]);
@@ -295,9 +297,7 @@ export type ConceptListResponse = z.infer<typeof conceptListResponseSchema>;
 /** 직렬화 가능한 학습자 개념 상세 */
 export type ConceptDetailResponse = z.infer<typeof conceptDetailResponseSchema>;
 /** 직렬화 가능한 관리자 개념 목록 query */
-export type AdminConceptListQuery = z.infer<
-  typeof adminConceptListQuerySchema
->;
+export type AdminConceptListQuery = z.infer<typeof adminConceptListQuerySchema>;
 /** 직렬화 가능한 관리자 개념 목록 */
 export type AdminConceptListResponse = z.infer<
   typeof adminConceptListResponseSchema

@@ -9,15 +9,17 @@ describe('ConceptManagementPageView', () => {
     render(
       <ConceptManagementPageView
         data={{
-          items: [{
-            id: '11111111-1111-4111-8111-111111111111',
-            status: 'PUBLISHED',
-            category: 'GRAMMAR',
-            position: 0,
-            title: '기본 어순',
-            latestVersion: 2,
-            validationStatus: 'PASSED',
-          }],
+          items: [
+            {
+              id: '11111111-1111-4111-8111-111111111111',
+              status: 'PUBLISHED',
+              category: 'GRAMMAR',
+              position: 0,
+              title: '기본 어순',
+              latestVersion: 2,
+              validationStatus: 'PASSED',
+            },
+          ],
           page: 1,
           pageSize: 20,
           total: 1,

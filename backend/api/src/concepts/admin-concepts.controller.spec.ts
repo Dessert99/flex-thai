@@ -17,11 +17,7 @@ describe('AdminConceptsController', () => {
   it('인증·ADMIN 역할·TOTP guard를 모두 요구한다', () => {
     expect(
       Reflect.getMetadata(GUARDS_METADATA, AdminConceptsController),
-    ).toEqual([
-      CognitoAuthorizerGuard,
-      ApplicationRoleGuard,
-      AdminMfaGuard,
-    ]);
+    ).toEqual([CognitoAuthorizerGuard, ApplicationRoleGuard, AdminMfaGuard]);
     expect(
       Reflect.getMetadata(REQUIRED_ROLE_KEY, AdminConceptsController),
     ).toBe('ADMIN');
@@ -77,12 +73,14 @@ describe('AdminConceptsController', () => {
       position: 0,
       title: '제목',
       summary: '요약',
-      blocks: [{
-        kind: 'EXPLANATION',
-        position: 0,
-        heading: '설명',
-        paragraphs: ['본문'],
-      }],
+      blocks: [
+        {
+          kind: 'EXPLANATION',
+          position: 0,
+          heading: '설명',
+          paragraphs: ['본문'],
+        },
+      ],
     });
     await controller.publish(user, 'request-1', {
       versionId: '22222222-2222-4222-8222-222222222222',

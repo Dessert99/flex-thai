@@ -66,8 +66,7 @@ export class ConceptService {
     versionId: string,
     context: ConceptCommandContext,
   ): Promise<ConceptValidationReport> {
-    const candidate =
-      await this.repository.loadValidationCandidate(versionId);
+    const candidate = await this.repository.loadValidationCandidate(versionId);
     if (!candidate) {
       throw new ConceptDomainError('CONCEPT_VERSION_NOT_FOUND');
     }
@@ -95,8 +94,7 @@ export class ConceptService {
     versionId: string,
     context: ConceptCommandContext,
   ): Promise<void> {
-    const candidate =
-      await this.repository.loadValidationCandidate(versionId);
+    const candidate = await this.repository.loadValidationCandidate(versionId);
     if (!candidate) {
       throw new ConceptDomainError('CONCEPT_VERSION_NOT_FOUND');
     }

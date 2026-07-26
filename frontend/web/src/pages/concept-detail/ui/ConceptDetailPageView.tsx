@@ -29,7 +29,12 @@ export function ConceptDetailPageView({
     );
   }
   if (error || !data) {
-    return <PageError message='개념을 불러오지 못했습니다.' onRetry={onRetry} />;
+    return (
+      <PageError
+        message='개념을 불러오지 못했습니다.'
+        onRetry={onRetry}
+      />
+    );
   }
   return (
     <article className='grid gap-section'>
@@ -47,7 +52,10 @@ export function ConceptDetailPageView({
         </ol>
       </nav>
       {data.blocks.map((block) => (
-        <section id={`concept-block-${block.id}`} key={block.id}>
+        <section
+          id={`concept-block-${block.id}`}
+          key={block.id}
+        >
           <h2 className='text-subtitle text-primary'>{block.heading}</h2>
           {block.kind === 'EXPLANATION'
             ? block.paragraphs.map((paragraph, index) => (
@@ -59,7 +67,10 @@ export function ConceptDetailPageView({
               <thead>
                 <tr>
                   {block.headers.map((header, index) => (
-                    <th key={`${block.id}-header-${index}`} scope='col'>
+                    <th
+                      key={`${block.id}-header-${index}`}
+                      scope='col'
+                    >
                       {header}
                     </th>
                   ))}
@@ -68,7 +79,9 @@ export function ConceptDetailPageView({
               <tbody>
                 {block.rows.map((row, index) => (
                   <tr key={`${block.id}-${index}`}>
-                    {row.map((cell, cellIndex) => <td key={`${index}-${cellIndex}`}>{cell}</td>)}
+                    {row.map((cell, cellIndex) => (
+                      <td key={`${index}-${cellIndex}`}>{cell}</td>
+                    ))}
                   </tr>
                 ))}
               </tbody>

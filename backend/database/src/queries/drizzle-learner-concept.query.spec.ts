@@ -56,32 +56,36 @@ describe('assembleLearnerConceptDetail', () => {
       pronunciationKo: '찬 리안 파싸 타이',
       toneMarks: '',
       media: { storageKey: 'sentence.mp3' },
-      tokens: [{
-        position: 0,
-        surface: 'ฉัน',
-        startOffset: 0,
-        endOffset: 3,
-        vocabularyId: 'word-1',
-        meaningId: 'meaning-1',
-        pronunciationId: 'pronunciation-1',
-        contextMeaningKo: '나',
-        pronunciationKo: '찬',
-        toneMarks: '',
-        media: { storageKey: 'token.mp3' },
-        role: 'TARGET' as const,
-      }],
-      expressions: [{
-        startTokenIndex: 0,
-        endTokenIndex: 1,
-        vocabularyId: 'expression-1',
-        meaningId: 'meaning-2',
-        pronunciationId: 'pronunciation-2',
-        contextMeaningKo: '나',
-        pronunciationKo: '찬',
-        toneMarks: '',
-        media: { storageKey: 'expression.mp3' },
-        representative: true,
-      }],
+      tokens: [
+        {
+          position: 0,
+          surface: 'ฉัน',
+          startOffset: 0,
+          endOffset: 3,
+          vocabularyId: 'word-1',
+          meaningId: 'meaning-1',
+          pronunciationId: 'pronunciation-1',
+          contextMeaningKo: '나',
+          pronunciationKo: '찬',
+          toneMarks: '',
+          media: { storageKey: 'token.mp3' },
+          role: 'TARGET' as const,
+        },
+      ],
+      expressions: [
+        {
+          startTokenIndex: 0,
+          endTokenIndex: 1,
+          vocabularyId: 'expression-1',
+          meaningId: 'meaning-2',
+          pronunciationId: 'pronunciation-2',
+          contextMeaningKo: '나',
+          pronunciationKo: '찬',
+          toneMarks: '',
+          media: { storageKey: 'expression.mp3' },
+          representative: true,
+        },
+      ],
     };
     const detail = assembleLearnerConceptDetail(
       {
@@ -92,15 +96,17 @@ describe('assembleLearnerConceptDetail', () => {
         title: '기본 어순',
         summary: '요약',
       },
-      [{
-        id: 'block-1',
-        kind: 'THAI_EXAMPLES',
-        position: 0,
-        heading: '예문',
-        paragraphs: null,
-        tableHeaders: null,
-        tableRows: null,
-      }],
+      [
+        {
+          id: 'block-1',
+          kind: 'THAI_EXAMPLES',
+          position: 0,
+          heading: '예문',
+          paragraphs: null,
+          tableHeaders: null,
+          tableRows: null,
+        },
+      ],
       [{ blockId: 'block-1', position: 0, noteKo: null, sentence }],
     );
     const block = detail.blocks[0];
@@ -135,7 +141,9 @@ describe('assembleLearnerConceptDetail', () => {
     expect(compiled.params).toEqual(
       expect.arrayContaining(['PUBLISHED', 'GRAMMAR']),
     );
-    expect(compiled.params.filter((value) => value === 'PUBLISHED')).toHaveLength(2);
+    expect(
+      compiled.params.filter((value) => value === 'PUBLISHED'),
+    ).toHaveLength(2);
     expect(chain.orderBy).toHaveBeenCalled();
   });
 
@@ -144,7 +152,9 @@ describe('assembleLearnerConceptDetail', () => {
       publishedConceptCondition({ conceptId: 'concept-1' }),
     );
 
-    expect(compiled.params.filter((value) => value === 'PUBLISHED')).toHaveLength(2);
+    expect(
+      compiled.params.filter((value) => value === 'PUBLISHED'),
+    ).toHaveLength(2);
     expect(compiled.params).toContain('concept-1');
   });
 

@@ -132,9 +132,7 @@ describe('개념 계약', () => {
       validatedAt: '2026-07-26T00:00:00.000Z',
     });
 
-    expect(parsed.issues[0]?.evidenceKo).toBe(
-      '문장 버전을 찾을 수 없습니다.',
-    );
+    expect(parsed.issues[0]?.evidenceKo).toBe('문장 버전을 찾을 수 없습니다.');
   });
 
   it('공개 블록의 UUID와 하나 이상의 예시를 요구한다', () => {
@@ -149,7 +147,9 @@ describe('개념 계약', () => {
     expect(() =>
       conceptDetailResponseSchema.parse({
         ...base,
-        tableOfContents: [{ blockId: 'not-uuid', heading: '예문', position: 0 }],
+        tableOfContents: [
+          { blockId: 'not-uuid', heading: '예문', position: 0 },
+        ],
         blocks: [],
       }),
     ).toThrow();

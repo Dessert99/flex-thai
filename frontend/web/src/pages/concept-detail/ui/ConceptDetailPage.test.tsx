@@ -4,9 +4,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { ConceptDetailPageView } from './ConceptDetailPageView';
 
 vi.mock('@/features/explore-thai-content', () => ({
-  InteractiveThaiSentence: ({ sentence }: { sentence: { originalText: string } }) => (
-    <span>{sentence.originalText}</span>
-  ),
+  InteractiveThaiSentence: ({
+    sentence,
+  }: {
+    sentence: { originalText: string };
+  }) => <span>{sentence.originalText}</span>,
 }));
 
 describe('ConceptDetailPageView', () => {
@@ -22,26 +24,30 @@ describe('ConceptDetailPageView', () => {
           title: '기본 어순',
           summary: '요약',
           tableOfContents: [{ blockId, heading: '예문', position: 0 }],
-          blocks: [{
-            id: blockId,
-            kind: 'THAI_EXAMPLES',
-            position: 0,
-            heading: '예문',
-            examples: [{
+          blocks: [
+            {
+              id: blockId,
+              kind: 'THAI_EXAMPLES',
               position: 0,
-              noteKo: null,
-              sentence: {
-                sentenceVersionId: '44444444-4444-4444-8444-444444444444',
-                originalText: 'ฉันเรียนภาษาไทย',
-                translationKo: '나는 태국어를 공부한다',
-                pronunciationKo: '찬 리안 파싸 타이',
-                toneMarks: '',
-                audioUrl: null,
-                tokens: [],
-                expressions: [],
-              },
-            }],
-          }],
+              heading: '예문',
+              examples: [
+                {
+                  position: 0,
+                  noteKo: null,
+                  sentence: {
+                    sentenceVersionId: '44444444-4444-4444-8444-444444444444',
+                    originalText: 'ฉันเรียนภาษาไทย',
+                    translationKo: '나는 태국어를 공부한다',
+                    pronunciationKo: '찬 리안 파싸 타이',
+                    toneMarks: '',
+                    audioUrl: null,
+                    tokens: [],
+                    expressions: [],
+                  },
+                },
+              ],
+            },
+          ],
         }}
         error={false}
         loading={false}
@@ -50,7 +56,11 @@ describe('ConceptDetailPageView', () => {
       />,
     );
 
-    expect(screen.getByRole('navigation', { name: '개념 목차' })).toBeInTheDocument();
-    expect(screen.getByText('ฉันเรียนภาษาไทย').closest('[lang="th"]')).not.toBeNull();
+    expect(
+      screen.getByRole('navigation', { name: '개념 목차' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('ฉันเรียนภาษาไทย').closest('[lang="th"]'),
+    ).not.toBeNull();
   });
 });

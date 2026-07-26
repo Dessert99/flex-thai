@@ -72,7 +72,10 @@ const mapSentence = async (
 ) => {
   const mapFeedback = async <
     Feedback extends { media: { storageKey: string } },
-  >({ media, ...feedback }: Feedback) => ({
+  >({
+    media,
+    ...feedback
+  }: Feedback) => ({
     ...feedback,
     audioUrl: await sign(media.storageKey),
   });
@@ -131,11 +134,11 @@ const toPublicVersion = (record: ConceptDraftRecord): AdminConceptVersion => ({
           position: block.position,
           heading: block.heading,
           examples: block.examples.map(
-            ({
+            ({ position, sentenceVersionId, noteKo }) => ({
               position,
               sentenceVersionId,
               noteKo,
-            }) => ({ position, sentenceVersionId, noteKo }),
+            }),
           ),
         },
   ),
@@ -288,5 +291,4 @@ export class ConceptsService {
   restore(conceptId: string, context: ConceptCommandContext): Promise<void> {
     return this.dependencies.adminService.restoreConcept(conceptId, context);
   }
-
 }

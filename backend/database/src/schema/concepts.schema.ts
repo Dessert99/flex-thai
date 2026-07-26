@@ -45,10 +45,11 @@ export const conceptVersionStatusEnum = pgEnum('concept_version_status', [
 ]);
 
 /** 개념 버전 검증 상태 */
-export const conceptValidationStatusEnum = pgEnum(
-  'concept_validation_status',
-  ['PENDING', 'PASSED', 'FAILED'],
-);
+export const conceptValidationStatusEnum = pgEnum('concept_validation_status', [
+  'PENDING',
+  'PASSED',
+  'FAILED',
+]);
 
 /** 개념 화면의 블록 종류 */
 export const conceptBlockKindEnum = pgEnum('concept_block_kind', [

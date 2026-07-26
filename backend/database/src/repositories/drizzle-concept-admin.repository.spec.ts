@@ -82,8 +82,9 @@ describe('assembleConceptValidationCandidate', () => {
     const first = candidate.blocks[0];
     expect(first?.kind).toBe('THAI_EXAMPLES');
     if (first?.kind === 'THAI_EXAMPLES') {
-      expect(first.examples.map(({ sentenceVersionId }) => sentenceVersionId))
-        .toEqual(['sentence-1', 'sentence-2']);
+      expect(
+        first.examples.map(({ sentenceVersionId }) => sentenceVersionId),
+      ).toEqual(['sentence-1', 'sentence-2']);
     }
   });
 });
@@ -157,9 +158,9 @@ describe('DrizzleConceptAdminRepository 상태 전이', () => {
         const chain = {
           from: vi.fn(),
           where: vi.fn(),
-          limit: vi.fn().mockResolvedValue(
-            testCase.current ? [testCase.current] : [],
-          ),
+          limit: vi
+            .fn()
+            .mockResolvedValue(testCase.current ? [testCase.current] : []),
         };
         chain.from.mockReturnValue(chain);
         chain.where.mockReturnValue(chain);

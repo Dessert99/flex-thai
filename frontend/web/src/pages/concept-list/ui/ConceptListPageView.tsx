@@ -26,7 +26,11 @@ export function ConceptListPageView({
   return (
     <section className='grid gap-section'>
       <h1 className='text-title text-primary'>개념 학습</h1>
-      <div aria-label='개념 영역' className='flex gap-cluster' role='tablist'>
+      <div
+        aria-label='개념 영역'
+        className='flex gap-cluster'
+        role='tablist'
+      >
         {[
           ['THAI_SCRIPT_PRONUNCIATION', '태국 문자·발음'],
           ['GRAMMAR', '문법'],

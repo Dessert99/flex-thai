@@ -31,39 +31,42 @@ describe('ConceptsService', () => {
                 position: 0,
                 noteKo: null,
                 sentence: {
-                  sentenceVersionId:
-                    '44444444-4444-4444-8444-444444444444',
+                  sentenceVersionId: '44444444-4444-4444-8444-444444444444',
                   originalText: 'ฉันเรียนภาษาไทย',
                   translationKo: '나는 태국어를 공부한다',
                   pronunciationKo: '찬 리안 파싸 타이',
                   toneMarks: '',
                   media: { storageKey: 'sentence.mp3' },
-                  tokens: [{
-                    position: 0,
-                    surface: 'ฉัน',
-                    startOffset: 0,
-                    endOffset: 3,
-                    vocabularyId: '55555555-5555-4555-8555-555555555555',
-                    meaningId: '66666666-6666-4666-8666-666666666666',
-                    pronunciationId: '77777777-7777-4777-8777-777777777777',
-                    contextMeaningKo: '나',
-                    pronunciationKo: '찬',
-                    toneMarks: '',
-                    media: { storageKey: 'token.mp3' },
-                    role: 'TARGET',
-                  }],
-                  expressions: [{
-                    startTokenIndex: 0,
-                    endTokenIndex: 1,
-                    vocabularyId: '88888888-8888-4888-8888-888888888888',
-                    meaningId: '99999999-9999-4999-8999-999999999999',
-                    pronunciationId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-                    contextMeaningKo: '나',
-                    pronunciationKo: '찬',
-                    toneMarks: '',
-                    media: { storageKey: 'expression.mp3' },
-                    representative: true,
-                  }],
+                  tokens: [
+                    {
+                      position: 0,
+                      surface: 'ฉัน',
+                      startOffset: 0,
+                      endOffset: 3,
+                      vocabularyId: '55555555-5555-4555-8555-555555555555',
+                      meaningId: '66666666-6666-4666-8666-666666666666',
+                      pronunciationId: '77777777-7777-4777-8777-777777777777',
+                      contextMeaningKo: '나',
+                      pronunciationKo: '찬',
+                      toneMarks: '',
+                      media: { storageKey: 'token.mp3' },
+                      role: 'TARGET',
+                    },
+                  ],
+                  expressions: [
+                    {
+                      startTokenIndex: 0,
+                      endTokenIndex: 1,
+                      vocabularyId: '88888888-8888-4888-8888-888888888888',
+                      meaningId: '99999999-9999-4999-8999-999999999999',
+                      pronunciationId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+                      contextMeaningKo: '나',
+                      pronunciationKo: '찬',
+                      toneMarks: '',
+                      media: { storageKey: 'expression.mp3' },
+                      representative: true,
+                    },
+                  ],
                 },
               },
             ],
@@ -89,9 +92,7 @@ describe('ConceptsService', () => {
 
     expect(detail.blocks[0]).not.toHaveProperty('media');
     expect(JSON.stringify(detail)).not.toContain('storageKey');
-    expect(JSON.stringify(detail)).toContain(
-      'https://media.example/sentence',
-    );
+    expect(JSON.stringify(detail)).toContain('https://media.example/sentence');
     expect(
       learnerQuery.findPublishedDetail.mock.results[0]?.value,
     ).toBeDefined();

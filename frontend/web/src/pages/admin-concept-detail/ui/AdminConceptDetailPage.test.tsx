@@ -9,43 +9,51 @@ describe('AdminConceptDetailPageView', () => {
     const onPublish = vi.fn();
     render(
       <AdminConceptDetailPageView
-        blocks={[{
-          kind: 'EXPLANATION',
-          position: 0,
-          heading: '설명',
-          paragraphs: ['본문'],
-        }]}
+        blocks={[
+          {
+            kind: 'EXPLANATION',
+            position: 0,
+            heading: '설명',
+            paragraphs: ['본문'],
+          },
+        ]}
         conflict
         data={{
           id: '11111111-1111-4111-8111-111111111111',
           status: 'DRAFT',
           currentPublishedVersionId: null,
-          versions: [{
-            id: '22222222-2222-4222-8222-222222222222',
-            conceptId: '11111111-1111-4111-8111-111111111111',
-            version: 1,
-            revision: 2,
-            category: 'GRAMMAR',
-            position: 0,
-            title: '기본 어순',
-            summary: '요약',
-            status: 'DRAFT',
-            validationStatus: 'FAILED',
-            validationIssues: [{
-              source: 'REFERENCE',
-              path: 'blocks.0.examples.0',
-              code: 'CONCEPT_AUDIO_NOT_READY',
-              evidenceKo: '문장 음성이 준비되지 않았습니다.',
-            }],
-            validatedAt: '2026-07-26T00:00:00.000Z',
-            publishedAt: null,
-            blocks: [{
-              kind: 'EXPLANATION',
+          versions: [
+            {
+              id: '22222222-2222-4222-8222-222222222222',
+              conceptId: '11111111-1111-4111-8111-111111111111',
+              version: 1,
+              revision: 2,
+              category: 'GRAMMAR',
               position: 0,
-              heading: '설명',
-              paragraphs: ['본문'],
-            }],
-          }],
+              title: '기본 어순',
+              summary: '요약',
+              status: 'DRAFT',
+              validationStatus: 'FAILED',
+              validationIssues: [
+                {
+                  source: 'REFERENCE',
+                  path: 'blocks.0.examples.0',
+                  code: 'CONCEPT_AUDIO_NOT_READY',
+                  evidenceKo: '문장 음성이 준비되지 않았습니다.',
+                },
+              ],
+              validatedAt: '2026-07-26T00:00:00.000Z',
+              publishedAt: null,
+              blocks: [
+                {
+                  kind: 'EXPLANATION',
+                  position: 0,
+                  heading: '설명',
+                  paragraphs: ['본문'],
+                },
+              ],
+            },
+          ],
         }}
         draftMetadata={{
           category: 'GRAMMAR',
@@ -71,7 +79,9 @@ describe('AdminConceptDetailPageView', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('최신 상태');
     expect(screen.getByText(/CONCEPT_AUDIO_NOT_READY/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '게시' })).toBeDisabled();
-    expect(screen.queryByRole('button', { name: '숨기기' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: '숨기기' }),
+    ).not.toBeInTheDocument();
     expect(screen.getByLabelText('제목')).toHaveValue('기본 어순');
     fireEvent.click(screen.getByRole('button', { name: '검증' }));
     expect(onPublish).not.toHaveBeenCalled();
@@ -86,22 +96,24 @@ describe('AdminConceptDetailPageView', () => {
           id: '11111111-1111-4111-8111-111111111111',
           status: 'PUBLISHED',
           currentPublishedVersionId: '22222222-2222-4222-8222-222222222222',
-          versions: [{
-            id: '22222222-2222-4222-8222-222222222222',
-            conceptId: '11111111-1111-4111-8111-111111111111',
-            version: 1,
-            revision: 0,
-            category: 'GRAMMAR',
-            position: 0,
-            title: '기본 어순',
-            summary: '요약',
-            status: 'PUBLISHED',
-            validationStatus: 'PASSED',
-            validationIssues: [],
-            validatedAt: '2026-07-26T00:00:00.000Z',
-            publishedAt: '2026-07-26T00:00:00.000Z',
-            blocks: [],
-          }],
+          versions: [
+            {
+              id: '22222222-2222-4222-8222-222222222222',
+              conceptId: '11111111-1111-4111-8111-111111111111',
+              version: 1,
+              revision: 0,
+              category: 'GRAMMAR',
+              position: 0,
+              title: '기본 어순',
+              summary: '요약',
+              status: 'PUBLISHED',
+              validationStatus: 'PASSED',
+              validationIssues: [],
+              validatedAt: '2026-07-26T00:00:00.000Z',
+              publishedAt: '2026-07-26T00:00:00.000Z',
+              blocks: [],
+            },
+          ],
         }}
         draftMetadata={{
           category: 'GRAMMAR',
@@ -124,7 +136,9 @@ describe('AdminConceptDetailPageView', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: '새 초안 만들기' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: '새 초안 만들기' }),
+    ).toBeInTheDocument();
     expect(screen.queryByText('설명 블록 추가')).not.toBeInTheDocument();
   });
 });
@@ -134,12 +148,14 @@ describe('ConceptBlockEditor', () => {
     const onChange = vi.fn();
     const { rerender } = render(
       <ConceptBlockEditor
-        blocks={[{
-          kind: 'EXPLANATION',
-          position: 0,
-          heading: '설명',
-          paragraphs: ['본문'],
-        }]}
+        blocks={[
+          {
+            kind: 'EXPLANATION',
+            position: 0,
+            heading: '설명',
+            paragraphs: ['본문'],
+          },
+        ]}
         disabled={false}
         onChange={onChange}
       />,
@@ -151,22 +167,27 @@ describe('ConceptBlockEditor', () => {
 
     rerender(
       <ConceptBlockEditor
-        blocks={[{
-          kind: 'RULE_TABLE',
-          position: 0,
-          heading: '규칙',
-          headers: ['항목'],
-          rows: [['값']],
-        }, {
-          kind: 'THAI_EXAMPLES',
-          position: 1,
-          heading: '예문',
-          examples: [{
+        blocks={[
+          {
+            kind: 'RULE_TABLE',
             position: 0,
-            sentenceVersionId: '11111111-1111-4111-8111-111111111111',
-            noteKo: null,
-          }],
-        }]}
+            heading: '규칙',
+            headers: ['항목'],
+            rows: [['값']],
+          },
+          {
+            kind: 'THAI_EXAMPLES',
+            position: 1,
+            heading: '예문',
+            examples: [
+              {
+                position: 0,
+                sentenceVersionId: '11111111-1111-4111-8111-111111111111',
+                noteKo: null,
+              },
+            ],
+          },
+        ]}
         disabled={false}
         onChange={onChange}
       />,
