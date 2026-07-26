@@ -3,7 +3,9 @@ import type {
   ContentErrorReportCanonicalReference,
   ContentErrorReportSnapshot,
 } from '@flex-thia/domain';
+import { sql } from 'drizzle-orm';
 import {
+  check,
   index,
   jsonb,
   pgEnum,
@@ -78,10 +80,12 @@ export const contentErrorReports = pgTable(
       table.assigneeUserId,
       table.status,
       table.createdAt.desc(),
+      table.id.asc(),
     ),
     index('content_error_reports_target_page_idx').on(
       table.targetKind,
       table.createdAt.desc(),
+      table.id.asc(),
     ),
   ],
 );
@@ -116,6 +120,33 @@ export const contentErrorReportHistory = pgTable(
       table.reportId,
       table.createdAt.asc(),
       table.id.asc(),
+    ),
+    check(
+      'content_error_report_history_action_payload',
+      sql`
+        (
+          ${table.action} = 'SUBMITTED'
+          and ${table.fromStatus} is null
+          and ${table.toStatus} is null
+          and ${table.fromAssigneeUserId} is null
+          and ${table.toAssigneeUserId} is null
+        )
+        or (
+          ${table.action} = 'STATUS_CHANGED'
+          and ${table.fromStatus} is not null
+          and ${table.toStatus} is not null
+          and ${table.fromStatus} <> ${table.toStatus}
+          and ${table.fromAssigneeUserId} is null
+          and ${table.toAssigneeUserId} is null
+        )
+        or (
+          ${table.action} = 'ASSIGNEE_CHANGED'
+          and ${table.fromStatus} is null
+          and ${table.toStatus} is null
+          and ${table.fromAssigneeUserId} is distinct from ${table.toAssigneeUserId}
+          and (${table.fromAssigneeUserId} is not null or ${table.toAssigneeUserId} is not null)
+        )
+      `,
     ),
   ],
 );
