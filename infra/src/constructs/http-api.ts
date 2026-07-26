@@ -200,6 +200,38 @@ export class HttpApi extends Construct {
       [apigwv2.HttpMethod.POST, '/api/v1/admin/content-imports'],
       [apigwv2.HttpMethod.GET, '/api/v1/admin/content-imports'],
       [apigwv2.HttpMethod.GET, '/api/v1/admin/content-imports/{importId}'],
+      [apigwv2.HttpMethod.GET, '/api/v1/admin/concepts'],
+      [apigwv2.HttpMethod.POST, '/api/v1/admin/concepts'],
+      [apigwv2.HttpMethod.GET, '/api/v1/admin/concepts/{conceptId}'],
+      [apigwv2.HttpMethod.POST, '/api/v1/admin/concepts/{conceptId}/versions'],
+      [apigwv2.HttpMethod.POST, '/api/v1/admin/concepts/{conceptId}/hide'],
+      [apigwv2.HttpMethod.POST, '/api/v1/admin/concepts/{conceptId}/restore'],
+      [apigwv2.HttpMethod.PUT, '/api/v1/admin/concept-versions/{versionId}'],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/concept-versions/{versionId}/validate',
+      ],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/concept-versions/{versionId}/publish',
+      ],
+      [apigwv2.HttpMethod.GET, '/api/v1/admin/content-error-reports'],
+      [
+        apigwv2.HttpMethod.GET,
+        '/api/v1/admin/content-error-reports/{reportId}',
+      ],
+      [
+        apigwv2.HttpMethod.PUT,
+        '/api/v1/admin/content-error-reports/{reportId}/status',
+      ],
+      [
+        apigwv2.HttpMethod.PUT,
+        '/api/v1/admin/content-error-reports/{reportId}/assignee',
+      ],
+      [
+        apigwv2.HttpMethod.DELETE,
+        '/api/v1/admin/content-error-reports/{reportId}/assignee',
+      ],
       [
         apigwv2.HttpMethod.POST,
         '/api/v1/admin/media-assets/audio-upload-requests',
@@ -274,6 +306,18 @@ export class HttpApi extends Construct {
       [apigwv2.HttpMethod.GET, '/api/v1/me/question-attempts'],
       [apigwv2.HttpMethod.PUT, '/api/v1/me/saved-questions/{questionId}'],
       [apigwv2.HttpMethod.DELETE, '/api/v1/me/saved-questions/{questionId}'],
+      [apigwv2.HttpMethod.POST, '/api/v1/me/vocabulary-practice/sessions'],
+      [
+        apigwv2.HttpMethod.GET,
+        '/api/v1/me/vocabulary-practice/sessions/{sessionId}',
+      ],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/me/vocabulary-practice/sessions/{sessionId}/questions/{questionId}/answers',
+      ],
+      [apigwv2.HttpMethod.GET, '/api/v1/concepts'],
+      [apigwv2.HttpMethod.GET, '/api/v1/concepts/{conceptId}'],
+      [apigwv2.HttpMethod.POST, '/api/v1/content-error-reports'],
       [apigwv2.HttpMethod.GET, '/api/v1/questions'],
       [apigwv2.HttpMethod.GET, '/api/v1/questions/{questionId}'],
       [apigwv2.HttpMethod.POST, '/api/v1/questions/{questionId}/attempts'],
