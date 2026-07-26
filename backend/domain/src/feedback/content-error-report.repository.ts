@@ -30,7 +30,7 @@ export interface ResolvedContentErrorReportTarget {
 /** 관리자 변경 감사 문맥 */
 export interface ContentErrorReportActor {
   userId: string;
-  subject: string;
+  actorSub: string;
   requestId: string;
 }
 /** 생성 저장 입력 */

@@ -75,6 +75,7 @@ export class ContentErrorReportDomainError extends Error {
       | 'CONTENT_ERROR_REPORT_TARGET_UNAVAILABLE'
       | 'CONTENT_ERROR_REPORT_NOT_FOUND'
       | 'CONTENT_ERROR_REPORT_INVALID_TRANSITION'
+      | 'CONTENT_ERROR_REPORT_DESCRIPTION_INVALID'
       | 'CONTENT_ERROR_REPORT_ASSIGNEE_UNAVAILABLE'
       | 'CONTENT_ERROR_REPORT_CONCURRENT_UPDATE',
   ) {
@@ -111,7 +112,7 @@ export function normalizeContentErrorReportDescription(
   const normalized = value?.trim() ?? '';
   if (normalized.length > 1000) {
     throw new ContentErrorReportDomainError(
-      'CONTENT_ERROR_REPORT_INVALID_TRANSITION',
+      'CONTENT_ERROR_REPORT_DESCRIPTION_INVALID',
     );
   }
   return normalized.length === 0 ? null : normalized;

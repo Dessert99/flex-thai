@@ -32,8 +32,13 @@ describe('콘텐츠 오류 신고 상태', () => {
   it('설명을 정규화하고 1000자를 넘으면 거부한다', () => {
     expect(normalizeContentErrorReportDescription('  설명  ')).toBe('설명');
     expect(normalizeContentErrorReportDescription('   ')).toBeNull();
-    expect(() =>
-      normalizeContentErrorReportDescription('가'.repeat(1001)),
-    ).toThrow(ContentErrorReportDomainError);
+    try {
+      normalizeContentErrorReportDescription('가'.repeat(1001));
+      throw new Error('오류가 필요합니다');
+    } catch (error) {
+      expect(error).toMatchObject({
+        code: 'CONTENT_ERROR_REPORT_DESCRIPTION_INVALID',
+      });
+    }
   });
 });

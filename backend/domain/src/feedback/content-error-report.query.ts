@@ -6,6 +6,18 @@ import type {
 } from './content-error-report.js';
 import type { ContentErrorReport } from './content-error-report.repository.js';
 
+/** append-only 처리 이력 */
+export interface ContentErrorReportHistoryEntry {
+  id: string;
+  action: 'SUBMITTED' | 'STATUS_CHANGED' | 'ASSIGNEE_CHANGED';
+  actorUserId: string;
+  fromStatus: ContentErrorReportStatus | null;
+  toStatus: ContentErrorReportStatus | null;
+  fromAssigneeUserId: string | null;
+  toAssigneeUserId: string | null;
+  createdAt: Date;
+}
+
 /** 관리자 목록 필터 */
 export interface AdminContentErrorReportListQuery {
   status?: ContentErrorReportStatus;
@@ -23,7 +35,7 @@ export interface ContentErrorReportPage {
 /** 관리자 상세 read model */
 export interface ContentErrorReportDetail {
   report: ContentErrorReport;
-  history: readonly Record<string, unknown>[];
+  history: readonly ContentErrorReportHistoryEntry[];
 }
 /** 관리자 오류 신고 조회 port */
 export interface ContentErrorReportQuery {

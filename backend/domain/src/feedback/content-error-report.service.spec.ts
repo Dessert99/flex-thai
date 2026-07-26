@@ -96,7 +96,7 @@ describe('ContentErrorReportService', () => {
 
   it('담당자를 검증하고 배정하거나 해제한다', async () => {
     const { repository, service } = createService();
-    const actor = { userId: 'admin-id', subject: 'sub', requestId: 'request' };
+    const actor = { userId: 'admin-id', actorSub: 'sub', requestId: 'request' };
     await service.assign(actor, report, 'admin-id');
     await service.unassign(actor, { ...report, assigneeUserId: 'admin-id' });
     expect(repository.changeAssignee).toHaveBeenNthCalledWith(
@@ -115,10 +115,27 @@ describe('ContentErrorReportService', () => {
     );
   });
 
+  it('같은 담당자 재배정과 이미 미배정인 신고 해제를 거부한다', async () => {
+    const { service } = createService();
+    const actor = { userId: 'admin-id', actorSub: 'sub', requestId: 'request' };
+    await expect(
+      service.assign(
+        actor,
+        { ...report, assigneeUserId: 'admin-id' },
+        'admin-id',
+      ),
+    ).rejects.toMatchObject({
+      code: 'CONTENT_ERROR_REPORT_ASSIGNEE_UNAVAILABLE',
+    });
+    await expect(service.unassign(actor, report)).rejects.toMatchObject({
+      code: 'CONTENT_ERROR_REPORT_ASSIGNEE_UNAVAILABLE',
+    });
+  });
+
   it('허용된 상태 전이와 동시성 기준을 repository에 전달한다', async () => {
     const { repository, service } = createService();
     await service.changeStatus(
-      { userId: 'admin-id', subject: 'sub', requestId: 'request' },
+      { userId: 'admin-id', actorSub: 'sub', requestId: 'request' },
       report,
       'RESOLVED',
     );
