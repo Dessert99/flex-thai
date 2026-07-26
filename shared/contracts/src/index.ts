@@ -4,5 +4,6 @@ export * from './jobs.js';
 export * from './common/problem.js';
 export * from './health/status.js';
 export * from './identity/auth.js';
+export * from './identity/user-management.js';
 export * from './learning/questions.js';
 export * from './learning/vocabularies.js';
