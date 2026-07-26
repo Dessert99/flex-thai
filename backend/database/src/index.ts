@@ -99,3 +99,6 @@ export * from './repositories/drizzle-content-error-report.repository.js';
 
 /** 콘텐츠 오류 신고 관리자 query를 공개한다 */
 export * from './queries/drizzle-content-error-report.query.js';
+
+/** 원시 기록 기반 개인 추천 read model을 공개한다 */
+export * from './queries/drizzle-recommendation.query.js';
