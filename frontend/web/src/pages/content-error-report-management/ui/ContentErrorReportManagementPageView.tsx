@@ -34,6 +34,17 @@ const transitions: Record<
   REJECTED: ['OPEN'],
 };
 
+const changeFilter = (
+  search: ContentErrorReportSearch,
+  key: 'targetKind' | 'category' | 'assigneeUserId',
+  value: string,
+): ContentErrorReportSearch => {
+  const next = { ...search };
+  delete next[key];
+  if (value) Object.assign(next, { [key]: value });
+  return { ...next, page: 1 };
+};
+
 /** 목록 선택과 허용된 workflow command를 한 화면에서 제공한다 */
 // 목록·상세 workflow를 한 접근성 문맥에 유지해 조건 분기가 함께 보이게 한다
 // eslint-disable-next-line max-lines-per-function, complexity
@@ -54,6 +65,12 @@ export function ContentErrorReportManagementPageView({
 }: ContentErrorReportManagementPageViewProps) {
   if (loading) return <p role='status'>오류 신고를 불러오는 중입니다.</p>;
   if (error) return <p role='alert'>오류 신고를 불러오지 못했습니다.</p>;
+  const targetHref = detail
+    ? toContentErrorReportTargetLink({
+        kind: detail.targetKind,
+        contentId: detail.canonicalReference.contentId,
+      })
+    : null;
   return (
     <main>
       <h1>콘텐츠 오류 신고</h1>
@@ -85,13 +102,9 @@ export function ContentErrorReportManagementPageView({
         <select
           value={search.targetKind ?? ''}
           onChange={(event) =>
-            onSearchChange({
-              ...search,
-              ...(event.target.value
-                ? { targetKind: event.target.value as never }
-                : {}),
-              page: 1,
-            })
+            onSearchChange(
+              changeFilter(search, 'targetKind', event.target.value),
+            )
           }
         >
           <option value=''>전체</option>
@@ -107,13 +120,7 @@ export function ContentErrorReportManagementPageView({
         <select
           value={search.category ?? ''}
           onChange={(event) =>
-            onSearchChange({
-              ...search,
-              ...(event.target.value
-                ? { category: event.target.value as never }
-                : {}),
-              page: 1,
-            })
+            onSearchChange(changeFilter(search, 'category', event.target.value))
           }
         >
           <option value=''>전체</option>
@@ -129,21 +136,24 @@ export function ContentErrorReportManagementPageView({
           ))}
         </select>
       </label>
-      <label>
-        담당자 ID
-        <input
-          value={search.assigneeUserId ?? ''}
-          onChange={(event) =>
-            onSearchChange({
-              ...search,
-              ...(event.target.value
-                ? { assigneeUserId: event.target.value }
-                : {}),
-              page: 1,
-            })
-          }
-        />
-      </label>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          const value = new FormData(event.currentTarget).get('assigneeFilter');
+          if (typeof value === 'string')
+            onSearchChange(changeFilter(search, 'assigneeUserId', value));
+        }}
+      >
+        <label>
+          담당자 ID
+          <input
+            name='assigneeFilter'
+            pattern='[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}'
+            defaultValue={search.assigneeUserId}
+          />
+        </label>
+        <button type='submit'>필터 적용</button>
+      </form>
       {!reports?.items.length ? (
         <p>접수된 오류 신고가 없습니다.</p>
       ) : (
@@ -160,7 +170,7 @@ export function ContentErrorReportManagementPageView({
           ))}
         </ul>
       )}
-      {reports ? (
+      {reports && reports.page.totalPages > 0 ? (
         <nav aria-label='페이지 이동'>
           <button
             disabled={search.page <= 1}
@@ -197,20 +207,8 @@ export function ContentErrorReportManagementPageView({
           {mutationError ? (
             <p role='alert'>변경을 저장하지 못했습니다.</p>
           ) : null}
-          {toContentErrorReportTargetLink({
-            kind: detail.targetKind,
-            contentId: detail.canonicalReference.contentId,
-          }) ? (
-            <a
-              href={
-                toContentErrorReportTargetLink({
-                  kind: detail.targetKind,
-                  contentId: detail.canonicalReference.contentId,
-                }) ?? undefined
-              }
-            >
-              대상 콘텐츠 열기
-            </a>
+          {targetHref ? (
+            <a href={targetHref}>대상 콘텐츠 열기</a>
           ) : (
             <span>통합 대기</span>
           )}
@@ -249,7 +247,7 @@ export function ContentErrorReportManagementPageView({
               <input
                 key={detail.assignee?.id ?? 'unassigned'}
                 name='assigneeUserId'
-                pattern='[0-9a-fA-F-]{36}'
+                pattern='[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}'
                 required
                 defaultValue={detail.assignee?.id}
               />
