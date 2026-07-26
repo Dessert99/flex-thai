@@ -1,6 +1,7 @@
 /** 개념 학습 공개·관리 계약을 검증한다 */
 import { describe, expect, it } from 'vitest';
 import {
+  adminConceptVersionSchema,
   conceptDetailResponseSchema,
   conceptValidationReportSchema,
   createConceptRequestSchema,
@@ -168,5 +169,34 @@ describe('개념 계약', () => {
         ],
       }),
     ).toThrow();
+  });
+
+  it('관리자 버전 블록의 feedback origin UUID를 보존한다', () => {
+    const parsed = adminConceptVersionSchema.parse({
+      id: '22222222-2222-4222-8222-222222222222',
+      conceptId: '11111111-1111-4111-8111-111111111111',
+      version: 1,
+      revision: 0,
+      category: 'GRAMMAR',
+      position: 0,
+      title: '기본 어순',
+      summary: '요약',
+      status: 'DRAFT',
+      validationStatus: 'PENDING',
+      validationIssues: [],
+      validatedAt: null,
+      publishedAt: null,
+      blocks: [
+        {
+          id: blockId,
+          kind: 'EXPLANATION',
+          position: 0,
+          heading: '설명',
+          paragraphs: ['본문'],
+        },
+      ],
+    });
+
+    expect(parsed.blocks[0]?.id).toBe(blockId);
   });
 });

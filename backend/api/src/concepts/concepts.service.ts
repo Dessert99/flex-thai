@@ -130,6 +130,7 @@ const toPublicVersion = (record: ConceptDraftRecord): AdminConceptVersion => ({
     block.kind !== 'THAI_EXAMPLES'
       ? block
       : {
+          id: block.id,
           kind: block.kind,
           position: block.position,
           heading: block.heading,

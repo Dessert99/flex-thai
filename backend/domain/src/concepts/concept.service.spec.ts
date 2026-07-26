@@ -17,6 +17,7 @@ const draft: ConceptValidationCandidate = {
   summary: '요약',
   blocks: [
     {
+      id: 'block-1',
       kind: 'EXPLANATION',
       position: 0,
       heading: '설명',

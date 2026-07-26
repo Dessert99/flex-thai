@@ -142,6 +142,7 @@ export const assembleConceptValidationCandidate = (
     .map((block): ConceptCandidateBlock => {
       if (block.kind === 'EXPLANATION') {
         return {
+          id: block.id,
           kind: block.kind,
           position: block.position,
           heading: block.heading,
@@ -150,6 +151,7 @@ export const assembleConceptValidationCandidate = (
       }
       if (block.kind === 'RULE_TABLE') {
         return {
+          id: block.id,
           kind: block.kind,
           position: block.position,
           heading: block.heading,
@@ -158,6 +160,7 @@ export const assembleConceptValidationCandidate = (
         };
       }
       return {
+        id: block.id,
         kind: block.kind,
         position: block.position,
         heading: block.heading,

@@ -43,7 +43,12 @@ export function AdminConceptDetailPageContainer({
   });
   useEffect(() => {
     if (draft) {
-      setBlocks(draft.blocks);
+      setBlocks(
+        draft.blocks.map((block): ConceptBlockInput => {
+          const { id: _id, ...input } = block;
+          return input;
+        }),
+      );
       setMetadata({
         category: draft.category,
         position: draft.position,

@@ -18,6 +18,7 @@ const candidate = (): ConceptValidationCandidate => ({
   summary: '태국어 기본 어순',
   blocks: [
     {
+      id: 'block-1',
       kind: 'THAI_EXAMPLES',
       position: 0,
       heading: '예문',
@@ -61,6 +62,7 @@ describe('validateConceptCandidate', () => {
     const input = candidate();
     input.blocks = [
       {
+        id: 'block-1',
         kind: 'RULE_TABLE',
         position: 0,
         heading: '규칙',
@@ -68,6 +70,7 @@ describe('validateConceptCandidate', () => {
         rows: [['1']],
       },
       {
+        id: 'block-2',
         kind: 'THAI_EXAMPLES',
         position: 1,
         heading: '예문',

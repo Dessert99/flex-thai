@@ -46,6 +46,7 @@ describe('AdminConceptDetailPageView', () => {
               publishedAt: null,
               blocks: [
                 {
+                  id: '33333333-3333-4333-8333-333333333333',
                   kind: 'EXPLANATION',
                   position: 0,
                   heading: '설명',

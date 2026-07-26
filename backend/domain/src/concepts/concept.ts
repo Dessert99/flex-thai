@@ -80,7 +80,9 @@ export type ConceptDraftBlock =
 
 /** 검증 가능한 개념 블록 */
 export type ConceptCandidateBlock =
-  ConceptExplanationBlock | ConceptRuleTableBlock | ConceptExamplesBlock;
+  | (ConceptExplanationBlock & { id: string })
+  | (ConceptRuleTableBlock & { id: string })
+  | (ConceptExamplesBlock & { id: string });
 
 /** 검증할 개념 초안 snapshot */
 export interface ConceptValidationCandidate {

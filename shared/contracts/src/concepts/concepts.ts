@@ -208,6 +208,50 @@ export const conceptDetailResponseSchema = z
   })
   .strict();
 
+const adminRuleTableBlockSchema = z
+  .object({
+    id: uuidSchema,
+    kind: z.literal('RULE_TABLE'),
+    position: positionSchema,
+    heading: z.string().trim().min(1),
+    headers: z.array(z.string().trim().min(1)).min(1),
+    rows: z.array(z.array(z.string().trim().min(1)).min(1)).min(1),
+  })
+  .strict()
+  .superRefine((block, context) => {
+    block.rows.forEach((row, index) => {
+      if (row.length !== block.headers.length) {
+        context.addIssue({
+          code: 'custom',
+          path: ['rows', index],
+          message: '모든 행의 열 수는 헤더와 같아야 합니다.',
+        });
+      }
+    });
+  });
+
+const adminConceptBlockSchema = z.union([
+  z
+    .object({
+      id: uuidSchema,
+      kind: z.literal('EXPLANATION'),
+      position: positionSchema,
+      heading: z.string().trim().min(1),
+      paragraphs: z.array(z.string().trim().min(1)).min(1),
+    })
+    .strict(),
+  adminRuleTableBlockSchema,
+  z
+    .object({
+      id: uuidSchema,
+      kind: z.literal('THAI_EXAMPLES'),
+      position: positionSchema,
+      heading: z.string().trim().min(1),
+      examples: z.array(conceptExampleInputSchema).min(1),
+    })
+    .strict(),
+]);
+
 /** 관리자 개념 버전 응답 */
 export const adminConceptVersionSchema = z
   .object({
@@ -224,7 +268,7 @@ export const adminConceptVersionSchema = z
     validationIssues: z.array(conceptValidationIssueSchema),
     validatedAt: nullableDateTimeSchema,
     publishedAt: nullableDateTimeSchema,
-    blocks: z.array(conceptBlockInputSchema),
+    blocks: z.array(adminConceptBlockSchema),
   })
   .strict();
 
