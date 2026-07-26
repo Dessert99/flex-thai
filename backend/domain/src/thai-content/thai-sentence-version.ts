@@ -2,10 +2,7 @@
 
 /** 태국어 token이 문장에서 맡는 학습 역할 */
 export type ThaiTokenRole =
-  | 'TARGET'
-  | 'REQUIRED'
-  | 'SUPPORTING'
-  | 'INSTRUCTION';
+  'TARGET' | 'REQUIRED' | 'SUPPORTING' | 'INSTRUCTION';
 
 /** 문장 원문에서 어휘가 차지하는 code point 범위 */
 export interface ThaiTokenOccurrenceInput {

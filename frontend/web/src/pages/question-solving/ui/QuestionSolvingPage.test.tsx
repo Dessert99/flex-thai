@@ -60,22 +60,20 @@ describe('문제 풀이 페이지', () => {
       />,
     );
 
-    await user.click(
-      screen.getByRole('button', { name: '문장별 주석 열기' }),
-    );
+    await user.click(screen.getByRole('button', { name: '문장별 주석 열기' }));
 
     expect(
       screen.getAllByRole('button', { name: '1번 문장 뜻과 발음 듣기' }),
     ).toHaveLength(1);
   });
+});
 
+describe('문제 풀이 제출 결과와 복구', () => {
   it('듣기 대본은 제출 전 숨기고 제출 직후 자동 공개한다', async () => {
     const detail = createQuestion();
     mocks.authenticatedRequest.mockImplementation(
       ({ path }: { path: string }) =>
-        Promise.resolve(
-          path.endsWith('/attempts') ? createFeedback() : detail,
-        ),
+        Promise.resolve(path.endsWith('/attempts') ? createFeedback() : detail),
     );
     const user = userEvent.setup();
     renderWithProviders(
@@ -191,13 +189,14 @@ function createQuestion(): QuestionDetailResponse {
 
 function createDialogueQuestion(): QuestionDetailResponse {
   const detail = createQuestion();
-  const firstSentence = detail.blocks[0]!.sentences[0]!.sentence;
+  const firstBlock = getFirstQuestionBlock(detail);
+  const firstSentence = getFirstSentence(detail);
   return {
     ...detail,
     template: 'DIALOGUE_CHOICE' as const,
     blocks: [
       {
-        ...detail.blocks[0]!,
+        ...firstBlock,
         kind: 'DIALOGUE' as const,
         displayMode: 'TEXT_AND_AUDIO' as const,
         sentences: [
@@ -239,7 +238,7 @@ function createQuestionWithInteractiveExplanation(): QuestionDetailResponse {
 
 function createInteractiveFeedback(detail: QuestionDetailResponse) {
   const base = createFeedback();
-  const sentence = detail.blocks[0]!.sentences[0]!.sentence;
+  const sentence = getFirstSentence(detail);
   const explanationSentence = {
     ...sentence,
     sentenceVersionId: '01933b6a-8f13-7a19-b7e5-536d70f57af3',
@@ -280,4 +279,20 @@ function createInteractiveFeedback(detail: QuestionDetailResponse) {
       ],
     },
   };
+}
+
+function getFirstQuestionBlock(detail: QuestionDetailResponse) {
+  const block = detail.blocks.at(0);
+  if (block === undefined) {
+    throw new Error('첫 문제 block이 없습니다.');
+  }
+  return block;
+}
+
+function getFirstSentence(detail: QuestionDetailResponse) {
+  const sentence = getFirstQuestionBlock(detail).sentences.at(0)?.sentence;
+  if (sentence === undefined) {
+    throw new Error('첫 문제 문장이 없습니다.');
+  }
+  return sentence;
 }

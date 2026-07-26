@@ -24,8 +24,7 @@ export function QuestionSolvingPageView({
   onSavedConfirmed,
 }: QuestionSolvingPageViewProps) {
   const [transcriptRevealed, setTranscriptRevealed] = useState(false);
-  const [submission, setSubmission] =
-    useState<SubmitQuestionAttemptResponse>();
+  const [submission, setSubmission] = useState<SubmitQuestionAttemptResponse>();
   const blocks = toQuestionBlockViewModels(detail);
   const hasHiddenTranscript = blocks.some(
     (block) => block.displayMode === 'AUDIO_THEN_REVEAL',

@@ -94,10 +94,11 @@ describe('답안 제출 폼', () => {
 
     expect(screen.getAllByTestId('inline-option-span')).toHaveLength(2);
     const radios = screen.getAllByRole('radio');
-    await user.click(radios[1]!);
+    const secondRadio = getRadio(radios, 1);
+    await user.click(secondRadio);
 
-    expect(radios[1]).toBeChecked();
-    expect(radios[1]!.querySelector('button')).toBeNull();
+    expect(secondRadio).toBeChecked();
+    expect(secondRadio.querySelector('button')).toBeNull();
   });
 
   it('방향키로 radio를 이동하고 제출 뒤 선택·정답 상태를 유지한다', async () => {
@@ -112,9 +113,9 @@ describe('답안 제출 폼', () => {
     );
 
     const radios = screen.getAllByRole('radio');
-    await user.click(radios[0]!);
+    await user.click(getRadio(radios, 0));
     await user.keyboard('{ArrowDown}');
-    expect(radios[1]).toBeChecked();
+    expect(getRadio(radios, 1)).toBeChecked();
 
     await user.keyboard('{ArrowUp}');
     await user.click(screen.getByRole('button', { name: '답안 제출' }));
@@ -125,6 +126,14 @@ describe('답안 제출 폼', () => {
     expect(screen.getByText('정답')).toBeVisible();
   });
 });
+
+function getRadio(radios: HTMLElement[], index: number) {
+  const radio = radios.at(index);
+  if (radio === undefined) {
+    throw new Error(`${index}번 radio가 없습니다.`);
+  }
+  return radio;
+}
 
 function submittedCommand(index: number): SubmitAnswerCommand {
   return mocks.submitAnswer.mock.calls[index]?.[0] as SubmitAnswerCommand;

@@ -27,9 +27,10 @@ export function ThaiFeedbackTrigger({
 }: ThaiFeedbackTriggerProps) {
   return (
     <Button
-      type="button"
-      variant="ghost"
-      className="h-auto px-0.5 py-0 text-base underline decoration-dotted underline-offset-4"
+      type='button'
+      variant='ghost'
+      size='xs'
+      className='h-auto text-body underline decoration-dotted underline-offset-4'
       aria-label={label}
       onFocus={() => onSelect(feedback)}
       onMouseEnter={() => onSelect(feedback)}

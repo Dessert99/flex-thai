@@ -863,9 +863,7 @@ export class DrizzleLearnerVocabularyQuery {
         toneMarks: row.toneMarks,
         media: { storageKey: row.mediaStorageKey! },
         tokens: tokenRows
-          .filter(
-            (token) => token.sentenceVersionId === row.sentenceVersionId,
-          )
+          .filter((token) => token.sentenceVersionId === row.sentenceVersionId)
           .map((token) => ({
             position: token.position,
             surface: token.surface,

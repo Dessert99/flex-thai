@@ -688,8 +688,7 @@ export class ContentDraftService {
           : undefined;
         const targetGraph = targetSentence
           ? sentences.find(
-              ({ version }) =>
-                version.id === targetSentence.sentenceVersionId,
+              ({ version }) => version.id === targetSentence.sentenceVersionId,
             )
           : undefined;
         const spanKey = option.span

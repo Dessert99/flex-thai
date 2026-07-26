@@ -72,6 +72,23 @@ export function SubmitAnswerForm({
     mutation.mutate(nextCommand);
   };
 
+  const selectOption = (optionId: string) => {
+    startedAt.current ??= Date.now();
+    setSelectedOptionId(optionId);
+    if (command?.selectedOptionId !== optionId) {
+      setCommand(undefined);
+    }
+  };
+
+  const reset = () => {
+    setSelectedOptionId(undefined);
+    setCommand(undefined);
+    setFeedback(undefined);
+    mutation.reset();
+    startedAt.current = undefined;
+    onReset?.();
+  };
+
   return (
     <form
       className='grid gap-section'
@@ -80,62 +97,12 @@ export function SubmitAnswerForm({
         submit();
       }}
     >
-      <fieldset className='grid gap-3'>
-        <legend className='sr-only'>답안 선택</legend>
-        {options.map((option) => (
-          <div
-            className='flex items-center gap-cluster rounded-control border border-default p-cluster'
-            key={option.id}
-          >
-            <Input
-              aria-describedby={
-                option.span === null ? undefined : `inline-option-${option.id}`
-              }
-              aria-label={getOptionAccessibleName(
-                option,
-                selectedOptionId,
-                feedback,
-              )}
-              checked={selectedOptionId === option.id}
-              className='size-4 shrink-0 p-0 shadow-none'
-              disabled={feedback !== undefined}
-              id={`answer-${option.id}`}
-              name='answer'
-              onChange={() => {
-                startedAt.current ??= Date.now();
-                setSelectedOptionId(option.id);
-                if (command?.selectedOptionId !== option.id) {
-                  setCommand(undefined);
-                }
-              }}
-              type='radio'
-              value={option.id}
-            />
-            <Label
-              className='font-thai text-body'
-              htmlFor={`answer-${option.id}`}
-              lang='th'
-            >
-              {option.span === null ? (
-                option.label
-              ) : (
-                <mark
-                  data-testid='inline-option-span'
-                  id={`inline-option-${option.id}`}
-                >
-                  {option.label}
-                </mark>
-              )}
-            </Label>
-            {selectedOptionId === option.id && feedback !== undefined ? (
-              <span>선택한 답</span>
-            ) : null}
-            {feedback?.feedback.correctOptionId === option.id ? (
-              <span>정답</span>
-            ) : null}
-          </div>
-        ))}
-      </fieldset>
+      <AnswerOptions
+        feedback={feedback}
+        onSelect={selectOption}
+        options={options}
+        selectedOptionId={selectedOptionId}
+      />
       {mutation.isError ? <SubmissionError /> : null}
       <Button
         disabled={
@@ -145,27 +112,93 @@ export function SubmitAnswerForm({
         }
         type='submit'
       >
-        {feedback !== undefined
-          ? '제출 완료'
-          : mutation.isError
-            ? '같은 답안 다시 제출'
-            : '답안 제출'}
+        {getSubmitLabel(feedback, mutation.isError)}
       </Button>
       {feedback === undefined ? null : (
         <AnswerFeedback
           isCorrect={feedback.attempt.isCorrect}
-          onReset={() => {
-            setSelectedOptionId(undefined);
-            setCommand(undefined);
-            setFeedback(undefined);
-            mutation.reset();
-            startedAt.current = undefined;
-            onReset?.();
-          }}
+          onReset={reset}
         />
       )}
     </form>
   );
+}
+
+function AnswerOptions({
+  feedback,
+  onSelect,
+  options,
+  selectedOptionId,
+}: {
+  feedback: SubmitQuestionAttemptResponse | undefined;
+  onSelect: (optionId: string) => void;
+  options: readonly SubmitAnswerOption[];
+  selectedOptionId: string | undefined;
+}) {
+  return (
+    <fieldset className='grid gap-cluster'>
+      <legend className='sr-only'>답안 선택</legend>
+      {options.map((option) => (
+        <div
+          className='flex items-center gap-cluster rounded-control border border-default p-cluster'
+          key={option.id}
+        >
+          <Input
+            aria-describedby={
+              option.span === null ? undefined : `inline-option-${option.id}`
+            }
+            aria-label={getOptionAccessibleName(
+              option,
+              selectedOptionId,
+              feedback,
+            )}
+            checked={selectedOptionId === option.id}
+            className='size-icon shrink-0 p-px shadow-none'
+            disabled={feedback !== undefined}
+            id={`answer-${option.id}`}
+            name='answer'
+            onChange={() => {
+              onSelect(option.id);
+            }}
+            type='radio'
+            value={option.id}
+          />
+          <Label
+            className='font-thai text-body'
+            htmlFor={`answer-${option.id}`}
+            lang='th'
+          >
+            {option.span === null ? (
+              option.label
+            ) : (
+              <mark
+                data-testid='inline-option-span'
+                id={`inline-option-${option.id}`}
+              >
+                {option.label}
+              </mark>
+            )}
+          </Label>
+          {selectedOptionId === option.id && feedback !== undefined ? (
+            <span>선택한 답</span>
+          ) : null}
+          {feedback?.feedback.correctOptionId === option.id ? (
+            <span>정답</span>
+          ) : null}
+        </div>
+      ))}
+    </fieldset>
+  );
+}
+
+function getSubmitLabel(
+  feedback: SubmitQuestionAttemptResponse | undefined,
+  isError: boolean,
+) {
+  if (feedback !== undefined) {
+    return '제출 완료';
+  }
+  return isError ? '같은 답안 다시 제출' : '답안 제출';
 }
 
 function getOptionAccessibleName(
