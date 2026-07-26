@@ -345,7 +345,23 @@ export class DrizzleConceptAdminRepository implements ConceptAdminRepository {
         eq(conceptVersions.revision, input.revision),
       )).returning({ version: conceptVersions.version });
       const stored = rows[0];
-      if (!stored) throw new ConceptPersistenceError('CONCEPT_REVISION_CONFLICT');
+      if (!stored) {
+        const [current] = await transaction
+          .select({
+            status: conceptVersions.status,
+            revision: conceptVersions.revision,
+          })
+          .from(conceptVersions)
+          .where(eq(conceptVersions.id, versionId))
+          .limit(1);
+        if (!current) {
+          throw new ConceptPersistenceError('CONCEPT_VERSION_NOT_FOUND');
+        }
+        if (current.status !== 'DRAFT') {
+          throw new ConceptPersistenceError('CONCEPT_VERSION_IMMUTABLE');
+        }
+        throw new ConceptPersistenceError('CONCEPT_REVISION_CONFLICT');
+      }
       const blockIds = await transaction.select({ id: conceptBlocks.id })
         .from(conceptBlocks).where(eq(conceptBlocks.conceptVersionId, versionId));
       if (blockIds.length > 0) {
@@ -391,6 +407,17 @@ export class DrizzleConceptAdminRepository implements ConceptAdminRepository {
   /** 검증된 같은 revision의 초안을 게시한다 */
   async publish(input, context): Promise<void> {
     await this.database.transaction(async (transaction) => {
+      const [versionIdentity] = await transaction.select({
+        conceptId: conceptVersions.conceptId,
+      }).from(conceptVersions).where(eq(conceptVersions.id, input.versionId))
+        .limit(1);
+      if (!versionIdentity) throw new ConceptPersistenceError('CONCEPT_VERSION_NOT_FOUND');
+      // 모든 상태 전이는 logical record를 먼저 잠가 lock order를 고정한다.
+      const [concept] = await transaction.select({
+        currentPublishedVersionId: concepts.currentPublishedVersionId,
+      }).from(concepts).where(eq(concepts.id, versionIdentity.conceptId))
+        .for('update').limit(1);
+      if (!concept) throw new ConceptPersistenceError('CONCEPT_NOT_FOUND');
       const [version] = await transaction.select({
         id: conceptVersions.id,
         conceptId: conceptVersions.conceptId,
@@ -402,10 +429,6 @@ export class DrizzleConceptAdminRepository implements ConceptAdminRepository {
         eq(conceptVersions.validatedRevision, input.expectedRevision),
       )).for('update').limit(1);
       if (!version) throw new ConceptPersistenceError('CONCEPT_VALIDATION_REQUIRED');
-      const [concept] = await transaction.select({
-        currentPublishedVersionId: concepts.currentPublishedVersionId,
-      }).from(concepts).where(eq(concepts.id, version.conceptId)).for('update').limit(1);
-      if (!concept) throw new ConceptPersistenceError('CONCEPT_NOT_FOUND');
       if (concept.currentPublishedVersionId) {
         const retired = await transaction.update(conceptVersions).set({ status: 'RETIRED' })
           .where(and(eq(conceptVersions.id, concept.currentPublishedVersionId), eq(conceptVersions.status, 'PUBLISHED')))
@@ -419,11 +442,15 @@ export class DrizzleConceptAdminRepository implements ConceptAdminRepository {
       }).where(and(eq(conceptVersions.id, input.versionId), eq(conceptVersions.status, 'DRAFT')))
         .returning({ id: conceptVersions.id });
       if (published.length !== 1) throw new ConceptPersistenceError('CONCEPT_PERSISTENCE_CONFLICT');
-      await transaction.update(concepts).set({
+      const currentRows = await transaction.update(concepts).set({
         status: 'PUBLISHED',
         currentPublishedVersionId: input.versionId,
         updatedAt: context.occurredAt,
-      }).where(eq(concepts.id, version.conceptId));
+      }).where(eq(concepts.id, version.conceptId))
+        .returning({ id: concepts.id });
+      if (currentRows.length !== 1) {
+        throw new ConceptPersistenceError('CONCEPT_PERSISTENCE_CONFLICT');
+      }
       const references = await transaction.select({
         sentenceVersionId: conceptBlockExamples.sentenceVersionId,
       }).from(conceptBlockExamples).innerJoin(
@@ -443,33 +470,48 @@ export class DrizzleConceptAdminRepository implements ConceptAdminRepository {
 
   /** 게시 개념을 숨긴다 */
   async hide(conceptId, context): Promise<void> {
-    const rows = await this.database.update(concepts).set({
-      status: 'HIDDEN',
-      updatedAt: context.occurredAt,
-    }).where(and(eq(concepts.id, conceptId), eq(concepts.status, 'PUBLISHED')))
-      .returning({ id: concepts.id });
-    if (rows.length !== 1) throw new ConceptPersistenceError('CONCEPT_INVALID_TRANSITION');
+    await this.database.transaction(async (transaction) => {
+      const rows = await transaction.update(concepts).set({
+        status: 'HIDDEN',
+        updatedAt: context.occurredAt,
+      }).where(and(eq(concepts.id, conceptId), eq(concepts.status, 'PUBLISHED')))
+        .returning({ id: concepts.id });
+      if (rows.length !== 1) {
+        throw new ConceptPersistenceError('CONCEPT_INVALID_TRANSITION');
+      }
+      await appendAudit(transaction, context, 'CONCEPT_HIDDEN', 'CONCEPT', conceptId, {});
+    });
   }
 
   /** 유효한 현재 게시 버전이 있는 숨김 개념을 복구한다 */
   async restore(conceptId, context): Promise<void> {
-    const [concept] = await this.database.select({
-      id: concepts.id,
-      status: concepts.status,
-      currentPublishedVersionId: concepts.currentPublishedVersionId,
-    }).from(concepts).where(eq(concepts.id, conceptId)).limit(1);
-    if (!concept) throw new ConceptPersistenceError('CONCEPT_NOT_FOUND');
-    if (concept.status !== 'HIDDEN' || !concept.currentPublishedVersionId) {
-      throw new ConceptPersistenceError('CONCEPT_INVALID_TRANSITION');
-    }
-    const [version] = await this.database.select({ status: conceptVersions.status })
-      .from(conceptVersions).where(eq(conceptVersions.id, concept.currentPublishedVersionId)).limit(1);
-    if (version?.status !== 'PUBLISHED') throw new ConceptPersistenceError('CONCEPT_INVALID_TRANSITION');
-    const rows = await this.database.update(concepts).set({
-      status: 'PUBLISHED',
-      updatedAt: context.occurredAt,
-    }).where(and(eq(concepts.id, conceptId), eq(concepts.status, 'HIDDEN')))
-      .returning({ id: concepts.id });
-    if (rows.length !== 1) throw new ConceptPersistenceError('CONCEPT_PERSISTENCE_CONFLICT');
+    await this.database.transaction(async (transaction) => {
+      const [concept] = await transaction.select({
+        id: concepts.id,
+        status: concepts.status,
+        currentPublishedVersionId: concepts.currentPublishedVersionId,
+      }).from(concepts).where(eq(concepts.id, conceptId)).for('update').limit(1);
+      if (!concept) throw new ConceptPersistenceError('CONCEPT_NOT_FOUND');
+      if (concept.status !== 'HIDDEN' || !concept.currentPublishedVersionId) {
+        throw new ConceptPersistenceError('CONCEPT_INVALID_TRANSITION');
+      }
+      const [version] = await transaction.select({ status: conceptVersions.status })
+        .from(conceptVersions)
+        .where(eq(conceptVersions.id, concept.currentPublishedVersionId))
+        .for('update')
+        .limit(1);
+      if (version?.status !== 'PUBLISHED') {
+        throw new ConceptPersistenceError('CONCEPT_INVALID_TRANSITION');
+      }
+      const rows = await transaction.update(concepts).set({
+        status: 'PUBLISHED',
+        updatedAt: context.occurredAt,
+      }).where(and(eq(concepts.id, conceptId), eq(concepts.status, 'HIDDEN')))
+        .returning({ id: concepts.id });
+      if (rows.length !== 1) {
+        throw new ConceptPersistenceError('CONCEPT_PERSISTENCE_CONFLICT');
+      }
+      await appendAudit(transaction, context, 'CONCEPT_RESTORED', 'CONCEPT', conceptId, {});
+    });
   }
 }
