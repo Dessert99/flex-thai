@@ -30,7 +30,7 @@ const command = {
 };
 
 describe('FakeContentProductionRepository 상태 전이', () => {
-  it('kill 뒤 만료된 PROCESSING lease만 같은 attempt에서 재claim한다', async () => {
+  it('heartbeat 중에는 탈취하지 않고 중단 뒤 만료되면 새 token으로 재claim한다', async () => {
     let currentTime = new Date('2026-07-27T00:00:00.000Z');
     const repository = new FakeContentProductionRepository(() => currentTime);
     const { job } = await repository.createOrFind(command);
@@ -42,26 +42,40 @@ describe('FakeContentProductionRepository 상태 전이', () => {
     expect(firstClaim?.leaseUntil).toEqual(
       new Date('2026-07-27T00:05:00.000Z'),
     );
+    expect(firstClaim?.leaseToken).toEqual(expect.any(String));
+
+    currentTime = new Date('2026-07-27T00:04:00.000Z');
+    await expect(
+      repository.renewItemLease(
+        job.id,
+        pending!.id,
+        0,
+        firstClaim!.leaseToken!,
+      ),
+    ).resolves.toBe(true);
+
+    currentTime = new Date('2026-07-27T00:06:00.000Z');
     await expect(
       repository.startItem(job.id, pending!.id, 0),
     ).resolves.toBeNull();
 
-    currentTime = new Date('2026-07-27T00:05:01.000Z');
+    currentTime = new Date('2026-07-27T00:09:01.000Z');
     const [expired] = await repository.listAttemptItems(job.id, 0);
     const secondClaim = await repository.startItem(job.id, expired!.id, 0);
 
     expect(secondClaim?.leaseUntil).toEqual(
-      new Date('2026-07-27T00:10:01.000Z'),
+      new Date('2026-07-27T00:14:01.000Z'),
     );
+    expect(secondClaim?.leaseToken).not.toBe(firstClaim?.leaseToken);
     await expect(
-      repository.finishItem(job.id, expired!.id, 0, firstClaim!.leaseUntil!, {
+      repository.finishItem(job.id, expired!.id, 0, firstClaim!.leaseToken!, {
         status: 'SUCCEEDED',
         retryable: false,
         errorCode: null,
       }),
     ).resolves.toBe(false);
     await expect(
-      repository.finishItem(job.id, expired!.id, 0, secondClaim!.leaseUntil!, {
+      repository.finishItem(job.id, expired!.id, 0, secondClaim!.leaseToken!, {
         status: 'SUCCEEDED',
         retryable: false,
         errorCode: null,
@@ -83,7 +97,7 @@ describe('FakeContentProductionRepository 상태 전이', () => {
     await repository.ensureItems(job.id, ['input:0']);
     const [item] = await repository.listAttemptItems(job.id, 0);
     const claimed = await repository.startItem(job.id, item!.id, 0);
-    await repository.finishItem(job.id, item!.id, 0, claimed!.leaseUntil!, {
+    await repository.finishItem(job.id, item!.id, 0, claimed!.leaseToken!, {
       status: 'SUCCEEDED',
       retryable: false,
       errorCode: null,
@@ -101,7 +115,7 @@ describe('FakeContentProductionRepository 상태 전이', () => {
     const [first, second] = await repository.listAttemptItems(job.id, 0);
 
     const firstClaim = await repository.startItem(job.id, first!.id, 0);
-    await repository.finishItem(job.id, first!.id, 0, firstClaim!.leaseUntil!, {
+    await repository.finishItem(job.id, first!.id, 0, firstClaim!.leaseToken!, {
       status: 'SUCCEEDED',
       retryable: false,
       errorCode: null,
@@ -111,7 +125,7 @@ describe('FakeContentProductionRepository 상태 전이', () => {
       job.id,
       second!.id,
       0,
-      secondClaim!.leaseUntil!,
+      secondClaim!.leaseToken!,
       {
         status: 'FAILED',
         retryable: true,

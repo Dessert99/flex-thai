@@ -46,6 +46,7 @@ export interface ContentProductionItem {
   retryable: boolean;
   errorCode: string | null;
   leaseUntil: Date | null;
+  leaseToken: string | null;
 }
 
 /** 콘텐츠 제작 작업 aggregate */
@@ -112,11 +113,17 @@ export interface ContentProductionRepository {
     itemId: string,
     attempt: number,
   ): Promise<ContentProductionItem | null>;
+  renewItemLease(
+    jobId: string,
+    itemId: string,
+    attempt: number,
+    leaseToken: string,
+  ): Promise<boolean>;
   finishItem(
     jobId: string,
     itemId: string,
     attempt: number,
-    leaseUntil: Date,
+    leaseToken: string,
     outcome: {
       status: 'SUCCEEDED' | 'NEEDS_ATTENTION' | 'FAILED';
       retryable: boolean;

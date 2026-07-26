@@ -10,6 +10,7 @@ const item = (sourceRef: string) => ({
   retryable: false,
   errorCode: null,
   leaseUntil: new Date('2026-07-27T00:05:00.000Z'),
+  leaseToken: 'lease-token',
 });
 
 describe('DeterministicContentProductionProcessor local 처리', () => {

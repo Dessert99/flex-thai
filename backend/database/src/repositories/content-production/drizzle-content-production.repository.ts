@@ -1,9 +1,11 @@
 /** 콘텐츠 제작 작업·항목 조건부 전이와 preset 조회를 Drizzle로 구현한다 */
+import { randomUUID } from 'node:crypto';
 import {
   and,
   asc,
   desc,
   eq,
+  gt,
   inArray,
   isNotNull,
   isNull,
@@ -51,6 +53,7 @@ const toItem = (row: typeof jobItems.$inferSelect): ContentProductionItem => {
     retryable: row.retryable,
     errorCode: row.errorCode,
     leaseUntil: row.leaseUntil,
+    leaseToken: row.leaseToken,
   };
 };
 
@@ -349,9 +352,15 @@ export class DrizzleContentProductionRepository implements ContentProductionRepo
     const leaseUntil = new Date(
       claimedAt.getTime() + CONTENT_PRODUCTION_ITEM_LEASE_MS,
     );
+    const leaseToken = randomUUID();
     const [row] = await this.database
       .update(jobItems)
-      .set({ status: 'PROCESSING', leaseUntil, updatedAt: claimedAt })
+      .set({
+        status: 'PROCESSING',
+        leaseUntil,
+        leaseToken,
+        updatedAt: claimedAt,
+      })
       .where(
         and(
           eq(jobItems.jobId, jobId),
@@ -373,12 +382,40 @@ export class DrizzleContentProductionRepository implements ContentProductionRepo
     return row ? toItem(row) : null;
   }
 
+  /** 활성 token 소유자만 lease를 연장한다 */
+  async renewItemLease(
+    jobId: string,
+    itemId: string,
+    attempt: number,
+    leaseToken: string,
+  ): Promise<boolean> {
+    const renewedAt = this.now();
+    const leaseUntil = new Date(
+      renewedAt.getTime() + CONTENT_PRODUCTION_ITEM_LEASE_MS,
+    );
+    const renewed = await this.database
+      .update(jobItems)
+      .set({ leaseUntil, updatedAt: renewedAt })
+      .where(
+        and(
+          eq(jobItems.jobId, jobId),
+          eq(jobItems.id, itemId),
+          eq(jobItems.attempt, attempt),
+          eq(jobItems.status, 'PROCESSING'),
+          eq(jobItems.leaseToken, leaseToken),
+          gt(jobItems.leaseUntil, renewedAt),
+        ),
+      )
+      .returning({ id: jobItems.id });
+    return renewed.length > 0;
+  }
+
   /** 현재 lease 소유자의 완료 결과만 terminal 상태로 반영한다 */
   async finishItem(
     jobId: string,
     itemId: string,
     attempt: number,
-    leaseUntil: Date,
+    leaseToken: string,
     outcome: {
       status: 'SUCCEEDED' | 'NEEDS_ATTENTION' | 'FAILED';
       retryable: boolean;
@@ -391,6 +428,7 @@ export class DrizzleContentProductionRepository implements ContentProductionRepo
       .set({
         ...outcome,
         leaseUntil: null,
+        leaseToken: null,
         updatedAt: this.now(),
       })
       .where(
@@ -399,7 +437,7 @@ export class DrizzleContentProductionRepository implements ContentProductionRepo
           eq(jobItems.id, itemId),
           eq(jobItems.attempt, attempt),
           eq(jobItems.status, 'PROCESSING'),
-          eq(jobItems.leaseUntil, leaseUntil),
+          eq(jobItems.leaseToken, leaseToken),
         ),
       )
       .returning({ id: jobItems.id });
@@ -517,6 +555,7 @@ export class DrizzleContentProductionRepository implements ContentProductionRepo
           retryable: false,
           errorCode: null,
           leaseUntil: null,
+          leaseToken: null,
           result: null,
           updatedAt: this.now(),
         })

@@ -1,5 +1,5 @@
 /** local deterministic dispatcher의 부분 실패·멱등·stale attempt 처리를 검증한다 */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createContentProductionDispatcher,
   type ContentProductionWorkerRepository,
@@ -19,6 +19,7 @@ const createRepository = (
       retryable: false,
       errorCode: null,
       leaseUntil: null,
+      leaseToken: null,
     },
     {
       id: 'item-2',
@@ -28,6 +29,7 @@ const createRepository = (
       retryable: false,
       errorCode: null,
       leaseUntil: null,
+      leaseToken: null,
     },
   ];
   const finished: Array<{ itemId: string; status: string }> = [];
@@ -47,11 +49,13 @@ const createRepository = (
               ...item,
               status: 'PROCESSING',
               leaseUntil: new Date('2026-07-27T00:05:00.000Z'),
+              leaseToken: `token:${itemId}`,
             }
           : null,
       );
     },
-    finishItem: (_jobId, itemId, _attempt, _leaseUntil, outcome) => {
+    renewItemLease: () => Promise.resolve(true),
+    finishItem: (_jobId, itemId, _attempt, _leaseToken, outcome) => {
       finished.push({ itemId, status: outcome.status });
       return Promise.resolve(true);
     },
@@ -65,6 +69,10 @@ const createRepository = (
 };
 
 describe('콘텐츠 제작 dispatcher', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('한 항목 실패 뒤에도 다음 항목을 처리하고 부분 실패로 집계한다', async () => {
     const { repository, finished } = createRepository({
       id: 'job-id',
@@ -158,5 +166,68 @@ describe('콘텐츠 제작 dispatcher', () => {
       status: 'IGNORED',
     });
     expect(processCount).toBe(0);
+  });
+
+  it('6분 처리 중 heartbeat로 lease를 연장하고 완료 뒤 timer를 정리한다', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-27T00:00:00.000Z'));
+    const { repository } = createRepository({
+      id: 'job-id',
+      attempt: 0,
+      status: 'RUNNING',
+      purpose: 'QUESTION_GENERATION',
+      inputs: [
+        {
+          uploadId: 'upload-1',
+          inputType: 'TEXT',
+          inputKey: 'a',
+          sizeBytes: 1,
+        },
+      ],
+    });
+    const renewItemLease = vi.spyOn(repository, 'renewItemLease');
+    let finishProcess!: (value: {
+      status: 'SUCCEEDED';
+      retryable: false;
+      errorCode: null;
+    }) => void;
+    const processPromise = new Promise<{
+      status: 'SUCCEEDED';
+      retryable: false;
+      errorCode: null;
+    }>((resolve) => {
+      finishProcess = resolve;
+    });
+    let processCount = 0;
+    const dispatch = createContentProductionDispatcher(repository, {
+      process: () => {
+        processCount += 1;
+
+        if (processCount > 1) {
+          return Promise.resolve({
+            status: 'SUCCEEDED',
+            retryable: false,
+            errorCode: null,
+          });
+        }
+
+        return processPromise;
+      },
+    });
+
+    const running = dispatch({ jobId: 'job-id', attempt: 0 });
+    await vi.advanceTimersByTimeAsync(6 * 60 * 1000);
+
+    expect(renewItemLease).toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBeGreaterThan(0);
+
+    finishProcess({
+      status: 'SUCCEEDED',
+      retryable: false,
+      errorCode: null,
+    });
+    await running;
+
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

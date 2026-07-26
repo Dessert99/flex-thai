@@ -20,6 +20,7 @@ const cloneJob = (job: ContentProductionJob): ContentProductionJob => ({
   items: job.items.map((item) => ({
     ...item,
     leaseUntil: item.leaseUntil ? new Date(item.leaseUntil) : null,
+    leaseToken: item.leaseToken,
   })),
 });
 
@@ -146,6 +147,7 @@ export class FakeContentProductionRepository implements ContentProductionReposit
         retryable: false,
         errorCode: null,
         leaseUntil: null,
+        leaseToken: null,
       });
     }
 
@@ -199,7 +201,37 @@ export class FakeContentProductionRepository implements ContentProductionReposit
     item.leaseUntil = new Date(
       claimedAt.getTime() + CONTENT_PRODUCTION_ITEM_LEASE_MS,
     );
+    item.leaseToken = randomUUID();
     return Promise.resolve({ ...item });
+  }
+
+  /** 활성 token 소유자만 lease를 연장한다 */
+  renewItemLease(
+    jobId: string,
+    itemId: string,
+    attempt: number,
+    leaseToken: string,
+  ): Promise<boolean> {
+    const item = this.requireJob(jobId).items.find(
+      (candidate) => candidate.id === itemId,
+    );
+    const renewedAt = this.now();
+
+    if (
+      !item ||
+      item.attempt !== attempt ||
+      item.status !== 'PROCESSING' ||
+      item.leaseToken !== leaseToken ||
+      !item.leaseUntil ||
+      item.leaseUntil <= renewedAt
+    ) {
+      return Promise.resolve(false);
+    }
+
+    item.leaseUntil = new Date(
+      renewedAt.getTime() + CONTENT_PRODUCTION_ITEM_LEASE_MS,
+    );
+    return Promise.resolve(true);
   }
 
   /** 현재 lease 소유자의 완료 결과만 terminal 상태로 반영한다 */
@@ -207,7 +239,7 @@ export class FakeContentProductionRepository implements ContentProductionReposit
     jobId: string,
     itemId: string,
     attempt: number,
-    leaseUntil: Date,
+    leaseToken: string,
     outcome: {
       status: 'SUCCEEDED' | 'NEEDS_ATTENTION' | 'FAILED';
       retryable: boolean;
@@ -222,13 +254,14 @@ export class FakeContentProductionRepository implements ContentProductionReposit
       !item ||
       item.attempt !== attempt ||
       item.status !== 'PROCESSING' ||
-      item.leaseUntil?.getTime() !== leaseUntil.getTime()
+      item.leaseToken !== leaseToken
     ) {
       return Promise.resolve(false);
     }
 
     Object.assign(item, outcome);
     item.leaseUntil = null;
+    item.leaseToken = null;
     return Promise.resolve(true);
   }
 
@@ -295,6 +328,7 @@ export class FakeContentProductionRepository implements ContentProductionReposit
       item.retryable = false;
       item.errorCode = null;
       item.leaseUntil = null;
+      item.leaseToken = null;
     }
 
     return Promise.resolve(cloneJob(job));

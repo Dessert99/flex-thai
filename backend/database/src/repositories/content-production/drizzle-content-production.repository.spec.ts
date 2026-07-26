@@ -90,17 +90,11 @@ describe('DrizzleContentProductionRepository 조건부 전이', () => {
     } as never);
 
     await expect(
-      repository.finishItem(
-        'job-id',
-        'item-id',
-        0,
-        new Date('2026-07-27T00:05:00.000Z'),
-        {
-          status: 'FAILED',
-          retryable: true,
-          errorCode: 'LOCAL_FAKE_FAILURE',
-        },
-      ),
+      repository.finishItem('job-id', 'item-id', 0, 'lease-token', {
+        status: 'FAILED',
+        retryable: true,
+        errorCode: 'LOCAL_FAKE_FAILURE',
+      }),
     ).resolves.toBe(false);
   });
 });

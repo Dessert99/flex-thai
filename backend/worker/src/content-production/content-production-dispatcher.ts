@@ -4,6 +4,11 @@ import type {
   ContentProductionJob,
   ContentProductionJobStatus,
 } from '@flex-thia/domain';
+import { CONTENT_PRODUCTION_ITEM_LEASE_MS } from '@flex-thia/domain';
+
+const CONTENT_PRODUCTION_ITEM_HEARTBEAT_MS = Math.floor(
+  CONTENT_PRODUCTION_ITEM_LEASE_MS / 2,
+);
 
 /** worker가 요구하는 조건부 콘텐츠 제작 저장소 */
 export interface ContentProductionWorkerRepository {
@@ -24,11 +29,17 @@ export interface ContentProductionWorkerRepository {
     itemId: string,
     attempt: number,
   ): Promise<ContentProductionItem | null>;
+  renewItemLease(
+    jobId: string,
+    itemId: string,
+    attempt: number,
+    leaseToken: string,
+  ): Promise<boolean>;
   finishItem(
     jobId: string,
     itemId: string,
     attempt: number,
-    leaseUntil: Date,
+    leaseToken: string,
     outcome: ContentProductionItemOutcome,
   ): Promise<boolean>;
   finalizeAttempt(
@@ -102,7 +113,29 @@ export const createContentProductionDispatcher =
         throw new Error(`lease 없는 PROCESSING 항목입니다: ${claimed.id}`);
       }
 
+      if (!claimed.leaseToken) {
+        throw new Error(
+          `lease token 없는 PROCESSING 항목입니다: ${claimed.id}`,
+        );
+      }
+
       let outcome: ContentProductionItemOutcome;
+      let heartbeatTask = Promise.resolve();
+      const heartbeat = setInterval(() => {
+        heartbeatTask = heartbeatTask
+          .then(() =>
+            repository.renewItemLease(
+              job.id,
+              claimed.id,
+              input.attempt,
+              claimed.leaseToken!,
+            ),
+          )
+          .then(
+            () => undefined,
+            () => undefined,
+          );
+      }, CONTENT_PRODUCTION_ITEM_HEARTBEAT_MS);
 
       try {
         outcome = await processor.process(claimed);
@@ -112,13 +145,16 @@ export const createContentProductionDispatcher =
           retryable: true,
           errorCode: 'LOCAL_PROCESSOR_FAILURE',
         };
+      } finally {
+        clearInterval(heartbeat);
+        await heartbeatTask;
       }
 
       await repository.finishItem(
         job.id,
         claimed.id,
         input.attempt,
-        claimed.leaseUntil,
+        claimed.leaseToken,
         outcome,
       );
     }

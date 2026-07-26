@@ -62,6 +62,9 @@ const createRepository = (): ContentProductionRepository & {
   startItem() {
     return Promise.resolve(null);
   },
+  renewItemLease() {
+    return Promise.resolve(false);
+  },
   finishItem() {
     return Promise.resolve(false);
   },
@@ -190,6 +193,7 @@ describe('ContentProductionService 콘텐츠 제작 규칙', () => {
           retryable: true,
           errorCode: 'LOCAL_FAKE_FAILURE',
           leaseUntil: null,
+          leaseToken: null,
         },
       ],
     };
@@ -228,6 +232,7 @@ describe('ContentProductionService 콘텐츠 제작 규칙', () => {
           retryable: true,
           errorCode: 'LOCAL_FAKE_FAILURE',
           leaseUntil: null,
+          leaseToken: null,
         },
       ],
     };
