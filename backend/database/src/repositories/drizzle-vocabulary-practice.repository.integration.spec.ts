@@ -208,6 +208,9 @@ integration('DrizzleVocabularyPracticeRepository PostgreSQL', () => {
     });
     const count = await answerCount(pool, sessionId);
     expect(count).toBe('1');
+    const session = await repository.getSession(ids.user, sessionId);
+    expect(session?.completedAt).toBeInstanceOf(Date);
+    expect(session?.answers[0]?.answeredAt).toBeInstanceOf(Date);
   });
 
   it('서로 다른 session의 같은 clientAnswerId 동시 제출은 하나만 저장한다', async () => {
@@ -300,6 +303,7 @@ integration('DrizzleVocabularyPracticeRepository PostgreSQL', () => {
     try {
       const session = await repository.getSession(ids.user, sessionId);
       expect(session?.modes).toEqual(['THAI_TO_MEANING']);
+      expect(session?.startedAt).toBeInstanceOf(Date);
       expect(session?.questions[0]?.card).toEqual(card);
       expect(session?.questions[0]?.prompt).toEqual({
         type: 'TEXT',

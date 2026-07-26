@@ -121,7 +121,7 @@ describe('DrizzleVocabularyPracticeQuery 세션 조회', () => {
           questionOrder: 'SOURCE',
           status: 'ACTIVE',
           questionCount: 1,
-          startedAt: new Date('2026-07-26T00:00:00.000Z'),
+          startedAt: '2026-07-26 00:00:00+00',
           completedAt: null,
         },
       ],
@@ -157,7 +157,7 @@ describe('DrizzleVocabularyPracticeQuery 세션 조회', () => {
           selectedOptionId: 'option-1',
           selectedLabelSnapshot: '배우다',
           isCorrect: true,
-          answeredAt: new Date('2026-07-26T00:01:00.000Z'),
+          answeredAt: '2026-07-26 00:01:00+00',
         },
       ],
     ]);
@@ -172,5 +172,9 @@ describe('DrizzleVocabularyPracticeQuery 세션 조회', () => {
       type: 'TEXT',
       text: 'เรียน',
     });
+    expect(session?.startedAt).toEqual(new Date('2026-07-26T00:00:00.000Z'));
+    expect(session?.answers[0]?.answeredAt).toEqual(
+      new Date('2026-07-26T00:01:00.000Z'),
+    );
   });
 });

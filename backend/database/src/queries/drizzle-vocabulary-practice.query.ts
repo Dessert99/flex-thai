@@ -22,9 +22,13 @@ interface SessionRow {
   questionOrder: 'RANDOM' | 'SOURCE';
   status: 'ACTIVE' | 'COMPLETED';
   questionCount: number;
-  startedAt: Date;
-  completedAt: Date | null;
+  startedAt: Date | string;
+  completedAt: Date | string | null;
 }
+
+type AnswerRow = Omit<PracticeAnswerRecord, 'answeredAt'> & {
+  answeredAt: Date | string;
+};
 
 interface QuestionRow {
   id: string;
@@ -54,6 +58,9 @@ const rowsOf = <T>(result: unknown): T[] => {
   }
   return [];
 };
+
+const dateOf = (value: Date | string): Date =>
+  typeof value === 'string' ? new Date(value) : value;
 
 const candidateSelect = (
   vocabularyIds: string[] | null,
@@ -254,8 +261,9 @@ export class DrizzleVocabularyPracticeQuery {
       order: session.questionOrder,
       status: session.status,
       questionCount: session.questionCount,
-      startedAt: session.startedAt,
-      completedAt: session.completedAt,
+      startedAt: dateOf(session.startedAt),
+      completedAt:
+        session.completedAt === null ? null : dateOf(session.completedAt),
       questions: rowsOf<QuestionRow>(questionResult).map((question) => ({
         id: question.id,
         sessionId: question.sessionId,
@@ -273,7 +281,10 @@ export class DrizzleVocabularyPracticeQuery {
         correctOptionId: question.correctOptionId,
         card: question.cardSnapshot,
       })),
-      answers: rowsOf<PracticeAnswerRecord>(answerResult),
+      answers: rowsOf<AnswerRow>(answerResult).map((answer) => ({
+        ...answer,
+        answeredAt: dateOf(answer.answeredAt),
+      })),
     };
   }
 }
