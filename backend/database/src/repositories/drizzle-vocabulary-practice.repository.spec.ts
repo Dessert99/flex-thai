@@ -1,4 +1,5 @@
 /** 단어 연습 세션 저장과 답안 lock·멱등·중복 상태 transaction을 검증한다 */
+import { PgDialect } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 import { DrizzleVocabularyPracticeRepository } from './drizzle-vocabulary-practice.repository.js';
 
@@ -85,9 +86,11 @@ const replayRow = {
 
 const createDatabase = (results: Array<Array<Record<string, unknown>>>) => {
   const events: string[] = [];
+  const queries: unknown[] = [];
   const session = {
-    execute() {
+    execute(query: unknown) {
       events.push('execute');
+      queries.push(query);
       return Promise.resolve({ rows: results.shift() ?? [] });
     },
   };
@@ -100,12 +103,13 @@ const createDatabase = (results: Array<Array<Record<string, unknown>>>) => {
       },
     },
     events,
+    queries,
   };
 };
 
 describe('DrizzleVocabularyPracticeRepository 답안 transaction', () => {
   it('같은 clientAnswerId와 같은 payload는 기존 feedback을 반환한다', async () => {
-    const fake = createDatabase([[replayRow]]);
+    const fake = createDatabase([[], [replayRow]]);
     const repository = new DrizzleVocabularyPracticeRepository(
       fake.database as never,
       undefined,
@@ -117,11 +121,15 @@ describe('DrizzleVocabularyPracticeRepository 답안 transaction', () => {
       answer: answerRow,
       sessionCompleted: false,
     });
-    expect(fake.events).toEqual(['transaction', 'execute']);
+    expect(fake.events).toEqual(['transaction', 'execute', 'execute']);
+    expect(new PgDialect().sqlToQuery(fake.queries[0] as never).sql).toContain(
+      'pg_advisory_xact_lock',
+    );
   });
 
   it('같은 clientAnswerId의 session·question·option이 다르면 충돌한다', async () => {
     const fake = createDatabase([
+      [],
       [
         {
           ...replayRow,
@@ -136,14 +144,14 @@ describe('DrizzleVocabularyPracticeRepository 답안 transaction', () => {
     await expect(repository.submitAnswer(input)).resolves.toEqual({
       status: 'IDEMPOTENCY_CONFLICT',
     });
-    expect(fake.events).toEqual(['transaction', 'execute']);
+    expect(fake.events).toEqual(['transaction', 'execute', 'execute']);
   });
 
   it('다른 client로 이미 답한 문항은 안정적인 중복 상태를 반환한다', async () => {
     const fake = createDatabase([
       [],
-      [{ ...questionRow, status: 'ACTIVE', questionCount: 10 }],
       [],
+      [{ ...questionRow, status: 'ACTIVE', questionCount: 10 }],
       [{ id: 'existing-answer' }],
     ]);
     const repository = new DrizzleVocabularyPracticeRepository(
@@ -158,8 +166,8 @@ describe('DrizzleVocabularyPracticeRepository 답안 transaction', () => {
   it('새 마지막 답은 lock 뒤 원시 답을 insert하고 세션을 완료한다', async () => {
     const fake = createDatabase([
       [],
-      [{ ...questionRow, status: 'ACTIVE', questionCount: 1 }],
       [],
+      [{ ...questionRow, status: 'ACTIVE', questionCount: 1 }],
       [],
       [],
       [{ answerCount: 1 }],
@@ -191,8 +199,8 @@ describe('DrizzleVocabularyPracticeRepository 답안 transaction', () => {
   it('snapshot에 없는 option은 insert 전에 거부한다', async () => {
     const fake = createDatabase([
       [],
-      [{ ...questionRow, status: 'ACTIVE', questionCount: 10 }],
       [],
+      [{ ...questionRow, status: 'ACTIVE', questionCount: 10 }],
       [],
     ]);
     const repository = new DrizzleVocabularyPracticeRepository(

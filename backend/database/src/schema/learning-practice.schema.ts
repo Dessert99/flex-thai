@@ -96,6 +96,10 @@ export const vocabularyPracticeSessions = pgTable(
     completedAt: timestamp('completed_at', { withTimezone: true }),
   },
   (table) => [
+    uniqueIndex('vocabulary_practice_sessions_id_user_unique').on(
+      table.id,
+      table.userId,
+    ),
     check(
       'vocabulary_practice_sessions_question_count_range',
       sql`${table.questionCount} between 1 and 100`,
@@ -114,6 +118,7 @@ export const vocabularyPracticeSessions = pgTable(
     ),
     check(
       'vocabulary_practice_sessions_source_match',
+      // WORDBOOK null은 ON DELETE SET NULL로 남은 과거 snapshot만 허용한다.
       sql`(${table.sourceType} = 'SEARCH_SELECTION' and ${table.sourceWordbookId} is null) or ${table.sourceType} = 'WORDBOOK'`,
     ),
   ],
@@ -123,7 +128,7 @@ export const vocabularyPracticeSessions = pgTable(
 export const vocabularyPracticeQuestions = pgTable(
   'vocabulary_practice_questions',
   {
-    id: uuid('id').notNull(),
+    id: uuid('id').primaryKey(),
     sessionId: uuid('session_id')
       .references(() => vocabularyPracticeSessions.id, {
         onDelete: 'restrict',
@@ -133,13 +138,8 @@ export const vocabularyPracticeQuestions = pgTable(
     vocabularyId: uuid('vocabulary_id')
       .references(() => vocabularies.id, { onDelete: 'restrict' })
       .notNull(),
-    meaningId: uuid('meaning_id')
-      .references(() => vocabularyMeanings.id, { onDelete: 'restrict' })
-      .notNull(),
-    pronunciationId: uuid('pronunciation_id').references(
-      () => vocabularyPronunciations.id,
-      { onDelete: 'restrict' },
-    ),
+    meaningId: uuid('meaning_id').notNull(),
+    pronunciationId: uuid('pronunciation_id'),
     mediaAssetId: uuid('media_asset_id').references(() => mediaAssets.id, {
       onDelete: 'restrict',
     }),
@@ -163,6 +163,19 @@ export const vocabularyPracticeQuestions = pgTable(
       table.sessionId,
       table.id,
     ),
+    foreignKey({
+      name: 'vocabulary_practice_questions_meaning_vocabulary_fk',
+      columns: [table.meaningId, table.vocabularyId],
+      foreignColumns: [vocabularyMeanings.id, vocabularyMeanings.vocabularyId],
+    }).onDelete('restrict'),
+    foreignKey({
+      name: 'vocabulary_practice_questions_pronunciation_vocabulary_fk',
+      columns: [table.pronunciationId, table.vocabularyId],
+      foreignColumns: [
+        vocabularyPronunciations.id,
+        vocabularyPronunciations.vocabularyId,
+      ],
+    }).onDelete('restrict'),
     check(
       'vocabulary_practice_questions_position_positive',
       sql`${table.position} > 0`,
@@ -179,11 +192,7 @@ export const vocabularyPracticeAnswers = pgTable(
   'vocabulary_practice_answers',
   {
     id: uuid('id').primaryKey(),
-    sessionId: uuid('session_id')
-      .references(() => vocabularyPracticeSessions.id, {
-        onDelete: 'restrict',
-      })
-      .notNull(),
+    sessionId: uuid('session_id').notNull(),
     questionId: uuid('question_id').notNull(),
     userId: uuid('user_id')
       .references(() => users.id, { onDelete: 'restrict' })
@@ -209,6 +218,14 @@ export const vocabularyPracticeAnswers = pgTable(
       foreignColumns: [
         vocabularyPracticeQuestions.sessionId,
         vocabularyPracticeQuestions.id,
+      ],
+    }).onDelete('restrict'),
+    foreignKey({
+      name: 'vocabulary_practice_answers_session_user_fk',
+      columns: [table.sessionId, table.userId],
+      foreignColumns: [
+        vocabularyPracticeSessions.id,
+        vocabularyPracticeSessions.userId,
       ],
     }).onDelete('restrict'),
   ],

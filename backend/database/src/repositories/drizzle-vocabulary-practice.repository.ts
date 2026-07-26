@@ -159,6 +159,9 @@ export class DrizzleVocabularyPracticeRepository implements VocabularyPracticeRe
   createSession(
     input: MaterializedPracticeSession,
   ): Promise<PracticeSessionRecord> {
+    if (input.sourceType === 'WORDBOOK' && input.sourceWordbookId === null) {
+      throw new Error('PRACTICE_WORDBOOK_SOURCE_REQUIRED');
+    }
     return this.database.transaction(async (transaction) => {
       await transaction.execute(sql`
         insert into vocabulary_practice_sessions (
@@ -223,6 +226,12 @@ export class DrizzleVocabularyPracticeRepository implements VocabularyPracticeRe
     input: SubmitPracticeAnswerInput,
   ): Promise<SubmitPracticeAnswerResult> {
     return this.database.transaction(async (transaction) => {
+      // 서로 다른 세션도 같은 user/client 멱등 key로 직렬화한다.
+      await transaction.execute(sql`
+        select pg_advisory_xact_lock(
+          hashtextextended(${`${input.userId}:${input.clientAnswerId}`}, 0)
+        )
+      `);
       const replayBeforeLock = await this.findReplay(transaction, input);
       if (replayBeforeLock) return replayBeforeLock;
 
@@ -253,8 +262,6 @@ export class DrizzleVocabularyPracticeRepository implements VocabularyPracticeRe
       const [locked] = rowsOf<LockedQuestionRow>(lockResult);
       if (!locked) return { status: 'NOT_FOUND' };
 
-      const replayAfterLock = await this.findReplay(transaction, input);
-      if (replayAfterLock) return replayAfterLock;
       if (locked.status === 'COMPLETED') return { status: 'COMPLETED' };
 
       const answeredResult = await transaction.execute(sql`
