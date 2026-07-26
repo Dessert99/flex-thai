@@ -19,7 +19,7 @@ import {
   type ReplaceConceptVersionRequest,
 } from '@flex-thia/contracts';
 import type {
-  AdminConceptQuery,
+  DrizzleAdminConceptQuery,
   DrizzleLearnerConceptQuery,
   LearnerConceptBlockProjection,
   ConceptSentenceProjection,
@@ -38,7 +38,7 @@ type LearnerQuery = Pick<
   DrizzleLearnerConceptQuery,
   'findPublishedDetail' | 'list'
 >;
-type AdminQuery = Pick<AdminConceptQuery, 'findDetail' | 'list'>;
+type AdminQuery = Pick<DrizzleAdminConceptQuery, 'findDetail' | 'list'>;
 
 /** ConceptsService 조립 의존성 */
 export interface ConceptsServiceDependencies {
@@ -183,9 +183,15 @@ export class ConceptsService {
   async listAdmin(
     query: AdminConceptListQuery,
   ): Promise<AdminConceptListResponse> {
+    const filter = {
+      page: query.page,
+      pageSize: query.pageSize,
+      ...(query.category === undefined ? {} : { category: query.category }),
+      ...(query.status === undefined ? {} : { status: query.status }),
+    };
     return parsePublic(
       adminConceptListResponseSchema,
-      await this.dependencies.adminQuery.list(query),
+      await this.dependencies.adminQuery.list(filter),
     );
   }
 

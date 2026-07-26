@@ -38,8 +38,32 @@ describe('ConceptsService', () => {
                   pronunciationKo: '찬 리안 파싸 타이',
                   toneMarks: '',
                   media: { storageKey: 'sentence.mp3' },
-                  tokens: [],
-                  expressions: [],
+                  tokens: [{
+                    position: 0,
+                    surface: 'ฉัน',
+                    startOffset: 0,
+                    endOffset: 3,
+                    vocabularyId: '55555555-5555-4555-8555-555555555555',
+                    meaningId: '66666666-6666-4666-8666-666666666666',
+                    pronunciationId: '77777777-7777-4777-8777-777777777777',
+                    contextMeaningKo: '나',
+                    pronunciationKo: '찬',
+                    toneMarks: '',
+                    media: { storageKey: 'token.mp3' },
+                    role: 'TARGET',
+                  }],
+                  expressions: [{
+                    startTokenIndex: 0,
+                    endTokenIndex: 1,
+                    vocabularyId: '88888888-8888-4888-8888-888888888888',
+                    meaningId: '99999999-9999-4999-8999-999999999999',
+                    pronunciationId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+                    contextMeaningKo: '나',
+                    pronunciationKo: '찬',
+                    toneMarks: '',
+                    media: { storageKey: 'expression.mp3' },
+                    representative: true,
+                  }],
                 },
               },
             ],
@@ -47,15 +71,16 @@ describe('ConceptsService', () => {
         ],
       }),
     };
+    const mediaReadUrls = {
+      createReadUrl: vi
+        .fn()
+        .mockResolvedValue('https://media.example/sentence'),
+    };
     const service = new ConceptsService({
       learnerQuery,
       adminQuery: {} as never,
       adminService: {} as never,
-      mediaReadUrls: {
-        createReadUrl: vi
-          .fn()
-          .mockResolvedValue('https://media.example/sentence'),
-      },
+      mediaReadUrls,
     });
 
     const detail = await service.getPublishedDetail(
@@ -67,5 +92,25 @@ describe('ConceptsService', () => {
     expect(JSON.stringify(detail)).toContain(
       'https://media.example/sentence',
     );
+    expect(
+      learnerQuery.findPublishedDetail.mock.results[0]?.value,
+    ).toBeDefined();
+    expect(mediaReadUrls.createReadUrl).toHaveBeenCalledTimes(3);
+  });
+
+  it('없는 게시 개념을 같은 404로 숨긴다', async () => {
+    const service = new ConceptsService({
+      learnerQuery: {
+        list: vi.fn(),
+        findPublishedDetail: vi.fn().mockResolvedValue(null),
+      },
+      adminQuery: {} as never,
+      adminService: {} as never,
+      mediaReadUrls: {} as never,
+    });
+
+    await expect(
+      service.getPublishedDetail('11111111-1111-4111-8111-111111111111'),
+    ).rejects.toMatchObject({ status: 404 });
   });
 });
