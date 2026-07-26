@@ -197,6 +197,15 @@ const questionOptionInputSchema = z
     clientRef: clientRefSchema,
     position: nonnegativeIntegerSchema,
     sentence: canonicalSentenceInputSchema,
+    span: z
+      .object({
+        blockPosition: nonnegativeIntegerSchema,
+        sentencePosition: nonnegativeIntegerSchema,
+        startTokenIndex: nonnegativeIntegerSchema,
+        endTokenIndex: positiveIntegerSchema,
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 

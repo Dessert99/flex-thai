@@ -36,6 +36,7 @@ const questionTemplateSchema = z.enum([
   'STANDARD_CHOICE',
   'PASSAGE_CHOICE',
   'DIALOGUE_CHOICE',
+  'INLINE_SPAN_CHOICE',
 ]);
 const questionDisplayModeSchema = z.enum([
   'TEXT',
@@ -86,11 +87,21 @@ const explanationBlockSchema = z
   })
   .strict();
 
+/** 문장 token 범위에 연결된 inline 선택지 계약 */
+export const questionOptionSpanSchema = z
+  .object({
+    sentenceVersionId: uuidSchema,
+    startTokenIndex: positionSchema,
+    endTokenIndex: positiveSafeIntegerSchema,
+  })
+  .strict();
+
 const questionOptionSchema = z
   .object({
     id: uuidSchema,
     position: positionSchema,
     sentence: publicThaiSentenceSchema,
+    span: questionOptionSpanSchema.optional(),
   })
   .strict();
 

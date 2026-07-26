@@ -79,6 +79,12 @@ export interface CanonicalDraftQuestionOptionInput {
   clientRef: string;
   position: number;
   sentence: CanonicalDraftSentenceInput;
+  span?: {
+    blockPosition: number;
+    sentencePosition: number;
+    startTokenIndex: number;
+    endTokenIndex: number;
+  };
 }
 
 /** 한 import item이 생성할 canonical 문제 입력 */

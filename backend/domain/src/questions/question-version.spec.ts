@@ -57,6 +57,7 @@ const candidate = (): QuestionVersionValidationCandidate => ({
       id: 'option-1',
       position: 0,
       isCorrect: true,
+      span: null,
       sentence: {
         id: 'sentence-1',
         input: {
@@ -77,6 +78,7 @@ const candidate = (): QuestionVersionValidationCandidate => ({
       id: 'option-2',
       position: 1,
       isCorrect: false,
+      span: null,
       sentence: {
         id: 'sentence-2',
         input: {
@@ -97,6 +99,70 @@ const candidate = (): QuestionVersionValidationCandidate => ({
 });
 
 describe('QuestionVersion 문제 버전 게시 검증', () => {
+  it('INLINE_SPAN_CHOICE는 QUESTION 문장 안의 네 범위를 허용한다', () => {
+    const input = candidate();
+    const sentence = input.options[0]!.sentence;
+    sentence.input.originalText = 'กขคง';
+    sentence.input.tokens = Array.from({ length: 4 }, (_, position) => ({
+      position,
+      surface: Array.from(sentence.input.originalText)[position]!,
+      startOffset: position,
+      endOffset: position + 1,
+      vocabularyId: `vocabulary-${position}`,
+      meaningId: `meaning-${position}`,
+      pronunciationId: `pronunciation-${position}`,
+      contextMeaningKo: `뜻-${position}`,
+      role: 'TARGET' as const,
+    }));
+    input.typeVersion = {
+      ...input.typeVersion,
+      template: 'INLINE_SPAN_CHOICE',
+      optionCount: 4,
+    };
+    input.blocks[0]!.sentences = [{ speaker: null, sentence }];
+    input.options = Array.from({ length: 4 }, (_, position) => ({
+      id: `option-${position}`,
+      position,
+      isCorrect: position === 1,
+      sentence,
+      span: {
+        sentenceVersionId: sentence.id,
+        startTokenIndex: position,
+        endTokenIndex: position + 1,
+      },
+    }));
+
+    expect(validateQuestionVersion(input)).toEqual({
+      status: 'PASSED',
+      issues: [],
+    });
+  });
+
+  it('inline 범위가 QUESTION 문장 밖이거나 token 범위를 벗어나면 거부한다', () => {
+    const input = candidate();
+    input.typeVersion = {
+      ...input.typeVersion,
+      template: 'INLINE_SPAN_CHOICE',
+    };
+    input.blocks[0]!.sentences = [
+      { speaker: null, sentence: input.options[0]!.sentence },
+    ];
+    input.options = input.options.map((option) => ({
+      ...option,
+      sentence: option.sentence,
+      span: {
+        sentenceVersionId: 'other-sentence',
+        startTokenIndex: 0,
+        endTokenIndex: 99,
+      },
+    }));
+
+    expect(validateQuestionVersion(input).issues).toContainEqual({
+      path: 'options.0.span',
+      code: 'INLINE_SPAN_INVALID',
+    });
+  });
+
   it('STANDARD_CHOICE는 QUESTION 하나와 유형 버전의 선택지 수를 요구한다', () => {
     expect(validateQuestionVersion(candidate())).toEqual({
       status: 'PASSED',

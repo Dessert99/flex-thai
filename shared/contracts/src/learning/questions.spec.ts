@@ -175,6 +175,33 @@ describe('학습자 문제 공개 응답 계약', () => {
     expect(questionDetailResponseSchema.parse(detail)).toEqual(detail);
   });
 
+  it('inline 선택지는 논리 option ID와 명시적 token 범위를 공개한다', () => {
+    const inline = {
+      ...detail,
+      template: 'INLINE_SPAN_CHOICE',
+      options: [
+        {
+          ...detail.options[0],
+          span: {
+            sentenceVersionId: ids.sentence,
+            startTokenIndex: 0,
+            endTokenIndex: 1,
+          },
+        },
+      ],
+    };
+
+    expect(questionDetailResponseSchema.parse(inline)).toEqual(inline);
+    expect(
+      submitQuestionAttemptRequestSchema.parse({
+        questionVersionId: ids.version,
+        selectedOptionId: ids.option,
+        clientAttemptId: ids.clientAttempt,
+        durationMs: 1,
+      }).selectedOptionId,
+    ).toBe(ids.option);
+  });
+
   it('문제 목록에서 정답과 내부 검증 결과를 거부한다', () => {
     for (const field of [
       'isCorrect',

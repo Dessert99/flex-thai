@@ -4,9 +4,19 @@ import { assertMediaAssetReady } from '../media/media-asset.js';
 import type { ThaiSentenceVersionInput } from '../thai-content/thai-sentence-version.js';
 import { validateThaiSentenceVersion } from '../thai-content/thai-sentence-version.js';
 
-/** MVP 선택형 문제 템플릿 */
+/** 선택형 문제 템플릿 */
 export type QuestionTemplate =
-  'STANDARD_CHOICE' | 'PASSAGE_CHOICE' | 'DIALOGUE_CHOICE';
+  | 'STANDARD_CHOICE'
+  | 'PASSAGE_CHOICE'
+  | 'DIALOGUE_CHOICE'
+  | 'INLINE_SPAN_CHOICE';
+
+/** 문장 token 범위에 연결된 선택지 */
+export interface QuestionOptionSpan {
+  sentenceVersionId: string;
+  startTokenIndex: number;
+  endTokenIndex: number;
+}
 
 /** 문제 화면을 구성하는 블록 종류 */
 export type QuestionBlockKind =
@@ -56,6 +66,7 @@ export interface QuestionVersionValidationCandidate {
     position: number;
     isCorrect: boolean;
     sentence: QuestionSentenceCandidate;
+    span: QuestionOptionSpan | null;
   }>;
 }
 
@@ -68,6 +79,7 @@ export interface QuestionValidationIssue {
     | 'OPTION_POSITION_INVALID'
     | 'OPTION_COUNT_INVALID'
     | 'CORRECT_OPTION_COUNT_INVALID'
+    | 'INLINE_SPAN_INVALID'
     | 'QUESTION_TEMPLATE_INVALID'
     | 'DIALOGUE_SPEAKER_REQUIRED'
     | 'THAI_CONTENT_INVALID'
@@ -102,6 +114,17 @@ const isTemplateValid = (
   if (candidate.typeVersion.template === 'PASSAGE_CHOICE') {
     return (
       hasQuestion && hasExactlyOneBlock(candidate, 'PASSAGE') && !hasDialogue
+    );
+  }
+  if (candidate.typeVersion.template === 'INLINE_SPAN_CHOICE') {
+    const question = candidate.blocks.find(
+      (block) => block.kind === 'QUESTION',
+    );
+    return (
+      hasQuestion &&
+      !hasPassage &&
+      !hasDialogue &&
+      question?.sentences.length === 1
     );
   }
   return (
@@ -209,6 +232,50 @@ export const validateQuestionVersion = (
   }
   if (!isTemplateValid(candidate)) {
     issues.push({ path: 'blocks', code: 'QUESTION_TEMPLATE_INVALID' });
+  }
+
+  const inline = candidate.typeVersion.template === 'INLINE_SPAN_CHOICE';
+  const questionSentences = candidate.blocks
+    .filter((block) => block.kind === 'QUESTION')
+    .flatMap((block) => block.sentences.map(({ sentence }) => sentence));
+  const spans = new Set<string>();
+  candidate.options.forEach((option, optionIndex) => {
+    if (!inline) {
+      if (option.span !== null) {
+        issues.push({
+          path: `options.${optionIndex}.span`,
+          code: 'INLINE_SPAN_INVALID',
+        });
+      }
+      return;
+    }
+    const sentence = questionSentences.find(
+      (candidateSentence) =>
+        candidateSentence.id === option.span?.sentenceVersionId,
+    );
+    const span = option.span;
+    const spanKey = span
+      ? `${span.sentenceVersionId}:${span.startTokenIndex}:${span.endTokenIndex}`
+      : '';
+    if (
+      !span ||
+      !sentence ||
+      !Number.isInteger(span.startTokenIndex) ||
+      !Number.isInteger(span.endTokenIndex) ||
+      span.startTokenIndex < 0 ||
+      span.endTokenIndex <= span.startTokenIndex ||
+      span.endTokenIndex > sentence.input.tokens.length ||
+      spans.has(spanKey)
+    ) {
+      issues.push({
+        path: `options.${optionIndex}.span`,
+        code: 'INLINE_SPAN_INVALID',
+      });
+    }
+    spans.add(spanKey);
+  });
+  if (inline && ![3, 4].includes(candidate.options.length)) {
+    issues.push({ path: 'options', code: 'OPTION_COUNT_INVALID' });
   }
 
   return {

@@ -127,6 +127,15 @@ const adminQuestionOptionInputSchema = z
     clientRef: z.string().min(1),
     position: z.number().int().safe().nonnegative(),
     sentence: adminQuestionSentenceInputSchema,
+    span: z
+      .object({
+        blockPosition: z.number().int().safe().nonnegative(),
+        sentencePosition: z.number().int().safe().nonnegative(),
+        startTokenIndex: z.number().int().safe().nonnegative(),
+        endTokenIndex: positiveIntegerSchema,
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 
@@ -169,6 +178,7 @@ const questionValidationIssueSchema = z
       'THAI_CONTENT_INVALID',
       'VOCABULARY_NOT_PUBLISHED',
       'MEDIA_ASSET_NOT_READY',
+      'INLINE_SPAN_INVALID',
     ]),
   })
   .strict();
@@ -233,7 +243,12 @@ const adminQuestionTypeVersionSchema = z
     slug: z.string().min(1),
     version: positiveIntegerSchema,
     skill: z.enum(['READING', 'LISTENING']),
-    template: z.enum(['STANDARD_CHOICE', 'PASSAGE_CHOICE', 'DIALOGUE_CHOICE']),
+    template: z.enum([
+      'STANDARD_CHOICE',
+      'PASSAGE_CHOICE',
+      'DIALOGUE_CHOICE',
+      'INLINE_SPAN_CHOICE',
+    ]),
   })
   .strict();
 
@@ -271,6 +286,15 @@ const adminQuestionOptionSchema = z
     id: uuidSchema,
     position: z.number().int().safe().nonnegative(),
     sentenceVersionId: uuidSchema,
+    span: z
+      .object({
+        sentenceVersionId: uuidSchema,
+        startTokenIndex: z.number().int().safe().nonnegative(),
+        endTokenIndex: positiveIntegerSchema,
+      })
+      .strict()
+      .nullable()
+      .optional(),
   })
   .strict();
 
