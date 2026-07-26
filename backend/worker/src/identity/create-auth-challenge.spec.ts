@@ -1,28 +1,33 @@
-/** Cognito 공개 challenge parameter에 secret이 없는지 검증한다 */
+/** Cognito 공개 nonce와 server-only proof 분리를 검증한다 */
 import { describe, expect, it } from 'vitest';
 import { createAuthChallenge } from './create-auth-challenge.js';
 
 describe('createAuthChallenge', () => {
-  it('답 HMAC은 private parameter에만 보존한다', async () => {
+  it('고엔트로피 nonce만 공개하고 server-only HMAC은 private에 둔다', () => {
     const event = {
-      request: {
-        clientMetadata: { expectedHmac: 'opaque-answer-hmac' },
-      },
+      userName: 'user@hufs.ac.kr',
+      request: {},
       response: {
         publicChallengeParameters: {},
         privateChallengeParameters: {},
       },
     };
 
-    const result = await createAuthChallenge(event);
+    const result = createAuthChallenge(
+      event,
+      'server-only-custom-auth-secret-32-bytes',
+      () => 'N'.repeat(43),
+    );
 
     expect(result.response.publicChallengeParameters).toEqual({
       challenge: 'EMAIL_VERIFIED',
+      nonce: 'N'.repeat(43),
     });
     expect(result.response.privateChallengeParameters).toEqual({
-      expectedHmac: 'opaque-answer-hmac',
+      expectedHmac: 'NZFZpahjQr6-zL8rvTIZDr90ekfluOsj0etiYk9-gms',
     });
-    expect(JSON.stringify(result.response.publicChallengeParameters)).not
-      .toContain('opaque-answer-hmac');
+    expect(
+      JSON.stringify(result.response.publicChallengeParameters),
+    ).not.toContain('NZFZpahjQr6-zL8rvTIZDr90ekfluOsj0etiYk9-gms');
   });
 });

@@ -15,6 +15,12 @@ export interface PasswordlessAuthenticationProvider {
   complete(email: string): Promise<ProviderLoginResult>;
 }
 
+/** provider와 Cognito trigger가 같은 HMAC message를 만들도록 경계를 고정한다 */
+export const buildCustomAuthProofMessage = (
+  username: string,
+  nonce: string,
+): string => `${username}\0${nonce}`;
+
 /** 코드와 링크를 한 메일로 보내는 port */
 export interface EmailChallengeSender {
   send(input: {
