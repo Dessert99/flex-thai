@@ -32,6 +32,7 @@ describe('Identity 학교 이메일 인증 경계', () => {
     const stack = new ApplicationStack(app, 'IdentityApplication', {
       config,
       dataStack,
+      mediaKeyPairId: 'KTESTMEDIAKEY',
     });
     const template = Template.fromStack(stack);
 
@@ -54,6 +55,8 @@ describe('Identity 학교 이메일 인증 경계', () => {
       AdminCreateUserConfig: {
         AllowAdminCreateUserOnly: true,
       },
+      MfaConfiguration: 'OPTIONAL',
+      EnabledMfas: ['SOFTWARE_TOKEN_MFA'],
       LambdaConfig: Match.objectLike({
         CreateAuthChallenge: Match.anyValue(),
         DefineAuthChallenge: Match.anyValue(),
@@ -77,6 +80,7 @@ describe('Identity 학교 이메일 인증 경계', () => {
     const stack = new ApplicationStack(app, 'IdentityResources', {
       config,
       dataStack,
+      mediaKeyPairId: 'KTESTMEDIAKEY',
     });
     const template = Template.fromStack(stack);
 
@@ -94,12 +98,13 @@ describe('Identity 학교 이메일 인증 경계', () => {
     });
   });
 
-  it('API와 Create Auth Challenge가 같은 32-byte 이상 secret을 사용한다', () => {
+  it('API와 Create Auth Challenge에 secret 값 대신 ARN만 전달한다', () => {
     const app = new App();
     const dataStack = new DataStack(app, 'IdentitySecretData');
     const stack = new ApplicationStack(app, 'IdentitySecretApplication', {
       config,
       dataStack,
+      mediaKeyPairId: 'KTESTMEDIAKEY',
     });
     const template = Template.fromStack(stack);
     const functions = Object.values(
@@ -113,23 +118,46 @@ describe('Identity 학교 이메일 인증 경계', () => {
     );
     const createChallenge = functions.find(
       ({ Properties }) =>
-        Properties.Environment?.Variables?.CUSTOM_AUTH_SECRET !== undefined &&
-        Properties.Handler !== 'lambda.handler',
+        Properties.Environment?.Variables?.CUSTOM_AUTH_SECRET_ARN !==
+          undefined && Properties.Handler !== 'lambda.handler',
     );
 
-    expect(api?.Properties.Environment?.Variables?.CUSTOM_AUTH_SECRET).toEqual(
-      createChallenge?.Properties.Environment?.Variables?.CUSTOM_AUTH_SECRET,
+    expect(
+      api?.Properties.Environment?.Variables?.CUSTOM_AUTH_SECRET_ARN,
+    ).toEqual(
+      createChallenge?.Properties.Environment?.Variables
+        ?.CUSTOM_AUTH_SECRET_ARN,
+    );
+    expect(api?.Properties.Environment?.Variables?.CUSTOM_AUTH_SECRET).toBe(
+      undefined,
     );
     expect(
+      createChallenge?.Properties.Environment?.Variables?.CUSTOM_AUTH_SECRET,
+    ).toBe(undefined);
+    expect(
       JSON.stringify(
-        api?.Properties.Environment?.Variables?.CUSTOM_AUTH_SECRET,
+        api?.Properties.Environment?.Variables?.CUSTOM_AUTH_SECRET_ARN,
       ),
-    ).toContain('secretsmanager');
+    ).toContain('CustomAuthSecret');
     template.hasResourceProperties('AWS::SecretsManager::Secret', {
       GenerateSecretString: Match.objectLike({
         ExcludePunctuation: true,
         PasswordLength: 48,
       }),
+    });
+    template.hasResourceProperties('AWS::IAM::Policy', {
+      PolicyDocument: {
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Action: [
+              'secretsmanager:GetSecretValue',
+              'secretsmanager:DescribeSecret',
+            ],
+            Effect: 'Allow',
+            Resource: Match.anyValue(),
+          }),
+        ]),
+      },
     });
   });
 
@@ -139,6 +167,7 @@ describe('Identity 학교 이메일 인증 경계', () => {
     const stack = new ApplicationStack(app, 'IdentityIamApplication', {
       config,
       dataStack,
+      mediaKeyPairId: 'KTESTMEDIAKEY',
     });
     const template = Template.fromStack(stack);
 
@@ -163,6 +192,7 @@ describe('Identity 학교 이메일 인증 경계', () => {
     const stack = new ApplicationStack(app, 'IdentitySmsApplication', {
       config,
       dataStack,
+      mediaKeyPairId: 'KTESTMEDIAKEY',
     });
     const template = Template.fromStack(stack);
 
@@ -190,6 +220,7 @@ describe('Identity 학교 이메일 인증 경계', () => {
     const stack = new ApplicationStack(app, 'IdentityUrlApplication', {
       config,
       dataStack,
+      mediaKeyPairId: 'KTESTMEDIAKEY',
     });
     const template = Template.fromStack(stack);
 

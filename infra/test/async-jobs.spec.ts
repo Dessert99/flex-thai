@@ -23,6 +23,7 @@ describe('AsyncJobs', () => {
     const stack = new ApplicationStack(app, 'AsyncApplication', {
       config,
       dataStack,
+      mediaKeyPairId: 'KTESTMEDIAKEY',
     });
     const template = Template.fromStack(stack);
 
@@ -44,6 +45,7 @@ describe('AsyncJobs', () => {
     const stack = new ApplicationStack(app, 'AsyncWorkflow', {
       config,
       dataStack,
+      mediaKeyPairId: 'KTESTMEDIAKEY',
     });
     const template = Template.fromStack(stack);
 

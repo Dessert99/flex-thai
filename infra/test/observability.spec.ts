@@ -24,6 +24,7 @@ describe('Observability', () => {
       new ApplicationStack(app, 'ObservabilityApplication', {
         config,
         dataStack,
+        mediaKeyPairId: 'KTESTMEDIAKEY',
       }),
     );
 
@@ -61,6 +62,7 @@ describe('Observability', () => {
       new ApplicationStack(app, 'AlarmApplication', {
         config,
         dataStack,
+        mediaKeyPairId: 'KTESTMEDIAKEY',
       }),
     );
 
@@ -89,6 +91,7 @@ describe('Observability', () => {
       new ApplicationStack(app, 'ParameterApplication', {
         config,
         dataStack,
+        mediaKeyPairId: 'KTESTMEDIAKEY',
       }),
     );
 

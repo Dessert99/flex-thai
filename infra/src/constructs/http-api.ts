@@ -29,9 +29,14 @@ export interface HttpApiProps {
   challengeHmacPepper: secretsmanager.ISecret;
   customAuthSecret: secretsmanager.ISecret;
   emailIdentity: ses.IEmailIdentity;
+  emailLinkConfirmationUrl: string;
   fromEmail: string;
   inputBucket: s3.IBucket;
   jobQueue: sqs.IQueue;
+  mediaBucket: s3.IBucket;
+  mediaCdnBaseUrl: string;
+  mediaKeyPairId: string;
+  mediaPrivateKey: secretsmanager.ISecret;
   userPool: cognito.IUserPool;
   userPoolClient: cognito.IUserPoolClient;
 }
@@ -72,9 +77,14 @@ export class HttpApi extends Construct {
         INPUT_BUCKET_NAME: props.inputBucket.bucketName,
         JOB_QUEUE_URL: props.jobQueue.queueUrl,
         CHALLENGE_HMAC_PEPPER_SECRET_ARN: props.challengeHmacPepper.secretArn,
-        CUSTOM_AUTH_SECRET: props.customAuthSecret.secretValue.unsafeUnwrap(),
+        CUSTOM_AUTH_SECRET_ARN: props.customAuthSecret.secretArn,
         SCHOOL_EMAIL_DOMAINS: props.allowedEmailDomains,
+        EMAIL_LINK_CONFIRMATION_URL: props.emailLinkConfirmationUrl,
         FROM_EMAIL: props.fromEmail,
+        MEDIA_BUCKET_NAME: props.mediaBucket.bucketName,
+        MEDIA_CDN_BASE_URL: props.mediaCdnBaseUrl,
+        MEDIA_KEY_PAIR_ID: props.mediaKeyPairId,
+        MEDIA_PRIVATE_KEY_SECRET_ARN: props.mediaPrivateKey.secretArn,
         AUTH_LIMIT_PARAMETER_PREFIX: '/flex-thia/prod/auth',
         ALLOWED_ORIGINS: props.allowedOrigins.join(','),
       },
@@ -82,8 +92,11 @@ export class HttpApi extends Construct {
     props.cluster.grantDataApiAccess(this.apiFunction);
     props.clusterSecret.grantRead(this.apiFunction);
     props.challengeHmacPepper.grantRead(this.apiFunction);
+    props.customAuthSecret.grantRead(this.apiFunction);
+    props.mediaPrivateKey.grantRead(this.apiFunction);
     props.emailIdentity.grant(this.apiFunction, 'ses:SendEmail');
     props.inputBucket.grantReadWrite(this.apiFunction, 'inputs/*');
+    props.mediaBucket.grantReadWrite(this.apiFunction);
     props.jobQueue.grantSendMessages(this.apiFunction);
     this.apiFunction.addToRolePolicy(
       new iam.PolicyStatement({
@@ -126,6 +139,7 @@ export class HttpApi extends Construct {
         allowHeaders: [
           'authorization',
           'content-type',
+          'idempotency-key',
           'x-csrf-protection',
           'x-step-up-token',
         ],
@@ -184,6 +198,54 @@ export class HttpApi extends Construct {
       [apigwv2.HttpMethod.GET, '/api/v1/me'],
       [apigwv2.HttpMethod.POST, '/api/v1/auth/mfa/totp/setup'],
       [apigwv2.HttpMethod.POST, '/api/v1/auth/mfa/totp/setup/verify'],
+      [apigwv2.HttpMethod.POST, '/api/v1/admin/content-imports'],
+      [apigwv2.HttpMethod.GET, '/api/v1/admin/content-imports'],
+      [apigwv2.HttpMethod.GET, '/api/v1/admin/content-imports/{importId}'],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/media-assets/audio-upload-requests',
+      ],
+      [apigwv2.HttpMethod.GET, '/api/v1/admin/media-assets/{mediaAssetId}'],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/media-assets/{mediaAssetId}/complete',
+      ],
+      [apigwv2.HttpMethod.GET, '/api/v1/admin/questions'],
+      [apigwv2.HttpMethod.GET, '/api/v1/admin/questions/{questionId}'],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/questions/{questionId}/versions',
+      ],
+      [apigwv2.HttpMethod.POST, '/api/v1/admin/questions/{questionId}/hide'],
+      [apigwv2.HttpMethod.POST, '/api/v1/admin/questions/{questionId}/restore'],
+      [apigwv2.HttpMethod.PUT, '/api/v1/admin/question-versions/{versionId}'],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/question-versions/{versionId}/validate',
+      ],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/question-versions/{versionId}/publish',
+      ],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/question-versions/{versionId}/invalidate',
+      ],
+      [apigwv2.HttpMethod.GET, '/api/v1/admin/vocabularies'],
+      [apigwv2.HttpMethod.GET, '/api/v1/admin/vocabularies/{vocabularyId}'],
+      [apigwv2.HttpMethod.PUT, '/api/v1/admin/vocabularies/{vocabularyId}'],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/vocabularies/{vocabularyId}/publish',
+      ],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/vocabularies/{vocabularyId}/hide',
+      ],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/vocabularies/{vocabularyId}/restore',
+      ],
       [apigwv2.HttpMethod.GET, '/api/v1/admin/users'],
       [apigwv2.HttpMethod.PATCH, '/api/v1/admin/users/{userId}/status'],
       [apigwv2.HttpMethod.POST, '/api/v1/admin/users/invitations'],
@@ -210,20 +272,15 @@ export class HttpApi extends Construct {
         apigwv2.HttpMethod.GET,
         '/api/v1/me/vocabularies/{vocabularyId}/wordbook-memberships',
       ],
-      [apigwv2.HttpMethod.POST, '/api/v1/auth/phone/challenges'],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/auth/phone/challenges/{challengeId}/verify',
-      ],
-      [apigwv2.HttpMethod.POST, '/api/v1/auth/step-up/challenges'],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/auth/step-up/challenges/{challengeId}/verify',
-      ],
-      [apigwv2.HttpMethod.POST, '/api/v1/uploads/policies'],
-      [apigwv2.HttpMethod.POST, '/api/v1/uploads/{uploadId}/complete'],
-      [apigwv2.HttpMethod.POST, '/api/v1/jobs'],
-      [apigwv2.HttpMethod.GET, '/api/v1/jobs/{jobId}'],
+      [apigwv2.HttpMethod.GET, '/api/v1/me/question-attempts'],
+      [apigwv2.HttpMethod.PUT, '/api/v1/me/saved-questions/{questionId}'],
+      [apigwv2.HttpMethod.DELETE, '/api/v1/me/saved-questions/{questionId}'],
+      [apigwv2.HttpMethod.GET, '/api/v1/questions'],
+      [apigwv2.HttpMethod.GET, '/api/v1/questions/{questionId}'],
+      [apigwv2.HttpMethod.POST, '/api/v1/questions/{questionId}/attempts'],
+      [apigwv2.HttpMethod.GET, '/api/v1/vocabularies'],
+      [apigwv2.HttpMethod.GET, '/api/v1/vocabularies/{vocabularyId}'],
+      [apigwv2.HttpMethod.GET, '/api/v1/vocabularies/{vocabularyId}/questions'],
     ] as const) {
       this.api.addRoutes({
         path,

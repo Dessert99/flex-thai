@@ -15,6 +15,7 @@ import type { DataStack } from './data-stack.js';
 export interface ApplicationStackProps extends StackProps {
   config: InfrastructureConfig;
   dataStack: DataStack;
+  mediaKeyPairId: string;
 }
 
 /** Cognito, Lambda, API Gateway, workflow를 배치할 서울 Stack */
@@ -72,9 +73,14 @@ export class ApplicationStack extends Stack {
       challengeHmacPepper: props.dataStack.challengeHmacPepper,
       customAuthSecret: this.identity.customAuthSecret,
       emailIdentity,
+      emailLinkConfirmationUrl: `https://${webDomain}/login/confirm`,
       fromEmail: `no-reply@${props.config.rootDomain}`,
       inputBucket: props.dataStack.inputBucket,
       jobQueue: this.asyncJobs.queue,
+      mediaBucket: props.dataStack.mediaBucket,
+      mediaCdnBaseUrl: `https://${webDomain}/media`,
+      mediaKeyPairId: props.mediaKeyPairId,
+      mediaPrivateKey: props.dataStack.mediaPrivateKey,
       userPool: this.identity.userPool,
       userPoolClient: this.identity.userPoolClient,
     });

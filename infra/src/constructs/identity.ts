@@ -37,8 +37,6 @@ export class Identity extends Construct {
         removalPolicy: RemovalPolicy.RETAIN,
       },
     );
-    const customAuthSecretValue =
-      this.customAuthSecret.secretValue.unsafeUnwrap();
     const defineAuthChallenge = this.createTrigger(
       'DefineAuthChallenge',
       props.defineAuthChallengeEntry,
@@ -48,8 +46,9 @@ export class Identity extends Construct {
       'CreateAuthChallenge',
       props.createAuthChallengeEntry,
       'createAuthChallenge',
-      { CUSTOM_AUTH_SECRET: customAuthSecretValue },
+      { CUSTOM_AUTH_SECRET_ARN: this.customAuthSecret.secretArn },
     );
+    this.customAuthSecret.grantRead(createAuthChallenge);
     const verifyAuthChallenge = this.createTrigger(
       'VerifyAuthChallenge',
       props.verifyAuthChallengeEntry,
@@ -60,6 +59,11 @@ export class Identity extends Construct {
       signInAliases: { email: true },
       selfSignUpEnabled: false,
       accountRecovery: cognito.AccountRecovery.NONE,
+      mfa: cognito.Mfa.OPTIONAL,
+      mfaSecondFactor: {
+        sms: false,
+        otp: true,
+      },
       passwordPolicy: {
         minLength: 8,
         requireLowercase: true,
