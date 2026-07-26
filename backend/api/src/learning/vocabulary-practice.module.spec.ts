@@ -20,15 +20,23 @@ describe('VocabularyPracticeModule 조립', () => {
       authorizer: {} as never,
     };
     const module = VocabularyPracticeModule.register(options);
+    const providers = module.providers ?? [];
+    const serviceProvider = providers.find(
+      (provider) =>
+        typeof provider === 'object' &&
+        provider !== null &&
+        'provide' in provider &&
+        provider.provide === LearnerVocabularyPracticeService,
+    );
 
     expect(module.controllers).toEqual([LearnerVocabularyPracticeController]);
     expect(module.exports).toEqual([LearnerVocabularyPracticeService]);
-    expect(module.providers).toEqual(
+    expect(serviceProvider).toHaveProperty(
+      'useValue',
+      expect.any(LearnerVocabularyPracticeService),
+    );
+    expect(providers).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          provide: LearnerVocabularyPracticeService,
-          useValue: expect.any(LearnerVocabularyPracticeService),
-        }),
         { provide: IDENTITY_USER_REPOSITORY, useValue: options.users },
         { provide: AUTHORIZER_GUARD_OPTIONS, useValue: options.authorizer },
         Reflector,

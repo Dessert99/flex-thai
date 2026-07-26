@@ -114,7 +114,7 @@ const dependencies = () => ({
 describe('LearnerVocabularyPracticeService 공개 응답', () => {
   it('storage key와 미답 정답을 제거하고 5분 signed URL을 만든다', async () => {
     const fake = dependencies();
-    const service = new LearnerVocabularyPracticeService(fake as never);
+    const service = new LearnerVocabularyPracticeService(fake);
 
     const result = await service.get(ids.user, ids.session);
 
@@ -135,7 +135,7 @@ describe('LearnerVocabularyPracticeService 공개 응답', () => {
   it('원시 답안에서 answeredQuestionIds와 완료 aggregate를 만든다', async () => {
     const fake = dependencies();
     fake.practice.get.mockResolvedValueOnce(record(true));
-    const service = new LearnerVocabularyPracticeService(fake as never);
+    const service = new LearnerVocabularyPracticeService(fake);
 
     const result = await service.get(ids.user, ids.session);
 
@@ -151,7 +151,7 @@ describe('LearnerVocabularyPracticeService 공개 응답', () => {
 
   it('답 제출 직후 정답과 전체 카드만 공개한다', async () => {
     const fake = dependencies();
-    const service = new LearnerVocabularyPracticeService(fake as never);
+    const service = new LearnerVocabularyPracticeService(fake);
 
     const result = await service.answer(ids.user, ids.session, ids.question, {
       clientAnswerId: ids.client,

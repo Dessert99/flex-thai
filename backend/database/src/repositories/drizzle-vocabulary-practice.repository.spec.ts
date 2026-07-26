@@ -88,7 +88,7 @@ const createDatabase = (results: Array<Array<Record<string, unknown>>>) => {
   const events: string[] = [];
   const queries: unknown[] = [];
   const session = {
-    execute(query: unknown) {
+    execute: (query: unknown) => {
       events.push('execute');
       queries.push(query);
       return Promise.resolve({ rows: results.shift() ?? [] });
@@ -96,7 +96,7 @@ const createDatabase = (results: Array<Array<Record<string, unknown>>>) => {
   };
   return {
     database: {
-      execute: session.execute,
+      execute: (query: unknown) => session.execute(query),
       transaction<T>(work: (transaction: typeof session) => Promise<T>) {
         events.push('transaction');
         return work(session);
@@ -111,7 +111,7 @@ describe('DrizzleVocabularyPracticeRepository 답안 transaction', () => {
   it('같은 clientAnswerId와 같은 payload는 기존 feedback을 반환한다', async () => {
     const fake = createDatabase([[], [replayRow]]);
     const repository = new DrizzleVocabularyPracticeRepository(
-      fake.database as never,
+      fake.database,
       undefined,
       () => 'new-answer',
     );
@@ -138,7 +138,7 @@ describe('DrizzleVocabularyPracticeRepository 답안 transaction', () => {
       ],
     ]);
     const repository = new DrizzleVocabularyPracticeRepository(
-      fake.database as never,
+      fake.database,
     );
 
     await expect(repository.submitAnswer(input)).resolves.toEqual({
@@ -155,7 +155,7 @@ describe('DrizzleVocabularyPracticeRepository 답안 transaction', () => {
       [{ id: 'existing-answer' }],
     ]);
     const repository = new DrizzleVocabularyPracticeRepository(
-      fake.database as never,
+      fake.database,
     );
 
     await expect(repository.submitAnswer(input)).resolves.toEqual({
@@ -174,7 +174,7 @@ describe('DrizzleVocabularyPracticeRepository 답안 transaction', () => {
       [],
     ]);
     const repository = new DrizzleVocabularyPracticeRepository(
-      fake.database as never,
+      fake.database,
       undefined,
       () => answerRow.id,
     );
@@ -204,7 +204,7 @@ describe('DrizzleVocabularyPracticeRepository 답안 transaction', () => {
       [],
     ]);
     const repository = new DrizzleVocabularyPracticeRepository(
-      fake.database as never,
+      fake.database,
     );
 
     await expect(

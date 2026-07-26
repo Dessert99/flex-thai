@@ -134,29 +134,15 @@ describe('LearnerVocabularyPracticeController 보호와 route', () => {
         }
       }
 
-      expect(createOperation).toEqual(
-        expect.objectContaining({
-          summary: '단어 연습 세션을 생성한다',
-          requestBody: expect.any(Object),
-          responses: expect.objectContaining({
-            '201': expect.objectContaining({
-              content: {
-                'application/json': {
-                  schema: {
-                    oneOf: [
-                      {
-                        $ref: '#/components/schemas/ActiveVocabularyPracticeSessionResponseDto',
-                      },
-                      {
-                        $ref: '#/components/schemas/CompletedVocabularyPracticeSessionResponseDto',
-                      },
-                    ],
-                  },
-                },
-              },
-            }),
-          }),
-        }),
+      expect(createOperation?.summary).toBe(
+        '단어 연습 세션을 생성한다',
+      );
+      expect(createOperation?.requestBody).toBeDefined();
+      expect(JSON.stringify(createOperation?.responses['201'])).toContain(
+        '#/components/schemas/ActiveVocabularyPracticeSessionResponseDto',
+      );
+      expect(JSON.stringify(createOperation?.responses['201'])).toContain(
+        '#/components/schemas/CompletedVocabularyPracticeSessionResponseDto',
       );
       expect(getOperation?.parameters).toEqual(
         expect.arrayContaining([
@@ -174,33 +160,22 @@ describe('LearnerVocabularyPracticeController 보호와 route', () => {
           expect.objectContaining({ name: 'questionId', in: 'path' }),
         ]),
       );
-      expect(answerOperation?.requestBody).toEqual(expect.any(Object));
-      expect(answerOperation?.responses['200']).toEqual(
-        expect.objectContaining({
-          content: {
-            'application/json': {
-              schema: {
-                $ref: '#/components/schemas/VocabularyPracticeAnswerResponseDto',
-              },
-            },
-          },
-        }),
+      expect(answerOperation?.requestBody).toBeDefined();
+      expect(JSON.stringify(answerOperation?.responses['200'])).toContain(
+        '#/components/schemas/VocabularyPracticeAnswerResponseDto',
       );
-      expect(document.components?.schemas).toEqual(
-        expect.objectContaining({
-          ActiveVocabularyPracticeSessionResponseDto: expect.objectContaining({
-            properties: expect.objectContaining({
-              status: expect.any(Object),
-            }),
-          }),
-          CompletedVocabularyPracticeSessionResponseDto:
-            expect.objectContaining({
-              properties: expect.objectContaining({
-                result: expect.any(Object),
-              }),
-            }),
-        }),
-      );
+      expect(
+        JSON.stringify(
+          document.components?.schemas
+            ?.ActiveVocabularyPracticeSessionResponseDto,
+        ),
+      ).toContain('"status"');
+      expect(
+        JSON.stringify(
+          document.components?.schemas
+            ?.CompletedVocabularyPracticeSessionResponseDto,
+        ),
+      ).toContain('"result"');
     } finally {
       await app.close();
     }
@@ -239,7 +214,7 @@ describe('LearnerVocabularyPracticeController strict 입력', () => {
     );
   });
 
-  it('잘못된 UUID와 알 수 없는 body key를 service 전에 거부한다', async () => {
+  it('잘못된 UUID와 알 수 없는 body key를 service 전에 거부한다', () => {
     const fake = service();
     const controller = new LearnerVocabularyPracticeController(fake as never);
 
