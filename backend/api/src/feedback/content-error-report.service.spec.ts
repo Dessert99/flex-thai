@@ -1,5 +1,7 @@
 /** 콘텐츠 오류 신고 HTTP facade의 공개 응답과 workflow 위임을 검증한다 */
 import { describe, expect, it, vi } from 'vitest';
+import { ContentErrorReportDomainError } from '@flex-thia/domain';
+import { buildErrorResponse } from '../common/errors/domain-exception.filter.js';
 import { ContentErrorReportHttpService } from './content-error-report.service.js';
 
 const now = new Date('2026-07-26T00:00:00.000Z');
@@ -132,7 +134,84 @@ describe('ContentErrorReportHttpService', () => {
       query as never,
     );
     await expect(service.detail(report.id)).rejects.toMatchObject({
-      code: 'CONTENT_ERROR_REPORT_NOT_FOUND',
+      status: 404,
+      response: { code: 'CONTENT_ERROR_REPORT_NOT_FOUND' },
+    });
+  });
+
+  it.each([
+    ['CONTENT_ERROR_REPORT_TARGET_UNAVAILABLE', 404],
+    ['CONTENT_ERROR_REPORT_NOT_FOUND', 404],
+    ['CONTENT_ERROR_REPORT_INVALID_TRANSITION', 409],
+    ['CONTENT_ERROR_REPORT_ASSIGNEE_UNAVAILABLE', 409],
+    ['CONTENT_ERROR_REPORT_CONCURRENT_UPDATE', 409],
+    ['CONTENT_ERROR_REPORT_DESCRIPTION_INVALID', 400],
+  ] as const)(
+    'domain 오류 %s를 feedback HTTP 상태 %i로 제한한다',
+    async (code, status) => {
+      const reports = {
+        create: vi
+          .fn()
+          .mockRejectedValue(new ContentErrorReportDomainError(code)),
+      };
+      const service = new ContentErrorReportHttpService(
+        reports as never,
+        {} as never,
+      );
+
+      await expect(
+        service.create(report.reporterUserId, {
+          origin: {
+            kind: 'VOCABULARY',
+            vocabularyId: report.canonicalReference.contentId,
+            meaningId: null,
+            pronunciationId: null,
+          },
+          category: 'OTHER',
+        }),
+      ).rejects.toMatchObject({
+        status,
+        response: { code },
+      });
+    },
+  );
+
+  it('feedback facade 예외 code를 global filter Problem Details까지 보존한다', async () => {
+    const reports = {
+      create: vi
+        .fn()
+        .mockRejectedValue(
+          new ContentErrorReportDomainError(
+            'CONTENT_ERROR_REPORT_TARGET_UNAVAILABLE',
+          ),
+        ),
+    };
+    const service = new ContentErrorReportHttpService(
+      reports as never,
+      {} as never,
+    );
+    let caught: unknown;
+    try {
+      await service.create(report.reporterUserId, {
+        origin: {
+          kind: 'VOCABULARY',
+          vocabularyId: report.canonicalReference.contentId,
+          meaningId: null,
+          pronunciationId: null,
+        },
+        category: 'OTHER',
+      });
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(buildErrorResponse(caught, 'request-feedback')).toMatchObject({
+      status: 404,
+      body: {
+        status: 404,
+        code: 'CONTENT_ERROR_REPORT_TARGET_UNAVAILABLE',
+        requestId: 'request-feedback',
+      },
     });
   });
 

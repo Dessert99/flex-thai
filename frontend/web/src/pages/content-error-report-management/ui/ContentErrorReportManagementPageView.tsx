@@ -227,7 +227,9 @@ export function ContentErrorReportManagementPageView({
               <button
                 key={status}
                 disabled={mutating}
-                onClick={() => onStatusChange(status)}
+                onClick={() => {
+                  if (!mutating) onStatusChange(status);
+                }}
                 type='button'
               >
                 {status}
@@ -237,36 +239,37 @@ export function ContentErrorReportManagementPageView({
           <form
             onSubmit={(event) => {
               event.preventDefault();
+              if (mutating) return;
               const data = new FormData(event.currentTarget);
               const assignee = data.get('assigneeUserId');
               if (typeof assignee === 'string' && assignee) onAssign(assignee);
             }}
           >
-            <label>
-              담당자 ID
-              <input
-                key={detail.assignee?.id ?? 'unassigned'}
-                name='assigneeUserId'
-                pattern='[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}'
-                required
-                defaultValue={detail.assignee?.id}
-              />
-            </label>
-            <button
-              disabled={mutating}
-              type='submit'
-            >
-              {detail.assignee ? '담당자 교체' : '담당자 배정'}
-            </button>
-            {detail.assignee ? (
-              <button
-                disabled={mutating}
-                onClick={onUnassign}
-                type='button'
-              >
-                담당자 해제
+            <fieldset disabled={mutating}>
+              <label>
+                담당자 ID
+                <input
+                  key={detail.assignee?.id ?? 'unassigned'}
+                  name='assigneeUserId'
+                  pattern='[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}'
+                  required
+                  defaultValue={detail.assignee?.id}
+                />
+              </label>
+              <button type='submit'>
+                {detail.assignee ? '담당자 교체' : '담당자 배정'}
               </button>
-            ) : null}
+              {detail.assignee ? (
+                <button
+                  onClick={() => {
+                    if (!mutating) onUnassign();
+                  }}
+                  type='button'
+                >
+                  담당자 해제
+                </button>
+              ) : null}
+            </fieldset>
           </form>
         </section>
       ) : null}

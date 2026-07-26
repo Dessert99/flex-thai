@@ -10,7 +10,8 @@ import type {
   CreateContentErrorReportRecord,
   ResolvedContentErrorReportTarget,
 } from '@flex-thia/domain';
-import { and, eq, sql } from 'drizzle-orm';
+import { ContentErrorReportDomainError } from '@flex-thia/domain';
+import { and, asc, eq, isNull, ne, or, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import * as baseSchema from '../schema/index.js';
@@ -46,7 +47,7 @@ type FeedbackDatabase = PgDatabase<
   }
 >;
 
-/** concept-learning이 제공할 공개 대상 lookup */
+/** concept-learning이 공개 상태·block 관계·READY media를 검증해 제공할 대상 lookup */
 export interface ConceptErrorReportTargetLookup {
   resolve(
     origin: Extract<ContentErrorReportOrigin, { kind: 'CONCEPT' }>,
@@ -75,6 +76,99 @@ const mapReport = (
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 });
+
+const referenceKeys = [
+  'kind',
+  'contentId',
+  'contentVersionId',
+  'questionVersionId',
+  'sentenceVersionId',
+  'mediaAssetId',
+  'locationId',
+] as const;
+const snapshotKeys = [
+  'title',
+  'primaryText',
+  'secondaryText',
+  'versionLabel',
+  'locationLabel',
+  'audioAssetId',
+] as const;
+
+const hasExactKeys = (
+  value: Record<string, unknown>,
+  keys: readonly string[],
+): boolean => {
+  const actual = Object.keys(value).sort();
+  const expected = [...keys].sort();
+  return (
+    actual.length === expected.length &&
+    actual.every((key, index) => key === expected[index])
+  );
+};
+
+const isNullableString = (value: unknown): value is string | null =>
+  value === null || typeof value === 'string';
+
+const strictResolvedTarget = (
+  value: unknown,
+): ResolvedContentErrorReportTarget | null => {
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    !hasExactKeys(value as Record<string, unknown>, ['reference', 'snapshot'])
+  ) {
+    return null;
+  }
+  const { reference, snapshot } = value as Record<string, unknown>;
+  if (
+    !reference ||
+    typeof reference !== 'object' ||
+    !hasExactKeys(reference as Record<string, unknown>, referenceKeys) ||
+    !snapshot ||
+    typeof snapshot !== 'object' ||
+    !hasExactKeys(snapshot as Record<string, unknown>, snapshotKeys)
+  ) {
+    return null;
+  }
+  const referenceRecord = reference as Record<string, unknown>;
+  const snapshotRecord = snapshot as Record<string, unknown>;
+  const kinds = ['QUESTION', 'VOCABULARY', 'SENTENCE', 'AUDIO', 'CONCEPT'];
+  if (
+    !kinds.includes(String(referenceRecord.kind)) ||
+    typeof referenceRecord.contentId !== 'string' ||
+    referenceRecord.contentId.length === 0 ||
+    !referenceKeys
+      .slice(2)
+      .every((key) => isNullableString(referenceRecord[key])) ||
+    typeof snapshotRecord.title !== 'string' ||
+    snapshotRecord.title.length === 0 ||
+    typeof snapshotRecord.primaryText !== 'string' ||
+    snapshotRecord.primaryText.length === 0 ||
+    !isNullableString(snapshotRecord.secondaryText) ||
+    !isNullableString(snapshotRecord.versionLabel) ||
+    typeof snapshotRecord.locationLabel !== 'string' ||
+    snapshotRecord.locationLabel.length === 0 ||
+    !isNullableString(snapshotRecord.audioAssetId) ||
+    snapshotRecord.audioAssetId !== referenceRecord.mediaAssetId
+  ) {
+    return null;
+  }
+  return value as ResolvedContentErrorReportTarget;
+};
+
+interface QuestionContextRow {
+  blockId?: string;
+  kind?: string;
+  blockPosition?: number;
+  sentencePosition?: number;
+  optionId?: string;
+  optionPosition?: number;
+  sentenceVersionId: string;
+  originalText: string;
+  translationKo: string;
+  mediaAssetId: string | null;
+}
 
 /** DB 관계를 검증해 signed URL 없는 immutable target을 생성한다 */
 export class DrizzleContentErrorReportRepository
@@ -107,7 +201,7 @@ export class DrizzleContentErrorReportRepository
           ? this.resolveVocabularyAudio(origin.source.pronunciationId)
           : this.resolveSentenceAudio(origin.source.sentenceVersionId);
       case 'CONCEPT':
-        return this.conceptLookup?.resolve(origin) ?? null;
+        return this.resolveConcept(origin);
     }
   }
 
@@ -202,6 +296,54 @@ export class DrizzleContentErrorReportRepository
     },
   ): Promise<ContentErrorReport | null> {
     return this.database.transaction(async (transaction) => {
+      if ('toAssigneeUserId' in input && input.toAssigneeUserId !== null) {
+        const assignableUsers = await transaction
+          .select({ id: users.id })
+          .from(users)
+          .where(
+            and(
+              eq(users.id, input.toAssigneeUserId),
+              eq(users.role, 'ADMIN'),
+              eq(users.status, 'ACTIVE'),
+            ),
+          )
+          .limit(1)
+          .for('update');
+        if (!assignableUsers[0]) {
+          throw new ContentErrorReportDomainError(
+            'CONTENT_ERROR_REPORT_ASSIGNEE_UNAVAILABLE',
+          );
+        }
+      }
+
+      const currentRows = await transaction
+        .select({
+          id: contentErrorReports.id,
+          status: contentErrorReports.status,
+          assigneeUserId: contentErrorReports.assigneeUserId,
+          updatedAt: contentErrorReports.updatedAt,
+        })
+        .from(contentErrorReports)
+        .where(eq(contentErrorReports.id, input.reportId))
+        .limit(1)
+        .for('update');
+      const current = currentRows[0];
+      if (
+        !current ||
+        current.updatedAt.getTime() !== input.expectedUpdatedAt.getTime() ||
+        ('fromStatus' in input && current.status !== input.fromStatus) ||
+        ('fromAssigneeUserId' in input &&
+          current.assigneeUserId !== input.fromAssigneeUserId)
+      ) {
+        return null;
+      }
+
+      const previousValuePredicate =
+        'fromStatus' in input
+          ? eq(contentErrorReports.status, input.fromStatus)
+          : input.fromAssigneeUserId === null
+            ? isNull(contentErrorReports.assigneeUserId)
+            : eq(contentErrorReports.assigneeUserId, input.fromAssigneeUserId);
       const rows = await transaction
         .update(contentErrorReports)
         .set({
@@ -215,6 +357,7 @@ export class DrizzleContentErrorReportRepository
           and(
             eq(contentErrorReports.id, input.reportId),
             eq(contentErrorReports.updatedAt, input.expectedUpdatedAt),
+            previousValuePredicate,
           ),
         )
         .returning();
@@ -263,9 +406,63 @@ export class DrizzleContentErrorReportRepository
       .limit(1);
     const row = rows[0];
     if (!row) return null;
-    const locations = await this.database
+    if (origin.blockId === null && origin.sentenceVersionId === null) {
+      return {
+        reference: {
+          kind: 'QUESTION',
+          contentId: origin.questionId,
+          contentVersionId: origin.questionVersionId,
+          questionVersionId: origin.questionVersionId,
+          sentenceVersionId: null,
+          mediaAssetId: null,
+          locationId: null,
+        },
+        snapshot: {
+          title: '문제',
+          primaryText: origin.questionId,
+          secondaryText: null,
+          versionLabel: `버전 ${row.version}`,
+          locationLabel: '문제 전체',
+          audioAssetId: null,
+        },
+      };
+    }
+
+    const blockContexts = await this.loadQuestionBlockContexts(origin);
+    if (origin.blockId !== null) {
+      if (blockContexts.length === 0) return null;
+      return origin.sentenceVersionId === null
+        ? this.buildQuestionBlockTarget(origin, row.version, blockContexts)
+        : this.buildQuestionSentenceTarget(
+            origin,
+            row.version,
+            blockContexts[0]!,
+          );
+    }
+    if (blockContexts[0]) {
+      return this.buildQuestionSentenceTarget(
+        origin,
+        row.version,
+        blockContexts[0],
+      );
+    }
+    const optionContexts = await this.loadQuestionOptionContexts(origin);
+    const option = optionContexts[0];
+    return option
+      ? this.buildQuestionOptionTarget(origin, row.version, option)
+      : null;
+  }
+
+  private loadQuestionBlockContexts(
+    origin: Extract<ContentErrorReportOrigin, { kind: 'QUESTION' }>,
+  ): Promise<QuestionContextRow[]> {
+    return this.database
       .select({
         blockId: questionBlocks.id,
+        kind: questionBlocks.kind,
+        blockPosition: questionBlocks.position,
+        sentencePosition: questionBlockSentences.position,
+        sentenceVersionId: questionBlockSentences.sentenceVersionId,
         originalText: thaiSentenceVersions.originalText,
         translationKo: thaiSentenceVersions.translationKo,
         mediaAssetId: thaiSentenceVersions.mediaAssetId,
@@ -282,44 +479,112 @@ export class DrizzleContentErrorReportRepository
       .where(
         and(
           eq(questionBlocks.questionVersionId, origin.questionVersionId),
-          origin.blockId ? eq(questionBlocks.id, origin.blockId) : undefined,
-          origin.sentenceVersionId
-            ? eq(
+          ne(questionBlocks.kind, 'EXPLANATION'),
+          origin.blockId === null
+            ? undefined
+            : eq(questionBlocks.id, origin.blockId),
+          origin.sentenceVersionId === null
+            ? undefined
+            : eq(
                 questionBlockSentences.sentenceVersionId,
                 origin.sentenceVersionId,
-              )
-            : undefined,
+              ),
         ),
       )
-      .limit(1);
-    const location = locations[0];
-    if (!location) {
-      if (origin.blockId) return null;
-      if (origin.sentenceVersionId) {
-        const options = await this.database
-          .select({
-            originalText: thaiSentenceVersions.originalText,
-            translationKo: thaiSentenceVersions.translationKo,
-            mediaAssetId: thaiSentenceVersions.mediaAssetId,
-          })
-          .from(questionOptions)
-          .innerJoin(
-            thaiSentenceVersions,
-            eq(thaiSentenceVersions.id, questionOptions.sentenceVersionId),
-          )
-          .where(
-            and(
-              eq(questionOptions.questionVersionId, origin.questionVersionId),
-              eq(questionOptions.sentenceVersionId, origin.sentenceVersionId),
-            ),
-          )
-          .limit(1);
-        if (!options[0]) return null;
-        return this.buildQuestionTarget(origin, row.version, options[0]);
-      }
-      return null;
-    }
-    return this.buildQuestionTarget(origin, row.version, location);
+      .orderBy(
+        asc(questionBlocks.position),
+        asc(questionBlockSentences.position),
+      );
+  }
+
+  private loadQuestionOptionContexts(
+    origin: Extract<ContentErrorReportOrigin, { kind: 'QUESTION' }>,
+  ): Promise<QuestionContextRow[]> {
+    if (origin.sentenceVersionId === null) return Promise.resolve([]);
+    return this.database
+      .select({
+        optionId: questionOptions.id,
+        optionPosition: questionOptions.position,
+        sentenceVersionId: thaiSentenceVersions.id,
+        originalText: thaiSentenceVersions.originalText,
+        translationKo: thaiSentenceVersions.translationKo,
+        mediaAssetId: thaiSentenceVersions.mediaAssetId,
+      })
+      .from(questionOptions)
+      .innerJoin(
+        thaiSentenceVersions,
+        or(
+          eq(thaiSentenceVersions.id, questionOptions.sentenceVersionId),
+          eq(thaiSentenceVersions.id, questionOptions.spanSentenceVersionId),
+        ),
+      )
+      .where(
+        and(
+          eq(questionOptions.questionVersionId, origin.questionVersionId),
+          or(
+            eq(questionOptions.sentenceVersionId, origin.sentenceVersionId),
+            eq(questionOptions.spanSentenceVersionId, origin.sentenceVersionId),
+          ),
+        ),
+      )
+      .orderBy(asc(questionOptions.position));
+  }
+
+  private buildQuestionBlockTarget(
+    origin: Extract<ContentErrorReportOrigin, { kind: 'QUESTION' }>,
+    version: number,
+    contexts: QuestionContextRow[],
+  ): ResolvedContentErrorReportTarget {
+    const first = contexts[0]!;
+    return {
+      reference: {
+        kind: 'QUESTION',
+        contentId: origin.questionId,
+        contentVersionId: origin.questionVersionId,
+        questionVersionId: origin.questionVersionId,
+        sentenceVersionId: null,
+        mediaAssetId: null,
+        locationId: origin.blockId,
+      },
+      snapshot: {
+        title: contexts.map(({ originalText }) => originalText).join('\n'),
+        primaryText: contexts
+          .map(({ translationKo }) => translationKo)
+          .join('\n'),
+        secondaryText: null,
+        versionLabel: `버전 ${version}`,
+        locationLabel: `${first.kind} 블록 ${(first.blockPosition ?? 0) + 1}`,
+        audioAssetId: null,
+      },
+    };
+  }
+
+  private buildQuestionSentenceTarget(
+    origin: Extract<ContentErrorReportOrigin, { kind: 'QUESTION' }>,
+    version: number,
+    context: QuestionContextRow,
+  ): ResolvedContentErrorReportTarget {
+    return this.buildQuestionTarget(
+      origin,
+      version,
+      context,
+      context.blockId ?? null,
+      `${context.kind} 블록 ${(context.blockPosition ?? 0) + 1} · 문장 ${(context.sentencePosition ?? 0) + 1}`,
+    );
+  }
+
+  private buildQuestionOptionTarget(
+    origin: Extract<ContentErrorReportOrigin, { kind: 'QUESTION' }>,
+    version: number,
+    context: QuestionContextRow,
+  ): ResolvedContentErrorReportTarget {
+    return this.buildQuestionTarget(
+      origin,
+      version,
+      context,
+      context.optionId ?? null,
+      `선택지 ${(context.optionPosition ?? 0) + 1}`,
+    );
   }
 
   private buildQuestionTarget(
@@ -328,8 +593,10 @@ export class DrizzleContentErrorReportRepository
     context: {
       originalText: string;
       translationKo: string;
-      mediaAssetId: string;
+      mediaAssetId: string | null;
     },
+    locationId: string | null,
+    locationLabel: string,
   ): ResolvedContentErrorReportTarget {
     return {
       reference: {
@@ -339,17 +606,34 @@ export class DrizzleContentErrorReportRepository
         questionVersionId: origin.questionVersionId,
         sentenceVersionId: origin.sentenceVersionId,
         mediaAssetId: context.mediaAssetId,
-        locationId: origin.blockId,
+        locationId,
       },
       snapshot: {
         title: context.originalText,
         primaryText: context.translationKo,
         secondaryText: null,
         versionLabel: `버전 ${version}`,
-        locationLabel: origin.blockId ? '문제 블록' : '문제',
+        locationLabel,
         audioAssetId: context.mediaAssetId,
       },
     };
+  }
+
+  private async resolveConcept(
+    origin: Extract<ContentErrorReportOrigin, { kind: 'CONCEPT' }>,
+  ): Promise<ResolvedContentErrorReportTarget | null> {
+    const target = strictResolvedTarget(
+      await this.conceptLookup?.resolve(origin),
+    );
+    if (
+      target?.reference.kind !== 'CONCEPT' ||
+      target.reference.contentId !== origin.conceptId ||
+      target.reference.contentVersionId !== origin.conceptVersionId ||
+      target.reference.locationId !== origin.blockId
+    ) {
+      return null;
+    }
+    return target;
   }
 
   private async resolveVocabulary(
@@ -466,7 +750,7 @@ export class DrizzleContentErrorReportRepository
       .limit(1);
     const row = rows[0];
     if (!row) return null;
-    const exposures = await this.database
+    const blockExposures = await this.database
       .select({ questionId: questions.id })
       .from(questionBlockSentences)
       .innerJoin(
@@ -487,17 +771,52 @@ export class DrizzleContentErrorReportRepository
       .where(
         and(
           eq(questionBlockSentences.sentenceVersionId, sentenceVersionId),
+          ne(questionBlocks.kind, 'EXPLANATION'),
           eq(questions.status, 'PUBLISHED'),
+          eq(questionVersions.status, 'PUBLISHED'),
         ),
       )
       .limit(1);
-    if (!exposures[0])
-      return (
-        this.conceptLookup?.resolveSentence({
+    const optionExposures = blockExposures[0]
+      ? blockExposures
+      : await this.database
+          .select({ questionVersionId: questionVersions.id })
+          .from(questionOptions)
+          .innerJoin(
+            questionVersions,
+            eq(questionVersions.id, questionOptions.questionVersionId),
+          )
+          .innerJoin(
+            questions,
+            and(
+              eq(questions.id, questionVersions.questionId),
+              eq(questions.currentPublishedVersionId, questionVersions.id),
+            ),
+          )
+          .where(
+            and(
+              or(
+                eq(questionOptions.sentenceVersionId, sentenceVersionId),
+                eq(questionOptions.spanSentenceVersionId, sentenceVersionId),
+              ),
+              eq(questions.status, 'PUBLISHED'),
+              eq(questionVersions.status, 'PUBLISHED'),
+            ),
+          )
+          .limit(1);
+    if (!optionExposures[0]) {
+      const target = strictResolvedTarget(
+        await this.conceptLookup?.resolveSentence({
           sentenceVersionId,
           tokenPosition,
-        }) ?? null
+        }),
       );
+      return target?.reference.kind === 'SENTENCE' &&
+        target.reference.contentVersionId === sentenceVersionId &&
+        target.reference.sentenceVersionId === sentenceVersionId
+        ? target
+        : null;
+    }
     if (tokenPosition !== null) {
       const tokens = await this.database
         .select({ id: tokenOccurrences.id })
@@ -587,10 +906,18 @@ export class DrizzleContentErrorReportRepository
     sentenceVersionId: string,
   ): Promise<ResolvedContentErrorReportTarget | null> {
     const sentence = await this.resolveSentence(sentenceVersionId, null);
-    if (!sentence)
-      return (
-        this.conceptLookup?.resolveSentenceAudio(sentenceVersionId) ?? null
+    if (!sentence) {
+      const target = strictResolvedTarget(
+        await this.conceptLookup?.resolveSentenceAudio(sentenceVersionId),
       );
+      return target?.reference.kind === 'AUDIO' &&
+        target.reference.contentVersionId === sentenceVersionId &&
+        target.reference.sentenceVersionId === sentenceVersionId &&
+        target.reference.mediaAssetId !== null &&
+        target.reference.contentId === target.reference.mediaAssetId
+        ? target
+        : null;
+    }
     if (!sentence.reference.mediaAssetId) return null;
     const ready = await this.database
       .select({ id: mediaAssets.id })

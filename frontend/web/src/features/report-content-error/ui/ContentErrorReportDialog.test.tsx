@@ -87,3 +87,45 @@ describe('ContentErrorReportDialog', () => {
     await waitFor(() => expect(trigger).toHaveFocus());
   });
 });
+
+describe('ContentErrorReportDialog 재개방', () => {
+  it.each([
+    ['성공', vi.fn().mockResolvedValue(undefined)],
+    ['오류', vi.fn().mockRejectedValue(new Error('실패'))],
+  ] as const)(
+    '%s 뒤 닫고 다시 열면 새 신고 form으로 초기화한다',
+    async (_state, onSubmit) => {
+      render(
+        <ContentErrorReportDialog
+          onSubmit={onSubmit}
+          origin={{
+            kind: 'SENTENCE',
+            sentenceVersionId: '00000000-0000-4000-8000-000000000001',
+            tokenPosition: null,
+          }}
+          preview={{ title: '문장', metadata: '문제' }}
+        />,
+      );
+      const trigger = screen.getByRole('button', { name: '오류 신고' });
+      fireEvent.click(trigger);
+      fireEvent.click(screen.getByLabelText('신고 분류'));
+      fireEvent.click(await screen.findByRole('option', { name: '기타' }));
+      fireEvent.change(screen.getByLabelText('추가 설명'), {
+        target: { value: '초기화할 설명' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: '신고 제출' }));
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
+      fireEvent.keyDown(document, { key: 'Escape' });
+      await waitFor(() => expect(trigger).toHaveFocus());
+
+      fireEvent.click(trigger);
+
+      expect(screen.getByRole('button', { name: '신고 제출' })).toBeDisabled();
+      expect(screen.getByLabelText('추가 설명')).toHaveValue('');
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(
+        screen.queryByText('신고가 접수되었습니다.'),
+      ).not.toBeInTheDocument();
+    },
+  );
+});

@@ -3,7 +3,7 @@ import {
   createContentErrorReportResponseSchema,
   type CreateContentErrorReportRequest,
 } from '@flex-thia/contracts';
-import { authenticatedRequest } from '@/shared/api/auth';
+import { authenticatedRequest } from '@/shared/api';
 
 /** 현재 콘텐츠 오류를 접수한다 */
 export const submitContentErrorReport = (

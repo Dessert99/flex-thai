@@ -51,6 +51,8 @@ const categories: readonly {
 ];
 
 /** 문제·어휘·문장·음성·개념이 재사용하는 오류 신고 dialog */
+// dialog 상태와 접근 가능한 form을 한 lifecycle에서 관리한다
+// eslint-disable-next-line max-lines-per-function
 export function ContentErrorReportDialog({
   origin,
   preview,
@@ -64,7 +66,7 @@ export function ContentErrorReportDialog({
   const [error, setError] = useState(false);
 
   const submit = async () => {
-    if (!category) return;
+    if (!category || submitting || submitted) return;
     setSubmitting(true);
     setError(false);
     try {
@@ -82,7 +84,16 @@ export function ContentErrorReportDialog({
   };
 
   return (
-    <Dialog>
+    <Dialog
+      onOpenChange={(open) => {
+        if (open) return;
+        setCategory(undefined);
+        setDescription('');
+        setSubmitting(false);
+        setSubmitted(false);
+        setError(false);
+      }}
+    >
       <DialogTrigger asChild>
         <Button variant='outline'>{triggerLabel}</Button>
       </DialogTrigger>

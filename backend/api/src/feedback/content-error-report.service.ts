@@ -1,5 +1,10 @@
 /** 콘텐츠 오류 신고 domain 결과를 strict 공개 응답으로 변환한다 */
 import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
+import {
   adminContentErrorReportDetailResponseSchema,
   adminContentErrorReportListResponseSchema,
   createContentErrorReportResponseSchema,
@@ -39,6 +44,21 @@ const mapSummary = (
   updatedAt: item.updatedAt.toISOString(),
 });
 
+const mapContentErrorReportDomainError = (error: unknown): never => {
+  if (!(error instanceof ContentErrorReportDomainError)) throw error;
+  const response = { code: error.code };
+  if (
+    error.code === 'CONTENT_ERROR_REPORT_TARGET_UNAVAILABLE' ||
+    error.code === 'CONTENT_ERROR_REPORT_NOT_FOUND'
+  ) {
+    throw new NotFoundException(response);
+  }
+  if (error.code === 'CONTENT_ERROR_REPORT_DESCRIPTION_INVALID') {
+    throw new BadRequestException(response);
+  }
+  throw new ConflictException(response);
+};
+
 /** learner와 admin Controller가 공유하는 공개 facade */
 export class ContentErrorReportHttpService {
   private readonly reports: ContentErrorReportService;
@@ -67,18 +87,22 @@ export class ContentErrorReportHttpService {
     reporterUserId: string,
     input: CreateContentErrorReportRequest,
   ): Promise<CreateContentErrorReportResponse> {
-    const report = await this.reports.create(reporterUserId, {
-      origin: input.origin,
-      category: input.category,
-      ...(input.description === undefined
-        ? {}
-        : { description: input.description }),
-    });
-    return createContentErrorReportResponseSchema.parse({
-      id: report.id,
-      status: 'OPEN',
-      createdAt: report.createdAt.toISOString(),
-    });
+    try {
+      const report = await this.reports.create(reporterUserId, {
+        origin: input.origin,
+        category: input.category,
+        ...(input.description === undefined
+          ? {}
+          : { description: input.description }),
+      });
+      return createContentErrorReportResponseSchema.parse({
+        id: report.id,
+        status: 'OPEN',
+        createdAt: report.createdAt.toISOString(),
+      });
+    } catch (error) {
+      return mapContentErrorReportDomainError(error);
+    }
   }
 
   /** 관리자 필터 목록을 공개 page로 바꾼다 */
@@ -112,24 +136,28 @@ export class ContentErrorReportHttpService {
   async detail(
     reportId: string,
   ): Promise<AdminContentErrorReportDetailResponse> {
-    const detail = await this.requireDetail(reportId);
-    return adminContentErrorReportDetailResponseSchema.parse({
-      ...mapSummary({
-        ...detail.report,
-        reporter: detail.reporter,
-        assignee: detail.assignee,
-      }),
-      history: detail.history.map((entry) => ({
-        id: entry.id,
-        action: entry.action,
-        actor: { id: entry.actorUserId, email: entry.actorEmail },
-        fromStatus: entry.fromStatus,
-        toStatus: entry.toStatus,
-        fromAssigneeUserId: entry.fromAssigneeUserId,
-        toAssigneeUserId: entry.toAssigneeUserId,
-        createdAt: entry.createdAt.toISOString(),
-      })),
-    });
+    try {
+      const detail = await this.requireDetail(reportId);
+      return adminContentErrorReportDetailResponseSchema.parse({
+        ...mapSummary({
+          ...detail.report,
+          reporter: detail.reporter,
+          assignee: detail.assignee,
+        }),
+        history: detail.history.map((entry) => ({
+          id: entry.id,
+          action: entry.action,
+          actor: { id: entry.actorUserId, email: entry.actorEmail },
+          fromStatus: entry.fromStatus,
+          toStatus: entry.toStatus,
+          fromAssigneeUserId: entry.fromAssigneeUserId,
+          toAssigneeUserId: entry.toAssigneeUserId,
+          createdAt: entry.createdAt.toISOString(),
+        })),
+      });
+    } catch (error) {
+      return mapContentErrorReportDomainError(error);
+    }
   }
 
   /** 관리자 상태 전이를 수행한다 */
@@ -138,9 +166,13 @@ export class ContentErrorReportHttpService {
     reportId: string,
     status: ContentErrorReportStatus,
   ): Promise<AdminContentErrorReportDetailResponse> {
-    const detail = await this.requireDetail(reportId);
-    await this.reports.changeStatus(actor, detail.report, status);
-    return this.detail(reportId);
+    try {
+      const detail = await this.requireDetail(reportId);
+      await this.reports.changeStatus(actor, detail.report, status);
+      return this.detail(reportId);
+    } catch (error) {
+      return mapContentErrorReportDomainError(error);
+    }
   }
 
   /** 관리자 담당자를 배정한다 */
@@ -149,16 +181,24 @@ export class ContentErrorReportHttpService {
     reportId: string,
     assigneeUserId: string,
   ) {
-    const detail = await this.requireDetail(reportId);
-    await this.reports.assign(actor, detail.report, assigneeUserId);
-    return this.detail(reportId);
+    try {
+      const detail = await this.requireDetail(reportId);
+      await this.reports.assign(actor, detail.report, assigneeUserId);
+      return this.detail(reportId);
+    } catch (error) {
+      return mapContentErrorReportDomainError(error);
+    }
   }
 
   /** 관리자 담당자를 해제한다 */
   async unassign(actor: ContentErrorReportActor, reportId: string) {
-    const detail = await this.requireDetail(reportId);
-    await this.reports.unassign(actor, detail.report);
-    return this.detail(reportId);
+    try {
+      const detail = await this.requireDetail(reportId);
+      await this.reports.unassign(actor, detail.report);
+      return this.detail(reportId);
+    } catch (error) {
+      return mapContentErrorReportDomainError(error);
+    }
   }
 
   private async requireDetail(reportId: string) {
