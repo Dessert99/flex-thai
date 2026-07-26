@@ -36,11 +36,7 @@ typecheck, build와 기존 회귀 테스트가 모두 통과해야 한다.
 
 다음 경로는 기능 브랜치에서 수정하지 않는다.
 
-- `shared/contracts/src/index.ts`
-- `backend/domain/src/index.ts`
-- `backend/database/src/index.ts`
 - `backend/database/src/schema/index.ts`
-- `backend/providers/src/index.ts`
 - `backend/providers/src/fakes/index.ts`
 - `backend/api/src/app.module.ts`
 - `backend/api/src/openapi/**`
@@ -58,8 +54,13 @@ typecheck, build와 기존 회귀 테스트가 모두 통과해야 한다.
 - `frontend/web/src/pages/admin-home/**`
 - 루트 `package.json`과 `pnpm-lock.yaml`
 
-기능 branch의 테스트는 가능한 한 leaf module을 직접 import한다. package
-root export와 실제 runtime 조립 검증은 통합 브랜치가 담당한다.
+기능 branch의 테스트는 가능한 한 leaf module을 직접 import한다. 다만
+workspace package 경계를 지키며 API까지 typecheck하려면 public export가
+필요하므로 `shared/contracts/src/index.ts`, `backend/domain/src/index.ts`,
+`backend/database/src/index.ts`, `backend/providers/src/index.ts`에는 각
+기능의 export만 지정된 기존 feature anchor 바로 뒤에 append할 수 있다.
+기존 export의 수정·재정렬은 금지하며 최종 중복 검사는 통합 브랜치가
+담당한다. 실제 runtime module 조립은 계속 통합 브랜치 전용이다.
 
 ### 2.3 자원 관리
 
