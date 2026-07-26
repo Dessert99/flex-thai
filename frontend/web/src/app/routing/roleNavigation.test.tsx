@@ -17,6 +17,13 @@ describe('역할별 내비게이션', () => {
       'href',
       '/learn',
     );
+    expect(screen.getByRole('link', { name: '내 단어장' })).toHaveAttribute(
+      'href',
+      '/wordbooks',
+    );
+    expect(
+      screen.queryByRole('link', { name: '저장한 어휘' }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole('link', { name: '콘텐츠 가져오기' }),
     ).not.toBeInTheDocument();
@@ -33,6 +40,10 @@ describe('역할별 내비게이션', () => {
     expect(
       screen.getByRole('link', { name: '콘텐츠 가져오기' }),
     ).toHaveAttribute('href', '/admin/content-imports');
+    expect(screen.getByRole('link', { name: '사용자 관리' })).toHaveAttribute(
+      'href',
+      '/admin/users',
+    );
     expect(
       screen.queryByRole('link', { name: '학습 홈' }),
     ).not.toBeInTheDocument();

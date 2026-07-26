@@ -69,4 +69,26 @@ describe('로그인 TOTP 페이지', () => {
       to: '/admin',
     });
   });
+
+  it('TOTP 완료 뒤 보존한 내부 redirect를 관리자 홈보다 우선한다', async () => {
+    mocks.completeLoginTotpSession.mockResolvedValue({
+      status: 'authenticated',
+      user: {
+        id: '01933b6a-8f13-7a19-b7e5-536d70f57aaa',
+        email: 'admin@example.com',
+        role: 'ADMIN',
+        mfaEnrolled: true,
+      },
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<LoginTotpPageContainer redirectTo='/admin/users' />);
+
+    await user.type(screen.getByLabelText('인증 코드'), '123456');
+    await user.click(screen.getByRole('button', { name: '인증하기' }));
+
+    expect(mocks.navigate).toHaveBeenCalledWith({
+      replace: true,
+      to: '/admin/users',
+    });
+  });
 });

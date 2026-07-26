@@ -7,13 +7,16 @@ const router = createAppRouter(new QueryClient());
 const approvedTargets = [
   '/',
   '/login',
+  '/login/challenge',
+  '/login/confirm',
   '/login/mfa',
   '/learn',
   '/questions',
   '/history',
   '/vocabularies',
-  '/saved-vocabularies',
+  '/wordbooks',
   '/admin',
+  '/admin/users',
   '/admin/totp-setup',
   '/admin/content-imports',
   '/admin/questions',
@@ -25,7 +28,17 @@ const questionId = '01933b6a-8f13-7a19-b7e5-536d70f57aaa';
 const vocabularyId = '01933b6a-8f13-7a19-b7e5-536d70f57aab';
 const importId = '01933b6a-8f13-7a19-b7e5-536d70f57aac';
 const versionId = '01933b6a-8f13-7a19-b7e5-536d70f57aad';
+const wordbookId = '01933b6a-8f13-7a19-b7e5-536d70f57aae';
 const dynamicTargets = [
+  {
+    build: () =>
+      router.buildLocation({
+        params: { wordbookId },
+        search: { page: 1, pageSize: 20 },
+        to: '/wordbooks/$wordbookId',
+      }),
+    label: '학습자 단어장 상세',
+  },
   {
     build: () =>
       router.buildLocation({
@@ -84,6 +97,9 @@ const dynamicTargets = [
 
 describe('route 도달 가능성', () => {
   it.each(approvedTargets)('%s 경로를 route tree에서 찾을 수 있다', (to) => {
+    expect(
+      (router.routesByPath as unknown as Record<string, unknown>)[to],
+    ).toBeDefined();
     expect(() => router.buildLocation({ to })).not.toThrow();
   });
 
@@ -93,4 +109,18 @@ describe('route 도달 가능성', () => {
       expect(build).not.toThrow();
     },
   );
+
+  it.each([
+    '/wordbooks/$wordbookId',
+    '/questions/$questionId',
+    '/vocabularies/$vocabularyId',
+    '/admin/content-imports/$importId',
+    '/admin/questions/$questionId',
+    '/admin/questions/$questionId/versions/$versionId/replace',
+    '/admin/vocabularies/$vocabularyId',
+  ])('%s 동적 경로를 route tree에서 찾을 수 있다', (to) => {
+    expect(
+      (router.routesByPath as unknown as Record<string, unknown>)[to],
+    ).toBeDefined();
+  });
 });

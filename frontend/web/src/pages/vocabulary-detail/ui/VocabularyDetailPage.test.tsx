@@ -12,12 +12,29 @@ vi.mock('@/shared/api', async (importOriginal) => {
 });
 
 beforeEach(() => {
-  mocks.authenticatedRequest.mockImplementation(({ path }: { path: string }) =>
-    Promise.resolve(
-      path.endsWith('/questions?page=1&pageSize=10')
-        ? createRelatedQuestions()
-        : createDetail(),
-    ),
+  mocks.authenticatedRequest.mockImplementation(
+    ({ path }: { path: string }) => {
+      if (path.endsWith('/questions?page=1&pageSize=10')) {
+        return Promise.resolve(createRelatedQuestions());
+      }
+      if (path === '/me/wordbooks') {
+        return Promise.resolve({
+          items: [
+            {
+              id: '01933b6a-8f13-7a19-b7e5-536d70f57ab4',
+              name: 'FLEX 핵심',
+              itemCount: 0,
+              createdAt: '2026-07-26T00:00:00.000Z',
+              updatedAt: '2026-07-26T00:00:00.000Z',
+            },
+          ],
+        });
+      }
+      if (path.endsWith('/wordbook-memberships')) {
+        return Promise.resolve({ wordbookIds: [] });
+      }
+      return Promise.resolve(createDetail());
+    },
   );
 });
 
@@ -40,6 +57,24 @@ describe('어휘 상세 페이지', () => {
       'href',
       '/questions/01933b6a-8f13-7a19-b7e5-536d70f57ab1',
     );
+  });
+
+  it('단어장 picker와 예문 token 상호작용을 서로 중첩하지 않고 제공한다', async () => {
+    const user = userEvent.setup();
+    const { container } = renderWithProviders(
+      <VocabularyDetailPageContainer vocabularyId='01933b6a-8f13-7a19-b7e5-536d70f57aaa' />,
+    );
+
+    await user.click(
+      await screen.findByRole('button', { name: 'ฉัน 뜻과 발음 듣기' }),
+    );
+    expect(screen.getByText('나')).toBeVisible();
+
+    await user.click(screen.getByRole('button', { name: '단어장에 추가' }));
+    expect(
+      await screen.findByRole('button', { name: 'FLEX 핵심' }),
+    ).toHaveAttribute('aria-pressed', 'false');
+    expect(container.querySelector('button button')).toBeNull();
   });
 });
 
@@ -66,7 +101,33 @@ function createDetail() {
       },
     ],
     meaningPronunciations: [],
-    exampleSentences: [],
+    exampleSentences: [
+      {
+        sentenceVersionId: '01933b6a-8f13-7a19-b7e5-536d70f57ab5',
+        originalText: 'ฉันมา',
+        translationKo: '나는 온다',
+        pronunciationKo: '찬 마',
+        toneMarks: 'R M',
+        audioUrl: 'https://example.com/sentence.mp3',
+        tokens: [
+          {
+            position: 0,
+            surface: 'ฉัน',
+            startOffset: 0,
+            endOffset: 3,
+            vocabularyId: '01933b6a-8f13-7a19-b7e5-536d70f57ab6',
+            meaningId: '01933b6a-8f13-7a19-b7e5-536d70f57ab7',
+            pronunciationId: '01933b6a-8f13-7a19-b7e5-536d70f57ab8',
+            contextMeaningKo: '나',
+            pronunciationKo: '찬',
+            toneMarks: 'R',
+            audioUrl: 'https://example.com/token.mp3',
+            role: 'TARGET',
+          },
+        ],
+        expressions: [],
+      },
+    ],
     saved: false,
   };
 }

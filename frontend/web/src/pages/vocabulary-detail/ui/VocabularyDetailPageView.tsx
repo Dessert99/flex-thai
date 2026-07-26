@@ -3,34 +3,53 @@ import type {
   VocabularyDetailResponse,
   VocabularyRelatedQuestionsResponse,
 } from '@flex-thia/contracts';
-import { SavedVocabularyButton } from '@/features/toggle-saved-vocabulary';
+import { InteractiveThaiSentence } from '@/features/explore-thai-content';
+import { VocabularyWordbookPicker } from '@/features/save-vocabulary-to-wordbooks';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 
 /** 서버 태국어 원문과 발음 audio를 수정 없이 렌더링한다 */
 export function VocabularyDetailPageView({
   detail,
-  onSavedConfirmed,
+  onWordbookMembershipConfirmed,
   relatedQuestions,
 }: {
   detail: VocabularyDetailResponse;
-  onSavedConfirmed: () => void;
+  onWordbookMembershipConfirmed: () => void;
   relatedQuestions: VocabularyRelatedQuestionsResponse['items'];
 }) {
   return (
     <article className='grid gap-section'>
-      <header className='flex justify-between gap-cluster'>
+      <header>
         <h1
           className='font-thai text-title'
           lang='th'
         >
           {detail.thai}
         </h1>
-        <SavedVocabularyButton
-          onConfirmed={onSavedConfirmed}
-          saved={detail.saved}
-          vocabularyId={detail.id}
-        />
       </header>
+      <VocabularyWordbookPicker
+        onConfirmed={onWordbookMembershipConfirmed}
+        vocabularyId={detail.id}
+      />
+      {detail.exampleSentences.length === 0 ? null : (
+        <section
+          aria-labelledby='vocabulary-examples-title'
+          className='grid gap-cluster'
+        >
+          <h2
+            className='text-heading text-primary'
+            id='vocabulary-examples-title'
+          >
+            예문
+          </h2>
+          {detail.exampleSentences.map((sentence) => (
+            <InteractiveThaiSentence
+              key={sentence.sentenceVersionId}
+              sentence={sentence}
+            />
+          ))}
+        </section>
+      )}
       <Tabs defaultValue='meanings'>
         <TabsList>
           <TabsTrigger value='meanings'>뜻</TabsTrigger>

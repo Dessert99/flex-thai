@@ -1,5 +1,9 @@
 /** 로그인 redirect를 승인된 same-origin route와 search 계약으로 제한한다 */
-import { questionListQuerySchema } from '@flex-thia/contracts';
+import {
+  questionListQuerySchema,
+  wordbookIdPathSchema,
+  wordbookItemListQuerySchema,
+} from '@flex-thia/contracts';
 
 const approvedStaticPaths = new Set([
   '/',
@@ -9,8 +13,9 @@ const approvedStaticPaths = new Set([
   '/questions',
   '/history',
   '/vocabularies',
-  '/saved-vocabularies',
+  '/wordbooks',
   '/admin',
+  '/admin/users',
   '/admin/totp-setup',
   '/admin/content-imports',
   '/admin/questions',
@@ -21,6 +26,7 @@ const approvedStaticPaths = new Set([
 const approvedDynamicPaths = [
   /^\/questions\/[0-9a-f-]+$/u,
   /^\/vocabularies\/[0-9a-f-]+$/u,
+  /^\/wordbooks\/[0-9a-f-]+$/u,
   /^\/admin\/content-imports\/[0-9a-f-]+$/u,
   /^\/admin\/questions\/[0-9a-f-]+$/u,
   /^\/admin\/questions\/[0-9a-f-]+\/versions\/[0-9a-f-]+\/replace$/u,
@@ -49,7 +55,8 @@ export function parseSafeRedirect(value: unknown): string | undefined {
 function isApprovedPath(pathname: string): boolean {
   return (
     approvedStaticPaths.has(pathname) ||
-    approvedDynamicPaths.some((pattern) => pattern.test(pathname))
+    (approvedDynamicPaths.some((pattern) => pattern.test(pathname)) &&
+      (!pathname.startsWith('/wordbooks/') || isValidWordbookPath(pathname)))
   );
 }
 
@@ -57,10 +64,24 @@ function hasValidSearch(url: URL): boolean {
   if (url.search === '') {
     return true;
   }
-  if (url.pathname !== '/questions') {
+  if (url.pathname === '/questions') {
+    return questionListQuerySchema.safeParse(
+      Object.fromEntries(url.searchParams),
+    ).success;
+  }
+  if (isValidWordbookPath(url.pathname)) {
+    return wordbookItemListQuerySchema.safeParse(
+      Object.fromEntries(url.searchParams),
+    ).success;
+  }
+  return false;
+}
+
+function isValidWordbookPath(pathname: string): boolean {
+  if (!pathname.startsWith('/wordbooks/')) {
     return false;
   }
-
-  return questionListQuerySchema.safeParse(Object.fromEntries(url.searchParams))
-    .success;
+  return wordbookIdPathSchema.safeParse({
+    wordbookId: pathname.slice('/wordbooks/'.length),
+  }).success;
 }

@@ -7,6 +7,8 @@ export default defineConfig([
   ...fsd.configs.recommended,
   {
     rules: {
+      // 독립 file route Page 수가 권장 휴리스틱을 넘지만 slice 경계는 유지한다.
+      'fsd/excessive-slicing': 'off',
       'fsd/import-locality': 'error',
     },
   },
@@ -23,7 +25,6 @@ export default defineConfig([
       'src/features/explore-thai-content/**',
       'src/features/submit-answer/**',
       'src/features/toggle-saved-question/**',
-      'src/features/toggle-saved-vocabulary/**',
       'src/features/upload-audio/**',
       'src/features/manage-wordbook/**',
       'src/features/manage-wordbook-items/**',
@@ -31,13 +32,6 @@ export default defineConfig([
     ],
     rules: {
       'fsd/insignificant-slice': 'off',
-    },
-  },
-  {
-    files: ['src/pages/wordbook-detail/**', 'src/pages/wordbook-list/**'],
-    rules: {
-      // 통합 Task 15에서 old saved-vocabularies page 제거와 함께 삭제한다.
-      'fsd/excessive-slicing': 'off',
     },
   },
   {

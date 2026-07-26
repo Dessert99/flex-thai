@@ -9,15 +9,25 @@ import { useNavigate } from '@tanstack/react-router';
 import { confirmEmailLinkSession } from '@/shared/api';
 import { EmailLinkConfirmPageView } from './EmailLinkConfirmPageView';
 
+interface EmailLinkConfirmPageContainerProps {
+  challengeId?: string;
+  redirectTo?: string;
+  token?: string;
+}
+
 /** scanner GET과 실제 로그인 POST 사이의 명시적 사용자 동작을 소유한다 */
-export function EmailLinkConfirmPageContainer() {
+export function EmailLinkConfirmPageContainer({
+  challengeId,
+  redirectTo,
+  token,
+}: EmailLinkConfirmPageContainerProps) {
   const navigate = useNavigate();
   const parameters = new URLSearchParams(globalThis.location.search);
   const parsedPath = emailChallengeIdPathSchema.safeParse({
-    challengeId: parameters.get('challengeId'),
+    challengeId: challengeId ?? parameters.get('challengeId'),
   });
   const parsedBody = confirmEmailLinkRequestSchema.safeParse({
-    token: parameters.get('token'),
+    token: token ?? parameters.get('token'),
   });
   const validInput =
     parsedPath.success && parsedBody.success
@@ -29,11 +39,22 @@ export function EmailLinkConfirmPageContainer() {
       return confirmEmailLinkSession(validInput.challengeId, validInput.token);
     },
     onSuccess(result) {
-      const destination =
-        result.status === 'mfa-required'
-          ? '/login/mfa'
-          : getUserHome(result.user);
-      void navigate({ replace: true, to: destination as never });
+      if (result.status === 'mfa-required') {
+        if (redirectTo === undefined) {
+          void navigate({ replace: true, to: '/login/mfa' });
+          return;
+        }
+        void navigate({
+          replace: true,
+          search: { redirect: redirectTo },
+          to: '/login/mfa',
+        });
+        return;
+      }
+      void navigate({
+        replace: true,
+        to: (redirectTo ?? getUserHome(result.user)) as never,
+      });
     },
   });
   const errorMessage = mutation.error

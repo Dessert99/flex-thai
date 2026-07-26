@@ -107,7 +107,56 @@ describe('이메일 challenge 페이지', () => {
       to: '/admin',
     });
   });
+});
 
+describe('이메일 challenge redirect 보존', () => {
+  it('인증 완료 뒤 보존한 내부 redirect를 역할 홈보다 우선한다', async () => {
+    vi.useRealTimers();
+    mocks.verifyEmailCodeSession.mockResolvedValue({
+      status: 'authenticated',
+      user: {
+        id: '00000000-0000-4000-8000-000000000001',
+        email: 'user@hufs.ac.kr',
+        role: 'LEARNER',
+        mfaEnrolled: false,
+      },
+    });
+    const user = userEvent.setup();
+    renderWithProviders(
+      <EmailChallengePageContainer redirectTo='/wordbooks' />,
+    );
+
+    await user.type(screen.getByLabelText('인증 코드'), '123456');
+    await user.click(screen.getByRole('button', { name: '로그인' }));
+
+    expect(mocks.navigate).toHaveBeenCalledWith({
+      replace: true,
+      to: '/wordbooks',
+    });
+  });
+
+  it('MFA가 필요하면 보존한 redirect를 TOTP 화면에 전달한다', async () => {
+    vi.useRealTimers();
+    mocks.verifyEmailCodeSession.mockResolvedValue({
+      status: 'mfa-required',
+    });
+    const user = userEvent.setup();
+    renderWithProviders(
+      <EmailChallengePageContainer redirectTo='/admin/users' />,
+    );
+
+    await user.type(screen.getByLabelText('인증 코드'), '123456');
+    await user.click(screen.getByRole('button', { name: '로그인' }));
+
+    expect(mocks.navigate).toHaveBeenCalledWith({
+      replace: true,
+      search: { redirect: '/admin/users' },
+      to: '/login/mfa',
+    });
+  });
+});
+
+describe('이메일 challenge 재전송', () => {
   it('resendAt 전에는 재전송 button을 비활성화한다', () => {
     renderWithProviders(<EmailChallengePageContainer />);
 

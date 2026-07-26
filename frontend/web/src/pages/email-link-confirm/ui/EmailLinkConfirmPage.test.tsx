@@ -59,4 +59,25 @@ describe('이메일 링크 확인 페이지', () => {
       to: '/login/mfa',
     });
   });
+
+  it('명시적 POST로 인증된 미등록 관리자를 TOTP 등록 화면으로 보낸다', async () => {
+    mocks.confirmEmailLinkSession.mockResolvedValue({
+      status: 'authenticated',
+      user: {
+        id: '00000000-0000-4000-8000-000000000001',
+        email: 'admin@hufs.ac.kr',
+        role: 'ADMIN',
+        mfaEnrolled: false,
+      },
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<EmailLinkConfirmPageContainer />);
+
+    await user.click(screen.getByRole('button', { name: '로그인 확인' }));
+
+    expect(mocks.navigate).toHaveBeenCalledWith({
+      replace: true,
+      to: '/admin/totp-setup',
+    });
+  });
 });

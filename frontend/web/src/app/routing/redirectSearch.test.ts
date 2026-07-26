@@ -5,6 +5,12 @@ import { parseSafeRedirect } from './redirectSearch';
 describe('안전한 로그인 redirect', () => {
   it.each([
     ['/learn', '/learn'],
+    ['/wordbooks', '/wordbooks'],
+    [
+      '/wordbooks/00000000-0000-4000-8000-000000000101?page=2&pageSize=20',
+      '/wordbooks/00000000-0000-4000-8000-000000000101?page=2&pageSize=20',
+    ],
+    ['/admin/users', '/admin/users'],
     [
       '/questions?difficulty=3&page=2&pageSize=20',
       '/questions?difficulty=3&page=2&pageSize=20',
@@ -23,6 +29,9 @@ describe('안전한 로그인 redirect', () => {
     '/learn#section',
     '/unknown',
     '/learn?next=/admin',
+    '/wordbooks?unexpected=1',
+    '/wordbooks/abc',
+    '/wordbooks/not-a-uuid',
     '/questions?unexpected=1',
     '/questions?page=0',
     '/questions?pageSize=101',

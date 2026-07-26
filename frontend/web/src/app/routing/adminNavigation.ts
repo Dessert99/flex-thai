@@ -7,4 +7,5 @@ export const adminNavigation = [
   { href: '/admin/content-imports', label: '콘텐츠 가져오기' },
   { href: '/admin/questions', label: '문제 관리' },
   { href: '/admin/vocabularies', label: '어휘 관리' },
+  { href: '/admin/users', label: '사용자 관리' },
 ] as const satisfies readonly AppShellNavigationItem[];

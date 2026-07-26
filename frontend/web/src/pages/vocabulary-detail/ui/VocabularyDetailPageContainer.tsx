@@ -31,7 +31,7 @@ export function VocabularyDetailPageContainer({
   return (
     <VocabularyDetailPageView
       detail={detail.data}
-      onSavedConfirmed={() => {
+      onWordbookMembershipConfirmed={() => {
         void queryClient.invalidateQueries({
           queryKey: ['learner', 'vocabularies'],
         });
