@@ -7,6 +7,7 @@ import type {
   ConceptValidationStatus,
 } from './concept.js';
 
+/** 감사 가능한 개념 command 문맥 */
 export interface ConceptCommandContext {
   actorSub: string;
   actorUserId: string;
@@ -14,6 +15,7 @@ export interface ConceptCommandContext {
   occurredAt: Date;
 }
 
+/** 개념 초안 전체 입력 */
 export interface ConceptDraftInput {
   category: ConceptCategory;
   position: number;
@@ -22,7 +24,9 @@ export interface ConceptDraftInput {
   blocks: ConceptCandidateBlock[];
 }
 
+/** 첫 개념 생성 입력 */
 export type CreateConceptCommand = ConceptDraftInput;
+/** revision 기반 초안 교체 입력 */
 export interface ReplaceConceptDraftCommand extends ConceptDraftInput {
   revision: number;
 }

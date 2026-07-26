@@ -8,16 +8,20 @@ export interface ConceptValidationIssue {
   evidenceKo: string;
 }
 
+/** 개념 영역 */
 export type ConceptCategory = 'THAI_SCRIPT_PRONUNCIATION' | 'GRAMMAR';
+/** 개념 버전 상태 */
 export type ConceptVersionStatus = 'DRAFT' | 'PUBLISHED' | 'RETIRED';
+/** 개념 검증 상태 */
 export type ConceptValidationStatus = 'PENDING' | 'PASSED' | 'FAILED';
+/** 참조 음성 자산 상태 */
 export type MediaAssetStatus =
   | 'UPLOADING'
   | 'READY'
   | 'REJECTED'
-  | 'DELETED'
   | null;
 
+/** 설명 블록 */
 export interface ConceptExplanationBlock {
   kind: 'EXPLANATION';
   position: number;
@@ -25,6 +29,7 @@ export interface ConceptExplanationBlock {
   paragraphs: string[];
 }
 
+/** 규칙 표 블록 */
 export interface ConceptRuleTableBlock {
   kind: 'RULE_TABLE';
   position: number;
@@ -33,6 +38,7 @@ export interface ConceptRuleTableBlock {
   rows: string[][];
 }
 
+/** 기존 문장 버전 참조 */
 export interface ConceptExampleReference {
   position: number;
   sentenceVersionId: string;
@@ -42,6 +48,7 @@ export interface ConceptExampleReference {
   audioAssetStatus: MediaAssetStatus;
 }
 
+/** 태국어 예시 블록 */
 export interface ConceptExamplesBlock {
   kind: 'THAI_EXAMPLES';
   position: number;
@@ -49,6 +56,7 @@ export interface ConceptExamplesBlock {
   examples: ConceptExampleReference[];
 }
 
+/** 검증 가능한 개념 블록 */
 export type ConceptCandidateBlock =
   | ConceptExplanationBlock
   | ConceptRuleTableBlock
