@@ -17,6 +17,10 @@ import {
   requestRefresh,
   requestTotpSetup,
   requestTotpSetupVerification,
+  confirmEmailLink,
+  resendEmailChallenge,
+  startEmailAuthentication,
+  verifyEmailCode,
 } from './authApi';
 import {
   clearSessionRefresh,
@@ -57,6 +61,7 @@ type RefreshContext = 'restore' | 'refresh';
 
 let accessToken: string | undefined;
 let loginChallenge: { email: string; challengeToken: string } | undefined;
+let pendingEmailChallenge: PendingEmailChallenge | undefined;
 let sessionState: AuthSessionState = { status: 'restoring' };
 const listeners = new Set<() => void>();
 
@@ -94,7 +99,71 @@ export async function loginSession(
   input: LoginInput,
 ): Promise<LoginSessionResult> {
   const response = await requestLogin(input);
-  return acceptLoginResponse(response, input.email);
+  return acceptLoginResponse(response);
+}
+
+/** 진행 중 이메일 challenge의 메모리 상태 */
+export interface PendingEmailChallenge {
+  challengeId: string;
+  email: string;
+  expiresAt: string;
+  resendAt: string;
+}
+
+/** password 없이 이메일 challenge를 시작하고 메모리에만 보관한다 */
+export async function startEmailAuthenticationSession(
+  email: string,
+): Promise<PendingEmailChallenge> {
+  const challenge = await startEmailAuthentication(email);
+  pendingEmailChallenge = { ...challenge, email };
+  return pendingEmailChallenge;
+}
+
+/** 현재 탭에서 진행 중인 이메일 challenge만 반환한다 */
+export function getPendingEmailChallenge():
+  | PendingEmailChallenge
+  | undefined {
+  return pendingEmailChallenge;
+}
+
+/** 메모리 challenge의 6자리 code를 인증 응답으로 교환한다 */
+export async function verifyEmailCodeSession(
+  code: string,
+): Promise<LoginSessionResult> {
+  if (!pendingEmailChallenge) {
+    throw new Error('진행 중인 이메일 challenge가 없습니다.');
+  }
+  const response = await verifyEmailCode(
+    pendingEmailChallenge.challengeId,
+    code,
+  );
+  pendingEmailChallenge = undefined;
+  return acceptLoginResponse(response);
+}
+
+/** 명시적 link 확인 POST 결과를 fresh-page MFA 메모리 상태로 연결한다 */
+export async function confirmEmailLinkSession(
+  challengeId: string,
+  token: string,
+): Promise<LoginSessionResult> {
+  const response = await confirmEmailLink(challengeId, token);
+  pendingEmailChallenge = undefined;
+  return acceptLoginResponse(response);
+}
+
+/** 현재 challenge를 서버에서 원자 교체하고 메모리 시각을 갱신한다 */
+export async function resendPendingEmailChallenge(): Promise<PendingEmailChallenge> {
+  if (!pendingEmailChallenge) {
+    throw new Error('진행 중인 이메일 challenge가 없습니다.');
+  }
+  const challenge = await resendEmailChallenge(
+    pendingEmailChallenge.challengeId,
+  );
+  pendingEmailChallenge = {
+    ...challenge,
+    email: pendingEmailChallenge.email,
+  };
+  return pendingEmailChallenge;
 }
 
 /** 저장된 로그인 challenge로 TOTP 인증을 완료한다 */
@@ -200,11 +269,10 @@ export type LoginSessionResult =
 
 function acceptLoginResponse(
   response: LoginResponse,
-  email: string,
 ): LoginSessionResult {
   if (response.status === 'MFA_REQUIRED') {
     loginChallenge = {
-      email,
+      email: response.email,
       challengeToken: response.challengeToken,
     };
     return { status: 'mfa-required' };

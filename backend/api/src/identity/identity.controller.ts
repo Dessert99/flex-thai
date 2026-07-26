@@ -319,6 +319,7 @@ export class IdentityController {
       return loginResponseSchema.parse({
         status: 'MFA_REQUIRED',
         challengeToken: result.challengeToken,
+        email: result.email,
       });
     }
 

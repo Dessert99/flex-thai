@@ -130,6 +130,22 @@ describe('PasswordlessAuthenticationService', () => {
     expect(repository.releaseConsumption).toHaveBeenCalledWith(challengeId);
   });
 
+  it('유효한 challenge의 MFA 응답에 정규화 email을 붙인다', async () => {
+    const { provider, service } = makeService();
+    provider.complete.mockResolvedValue({
+      kind: 'MFA_REQUIRED',
+      challengeToken: 'opaque-session',
+    });
+
+    await expect(
+      service.completeLink(challengeId, linkToken, now),
+    ).resolves.toEqual({
+      kind: 'MFA_REQUIRED',
+      challengeToken: 'opaque-session',
+      email: 'user@hufs.ac.kr',
+    });
+  });
+
   it('메일 발송 실패를 persistence에 기록한다', async () => {
     const { repository, sender, service } = makeService();
     sender.send.mockRejectedValue(new Error('SES unavailable'));

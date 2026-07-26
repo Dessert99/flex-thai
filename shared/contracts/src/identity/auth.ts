@@ -87,6 +87,7 @@ export const authenticatedResponseSchema = z.object({
 export const mfaRequiredResponseSchema = z.object({
   status: z.literal('MFA_REQUIRED'),
   challengeToken: z.string().min(1),
+  email: emailSchema,
 });
 
 /** 로그인·TOTP 완료·refresh가 공유하는 인증 응답 */

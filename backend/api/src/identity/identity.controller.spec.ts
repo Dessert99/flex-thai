@@ -86,6 +86,7 @@ describe('IdentityController 인증 흐름', () => {
     const completePasswordless = vi.fn().mockResolvedValue({
       kind: 'MFA_REQUIRED',
       challengeToken: 'session',
+      email: 'admin@hufs.ac.kr',
     });
     const controller = new IdentityController(
       { completePasswordless } as never,
@@ -102,6 +103,7 @@ describe('IdentityController 인증 흐름', () => {
     ).resolves.toEqual({
       status: 'MFA_REQUIRED',
       challengeToken: 'session',
+      email: 'admin@hufs.ac.kr',
     });
     expect(cookieResponse.cookie).not.toHaveBeenCalled();
   });

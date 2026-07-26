@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../ApiError';
 
 const authApiMocks = vi.hoisted(() => ({
+  confirmEmailLink: vi.fn(),
+  resendEmailChallenge: vi.fn(),
   requestLogin: vi.fn(),
   requestLoginTotp: vi.fn(),
   requestLogout: vi.fn(),
@@ -11,6 +13,8 @@ const authApiMocks = vi.hoisted(() => ({
   requestRefresh: vi.fn(),
   requestTotpSetup: vi.fn(),
   requestTotpSetupVerification: vi.fn(),
+  startEmailAuthentication: vi.fn(),
+  verifyEmailCode: vi.fn(),
 }));
 
 vi.mock('./authApi', () => authApiMocks);
@@ -40,6 +44,10 @@ beforeEach(() => {
   authApiMocks.requestRefresh.mockReset();
   authApiMocks.requestTotpSetup.mockReset();
   authApiMocks.requestTotpSetupVerification.mockReset();
+  authApiMocks.confirmEmailLink.mockReset();
+  authApiMocks.resendEmailChallenge.mockReset();
+  authApiMocks.startEmailAuthentication.mockReset();
+  authApiMocks.verifyEmailCode.mockReset();
 });
 
 afterEach(() => {
@@ -160,6 +168,7 @@ describe('로그인 TOTP challenge', () => {
     authApiMocks.requestLogin.mockResolvedValue({
       status: 'MFA_REQUIRED',
       challengeToken: 'private-challenge',
+      email: 'admin@example.com',
     });
     authApiMocks.requestLoginTotp.mockResolvedValue(refreshed);
     const {
@@ -191,6 +200,60 @@ describe('로그인 TOTP challenge', () => {
       user: refreshed.user,
     });
     expect(authSessionStore.getSnapshot()).not.toHaveProperty('accessToken');
+  });
+});
+
+describe('passwordless challenge 메모리 상태', () => {
+  it('시작한 challenge와 access token을 Web Storage에 기록하지 않는다', async () => {
+    const storageSetItem = vi.spyOn(Storage.prototype, 'setItem');
+    authApiMocks.startEmailAuthentication.mockResolvedValue({
+      challengeId: '00000000-0000-4000-8000-000000000001',
+      expiresAt: '2026-07-26T00:10:00.000Z',
+      resendAt: '2026-07-26T00:01:00.000Z',
+    });
+    authApiMocks.verifyEmailCode.mockResolvedValue(refreshed);
+    const {
+      getPendingEmailChallenge,
+      startEmailAuthenticationSession,
+      verifyEmailCodeSession,
+    } = await loadStore();
+
+    await startEmailAuthenticationSession('user@hufs.ac.kr');
+    expect(getPendingEmailChallenge()).toEqual({
+      challengeId: '00000000-0000-4000-8000-000000000001',
+      email: 'user@hufs.ac.kr',
+      expiresAt: '2026-07-26T00:10:00.000Z',
+      resendAt: '2026-07-26T00:01:00.000Z',
+    });
+
+    await verifyEmailCodeSession('123456');
+
+    expect(storageSetItem).not.toHaveBeenCalled();
+  });
+
+  it('fresh link의 MFA email과 challenge token을 메모리로 TOTP 완료에 전달한다', async () => {
+    authApiMocks.confirmEmailLink.mockResolvedValue({
+      status: 'MFA_REQUIRED',
+      challengeToken: 'private-link-session',
+      email: 'admin@hufs.ac.kr',
+    });
+    authApiMocks.requestLoginTotp.mockResolvedValue(refreshed);
+    const { completeLoginTotpSession, confirmEmailLinkSession } =
+      await loadStore();
+
+    await expect(
+      confirmEmailLinkSession(
+        '00000000-0000-4000-8000-000000000001',
+        'A'.repeat(43),
+      ),
+    ).resolves.toEqual({ status: 'mfa-required' });
+    await completeLoginTotpSession('123456');
+
+    expect(authApiMocks.requestLoginTotp).toHaveBeenCalledWith({
+      email: 'admin@hufs.ac.kr',
+      challengeToken: 'private-link-session',
+      code: '123456',
+    });
   });
 });
 

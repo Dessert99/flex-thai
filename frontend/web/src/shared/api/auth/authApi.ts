@@ -1,11 +1,16 @@
 /** 인증 세션 조정에 필요한 서버 endpoint adapter를 정의한다 */
 import {
+  confirmEmailLinkRequestSchema,
+  emailAuthenticationChallengeResponseSchema,
+  emailChallengeIdPathSchema,
   loginRequestSchema,
   loginResponseSchema,
   meResponseSchema,
+  startEmailAuthenticationRequestSchema,
   totpChallengeRequestSchema,
   totpSetupResponseSchema,
   totpSetupVerifyRequestSchema,
+  verifyEmailCodeRequestSchema,
   type AuthenticatedResponse,
   type LoginInput,
   type LoginResponse,
@@ -16,6 +21,64 @@ import {
 } from '@flex-thia/contracts';
 import { ApiError } from '../ApiError';
 import { apiRequest } from '../apiRequest';
+
+/** 학교 이메일만 보내 challenge 공개 응답을 받는다 */
+export function startEmailAuthentication(email: string) {
+  return apiRequest({
+    body: startEmailAuthenticationRequestSchema.parse({ email }),
+    includeCredentials: true,
+    method: 'POST',
+    path: '/auth/challenges',
+    response: {
+      kind: 'json',
+      schema: emailAuthenticationChallengeResponseSchema,
+    },
+  });
+}
+
+/** 6자리 코드 POST로 challenge를 완료한다 */
+export function verifyEmailCode(
+  challengeId: string,
+  code: string,
+): Promise<LoginResponse> {
+  const path = emailChallengeIdPathSchema.parse({ challengeId });
+  return apiRequest({
+    body: verifyEmailCodeRequestSchema.parse({ code }),
+    includeCredentials: true,
+    method: 'POST',
+    path: `/auth/challenges/${path.challengeId}/code`,
+    response: { kind: 'json', schema: loginResponseSchema },
+  });
+}
+
+/** 링크 확인 button 동작에서만 token POST를 실행한다 */
+export function confirmEmailLink(
+  challengeId: string,
+  token: string,
+): Promise<LoginResponse> {
+  const path = emailChallengeIdPathSchema.parse({ challengeId });
+  return apiRequest({
+    body: confirmEmailLinkRequestSchema.parse({ token }),
+    includeCredentials: true,
+    method: 'POST',
+    path: `/auth/challenges/${path.challengeId}/link`,
+    response: { kind: 'json', schema: loginResponseSchema },
+  });
+}
+
+/** 기존 challenge를 새 코드·링크 challenge로 교체한다 */
+export function resendEmailChallenge(challengeId: string) {
+  const path = emailChallengeIdPathSchema.parse({ challengeId });
+  return apiRequest({
+    includeCredentials: true,
+    method: 'POST',
+    path: `/auth/challenges/${path.challengeId}/resend`,
+    response: {
+      kind: 'json',
+      schema: emailAuthenticationChallengeResponseSchema,
+    },
+  });
+}
 
 /** 이메일·비밀번호 로그인 응답과 refresh cookie를 검증한다 */
 export function requestLogin(input: LoginInput): Promise<LoginResponse> {

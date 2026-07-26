@@ -59,10 +59,12 @@ describe('IdentityAuthenticationService', () => {
       service.completePasswordless({
         kind: 'MFA_REQUIRED',
         challengeToken: 'session',
+        email: 'admin@hufs.ac.kr',
       }),
     ).resolves.toEqual({
       kind: 'MFA_REQUIRED',
       challengeToken: 'session',
+      email: 'admin@hufs.ac.kr',
     });
     expect(users.upsertIdentity).not.toHaveBeenCalled();
   });

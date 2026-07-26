@@ -7,9 +7,9 @@ import type {
 import type {
   ChallengeSecretsFactory,
   EmailChallengeSender,
+  PasswordlessAuthenticationResult,
   PasswordlessAuthenticationProvider,
 } from './passwordless-authentication.js';
-import type { ProviderLoginResult } from './authentication.js';
 
 const CHALLENGE_LIFETIME_MS = 600_000;
 const RESEND_COOLDOWN_MS = 60_000;
@@ -97,7 +97,7 @@ export class PasswordlessAuthenticationService {
     challengeId: string,
     code: string,
     now: Date,
-  ): Promise<ProviderLoginResult> {
+  ): Promise<PasswordlessAuthenticationResult> {
     return this.complete(challengeId, { kind: 'CODE', answer: code }, now);
   }
 
@@ -106,7 +106,7 @@ export class PasswordlessAuthenticationService {
     challengeId: string,
     linkToken: string,
     now: Date,
-  ): Promise<ProviderLoginResult> {
+  ): Promise<PasswordlessAuthenticationResult> {
     return this.complete(
       challengeId,
       { kind: 'LINK', answer: linkToken },
@@ -118,14 +118,16 @@ export class PasswordlessAuthenticationService {
     challengeId: string,
     answer: EmailChallengeAnswer,
     now: Date,
-  ): Promise<ProviderLoginResult> {
+  ): Promise<PasswordlessAuthenticationResult> {
     const challenge = await this.repository.reserveConsumption({
       challengeId,
       answer,
       now,
     });
 
-    let result: ProviderLoginResult;
+    let result: Awaited<
+      ReturnType<PasswordlessAuthenticationProvider['complete']>
+    >;
     try {
       result = await this.provider.complete(challenge.email);
     } catch (error) {
@@ -135,7 +137,9 @@ export class PasswordlessAuthenticationService {
     }
 
     await this.repository.finalizeConsumption(challengeId, now);
-    return result;
+    return result.kind === 'MFA_REQUIRED'
+      ? { ...result, email: challenge.email }
+      : result;
   }
 
   private async deliver(

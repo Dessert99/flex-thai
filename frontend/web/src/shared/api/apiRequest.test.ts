@@ -143,13 +143,16 @@ describe('apiRequest 요청 옵션', () => {
     expect(authenticatedInit?.credentials).toBe('include');
   });
 
-  it('로그인·로그인 TOTP·refresh·logout에만 CSRF 헤더를 추가한다', async () => {
+  it('challenge·로그인 TOTP·refresh·logout POST에만 CSRF 헤더를 추가한다', async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
       .mockResolvedValue(new Response(null, { status: 204 }));
     vi.stubGlobal('fetch', fetchMock);
     const protectedPaths = [
-      '/auth/login',
+      '/auth/challenges',
+      '/auth/challenges/challenge-id/code',
+      '/auth/challenges/challenge-id/link',
+      '/auth/challenges/challenge-id/resend',
       '/auth/mfa/totp/challenge',
       '/auth/refresh',
       '/auth/logout',
@@ -169,7 +172,7 @@ describe('apiRequest 요청 옵션', () => {
     });
     await apiRequest({
       method: 'GET',
-      path: '/auth/login',
+      path: '/auth/challenges',
       response: { kind: 'empty' },
     });
 

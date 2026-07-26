@@ -81,7 +81,12 @@ describe('identity 인증 계약', () => {
       loginResponseSchema.parse({
         status: 'MFA_REQUIRED',
         challengeToken: 'session',
+        email: 'admin@hufs.ac.kr',
       }),
-    ).toEqual({ status: 'MFA_REQUIRED', challengeToken: 'session' });
+    ).toEqual({
+      status: 'MFA_REQUIRED',
+      challengeToken: 'session',
+      email: 'admin@hufs.ac.kr',
+    });
   });
 });
