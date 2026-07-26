@@ -5,6 +5,38 @@ const emailSchema = z.string().trim().toLowerCase().email().max(254);
 const passwordSchema = z.string().min(1).max(256);
 const totpCodeSchema = z.string().regex(/^\d{6}$/u);
 
+/** 이메일 challenge 시작 요청 계약 */
+export const startEmailAuthenticationRequestSchema = z
+  .object({
+    email: z
+      .string()
+      .refine((email) => z.email().safeParse(email.trim()).success),
+  })
+  .strict();
+
+/** 계정 존재 여부를 드러내지 않는 challenge 응답 계약 */
+export const emailAuthenticationChallengeResponseSchema = z
+  .object({
+    challengeId: z.uuid(),
+    expiresAt: z.iso.datetime(),
+    resendAt: z.iso.datetime(),
+  })
+  .strict();
+
+/** 이메일 코드 확인 요청 계약 */
+export const verifyEmailCodeRequestSchema = z
+  .object({
+    code: z.string().regex(/^\d{6}$/u),
+  })
+  .strict();
+
+/** 이메일 링크 확인 요청 계약 */
+export const confirmEmailLinkRequestSchema = z
+  .object({
+    token: z.string().regex(/^[A-Za-z0-9_-]{43}$/u),
+  })
+  .strict();
+
 /** 이메일과 비밀번호 로그인 요청 */
 export const loginRequestSchema = z
   .object({ email: emailSchema, password: passwordSchema })
@@ -61,6 +93,26 @@ export const meResponseSchema = userSchema;
 
 /** 검증된 로그인 요청 type */
 export type LoginInput = z.infer<typeof loginRequestSchema>;
+
+/** 이메일 challenge 시작 요청 */
+export type StartEmailAuthenticationInput = z.infer<
+  typeof startEmailAuthenticationRequestSchema
+>;
+
+/** 계정 존재 여부를 드러내지 않는 challenge 응답 */
+export type EmailAuthenticationChallengeResponse = z.infer<
+  typeof emailAuthenticationChallengeResponseSchema
+>;
+
+/** 이메일 코드 확인 요청 */
+export type VerifyEmailCodeInput = z.infer<
+  typeof verifyEmailCodeRequestSchema
+>;
+
+/** 이메일 링크 확인 요청 */
+export type ConfirmEmailLinkInput = z.infer<
+  typeof confirmEmailLinkRequestSchema
+>;
 
 /** 검증된 TOTP challenge 요청 type */
 export type TotpChallengeInput = z.infer<typeof totpChallengeRequestSchema>;

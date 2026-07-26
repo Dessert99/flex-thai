@@ -1,12 +1,44 @@
 /** MVP 로그인과 TOTP 공개 계약을 검증한다 */
 import { describe, expect, it } from 'vitest';
 import {
+  confirmEmailLinkRequestSchema,
   loginRequestSchema,
   loginResponseSchema,
+  startEmailAuthenticationRequestSchema,
   totpChallengeRequestSchema,
+  verifyEmailCodeRequestSchema,
 } from './auth.js';
 
 describe('identity 인증 계약', () => {
+  it('학교 이메일 challenge 시작 입력은 이메일만 받는다', () => {
+    expect(
+      startEmailAuthenticationRequestSchema.parse({
+        email: ' USER@hufs.ac.kr ',
+      }),
+    ).toEqual({ email: ' USER@hufs.ac.kr ' });
+
+    expect(() =>
+      startEmailAuthenticationRequestSchema.parse({
+        email: 'user@hufs.ac.kr',
+        password: 'secret',
+      }),
+    ).toThrow();
+  });
+
+  it('코드는 6자리이고 링크 token은 43자 base64url이다', () => {
+    expect(verifyEmailCodeRequestSchema.parse({ code: '123456' })).toEqual({
+      code: '123456',
+    });
+    expect(() =>
+      verifyEmailCodeRequestSchema.parse({ code: '12345' }),
+    ).toThrow();
+    expect(
+      confirmEmailLinkRequestSchema.parse({
+        token: 'A'.repeat(43),
+      }),
+    ).toEqual({ token: 'A'.repeat(43) });
+  });
+
   it('로그인 이메일을 정규화하고 빈 비밀번호를 거부한다', () => {
     expect(
       loginRequestSchema.parse({
