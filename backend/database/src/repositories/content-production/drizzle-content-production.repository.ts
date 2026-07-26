@@ -18,6 +18,7 @@ import {
 } from '@flex-thia/domain';
 import type {
   ContentProductionItem,
+  ContentProductionItemSeed,
   ContentProductionJob,
   ContentProductionJobStatus,
   ContentProductionPresetCatalog,
@@ -85,6 +86,8 @@ const loadJob = async (
 
   const inputRows = await executor
     .select({
+      jobInputId: jobInputs.id,
+      ordinal: jobInputs.ordinal,
       uploadId: uploads.id,
       inputType: uploads.inputType,
       inputKey: uploads.objectKey,
@@ -291,10 +294,16 @@ export class DrizzleContentProductionRepository implements ContentProductionRepo
   }
 
   /** 같은 sourceRef 항목은 중복 전달에도 한 번만 생성한다 */
-  async ensureItems(jobId: string, sourceRefs: string[]): Promise<void> {
-    if (sourceRefs.length === 0) {
+  async ensureItems(
+    jobId: string,
+    inputs: string[] | ContentProductionItemSeed[],
+  ): Promise<void> {
+    if (inputs.length === 0) {
       return;
     }
+    const sourceRefs = inputs.map((input) =>
+      typeof input === 'string' ? input : input.sourceRef,
+    );
 
     const job = await this.findById(jobId);
 

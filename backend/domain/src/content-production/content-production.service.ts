@@ -31,6 +31,8 @@ export interface ContentProductionPresetSnapshot {
 
 /** 콘텐츠 제작 입력 snapshot */
 export interface ContentProductionInput {
+  jobInputId?: string;
+  ordinal?: number;
   uploadId: string;
   inputType: ContentProductionInputType;
   inputKey: string;
@@ -41,6 +43,8 @@ export interface ContentProductionInput {
 export interface ContentProductionItem {
   id: string;
   sourceRef: string;
+  jobInputId?: string;
+  operation?: 'VOCABULARY_EXTRACTION' | 'QUESTION_GENERATION';
   status: ContentProductionItemStatus;
   attempt: number;
   retryable: boolean;
