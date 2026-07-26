@@ -28,12 +28,28 @@ export function VocabularyPracticeSessionPageView({
   const firstUnansweredIndex = session.questions.findIndex(
     ({ id }) => !session.answeredQuestionIds.includes(id),
   );
-  const [questionIndex, setQuestionIndex] = useState(firstUnansweredIndex);
+  const [preferredQuestionId, setPreferredQuestionId] = useState(
+    session.questions[firstUnansweredIndex]?.id,
+  );
   const [cardIndex, setCardIndex] = useState(0);
   const [quizStarted, setQuizStarted] = useState(false);
-  const [feedback, setFeedback] = useState<VocabularyPracticeAnswerResponse>();
+  const [submittedFeedback, setSubmittedFeedback] =
+    useState<VocabularyPracticeAnswerResponse>();
+  const preferredQuestionIndex = session.questions.findIndex(
+    ({ id }) =>
+      id === preferredQuestionId &&
+      !session.answeredQuestionIds.includes(id),
+  );
+  const questionIndex =
+    preferredQuestionIndex >= 0
+      ? preferredQuestionIndex
+      : firstUnansweredIndex;
   const question =
     questionIndex < 0 ? undefined : session.questions[questionIndex];
+  const feedback =
+    submittedFeedback?.questionId === question?.id
+      ? submittedFeedback
+      : undefined;
   const nextQuestionIndex = session.questions.findIndex(
     ({ id }, index) =>
       index > questionIndex && !session.answeredQuestionIds.includes(id),
@@ -52,38 +68,13 @@ export function VocabularyPracticeSessionPageView({
 
   if (!quizStarted) {
     return (
-      <section className='grid gap-section'>
-        <h1>단어 익히기</h1>
-        <p>
-          카드 {cardIndex + 1} / {session.cards.length}
-        </p>
-        <PracticeCardView card={session.cards[cardIndex]!} />
-        <div className='flex gap-cluster'>
-          <Button
-            disabled={cardIndex === 0}
-            onClick={() => setCardIndex(cardIndex - 1)}
-            type='button'
-            variant='outline'
-          >
-            이전 카드
-          </Button>
-          <Button
-            disabled={cardIndex + 1 === session.cards.length}
-            onClick={() => setCardIndex(cardIndex + 1)}
-            type='button'
-            variant='outline'
-          >
-            다음 카드
-          </Button>
-        </div>
-        <Button
-          disabled={question === undefined}
-          onClick={() => setQuizStarted(true)}
-          type='button'
-        >
-          기억 확인 시작
-        </Button>
-      </section>
+      <StudyPhase
+        cardIndex={cardIndex}
+        onChangeCard={setCardIndex}
+        onStart={() => setQuizStarted(true)}
+        questionAvailable={question !== undefined}
+        session={session}
+      />
     );
   }
 
@@ -91,6 +82,93 @@ export function VocabularyPracticeSessionPageView({
     return <p>모든 문항에 답했습니다.</p>;
   }
 
+  return (
+    <QuizPhase
+      feedback={feedback}
+      nextQuestionIndex={nextQuestionIndex}
+      onAnswer={onAnswer}
+      onAnswered={setSubmittedFeedback}
+      onNext={() => {
+        setPreferredQuestionId(session.questions[nextQuestionIndex]?.id);
+        setSubmittedFeedback(undefined);
+      }}
+      onShowResult={onShowResult}
+      question={question}
+      session={session}
+    />
+  );
+}
+
+function StudyPhase({
+  cardIndex,
+  onChangeCard,
+  onStart,
+  questionAvailable,
+  session,
+}: {
+  cardIndex: number;
+  onChangeCard: (index: number) => void;
+  onStart: () => void;
+  questionAvailable: boolean;
+  session: VocabularyPracticeSessionResponse;
+}) {
+  const card = session.cards[cardIndex];
+  if (!card) return null;
+  return (
+    <section className='grid gap-section'>
+      <h1>단어 익히기</h1>
+      <p>
+        카드 {cardIndex + 1} / {session.cards.length}
+      </p>
+      <PracticeCardView card={card} />
+      <div className='flex gap-cluster'>
+        <Button
+          disabled={cardIndex === 0}
+          onClick={() => onChangeCard(cardIndex - 1)}
+          type='button'
+          variant='outline'
+        >
+          이전 카드
+        </Button>
+        <Button
+          disabled={cardIndex + 1 === session.cards.length}
+          onClick={() => onChangeCard(cardIndex + 1)}
+          type='button'
+          variant='outline'
+        >
+          다음 카드
+        </Button>
+      </div>
+      <Button
+        disabled={!questionAvailable}
+        onClick={onStart}
+        type='button'
+      >
+        기억 확인 시작
+      </Button>
+    </section>
+  );
+}
+
+function QuizPhase({
+  feedback,
+  nextQuestionIndex,
+  onAnswer,
+  onAnswered,
+  onNext,
+  onShowResult,
+  question,
+  session,
+}: {
+  feedback: VocabularyPracticeAnswerResponse | undefined;
+  nextQuestionIndex: number;
+  onAnswer: VocabularyPracticeSessionPageViewProps['onAnswer'];
+  onAnswered: (feedback: VocabularyPracticeAnswerResponse) => void;
+  onNext: () => void;
+  onShowResult: (sessionId: string) => void;
+  question: VocabularyPracticeSessionResponse['questions'][number];
+  session: VocabularyPracticeSessionResponse;
+}) {
   return (
     <section className='grid gap-section'>
       <p>
@@ -100,32 +178,50 @@ export function VocabularyPracticeSessionPageView({
       <VocabularyPracticeAnswerForm
         key={question.id}
         onAnswer={(request) => onAnswer(question.id, request)}
-        onAnswered={setFeedback}
+        onAnswered={onAnswered}
         question={question}
       />
-      {feedback === undefined ? null : (
-        <PracticeCardView card={feedback.card} />
-      )}
-      {feedback?.sessionCompleted ? (
-        <Button
-          onClick={() => onShowResult(session.id)}
-          type='button'
-        >
-          결과 보기
-        </Button>
-      ) : feedback !== undefined && nextQuestionIndex >= 0 ? (
-        <Button
-          onClick={() => {
-            setQuestionIndex(nextQuestionIndex);
-            setFeedback(undefined);
-          }}
-          type='button'
-          variant='outline'
-        >
-          다음 문항
-        </Button>
-      ) : null}
+      {feedback ? <PracticeCardView card={feedback.card} /> : null}
+      <QuizNavigation
+        feedback={feedback}
+        hasNext={nextQuestionIndex >= 0}
+        onNext={onNext}
+        onShowResult={() => onShowResult(session.id)}
+      />
     </section>
+  );
+}
+
+function QuizNavigation({
+  feedback,
+  hasNext,
+  onNext,
+  onShowResult,
+}: {
+  feedback: VocabularyPracticeAnswerResponse | undefined;
+  hasNext: boolean;
+  onNext: () => void;
+  onShowResult: () => void;
+}) {
+  if (feedback?.sessionCompleted) {
+    return (
+      <Button
+        onClick={onShowResult}
+        type='button'
+      >
+        결과 보기
+      </Button>
+    );
+  }
+  if (!feedback || !hasNext) return null;
+  return (
+    <Button
+      onClick={onNext}
+      type='button'
+      variant='outline'
+    >
+      다음 문항
+    </Button>
   );
 }
 

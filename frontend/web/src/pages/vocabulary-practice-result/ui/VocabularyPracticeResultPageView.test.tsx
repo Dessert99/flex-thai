@@ -102,6 +102,7 @@ describe('단어 연습 결과 화면', () => {
     const user = userEvent.setup();
     const onContinue = vi.fn();
     const { result: _result, ...sessionWithoutResult } = completedSession;
+    expect(_result).toBeDefined();
     renderWithProviders(
       <VocabularyPracticeResultPageView
         onContinue={onContinue}

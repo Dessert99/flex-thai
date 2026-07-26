@@ -1,5 +1,7 @@
 /** 단어 연습 학습 카드·이어 풀기·즉시 피드백 동작을 검증한다 */
 import type {
+  PracticeCard,
+  PracticeQuestion,
   VocabularyPracticeAnswerResponse,
   VocabularyPracticeSessionResponse,
 } from '@flex-thia/contracts';
@@ -25,7 +27,7 @@ const ids = {
   optionFour: '00000000-0000-4000-8000-000000000013',
 };
 
-const cards = [
+const cards: [PracticeCard, PracticeCard] = [
   {
     id: ids.vocabularyOne,
     thai: 'กิน',
@@ -91,6 +93,27 @@ const options = [
   { id: ids.optionFour, label: '읽다' },
 ];
 
+const questions: [PracticeQuestion, PracticeQuestion] = [
+  {
+    id: ids.questionOne,
+    position: 1,
+    vocabularyId: ids.vocabularyOne,
+    meaningId: ids.meaningOne,
+    mode: 'THAI_TO_MEANING',
+    prompt: { type: 'TEXT', text: 'กิน' },
+    options,
+  },
+  {
+    id: ids.questionTwo,
+    position: 2,
+    vocabularyId: ids.vocabularyTwo,
+    meaningId: ids.meaningTwo,
+    mode: 'THAI_TO_MEANING',
+    prompt: { type: 'TEXT', text: 'ไป' },
+    options,
+  },
+];
+
 const session = {
   id: ids.session,
   sourceLabel: 'FLEX 어휘',
@@ -101,26 +124,7 @@ const session = {
   status: 'ACTIVE',
   completedAt: null,
   cards,
-  questions: [
-    {
-      id: ids.questionOne,
-      position: 1,
-      vocabularyId: ids.vocabularyOne,
-      meaningId: ids.meaningOne,
-      mode: 'THAI_TO_MEANING',
-      prompt: { type: 'TEXT', text: 'กิน' },
-      options,
-    },
-    {
-      id: ids.questionTwo,
-      position: 2,
-      vocabularyId: ids.vocabularyTwo,
-      meaningId: ids.meaningTwo,
-      mode: 'THAI_TO_MEANING',
-      prompt: { type: 'TEXT', text: 'ไป' },
-      options,
-    },
-  ],
+  questions,
   answeredQuestionIds: [ids.questionOne],
 } satisfies VocabularyPracticeSessionResponse;
 
@@ -151,7 +155,7 @@ describe('단어 연습 세션 화면', () => {
       selectedLabel: '먹다',
       isCorrect: false,
       correctOptionId: ids.optionTwo,
-      card: cards[1]!,
+      card: cards[1],
       sessionCompleted: true,
       answeredAt: '2026-07-26T00:01:00.000Z',
     };
@@ -184,7 +188,7 @@ describe('단어 연습 세션 화면', () => {
           selectedLabel: '가다',
           isCorrect: true,
           correctOptionId: ids.optionTwo,
-          card: cards[1]!,
+          card: cards[1],
           sessionCompleted: true,
           answeredAt: '2026-07-26T00:01:00.000Z',
         })}
@@ -200,7 +204,9 @@ describe('단어 연습 세션 화면', () => {
     expect(onShowResult).toHaveBeenCalledWith(ids.session);
     expect(screen.queryByRole('button', { name: '다음 문항' })).toBeNull();
   });
+});
 
+describe('단어 연습 세션의 이어 풀기', () => {
   it('이미 완료된 세션을 열면 결과 이동을 제공한다', async () => {
     const user = userEvent.setup();
     const onShowResult = vi.fn();
@@ -235,7 +241,7 @@ describe('단어 연습 세션 화면', () => {
   it('다음 문항은 이미 답한 문항을 건너뛴다', async () => {
     const user = userEvent.setup();
     const thirdQuestion = {
-      ...session.questions[1]!,
+      ...questions[1],
       id: '00000000-0000-4000-8000-000000000014',
       position: 3,
       prompt: { type: 'TEXT' as const, text: 'เขียน' },
@@ -248,7 +254,7 @@ describe('단어 연습 세션 화면', () => {
           selectedLabel: '먹다',
           isCorrect: true,
           correctOptionId: ids.optionOne,
-          card: cards[0]!,
+          card: cards[0],
           sessionCompleted: false,
           answeredAt: '2026-07-26T00:01:00.000Z',
         })}
@@ -256,11 +262,7 @@ describe('단어 연습 세션 화면', () => {
         session={{
           ...session,
           questionCount: 3,
-          questions: [
-            session.questions[0]!,
-            session.questions[1]!,
-            thirdQuestion,
-          ],
+          questions: [questions[0], questions[1], thirdQuestion],
           answeredQuestionIds: [ids.questionTwo],
         }}
       />,
@@ -272,5 +274,31 @@ describe('단어 연습 세션 화면', () => {
 
     expect(screen.getByText('3 / 3')).toBeVisible();
     expect(screen.getByText('เขียน')).toBeVisible();
+  });
+
+  it('refetch로 현재 문항이 답변 처리되면 다음 미응답 문항에 맞춘다', async () => {
+    const user = userEvent.setup();
+    const onAnswer = vi.fn();
+    const onShowResult = vi.fn();
+    const { rerender } = renderWithProviders(
+      <VocabularyPracticeSessionPageView
+        onAnswer={onAnswer}
+        onShowResult={onShowResult}
+        session={{ ...session, answeredQuestionIds: [] }}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: '기억 확인 시작' }));
+    expect(screen.getByText('1 / 2')).toBeVisible();
+
+    rerender(
+      <VocabularyPracticeSessionPageView
+        onAnswer={onAnswer}
+        onShowResult={onShowResult}
+        session={{ ...session, answeredQuestionIds: [ids.questionOne] }}
+      />,
+    );
+
+    expect(await screen.findByText('2 / 2')).toBeVisible();
+    expect(screen.getByText('ไป')).toBeVisible();
   });
 });

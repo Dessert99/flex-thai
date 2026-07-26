@@ -80,7 +80,9 @@ describe('단어 연습 답안 form', () => {
   it('실패 재시도에 같은 clientAnswerId를 사용하고 성공 뒤 정답을 공개한다', async () => {
     const user = userEvent.setup();
     const clientAnswerId = '00000000-0000-4000-8000-000000000209';
-    vi.spyOn(crypto, 'randomUUID').mockReturnValue(clientAnswerId);
+    const randomUUID = vi
+      .spyOn(crypto, 'randomUUID')
+      .mockReturnValue(clientAnswerId);
     const onAnswer = vi
       .fn()
       .mockRejectedValueOnce(new Error('network'))
@@ -109,6 +111,6 @@ describe('단어 연습 답안 form', () => {
       clientAnswerId,
       selectedOptionId: correctOptionId,
     });
-    expect(crypto.randomUUID).toHaveBeenCalledOnce();
+    expect(randomUUID).toHaveBeenCalledOnce();
   });
 });

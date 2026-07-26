@@ -33,6 +33,10 @@ export function VocabularyPracticeSetupPageContainer({
       />
     );
   }
+  const searchState = getSearchState(query, {
+    isError: vocabularies.isError,
+    isPending: vocabularies.isPending,
+  });
   return (
     <section
       aria-labelledby='practice-setup-title'
@@ -45,17 +49,18 @@ export function VocabularyPracticeSetupPageContainer({
         onSearch={setQuery}
         onStart={startVocabularyPractice}
         searchResults={vocabularies.data?.items ?? []}
-        searchState={
-          query.trim().length === 0
-            ? 'IDLE'
-            : vocabularies.isPending
-              ? 'LOADING'
-              : vocabularies.isError
-                ? 'ERROR'
-                : 'SUCCESS'
-        }
+        searchState={searchState}
         wordbooks={wordbooks.data.items}
       />
     </section>
   );
+}
+
+function getSearchState(
+  query: string,
+  state: { isError: boolean; isPending: boolean },
+) {
+  if (query.trim().length === 0) return 'IDLE' as const;
+  if (state.isPending) return 'LOADING' as const;
+  return state.isError ? ('ERROR' as const) : ('SUCCESS' as const);
 }
