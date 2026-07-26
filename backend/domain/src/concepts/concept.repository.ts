@@ -1,7 +1,7 @@
 /** 개념 수명주기를 원자 저장하는 repository port를 정의한다 */
 import type {
-  ConceptCandidateBlock,
   ConceptCategory,
+  ConceptDraftBlock,
   ConceptValidationCandidate,
   ConceptValidationIssue,
   ConceptValidationStatus,
@@ -21,7 +21,7 @@ export interface ConceptDraftInput {
   position: number;
   title: string;
   summary: string;
-  blocks: ConceptCandidateBlock[];
+  blocks: ConceptDraftBlock[];
 }
 
 /** 첫 개념 생성 입력 */

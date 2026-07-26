@@ -38,11 +38,15 @@ export interface ConceptRuleTableBlock {
   rows: string[][];
 }
 
-/** 기존 문장 버전 참조 */
-export interface ConceptExampleReference {
+/** 개념 초안의 기존 문장 버전 입력 */
+export interface ConceptExampleInput {
   position: number;
   sentenceVersionId: string;
   noteKo: string | null;
+}
+
+/** 검증 후보의 해석된 기존 문장 버전 참조 */
+export interface ConceptExampleReference extends ConceptExampleInput {
   sentenceExists: boolean;
   audioAssetExists: boolean;
   audioAssetStatus: MediaAssetStatus;
@@ -55,6 +59,20 @@ export interface ConceptExamplesBlock {
   heading: string;
   examples: ConceptExampleReference[];
 }
+
+/** 관리자 초안 입력의 태국어 예시 블록 */
+export interface ConceptExamplesInputBlock {
+  kind: 'THAI_EXAMPLES';
+  position: number;
+  heading: string;
+  examples: ConceptExampleInput[];
+}
+
+/** 관리자 초안 전체 교체에 사용하는 블록 */
+export type ConceptDraftBlock =
+  | ConceptExplanationBlock
+  | ConceptRuleTableBlock
+  | ConceptExamplesInputBlock;
 
 /** 검증 가능한 개념 블록 */
 export type ConceptCandidateBlock =
