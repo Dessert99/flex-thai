@@ -91,12 +91,19 @@ export class ConceptService {
   }
 
   /** 검증된 같은 revision의 초안을 게시한다 */
-  publishVersion(
+  async publishVersion(
     versionId: string,
-    expectedRevision: number,
     context: ConceptCommandContext,
   ): Promise<void> {
-    return this.repository.publish({ versionId, expectedRevision }, context);
+    const candidate =
+      await this.repository.loadValidationCandidate(versionId);
+    if (!candidate) {
+      throw new ConceptDomainError('CONCEPT_VERSION_NOT_FOUND');
+    }
+    await this.repository.publish(
+      { versionId, expectedRevision: candidate.revision },
+      context,
+    );
   }
 
   /** 게시 개념을 숨긴다 */
