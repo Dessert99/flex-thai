@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { SubmitAnswerForm } from '@/features/submit-answer';
 import { SavedQuestionButton } from '@/features/toggle-saved-question';
 import { Button } from '@/shared/ui/button';
-import { toQuestionSentenceViewModels } from '../model/questionViewModel';
+import { toQuestionBlockViewModels } from '../model/questionViewModel';
+import { QuestionContent } from './QuestionContent';
 
 interface QuestionSolvingPageViewProps {
   detail: QuestionDetailResponse;
@@ -17,9 +18,9 @@ export function QuestionSolvingPageView({
   onSavedConfirmed,
 }: QuestionSolvingPageViewProps) {
   const [transcriptRevealed, setTranscriptRevealed] = useState(false);
-  const sentences = toQuestionSentenceViewModels(detail);
-  const hasHiddenTranscript = sentences.some(
-    (sentence) => sentence.hiddenInitially,
+  const blocks = toQuestionBlockViewModels(detail);
+  const hasHiddenTranscript = blocks.some(
+    (block) => block.displayMode === 'AUDIO_THEN_REVEAL',
   );
 
   return (
@@ -34,30 +35,10 @@ export function QuestionSolvingPageView({
           saved={detail.saved}
         />
       </header>
-      {sentences.map((sentence) => (
-        <section
-          className='grid gap-cluster rounded-panel border border-default p-page'
-          key={sentence.id}
-        >
-          {/* 계약 대본을 인접 제공하므로 VTT endpoint가 없는 audio 규칙만 제한한다. */}
-          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-          <audio
-            controls
-            src={sentence.audioUrl}
-          />
-          {!sentence.hiddenInitially || transcriptRevealed ? (
-            <>
-              <p
-                className='font-thai text-title text-primary'
-                lang='th'
-              >
-                {sentence.originalText}
-              </p>
-              <p className='text-body text-subtle'>{sentence.translationKo}</p>
-            </>
-          ) : null}
-        </section>
-      ))}
+      <QuestionContent
+        blocks={blocks}
+        transcriptRevealed={transcriptRevealed}
+      />
       {hasHiddenTranscript && !transcriptRevealed ? (
         <Button
           onClick={() => {
@@ -70,6 +51,9 @@ export function QuestionSolvingPageView({
         </Button>
       ) : null}
       <SubmitAnswerForm
+        onConfirmed={() => {
+          setTranscriptRevealed(true);
+        }}
         options={detail.options.map((option) => ({
           id: option.id,
           label: option.sentence.originalText,
