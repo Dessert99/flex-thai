@@ -1,10 +1,16 @@
 /** 정답 비노출 문제 상세와 사용자 제어 대본·답안 행동을 조합한다 */
-import type { QuestionDetailResponse } from '@flex-thia/contracts';
+import type {
+  QuestionDetailResponse,
+  SubmitQuestionAttemptResponse,
+} from '@flex-thia/contracts';
 import { useState } from 'react';
 import { SubmitAnswerForm } from '@/features/submit-answer';
 import { SavedQuestionButton } from '@/features/toggle-saved-question';
 import { Button } from '@/shared/ui/button';
-import { toQuestionBlockViewModels } from '../model/questionViewModel';
+import {
+  type QuestionBlockViewModel,
+  toQuestionBlockViewModels,
+} from '../model/questionViewModel';
 import { QuestionContent } from './QuestionContent';
 
 interface QuestionSolvingPageViewProps {
@@ -18,6 +24,8 @@ export function QuestionSolvingPageView({
   onSavedConfirmed,
 }: QuestionSolvingPageViewProps) {
   const [transcriptRevealed, setTranscriptRevealed] = useState(false);
+  const [submission, setSubmission] =
+    useState<SubmitQuestionAttemptResponse>();
   const blocks = toQuestionBlockViewModels(detail);
   const hasHiddenTranscript = blocks.some(
     (block) => block.displayMode === 'AUDIO_THEN_REVEAL',
@@ -51,16 +59,46 @@ export function QuestionSolvingPageView({
         </Button>
       ) : null}
       <SubmitAnswerForm
-        onConfirmed={() => {
+        onConfirmed={(response) => {
           setTranscriptRevealed(true);
+          setSubmission(response);
+        }}
+        onReset={() => {
+          setSubmission(undefined);
         }}
         options={detail.options.map((option) => ({
           id: option.id,
           label: option.sentence.originalText,
+          span: option.span ?? null,
         }))}
         questionId={detail.questionId}
         questionVersionId={detail.questionVersionId}
       />
+      {submission === undefined ? null : (
+        <section className='grid gap-cluster'>
+          <h2 className='text-title text-primary'>해설</h2>
+          <QuestionContent
+            blocks={toExplanationBlockViewModels(submission)}
+            transcriptRevealed
+          />
+        </section>
+      )}
     </article>
   );
+}
+
+function toExplanationBlockViewModels(
+  response: SubmitQuestionAttemptResponse,
+): QuestionBlockViewModel[] {
+  return [...response.feedback.explanationBlocks]
+    .sort((left, right) => left.position - right.position)
+    .map((block) => ({
+      id: block.id,
+      kind: block.kind,
+      displayMode: block.displayMode,
+      position: block.position,
+      sentences: [...block.sentences].sort(
+        (left, right) => left.position - right.position,
+      ),
+    }));
 }

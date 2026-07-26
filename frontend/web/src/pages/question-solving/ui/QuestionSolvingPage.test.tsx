@@ -90,6 +90,32 @@ describe('문제 풀이 페이지', () => {
     expect(await screen.findAllByText('สวัสดีครับ')).toHaveLength(2);
   });
 
+  it('제출 뒤 선택지와 상호작용 해설을 유지한다', async () => {
+    const detail = createQuestionWithInteractiveExplanation();
+    mocks.authenticatedRequest.mockImplementation(
+      ({ path }: { path: string }) =>
+        Promise.resolve(
+          path.endsWith('/attempts')
+            ? createInteractiveFeedback(detail)
+            : detail,
+        ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(
+      <QuestionSolvingPageContainer questionId={detail.questionId} />,
+    );
+
+    await user.click(await screen.findByRole('radio', { name: 'คำตอบ' }));
+    await user.click(screen.getByRole('button', { name: '답안 제출' }));
+
+    expect(
+      await screen.findByRole('radio', { name: /선택한 답/ }),
+    ).toBeChecked();
+    expect(
+      screen.getByRole('button', { name: 'เพราะ 뜻과 발음 듣기' }),
+    ).toBeVisible();
+  });
+
   it('QUESTION_UNAVAILABLE 충돌에서 문제 목록 복구 경로를 제공한다', async () => {
     mocks.authenticatedRequest.mockRejectedValue(
       new ApiError({
@@ -203,6 +229,55 @@ function createFeedback() {
     feedback: {
       correctOptionId: '01933b6a-8f13-7a19-b7e5-536d70f57ae1',
       explanationBlocks: [],
+    },
+  };
+}
+
+function createQuestionWithInteractiveExplanation(): QuestionDetailResponse {
+  return createQuestion();
+}
+
+function createInteractiveFeedback(detail: QuestionDetailResponse) {
+  const base = createFeedback();
+  const sentence = detail.blocks[0]!.sentences[0]!.sentence;
+  const explanationSentence = {
+    ...sentence,
+    sentenceVersionId: '01933b6a-8f13-7a19-b7e5-536d70f57af3',
+    originalText: 'เพราะ',
+    translationKo: '왜냐하면',
+    tokens: [
+      {
+        position: 0,
+        surface: 'เพราะ',
+        startOffset: 0,
+        endOffset: 5,
+        vocabularyId: '01933b6a-8f13-7a19-b7e5-536d70f57af4',
+        meaningId: '01933b6a-8f13-7a19-b7e5-536d70f57af5',
+        pronunciationId: '01933b6a-8f13-7a19-b7e5-536d70f57af6',
+        contextMeaningKo: '왜냐하면',
+        pronunciationKo: '프러',
+        toneMarks: 'H',
+        audioUrl: null,
+        role: 'TARGET' as const,
+      },
+    ],
+  };
+
+  return {
+    ...base,
+    feedback: {
+      ...base.feedback,
+      explanationBlocks: [
+        {
+          id: '01933b6a-8f13-7a19-b7e5-536d70f57af7',
+          kind: 'EXPLANATION',
+          displayMode: 'TEXT',
+          position: 0,
+          sentences: [
+            { position: 0, speaker: null, sentence: explanationSentence },
+          ],
+        },
+      ],
     },
   };
 }

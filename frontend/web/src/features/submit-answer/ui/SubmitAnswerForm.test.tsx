@@ -22,10 +22,12 @@ const options = [
   {
     id: '01933b6a-8f13-7a19-b7e5-536d70f57ab1',
     label: 'ตัวเลือกหนึ่ง',
+    span: null,
   },
   {
     id: '01933b6a-8f13-7a19-b7e5-536d70f57ab2',
     label: 'ตัวเลือกสอง',
+    span: null,
   },
 ];
 
@@ -71,6 +73,56 @@ describe('답안 제출 폼', () => {
       submittedCommand(1).clientAttemptId,
     );
     expect(await screen.findByText('정답입니다.')).toBeInTheDocument();
+  });
+
+  it('inline 범위를 문장 안에 표시하고 별도 radio로 선택한다', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <SubmitAnswerForm
+        options={options.map((option, index) => ({
+          ...option,
+          span: {
+            sentenceVersionId: '01933b6a-8f13-7a19-b7e5-536d70f57aff',
+            startTokenIndex: index,
+            endTokenIndex: index + 1,
+          },
+        }))}
+        questionId='01933b6a-8f13-7a19-b7e5-536d70f57aaa'
+        questionVersionId='01933b6a-8f13-7a19-b7e5-536d70f57aab'
+      />,
+    );
+
+    expect(screen.getAllByTestId('inline-option-span')).toHaveLength(2);
+    const radios = screen.getAllByRole('radio');
+    await user.click(radios[1]!);
+
+    expect(radios[1]).toBeChecked();
+    expect(radios[1]!.querySelector('button')).toBeNull();
+  });
+
+  it('방향키로 radio를 이동하고 제출 뒤 선택·정답 상태를 유지한다', async () => {
+    mocks.submitAnswer.mockResolvedValue(createFeedback(false));
+    const user = userEvent.setup();
+    renderWithProviders(
+      <SubmitAnswerForm
+        options={options}
+        questionId='01933b6a-8f13-7a19-b7e5-536d70f57aaa'
+        questionVersionId='01933b6a-8f13-7a19-b7e5-536d70f57aab'
+      />,
+    );
+
+    const radios = screen.getAllByRole('radio');
+    await user.click(radios[0]!);
+    await user.keyboard('{ArrowDown}');
+    expect(radios[1]).toBeChecked();
+
+    await user.keyboard('{ArrowUp}');
+    await user.click(screen.getByRole('button', { name: '답안 제출' }));
+
+    expect(
+      await screen.findByRole('radio', { name: /선택한 답/ }),
+    ).toBeChecked();
+    expect(screen.getByText('정답')).toBeVisible();
   });
 });
 

@@ -3,8 +3,8 @@ import type { SubmitQuestionAttemptResponse } from '@flex-thia/contracts';
 import { useMutation } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { Button } from '@/shared/ui/button';
+import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/shared/ui/radio-group';
 import {
   submitAnswer,
   type SubmitAnswerCommand,
@@ -13,14 +13,27 @@ import { createClientAttemptId } from '../model/createClientAttemptId';
 
 interface SubmitAnswerFormProps {
   onConfirmed?: (response: SubmitQuestionAttemptResponse) => void;
-  options: ReadonlyArray<{ id: string; label: string }>;
+  onReset?: () => void;
+  options: readonly SubmitAnswerOption[];
   questionId: string;
   questionVersionId: string;
+}
+
+/** 표준·inline 선택지가 공유하는 제출 표시 정보 */
+export interface SubmitAnswerOption {
+  id: string;
+  label: string;
+  span: {
+    sentenceVersionId: string;
+    startTokenIndex: number;
+    endTokenIndex: number;
+  } | null;
 }
 
 /** 실패 재시도에는 command를 보존하고 다시 풀기에서만 새 제출을 시작한다 */
 export function SubmitAnswerForm({
   onConfirmed,
+  onReset,
   options,
   questionId,
   questionVersionId,
@@ -59,21 +72,6 @@ export function SubmitAnswerForm({
     mutation.mutate(nextCommand);
   };
 
-  if (feedback !== undefined) {
-    return (
-      <AnswerFeedback
-        isCorrect={feedback.attempt.isCorrect}
-        onReset={() => {
-          setSelectedOptionId(undefined);
-          setCommand(undefined);
-          setFeedback(undefined);
-          mutation.reset();
-          startedAt.current = undefined;
-        }}
-      />
-    );
-  }
-
   return (
     <form
       className='grid gap-section'
@@ -82,23 +80,35 @@ export function SubmitAnswerForm({
         submit();
       }}
     >
-      <RadioGroup
-        onValueChange={(value) => {
-          startedAt.current ??= Date.now();
-          setSelectedOptionId(value);
-          if (command?.selectedOptionId !== value) {
-            setCommand(undefined);
-          }
-        }}
-        value={selectedOptionId ?? ''}
-      >
+      <fieldset className='grid gap-3'>
+        <legend className='sr-only'>답안 선택</legend>
         {options.map((option) => (
           <div
             className='flex items-center gap-cluster rounded-control border border-default p-cluster'
             key={option.id}
           >
-            <RadioGroupItem
+            <Input
+              aria-describedby={
+                option.span === null ? undefined : `inline-option-${option.id}`
+              }
+              aria-label={getOptionAccessibleName(
+                option,
+                selectedOptionId,
+                feedback,
+              )}
+              checked={selectedOptionId === option.id}
+              className='size-4 shrink-0 p-0 shadow-none'
+              disabled={feedback !== undefined}
               id={`answer-${option.id}`}
+              name='answer'
+              onChange={() => {
+                startedAt.current ??= Date.now();
+                setSelectedOptionId(option.id);
+                if (command?.selectedOptionId !== option.id) {
+                  setCommand(undefined);
+                }
+              }}
+              type='radio'
               value={option.id}
             />
             <Label
@@ -106,20 +116,74 @@ export function SubmitAnswerForm({
               htmlFor={`answer-${option.id}`}
               lang='th'
             >
-              {option.label}
+              {option.span === null ? (
+                option.label
+              ) : (
+                <mark
+                  data-testid='inline-option-span'
+                  id={`inline-option-${option.id}`}
+                >
+                  {option.label}
+                </mark>
+              )}
             </Label>
+            {selectedOptionId === option.id && feedback !== undefined ? (
+              <span>선택한 답</span>
+            ) : null}
+            {feedback?.feedback.correctOptionId === option.id ? (
+              <span>정답</span>
+            ) : null}
           </div>
         ))}
-      </RadioGroup>
+      </fieldset>
       {mutation.isError ? <SubmissionError /> : null}
       <Button
-        disabled={selectedOptionId === undefined || mutation.isPending}
+        disabled={
+          selectedOptionId === undefined ||
+          mutation.isPending ||
+          feedback !== undefined
+        }
         type='submit'
       >
-        {mutation.isError ? '같은 답안 다시 제출' : '답안 제출'}
+        {feedback !== undefined
+          ? '제출 완료'
+          : mutation.isError
+            ? '같은 답안 다시 제출'
+            : '답안 제출'}
       </Button>
+      {feedback === undefined ? null : (
+        <AnswerFeedback
+          isCorrect={feedback.attempt.isCorrect}
+          onReset={() => {
+            setSelectedOptionId(undefined);
+            setCommand(undefined);
+            setFeedback(undefined);
+            mutation.reset();
+            startedAt.current = undefined;
+            onReset?.();
+          }}
+        />
+      )}
     </form>
   );
+}
+
+function getOptionAccessibleName(
+  option: SubmitAnswerOption,
+  selectedOptionId: string | undefined,
+  feedback: SubmitQuestionAttemptResponse | undefined,
+) {
+  if (feedback === undefined) {
+    return option.label;
+  }
+
+  return [
+    option.label,
+    selectedOptionId === option.id ? '선택한 답' : null,
+    feedback.feedback.correctOptionId === option.id ? '정답' : null,
+  ]
+    .filter((value) => value !== null)
+    .join(' ');
 }
 
 function SubmissionError() {

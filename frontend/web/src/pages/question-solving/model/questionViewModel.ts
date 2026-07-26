@@ -4,7 +4,7 @@ import type { QuestionDetailResponse } from '@flex-thia/contracts';
 /** 문제 상세의 block과 문장 표시 정보를 보존한다 */
 export interface QuestionBlockViewModel {
   id: string;
-  kind: QuestionDetailResponse['blocks'][number]['kind'];
+  kind: QuestionDetailResponse['blocks'][number]['kind'] | 'EXPLANATION';
   displayMode: QuestionDetailResponse['blocks'][number]['displayMode'];
   position: number;
   sentences: QuestionDetailResponse['blocks'][number]['sentences'];
