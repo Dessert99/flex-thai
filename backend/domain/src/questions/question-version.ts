@@ -29,7 +29,7 @@ export type QuestionDisplayMode =
 /** 게시 검증이 확인할 공용 어휘 현재 상태 */
 export interface ReferencedVocabularyState {
   id: string;
-  status: 'DRAFT' | 'PUBLISHED' | 'HIDDEN';
+  status: 'DRAFT' | 'PUBLISHED' | 'HIDDEN' | 'MERGED';
 }
 
 /** 문장 입력과 게시 시점의 최신 참조 상태 */

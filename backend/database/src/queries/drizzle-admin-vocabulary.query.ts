@@ -8,6 +8,7 @@ import {
   desc,
   eq,
   inArray,
+  or,
   sql,
   type SQL,
 } from 'drizzle-orm';
@@ -26,6 +27,7 @@ import {
   vocabularyMeanings,
   vocabularyPronunciations,
 } from '../schema/index.js';
+import { vocabularyMeaningRelations } from '../schema/vocabulary.schema.js';
 import * as schema from '../schema/index.js';
 
 type AdminVocabularyDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
@@ -34,7 +36,7 @@ type AdminVocabularyDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 export interface AdminVocabularyListQuery {
   query?: string;
   kind?: 'WORD' | 'EXPRESSION';
-  status?: 'DRAFT' | 'PUBLISHED' | 'HIDDEN';
+  status?: 'DRAFT' | 'PUBLISHED' | 'HIDDEN' | 'MERGED';
   page: number;
   pageSize: number;
 }
@@ -44,7 +46,8 @@ export interface AdminVocabularyListItemProjection {
   id: string;
   thai: string;
   kind: 'WORD' | 'EXPRESSION';
-  status: 'DRAFT' | 'PUBLISHED' | 'HIDDEN';
+  status: 'DRAFT' | 'PUBLISHED' | 'HIDDEN' | 'MERGED';
+  mergedIntoVocabularyId: string | null;
   meaningCount: number;
   pronunciationCount: number;
   updatedAt: Date;
@@ -93,10 +96,21 @@ export interface AdminVocabularyDetailProjection {
   id: string;
   thai: string;
   kind: 'WORD' | 'EXPRESSION';
-  status: 'DRAFT' | 'PUBLISHED' | 'HIDDEN';
+  status: 'DRAFT' | 'PUBLISHED' | 'HIDDEN' | 'MERGED';
+  mergedIntoVocabularyId: string | null;
   meanings: AdminVocabularyMeaningProjection[];
   pronunciations: AdminVocabularyPronunciationProjection[];
   meaningPronunciations: AdminVocabularyMeaningPronunciationProjection[];
+  relations: Array<{
+    id: string;
+    sourceMeaningId: string;
+    targetMeaningId: string;
+    type: 'SYNONYM' | 'ANTONYM' | 'RELATED';
+    direction: 'DIRECTED' | 'BIDIRECTIONAL';
+    status: 'PENDING' | 'PASSED' | 'FAILED';
+    createdAt: Date;
+    updatedAt: Date;
+  }>;
   usage: {
     sentenceVersionIds: string[];
     questionVersionIds: string[];
@@ -128,6 +142,7 @@ const listSelection = {
   thai: vocabularies.thai,
   kind: vocabularies.kind,
   status: vocabularies.status,
+  mergedIntoVocabularyId: vocabularies.mergedIntoVocabularyId,
   meaningCount: countDistinct(vocabularyMeanings.id),
   pronunciationCount: countDistinct(vocabularyPronunciations.id),
   updatedAt: vocabularies.updatedAt,
@@ -171,6 +186,7 @@ export class DrizzleAdminVocabularyQuery {
         vocabularies.thai,
         vocabularies.kind,
         vocabularies.status,
+        vocabularies.mergedIntoVocabularyId,
         vocabularies.updatedAt,
       )
       .orderBy(desc(vocabularies.updatedAt), desc(vocabularies.id))
@@ -198,6 +214,7 @@ export class DrizzleAdminVocabularyQuery {
         thai: vocabularies.thai,
         kind: vocabularies.kind,
         status: vocabularies.status,
+        mergedIntoVocabularyId: vocabularies.mergedIntoVocabularyId,
         createdAt: vocabularies.createdAt,
         updatedAt: vocabularies.updatedAt,
       })
@@ -302,12 +319,36 @@ export class DrizzleAdminVocabularyQuery {
       ...blockQuestionRows.map(({ questionVersionId }) => questionVersionId),
       ...optionQuestionRows.map(({ questionVersionId }) => questionVersionId),
     ]);
+    const meaningIds = meanings.map(({ id }) => id);
+    const relations =
+      meaningIds.length === 0
+        ? []
+        : await this.database
+            .select({
+              id: vocabularyMeaningRelations.id,
+              sourceMeaningId: vocabularyMeaningRelations.sourceMeaningId,
+              targetMeaningId: vocabularyMeaningRelations.targetMeaningId,
+              type: vocabularyMeaningRelations.type,
+              direction: vocabularyMeaningRelations.direction,
+              status: vocabularyMeaningRelations.status,
+              createdAt: vocabularyMeaningRelations.createdAt,
+              updatedAt: vocabularyMeaningRelations.updatedAt,
+            })
+            .from(vocabularyMeaningRelations)
+            .where(
+              or(
+                inArray(vocabularyMeaningRelations.sourceMeaningId, meaningIds),
+                inArray(vocabularyMeaningRelations.targetMeaningId, meaningIds),
+              ),
+            )
+            .orderBy(asc(vocabularyMeaningRelations.id));
 
     return {
       ...vocabulary,
       meanings,
       pronunciations,
       meaningPronunciations,
+      relations,
       usage: { sentenceVersionIds, questionVersionIds },
     };
   }

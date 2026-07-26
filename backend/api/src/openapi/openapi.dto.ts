@@ -13,6 +13,14 @@ import {
   adminVocabularyListQuerySchema,
   adminVocabularyListResponseSchema,
   adminVocabularyReplaceRequestSchema,
+  adminVocabularyMergeExecuteRequestSchema,
+  adminVocabularyMergePreviewRequestSchema,
+  adminVocabularyMergePreviewResponseSchema,
+  adminVocabularyMergeResponseSchema,
+  adminVocabularyRelationCreateRequestSchema,
+  adminVocabularyRelationPathSchema,
+  adminVocabularyRelationSchema,
+  adminVocabularyRelationUpdateRequestSchema,
   audioUploadRequestSchema,
   audioUploadResponseSchema,
   authenticatedResponseSchema,
@@ -366,4 +374,44 @@ export class AdminVocabularyIdPathDto extends createZodDto(
 /** 관리자 어휘 전체 교체 요청 Swagger DTO */
 export class AdminVocabularyReplaceRequestDto extends createZodDto(
   adminVocabularyReplaceRequestSchema,
+) {}
+
+/** 관리자 뜻 관계 경로 Swagger DTO */
+export class AdminVocabularyRelationPathDto extends createZodDto(
+  adminVocabularyRelationPathSchema,
+) {}
+
+/** 관리자 뜻 관계 생성 Swagger DTO */
+export class AdminVocabularyRelationCreateRequestDto extends createZodDto(
+  adminVocabularyRelationCreateRequestSchema,
+) {}
+
+/** 관리자 뜻 관계 수정 Swagger DTO */
+export class AdminVocabularyRelationUpdateRequestDto extends createZodDto(
+  adminVocabularyRelationUpdateRequestSchema,
+) {}
+
+/** 관리자 뜻 관계 응답 Swagger DTO */
+export class AdminVocabularyRelationDto extends createZodDto(
+  adminVocabularyRelationSchema,
+) {}
+
+/** 관리자 어휘 병합 preview 요청 Swagger DTO */
+export class AdminVocabularyMergePreviewRequestDto extends createZodDto(
+  adminVocabularyMergePreviewRequestSchema,
+) {}
+
+/** 관리자 어휘 병합 preview 응답 Swagger DTO */
+export class AdminVocabularyMergePreviewResponseDto extends createZodDto(
+  adminVocabularyMergePreviewResponseSchema,
+) {}
+
+/** 관리자 어휘 병합 실행 요청 Swagger DTO */
+export class AdminVocabularyMergeExecuteRequestDto extends createZodDto(
+  adminVocabularyMergeExecuteRequestSchema,
+) {}
+
+/** 관리자 어휘 병합 결과 Swagger DTO */
+export class AdminVocabularyMergeResponseDto extends createZodDto(
+  adminVocabularyMergeResponseSchema,
 ) {}

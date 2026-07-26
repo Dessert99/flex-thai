@@ -40,7 +40,11 @@ const ACTIVE_PATHS = [
   '/api/v1/admin/vocabularies',
   '/api/v1/admin/vocabularies/{vocabularyId}',
   '/api/v1/admin/vocabularies/{vocabularyId}/hide',
+  '/api/v1/admin/vocabularies/{vocabularyId}/merge',
+  '/api/v1/admin/vocabularies/{vocabularyId}/merge-preview',
   '/api/v1/admin/vocabularies/{vocabularyId}/publish',
+  '/api/v1/admin/vocabularies/{vocabularyId}/relations',
+  '/api/v1/admin/vocabularies/{vocabularyId}/relations/{relationId}',
   '/api/v1/admin/vocabularies/{vocabularyId}/restore',
   '/api/v1/admin/users',
   '/api/v1/admin/users/{userId}/status',
@@ -690,6 +694,45 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
     errors: ['400', '401', '403', '404', '409', '500'],
   },
   {
+    method: 'post',
+    path: '/api/v1/admin/vocabularies/{vocabularyId}/relations',
+    pathParameters: ['vocabularyId'],
+    body: 'AdminVocabularyRelationCreateRequestDto',
+    success: ['201', 'AdminVocabularyRelationDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'put',
+    path: '/api/v1/admin/vocabularies/{vocabularyId}/relations/{relationId}',
+    pathParameters: ['vocabularyId', 'relationId'],
+    body: 'AdminVocabularyRelationUpdateRequestDto',
+    success: ['200', 'AdminVocabularyRelationDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'delete',
+    path: '/api/v1/admin/vocabularies/{vocabularyId}/relations/{relationId}',
+    pathParameters: ['vocabularyId', 'relationId'],
+    success: ['204'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/vocabularies/{vocabularyId}/merge-preview',
+    pathParameters: ['vocabularyId'],
+    body: 'AdminVocabularyMergePreviewRequestDto',
+    success: ['200', 'AdminVocabularyMergePreviewResponseDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/vocabularies/{vocabularyId}/merge',
+    pathParameters: ['vocabularyId'],
+    body: 'AdminVocabularyMergeExecuteRequestDto',
+    success: ['200', 'AdminVocabularyMergeResponseDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
     method: 'get',
     path: '/api/v1/admin/users',
     success: ['200', 'UserManagementListResponseDto'],
@@ -945,7 +988,7 @@ describe('OpenAPI 문서', () => {
     await app?.close();
   });
 
-  it('현재 활성 endpoint의 서로 다른 path 예순여덟 개만 공개한다', () => {
+  it('현재 활성 endpoint의 서로 다른 path 일흔두 개만 공개한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
@@ -1208,12 +1251,12 @@ describe('OpenAPI 문서', () => {
     expectProtectedOpenApiOperations(document, LEARNER_OPERATIONS);
   });
 
-  it('관리자 operation 서른여덟 개의 입력·성공·Bearer·오류 계약을 모두 고정한다', () => {
+  it('관리자 operation 마흔세 개의 입력·성공·Bearer·오류 계약을 모두 고정한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
 
-    expect(ADMIN_OPERATIONS).toHaveLength(38);
+    expect(ADMIN_OPERATIONS).toHaveLength(43);
     expectProtectedOpenApiOperations(document, ADMIN_OPERATIONS);
   });
 

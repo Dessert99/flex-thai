@@ -7,6 +7,9 @@ import {
   adminQuestionVersionResponseSchema,
   adminVocabularyDetailResponseSchema,
   adminVocabularyListResponseSchema,
+  adminVocabularyMergePreviewResponseSchema,
+  adminVocabularyMergeResponseSchema,
+  adminVocabularyRelationSchema,
   audioUploadResponseSchema,
   completeMediaAssetResponseSchema,
   contentImportDetailResponseSchema,
@@ -21,6 +24,13 @@ import {
   type AdminVocabularyDetailResponse,
   type AdminVocabularyListQuery,
   type AdminVocabularyListResponse,
+  type AdminVocabularyMergeExecuteRequest,
+  type AdminVocabularyMergePreviewRequest,
+  type AdminVocabularyMergePreviewResponse,
+  type AdminVocabularyMergeResponse,
+  type AdminVocabularyRelation,
+  type AdminVocabularyRelationCreateRequest,
+  type AdminVocabularyRelationUpdateRequest,
   type AdminVocabularyReplaceRequest,
   type AudioUploadRequest,
   type AudioUploadResponse,
@@ -66,7 +76,15 @@ type QuestionPublication = Pick<
 type QuestionQuery = Pick<DrizzleAdminQuestionQuery, 'findById' | 'list'>;
 type Vocabularies = Pick<
   VocabularyAdminService,
-  'hide' | 'publish' | 'replace' | 'restore'
+  | 'createRelation'
+  | 'deleteRelation'
+  | 'hide'
+  | 'merge'
+  | 'previewMerge'
+  | 'publish'
+  | 'replace'
+  | 'restore'
+  | 'updateRelation'
 >;
 type VocabularyQuery = Pick<DrizzleAdminVocabularyQuery, 'findById' | 'list'>;
 
@@ -436,6 +454,11 @@ export class AdminContentService {
     }
     return parseAdminPublicResponse(adminVocabularyDetailResponseSchema, {
       ...vocabulary,
+      relations: vocabulary.relations.map((relation) => ({
+        ...relation,
+        createdAt: relation.createdAt.toISOString(),
+        updatedAt: relation.updatedAt.toISOString(),
+      })),
       createdAt: vocabulary.createdAt.toISOString(),
       updatedAt: vocabulary.updatedAt.toISOString(),
     });
@@ -486,6 +509,87 @@ export class AdminContentService {
       vocabularyId,
       ...toAuditContext(actor, this.now()),
     });
+  }
+
+  /** 두 뜻을 PENDING 관계로 연결한다 */
+  async createVocabularyRelation(
+    actor: AdminActorContext,
+    vocabularyId: string,
+    input: AdminVocabularyRelationCreateRequest,
+  ): Promise<AdminVocabularyRelation> {
+    const relation = await this.dependencies.vocabularies.createRelation({
+      vocabularyId,
+      input,
+      ...toAuditContext(actor, this.now()),
+    });
+    return parseAdminPublicResponse(adminVocabularyRelationSchema, {
+      ...relation,
+      createdAt: relation.createdAt.toISOString(),
+      updatedAt: relation.updatedAt.toISOString(),
+    });
+  }
+
+  /** 관계 메타데이터 또는 검토 상태를 변경한다 */
+  async updateVocabularyRelation(
+    actor: AdminActorContext,
+    vocabularyId: string,
+    relationId: string,
+    input: AdminVocabularyRelationUpdateRequest,
+  ): Promise<AdminVocabularyRelation> {
+    const relation = await this.dependencies.vocabularies.updateRelation({
+      vocabularyId,
+      relationId,
+      // Zod optional 출력의 explicit undefined 가능성만 domain exact-optional로 좁힌다.
+      input: input as Parameters<Vocabularies['updateRelation']>[0]['input'],
+      ...toAuditContext(actor, this.now()),
+    });
+    return parseAdminPublicResponse(adminVocabularyRelationSchema, {
+      ...relation,
+      createdAt: relation.createdAt.toISOString(),
+      updatedAt: relation.updatedAt.toISOString(),
+    });
+  }
+
+  /** 경로 어휘에 연결된 관계를 삭제한다 */
+  async deleteVocabularyRelation(
+    vocabularyId: string,
+    relationId: string,
+  ): Promise<void> {
+    await this.dependencies.vocabularies.deleteRelation({
+      vocabularyId,
+      relationId,
+    });
+  }
+
+  /** source와 대표의 live graph 비교와 opaque token을 반환한다 */
+  async previewVocabularyMerge(
+    vocabularyId: string,
+    input: AdminVocabularyMergePreviewRequest,
+  ): Promise<AdminVocabularyMergePreviewResponse> {
+    return parseAdminPublicResponse(
+      adminVocabularyMergePreviewResponseSchema,
+      await this.dependencies.vocabularies.previewMerge(
+        vocabularyId,
+        input.representativeVocabularyId,
+      ),
+    );
+  }
+
+  /** 같은 preview token일 때만 source의 live 참조를 대표로 병합한다 */
+  async mergeVocabulary(
+    actor: AdminActorContext,
+    vocabularyId: string,
+    input: AdminVocabularyMergeExecuteRequest,
+  ): Promise<AdminVocabularyMergeResponse> {
+    return parseAdminPublicResponse(
+      adminVocabularyMergeResponseSchema,
+      await this.dependencies.vocabularies.merge({
+        sourceVocabularyId: vocabularyId,
+        representativeVocabularyId: input.representativeVocabularyId,
+        mergeToken: input.mergeToken,
+        ...toAuditContext(actor, this.now()),
+      }),
+    );
   }
 
   private async requireQuestionIdByVersion(versionId: string): Promise<string> {

@@ -16,6 +16,8 @@ const ids = {
   media: '00000000-0000-4000-8000-000000000004',
   sentence: '00000000-0000-4000-8000-000000000005',
   questionVersion: '00000000-0000-4000-8000-000000000006',
+  relation: '00000000-0000-4000-8000-000000000007',
+  relatedMeaning: '00000000-0000-4000-8000-000000000008',
 } as const;
 
 describe('관리자 어휘 path·query·교체 계약', () => {
@@ -103,6 +105,7 @@ describe('관리자 어휘 공개 응답 계약', () => {
           thai: 'สวัสดี',
           kind: 'WORD',
           status: 'DRAFT',
+          mergedIntoVocabularyId: null,
           meaningCount: 1,
           pronunciationCount: 1,
           updatedAt: '2026-07-24T00:00:00.000Z',
@@ -120,6 +123,7 @@ describe('관리자 어휘 공개 응답 계약', () => {
       thai: 'สวัสดี',
       kind: 'WORD',
       status: 'DRAFT',
+      mergedIntoVocabularyId: null,
       meanings: [
         {
           id: ids.meaning,
@@ -140,6 +144,18 @@ describe('관리자 어휘 공개 응답 계약', () => {
       ],
       meaningPronunciations: [
         { meaningId: ids.meaning, pronunciationId: ids.pronunciation },
+      ],
+      relations: [
+        {
+          id: ids.relation,
+          sourceMeaningId: ids.meaning,
+          targetMeaningId: ids.relatedMeaning,
+          type: 'RELATED',
+          direction: 'DIRECTED',
+          status: 'PENDING',
+          createdAt: '2026-07-24T00:00:00.000Z',
+          updatedAt: '2026-07-24T00:00:00.000Z',
+        },
       ],
       usage: {
         sentenceVersionIds: [ids.sentence],

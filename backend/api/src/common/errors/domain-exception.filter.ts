@@ -20,6 +20,7 @@ import {
   UploadPolicyError,
   UserManagementError,
   VocabularyAdminError,
+  VocabularyRelationsMergeAdminError,
   WordbookDomainError,
 } from '@flex-thia/domain';
 import { ZodError } from 'zod';
@@ -148,6 +149,22 @@ const VOCABULARY_ADMIN_STATUS: Record<VocabularyAdminError['code'], number> = {
   VOCABULARY_STATE_CONFLICT: HttpStatus.CONFLICT,
 };
 
+const VOCABULARY_RELATIONS_MERGE_STATUS: Record<
+  VocabularyRelationsMergeAdminError['code'],
+  number
+> = {
+  MEANING_RELATION_DUPLICATE: HttpStatus.CONFLICT,
+  MEANING_RELATION_NOT_FOUND: HttpStatus.NOT_FOUND,
+  MEANING_RELATION_SELF: HttpStatus.BAD_REQUEST,
+  MEANING_RELATION_STATE_CONFLICT: HttpStatus.CONFLICT,
+  VOCABULARY_MERGE_CONFLICT: HttpStatus.CONFLICT,
+  VOCABULARY_MERGE_KIND_MISMATCH: HttpStatus.CONFLICT,
+  VOCABULARY_MERGE_REPRESENTATIVE_INVALID: HttpStatus.CONFLICT,
+  VOCABULARY_MERGE_SAME_TARGET: HttpStatus.BAD_REQUEST,
+  VOCABULARY_MERGE_SOURCE_INVALID: HttpStatus.CONFLICT,
+  VOCABULARY_NOT_FOUND: HttpStatus.NOT_FOUND,
+};
+
 const readPublicCode = (value: unknown): string | null => {
   if (
     value &&
@@ -272,6 +289,14 @@ export const buildErrorResponse = (
 
   if (error instanceof VocabularyAdminError) {
     const status = VOCABULARY_ADMIN_STATUS[error.code];
+    return {
+      status,
+      body: createProblem(error.code, status, requestId),
+    };
+  }
+
+  if (error instanceof VocabularyRelationsMergeAdminError) {
+    const status = VOCABULARY_RELATIONS_MERGE_STATUS[error.code];
     return {
       status,
       body: createProblem(error.code, status, requestId),

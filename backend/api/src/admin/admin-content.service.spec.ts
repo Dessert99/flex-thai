@@ -123,6 +123,20 @@ const dependencies = () => ({
     publish: vi.fn(),
     hide: vi.fn(),
     restore: vi.fn(),
+    createRelation: vi.fn().mockResolvedValue({
+      id: ids.version,
+      sourceMeaningId: ids.question,
+      targetMeaningId: ids.vocabulary,
+      type: 'RELATED',
+      direction: 'DIRECTED',
+      status: 'PENDING',
+      createdAt: occurredAt,
+      updatedAt: occurredAt,
+    }),
+    updateRelation: vi.fn(),
+    deleteRelation: vi.fn(),
+    previewMerge: vi.fn(),
+    merge: vi.fn(),
   },
   vocabularyQuery: { list: vi.fn(), findById: vi.fn() },
   now: () => occurredAt,
@@ -227,6 +241,28 @@ describe('AdminContentService 감사 문맥', () => {
         readyAt: occurredAt.toISOString(),
       },
     );
+  });
+
+  it('저장소 relation shape를 internal vocabularyId 없이 strict 공개 응답으로 변환한다', async () => {
+    const service = new AdminContentService(dependencies() as never);
+
+    await expect(
+      service.createVocabularyRelation(actor, ids.vocabulary, {
+        sourceMeaningId: ids.question,
+        targetMeaningId: ids.vocabulary,
+        type: 'RELATED',
+        direction: 'DIRECTED',
+      }),
+    ).resolves.toEqual({
+      id: ids.version,
+      sourceMeaningId: ids.question,
+      targetMeaningId: ids.vocabulary,
+      type: 'RELATED',
+      direction: 'DIRECTED',
+      status: 'PENDING',
+      createdAt: occurredAt.toISOString(),
+      updatedAt: occurredAt.toISOString(),
+    });
   });
 
   it.each(['storageKey', 'requestHash', 'referenceMap', 'isCorrect'] as const)(
