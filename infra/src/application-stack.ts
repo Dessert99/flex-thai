@@ -55,7 +55,8 @@ export class ApplicationStack extends Stack {
     });
     this.asyncJobs = new AsyncJobs(this, 'AsyncJobs', {
       jobStarterEntry: `${workerRoot}job-starter.ts`,
-      foundationEntry: `${workerRoot}foundation-task.ts`,
+      foundationEntry: `${workerRoot}content-production-task.ts`,
+      failureMarkerEntry: `${workerRoot}content-production-failure-marker.ts`,
       cluster: props.dataStack.cluster,
       clusterSecret: props.dataStack.clusterSecret,
     });

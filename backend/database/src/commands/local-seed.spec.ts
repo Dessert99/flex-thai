@@ -30,6 +30,10 @@ describe('로컬 seed SQL', () => {
     expect(seedSql).toMatch(/insert into content_error_report_history/iu);
   });
 
+  it('공개 어휘의 fallback 추천 정렬에 사용할 공개 시각을 채운다', () => {
+    expect(seedSql).toMatch(/insert into vocabularies \([\s\S]*published_at/iu);
+  });
+
   it('개념 block 신고 snapshot을 현재 canonical 위치와 문맥으로 저장한다', () => {
     expect(seedSql).toContain(
       '"primaryText":"인사말 예문","secondaryText":"기본 인사말의 발음과 성조를 실제 문장으로 익힙니다."',

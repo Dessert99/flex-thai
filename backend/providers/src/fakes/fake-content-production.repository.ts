@@ -60,6 +60,7 @@ export class FakeContentProductionRepository implements ContentProductionReposit
       attempt: 0,
       enqueuedAt: null,
       completedAt: null,
+      failureCode: null,
       counts: { total: 0, succeeded: 0, needsAttention: 0, failed: 0 },
       items: [],
       createdAt: this.now(),
@@ -292,6 +293,43 @@ export class FakeContentProductionRepository implements ContentProductionReposit
     return Promise.resolve({ jobId, status: job.status });
   }
 
+  /** 현재 QUEUED 또는 RUNNING attempt만 workflow 실패로 닫는다 */
+  failAttempt(
+    jobId: string,
+    attempt: number,
+    errorCode: string,
+  ): Promise<{ jobId: string; status: 'FAILED' } | null> {
+    const job = this.jobs.get(jobId);
+
+    if (
+      !job ||
+      job.attempt !== attempt ||
+      !['QUEUED', 'RUNNING'].includes(job.status)
+    ) {
+      return Promise.resolve(null);
+    }
+
+    job.status = 'FAILED';
+    job.failureCode = errorCode;
+    job.completedAt = this.now();
+
+    for (const item of job.items) {
+      if (
+        item.attempt === attempt &&
+        (item.status === 'PENDING' || item.status === 'PROCESSING')
+      ) {
+        item.status = 'FAILED';
+        item.retryable = true;
+        item.errorCode = errorCode;
+        item.leaseUntil = null;
+        item.leaseToken = null;
+      }
+    }
+
+    this.updateCounts(job);
+    return Promise.resolve({ jobId, status: 'FAILED' });
+  }
+
   /** retryable 실패만 다음 attempt의 PENDING으로 열고 성공 결과는 보존한다 */
   retryFailed(
     jobId: string,
@@ -313,7 +351,11 @@ export class FakeContentProductionRepository implements ContentProductionReposit
       (item) => item.status === 'FAILED' && item.retryable,
     );
 
-    if (retryableItems.length === 0) {
+    const hasWorkflowFailure =
+      job.status === 'FAILED' &&
+      job.failureCode === 'CONTENT_PRODUCTION_WORKFLOW_FAILURE';
+
+    if (retryableItems.length === 0 && !hasWorkflowFailure) {
       return Promise.resolve(null);
     }
 
@@ -321,6 +363,7 @@ export class FakeContentProductionRepository implements ContentProductionReposit
     job.status = 'QUEUED';
     job.enqueuedAt = null;
     job.completedAt = null;
+    job.failureCode = null;
 
     for (const item of retryableItems) {
       item.status = 'PENDING';

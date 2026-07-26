@@ -77,7 +77,7 @@ export const vocabularies = pgTable(
     }).onDelete('restrict'),
     check(
       'vocabularies_merge_state_match',
-      sql`(${table.status} = 'MERGED' and ${table.mergedIntoVocabularyId} is not null and ${table.mergedIntoVocabularyId} <> ${table.id}) or (${table.status} <> 'MERGED' and ${table.mergedIntoVocabularyId} is null)`,
+      sql`(${table.status}::text = 'MERGED' and ${table.mergedIntoVocabularyId} is not null and ${table.mergedIntoVocabularyId} <> ${table.id}) or (${table.status}::text <> 'MERGED' and ${table.mergedIntoVocabularyId} is null)`,
     ),
   ],
 );

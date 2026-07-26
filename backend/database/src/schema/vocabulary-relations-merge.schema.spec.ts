@@ -1,4 +1,5 @@
 /** 어휘 관계·병합 이력과 MERGED 대표 연결 schema를 검증한다 */
+import { readFileSync } from 'node:fs';
 import { getTableConfig } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 import {
@@ -10,6 +11,11 @@ import {
   vocabularies,
   vocabularyStatusEnum,
 } from './vocabulary.schema.js';
+
+const migrationSql = readFileSync(
+  new URL('../../drizzle/0014_new_blazing_skull.sql', import.meta.url),
+  'utf8',
+);
 
 describe('어휘 관계와 병합 schema', () => {
   it('MERGED 상태와 관계 enum을 고정한다', () => {
@@ -69,5 +75,24 @@ describe('어휘 관계와 병합 schema', () => {
       'request_id',
       'merged_at',
     ]);
+  });
+
+  it('병합 중 같은 vocabulary 복합 FK를 원자적으로 옮길 수 있게 지연한다', () => {
+    const constraintNames = [
+      'vocabulary_meaning_pronunciations_meaning_fk',
+      'vocabulary_meaning_pronunciations_pronunciation_fk',
+      'token_occurrences_meaning_vocabulary_fk',
+      'token_occurrences_pronunciation_vocabulary_fk',
+      'expression_occurrences_meaning_vocabulary_fk',
+      'expression_occurrences_pronunciation_vocabulary_fk',
+      'vocabulary_practice_questions_meaning_vocabulary_fk',
+      'vocabulary_practice_questions_pronunciation_vocabulary_fk',
+    ];
+
+    for (const constraintName of constraintNames) {
+      expect(migrationSql).toContain(
+        `ALTER CONSTRAINT "${constraintName}" DEFERRABLE INITIALLY IMMEDIATE`,
+      );
+    }
   });
 });

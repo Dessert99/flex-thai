@@ -1,12 +1,17 @@
 /** MVP root가 Identity·Learning·Admin과 환경별 provider를 조립하는지 검증한다 */
 import {
+  DrizzleContentProductionPresetCatalog,
+  DrizzleContentProductionRepository,
   DrizzleEmailChallengeRepository,
+  DrizzleRecommendationQuery,
+  DrizzleUploadRepository,
   DrizzleUserManagementQuery,
   DrizzleWordbookQuery,
   DrizzleWordbookRepository,
 } from '@flex-thia/database';
 import {
   completeMediaAsset,
+  ContentProductionService,
   IdentityAuthenticationService,
   type MediaAdminRepository,
   type MediaAsset,
@@ -20,21 +25,28 @@ import {
   ChallengeCrypto,
   CloudFrontMediaReadUrlProvider,
   CognitoPasswordlessAuthenticationProvider,
+  DeterministicContentProductionProcessor,
   FakeAudioUploadProvider,
   FakeEmailChallengeSender,
   FakeMediaReadUrlProvider,
   FakePasswordlessAuthenticationProvider,
+  FakeUploadProvider,
+  LocalContentProductionQueue,
   S3AudioUploadProvider,
+  S3UploadProvider,
   SesEmailChallengeSender,
+  SqsJobQueue,
 } from '@flex-thia/providers';
 import { AdminContentService } from './admin/admin-content.service.js';
+import { ContentProductionApplicationService } from './content-production/content-production.service.js';
 import { AdminUserManagementController } from './identity/admin-user-management.controller.js';
 import { LearnerContentService } from './learning/learner-content.service.js';
 import { LearnerWordbooksService } from './learning/learner-wordbooks.service.js';
+import { RecommendationsService } from './recommendations/recommendations.service.js';
 import { createApplicationModule } from './app.module.js';
 
 describe('createApplicationModule 조립', () => {
-  it('로컬 설정에서 Identity·Learning·Admin과 health만 조립한다', () => {
+  it('로컬 설정에서 전체 HTTP 기능과 실제 local adapter를 조립한다', () => {
     const application = createApplicationModule({
       NODE_ENV: 'test',
       AUTH_MODE: 'fake',
@@ -56,6 +68,8 @@ describe('createApplicationModule 조립', () => {
       'VocabularyPracticeModule',
       'ConceptsModule',
       'ContentErrorReportsModule',
+      'RecommendationsModule',
+      'ContentProductionModule',
     ]);
     expect(importedModuleNames).not.toContain('JobsModule');
     expect(importedModuleNames).not.toContain('UploadsModule');
@@ -194,6 +208,56 @@ describe('createApplicationModule 조립', () => {
     expect(adminContent.dependencies.vocabularyQuery.database).toBe(
       adminDatabase,
     );
+
+    const recommendations = application.imports?.[6] as {
+      providers: { provide: unknown; useValue: unknown }[];
+    };
+    const recommendationService = recommendations.providers.find(
+      ({ provide }) => provide === RecommendationsService,
+    )?.useValue as { query: unknown };
+    expect(recommendationService.query).toBeInstanceOf(
+      DrizzleRecommendationQuery,
+    );
+
+    const contentProductionModule = application.imports?.[7] as {
+      providers: { provide: unknown; useValue: unknown }[];
+    };
+    const contentProduction = contentProductionModule.providers.find(
+      ({ provide }) => provide === ContentProductionApplicationService,
+    )?.useValue as {
+      uploads: unknown;
+      presets: unknown;
+      contentProduction: {
+        repository: unknown;
+        queue: { repository: unknown; processor: unknown };
+      };
+      uploadPolicies: { repository: unknown; storage: unknown };
+    };
+    expect(contentProduction.uploads).toBeInstanceOf(DrizzleUploadRepository);
+    expect(contentProduction.presets).toBeInstanceOf(
+      DrizzleContentProductionPresetCatalog,
+    );
+    expect(contentProduction.contentProduction).toBeInstanceOf(
+      ContentProductionService,
+    );
+    expect(contentProduction.contentProduction.repository).toBeInstanceOf(
+      DrizzleContentProductionRepository,
+    );
+    expect(contentProduction.contentProduction.queue).toBeInstanceOf(
+      LocalContentProductionQueue,
+    );
+    expect(contentProduction.contentProduction.queue.repository).toBe(
+      contentProduction.contentProduction.repository,
+    );
+    expect(contentProduction.contentProduction.queue.processor).toBeInstanceOf(
+      DeterministicContentProductionProcessor,
+    );
+    expect(contentProduction.uploadPolicies.repository).toBe(
+      contentProduction.uploads,
+    );
+    expect(contentProduction.uploadPolicies.storage).toBeInstanceOf(
+      FakeUploadProvider,
+    );
   });
 
   it('로컬 기본 fake는 upload 요청 직후 선언 metadata로 READY 완료를 지원한다', async () => {
@@ -285,6 +349,8 @@ describe('createApplicationModule 조립', () => {
       MEDIA_KEY_PAIR_ID: 'key-pair',
       MEDIA_PRIVATE_KEY_SECRET_ARN: 'arn:media-secret',
       MEDIA_BUCKET_NAME: 'media-bucket',
+      INPUT_BUCKET_NAME: 'input-bucket',
+      JOB_QUEUE_URL: 'https://sqs.example.com/jobs',
       CUSTOM_AUTH_SECRET: 'C'.repeat(32),
       CUSTOM_AUTH_SECRET_ARN: 'arn:custom-auth-secret',
       CHALLENGE_HMAC_PEPPER: 'P'.repeat(32),
@@ -331,5 +397,21 @@ describe('createApplicationModule 조립', () => {
     );
     expect(passwordless.provider).toBe(authentication.provider);
     expect(passwordless.sender).toBeInstanceOf(SesEmailChallengeSender);
+
+    const contentProductionModule = application.imports?.[7] as {
+      providers: { provide: unknown; useValue: unknown }[];
+    };
+    const contentProduction = contentProductionModule.providers.find(
+      ({ provide }) => provide === ContentProductionApplicationService,
+    )?.useValue as {
+      contentProduction: { queue: unknown };
+      uploadPolicies: { storage: unknown };
+    };
+    expect(contentProduction.contentProduction.queue).toBeInstanceOf(
+      SqsJobQueue,
+    );
+    expect(contentProduction.uploadPolicies.storage).toBeInstanceOf(
+      S3UploadProvider,
+    );
   });
 });

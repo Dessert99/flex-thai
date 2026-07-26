@@ -61,6 +61,7 @@ export interface ContentProductionJob {
   attempt: number;
   enqueuedAt: Date | null;
   completedAt: Date | null;
+  failureCode: string | null;
   counts: {
     total: number;
     succeeded: number;
@@ -79,6 +80,7 @@ export type CreateContentProductionCommand = Omit<
   | 'attempt'
   | 'enqueuedAt'
   | 'completedAt'
+  | 'failureCode'
   | 'counts'
   | 'items'
   | 'createdAt'
@@ -135,6 +137,11 @@ export interface ContentProductionRepository {
     jobId: string,
     attempt: number,
   ): Promise<{ jobId: string; status: ContentProductionJobStatus } | null>;
+  failAttempt(
+    jobId: string,
+    attempt: number,
+    errorCode: string,
+  ): Promise<{ jobId: string; status: 'FAILED' } | null>;
   retryFailed(
     jobId: string,
     ownerId: string,
@@ -249,7 +256,7 @@ export class ContentProductionService {
     return this.repository.markEnqueued(job.id, job.attempt, this.now());
   }
 
-  /** retryable 실패 항목이 있는 terminal 작업만 최대 3회 다시 queue에 넣는다 */
+  /** retryable 항목 또는 workflow 실패 terminal 작업을 최대 3회 다시 queue에 넣는다 */
   async retry(ownerId: string, jobId: string): Promise<ContentProductionJob> {
     const current = await this.repository.findOwnedById(ownerId, jobId);
 
@@ -278,9 +285,16 @@ export class ContentProductionService {
       throw new ContentProductionDomainError('JOB_RETRY_LIMIT_EXCEEDED');
     }
 
+    const hasRetryableItem = current.items.some(
+      (item) => item.status === 'FAILED' && item.retryable,
+    );
+    const hasWorkflowFailure =
+      current.status === 'FAILED' &&
+      current.failureCode === 'CONTENT_PRODUCTION_WORKFLOW_FAILURE';
+
     if (
       !['COMPLETED_WITH_FAILURES', 'FAILED'].includes(current.status) ||
-      !current.items.some((item) => item.status === 'FAILED' && item.retryable)
+      (!hasRetryableItem && !hasWorkflowFailure)
     ) {
       throw new ContentProductionDomainError('JOB_NOT_RETRYABLE');
     }

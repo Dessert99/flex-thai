@@ -120,6 +120,7 @@ const loadJob = async (
     attempt: row.attempt,
     enqueuedAt: row.enqueuedAt,
     completedAt: row.completedAt,
+    failureCode: row.failureCode,
     counts: calculateCounts(items),
     items,
     createdAt: row.createdAt,
@@ -486,6 +487,56 @@ export class DrizzleContentProductionRepository implements ContentProductionRepo
     });
   }
 
+  /** 현재 QUEUED 또는 RUNNING attempt만 unfinished 항목과 함께 실패시킨다 */
+  async failAttempt(
+    jobId: string,
+    attempt: number,
+    errorCode: string,
+  ): Promise<{ jobId: string; status: 'FAILED' } | null> {
+    return this.database.transaction(async (transaction) => {
+      const failedAt = this.now();
+      const failed = await transaction
+        .update(jobs)
+        .set({
+          status: 'FAILED',
+          failureCode: errorCode,
+          completedAt: failedAt,
+          updatedAt: failedAt,
+        })
+        .where(
+          and(
+            eq(jobs.id, jobId),
+            eq(jobs.attempt, attempt),
+            inArray(jobs.status, ['QUEUED', 'RUNNING']),
+          ),
+        )
+        .returning({ id: jobs.id });
+
+      if (failed.length === 0) {
+        return null;
+      }
+
+      await transaction
+        .update(jobItems)
+        .set({
+          status: 'FAILED',
+          retryable: true,
+          errorCode,
+          leaseUntil: null,
+          leaseToken: null,
+          updatedAt: failedAt,
+        })
+        .where(
+          and(
+            eq(jobItems.jobId, jobId),
+            eq(jobItems.attempt, attempt),
+            inArray(jobItems.status, ['PENDING', 'PROCESSING']),
+          ),
+        );
+      return { jobId, status: 'FAILED' };
+    });
+  }
+
   /** retryable 실패만 다음 attempt로 열고 성공·검토 결과는 보존한다 */
   async retryFailed(
     jobId: string,
@@ -520,11 +571,22 @@ export class DrizzleContentProductionRepository implements ContentProductionRepo
           ),
         );
 
-      if (retryableRows.length === 0) {
+      const hasWorkflowFailure =
+        row.status === 'FAILED' &&
+        row.failureCode === 'CONTENT_PRODUCTION_WORKFLOW_FAILURE';
+
+      if (retryableRows.length === 0 && !hasWorkflowFailure) {
         return null;
       }
 
       const nextAttempt = row.attempt + 1;
+      const retryableJobCondition =
+        retryableRows.length === 0
+          ? and(
+              eq(jobs.status, 'FAILED'),
+              eq(jobs.failureCode, 'CONTENT_PRODUCTION_WORKFLOW_FAILURE'),
+            )
+          : inArray(jobs.status, ['FAILED', 'COMPLETED_WITH_FAILURES']);
       const updated = await transaction
         .update(jobs)
         .set({
@@ -532,13 +594,14 @@ export class DrizzleContentProductionRepository implements ContentProductionRepo
           status: 'QUEUED',
           enqueuedAt: null,
           completedAt: null,
+          failureCode: null,
           updatedAt: this.now(),
         })
         .where(
           and(
             eq(jobs.id, jobId),
             eq(jobs.attempt, row.attempt),
-            inArray(jobs.status, ['FAILED', 'COMPLETED_WITH_FAILURES']),
+            retryableJobCondition,
           ),
         )
         .returning();

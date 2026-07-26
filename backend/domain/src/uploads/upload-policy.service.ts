@@ -36,7 +36,9 @@ export interface UploadStorage {
   createPolicy(input: {
     uploadId: string;
     objectKey: string;
+    inputType: InputType;
     contentType: string;
+    declaredSizeBytes: number;
   }): Promise<UploadPolicy>;
   inspectObject(objectKey: string): Promise<UploadInspection>;
 }
@@ -98,7 +100,9 @@ export class UploadPolicyService {
     return this.storage.createPolicy({
       uploadId,
       objectKey,
+      inputType: input.inputType,
       contentType: input.contentType,
+      declaredSizeBytes: input.declaredSizeBytes,
     });
   }
 

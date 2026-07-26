@@ -97,4 +97,75 @@ describe('DrizzleContentProductionRepository 조건부 전이', () => {
       }),
     ).resolves.toBe(false);
   });
+
+  it('현재 QUEUED 또는 RUNNING attempt가 아니면 failure marker를 무시한다', async () => {
+    const returning = vi.fn().mockResolvedValue([]);
+    const where = vi.fn(() => ({ returning }));
+    const set = vi.fn(() => ({ where }));
+    const update = vi.fn(() => ({ set }));
+    const transaction = vi.fn(
+      (callback: (executor: unknown) => Promise<unknown>) =>
+        callback({ update }),
+    );
+    const repository = new DrizzleContentProductionRepository({
+      transaction,
+    } as never);
+
+    await expect(
+      repository.failAttempt(
+        '00000000-0000-4000-8000-000000000001',
+        1,
+        'CONTENT_PRODUCTION_WORKFLOW_FAILURE',
+      ),
+    ).resolves.toBeNull();
+    expect(update).toHaveBeenCalledOnce();
+  });
+
+  it('현재 QUEUED 또는 RUNNING attempt의 unfinished 항목과 Job을 FAILED로 닫는다', async () => {
+    const jobReturning = vi
+      .fn()
+      .mockResolvedValue([{ id: '00000000-0000-4000-8000-000000000001' }]);
+    const jobWhere = vi.fn(() => ({ returning: jobReturning }));
+    const jobSet = vi.fn(() => ({ where: jobWhere }));
+    const itemWhere = vi.fn().mockResolvedValue(undefined);
+    const itemSet = vi.fn(() => ({ where: itemWhere }));
+    const update = vi
+      .fn()
+      .mockImplementationOnce(() => ({ set: jobSet }))
+      .mockImplementationOnce(() => ({ set: itemSet }));
+    const transaction = vi.fn(
+      (callback: (executor: unknown) => Promise<unknown>) =>
+        callback({ update }),
+    );
+    const repository = new DrizzleContentProductionRepository(
+      { transaction } as never,
+      () => new Date('2026-07-27T00:00:00.000Z'),
+    );
+
+    await expect(
+      repository.failAttempt(
+        '00000000-0000-4000-8000-000000000001',
+        1,
+        'CONTENT_PRODUCTION_WORKFLOW_FAILURE',
+      ),
+    ).resolves.toEqual({
+      jobId: '00000000-0000-4000-8000-000000000001',
+      status: 'FAILED',
+    });
+    expect(jobSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'FAILED',
+        failureCode: 'CONTENT_PRODUCTION_WORKFLOW_FAILURE',
+      }),
+    );
+    expect(itemSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'FAILED',
+        retryable: true,
+        errorCode: 'CONTENT_PRODUCTION_WORKFLOW_FAILURE',
+        leaseUntil: null,
+        leaseToken: null,
+      }),
+    );
+  });
 });

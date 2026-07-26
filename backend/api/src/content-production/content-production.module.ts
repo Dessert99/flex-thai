@@ -1,11 +1,21 @@
 /** 콘텐츠 제작 adapter와 HTTP Controller를 기능 단위로 조립한다 */
 import { DynamicModule, Module } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import type {
   ContentProductionPresetCatalog,
   ContentProductionService,
+  IdentityUserRepository,
   UploadPolicyService,
   UploadRepository,
 } from '@flex-thia/domain';
+import { AdminMfaGuard } from '../identity/admin-mfa.guard.js';
+import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
+import {
+  AUTHORIZER_GUARD_OPTIONS,
+  type AuthorizerGuardOptions,
+  CognitoAuthorizerGuard,
+  IDENTITY_USER_REPOSITORY,
+} from '../identity/cognito-authorizer.guard.js';
 import { ContentProductionController } from './content-production.controller.js';
 import { ContentProductionApplicationService } from './content-production.service.js';
 
@@ -15,6 +25,8 @@ export interface ContentProductionModuleOptions {
   uploadPolicies: UploadPolicyService;
   presets: ContentProductionPresetCatalog;
   contentProduction: ContentProductionService;
+  users: IdentityUserRepository;
+  authorizer: AuthorizerGuardOptions;
 }
 
 /** root application이 한 번 등록할 콘텐츠 제작 기능 module */
@@ -35,6 +47,12 @@ export class ContentProductionModule {
             options.uploadPolicies,
           ),
         },
+        { provide: IDENTITY_USER_REPOSITORY, useValue: options.users },
+        { provide: AUTHORIZER_GUARD_OPTIONS, useValue: options.authorizer },
+        Reflector,
+        CognitoAuthorizerGuard,
+        ApplicationRoleGuard,
+        AdminMfaGuard,
       ],
       exports: [ContentProductionApplicationService],
     };

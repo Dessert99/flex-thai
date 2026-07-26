@@ -153,4 +153,21 @@ describe('FakeContentProductionRepository 상태 전이', () => {
       expect.objectContaining({ status: 'PENDING', attempt: 1 }),
     ]);
   });
+
+  it('시작 전 workflow 실패는 항목이 없어도 다음 attempt로 연다', async () => {
+    const repository = new FakeContentProductionRepository();
+    const { job } = await repository.createOrFind(command);
+
+    await expect(
+      repository.failAttempt(job.id, 0, 'CONTENT_PRODUCTION_WORKFLOW_FAILURE'),
+    ).resolves.toEqual({ jobId: job.id, status: 'FAILED' });
+    await expect(
+      repository.retryFailed(job.id, command.requestedBy, 3),
+    ).resolves.toMatchObject({
+      attempt: 1,
+      status: 'QUEUED',
+      failureCode: null,
+      items: [],
+    });
+  });
 });

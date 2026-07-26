@@ -94,6 +94,7 @@ insert into vocabularies (
   normalized_thai,
   kind,
   status,
+  published_at,
   created_at,
   updated_at
 ) values
@@ -103,6 +104,7 @@ insert into vocabularies (
     'สวัสดี',
     'WORD',
     'PUBLISHED',
+    '2026-07-05T00:00:00Z',
     '2026-07-01T00:00:00Z',
     '2026-07-05T00:00:00Z'
   ),
@@ -112,6 +114,7 @@ insert into vocabularies (
     'ขอบคุณ',
     'WORD',
     'PUBLISHED',
+    '2026-07-06T00:00:00Z',
     '2026-07-02T00:00:00Z',
     '2026-07-06T00:00:00Z'
   ),
@@ -121,6 +124,7 @@ insert into vocabularies (
     'ไม่เป็นไร',
     'EXPRESSION',
     'DRAFT',
+    null,
     '2026-07-03T00:00:00Z',
     '2026-07-07T00:00:00Z'
   ),
@@ -130,6 +134,7 @@ insert into vocabularies (
     'เรียน',
     'WORD',
     'HIDDEN',
+    null,
     '2026-07-04T00:00:00Z',
     '2026-07-08T00:00:00Z'
   ),
@@ -140,6 +145,7 @@ insert into vocabularies (
     'WORD',
     'PUBLISHED',
     '2026-07-05T00:00:00Z',
+    '2026-07-05T00:00:00Z',
     '2026-07-05T00:00:00Z'
   ),
   (
@@ -148,6 +154,7 @@ insert into vocabularies (
     'ใช่',
     'WORD',
     'PUBLISHED',
+    '2026-07-05T00:00:00Z',
     '2026-07-05T00:00:00Z',
     '2026-07-05T00:00:00Z'
   ),
@@ -158,6 +165,7 @@ insert into vocabularies (
     'WORD',
     'PUBLISHED',
     '2026-07-05T00:00:00Z',
+    '2026-07-05T00:00:00Z',
     '2026-07-05T00:00:00Z'
   ),
   (
@@ -166,6 +174,7 @@ insert into vocabularies (
     'กิน',
     'WORD',
     'PUBLISHED',
+    '2026-07-05T00:00:00Z',
     '2026-07-05T00:00:00Z',
     '2026-07-05T00:00:00Z'
   ),
@@ -176,6 +185,7 @@ insert into vocabularies (
     'WORD',
     'PUBLISHED',
     '2026-07-05T00:00:00Z',
+    '2026-07-05T00:00:00Z',
     '2026-07-05T00:00:00Z'
   ),
   (
@@ -184,6 +194,7 @@ insert into vocabularies (
     'ไป',
     'WORD',
     'PUBLISHED',
+    '2026-07-05T00:00:00Z',
     '2026-07-05T00:00:00Z',
     '2026-07-05T00:00:00Z'
   ),
@@ -194,6 +205,7 @@ insert into vocabularies (
     'WORD',
     'PUBLISHED',
     '2026-07-05T00:00:00Z',
+    '2026-07-05T00:00:00Z',
     '2026-07-05T00:00:00Z'
   ),
   (
@@ -202,6 +214,7 @@ insert into vocabularies (
     'บ้าน',
     'WORD',
     'PUBLISHED',
+    '2026-07-05T00:00:00Z',
     '2026-07-05T00:00:00Z',
     '2026-07-05T00:00:00Z'
   );

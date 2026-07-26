@@ -234,6 +234,22 @@ export class HttpApi extends Construct {
       ],
       [
         apigwv2.HttpMethod.POST,
+        '/api/v1/admin/content-production/uploads/policies',
+      ],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/content-production/uploads/{uploadId}/complete',
+      ],
+      [apigwv2.HttpMethod.GET, '/api/v1/admin/content-production/presets'],
+      [apigwv2.HttpMethod.POST, '/api/v1/admin/content-production/jobs'],
+      [apigwv2.HttpMethod.GET, '/api/v1/admin/content-production/jobs'],
+      [apigwv2.HttpMethod.GET, '/api/v1/admin/content-production/jobs/{jobId}'],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/content-production/jobs/{jobId}/retry',
+      ],
+      [
+        apigwv2.HttpMethod.POST,
         '/api/v1/admin/media-assets/audio-upload-requests',
       ],
       [apigwv2.HttpMethod.GET, '/api/v1/admin/media-assets/{mediaAssetId}'],
@@ -277,6 +293,26 @@ export class HttpApi extends Construct {
         apigwv2.HttpMethod.POST,
         '/api/v1/admin/vocabularies/{vocabularyId}/restore',
       ],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/vocabularies/{vocabularyId}/relations',
+      ],
+      [
+        apigwv2.HttpMethod.PUT,
+        '/api/v1/admin/vocabularies/{vocabularyId}/relations/{relationId}',
+      ],
+      [
+        apigwv2.HttpMethod.DELETE,
+        '/api/v1/admin/vocabularies/{vocabularyId}/relations/{relationId}',
+      ],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/vocabularies/{vocabularyId}/merge-preview',
+      ],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/vocabularies/{vocabularyId}/merge',
+      ],
       [apigwv2.HttpMethod.GET, '/api/v1/admin/users'],
       [apigwv2.HttpMethod.PATCH, '/api/v1/admin/users/{userId}/status'],
       [apigwv2.HttpMethod.POST, '/api/v1/admin/users/invitations'],
@@ -304,6 +340,7 @@ export class HttpApi extends Construct {
         '/api/v1/me/vocabularies/{vocabularyId}/wordbook-memberships',
       ],
       [apigwv2.HttpMethod.GET, '/api/v1/me/question-attempts'],
+      [apigwv2.HttpMethod.GET, '/api/v1/me/recommendations'],
       [apigwv2.HttpMethod.PUT, '/api/v1/me/saved-questions/{questionId}'],
       [apigwv2.HttpMethod.DELETE, '/api/v1/me/saved-questions/{questionId}'],
       [apigwv2.HttpMethod.POST, '/api/v1/me/vocabulary-practice/sessions'],

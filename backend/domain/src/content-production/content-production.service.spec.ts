@@ -33,6 +33,7 @@ const createRepository = (): ContentProductionRepository & {
       attempt: 0,
       enqueuedAt: null,
       completedAt: null,
+      failureCode: null,
       counts: { total: 0, succeeded: 0, needsAttention: 0, failed: 0 },
       items: [],
       createdAt: new Date('2026-07-27T00:00:00.000Z'),
@@ -71,6 +72,9 @@ const createRepository = (): ContentProductionRepository & {
   finalizeAttempt() {
     return Promise.resolve(null);
   },
+  failAttempt() {
+    return Promise.resolve(null);
+  },
   retryFailed() {
     if (!this.stored) return Promise.resolve(null);
     if (this.stored.attempt >= 3) {
@@ -82,6 +86,7 @@ const createRepository = (): ContentProductionRepository & {
       status: 'QUEUED',
       enqueuedAt: null,
       completedAt: null,
+      failureCode: null,
     };
     return Promise.resolve(this.stored);
   },
@@ -243,6 +248,34 @@ describe('ContentProductionService 콘텐츠 제작 규칙', () => {
     const retried = await service.retry(ownerId, repository.stored.id);
     expect(retried.attempt).toBe(1);
     expect(retried.enqueuedAt).toBeInstanceOf(Date);
+    expect(messages).toEqual([
+      { jobId: repository.stored.id, attempt: 0 },
+      { jobId: repository.stored.id, attempt: 1 },
+    ]);
+  });
+
+  it('workflow failure Job은 항목이 없어도 같은 제한으로 다음 attempt를 전송한다', async () => {
+    const repository = createRepository();
+    const messages: Array<{ jobId: string; attempt: number }> = [];
+    const service = new ContentProductionService(repository, {
+      send(message) {
+        messages.push(message);
+        return Promise.resolve();
+      },
+    });
+    await service.create(command);
+    repository.stored = {
+      ...repository.stored!,
+      status: 'FAILED',
+      failureCode: 'CONTENT_PRODUCTION_WORKFLOW_FAILURE',
+      completedAt: new Date('2026-07-27T00:10:00.000Z'),
+      items: [],
+    };
+
+    const retried = await service.retry(ownerId, repository.stored.id);
+
+    expect(retried.attempt).toBe(1);
+    expect(retried.status).toBe('QUEUED');
     expect(messages).toEqual([
       { jobId: repository.stored.id, attempt: 0 },
       { jobId: repository.stored.id, attempt: 1 },

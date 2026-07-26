@@ -33,3 +33,9 @@ export * from './fake-audio-upload.provider.js';
 
 /** fake SMS sender를 공개한다 */
 export * from './fake-sms-sender.js';
+
+/** 재현 가능한 콘텐츠 제작 processor를 worker 조립 경계에 공개한다 */
+export * from './deterministic-content-production.processor.js';
+
+/** 로컬 API가 worker 없이 콘텐츠 제작 상태 전이를 실행하게 한다 */
+export * from './local-content-production.queue.js';
