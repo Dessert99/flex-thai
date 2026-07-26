@@ -75,3 +75,12 @@ export * from './repositories/drizzle-user.repository.js';
 
 /** 기초 ERD schema를 패키지 공개 경계에 노출한다 */
 export * from './schema/index.js';
+
+/** 콘텐츠 오류 신고 schema를 migration 전 공개한다 */
+export * from './schema/feedback.schema.js';
+
+/** 콘텐츠 오류 신고 transaction adapter를 공개한다 */
+export * from './repositories/drizzle-content-error-report.repository.js';
+
+/** 콘텐츠 오류 신고 관리자 query를 공개한다 */
+export * from './queries/drizzle-content-error-report.query.js';
