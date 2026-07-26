@@ -635,8 +635,22 @@ insert into saved_questions (user_id, question_id, saved_at) values (
   '2026-07-15T00:00:00Z'
 );
 
-insert into saved_vocabularies (user_id, vocabulary_id, saved_at) values (
+insert into wordbooks (
+  id,
+  user_id,
+  name,
+  created_at,
+  updated_at
+) values (
+  '00000000-0000-4000-8000-000000000551',
   '00000000-0000-4000-8000-000000000002',
+  '저장한 어휘',
+  '2026-07-15T00:00:00Z',
+  '2026-07-15T00:00:00Z'
+);
+
+insert into wordbook_items (wordbook_id, vocabulary_id, added_at) values (
+  '00000000-0000-4000-8000-000000000551',
   '00000000-0000-4000-8000-000000000101',
   '2026-07-15T00:00:00Z'
 );

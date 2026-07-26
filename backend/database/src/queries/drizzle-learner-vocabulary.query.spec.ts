@@ -135,7 +135,7 @@ const summaryRows = {
 } as const;
 
 describe('DrizzleLearnerVocabularyQuery 공용 어휘 검색', () => {
-  it('통합 전 저장 여부는 legacy 저장 목록 membership으로 계산한다', async () => {
+  it('저장 여부는 사용자 소유 단어장 membership으로 계산한다', async () => {
     const fake = createSelectFake([
       [{ totalItems: 2 }],
       [...summaryRows.bases],
@@ -152,9 +152,9 @@ describe('DrizzleLearnerVocabularyQuery 공용 어휘 검색', () => {
     expect(result.items.map(({ saved }) => saved)).toEqual([false, true]);
     const savedSql = toSql(fake.selectCalls[1]?.fields.saved);
     expect(savedSql.sql).toContain('exists');
-    expect(savedSql.sql).toContain('saved_vocabularies');
-    expect(savedSql.sql).not.toContain('wordbooks');
-    expect(savedSql.sql).not.toContain('wordbook_items');
+    expect(savedSql.sql).toContain('wordbooks');
+    expect(savedSql.sql).toContain('wordbook_items');
+    expect(savedSql.sql).not.toContain('saved_vocabularies');
     expect(savedSql.params).toContain('user-id');
     expect(fake.selectCalls[1]?.joins).toHaveLength(0);
   });
@@ -405,6 +405,14 @@ describe('DrizzleLearnerVocabularyQuery 상세와 예문', () => {
 });
 
 describe('DrizzleLearnerVocabularyQuery 관련 문제와 저장 목록', () => {
+  it('legacy 저장 어휘 목록 read model을 공개하지 않는다', () => {
+    const query = new DrizzleLearnerVocabularyQuery(
+      createSelectFake([]).database as never,
+    );
+
+    expect(query).not.toHaveProperty('listSavedVocabularies');
+  });
+
   it('token 또는 expression을 쓰는 현재 게시 문제를 공개 summary 의미로 읽는다', async () => {
     const fake = createSelectFake([
       [{ totalItems: 1 }],

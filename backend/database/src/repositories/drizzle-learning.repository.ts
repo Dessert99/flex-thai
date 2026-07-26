@@ -14,9 +14,7 @@ import {
   questionVersions,
   questions,
   savedQuestions,
-  savedVocabularies,
   users,
-  vocabularies,
 } from '../schema/index.js';
 import * as schema from '../schema/index.js';
 
@@ -212,21 +210,6 @@ export class DrizzleLearningRepository
     return rows.length === 1;
   }
 
-  /** 통합 전 기존 endpoint가 게시 어휘만 저장하도록 유지한다 */
-  async isVocabularyAvailable(vocabularyId: string): Promise<boolean> {
-    const rows = await this.database
-      .select({ id: vocabularies.id })
-      .from(vocabularies)
-      .where(
-        and(
-          eq(vocabularies.id, vocabularyId),
-          eq(vocabularies.status, 'PUBLISHED'),
-        ),
-      )
-      .limit(1);
-    return rows.length === 1;
-  }
-
   /** 중복 저장 요청은 기존 문제 연결을 그대로 유지한다 */
   async saveQuestion(
     userId: string,
@@ -247,30 +230,6 @@ export class DrizzleLearningRepository
         and(
           eq(savedQuestions.userId, userId),
           eq(savedQuestions.questionId, questionId),
-        ),
-      );
-  }
-
-  /** 통합 전 기존 저장 어휘 연결의 conflict를 멱등 처리한다 */
-  async saveVocabulary(
-    userId: string,
-    vocabularyId: string,
-    savedAt: Date,
-  ): Promise<void> {
-    await this.database
-      .insert(savedVocabularies)
-      .values({ userId, vocabularyId, savedAt })
-      .onConflictDoNothing();
-  }
-
-  /** 통합 전 기존 저장 어휘 연결 삭제를 멱등 처리한다 */
-  async removeVocabulary(userId: string, vocabularyId: string): Promise<void> {
-    await this.database
-      .delete(savedVocabularies)
-      .where(
-        and(
-          eq(savedVocabularies.userId, userId),
-          eq(savedVocabularies.vocabularyId, vocabularyId),
         ),
       );
   }
