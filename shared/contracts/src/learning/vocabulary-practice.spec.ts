@@ -311,6 +311,46 @@ describe('단어 연습 공개 응답 계약', () => {
     ).toThrow();
   });
 
+  it('완료 집계와 오답 카드는 문항·방식·세션 카드와 일치해야 한다', () => {
+    const completedSession = {
+      id: ids.session,
+      sourceLabel: '공용 검색',
+      modes: ['THAI_TO_MEANING'],
+      questionCount: 1,
+      order: 'SOURCE',
+      status: 'COMPLETED',
+      startedAt: '2026-07-26T00:00:00.000Z',
+      completedAt: '2026-07-26T00:10:00.000Z',
+      cards: [card],
+      questions: [question],
+      answeredQuestionIds: [ids.question],
+      result: {
+        total: { correct: 0, incorrect: 1 },
+        byMode: [{ mode: 'THAI_TO_MEANING', correct: 0, incorrect: 1 }],
+        incorrectCards: [card],
+      },
+    } as const;
+
+    expect(
+      vocabularyPracticeSessionResponseSchema.parse(completedSession),
+    ).toEqual(completedSession);
+    expect(() =>
+      vocabularyPracticeSessionResponseSchema.parse({
+        ...completedSession,
+        result: { ...completedSession.result, incorrectCards: [] },
+      }),
+    ).toThrow();
+    expect(() =>
+      vocabularyPracticeSessionResponseSchema.parse({
+        ...completedSession,
+        result: {
+          ...completedSession.result,
+          byMode: [{ mode: 'THAI_TO_MEANING', correct: 1, incorrect: 0 }],
+        },
+      }),
+    ).toThrow();
+  });
+
   it('카드는 최소 한 뜻·발음과 유효한 뜻-발음 관계를 요구한다', () => {
     const answer = {
       questionId: ids.question,

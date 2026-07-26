@@ -206,7 +206,8 @@ const vocabularyPracticeSessionShape = {
   answeredQuestionIds: z.array(z.uuid()),
 };
 
-const activeVocabularyPracticeSessionSchema = z
+/** 결과가 아직 공개되지 않은 진행 중 단어 연습 세션 */
+export const activeVocabularyPracticeSessionSchema = z
   .object({
     ...vocabularyPracticeSessionShape,
     status: z.literal('ACTIVE'),
@@ -214,7 +215,8 @@ const activeVocabularyPracticeSessionSchema = z
   })
   .strict();
 
-const completedVocabularyPracticeSessionSchema = z
+/** 서버 집계를 포함하는 완료 단어 연습 세션 */
+export const completedVocabularyPracticeSessionSchema = z
   .object({
     ...vocabularyPracticeSessionShape,
     status: z.literal('COMPLETED'),
@@ -257,6 +259,53 @@ export const vocabularyPracticeSessionResponseSchema = z
         message: '완료 세션은 모든 문항에 답해야 합니다.',
         path: ['answeredQuestionIds'],
       });
+    }
+    if (session.status === 'COMPLETED') {
+      const modeCounts = new Map(
+        session.result.byMode.map((count) => [count.mode, count]),
+      );
+      const byModeTotal = session.result.byMode.reduce(
+        (total, count) => ({
+          correct: total.correct + count.correct,
+          incorrect: total.incorrect + count.incorrect,
+        }),
+        { correct: 0, incorrect: 0 },
+      );
+      if (
+        session.result.total.correct + session.result.total.incorrect !==
+          session.questions.length ||
+        byModeTotal.correct !== session.result.total.correct ||
+        byModeTotal.incorrect !== session.result.total.incorrect ||
+        modeCounts.size !== session.result.byMode.length ||
+        modeCounts.size !== session.modes.length ||
+        session.modes.some((mode) => !modeCounts.has(mode))
+      ) {
+        context.addIssue({
+          code: 'custom',
+          message: '완료 집계는 세션 문항과 방식별 집계에 일치해야 합니다.',
+          path: ['result'],
+        });
+      }
+
+      const cardIds = new Set(session.cards.map(({ id }) => id));
+      const incorrectCardIds = new Set(
+        session.result.incorrectCards.map(({ id }) => id),
+      );
+      const incorrectCardCount = session.result.incorrectCards.length;
+      if (
+        incorrectCardIds.size !== incorrectCardCount ||
+        session.result.incorrectCards.some(({ id }) => !cardIds.has(id)) ||
+        (session.result.total.incorrect === 0 && incorrectCardCount !== 0) ||
+        (session.result.total.incorrect > 0 &&
+          (incorrectCardCount === 0 ||
+            incorrectCardCount > session.result.total.incorrect))
+      ) {
+        context.addIssue({
+          code: 'custom',
+          message: '오답 카드는 세션의 오답 집계와 일치해야 합니다.',
+          path: ['result', 'incorrectCards'],
+        });
+      }
     }
   });
 
