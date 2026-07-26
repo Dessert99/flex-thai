@@ -25,7 +25,6 @@ export interface ApiRequestOptions<T> {
 }
 
 const csrfProtectedPaths = new Set([
-  '/auth/login',
   '/auth/mfa/totp/challenge',
   '/auth/refresh',
   '/auth/logout',

@@ -7,7 +7,6 @@ export {
   confirmEmailLinkSession,
   getPendingEmailChallenge,
   hasLoginTotpChallenge,
-  loginSession,
   logoutSession,
   refreshSession,
   resendPendingEmailChallenge,

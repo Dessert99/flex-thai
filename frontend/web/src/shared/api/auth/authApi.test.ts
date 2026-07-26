@@ -5,7 +5,6 @@ import type { ApiRequestOptions } from '../apiRequest';
 import {
   confirmEmailLink,
   resendEmailChallenge,
-  requestLogin,
   requestLoginTotp,
   requestLogout,
   requestMe,
@@ -35,17 +34,12 @@ describe('인증 endpoint adapter', () => {
       .mockResolvedValueOnce(createChallengeResponse());
 
     await startEmailAuthentication('user@hufs.ac.kr');
-    await verifyEmailCode(
-      '00000000-0000-4000-8000-000000000001',
-      '123456',
-    );
+    await verifyEmailCode('00000000-0000-4000-8000-000000000001', '123456');
     await confirmEmailLink(
       '00000000-0000-4000-8000-000000000001',
       'A'.repeat(43),
     );
-    await resendEmailChallenge(
-      '00000000-0000-4000-8000-000000000001',
-    );
+    await resendEmailChallenge('00000000-0000-4000-8000-000000000001');
 
     expect(apiRequestMock.mock.calls.map(([options]) => options)).toMatchObject(
       [
@@ -76,22 +70,15 @@ describe('인증 endpoint adapter', () => {
     );
     expect(JSON.stringify(apiRequestMock.mock.calls)).not.toContain('password');
   });
+});
 
-  it('로그인·TOTP·refresh·logout에 cookie credential을 요청한다', async () => {
+describe('인증 세션 endpoint adapter', () => {
+  it('TOTP·refresh·logout에 cookie credential을 요청한다', async () => {
     apiRequestMock
-      .mockResolvedValueOnce({
-        status: 'MFA_REQUIRED',
-        challengeToken: 'challenge',
-        email: 'admin@example.com',
-      })
       .mockResolvedValueOnce(createAuthenticatedResponse())
       .mockResolvedValueOnce(createAuthenticatedResponse())
       .mockResolvedValueOnce(undefined);
 
-    await requestLogin({
-      email: 'admin@example.com',
-      password: 'password',
-    });
     await requestLoginTotp({
       email: 'admin@example.com',
       challengeToken: 'challenge',
@@ -102,11 +89,6 @@ describe('인증 endpoint adapter', () => {
 
     expect(apiRequestMock.mock.calls.map(([options]) => options)).toMatchObject(
       [
-        {
-          includeCredentials: true,
-          method: 'POST',
-          path: '/auth/login',
-        },
         {
           includeCredentials: true,
           method: 'POST',

@@ -1,7 +1,6 @@
 /** access token을 메모리에만 보관하는 인증 세션 store를 제공한다 */
 import type {
   AuthenticatedResponse,
-  LoginInput,
   LoginResponse,
   MeResponse,
   ProblemDetailsResponse,
@@ -10,7 +9,6 @@ import type {
 } from '@flex-thia/contracts';
 import { isApiError } from '../ApiError';
 import {
-  requestLogin,
   requestLoginTotp,
   requestLogout,
   requestMe,
@@ -94,14 +92,6 @@ export async function logoutSession(): Promise<void> {
   publish({ status: 'anonymous', reason: 'logged-out' });
 }
 
-/** 로그인 성공을 세션에 반영하거나 TOTP challenge를 메모리에만 보관한다 */
-export async function loginSession(
-  input: LoginInput,
-): Promise<LoginSessionResult> {
-  const response = await requestLogin(input);
-  return acceptLoginResponse(response);
-}
-
 /** 진행 중 이메일 challenge의 메모리 상태 */
 export interface PendingEmailChallenge {
   challengeId: string;
@@ -120,9 +110,7 @@ export async function startEmailAuthenticationSession(
 }
 
 /** 현재 탭에서 진행 중인 이메일 challenge만 반환한다 */
-export function getPendingEmailChallenge():
-  | PendingEmailChallenge
-  | undefined {
+export function getPendingEmailChallenge(): PendingEmailChallenge | undefined {
   return pendingEmailChallenge;
 }
 
@@ -267,9 +255,7 @@ export interface AuthenticatedLoginResult {
 export type LoginSessionResult =
   AuthenticatedLoginResult | { status: 'mfa-required' };
 
-function acceptLoginResponse(
-  response: LoginResponse,
-): LoginSessionResult {
+function acceptLoginResponse(response: LoginResponse): LoginSessionResult {
   if (response.status === 'MFA_REQUIRED') {
     loginChallenge = {
       email: response.email,

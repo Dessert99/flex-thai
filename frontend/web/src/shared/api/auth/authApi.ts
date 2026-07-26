@@ -3,7 +3,6 @@ import {
   confirmEmailLinkRequestSchema,
   emailAuthenticationChallengeResponseSchema,
   emailChallengeIdPathSchema,
-  loginRequestSchema,
   loginResponseSchema,
   meResponseSchema,
   startEmailAuthenticationRequestSchema,
@@ -12,7 +11,6 @@ import {
   totpSetupVerifyRequestSchema,
   verifyEmailCodeRequestSchema,
   type AuthenticatedResponse,
-  type LoginInput,
   type LoginResponse,
   type MeResponse,
   type TotpChallengeInput,
@@ -77,17 +75,6 @@ export function resendEmailChallenge(challengeId: string) {
       kind: 'json',
       schema: emailAuthenticationChallengeResponseSchema,
     },
-  });
-}
-
-/** 이메일·비밀번호 로그인 응답과 refresh cookie를 검증한다 */
-export function requestLogin(input: LoginInput): Promise<LoginResponse> {
-  return apiRequest({
-    body: loginRequestSchema.parse(input),
-    includeCredentials: true,
-    method: 'POST',
-    path: '/auth/login',
-    response: { kind: 'json', schema: loginResponseSchema },
   });
 }
 

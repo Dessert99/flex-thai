@@ -5,7 +5,6 @@ import { ApiError } from '../ApiError';
 
 const mocks = vi.hoisted(() => ({
   apiRequest: vi.fn(),
-  requestLogin: vi.fn(),
   requestLoginTotp: vi.fn(),
   requestLogout: vi.fn(),
   requestMe: vi.fn(),
@@ -16,7 +15,6 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../apiRequest', () => ({ apiRequest: mocks.apiRequest }));
 vi.mock('./authApi', () => ({
-  requestLogin: mocks.requestLogin,
   requestLoginTotp: mocks.requestLoginTotp,
   requestLogout: mocks.requestLogout,
   requestMe: mocks.requestMe,
