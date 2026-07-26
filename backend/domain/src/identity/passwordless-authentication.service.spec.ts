@@ -13,6 +13,7 @@ const challenge = {
   resendAt: new Date('2026-07-26T00:01:00.000Z'),
   attempts: 0,
   status: 'PENDING' as const,
+  reservedAt: now,
 };
 const replacementChallenge = {
   ...challenge,
@@ -104,22 +105,29 @@ describe('PasswordlessAuthenticationService', () => {
     );
   });
 
-  it('학교 이메일이 아니면 challenge를 만들지 않는다', async () => {
-    const { repository, service } = makeService();
+  it.each([
+    'user@not-hufs.ac.kr',
+    'a@b@hufs.ac.kr',
+    'user @hufs.ac.kr',
+    'user@mail.hufs.ac.kr',
+    '.user@hufs.ac.kr',
+  ])(
+    '문법 또는 domain이 잘못된 이메일 %s는 challenge를 만들지 않는다',
+    async (email) => {
+      const { repository, service } = makeService();
 
-    await expect(
-      service.start('user@not-hufs.ac.kr', now),
-    ).rejects.toMatchObject({ code: 'INVALID_SCHOOL_EMAIL' });
-    expect(repository.createWithinLimits).not.toHaveBeenCalled();
-  });
+      await expect(service.start(email, now)).rejects.toMatchObject({
+        code: 'INVALID_SCHOOL_EMAIL',
+      });
+      expect(repository.createWithinLimits).not.toHaveBeenCalled();
+    },
+  );
 
   it('코드와 링크 중 먼저 성공한 수단만 인증한다', async () => {
     const { repository, service } = makeService();
     repository.reserveConsumption
       .mockResolvedValueOnce(challenge)
-      .mockRejectedValueOnce(
-        new EmailChallengeError('CHALLENGE_ALREADY_USED'),
-      );
+      .mockRejectedValueOnce(new EmailChallengeError('CHALLENGE_ALREADY_USED'));
 
     await expect(
       service.completeCode(challengeId, '123456', now),
@@ -127,6 +135,11 @@ describe('PasswordlessAuthenticationService', () => {
     await expect(
       service.completeLink(challengeId, linkToken, now),
     ).rejects.toMatchObject({ code: 'CHALLENGE_ALREADY_USED' });
+    expect(repository.finalizeConsumption).toHaveBeenCalledWith(
+      challengeId,
+      now,
+      now,
+    );
   });
 
   it('provider 실패 시 challenge 소비 예약을 해제한다', async () => {
@@ -137,7 +150,10 @@ describe('PasswordlessAuthenticationService', () => {
       service.completeCode(challengeId, '123456', now),
     ).rejects.toThrow('provider unavailable');
     expect(repository.finalizeConsumption).not.toHaveBeenCalled();
-    expect(repository.releaseConsumption).toHaveBeenCalledWith(challengeId);
+    expect(repository.releaseConsumption).toHaveBeenCalledWith(
+      challengeId,
+      now,
+    );
   });
 
   it('유효한 challenge의 MFA 응답에 정규화 email을 붙인다', async () => {
@@ -156,17 +172,14 @@ describe('PasswordlessAuthenticationService', () => {
     });
   });
 
-  it('메일 발송 실패를 persistence에 기록한다', async () => {
+  it('최초 메일 발송 실패를 terminal delivery 상태로 기록한다', async () => {
     const { repository, sender, service } = makeService();
     sender.send.mockRejectedValue(new Error('SES unavailable'));
 
     await expect(service.start('user@hufs.ac.kr', now)).rejects.toThrow(
       'SES unavailable',
     );
-    expect(repository.markDelivery).toHaveBeenCalledWith(
-      challengeId,
-      'FAILED',
-    );
+    expect(repository.markDelivery).toHaveBeenCalledWith(challengeId, 'FAILED');
   });
 
   it('재전송은 기존 challenge를 교체하고 발송 실패 시 이전 상태를 복구한다', async () => {
@@ -187,6 +200,10 @@ describe('PasswordlessAuthenticationService', () => {
       previousChallengeId: challengeId,
       replacementChallengeId: replacementChallenge.id,
     });
+    expect(repository.markDelivery).not.toHaveBeenCalledWith(
+      replacementChallenge.id,
+      'FAILED',
+    );
   });
 
   it('메일 발송 성공 뒤 상태 저장 실패를 발송 실패로 오분류하지 않는다', async () => {

@@ -33,7 +33,7 @@ const makeRow = (): TestRow => ({
   resendAt: new Date('2026-07-26T00:01:00.000Z'),
   reservedAt: null,
   consumedAt: null,
-  deliveryStatus: 'PENDING',
+  deliveryStatus: 'SENT',
   createdAt: now,
 });
 
@@ -45,7 +45,7 @@ const makeDatabase = (counts: number[] = [], initialRow = makeRow()) => {
   const updatedValues: Array<Partial<TestRow>> = [];
 
   const transactionApi = {
-    execute: async () => undefined,
+    execute: () => Promise.resolve(undefined),
     select: (selection?: unknown) => ({
       from: () => ({
         where: () => {
@@ -55,27 +55,27 @@ const makeDatabase = (counts: number[] = [], initialRow = makeRow()) => {
             return Promise.resolve([{ value }]);
           }
           return {
-            limit: async () => [row],
+            limit: () => Promise.resolve([row]),
           };
         },
       }),
     }),
     insert: () => ({
       values: (values: Partial<TestRow>) => ({
-        returning: async () => {
+        returning: () => {
           insertedValues.push(values);
           row = { ...makeRow(), ...values };
-          return [row];
+          return Promise.resolve([row]);
         },
       }),
     }),
     update: () => ({
       set: (values: Partial<TestRow>) => ({
         where: () => ({
-          returning: async () => {
+          returning: () => {
             updatedValues.push(values);
             row = { ...row, ...values };
-            return [row];
+            return Promise.resolve([row]);
           },
         }),
       }),
@@ -153,6 +153,89 @@ describe('DrizzleEmailChallengeRepository', () => {
     ).toHaveLength(1);
   });
 
+  it('FAILED delivery는 challenge와 함께 terminal 상태가 되어 소비할 수 없다', async () => {
+    const { database, getRow } = makeDatabase();
+    const repository = new DrizzleEmailChallengeRepository(
+      database as never,
+      verifier,
+    );
+
+    await repository.markDelivery(challengeId, 'FAILED');
+
+    expect(getRow()).toMatchObject({
+      deliveryStatus: 'FAILED',
+      status: 'EXPIRED',
+    });
+    await expect(
+      repository.reserveConsumption({
+        challengeId,
+        answer: { kind: 'CODE', answer: '123456' },
+        now,
+      }),
+    ).rejects.toMatchObject({ code: 'CHALLENGE_EXPIRED' });
+  });
+
+  it('만료된 RESERVED는 IN_PROGRESS보다 먼저 EXPIRED로 종료한다', async () => {
+    const row = makeRow();
+    row.status = 'RESERVED';
+    row.reservedAt = new Date('2026-07-25T23:59:00.000Z');
+    row.expiresAt = now;
+    const { database, getRow } = makeDatabase([], row);
+    const repository = new DrizzleEmailChallengeRepository(
+      database as never,
+      verifier,
+    );
+
+    await expect(
+      repository.reserveConsumption({
+        challengeId,
+        answer: { kind: 'CODE', answer: '123456' },
+        now,
+      }),
+    ).rejects.toMatchObject({ code: 'CHALLENGE_EXPIRED' });
+    expect(getRow()).toMatchObject({ status: 'EXPIRED' });
+  });
+
+  it('lease가 지난 RESERVED를 회수해 새 reservedAt으로 다시 예약한다', async () => {
+    const row = makeRow();
+    row.status = 'RESERVED';
+    row.reservedAt = new Date('2026-07-25T23:58:59.999Z');
+    const retryAt = new Date('2026-07-26T00:00:00.000Z');
+    const { database, getRow } = makeDatabase([], row);
+    const repository = new DrizzleEmailChallengeRepository(
+      database as never,
+      verifier,
+    );
+
+    await expect(
+      repository.reserveConsumption({
+        challengeId,
+        answer: { kind: 'CODE', answer: '123456' },
+        now: retryAt,
+      }),
+    ).resolves.toMatchObject({ status: 'RESERVED', reservedAt: retryAt });
+    expect(getRow()).toMatchObject({ status: 'RESERVED', reservedAt: retryAt });
+  });
+
+  it('lease 안의 RESERVED는 계속 IN_PROGRESS로 거부한다', async () => {
+    const row = makeRow();
+    row.status = 'RESERVED';
+    row.reservedAt = new Date('2026-07-25T23:59:30.001Z');
+    const { database } = makeDatabase([], row);
+    const repository = new DrizzleEmailChallengeRepository(
+      database as never,
+      verifier,
+    );
+
+    await expect(
+      repository.reserveConsumption({
+        challengeId,
+        answer: { kind: 'CODE', answer: '123456' },
+        now,
+      }),
+    ).rejects.toMatchObject({ code: 'CHALLENGE_IN_PROGRESS' });
+  });
+
   it.each([
     [[1], 'CHALLENGE_RESEND_COOLDOWN'],
     [[0, 5], 'EMAIL_DAILY_LIMIT_EXCEEDED'],
@@ -166,9 +249,9 @@ describe('DrizzleEmailChallengeRepository', () => {
         verifier,
       );
 
-      await expect(repository.createWithinLimits(createInput)).rejects.toMatchObject(
-        { code },
-      );
+      await expect(
+        repository.createWithinLimits(createInput),
+      ).rejects.toMatchObject({ code });
     },
   );
 
@@ -193,9 +276,7 @@ describe('DrizzleEmailChallengeRepository', () => {
 
   it('재전송은 기존 PENDING을 만료시키고 같은 transaction에서 새 행을 만든다', async () => {
     const resendNow = new Date('2026-07-26T00:01:00.000Z');
-    const { database, insertedValues, updatedValues } = makeDatabase([
-      1, 1,
-    ]);
+    const { database, insertedValues, updatedValues } = makeDatabase([1, 1]);
     const repository = new DrizzleEmailChallengeRepository(
       database as never,
       verifier,
@@ -222,13 +303,13 @@ describe('DrizzleEmailChallengeRepository', () => {
   it('새 challenge가 이미 예약됐으면 이전 challenge를 복구하지 않는다', async () => {
     let updateCount = 0;
     const transaction = {
-      execute: async () => undefined,
+      execute: () => Promise.resolve(undefined),
       update: () => ({
         set: () => ({
           where: () => ({
-            returning: async () => {
+            returning: () => {
               updateCount += 1;
-              return [];
+              return Promise.resolve([]);
             },
           }),
         }),
@@ -236,8 +317,8 @@ describe('DrizzleEmailChallengeRepository', () => {
     };
     const repository = new DrizzleEmailChallengeRepository(
       {
-        transaction: async (operation: (value: typeof transaction) => unknown) =>
-          operation(transaction),
+        transaction: (operation: (value: typeof transaction) => unknown) =>
+          Promise.resolve(operation(transaction)),
       } as never,
       verifier,
     );

@@ -13,6 +13,8 @@ import type {
 
 const CHALLENGE_LIFETIME_MS = 600_000;
 const RESEND_COOLDOWN_MS = 60_000;
+const SCHOOL_EMAIL_PATTERN =
+  /^[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@hufs\.ac\.kr$/u;
 
 /** 계정 존재 여부를 포함하지 않는 challenge 시작 결과 */
 export interface EmailChallengeStartResult {
@@ -107,11 +109,7 @@ export class PasswordlessAuthenticationService {
     linkToken: string,
     now: Date,
   ): Promise<PasswordlessAuthenticationResult> {
-    return this.complete(
-      challengeId,
-      { kind: 'LINK', answer: linkToken },
-      now,
-    );
+    return this.complete(challengeId, { kind: 'LINK', answer: linkToken }, now);
   }
 
   private async complete(
@@ -132,11 +130,18 @@ export class PasswordlessAuthenticationService {
       result = await this.provider.complete(challenge.email);
     } catch (error) {
       // 외부 provider 실패는 같은 challenge를 안전하게 재시도할 수 있게 예약만 해제
-      await this.repository.releaseConsumption(challengeId);
+      await this.repository.releaseConsumption(
+        challengeId,
+        challenge.reservedAt,
+      );
       throw error;
     }
 
-    await this.repository.finalizeConsumption(challengeId, now);
+    await this.repository.finalizeConsumption(
+      challengeId,
+      challenge.reservedAt,
+      now,
+    );
     return result.kind === 'MFA_REQUIRED'
       ? { ...result, email: challenge.email }
       : result;
@@ -168,12 +173,13 @@ export class PasswordlessAuthenticationService {
         expiresAt: challenge.expiresAt,
       });
     } catch (error) {
-      await this.repository.markDelivery(challenge.id, 'FAILED');
       if (replacement) {
         await this.repository.restoreReplacedChallenge({
           previousChallengeId: replacement.previousChallengeId,
           replacementChallengeId: replacement.replacementChallengeId,
         });
+      } else {
+        await this.repository.markDelivery(challenge.id, 'FAILED');
       }
       throw error;
     }
@@ -183,7 +189,7 @@ export class PasswordlessAuthenticationService {
 
 const normalizeSchoolEmail = (emailInput: string): string => {
   const email = emailInput.trim().toLowerCase();
-  if (!email.endsWith('@hufs.ac.kr') || email.slice(0, -11).length === 0) {
+  if (!SCHOOL_EMAIL_PATTERN.test(email)) {
     throw new EmailChallengeError('INVALID_SCHOOL_EMAIL');
   }
   return email;

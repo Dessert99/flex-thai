@@ -1,10 +1,11 @@
 /** passwordless 이메일 challenge 제한과 원자 소비를 Drizzle로 보장한다 */
-import { and, eq, gt, gte, lt, sql } from 'drizzle-orm';
+import { and, eq, gt, gte, inArray, lt, sql } from 'drizzle-orm';
 import {
   EmailChallengeError,
   type ChallengeCryptoPort,
   type EmailChallenge,
   type EmailChallengeRepository,
+  type ReservedEmailChallenge,
 } from '@flex-thia/domain';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
@@ -13,6 +14,7 @@ import * as schema from '../schema/index.js';
 
 type EmailChallengeDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 type EmailChallengeRow = typeof authChallenges.$inferSelect;
+const RESERVATION_LEASE_MS = 60_000;
 
 const toEmailChallenge = (row: EmailChallengeRow): EmailChallenge => ({
   id: row.id,
@@ -23,14 +25,21 @@ const toEmailChallenge = (row: EmailChallengeRow): EmailChallenge => ({
   status: row.status,
 });
 
+const toReservedEmailChallenge = (
+  row: EmailChallengeRow,
+): ReservedEmailChallenge => {
+  if (!row.reservedAt) {
+    throw new Error('예약된 이메일 challenge에 reservedAt이 없습니다');
+  }
+  return { ...toEmailChallenge(row), reservedAt: row.reservedAt };
+};
+
 type ReservationResult =
-  | { challenge: EmailChallenge }
+  | { challenge: ReservedEmailChallenge }
   | { error: EmailChallengeError['code'] };
 
 /** transaction advisory lock과 조건부 update를 사용하는 repository */
-export class DrizzleEmailChallengeRepository
-  implements EmailChallengeRepository
-{
+export class DrizzleEmailChallengeRepository implements EmailChallengeRepository {
   constructor(
     private readonly database: EmailChallengeDatabase,
     private readonly crypto: ChallengeCryptoPort,
@@ -197,14 +206,22 @@ export class DrizzleEmailChallengeRepository
     return result.challenge;
   }
 
-  /** SES 결과만 원문 없이 delivery 상태에 기록한다 */
+  /** FAILED delivery와 challenge terminal 상태를 한 update로 기록한다 */
   async markDelivery(
     challengeId: string,
     status: 'SENT' | 'FAILED',
   ): Promise<void> {
     await this.database
       .update(authChallenges)
-      .set({ deliveryStatus: status })
+      .set(
+        status === 'FAILED'
+          ? {
+              deliveryStatus: status,
+              status: 'EXPIRED',
+              reservedAt: null,
+            }
+          : { deliveryStatus: status },
+      )
       .where(eq(authChallenges.id, challengeId))
       .returning({ id: authChallenges.id });
   }
@@ -247,7 +264,7 @@ export class DrizzleEmailChallengeRepository
   /** challenge별 lock 뒤 answer를 검증해 한 요청만 RESERVED로 전이한다 */
   async reserveConsumption(
     input: Parameters<EmailChallengeRepository['reserveConsumption']>[0],
-  ): Promise<EmailChallenge> {
+  ): Promise<ReservedEmailChallenge> {
     const result: ReservationResult = await this.database.transaction(
       async (transaction) => {
         // 같은 challenge의 code와 link 경쟁을 DB transaction 순서로 직렬화한다.
@@ -260,15 +277,32 @@ export class DrizzleEmailChallengeRepository
           .where(eq(authChallenges.id, input.challengeId))
           .limit(1);
         if (!row) return { error: 'CHALLENGE_NOT_FOUND' };
-        if (row.status === 'RESERVED') {
-          return { error: 'CHALLENGE_IN_PROGRESS' };
-        }
         if (row.status === 'SUCCEEDED') {
           return { error: 'CHALLENGE_ALREADY_USED' };
         }
         if (row.status === 'EXPIRED' || row.expiresAt <= input.now) {
           await this.expireWithinTransaction(transaction, input.challengeId);
           return { error: 'CHALLENGE_EXPIRED' };
+        }
+        if (row.status === 'RESERVED') {
+          const leaseExpiresAt =
+            row.reservedAt?.getTime() ?? Number.NEGATIVE_INFINITY;
+          if (leaseExpiresAt + RESERVATION_LEASE_MS > input.now.getTime()) {
+            return { error: 'CHALLENGE_IN_PROGRESS' };
+          }
+          await transaction
+            .update(authChallenges)
+            .set({ status: 'PENDING', reservedAt: null })
+            .where(
+              and(
+                eq(authChallenges.id, input.challengeId),
+                eq(authChallenges.status, 'RESERVED'),
+              ),
+            )
+            .returning({ id: authChallenges.id });
+        }
+        if (row.deliveryStatus !== 'SENT') {
+          return { error: 'CHALLENGE_IN_PROGRESS' };
         }
         if (row.attempts >= 5) {
           await this.expireWithinTransaction(transaction, input.challengeId);
@@ -313,7 +347,7 @@ export class DrizzleEmailChallengeRepository
           )
           .returning();
         return reserved
-          ? { challenge: toEmailChallenge(reserved) }
+          ? { challenge: toReservedEmailChallenge(reserved) }
           : { error: 'CHALLENGE_IN_PROGRESS' };
       },
     );
@@ -325,7 +359,11 @@ export class DrizzleEmailChallengeRepository
   }
 
   /** 예약된 challenge만 성공 terminal 상태로 완료한다 */
-  async finalizeConsumption(challengeId: string, now: Date): Promise<void> {
+  async finalizeConsumption(
+    challengeId: string,
+    reservedAt: Date,
+    now: Date,
+  ): Promise<void> {
     const rows = await this.database
       .update(authChallenges)
       .set({ status: 'SUCCEEDED', consumedAt: now })
@@ -333,6 +371,7 @@ export class DrizzleEmailChallengeRepository
         and(
           eq(authChallenges.id, challengeId),
           eq(authChallenges.status, 'RESERVED'),
+          eq(authChallenges.reservedAt, reservedAt),
         ),
       )
       .returning({ id: authChallenges.id });
@@ -342,7 +381,10 @@ export class DrizzleEmailChallengeRepository
   }
 
   /** provider 실패 시 예약 상태만 다시 PENDING으로 되돌린다 */
-  async releaseConsumption(challengeId: string): Promise<void> {
+  async releaseConsumption(
+    challengeId: string,
+    reservedAt: Date,
+  ): Promise<void> {
     await this.database
       .update(authChallenges)
       .set({ status: 'PENDING', reservedAt: null })
@@ -350,6 +392,7 @@ export class DrizzleEmailChallengeRepository
         and(
           eq(authChallenges.id, challengeId),
           eq(authChallenges.status, 'RESERVED'),
+          eq(authChallenges.reservedAt, reservedAt),
         ),
       )
       .returning({ id: authChallenges.id });
@@ -363,11 +406,11 @@ export class DrizzleEmailChallengeRepository
   ): Promise<void> {
     await transaction
       .update(authChallenges)
-      .set({ status: 'EXPIRED' })
+      .set({ status: 'EXPIRED', reservedAt: null })
       .where(
         and(
           eq(authChallenges.id, challengeId),
-          eq(authChallenges.status, 'PENDING'),
+          inArray(authChallenges.status, ['PENDING', 'RESERVED']),
         ),
       )
       .returning({ id: authChallenges.id });
