@@ -1,5 +1,5 @@
 /** concept query·command와 media signer를 strict 공개 응답으로 조립한다 */
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import {
   adminConceptDetailResponseSchema,
   adminConceptListResponseSchema,
@@ -18,17 +18,19 @@ import {
   type CreateConceptRequest,
   type ReplaceConceptVersionRequest,
 } from '@flex-thia/contracts';
-import type {
-  DrizzleAdminConceptQuery,
-  DrizzleLearnerConceptQuery,
-  LearnerConceptBlockProjection,
-  ConceptSentenceProjection,
+import {
+  ConceptPersistenceError,
+  type ConceptSentenceProjection,
+  type DrizzleAdminConceptQuery,
+  type DrizzleLearnerConceptQuery,
+  type LearnerConceptBlockProjection,
 } from '@flex-thia/database';
-import type {
-  ConceptCommandContext,
-  ConceptDraftRecord,
-  ConceptService,
-  MediaReadUrlProvider,
+import {
+  ConceptDomainError,
+  type ConceptCommandContext,
+  type ConceptDraftRecord,
+  type ConceptService,
+  type MediaReadUrlProvider,
 } from '@flex-thia/domain';
 import type { ZodType } from 'zod';
 
@@ -64,6 +66,29 @@ const parsePublic = <Output>(
   const parsed = schema.safeParse(value);
   if (!parsed.success) throw new ConceptPublicResponseError();
   return parsed.data;
+};
+
+const withConceptHttpErrors = async <Output>(
+  work: () => Promise<Output>,
+): Promise<Output> => {
+  try {
+    return await work();
+  } catch (error) {
+    if (
+      error instanceof ConceptDomainError ||
+      error instanceof ConceptPersistenceError
+    ) {
+      if (
+        error.code === 'CONCEPT_NOT_FOUND' ||
+        error.code === 'CONCEPT_VERSION_NOT_FOUND' ||
+        error.code === 'CONCEPT_REFERENCE_NOT_FOUND'
+      ) {
+        throw new NotFoundException({ code: error.code });
+      }
+      throw new ConflictException({ code: error.code });
+    }
+    throw error;
+  }
 };
 
 const mapSentence = async (
@@ -218,10 +243,12 @@ export class ConceptsService {
     input: CreateConceptRequest,
     context: ConceptCommandContext,
   ): Promise<AdminConceptVersion> {
-    return parsePublic(
-      conceptVersionResponseSchema,
-      toPublicVersion(
-        await this.dependencies.adminService.createConcept(input, context),
+    return withConceptHttpErrors(async () =>
+      parsePublic(
+        conceptVersionResponseSchema,
+        toPublicVersion(
+          await this.dependencies.adminService.createConcept(input, context),
+        ),
       ),
     );
   }
@@ -231,12 +258,14 @@ export class ConceptsService {
     conceptId: string,
     context: ConceptCommandContext,
   ): Promise<AdminConceptVersion> {
-    return parsePublic(
-      conceptVersionResponseSchema,
-      toPublicVersion(
-        await this.dependencies.adminService.createNextDraft(
-          conceptId,
-          context,
+    return withConceptHttpErrors(async () =>
+      parsePublic(
+        conceptVersionResponseSchema,
+        toPublicVersion(
+          await this.dependencies.adminService.createNextDraft(
+            conceptId,
+            context,
+          ),
         ),
       ),
     );
@@ -248,13 +277,15 @@ export class ConceptsService {
     input: ReplaceConceptVersionRequest,
     context: ConceptCommandContext,
   ): Promise<AdminConceptVersion> {
-    return parsePublic(
-      conceptVersionResponseSchema,
-      toPublicVersion(
-        await this.dependencies.adminService.replaceDraft(
-          versionId,
-          input,
-          context,
+    return withConceptHttpErrors(async () =>
+      parsePublic(
+        conceptVersionResponseSchema,
+        toPublicVersion(
+          await this.dependencies.adminService.replaceDraft(
+            versionId,
+            input,
+            context,
+          ),
         ),
       ),
     );
@@ -265,13 +296,15 @@ export class ConceptsService {
     versionId: string,
     context: ConceptCommandContext,
   ): Promise<ConceptValidationReport> {
-    const report = await this.dependencies.adminService.validateVersion(
-      versionId,
-      context,
-    );
-    return parsePublic(conceptValidationReportSchema, {
-      ...report,
-      validatedAt: report.validatedAt.toISOString(),
+    return withConceptHttpErrors(async () => {
+      const report = await this.dependencies.adminService.validateVersion(
+        versionId,
+        context,
+      );
+      return parsePublic(conceptValidationReportSchema, {
+        ...report,
+        validatedAt: report.validatedAt.toISOString(),
+      });
     });
   }
 
@@ -280,16 +313,22 @@ export class ConceptsService {
     versionId: string,
     context: ConceptCommandContext,
   ): Promise<void> {
-    await this.dependencies.adminService.publishVersion(versionId, context);
+    await withConceptHttpErrors(() =>
+      this.dependencies.adminService.publishVersion(versionId, context),
+    );
   }
 
   /** 게시 개념을 숨긴다 */
   hide(conceptId: string, context: ConceptCommandContext): Promise<void> {
-    return this.dependencies.adminService.hideConcept(conceptId, context);
+    return withConceptHttpErrors(() =>
+      this.dependencies.adminService.hideConcept(conceptId, context),
+    );
   }
 
   /** 숨김 개념을 복구한다 */
   restore(conceptId: string, context: ConceptCommandContext): Promise<void> {
-    return this.dependencies.adminService.restoreConcept(conceptId, context);
+    return withConceptHttpErrors(() =>
+      this.dependencies.adminService.restoreConcept(conceptId, context),
+    );
   }
 }
