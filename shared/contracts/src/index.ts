@@ -5,6 +5,8 @@ export * from './common/problem.js';
 export * from './health/status.js';
 export * from './identity/auth.js';
 export * from './identity/user-management.js';
+
+export * from './operations/audit-logs.js';
 export * from './learning/questions.js';
 export * from './learning/vocabularies.js';
 export * from './thai-content/sentences.js';

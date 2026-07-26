@@ -76,6 +76,9 @@ export * from './queries/drizzle-admin-vocabulary.query.js';
 /** 관리자 사용자 목록·상태·beta 안내 추적 adapter를 공개한다 */
 export * from './queries/drizzle-user-management.query.js';
 
+/** 관리자 감사 기록 read adapter를 공개한다 */
+export * from './queries/drizzle-audit-log.query.js';
+
 /** Cognito sub 기반 user repository adapter를 공개한다 */
 export * from './repositories/drizzle-user.repository.js';
 
