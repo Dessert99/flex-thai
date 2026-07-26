@@ -1,4 +1,4 @@
-/** 학습자 공용·저장 어휘와 관련 문제의 공개 JSON 계약을 정의한다 */
+/** 학습자 공용 어휘와 관련 문제의 공개 JSON 계약을 정의한다 */
 import { z } from 'zod';
 import { publicThaiSentenceSchema } from '../thai-content/sentences.js';
 import { pageMetadataSchema, questionListItemSchema } from './questions.js';
@@ -67,7 +67,7 @@ export const vocabularyListQuerySchema = z
   })
   .strict();
 
-/** 어휘 목록과 저장 목록이 공유하는 공개 뜻·발음 요약 */
+/** 어휘 목록과 단어장이 공유하는 공개 뜻·발음 요약 */
 export const vocabularySummarySchema = z
   .object(vocabularySummaryShape)
   .strict();
@@ -136,18 +136,7 @@ export const vocabularyRelatedQuestionsResponseSchema = z
   })
   .strict();
 
-/** 통합 전 기존 저장 어휘 목록의 페이지 query */
-export const savedVocabularyListQuerySchema = z.object(pageQueryShape).strict();
-
-/** 통합 전 기존 저장 어휘 목록의 페이지 응답 */
-export const savedVocabularyListResponseSchema = z
-  .object({
-    items: z.array(vocabularySummarySchema),
-    page: pageMetadataSchema,
-  })
-  .strict();
-
-/** 어휘 상세·관련 문제·저장 경로의 UUID parameter */
+/** 어휘 상세·관련 문제·단어장 membership 경로의 UUID parameter */
 export const vocabularyIdPathSchema = z
   .object({ vocabularyId: uuidSchema })
   .strict();
@@ -176,16 +165,6 @@ export type VocabularyRelatedQuestionsQuery = z.infer<
 /** 직렬화 가능한 관련 문제 목록 응답 type */
 export type VocabularyRelatedQuestionsResponse = z.infer<
   typeof vocabularyRelatedQuestionsResponseSchema
->;
-
-/** 통합 전 기존 저장 어휘 목록 query type */
-export type SavedVocabularyListQuery = z.infer<
-  typeof savedVocabularyListQuerySchema
->;
-
-/** 통합 전 기존 저장 어휘 목록 응답 type */
-export type SavedVocabularyListResponse = z.infer<
-  typeof savedVocabularyListResponseSchema
 >;
 
 /** 검증된 어휘 UUID path type */

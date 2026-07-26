@@ -6,7 +6,11 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
-import { loginRequestSchema, problemDetailsSchema } from '@flex-thia/contracts';
+import {
+  problemDetailsSchema,
+  startEmailAuthenticationRequestSchema,
+} from '@flex-thia/contracts';
+import { WordbookPersistenceError } from '@flex-thia/database';
 import {
   AuthDomainError,
   ContentImportError,
@@ -18,6 +22,7 @@ import {
   QuestionPublicationError,
   UserManagementError,
   VocabularyAdminError,
+  WordbookDomainError,
 } from '@flex-thia/domain';
 import { LearnerPublicResponseError } from '../../learning/learner-content.service.js';
 import { LearnerQuestionsController } from '../../learning/learner-questions.controller.js';
@@ -161,7 +166,7 @@ describe('공개 오류 응답 변환', () => {
     );
     const zodError = (() => {
       try {
-        loginRequestSchema.parse({ email: 'invalid', password: '' });
+        startEmailAuthenticationRequestSchema.parse({ email: 'invalid' });
       } catch (error) {
         return error;
       }
@@ -216,6 +221,32 @@ describe('공개 오류 응답 변환', () => {
       body: { code, status: 409, requestId: 'request-persistence' },
     });
   });
+
+  it.each([
+    [new WordbookDomainError('WORDBOOK_NAME_INVALID'), 400],
+    [new WordbookDomainError('WORDBOOK_NOT_FOUND'), 404],
+    [new WordbookDomainError('WORDBOOK_SAME_TARGET'), 400],
+    [new WordbookDomainError('VOCABULARY_UNAVAILABLE'), 404],
+    [new WordbookPersistenceError('WORDBOOK_NAME_CONFLICT', 'create'), 409],
+    [
+      new WordbookPersistenceError('WORDBOOK_PERSISTENCE_CONFLICT', 'create'),
+      409,
+    ],
+  ] as const)(
+    '단어장 오류 %s를 정확한 공개 상태 %i로 변환한다',
+    (error, status) => {
+      const result = buildErrorResponse(error, 'request-wordbook');
+
+      expect(result).toMatchObject({
+        status,
+        body: {
+          code: error.code,
+          status,
+          requestId: 'request-wordbook',
+        },
+      });
+    },
+  );
 
   it.each([
     [new ContentImportError('CONTENT_IMPORT_IDEMPOTENCY_CONFLICT'), 409],
@@ -295,7 +326,7 @@ describe('공개 오류 응답 변환', () => {
     } as never;
     let requestError: unknown;
     try {
-      loginRequestSchema.parse({ email: 'invalid', password: '' });
+      startEmailAuthenticationRequestSchema.parse({ email: 'invalid' });
     } catch (error) {
       requestError = error;
     }

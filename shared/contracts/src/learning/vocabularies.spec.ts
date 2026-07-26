@@ -1,4 +1,4 @@
-/** 학습자 어휘 API의 검색·상세·저장 공개 계약을 검증한다 */
+/** 학습자 어휘 API의 검색·상세·관련 문제 공개 계약을 검증한다 */
 import { describe, expect, it } from 'vitest';
 import {
   vocabularyDetailResponseSchema,
@@ -232,7 +232,7 @@ describe('학습자 어휘 공개 응답 계약', () => {
     ).toThrow();
   });
 
-  it('관련 게시 문제 페이지와 저장 어휘 페이지를 공개 형태로 검증한다', () => {
+  it('관련 게시 문제 페이지를 공개 형태로 검증한다', () => {
     const relatedQuestion = {
       questionId: ids.question,
       questionVersionId: ids.version,

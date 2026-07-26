@@ -1,4 +1,4 @@
-/** 사전 준비 계정의 로그인·TOTP·refresh·logout HTTP 경계를 제공한다 */
+/** 학교 이메일 passwordless 로그인·TOTP·refresh·logout HTTP 경계를 제공한다 */
 import {
   Body,
   Controller,
@@ -18,6 +18,7 @@ import {
   ApiExtraModels,
   ApiNoContentResponse,
   ApiOperation,
+  ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
 import {
@@ -57,12 +58,16 @@ import {
 } from '../openapi/openapi.decorators.js';
 import {
   AuthenticatedResponseDto,
+  ConfirmEmailLinkRequestDto,
+  EmailAuthenticationChallengeResponseDto,
   MeResponseDto,
   MfaRequiredResponseDto,
   ProblemDetailsDto,
+  StartEmailAuthenticationRequestDto,
   TotpChallengeRequestDto,
   TotpSetupResponseDto,
   TotpSetupVerifyRequestDto,
+  VerifyEmailCodeRequestDto,
 } from '../openapi/openapi.dto.js';
 import { ApplicationRoleGuard } from './application-role.guard.js';
 import { CognitoAuthorizerGuard } from './cognito-authorizer.guard.js';
@@ -97,6 +102,8 @@ export class IdentityController {
 
   /** 학교 이메일 challenge를 계정 존재 여부 없는 응답으로 시작한다 */
   @ApiOperation({ summary: '학교 이메일 로그인 challenge를 시작한다' })
+  @ApiBody({ type: StartEmailAuthenticationRequestDto })
+  @ApiCreatedResponse({ type: EmailAuthenticationChallengeResponseDto })
   @ApiCsrfProtection()
   @ApiProblemResponse(400, '요청 body가 공개 계약과 일치하지 않음')
   @ApiProblemResponse(403, 'CSRF 조건이 요청을 허용하지 않음')
@@ -115,6 +122,8 @@ export class IdentityController {
 
   /** 6자리 코드 POST로만 challenge를 소비하고 인증을 완료한다 */
   @ApiOperation({ summary: '이메일 코드로 로그인 challenge를 확인한다' })
+  @ApiParam({ name: 'challengeId', type: 'string', format: 'uuid' })
+  @ApiBody({ type: VerifyEmailCodeRequestDto })
   @ApiAuthenticationResponse()
   @ApiCsrfProtection()
   @ApiProblemResponse(400, '요청 path 또는 body가 공개 계약과 일치하지 않음')
@@ -144,6 +153,8 @@ export class IdentityController {
 
   /** 명시적인 링크 확인 POST에서만 challenge를 소비한다 */
   @ApiOperation({ summary: '이메일 링크로 로그인 challenge를 확인한다' })
+  @ApiParam({ name: 'challengeId', type: 'string', format: 'uuid' })
+  @ApiBody({ type: ConfirmEmailLinkRequestDto })
   @ApiAuthenticationResponse()
   @ApiCsrfProtection()
   @ApiProblemResponse(400, '요청 path 또는 body가 공개 계약과 일치하지 않음')
@@ -173,6 +184,8 @@ export class IdentityController {
 
   /** cooldown과 일일 상한 아래 기존 challenge를 새 challenge로 교체한다 */
   @ApiOperation({ summary: '이메일 로그인 challenge를 재전송한다' })
+  @ApiParam({ name: 'challengeId', type: 'string', format: 'uuid' })
+  @ApiCreatedResponse({ type: EmailAuthenticationChallengeResponseDto })
   @ApiCsrfProtection()
   @ApiProblemResponse(400, '요청 path가 공개 계약과 일치하지 않음')
   @ApiProblemResponse(401, 'challenge가 만료됨')

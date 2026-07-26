@@ -16,14 +16,18 @@ import {
   audioUploadRequestSchema,
   audioUploadResponseSchema,
   authenticatedResponseSchema,
+  betaInvitationRequestSchema,
+  betaInvitationResponseSchema,
   completeMediaAssetResponseSchema,
+  confirmEmailLinkRequestSchema,
   contentImportDetailResponseSchema,
   contentImportIdPathSchema,
   contentImportListQuerySchema,
   contentImportListResponseSchema,
   contentImportRequestSchema,
+  emailAuthenticationChallengeResponseSchema,
   healthResponseSchema,
-  loginRequestSchema,
+  managedIdentityUserResponseSchema,
   mediaAssetDetailResponseSchema,
   mediaAssetIdPathSchema,
   meResponseSchema,
@@ -36,25 +40,52 @@ import {
   questionListResponseSchema,
   problemDetailsSchema,
   readinessResponseSchema,
-  savedVocabularyListQuerySchema,
-  savedVocabularyListResponseSchema,
+  startEmailAuthenticationRequestSchema,
   submitQuestionAttemptRequestSchema,
   submitQuestionAttemptResponseSchema,
   totpChallengeRequestSchema,
   totpSetupResponseSchema,
   totpSetupVerifyRequestSchema,
+  userManagementListResponseSchema,
+  userStatusUpdateRequestSchema,
   vocabularyDetailResponseSchema,
   vocabularyIdPathSchema,
   vocabularyListQuerySchema,
   vocabularyListResponseSchema,
   vocabularyRelatedQuestionsQuerySchema,
   vocabularyRelatedQuestionsResponseSchema,
+  vocabularyWordbookMembershipResponseSchema,
+  verifyEmailCodeRequestSchema,
+  wordbookBulkItemsRequestSchema,
+  wordbookItemListQuerySchema,
+  wordbookItemListResponseSchema,
+  wordbookListResponseSchema,
+  wordbookNameRequestSchema,
+  wordbookRemoveItemsRequestSchema,
+  wordbookResponseSchema,
 } from '@flex-thia/contracts';
 import { createZodDto } from 'nestjs-zod';
 import type { ZodObject } from 'zod';
 
-/** 로그인 요청 Swagger DTO */
-export class LoginRequestDto extends createZodDto(loginRequestSchema) {}
+/** 이메일 challenge 시작 요청 Swagger DTO */
+export class StartEmailAuthenticationRequestDto extends createZodDto(
+  startEmailAuthenticationRequestSchema,
+) {}
+
+/** 계정 존재 여부를 숨기는 이메일 challenge 응답 Swagger DTO */
+export class EmailAuthenticationChallengeResponseDto extends createZodDto(
+  emailAuthenticationChallengeResponseSchema,
+) {}
+
+/** 이메일 코드 확인 요청 Swagger DTO */
+export class VerifyEmailCodeRequestDto extends createZodDto(
+  verifyEmailCodeRequestSchema,
+) {}
+
+/** 이메일 링크 확인 요청 Swagger DTO */
+export class ConfirmEmailLinkRequestDto extends createZodDto(
+  confirmEmailLinkRequestSchema,
+) {}
 
 /** access token과 공개 사용자를 포함한 인증 성공 Swagger DTO */
 export class AuthenticatedResponseDto extends createZodDto(
@@ -161,14 +192,67 @@ export class VocabularyRelatedQuestionsResponseDto extends createZodDto(
   vocabularyRelatedQuestionsResponseSchema,
 ) {}
 
-/** 저장 어휘 목록 query Swagger DTO */
-export class SavedVocabularyListQueryDto extends createZodDto(
-  savedVocabularyListQuerySchema,
+/** 단어장 생성·이름 변경 요청 Swagger DTO */
+export class WordbookNameRequestDto extends createZodDto(
+  wordbookNameRequestSchema,
 ) {}
 
-/** 저장 어휘 목록 성공 Swagger DTO */
-export class SavedVocabularyListResponseDto extends createZodDto(
-  savedVocabularyListResponseSchema,
+/** 단어장 생성·이름 변경 응답 Swagger DTO */
+export class WordbookResponseDto extends createZodDto(wordbookResponseSchema) {}
+
+/** 현재 사용자 단어장 목록 응답 Swagger DTO */
+export class WordbookListResponseDto extends createZodDto(
+  wordbookListResponseSchema,
+) {}
+
+/** 단어장 항목 목록 query Swagger DTO */
+export class WordbookItemListQueryDto extends createZodDto(
+  wordbookItemListQuerySchema,
+) {}
+
+/** 단어장 항목 목록 응답 Swagger DTO */
+export class WordbookItemListResponseDto extends createZodDto(
+  wordbookItemListResponseSchema,
+) {}
+
+/** 단어장 항목 복사·이동 요청 Swagger DTO */
+export class WordbookBulkItemsRequestDto extends createZodDto(
+  wordbookBulkItemsRequestSchema,
+) {}
+
+/** 단어장 항목 일괄 제거 요청 Swagger DTO */
+export class WordbookRemoveItemsRequestDto extends createZodDto(
+  wordbookRemoveItemsRequestSchema,
+) {}
+
+/** 어휘가 속한 현재 사용자 단어장 목록 응답 Swagger DTO */
+export class VocabularyWordbookMembershipResponseDto extends createZodDto(
+  vocabularyWordbookMembershipResponseSchema,
+) {}
+
+/** 관리자 사용자 목록 응답 Swagger DTO */
+export class UserManagementListResponseDto extends createZodDto(
+  userManagementListResponseSchema,
+) {}
+
+/** 관리자 사용자 상태 응답 Swagger DTO */
+export class ManagedIdentityUserResponseDto extends createZodDto(
+  managedIdentityUserResponseSchema,
+) {}
+
+/** 관리자 사용자 상태 변경 요청 Swagger DTO */
+export class UserStatusUpdateRequestDto extends createZodDto(
+  userStatusUpdateRequestSchema,
+) {}
+
+/** beta 안내 발송 기록 요청 Swagger DTO */
+export class BetaInvitationRequestDto extends createZodDto(
+  betaInvitationRequestSchema,
+) {}
+
+/** beta 안내 발송 기록 응답 Swagger DTO */
+export class BetaInvitationResponseDto extends createZodDto(
+  betaInvitationResponseSchema,
 ) {}
 
 /** canonical 콘텐츠 가져오기 요청 Swagger DTO */

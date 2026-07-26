@@ -1,18 +1,8 @@
-/** 인증된 학습자의 공용·저장 어휘 HTTP 경계를 제공한다 */
-import {
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  Param,
-  Put,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+/** 인증된 학습자의 공용 어휘 HTTP 경계를 제공한다 */
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiExtraModels,
-  ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
@@ -20,15 +10,12 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
-  savedVocabularyListQuerySchema,
-  savedVocabularyListResponseSchema,
   vocabularyDetailResponseSchema,
   vocabularyIdPathSchema,
   vocabularyListQuerySchema,
   vocabularyListResponseSchema,
   vocabularyRelatedQuestionsQuerySchema,
   vocabularyRelatedQuestionsResponseSchema,
-  type SavedVocabularyListResponse,
   type VocabularyDetailResponse,
   type VocabularyListResponse,
   type VocabularyRelatedQuestionsResponse,
@@ -43,8 +30,6 @@ import { RequireRole } from '../identity/require-role.decorator.js';
 import { ApiProblemResponse } from '../openapi/openapi.decorators.js';
 import {
   ProblemDetailsDto,
-  SavedVocabularyListQueryDto,
-  SavedVocabularyListResponseDto,
   VocabularyDetailResponseDto,
   VocabularyIdPathDto,
   VocabularyListQueryDto,
@@ -68,8 +53,6 @@ import {
   VocabularyDetailResponseDto,
   VocabularyRelatedQuestionsQueryDto,
   VocabularyRelatedQuestionsResponseDto,
-  SavedVocabularyListQueryDto,
-  SavedVocabularyListResponseDto,
 )
 @Controller()
 @UseGuards(CognitoAuthorizerGuard, ApplicationRoleGuard)
@@ -144,62 +127,5 @@ export class LearnerVocabulariesController {
         query,
       ),
     );
-  }
-
-  /** 현재 사용자가 저장한 게시 어휘 page를 조회한다 */
-  @ApiOperation({ summary: '내가 저장한 어휘를 조회한다' })
-  @ApiQuery({ type: SavedVocabularyListQueryDto })
-  @ApiOkResponse({ type: SavedVocabularyListResponseDto })
-  @ApiProblemResponse(400, 'query가 공개 계약과 일치하지 않음')
-  @ApiProblemResponse(401, 'access token이 없거나 올바르지 않음')
-  @ApiProblemResponse(403, '학습자 역할 또는 계정 상태가 요청을 허용하지 않음')
-  @ApiProblemResponse(500, '예상하지 못한 서버 오류')
-  @Get('me/saved-vocabularies')
-  async listSavedVocabularies(
-    @CurrentUser() user: AuthenticatedUser,
-    @Query() rawQuery: Record<string, unknown>,
-  ): Promise<SavedVocabularyListResponse> {
-    const query = savedVocabularyListQuerySchema.parse(rawQuery);
-    return parseLearnerPublicResponse(
-      savedVocabularyListResponseSchema,
-      await this.learning.listSavedVocabularies(user.userId, query),
-    );
-  }
-
-  /** 현재 게시 어휘를 사용자 저장 목록에 멱등 연결한다 */
-  @ApiOperation({ summary: '어휘를 저장한다' })
-  @ApiParam({ name: 'vocabularyId', type: 'string', format: 'uuid' })
-  @ApiNoContentResponse()
-  @ApiProblemResponse(400, 'path가 공개 계약과 일치하지 않음')
-  @ApiProblemResponse(401, 'access token이 없거나 올바르지 않음')
-  @ApiProblemResponse(403, '학습자 역할 또는 계정 상태가 요청을 허용하지 않음')
-  @ApiProblemResponse(404, '현재 공개 어휘로 저장할 수 없음')
-  @ApiProblemResponse(500, '예상하지 못한 서버 오류')
-  @Put('me/saved-vocabularies/:vocabularyId')
-  @HttpCode(204)
-  async saveVocabulary(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param() rawPath: Record<string, unknown>,
-  ): Promise<void> {
-    const path = vocabularyIdPathSchema.parse(rawPath);
-    await this.learning.saveVocabulary(user.userId, path.vocabularyId);
-  }
-
-  /** 어휘 공개 상태를 다시 확인하지 않고 저장 연결을 멱등 제거한다 */
-  @ApiOperation({ summary: '저장한 어휘를 해제한다' })
-  @ApiParam({ name: 'vocabularyId', type: 'string', format: 'uuid' })
-  @ApiNoContentResponse()
-  @ApiProblemResponse(400, 'path가 공개 계약과 일치하지 않음')
-  @ApiProblemResponse(401, 'access token이 없거나 올바르지 않음')
-  @ApiProblemResponse(403, '학습자 역할 또는 계정 상태가 요청을 허용하지 않음')
-  @ApiProblemResponse(500, '예상하지 못한 서버 오류')
-  @Delete('me/saved-vocabularies/:vocabularyId')
-  @HttpCode(204)
-  async removeVocabulary(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param() rawPath: Record<string, unknown>,
-  ): Promise<void> {
-    const path = vocabularyIdPathSchema.parse(rawPath);
-    await this.learning.removeVocabulary(user.userId, path.vocabularyId);
   }
 }
