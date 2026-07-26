@@ -19,6 +19,8 @@ interface WordbookDetailPageViewProps {
 }
 
 /** 서버 검색값과 현재 page selection을 사용자 행동으로 연결한다 */
+// 검색·선택·페이지 접근성 상태를 같은 presentational 경계에서 표현한다.
+// eslint-disable-next-line max-lines-per-function
 export function WordbookDetailPageView({
   data,
   error,
@@ -59,19 +61,24 @@ export function WordbookDetailPageView({
         className='flex gap-cluster'
         onSubmit={submitSearch}
       >
-        <label className='grow'>
+        <label
+          className='grow'
+          htmlFor='wordbook-detail-query'
+        >
           <span className='sr-only'>단어장 검색</span>
           <Input
             aria-label='단어장 검색'
+            id='wordbook-detail-query'
             onChange={(event) => setQuery(event.target.value)}
             value={query}
           />
         </label>
         <Button type='submit'>검색</Button>
       </form>
-      <label className='grid gap-cluster text-body'>
-        종류
+      <div className='grid gap-cluster text-body'>
+        <span>종류</span>
         <select
+          aria-label='종류'
           onChange={(event) =>
             onSearchChange({
               ...search,
@@ -88,7 +95,7 @@ export function WordbookDetailPageView({
           <option value='WORD'>단어</option>
           <option value='EXPRESSION'>표현</option>
         </select>
-      </label>
+      </div>
       {data.items.length === 0 ? (
         <p className='text-body text-subtle'>조건에 맞는 어휘가 없습니다.</p>
       ) : (

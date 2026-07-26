@@ -92,7 +92,14 @@ const createFake = (options?: {
             };
           },
           returning() {
-            if (options?.insertError) throw options.insertError;
+            if (options?.insertError) {
+              return Promise.reject(
+                Object.assign(
+                  new Error('insert-error'),
+                  options.insertError,
+                ),
+              );
+            }
             return Promise.resolve(returningResults.shift() ?? []);
           },
         };

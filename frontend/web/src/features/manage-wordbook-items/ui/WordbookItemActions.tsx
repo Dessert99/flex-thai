@@ -27,6 +27,8 @@ interface WordbookItemActionsProps {
 type Command = 'copy' | 'move' | 'remove';
 
 /** 선택과 대상이 갖춰진 bulk 요청만 보내고 성공 뒤 cache를 갱신한다 */
+// 행동 세 가지의 공통 mutation·확인 Dialog 상태를 한 경계에서 유지한다.
+// eslint-disable-next-line max-lines-per-function
 export function WordbookItemActions({
   onConfirmed,
   selectedIds,
@@ -70,7 +72,7 @@ export function WordbookItemActions({
       <label className='grid gap-cluster text-body'>
         대상 단어장
         <select
-          className='h-9 rounded-control border border-default bg-surface px-cluster'
+          className='h-control rounded-control border border-default bg-surface px-cluster'
           onChange={(event) => setTargetId(event.target.value)}
           value={targetId}
         >
