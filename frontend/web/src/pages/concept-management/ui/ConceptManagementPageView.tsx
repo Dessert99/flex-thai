@@ -34,6 +34,7 @@ export function ConceptManagementPageView({
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');
   const [paragraph, setParagraph] = useState('');
+  const [position, setPosition] = useState(0);
   return (
     <section className='grid gap-section'>
       <h1 className='text-title text-primary'>개념 관리</h1>
@@ -43,7 +44,7 @@ export function ConceptManagementPageView({
           event.preventDefault();
           onCreate({
             category,
-            position: 0,
+            position,
             title,
             summary,
             blocks: [{
@@ -62,6 +63,14 @@ export function ConceptManagementPageView({
         </select>
         <Input aria-label='새 개념 제목' onChange={(event) => setTitle(event.target.value)} required value={title} />
         <Input aria-label='새 개념 요약' onChange={(event) => setSummary(event.target.value)} required value={summary} />
+        <Input
+          aria-label='새 개념 교육 순서'
+          min={0}
+          onChange={(event) => setPosition(Number(event.target.value))}
+          required
+          type='number'
+          value={position}
+        />
         <Input aria-label='첫 설명 문단' onChange={(event) => setParagraph(event.target.value)} required value={paragraph} />
         <Button type='submit'>개념 만들기</Button>
       </form>

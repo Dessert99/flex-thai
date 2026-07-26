@@ -1,6 +1,7 @@
 /** 관리자 개념 query와 mutation을 상세 View에 연결한다 */
 import {
   type ConceptBlockInput,
+  type ConceptCategory,
   type ReplaceConceptVersionRequest,
 } from '@flex-thia/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -28,8 +29,28 @@ export function AdminConceptDetailPageContainer({
   const draft = query.data?.versions.find(({ status }) => status === 'DRAFT');
   const [blocks, setBlocks] = useState<ConceptBlockInput[]>([]);
   const [conflict, setConflict] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [metadata, setMetadata] = useState<{
+    category: ConceptCategory;
+    position: number;
+    title: string;
+    summary: string;
+  }>({
+    category: 'GRAMMAR',
+    position: 0,
+    title: '',
+    summary: '',
+  });
   useEffect(() => {
-    if (draft) setBlocks(draft.blocks);
+    if (draft) {
+      setBlocks(draft.blocks);
+      setMetadata({
+        category: draft.category,
+        position: draft.position,
+        title: draft.title,
+        summary: draft.summary,
+      });
+    }
   }, [draft]);
   const refresh = () =>
     client.invalidateQueries({
@@ -42,11 +63,15 @@ export function AdminConceptDetailPageContainer({
       error.detail.problem.status === 409
     ) {
       setConflict(true);
+      setMessage(null);
       await refresh();
+      return;
     }
+    setMessage('요청을 처리하지 못했습니다. 다시 시도해 주세요.');
   };
   const createDraft = useMutation({
     mutationFn: () => createNextConceptDraft(conceptId),
+    onError: handleError,
     onSuccess: refresh,
   });
   const replace = useMutation({
@@ -62,15 +87,18 @@ export function AdminConceptDetailPageContainer({
   });
   const validate = useMutation({
     mutationFn: validateConceptVersion,
+    onError: handleError,
     onSuccess: refresh,
   });
   const publish = useMutation({
     mutationFn: publishConceptVersion,
+    onError: handleError,
     onSuccess: refresh,
   });
   const visibility = useMutation({
     mutationFn: (action: 'hide' | 'restore') =>
       changeConceptVisibility(conceptId, action),
+    onError: handleError,
     onSuccess: refresh,
   });
   return (
@@ -78,26 +106,40 @@ export function AdminConceptDetailPageContainer({
       blocks={blocks}
       conflict={conflict}
       data={query.data}
+      draftMetadata={metadata}
       error={query.isError}
       loading={query.isPending}
+      message={message}
       onBlocksChange={setBlocks}
       onCreateDraft={() => createDraft.mutate()}
       onPublish={(versionId) => publish.mutate(versionId)}
       onRetry={() => void query.refetch()}
+      onMetadataChange={(patch) =>
+        setMetadata((current) => ({ ...current, ...patch }))
+      }
       onSave={(versionId) => {
         if (!draft) return;
-        const payload = conceptDraftFormSchema.parse({
+        const parsed = conceptDraftFormSchema.safeParse({
           revision: draft.revision,
-          category: draft.category,
-          position: draft.position,
-          title: draft.title,
-          summary: draft.summary,
+          ...metadata,
           blocks,
         });
-        replace.mutate({ versionId, payload });
+        if (!parsed.success) {
+          setMessage('입력값을 확인해 주세요.');
+          return;
+        }
+        setMessage(null);
+        replace.mutate({ versionId, payload: parsed.data });
       }}
       onValidate={(versionId) => validate.mutate(versionId)}
       onVisibilityChange={(action) => visibility.mutate(action)}
+      pending={
+        createDraft.isPending ||
+        replace.isPending ||
+        validate.isPending ||
+        publish.isPending ||
+        visibility.isPending
+      }
     />
   );
 }

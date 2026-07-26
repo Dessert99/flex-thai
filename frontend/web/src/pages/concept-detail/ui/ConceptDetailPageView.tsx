@@ -50,15 +50,19 @@ export function ConceptDetailPageView({
         <section id={`concept-block-${block.id}`} key={block.id}>
           <h2 className='text-subtitle text-primary'>{block.heading}</h2>
           {block.kind === 'EXPLANATION'
-            ? block.paragraphs.map((paragraph) => (
-                <p key={paragraph}>{paragraph}</p>
+            ? block.paragraphs.map((paragraph, index) => (
+                <p key={`${block.id}-paragraph-${index}`}>{paragraph}</p>
               ))
             : null}
           {block.kind === 'RULE_TABLE' ? (
             <table>
               <thead>
                 <tr>
-                  {block.headers.map((header) => <th key={header}>{header}</th>)}
+                  {block.headers.map((header, index) => (
+                    <th key={`${block.id}-header-${index}`} scope='col'>
+                      {header}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
