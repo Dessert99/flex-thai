@@ -44,7 +44,8 @@ const graph = (
   ],
   pronunciations: [],
   meaningPronunciations: [],
-  relationIds: [],
+  relations: [],
+  incomingMergeSourceIds: [],
   tokenOccurrenceIds: [],
   expressionOccurrenceIds: [],
   savedMemberships: [],
@@ -54,7 +55,6 @@ const graph = (
 
 const storedRelation: VocabularyRelationsMergeStoredRelation = {
   id: ids.relation,
-  vocabularyId: ids.sourceVocabulary,
   sourceMeaningId: ids.sourceMeaning,
   targetMeaningId: ids.targetMeaning,
   type: 'SYNONYM',
@@ -117,8 +117,8 @@ describe('VocabularyRelationsMergeService 관계 관리', () => {
       service.createRelation({
         vocabularyId: ids.sourceVocabulary,
         input: {
-          sourceMeaningId: ids.targetMeaning,
-          targetMeaningId: ids.sourceMeaning,
+          sourceMeaningId: ids.sourceMeaning,
+          targetMeaningId: ids.targetMeaning,
           type: 'RELATED',
           direction: 'BIDIRECTIONAL',
         },
@@ -163,6 +163,42 @@ describe('VocabularyRelationsMergeService 관계 관리', () => {
       new VocabularyRelationsMergeAdminError('MEANING_RELATION_NOT_FOUND'),
     );
     expect(fake.createRelation).not.toHaveBeenCalled();
+  });
+
+  it('BIDIRECTIONAL은 canonical 정렬 전 입력 source 소유권을 검증한다', async () => {
+    const fake = createFake();
+    fake.repository.findMeaningOwners = vi.fn().mockResolvedValue([
+      {
+        meaningId: ids.sourceMeaning,
+        vocabularyId: ids.representativeVocabulary,
+      },
+      {
+        meaningId: ids.targetMeaning,
+        vocabularyId: ids.sourceVocabulary,
+      },
+    ]);
+    const service = new VocabularyRelationsMergeService(
+      fake.repository,
+      () => ids.relation,
+    );
+
+    await service.createRelation({
+      vocabularyId: ids.sourceVocabulary,
+      input: {
+        sourceMeaningId: ids.targetMeaning,
+        targetMeaningId: ids.sourceMeaning,
+        type: 'RELATED',
+        direction: 'BIDIRECTIONAL',
+      },
+      ...context,
+    });
+
+    expect(fake.createRelation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceMeaningId: ids.sourceMeaning,
+        targetMeaningId: ids.targetMeaning,
+      }),
+    );
   });
 
   it('메타데이터 수정은 검토 상태를 PENDING으로 되돌리고 terminal 직행은 거절한다', async () => {
@@ -237,6 +273,23 @@ describe('VocabularyRelationsMergeService 병합', () => {
       comparison: { normalizedEqual: false, codePointDistance: 2 },
     });
     expect(preview.mergeToken).toMatch(/^[A-Za-z0-9_-]{43}$/u);
+  });
+
+  it('이미 MERGED source가 가리키는 대표 source는 preview부터 거절한다', async () => {
+    const fake = createFake();
+    const source = graph(ids.sourceVocabulary, 'DRAFT');
+    source.incomingMergeSourceIds = ['00000000-0000-4000-8000-000000000099'];
+    fake.repository.loadMergePair = vi.fn().mockResolvedValue({
+      source,
+      representative: graph(ids.representativeVocabulary, 'PUBLISHED'),
+    });
+
+    await expect(
+      new VocabularyRelationsMergeService(fake.repository).previewMerge(
+        ids.sourceVocabulary,
+        ids.representativeVocabulary,
+      ),
+    ).rejects.toMatchObject({ code: 'VOCABULARY_MERGE_SOURCE_INVALID' });
   });
 
   it('실행은 preview token과 감사 문맥을 SERIALIZABLE repository 경계로 전달한다', async () => {

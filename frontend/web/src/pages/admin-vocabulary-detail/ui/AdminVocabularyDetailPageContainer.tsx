@@ -15,8 +15,15 @@ export function AdminVocabularyDetailPageContainer({
   vocabularyId,
 }: AdminVocabularyDetailPageContainerProps) {
   const detail = useQuery(adminVocabularyDetailQueryOptions(vocabularyId));
-  const { merge, mergePreview, previewMerge, refresh, relation, replace } =
-    useAdminVocabularyDetailActions(vocabularyId);
+  const {
+    discardMergePreview,
+    merge,
+    mergePreview,
+    previewMerge,
+    refresh,
+    relation,
+    replace,
+  } = useAdminVocabularyDetailActions(vocabularyId);
   const action = toStateAction(detail.data?.status);
   return (
     <AdminVocabularyDetailPageView
@@ -33,11 +40,10 @@ export function AdminVocabularyDetailPageContainer({
       error={detail.isError}
       mergeMutating={previewMerge.isPending || merge.isPending}
       mergePreview={mergePreview}
-      onCreateRelation={(sourceMeaningId, targetMeaningId) =>
+      onCreateRelation={(payload) =>
         relation.mutate({
           kind: 'create',
-          sourceMeaningId,
-          targetMeaningId,
+          payload,
         })
       }
       onDeleteRelation={(relationId) =>
@@ -47,9 +53,10 @@ export function AdminVocabularyDetailPageContainer({
       onPreviewMerge={(representativeVocabularyId) =>
         previewMerge.mutate(representativeVocabularyId)
       }
-      onRelationStatusChange={(relationId, status) =>
-        relation.mutate({ kind: 'status', relationId, status })
+      onRelationUpdate={(relationId, payload) =>
+        relation.mutate({ kind: 'status', relationId, payload })
       }
+      onRepresentativeChange={discardMergePreview}
       onReplace={(payload) => replace.mutate(payload)}
       onRetry={() => void detail.refetch()}
       replaceError={replace.isError}

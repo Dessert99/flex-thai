@@ -2,6 +2,8 @@
 import type {
   AdminVocabularyMergePreviewResponse,
   AdminVocabularyDetailResponse,
+  AdminVocabularyRelationCreateRequest,
+  AdminVocabularyRelationUpdateRequest,
   AdminVocabularyReplaceRequest,
 } from '@flex-thia/contracts';
 import type { ReactNode } from 'react';
@@ -17,14 +19,15 @@ interface Props {
   data: AdminVocabularyDetailResponse | undefined;
   error: boolean;
   onReplace: (payload: AdminVocabularyReplaceRequest) => void;
-  onCreateRelation: (sourceMeaningId: string, targetMeaningId: string) => void;
+  onCreateRelation: (payload: AdminVocabularyRelationCreateRequest) => void;
   onDeleteRelation: (relationId: string) => void;
   onMerge: (preview: AdminVocabularyMergePreviewResponse) => void;
   onPreviewMerge: (representativeVocabularyId: string) => void;
-  onRelationStatusChange: (
+  onRelationUpdate: (
     relationId: string,
-    status: 'PENDING' | 'PASSED' | 'FAILED',
+    payload: AdminVocabularyRelationUpdateRequest,
   ) => void;
+  onRepresentativeChange: () => void;
   onRetry: () => void;
   replaceError: boolean;
   replacing: boolean;
@@ -43,7 +46,8 @@ export function AdminVocabularyDetailPageView({
   onDeleteRelation,
   onMerge,
   onPreviewMerge,
-  onRelationStatusChange,
+  onRelationUpdate,
+  onRepresentativeChange,
   onRetry,
   replaceError,
   replacing,
@@ -97,14 +101,16 @@ export function AdminVocabularyDetailPageView({
         disabled={relationMutating || data.status === 'MERGED'}
         onCreate={onCreateRelation}
         onDelete={onDeleteRelation}
-        onStatusChange={onRelationStatusChange}
+        onUpdate={onRelationUpdate}
       />
       {data.status !== 'MERGED' ? (
         <VocabularyMergePanel
           disabled={mergeMutating}
           onMerge={onMerge}
           onPreview={onPreviewMerge}
+          onRepresentativeChange={onRepresentativeChange}
           preview={mergePreview}
+          sourceVocabularyId={data.id}
         />
       ) : null}
       {data.status === 'DRAFT' ? (

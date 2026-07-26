@@ -120,22 +120,23 @@ export class VocabularyRelationsMergeService {
     command: CreateVocabularyRelationCommand,
   ): Promise<VocabularyRelationsMergeStoredRelation> {
     try {
-      const relation = assertMeaningRelation(command.input);
       const owners = await this.repository.findMeaningOwners([
-        relation.sourceMeaningId,
-        relation.targetMeaningId,
+        command.input.sourceMeaningId,
+        command.input.targetMeaningId,
       ]);
       const ownerByMeaning = new Map(
         owners.map(({ meaningId, vocabularyId }) => [meaningId, vocabularyId]),
       );
       if (
-        ownerByMeaning.get(relation.sourceMeaningId) !== command.vocabularyId ||
-        !ownerByMeaning.has(relation.targetMeaningId)
+        ownerByMeaning.get(command.input.sourceMeaningId) !==
+          command.vocabularyId ||
+        !ownerByMeaning.has(command.input.targetMeaningId)
       ) {
         throw new VocabularyRelationsMergeAdminError(
           'MEANING_RELATION_NOT_FOUND',
         );
       }
+      const relation = assertMeaningRelation(command.input);
       return await this.repository.createRelation({
         id: this.generateId(),
         vocabularyId: command.vocabularyId,
@@ -177,6 +178,7 @@ export class VocabularyRelationsMergeService {
           );
       return await this.repository.updateRelation({
         ...current,
+        vocabularyId: command.vocabularyId,
         ...relation,
         status,
         updatedAt: command.occurredAt,

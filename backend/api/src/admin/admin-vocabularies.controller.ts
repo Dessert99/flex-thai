@@ -239,6 +239,8 @@ export class AdminVocabulariesController {
 
   /** 관계 메타데이터 또는 검토 상태를 변경한다 */
   @ApiOperation({ summary: '어휘 뜻 관계를 수정한다' })
+  @ApiParam({ name: 'vocabularyId', type: 'string', format: 'uuid' })
+  @ApiParam({ name: 'relationId', type: 'string', format: 'uuid' })
   @ApiBody({ type: AdminVocabularyRelationUpdateRequestDto })
   @ApiOkResponse({ type: AdminVocabularyRelationDto })
   @ApiProblemResponses(400, 401, 403, 404, 409, 500)
@@ -264,6 +266,8 @@ export class AdminVocabulariesController {
 
   /** 경로 어휘에 연결된 관계를 삭제한다 */
   @ApiOperation({ summary: '어휘 뜻 관계를 삭제한다' })
+  @ApiParam({ name: 'vocabularyId', type: 'string', format: 'uuid' })
+  @ApiParam({ name: 'relationId', type: 'string', format: 'uuid' })
   @ApiNoContentResponse()
   @ApiProblemResponses(400, 401, 403, 404, 409, 500)
   @Delete(':vocabularyId/relations/:relationId')
@@ -280,6 +284,7 @@ export class AdminVocabulariesController {
 
   /** 두 live graph와 사용처·정규화 비교 token을 반환한다 */
   @ApiOperation({ summary: '어휘 병합을 미리 비교한다' })
+  @ApiParam({ name: 'vocabularyId', type: 'string', format: 'uuid' })
   @ApiBody({ type: AdminVocabularyMergePreviewRequestDto })
   @ApiOkResponse({ type: AdminVocabularyMergePreviewResponseDto })
   @ApiProblemResponses(400, 401, 403, 404, 409, 500)
@@ -298,6 +303,7 @@ export class AdminVocabulariesController {
 
   /** 같은 preview token일 때만 source를 대표 어휘로 병합한다 */
   @ApiOperation({ summary: '어휘를 대표 어휘로 병합한다' })
+  @ApiParam({ name: 'vocabularyId', type: 'string', format: 'uuid' })
   @ApiBody({ type: AdminVocabularyMergeExecuteRequestDto })
   @ApiOkResponse({ type: AdminVocabularyMergeResponseDto })
   @ApiProblemResponses(400, 401, 403, 404, 409, 500)

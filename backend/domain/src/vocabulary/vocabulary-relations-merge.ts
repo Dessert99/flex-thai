@@ -18,6 +18,17 @@ export interface MeaningRelationInput {
   direction: MeaningRelationDirection;
 }
 
+/** 병합 fingerprint에 포함하는 뜻 관계의 변경 가능 projection */
+export interface VocabularyMergeGraphRelation {
+  id: string;
+  sourceMeaningId: string;
+  targetMeaningId: string;
+  type: MeaningRelationType;
+  direction: MeaningRelationDirection;
+  status: MeaningRelationStatus;
+  updatedAt: string;
+}
+
 /** 병합 stale 판정에 포함하는 어휘 graph */
 export interface VocabularyMergeGraph {
   vocabulary: {
@@ -32,7 +43,8 @@ export interface VocabularyMergeGraph {
   meanings: string[];
   pronunciations: string[];
   meaningPronunciations: string[];
-  relationIds: string[];
+  relations: VocabularyMergeGraphRelation[];
+  incomingMergeSourceIds: string[];
   tokenOccurrenceIds: string[];
   expressionOccurrenceIds: string[];
   savedMemberships: string[];
@@ -97,7 +109,8 @@ export const assertVocabularyMergePair = (
   }
   if (
     source.vocabulary.status === 'MERGED' ||
-    source.vocabulary.mergedIntoVocabularyId !== null
+    source.vocabulary.mergedIntoVocabularyId !== null ||
+    source.incomingMergeSourceIds.length > 0
   ) {
     throw new VocabularyRelationsMergeError('VOCABULARY_MERGE_SOURCE_INVALID');
   }
@@ -123,7 +136,28 @@ const stableGraph = (graph: VocabularyMergeGraph) => ({
   meanings: [...graph.meanings].sort(),
   pronunciations: [...graph.pronunciations].sort(),
   meaningPronunciations: [...graph.meaningPronunciations].sort(),
-  relationIds: [...graph.relationIds].sort(),
+  relations: graph.relations
+    .map(
+      ({
+        id,
+        sourceMeaningId,
+        targetMeaningId,
+        type,
+        direction,
+        status,
+        updatedAt,
+      }) => ({
+        id,
+        sourceMeaningId,
+        targetMeaningId,
+        type,
+        direction,
+        status,
+        updatedAt,
+      }),
+    )
+    .sort((left, right) => left.id.localeCompare(right.id)),
+  incomingMergeSourceIds: [...graph.incomingMergeSourceIds].sort(),
   tokenOccurrenceIds: [...graph.tokenOccurrenceIds].sort(),
   expressionOccurrenceIds: [...graph.expressionOccurrenceIds].sort(),
   savedMemberships: [...graph.savedMemberships].sort(),

@@ -2,6 +2,8 @@
 import type {
   AdminVocabularyMergePreviewResponse,
   AdminVocabularyReplaceRequest,
+  AdminVocabularyRelationCreateRequest,
+  AdminVocabularyRelationUpdateRequest,
 } from '@flex-thia/contracts';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -17,8 +19,7 @@ import {
 type RelationCommand =
   | {
       kind: 'create';
-      sourceMeaningId: string;
-      targetMeaningId: string;
+      payload: AdminVocabularyRelationCreateRequest;
     }
   | {
       kind: 'delete';
@@ -27,15 +28,36 @@ type RelationCommand =
   | {
       kind: 'status';
       relationId: string;
-      status: 'PENDING' | 'PASSED' | 'FAILED';
+      payload: AdminVocabularyRelationUpdateRequest;
     };
+
+/** 관계 변경 뒤 무효화할 최소 cache prefix */
+export const vocabularyRelationInvalidationKeys = [
+  ['admin', 'vocabularies', 'detail'],
+  ['admin', 'vocabularies', 'list'],
+  ['learner', 'vocabularies'],
+] as const;
+
+/** 병합 뒤 source·대표·학습자 사용처 cache key를 계산한다 */
+export const vocabularyMergeInvalidationKeys = (
+  sourceVocabularyId: string,
+  representativeVocabularyId: string,
+) =>
+  [
+    ['admin', 'vocabularies', 'detail', sourceVocabularyId],
+    ['admin', 'vocabularies', 'detail', representativeVocabularyId],
+    ['admin', 'vocabularies', 'list'],
+    ['learner', 'vocabularies'],
+    ['learner', 'vocabulary'],
+    ['learner', 'wordbooks'],
+  ] as const;
 
 /** 어휘 상세 화면에서 공유하는 mutation 상태와 명령을 반환한다 */
 export function useAdminVocabularyDetailActions(vocabularyId: string) {
   const queryClient = useQueryClient();
   const [mergePreview, setMergePreview] =
     useState<AdminVocabularyMergePreviewResponse | null>(null);
-  const refresh = () =>
+  const refreshSource = () =>
     Promise.all([
       queryClient.invalidateQueries({
         queryKey: ['admin', 'vocabularies', 'detail', vocabularyId],
@@ -47,7 +69,7 @@ export function useAdminVocabularyDetailActions(vocabularyId: string) {
   const replace = useMutation({
     mutationFn: (payload: AdminVocabularyReplaceRequest) =>
       replaceAdminVocabulary({ payload, vocabularyId }),
-    onSuccess: () => refresh(),
+    onSuccess: () => refreshSource(),
     retry: false,
   });
   const relation = useMutation({
@@ -55,12 +77,7 @@ export function useAdminVocabularyDetailActions(vocabularyId: string) {
       if (command.kind === 'create') {
         return createAdminVocabularyRelation({
           vocabularyId,
-          payload: {
-            sourceMeaningId: command.sourceMeaningId,
-            targetMeaningId: command.targetMeaningId,
-            type: 'RELATED',
-            direction: 'DIRECTED',
-          },
+          payload: command.payload,
         });
       }
       if (command.kind === 'delete') {
@@ -72,10 +89,15 @@ export function useAdminVocabularyDetailActions(vocabularyId: string) {
       return updateAdminVocabularyRelation({
         vocabularyId,
         relationId: command.relationId,
-        payload: { status: command.status },
+        payload: command.payload,
       });
     },
-    onSuccess: () => refresh(),
+    onSuccess: () =>
+      Promise.all(
+        vocabularyRelationInvalidationKeys.map((queryKey) =>
+          queryClient.invalidateQueries({ queryKey }),
+        ),
+      ),
     retry: false,
   });
   const previewMerge = useMutation({
@@ -96,9 +118,14 @@ export function useAdminVocabularyDetailActions(vocabularyId: string) {
           mergeToken: preview.mergeToken,
         },
       }),
-    onSuccess: () => {
+    onSuccess: (result) => {
       setMergePreview(null);
-      return refresh();
+      return Promise.all(
+        vocabularyMergeInvalidationKeys(
+          result.sourceVocabularyId,
+          result.representativeVocabularyId,
+        ).map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+      );
     },
     retry: false,
   });
@@ -107,7 +134,8 @@ export function useAdminVocabularyDetailActions(vocabularyId: string) {
     merge,
     mergePreview,
     previewMerge,
-    refresh,
+    discardMergePreview: () => setMergePreview(null),
+    refresh: refreshSource,
     relation,
     replace,
   };

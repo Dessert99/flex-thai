@@ -121,6 +121,7 @@ export type {
   VocabularyMeaningOwner,
   VocabularyMergeMovedCounts,
   VocabularyMergeStoredResult,
+  VocabularyRelationsMergeRelationWrite,
   VocabularyRelationsMergeRepository,
   VocabularyRelationsMergeStoredRelation,
 } from './vocabulary-relations-merge.repository.js';

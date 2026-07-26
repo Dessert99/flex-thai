@@ -15,7 +15,6 @@ export interface VocabularyMeaningOwner {
 /** 관리자 관계 API에 반환할 저장 관계 */
 export interface VocabularyRelationsMergeStoredRelation {
   id: string;
-  vocabularyId: string;
   sourceMeaningId: string;
   targetMeaningId: string;
   type: MeaningRelationType;
@@ -23,6 +22,11 @@ export interface VocabularyRelationsMergeStoredRelation {
   status: MeaningRelationStatus;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/** 관계 저장 시 경로 어휘 소유권을 함께 전달하는 내부 입력 */
+export interface VocabularyRelationsMergeRelationWrite extends VocabularyRelationsMergeStoredRelation {
+  vocabularyId: string;
 }
 
 /** 병합 후 이동 수 */
@@ -48,14 +52,14 @@ export interface VocabularyMergeStoredResult {
 export interface VocabularyRelationsMergeRepository {
   findMeaningOwners(meaningIds: string[]): Promise<VocabularyMeaningOwner[]>;
   createRelation(
-    relation: VocabularyRelationsMergeStoredRelation,
+    relation: VocabularyRelationsMergeRelationWrite,
   ): Promise<VocabularyRelationsMergeStoredRelation>;
   findRelation(input: {
     vocabularyId: string;
     relationId: string;
   }): Promise<VocabularyRelationsMergeStoredRelation | null>;
   updateRelation(
-    relation: VocabularyRelationsMergeStoredRelation,
+    relation: VocabularyRelationsMergeRelationWrite,
   ): Promise<VocabularyRelationsMergeStoredRelation>;
   deleteRelation(input: {
     vocabularyId: string;

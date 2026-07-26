@@ -28,7 +28,8 @@ const sourceGraph = (
   meaningPronunciations: [
     '00000000-0000-4000-8000-000000000011:00000000-0000-4000-8000-000000000021',
   ],
-  relationIds: [],
+  relations: [],
+  incomingMergeSourceIds: [],
   tokenOccurrenceIds: [],
   expressionOccurrenceIds: [],
   savedMemberships: [],
@@ -127,6 +128,23 @@ describe('어휘 병합 불변 조건', () => {
     }
   });
 
+  it('이미 다른 MERGED 어휘의 대표인 source는 재병합하지 않는다', () => {
+    const source = sourceGraph();
+    source.incomingMergeSourceIds = ['00000000-0000-4000-8000-000000000099'];
+
+    expect(() =>
+      assertVocabularyMergePair(
+        source,
+        sourceGraph({
+          id: '00000000-0000-4000-8000-000000000002',
+          status: 'PUBLISHED',
+        }),
+      ),
+    ).toThrowError(
+      expect.objectContaining({ code: 'VOCABULARY_MERGE_SOURCE_INVALID' }),
+    );
+  });
+
   it('graph 순서와 무관한 opaque fingerprint를 만들고 live 참조 변경은 감지한다', () => {
     const source = sourceGraph({
       thai: 'สวัสดี',
@@ -152,6 +170,32 @@ describe('어휘 병합 불변 조건', () => {
         representative,
       ),
     ).not.toBe(token);
+  });
+
+  it('관계 endpoint·메타데이터·상태·수정 시각을 fingerprint에 포함한다', () => {
+    const source = sourceGraph();
+    const representative = sourceGraph({
+      id: '00000000-0000-4000-8000-000000000002',
+      status: 'PUBLISHED',
+    });
+    source.relations = [
+      {
+        id: '00000000-0000-4000-8000-000000000090',
+        sourceMeaningId: source.meanings[0]!,
+        targetMeaningId: representative.meanings[0]!,
+        type: 'RELATED',
+        direction: 'DIRECTED',
+        status: 'PENDING',
+        updatedAt: '2026-07-27T00:00:00.000Z',
+      },
+    ];
+    const before = createVocabularyMergeFingerprint(source, representative);
+
+    source.relations[0] = { ...source.relations[0]!, status: 'PASSED' };
+
+    expect(createVocabularyMergeFingerprint(source, representative)).not.toBe(
+      before,
+    );
   });
 
   it('관리자 비교용 Unicode code point Levenshtein 거리만 계산한다', () => {

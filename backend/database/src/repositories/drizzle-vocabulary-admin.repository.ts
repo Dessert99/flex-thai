@@ -7,6 +7,7 @@ import {
   type VocabularyAdminTransaction,
   type VocabularyMergeGraph,
   type VocabularyRelationsMergeRepository,
+  type VocabularyRelationsMergeRelationWrite,
   type VocabularyRelationsMergeStoredRelation,
 } from '@flex-thia/domain';
 import { and, asc, eq, inArray, ne, or, sql } from 'drizzle-orm';
@@ -103,9 +104,7 @@ const decodeDataApiError = (
   if (!message.startsWith('ERROR: ')) {
     return { code: undefined, constraint: undefined, dataApi: true };
   }
-  const code = ['23503', '23505'].find((sqlState) =>
-    message.endsWith(`; SQLState: ${sqlState}`),
-  );
+  const code = /; SQLState: ([0-9A-Z]{5})$/u.exec(message)?.[1];
   const headerEnd = message.indexOf('; ');
   const header = headerEnd === -1 ? message : message.slice(0, headerEnd);
   const constraint = DATA_API_CONSTRAINTS.find(
@@ -423,7 +422,15 @@ const loadMergeGraph = async (
     meaningIds.length === 0
       ? []
       : await session
-          .select({ id: vocabularyMeaningRelations.id })
+          .select({
+            id: vocabularyMeaningRelations.id,
+            sourceMeaningId: vocabularyMeaningRelations.sourceMeaningId,
+            targetMeaningId: vocabularyMeaningRelations.targetMeaningId,
+            type: vocabularyMeaningRelations.type,
+            direction: vocabularyMeaningRelations.direction,
+            status: vocabularyMeaningRelations.status,
+            updatedAt: vocabularyMeaningRelations.updatedAt,
+          })
           .from(vocabularyMeaningRelations)
           .where(
             or(
@@ -432,6 +439,11 @@ const loadMergeGraph = async (
             ),
           )
           .orderBy(asc(vocabularyMeaningRelations.id));
+  const incomingMerges = await session
+    .select({ id: vocabularies.id })
+    .from(vocabularies)
+    .where(eq(vocabularies.mergedIntoVocabularyId, vocabularyId))
+    .orderBy(asc(vocabularies.id));
   const tokens = await session
     .select({ id: tokenOccurrences.id })
     .from(tokenOccurrences)
@@ -474,7 +486,11 @@ const loadMergeGraph = async (
     meaningPronunciations: mappings.map(
       ({ meaningId, pronunciationId }) => `${meaningId}:${pronunciationId}`,
     ),
-    relationIds: relations.map(({ id }) => id),
+    relations: relations.map((relation) => ({
+      ...relation,
+      updatedAt: toIsoString(relation.updatedAt),
+    })),
+    incomingMergeSourceIds: incomingMerges.map(({ id }) => id),
     tokenOccurrenceIds: tokens.map(({ id }) => id),
     expressionOccurrenceIds: expressions.map(({ id }) => id),
     savedMemberships: saved.map(
@@ -497,11 +513,6 @@ const mergeMovedCounts = (source: VocabularyMergeGraph) => ({
   wordbookMemberships: source.wordbookMemberships.length,
   practiceQuestions: source.practiceQuestionIds.length,
 });
-
-const relationProjection = (
-  relation: Omit<VocabularyRelationsMergeStoredRelation, 'vocabularyId'>,
-  vocabularyId: string,
-): VocabularyRelationsMergeStoredRelation => ({ ...relation, vocabularyId });
 
 /** PostgreSQL transaction에서 관리자 어휘 command port를 실행한다 */
 export class DrizzleVocabularyAdminRepository
@@ -540,7 +551,7 @@ export class DrizzleVocabularyAdminRepository
 
   /** DB unique가 양방향 역중복까지 보호하는 canonical 관계를 생성한다 */
   async createRelation(
-    relation: VocabularyRelationsMergeStoredRelation,
+    relation: VocabularyRelationsMergeRelationWrite,
   ): Promise<VocabularyRelationsMergeStoredRelation> {
     try {
       const [stored] = await this.database
@@ -562,7 +573,7 @@ export class DrizzleVocabularyAdminRepository
           'createRelation',
         );
       }
-      return relationProjection(stored, relation.vocabularyId);
+      return stored;
     } catch (error) {
       const decoded = decodePostgreSqlError(error);
       if (decoded?.code === '23505') {
@@ -595,12 +606,12 @@ export class DrizzleVocabularyAdminRepository
     ) {
       return null;
     }
-    return relationProjection(relation, input.vocabularyId);
+    return relation;
   }
 
   /** 기존 관계 row만 exact update해 검토 상태 경쟁을 드러낸다 */
   async updateRelation(
-    relation: VocabularyRelationsMergeStoredRelation,
+    relation: VocabularyRelationsMergeRelationWrite,
   ): Promise<VocabularyRelationsMergeStoredRelation> {
     try {
       const [stored] = await this.database
@@ -621,7 +632,7 @@ export class DrizzleVocabularyAdminRepository
           'updateRelation',
         );
       }
-      return relationProjection(stored, relation.vocabularyId);
+      return stored;
     } catch (error) {
       const decoded = decodePostgreSqlError(error);
       if (decoded?.code === '23505') {
@@ -669,59 +680,60 @@ export class DrizzleVocabularyAdminRepository
     requestId: string;
     occurredAt: Date;
   }) {
-    return this.database.transaction(
-      async (transaction) => {
-        const lockIds = [
-          input.sourceVocabularyId,
-          input.representativeVocabularyId,
-        ].sort();
-        const locked = await transaction
-          .select({ id: vocabularies.id })
-          .from(vocabularies)
-          .where(inArray(vocabularies.id, lockIds))
-          .orderBy(asc(vocabularies.id))
-          .for('update');
-        if (locked.length !== 2) {
-          throw new VocabularyAdminRepositoryError(
-            'VOCABULARY_NOT_FOUND',
-            'executeMerge.lock',
+    try {
+      return await this.database.transaction(
+        async (transaction) => {
+          const lockIds = [
+            input.sourceVocabularyId,
+            input.representativeVocabularyId,
+          ].sort();
+          const locked = await transaction
+            .select({ id: vocabularies.id })
+            .from(vocabularies)
+            .where(inArray(vocabularies.id, lockIds))
+            .orderBy(asc(vocabularies.id))
+            .for('update');
+          if (locked.length !== 2) {
+            throw new VocabularyAdminRepositoryError(
+              'VOCABULARY_NOT_FOUND',
+              'executeMerge.lock',
+            );
+          }
+          const source = await loadMergeGraph(
+            transaction,
+            input.sourceVocabularyId,
           );
-        }
-        const source = await loadMergeGraph(
-          transaction,
-          input.sourceVocabularyId,
-        );
-        const representative = await loadMergeGraph(
-          transaction,
-          input.representativeVocabularyId,
-        );
-        if (!source || !representative) {
-          throw new VocabularyAdminRepositoryError(
-            'VOCABULARY_NOT_FOUND',
-            'executeMerge.load',
+          const representative = await loadMergeGraph(
+            transaction,
+            input.representativeVocabularyId,
           );
-        }
-        try {
-          assertVocabularyMergePair(source, representative);
-        } catch {
-          throw new VocabularyAdminRepositoryError(
-            'VOCABULARY_MERGE_CONFLICT',
-            'executeMerge.validate',
+          if (!source || !representative) {
+            throw new VocabularyAdminRepositoryError(
+              'VOCABULARY_NOT_FOUND',
+              'executeMerge.load',
+            );
+          }
+          try {
+            assertVocabularyMergePair(source, representative);
+          } catch {
+            throw new VocabularyAdminRepositoryError(
+              'VOCABULARY_MERGE_CONFLICT',
+              'executeMerge.validate',
+            );
+          }
+          const fingerprint = createVocabularyMergeFingerprint(
+            source,
+            representative,
           );
-        }
-        const fingerprint = createVocabularyMergeFingerprint(
-          source,
-          representative,
-        );
-        if (fingerprint !== input.expectedFingerprint) {
-          throw new VocabularyAdminRepositoryError(
-            'VOCABULARY_MERGE_CONFLICT',
-            'executeMerge.fingerprint',
-          );
-        }
+          if (fingerprint !== input.expectedFingerprint) {
+            throw new VocabularyAdminRepositoryError(
+              'VOCABULARY_MERGE_CONFLICT',
+              'executeMerge.fingerprint',
+            );
+          }
 
-        // 통합 migration이 composite FK를 DEFERRABLE로 바꾼 뒤에만 이 원자 이동이 실행된다.
-        await transaction.execute(sql`
+          // 통합 migration이 composite FK를 DEFERRABLE로 바꾼 뒤에만 이 원자 이동이 실행된다.
+          await transaction.execute(sql`
           set constraints
             vocabulary_meaning_pronunciations_meaning_fk,
             vocabulary_meaning_pronunciations_pronunciation_fk,
@@ -733,37 +745,37 @@ export class DrizzleVocabularyAdminRepository
             vocabulary_practice_questions_pronunciation_vocabulary_fk
           deferred
         `);
-        await transaction.execute(sql`
+          await transaction.execute(sql`
           update vocabulary_meaning_pronunciations
           set vocabulary_id = ${input.representativeVocabularyId}
           where vocabulary_id = ${input.sourceVocabularyId}
         `);
-        await transaction.execute(sql`
+          await transaction.execute(sql`
           update vocabulary_meanings
           set vocabulary_id = ${input.representativeVocabularyId}
           where vocabulary_id = ${input.sourceVocabularyId}
         `);
-        await transaction.execute(sql`
+          await transaction.execute(sql`
           update vocabulary_pronunciations
           set vocabulary_id = ${input.representativeVocabularyId}
           where vocabulary_id = ${input.sourceVocabularyId}
         `);
-        await transaction.execute(sql`
+          await transaction.execute(sql`
           update token_occurrences
           set vocabulary_id = ${input.representativeVocabularyId}
           where vocabulary_id = ${input.sourceVocabularyId}
         `);
-        await transaction.execute(sql`
+          await transaction.execute(sql`
           update expression_occurrences
           set vocabulary_id = ${input.representativeVocabularyId}
           where vocabulary_id = ${input.sourceVocabularyId}
         `);
-        await transaction.execute(sql`
+          await transaction.execute(sql`
           update vocabulary_practice_questions
           set vocabulary_id = ${input.representativeVocabularyId}
           where vocabulary_id = ${input.sourceVocabularyId}
         `);
-        await transaction.execute(sql`
+          await transaction.execute(sql`
           insert into saved_vocabularies (user_id, vocabulary_id, saved_at)
           select user_id, ${input.representativeVocabularyId}, saved_at
           from saved_vocabularies
@@ -771,11 +783,11 @@ export class DrizzleVocabularyAdminRepository
           on conflict (user_id, vocabulary_id) do update
           set saved_at = least(saved_vocabularies.saved_at, excluded.saved_at)
         `);
-        await transaction.execute(sql`
+          await transaction.execute(sql`
           delete from saved_vocabularies
           where vocabulary_id = ${input.sourceVocabularyId}
         `);
-        await transaction.execute(sql`
+          await transaction.execute(sql`
           insert into wordbook_items (wordbook_id, vocabulary_id, added_at)
           select wordbook_id, ${input.representativeVocabularyId}, added_at
           from wordbook_items
@@ -783,57 +795,67 @@ export class DrizzleVocabularyAdminRepository
           on conflict (wordbook_id, vocabulary_id) do update
           set added_at = least(wordbook_items.added_at, excluded.added_at)
         `);
-        await transaction.execute(sql`
+          await transaction.execute(sql`
           delete from wordbook_items
           where vocabulary_id = ${input.sourceVocabularyId}
         `);
-        await transaction
-          .update(vocabularies)
-          .set({
-            status: 'MERGED',
-            mergedIntoVocabularyId: input.representativeVocabularyId,
-            updatedAt: input.occurredAt,
-          })
-          .where(
-            and(
-              eq(vocabularies.id, input.sourceVocabularyId),
-              ne(vocabularies.status, 'MERGED'),
-            ),
-          );
+          await transaction
+            .update(vocabularies)
+            .set({
+              status: 'MERGED',
+              mergedIntoVocabularyId: input.representativeVocabularyId,
+              updatedAt: input.occurredAt,
+            })
+            .where(
+              and(
+                eq(vocabularies.id, input.sourceVocabularyId),
+                ne(vocabularies.status, 'MERGED'),
+              ),
+            );
 
-        const movedCounts = mergeMovedCounts(source);
-        await transaction.insert(vocabularyMergeHistory).values({
-          sourceVocabularyId: input.sourceVocabularyId,
-          representativeVocabularyId: input.representativeVocabularyId,
-          fingerprint,
-          sourceSnapshot: { ...source },
-          representativeSnapshot: { ...representative },
-          movedCounts,
-          actorUserId: input.actorUserId,
-          requestId: input.requestId,
-          mergedAt: input.occurredAt,
-        });
-        await transaction.insert(auditLogs).values({
-          actorSub: input.actorSub,
-          actorUserId: input.actorUserId,
-          action: 'VOCABULARY_MERGED',
-          target: input.sourceVocabularyId,
-          targetType: 'VOCABULARY',
-          targetId: input.sourceVocabularyId,
-          summary: {
+          const movedCounts = mergeMovedCounts(source);
+          await transaction.insert(vocabularyMergeHistory).values({
+            sourceVocabularyId: input.sourceVocabularyId,
+            representativeVocabularyId: input.representativeVocabularyId,
+            fingerprint,
+            sourceSnapshot: { ...source },
+            representativeSnapshot: { ...representative },
+            movedCounts,
+            actorUserId: input.actorUserId,
+            requestId: input.requestId,
+            mergedAt: input.occurredAt,
+          });
+          await transaction.insert(auditLogs).values({
+            actorSub: input.actorSub,
+            actorUserId: input.actorUserId,
+            action: 'VOCABULARY_MERGED',
+            target: input.sourceVocabularyId,
+            targetType: 'VOCABULARY',
+            targetId: input.sourceVocabularyId,
+            summary: {
+              representativeVocabularyId: input.representativeVocabularyId,
+              movedCounts,
+            },
+            requestId: input.requestId,
+            createdAt: input.occurredAt,
+          });
+          return {
+            sourceVocabularyId: input.sourceVocabularyId,
             representativeVocabularyId: input.representativeVocabularyId,
             movedCounts,
-          },
-          requestId: input.requestId,
-          createdAt: input.occurredAt,
-        });
-        return {
-          sourceVocabularyId: input.sourceVocabularyId,
-          representativeVocabularyId: input.representativeVocabularyId,
-          movedCounts,
-        };
-      },
-      { isolationLevel: 'serializable' },
-    );
+          };
+        },
+        { isolationLevel: 'serializable' },
+      );
+    } catch (error) {
+      const code = decodePostgreSqlError(error)?.code;
+      if (code === '40001' || code === '40P01') {
+        throw new VocabularyAdminRepositoryError(
+          'VOCABULARY_MERGE_CONFLICT',
+          'executeMerge.concurrency',
+        );
+      }
+      throw error;
+    }
   }
 }
