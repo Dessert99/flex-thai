@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/shared/api';
-import { RootRouteError } from './__root';
+import { getRouteTitle, RootRouteError } from './__root';
 
 describe('root route 오류 경계', () => {
   it('render 예외에 일반 문구를 표시하고 boundary reset을 실행한다', async () => {
@@ -61,5 +61,17 @@ describe('root route 오류 경계', () => {
     );
 
     expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe('root route 제목', () => {
+  it.each([
+    ['/login/challenge', '이메일 인증 코드'],
+    ['/login/confirm', '이메일 링크 확인'],
+    ['/wordbooks', '내 단어장'],
+    ['/wordbooks/00000000-0000-4000-8000-000000000101', '단어장 상세'],
+    ['/admin/users', '사용자 관리'],
+  ])('%s 경로에 %s 제목을 제공한다', (pathname, title) => {
+    expect(getRouteTitle(pathname)).toBe(title);
   });
 });

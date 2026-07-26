@@ -59,6 +59,23 @@ const sentence = {
 } satisfies PublicThaiSentence;
 
 describe('상호작용 태국어 문장', () => {
+  it('번역은 표시를 요청한 문맥에서만 보여 준다', () => {
+    const { rerender } = render(
+      <InteractiveThaiSentence sentence={sentence} />,
+    );
+
+    expect(screen.queryByText('나는 사랑한다')).not.toBeInTheDocument();
+
+    rerender(
+      <InteractiveThaiSentence
+        sentence={sentence}
+        showTranslation
+      />,
+    );
+
+    expect(screen.getByText('나는 사랑한다')).toBeVisible();
+  });
+
   it('focus와 Enter로 token 피드백을 열고 음성을 재생한다', async () => {
     const play = vi
       .spyOn(HTMLMediaElement.prototype, 'play')

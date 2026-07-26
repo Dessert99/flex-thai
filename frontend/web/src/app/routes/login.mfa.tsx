@@ -8,8 +8,17 @@ export const Route = createFileRoute('/login/mfa')({
   beforeLoad: () => {
     requireLoginTotpChallenge(hasLoginTotpChallenge());
   },
-  component: LoginTotpPageContainer,
+  component: LoginTotpRoute,
 });
+
+function LoginTotpRoute() {
+  const { redirect: redirectTo } = Route.useSearch();
+  return (
+    <LoginTotpPageContainer
+      {...(redirectTo === undefined ? {} : { redirectTo })}
+    />
+  );
+}
 
 /** 메모리 challenge가 사라진 직접 접근을 로그인 index로 되돌린다 */
 export function requireLoginTotpChallenge(challengeAvailable: boolean): void {

@@ -7,5 +7,5 @@ export const learnerNavigation = [
   { href: '/questions', label: '문제 찾기' },
   { href: '/history', label: '오답 기록' },
   { href: '/vocabularies', label: '어휘 찾기' },
-  { href: '/saved-vocabularies', label: '저장한 어휘' },
+  { href: '/wordbooks', label: '내 단어장' },
 ] as const satisfies readonly AppShellNavigationItem[];

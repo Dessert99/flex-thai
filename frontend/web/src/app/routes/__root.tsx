@@ -73,13 +73,16 @@ function RootNotFound() {
 
 const routeTitles = [
   [/^\/$/, '홈'],
+  [/^\/login\/challenge\/?$/, '이메일 인증 코드'],
+  [/^\/login\/confirm\/?$/, '이메일 링크 확인'],
   [/^\/login\/mfa\/?$/, '로그인 추가 인증'],
   [/^\/login\/?$/, '로그인'],
   [/^\/learn\/?$/, '학습 홈'],
   [/^\/questions\/[^/]+\/?$/, '문제 풀이'],
   [/^\/questions\/?$/, '문제 목록'],
   [/^\/history\/?$/, '학습 기록'],
-  [/^\/saved-vocabularies\/?$/, '저장한 어휘'],
+  [/^\/wordbooks\/[^/]+\/?$/, '단어장 상세'],
+  [/^\/wordbooks\/?$/, '내 단어장'],
   [/^\/vocabularies\/[^/]+\/?$/, '어휘 상세'],
   [/^\/vocabularies\/?$/, '어휘 목록'],
   [/^\/admin\/totp-setup\/?$/, '관리자 TOTP 설정'],
@@ -93,11 +96,13 @@ const routeTitles = [
   [/^\/admin\/questions\/?$/, '문제 관리'],
   [/^\/admin\/vocabularies\/[^/]+\/?$/, '관리자 어휘 상세'],
   [/^\/admin\/vocabularies\/?$/, '어휘 관리'],
+  [/^\/admin\/users\/?$/, '사용자 관리'],
   [/^\/admin\/?$/, '관리자 홈'],
   [/^\/forbidden\/?$/, '접근 권한 없음'],
 ] as const;
 
-function getRouteTitle(pathname: string): string {
+/** 현재 pathname을 screen reader announcement용 제목으로 변환한다 */
+export function getRouteTitle(pathname: string): string {
   for (const [pattern, title] of routeTitles) {
     if (pattern.test(pathname)) {
       return title;

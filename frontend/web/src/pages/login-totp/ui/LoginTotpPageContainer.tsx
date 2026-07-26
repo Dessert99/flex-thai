@@ -11,8 +11,14 @@ import {
 } from '../model/loginTotpFormSchema';
 import { LoginTotpPageView } from './LoginTotpPageView';
 
+interface LoginTotpPageContainerProps {
+  redirectTo?: string;
+}
+
 /** 로그인 TOTP form과 mutation lifecycle을 소유한다 */
-export function LoginTotpPageContainer() {
+export function LoginTotpPageContainer({
+  redirectTo,
+}: LoginTotpPageContainerProps) {
   const navigate = useNavigate();
   const form = useForm<LoginTotpFormInput>({
     defaultValues: { code: '' },
@@ -29,7 +35,7 @@ export function LoginTotpPageContainer() {
     onSuccess(result) {
       void navigate({
         replace: true,
-        to: getUserHome(result.user),
+        to: (redirectTo ?? getUserHome(result.user)) as never,
       });
       form.reset();
     },

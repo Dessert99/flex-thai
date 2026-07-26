@@ -13,8 +13,14 @@ import {
 import { emailCodeFormSchema } from '../model/emailCodeFormSchema';
 import { EmailChallengePageView } from './EmailChallengePageView';
 
+interface EmailChallengePageContainerProps {
+  redirectTo?: string;
+}
+
 /** pending challenge의 code와 cooldown을 화면 수명 동안 소유한다 */
-export function EmailChallengePageContainer() {
+export function EmailChallengePageContainer({
+  redirectTo,
+}: EmailChallengePageContainerProps) {
   const navigate = useNavigate();
   const [challenge, setChallenge] = useState(getPendingEmailChallenge);
   const [now, setNow] = useState(Date.now);
@@ -26,11 +32,22 @@ export function EmailChallengePageContainer() {
     mutationFn: ({ code }: VerifyEmailCodeInput) =>
       verifyEmailCodeSession(code),
     onSuccess(result) {
-      const destination =
-        result.status === 'mfa-required'
-          ? '/login/mfa'
-          : getUserHome(result.user);
-      void navigate({ replace: true, to: destination as never });
+      if (result.status === 'mfa-required') {
+        if (redirectTo === undefined) {
+          void navigate({ replace: true, to: '/login/mfa' });
+          return;
+        }
+        void navigate({
+          replace: true,
+          search: { redirect: redirectTo },
+          to: '/login/mfa',
+        });
+        return;
+      }
+      void navigate({
+        replace: true,
+        to: (redirectTo ?? getUserHome(result.user)) as never,
+      });
     },
   });
   const resendMutation = useMutation({

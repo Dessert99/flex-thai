@@ -13,7 +13,7 @@ interface LoginPageContainerProps {
 }
 
 /** 로그인 form과 mutation lifecycle을 소유한다 */
-export function LoginPageContainer({}: LoginPageContainerProps) {
+export function LoginPageContainer({ redirectTo }: LoginPageContainerProps) {
   const navigate = useNavigate();
   const form = useForm<StartEmailAuthenticationInput>({
     defaultValues: { email: '' },
@@ -28,7 +28,15 @@ export function LoginPageContainer({}: LoginPageContainerProps) {
       });
     },
     onSuccess() {
-      void navigate({ to: '/login/challenge' as never });
+      if (redirectTo === undefined) {
+        void navigate({ to: '/login/challenge' });
+        form.reset();
+        return;
+      }
+      void navigate({
+        search: { redirect: redirectTo },
+        to: '/login/challenge',
+      });
       form.reset();
     },
   });

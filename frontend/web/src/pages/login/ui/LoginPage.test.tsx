@@ -69,6 +69,27 @@ describe('로그인 페이지', () => {
     });
   });
 
+  it('안전한 로그인 redirect를 코드 입력 화면까지 보존한다', async () => {
+    mocks.startEmailAuthenticationSession.mockResolvedValue({
+      challengeId: '00000000-0000-4000-8000-000000000001',
+      email: 'learner@hufs.ac.kr',
+      expiresAt: '2026-07-26T00:10:00.000Z',
+      resendAt: '2026-07-26T00:01:00.000Z',
+    });
+    const user = userEvent.setup();
+    renderWithProviders(
+      <LoginPageContainer redirectTo='/questions?page=2&pageSize=20' />,
+    );
+
+    await user.type(screen.getByLabelText('학교 이메일'), 'learner@hufs.ac.kr');
+    await user.click(screen.getByRole('button', { name: '인증 메일 받기' }));
+
+    expect(mocks.navigate).toHaveBeenCalledWith({
+      search: { redirect: '/questions?page=2&pageSize=20' },
+      to: '/login/challenge',
+    });
+  });
+
   it('실패 응답에서 계정 존재 여부 대신 일반 문구와 requestId를 표시한다', async () => {
     mocks.startEmailAuthenticationSession.mockRejectedValue(createAuthError());
     const user = userEvent.setup();
