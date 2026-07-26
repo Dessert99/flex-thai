@@ -130,6 +130,7 @@ describe('단어 연습 세션 화면', () => {
     renderWithProviders(
       <VocabularyPracticeSessionPageView
         onAnswer={vi.fn()}
+        onShowResult={vi.fn()}
         session={session}
       />,
     );
@@ -158,6 +159,7 @@ describe('단어 연습 세션 화면', () => {
     renderWithProviders(
       <VocabularyPracticeSessionPageView
         onAnswer={onAnswer}
+        onShowResult={vi.fn()}
         session={session}
       />,
     );
@@ -169,5 +171,106 @@ describe('단어 연습 세션 화면', () => {
     expect(screen.getByLabelText('먹다')).toBeDisabled();
     expect(screen.getByText('정답: 가다')).toBeVisible();
     expect(screen.getByText('빠이', { selector: 'span' })).toBeVisible();
+  });
+
+  it('마지막 답 제출 뒤 결과 이동을 우선 제공한다', async () => {
+    const user = userEvent.setup();
+    const onShowResult = vi.fn();
+    renderWithProviders(
+      <VocabularyPracticeSessionPageView
+        onAnswer={vi.fn().mockResolvedValue({
+          questionId: ids.questionTwo,
+          selectedOptionId: ids.optionTwo,
+          selectedLabel: '가다',
+          isCorrect: true,
+          correctOptionId: ids.optionTwo,
+          card: cards[1]!,
+          sessionCompleted: true,
+          answeredAt: '2026-07-26T00:01:00.000Z',
+        })}
+        onShowResult={onShowResult}
+        session={session}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: '기억 확인 시작' }));
+    await user.click(screen.getByLabelText('가다'));
+    await user.click(screen.getByRole('button', { name: '답안 제출' }));
+    await user.click(await screen.findByRole('button', { name: '결과 보기' }));
+
+    expect(onShowResult).toHaveBeenCalledWith(ids.session);
+    expect(screen.queryByRole('button', { name: '다음 문항' })).toBeNull();
+  });
+
+  it('이미 완료된 세션을 열면 결과 이동을 제공한다', async () => {
+    const user = userEvent.setup();
+    const onShowResult = vi.fn();
+    renderWithProviders(
+      <VocabularyPracticeSessionPageView
+        onAnswer={vi.fn()}
+        onShowResult={onShowResult}
+        session={{
+          ...session,
+          status: 'COMPLETED',
+          completedAt: '2026-07-26T00:01:00.000Z',
+          answeredQuestionIds: [ids.questionOne, ids.questionTwo],
+          result: {
+            total: { correct: 2, incorrect: 0 },
+            byMode: [
+              {
+                mode: 'THAI_TO_MEANING',
+                correct: 2,
+                incorrect: 0,
+              },
+            ],
+            incorrectCards: [],
+          },
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: '결과 보기' }));
+    expect(onShowResult).toHaveBeenCalledWith(ids.session);
+  });
+
+  it('다음 문항은 이미 답한 문항을 건너뛴다', async () => {
+    const user = userEvent.setup();
+    const thirdQuestion = {
+      ...session.questions[1]!,
+      id: '00000000-0000-4000-8000-000000000014',
+      position: 3,
+      prompt: { type: 'TEXT' as const, text: 'เขียน' },
+    };
+    renderWithProviders(
+      <VocabularyPracticeSessionPageView
+        onAnswer={vi.fn().mockResolvedValue({
+          questionId: ids.questionOne,
+          selectedOptionId: ids.optionOne,
+          selectedLabel: '먹다',
+          isCorrect: true,
+          correctOptionId: ids.optionOne,
+          card: cards[0]!,
+          sessionCompleted: false,
+          answeredAt: '2026-07-26T00:01:00.000Z',
+        })}
+        onShowResult={vi.fn()}
+        session={{
+          ...session,
+          questionCount: 3,
+          questions: [
+            session.questions[0]!,
+            session.questions[1]!,
+            thirdQuestion,
+          ],
+          answeredQuestionIds: [ids.questionTwo],
+        }}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: '기억 확인 시작' }));
+    await user.click(screen.getByLabelText('먹다'));
+    await user.click(screen.getByRole('button', { name: '답안 제출' }));
+    await user.click(await screen.findByRole('button', { name: '다음 문항' }));
+
+    expect(screen.getByText('3 / 3')).toBeVisible();
+    expect(screen.getByText('เขียน')).toBeVisible();
   });
 });

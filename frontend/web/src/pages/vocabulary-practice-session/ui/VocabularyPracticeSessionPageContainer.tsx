@@ -7,8 +7,10 @@ import { VocabularyPracticeSessionPageView } from './VocabularyPracticeSessionPa
 
 /** 세션 loading/error와 답안 제출을 조정한다 */
 export function VocabularyPracticeSessionPageContainer({
+  onShowResult,
   sessionId,
 }: {
+  onShowResult: (sessionId: string) => void;
   sessionId: string;
 }) {
   const session = useQuery(vocabularyPracticeSessionQueryOptions(sessionId));
@@ -28,6 +30,7 @@ export function VocabularyPracticeSessionPageContainer({
       onAnswer={(questionId, request) =>
         answerVocabularyPractice(sessionId, questionId, request)
       }
+      onShowResult={onShowResult}
       session={session.data}
     />
   );

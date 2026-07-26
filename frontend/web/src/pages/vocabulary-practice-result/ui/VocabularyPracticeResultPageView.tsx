@@ -16,12 +16,24 @@ const modeLabels: Record<PracticeMode, string> = {
 
 /** 계약에 포함된 완료 결과를 별도 추정 없이 표시한다 */
 export function VocabularyPracticeResultPageView({
+  onContinue,
   session,
 }: {
+  onContinue: (sessionId: string) => void;
   session: VocabularyPracticeSessionResponse;
 }) {
   if (session.status !== 'COMPLETED') {
-    return <p>아직 완료되지 않은 연습입니다.</p>;
+    return (
+      <section className='grid gap-cluster'>
+        <p>아직 완료되지 않은 연습입니다.</p>
+        <Button
+          onClick={() => onContinue(session.id)}
+          type='button'
+        >
+          연습으로 돌아가기
+        </Button>
+      </section>
+    );
   }
   return (
     <section className='grid gap-section'>

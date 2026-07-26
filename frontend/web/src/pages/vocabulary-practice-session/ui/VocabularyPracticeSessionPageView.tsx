@@ -15,12 +15,14 @@ interface VocabularyPracticeSessionPageViewProps {
     questionId: string,
     request: SubmitVocabularyPracticeAnswerRequest,
   ) => Promise<VocabularyPracticeAnswerResponse>;
+  onShowResult: (sessionId: string) => void;
   session: VocabularyPracticeSessionResponse;
 }
 
 /** 카드를 먼저 공개하고 사용자가 원할 때 첫 미응답 문항부터 시작한다 */
 export function VocabularyPracticeSessionPageView({
   onAnswer,
+  onShowResult,
   session,
 }: VocabularyPracticeSessionPageViewProps) {
   const firstUnansweredIndex = session.questions.findIndex(
@@ -32,6 +34,21 @@ export function VocabularyPracticeSessionPageView({
   const [feedback, setFeedback] = useState<VocabularyPracticeAnswerResponse>();
   const question =
     questionIndex < 0 ? undefined : session.questions[questionIndex];
+  const nextQuestionIndex = session.questions.findIndex(
+    ({ id }, index) =>
+      index > questionIndex && !session.answeredQuestionIds.includes(id),
+  );
+
+  if (session.status === 'COMPLETED') {
+    return (
+      <Button
+        onClick={() => onShowResult(session.id)}
+        type='button'
+      >
+        결과 보기
+      </Button>
+    );
+  }
 
   if (!quizStarted) {
     return (
@@ -89,11 +106,17 @@ export function VocabularyPracticeSessionPageView({
       {feedback === undefined ? null : (
         <PracticeCardView card={feedback.card} />
       )}
-      {feedback !== undefined &&
-      questionIndex + 1 < session.questions.length ? (
+      {feedback?.sessionCompleted ? (
+        <Button
+          onClick={() => onShowResult(session.id)}
+          type='button'
+        >
+          결과 보기
+        </Button>
+      ) : feedback !== undefined && nextQuestionIndex >= 0 ? (
         <Button
           onClick={() => {
-            setQuestionIndex(questionIndex + 1);
+            setQuestionIndex(nextQuestionIndex);
             setFeedback(undefined);
           }}
           type='button'

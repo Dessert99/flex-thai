@@ -1,7 +1,8 @@
 /** 완료된 단어 연습의 서버 집계와 오답 카드 표시 범위를 검증한다 */
 import type { VocabularyPracticeSessionResponse } from '@flex-thia/contracts';
 import { screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '@/shared/test';
 import { VocabularyPracticeResultPageView } from './VocabularyPracticeResultPageView';
 
@@ -83,7 +84,10 @@ const completedSession = {
 describe('단어 연습 결과 화면', () => {
   it('전체·방식별 집계를 표시하고 추정 지표는 만들지 않는다', () => {
     renderWithProviders(
-      <VocabularyPracticeResultPageView session={completedSession} />,
+      <VocabularyPracticeResultPageView
+        onContinue={vi.fn()}
+        session={completedSession}
+      />,
     );
 
     expect(screen.getByText('정답 0개')).toBeVisible();
@@ -92,5 +96,24 @@ describe('단어 연습 결과 화면', () => {
     expect(
       screen.queryByText(/숙련도|연속 기록|백분위/u),
     ).not.toBeInTheDocument();
+  });
+
+  it('진행 중 세션이면 연습 복귀 경계를 제공한다', async () => {
+    const user = userEvent.setup();
+    const onContinue = vi.fn();
+    const { result: _result, ...sessionWithoutResult } = completedSession;
+    renderWithProviders(
+      <VocabularyPracticeResultPageView
+        onContinue={onContinue}
+        session={{
+          ...sessionWithoutResult,
+          status: 'ACTIVE',
+          completedAt: null,
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: '연습으로 돌아가기' }));
+    expect(onContinue).toHaveBeenCalledWith(completedSession.id);
   });
 });

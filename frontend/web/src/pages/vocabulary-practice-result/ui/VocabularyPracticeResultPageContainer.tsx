@@ -6,8 +6,10 @@ import { VocabularyPracticeResultPageView } from './VocabularyPracticeResultPage
 
 /** 결과 세션 loading/error를 처리한다 */
 export function VocabularyPracticeResultPageContainer({
+  onContinue,
   sessionId,
 }: {
+  onContinue: (sessionId: string) => void;
   sessionId: string;
 }) {
   const session = useQuery(vocabularyPracticeResultQueryOptions(sessionId));
@@ -22,5 +24,10 @@ export function VocabularyPracticeResultPageContainer({
       />
     );
   }
-  return <VocabularyPracticeResultPageView session={session.data} />;
+  return (
+    <VocabularyPracticeResultPageView
+      onContinue={onContinue}
+      session={session.data}
+    />
+  );
 }
