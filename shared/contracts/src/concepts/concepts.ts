@@ -147,7 +147,7 @@ export const conceptListResponseSchema = z
   .strict();
 
 const publicBlockBase = {
-  id: z.string().min(1),
+  id: uuidSchema,
   position: positionSchema,
   heading: z.string().min(1),
 };
@@ -179,7 +179,7 @@ const publicConceptBlockSchema = z.discriminatedUnion('kind', [
             sentence: publicThaiSentenceSchema,
           })
           .strict(),
-      ),
+      ).min(1),
     })
     .strict(),
 ]);
@@ -196,7 +196,7 @@ export const conceptDetailResponseSchema = z
     tableOfContents: z.array(
       z
         .object({
-          blockId: z.string().min(1),
+          blockId: uuidSchema,
           heading: z.string().min(1),
           position: positionSchema,
         })
@@ -272,29 +272,43 @@ export const conceptValidationReportSchema = z
 /** 개념 생성·복제·교체 응답 */
 export const conceptVersionResponseSchema = adminConceptVersionSchema;
 
+/** 직렬화 가능한 개념 영역 */
 export type ConceptCategory = z.infer<typeof conceptCategorySchema>;
+/** 직렬화 가능한 논리 개념 상태 */
 export type ConceptStatus = z.infer<typeof conceptStatusSchema>;
+/** 직렬화 가능한 개념 버전 상태 */
 export type ConceptVersionStatus = z.infer<typeof conceptVersionStatusSchema>;
+/** 직렬화 가능한 개념 검증 상태 */
 export type ConceptValidationStatus = z.infer<
   typeof conceptValidationStatusSchema
 >;
+/** 직렬화 가능한 개념 블록 입력 */
 export type ConceptBlockInput = z.infer<typeof conceptBlockInputSchema>;
+/** 직렬화 가능한 개념 생성 요청 */
 export type CreateConceptRequest = z.infer<typeof createConceptRequestSchema>;
+/** 직렬화 가능한 개념 버전 교체 요청 */
 export type ReplaceConceptVersionRequest = z.infer<
   typeof replaceConceptVersionRequestSchema
 >;
+/** 직렬화 가능한 학습자 개념 목록 */
 export type ConceptListResponse = z.infer<typeof conceptListResponseSchema>;
+/** 직렬화 가능한 학습자 개념 상세 */
 export type ConceptDetailResponse = z.infer<typeof conceptDetailResponseSchema>;
+/** 직렬화 가능한 관리자 개념 목록 query */
 export type AdminConceptListQuery = z.infer<
   typeof adminConceptListQuerySchema
 >;
+/** 직렬화 가능한 관리자 개념 목록 */
 export type AdminConceptListResponse = z.infer<
   typeof adminConceptListResponseSchema
 >;
+/** 직렬화 가능한 관리자 개념 상세 */
 export type AdminConceptDetailResponse = z.infer<
   typeof adminConceptDetailResponseSchema
 >;
+/** 직렬화 가능한 관리자 개념 버전 */
 export type AdminConceptVersion = z.infer<typeof adminConceptVersionSchema>;
+/** 직렬화 가능한 개념 검증 보고서 */
 export type ConceptValidationReport = z.infer<
   typeof conceptValidationReportSchema
 >;

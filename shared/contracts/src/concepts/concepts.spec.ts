@@ -2,11 +2,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   conceptDetailResponseSchema,
+  conceptValidationReportSchema,
   createConceptRequestSchema,
   replaceConceptVersionRequestSchema,
 } from './concepts.js';
 
 const sentenceVersionId = '11111111-1111-4111-8111-111111111111';
+const blockId = '44444444-4444-4444-8444-444444444444';
 
 describe('개념 계약', () => {
   it('세 종류의 개념 블록 입력을 허용한다', () => {
@@ -84,10 +86,10 @@ describe('개념 계약', () => {
         position: 0,
         title: '기본 어순',
         summary: '요약',
-        tableOfContents: [{ blockId: 'block-0', heading: '예문', position: 0 }],
+        tableOfContents: [{ blockId, heading: '예문', position: 0 }],
         blocks: [
           {
-            id: 'block-0',
+            id: blockId,
             kind: 'THAI_EXAMPLES',
             position: 0,
             heading: '예문',
@@ -108,6 +110,60 @@ describe('개념 계약', () => {
                 },
               },
             ],
+          },
+        ],
+      }),
+    ).toThrow();
+  });
+
+  it('검증 문제의 canonical 근거를 보존한다', () => {
+    const parsed = conceptValidationReportSchema.parse({
+      versionId: '33333333-3333-4333-8333-333333333333',
+      revision: 1,
+      status: 'FAILED',
+      issues: [
+        {
+          source: 'REFERENCE',
+          path: 'blocks.0.examples.0.sentenceVersionId',
+          code: 'CONCEPT_SENTENCE_NOT_FOUND',
+          evidenceKo: '문장 버전을 찾을 수 없습니다.',
+        },
+      ],
+      validatedAt: '2026-07-26T00:00:00.000Z',
+    });
+
+    expect(parsed.issues[0]?.evidenceKo).toBe(
+      '문장 버전을 찾을 수 없습니다.',
+    );
+  });
+
+  it('공개 블록의 UUID와 하나 이상의 예시를 요구한다', () => {
+    const base = {
+      id: '22222222-2222-4222-8222-222222222222',
+      versionId: '33333333-3333-4333-8333-333333333333',
+      category: 'GRAMMAR',
+      position: 0,
+      title: '기본 어순',
+      summary: '요약',
+    };
+    expect(() =>
+      conceptDetailResponseSchema.parse({
+        ...base,
+        tableOfContents: [{ blockId: 'not-uuid', heading: '예문', position: 0 }],
+        blocks: [],
+      }),
+    ).toThrow();
+    expect(() =>
+      conceptDetailResponseSchema.parse({
+        ...base,
+        tableOfContents: [{ blockId, heading: '예문', position: 0 }],
+        blocks: [
+          {
+            id: blockId,
+            kind: 'THAI_EXAMPLES',
+            position: 0,
+            heading: '예문',
+            examples: [],
           },
         ],
       }),
