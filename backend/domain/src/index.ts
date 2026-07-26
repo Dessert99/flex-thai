@@ -135,5 +135,18 @@ export * from './content-import/content-import.repository.js';
 
 /** canonical hash와 항목별 동기 가져오기 orchestration을 공개한다 */
 export * from './content-import/content-import.service.js';
+
 /** 개념 학습 도메인을 패키지 경계에 노출한다 */
 export * from './concepts/index.js';
+
+/** 콘텐츠 오류 신고 값과 상태 규칙을 공개한다 */
+export * from './feedback/content-error-report.js';
+
+/** 콘텐츠 오류 신고 저장 port를 공개한다 */
+export * from './feedback/content-error-report.repository.js';
+
+/** 콘텐츠 오류 신고 조회 port를 공개한다 */
+export * from './feedback/content-error-report.query.js';
+
+/** 콘텐츠 오류 신고 use case를 공개한다 */
+export * from './feedback/content-error-report.service.js';

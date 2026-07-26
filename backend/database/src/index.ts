@@ -81,6 +81,7 @@ export * from './repositories/drizzle-user.repository.js';
 
 /** 기초 ERD schema를 패키지 공개 경계에 노출한다 */
 export * from './schema/index.js';
+
 /** 관리자 개념 수명주기 adapter를 공개한다 */
 export * from './repositories/drizzle-concept-admin.repository.js';
 
@@ -89,3 +90,9 @@ export * from './queries/drizzle-learner-concept.query.js';
 
 /** 관리자 모든 상태 개념 read model을 공개한다 */
 export * from './queries/drizzle-admin-concept.query.js';
+
+/** 콘텐츠 오류 신고 transaction adapter를 공개한다 */
+export * from './repositories/drizzle-content-error-report.repository.js';
+
+/** 콘텐츠 오류 신고 관리자 query를 공개한다 */
+export * from './queries/drizzle-content-error-report.query.js';
