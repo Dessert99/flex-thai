@@ -129,3 +129,5 @@ export * from './content-import/content-import.repository.js';
 
 /** canonical hash와 항목별 동기 가져오기 orchestration을 공개한다 */
 export * from './content-import/content-import.service.js';
+/** 개념 학습 도메인을 패키지 경계에 노출한다 */
+export * from './concepts/index.js';
