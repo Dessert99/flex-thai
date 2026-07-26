@@ -7,8 +7,9 @@ import type {
 import { CONTENT_PRODUCTION_ITEM_LEASE_MS } from '@flex-thia/domain';
 
 const CONTENT_PRODUCTION_ITEM_HEARTBEAT_MS = Math.floor(
-  CONTENT_PRODUCTION_ITEM_LEASE_MS / 2,
+  CONTENT_PRODUCTION_ITEM_LEASE_MS / 3,
 );
+const CONTENT_PRODUCTION_ITEM_HEARTBEAT_RETRY_MS = 5 * 1000;
 
 /** worker가 요구하는 조건부 콘텐츠 제작 저장소 */
 export interface ContentProductionWorkerRepository {
@@ -58,8 +59,119 @@ export interface ContentProductionItemOutcome {
 
 /** 입력 항목을 local fake 또는 실제 provider로 처리하는 port */
 export interface ContentProductionItemProcessor {
-  process(item: ContentProductionItem): Promise<ContentProductionItemOutcome>;
+  process(
+    item: ContentProductionItem,
+    signal: AbortSignal,
+  ): Promise<ContentProductionItemOutcome>;
 }
+
+const startLeaseHeartbeat = (
+  repository: ContentProductionWorkerRepository,
+  claimed: ContentProductionItem & {
+    leaseUntil: Date;
+    leaseToken: string;
+  },
+  jobId: string,
+  attempt: number,
+  controller: AbortController,
+) => {
+  let stopped = false;
+  let leaseLost = false;
+  let leaseDeadline = claimed.leaseUntil.getTime();
+  let heartbeatTimer: ReturnType<typeof setTimeout> | null = null;
+  let deadlineTimer: ReturnType<typeof setTimeout> | null = null;
+  let heartbeatTask = Promise.resolve();
+
+  const clearTimers = () => {
+    if (heartbeatTimer) {
+      clearTimeout(heartbeatTimer);
+      heartbeatTimer = null;
+    }
+
+    if (deadlineTimer) {
+      clearTimeout(deadlineTimer);
+      deadlineTimer = null;
+    }
+  };
+
+  const loseLease = () => {
+    if (stopped || leaseLost) {
+      return;
+    }
+
+    leaseLost = true;
+    clearTimers();
+    controller.abort(
+      new Error(`콘텐츠 제작 항목 lease를 잃었습니다: ${claimed.id}`),
+    );
+  };
+
+  const armDeadline = () => {
+    if (deadlineTimer) {
+      clearTimeout(deadlineTimer);
+    }
+
+    deadlineTimer = setTimeout(
+      loseLease,
+      Math.max(0, leaseDeadline - Date.now()),
+    );
+  };
+
+  const scheduleRenewal = (delay: number) => {
+    if (stopped || leaseLost) {
+      return;
+    }
+
+    heartbeatTimer = setTimeout(() => {
+      heartbeatTask = (async () => {
+        try {
+          const renewed = await repository.renewItemLease(
+            jobId,
+            claimed.id,
+            attempt,
+            claimed.leaseToken,
+          );
+
+          if (stopped || leaseLost) {
+            return;
+          }
+
+          if (!renewed) {
+            loseLease();
+            return;
+          }
+
+          leaseDeadline = Date.now() + CONTENT_PRODUCTION_ITEM_LEASE_MS;
+          armDeadline();
+          scheduleRenewal(CONTENT_PRODUCTION_ITEM_HEARTBEAT_MS);
+        } catch {
+          if (
+            !stopped &&
+            !leaseLost &&
+            Date.now() + CONTENT_PRODUCTION_ITEM_HEARTBEAT_RETRY_MS <
+              leaseDeadline
+          ) {
+            scheduleRenewal(CONTENT_PRODUCTION_ITEM_HEARTBEAT_RETRY_MS);
+          }
+        }
+      })();
+    }, delay);
+  };
+
+  armDeadline();
+  scheduleRenewal(CONTENT_PRODUCTION_ITEM_HEARTBEAT_MS);
+
+  return {
+    /** lease 소유권 상실 여부 */
+    isLeaseLost: () => leaseLost,
+    /** timer를 해제하고 이미 시작된 갱신을 기다린다 */
+    stop: async () => {
+      stopped = true;
+      clearTimers();
+      await heartbeatTask;
+    },
+  };
+};
 
 const buildSourceRefs = (
   job: Pick<ContentProductionJob, 'purpose' | 'inputs'>,
@@ -119,26 +231,21 @@ export const createContentProductionDispatcher =
         );
       }
 
+      const controller = new AbortController();
+      const heartbeat = startLeaseHeartbeat(
+        repository,
+        claimed as ContentProductionItem & {
+          leaseUntil: Date;
+          leaseToken: string;
+        },
+        job.id,
+        input.attempt,
+        controller,
+      );
       let outcome: ContentProductionItemOutcome;
-      let heartbeatTask = Promise.resolve();
-      const heartbeat = setInterval(() => {
-        heartbeatTask = heartbeatTask
-          .then(() =>
-            repository.renewItemLease(
-              job.id,
-              claimed.id,
-              input.attempt,
-              claimed.leaseToken!,
-            ),
-          )
-          .then(
-            () => undefined,
-            () => undefined,
-          );
-      }, CONTENT_PRODUCTION_ITEM_HEARTBEAT_MS);
 
       try {
-        outcome = await processor.process(claimed);
+        outcome = await processor.process(claimed, controller.signal);
       } catch {
         outcome = {
           status: 'FAILED',
@@ -146,8 +253,11 @@ export const createContentProductionDispatcher =
           errorCode: 'LOCAL_PROCESSOR_FAILURE',
         };
       } finally {
-        clearInterval(heartbeat);
-        await heartbeatTask;
+        await heartbeat.stop();
+      }
+
+      if (heartbeat.isLeaseLost()) {
+        continue;
       }
 
       await repository.finishItem(

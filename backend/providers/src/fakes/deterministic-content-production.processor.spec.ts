@@ -16,23 +16,36 @@ const item = (sourceRef: string) => ({
 describe('DeterministicContentProductionProcessor local 처리', () => {
   it('sourceRef 입력 순서로 부분 실패와 검토 필요 결과를 재현한다', async () => {
     const processor = new DeterministicContentProductionProcessor();
+    const signal = new AbortController().signal;
 
-    await expect(processor.process(item('input:0'))).resolves.toMatchObject({
+    await expect(
+      processor.process(item('input:0'), signal),
+    ).resolves.toMatchObject({
       status: 'SUCCEEDED',
       retryable: false,
     });
     await expect(
-      processor.process(item('input:1:question')),
+      processor.process(item('input:1:question'), signal),
     ).resolves.toMatchObject({
       status: 'NEEDS_ATTENTION',
       retryable: false,
     });
     await expect(
-      processor.process(item('input:2:vocabulary')),
+      processor.process(item('input:2:vocabulary'), signal),
     ).resolves.toMatchObject({
       status: 'FAILED',
       retryable: true,
       errorCode: 'LOCAL_FAKE_FAILURE',
     });
+  });
+
+  it('취소된 lease의 항목 처리를 시작하지 않는다', async () => {
+    const processor = new DeterministicContentProductionProcessor();
+    const controller = new AbortController();
+    controller.abort(new Error('lease lost'));
+
+    await expect(
+      processor.process(item('input:0'), controller.signal),
+    ).rejects.toThrow('lease lost');
   });
 });

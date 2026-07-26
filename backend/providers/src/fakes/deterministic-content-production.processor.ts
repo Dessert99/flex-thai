@@ -14,7 +14,16 @@ export class DeterministicContentProductionProcessor {
   /** 같은 sourceRef에는 언제나 같은 항목 결과를 반환한다 */
   process(
     item: ContentProductionItem,
+    signal: AbortSignal,
   ): Promise<DeterministicContentProductionOutcome> {
+    if (signal.aborted) {
+      return Promise.reject(
+        signal.reason instanceof Error
+          ? signal.reason
+          : new Error('콘텐츠 제작 항목 처리가 취소되었습니다'),
+      );
+    }
+
     if (
       item.sourceRef.endsWith(':fail') ||
       /^input:2(?::|$)/u.test(item.sourceRef)
