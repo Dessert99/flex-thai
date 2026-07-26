@@ -16,6 +16,8 @@ const generatedFrontendFiles = [
 export default tseslint.config(
   {
     ignores: [
+      '.superpowers/**',
+      '.worktrees/**',
       '**/dist/**',
       '**/coverage/**',
       '**/node_modules/**',

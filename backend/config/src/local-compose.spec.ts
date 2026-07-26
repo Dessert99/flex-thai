@@ -1,12 +1,12 @@
 /** 로컬 compose가 passwordless 인증에 필요한 설정만 노출하는지 검증한다 */
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 describe('로컬 compose 인증 설정', () => {
   it('legacy 비밀번호 없이 이메일 challenge 설정만 제공한다', () => {
     const compose = readFileSync(
-      resolve(process.cwd(), '../../compose.yaml'),
+      fileURLToPath(new URL('../../../compose.yaml', import.meta.url)),
       'utf8',
     );
 
