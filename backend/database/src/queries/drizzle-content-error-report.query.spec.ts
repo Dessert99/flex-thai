@@ -1,6 +1,9 @@
 /** 관리자 오류 신고 query의 stable pagination 값을 검증한다 */
 import { describe, expect, it } from 'vitest';
-import { toContentErrorReportPage } from './drizzle-content-error-report.query.js';
+import {
+  toContentErrorReportAdminItem,
+  toContentErrorReportPage,
+} from './drizzle-content-error-report.query.js';
 
 describe('오류 신고 관리자 page', () => {
   it('전체 건수로 totalPages를 계산한다', () => {
@@ -10,6 +13,31 @@ describe('오류 신고 관리자 page', () => {
       page: 2,
       pageSize: 20,
       totalPages: 3,
+    });
+  });
+
+  it('신고자와 담당자 email을 한 projection에서 보존한다', () => {
+    expect(
+      toContentErrorReportAdminItem({
+        report: {
+          id: 'report-id',
+          reporterUserId: 'learner-id',
+          targetKind: 'QUESTION',
+          category: 'OTHER',
+          status: 'OPEN',
+          assigneeUserId: 'admin-id',
+          description: null,
+          canonicalReference: {} as never,
+          snapshot: {} as never,
+          createdAt: new Date(0),
+          updatedAt: new Date(0),
+        },
+        reporterEmail: 'learner@hufs.ac.kr',
+        assigneeEmail: 'admin@hufs.ac.kr',
+      }),
+    ).toMatchObject({
+      reporter: { id: 'learner-id', email: 'learner@hufs.ac.kr' },
+      assignee: { id: 'admin-id', email: 'admin@hufs.ac.kr' },
     });
   });
 });

@@ -10,7 +10,7 @@ import type {
   CreateContentErrorReportRecord,
   ResolvedContentErrorReportTarget,
 } from '@flex-thia/domain';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import * as baseSchema from '../schema/index.js';
@@ -21,13 +21,19 @@ import {
 import {
   questionBlocks,
   questionBlockSentences,
+  questionOptions,
   questions,
   questionVersions,
 } from '../schema/questions.schema.js';
-import { thaiSentenceVersions } from '../schema/thai-content.schema.js';
+import { mediaAssets } from '../schema/media.schema.js';
+import {
+  thaiSentenceVersions,
+  tokenOccurrences,
+} from '../schema/thai-content.schema.js';
 import { users } from '../schema/identity.schema.js';
 import {
   vocabularies,
+  vocabularyMeaningPronunciations,
   vocabularyMeanings,
   vocabularyPronunciations,
 } from '../schema/vocabulary.schema.js';
@@ -231,7 +237,10 @@ export class DrizzleContentErrorReportRepository
     origin: Extract<ContentErrorReportOrigin, { kind: 'QUESTION' }>,
   ): Promise<ResolvedContentErrorReportTarget | null> {
     const rows = await this.database
-      .select({ version: questionVersions.version })
+      .select({
+        version: questionVersions.version,
+        currentPublishedVersionId: questions.currentPublishedVersionId,
+      })
       .from(questionVersions)
       .innerJoin(questions, eq(questions.id, questionVersions.questionId))
       .where(
@@ -239,24 +248,80 @@ export class DrizzleContentErrorReportRepository
           eq(questions.id, origin.questionId),
           eq(questionVersions.id, origin.questionVersionId),
           eq(questions.status, 'PUBLISHED'),
+          eq(questionVersions.status, 'PUBLISHED'),
+          eq(questions.currentPublishedVersionId, origin.questionVersionId),
         ),
       )
       .limit(1);
     const row = rows[0];
     if (!row) return null;
-    if (origin.blockId) {
-      const locations = await this.database
-        .select({ id: questionBlocks.id })
-        .from(questionBlocks)
-        .where(
-          and(
-            eq(questionBlocks.id, origin.blockId),
-            eq(questionBlocks.questionVersionId, origin.questionVersionId),
-          ),
-        )
-        .limit(1);
-      if (!locations[0]) return null;
+    const locations = await this.database
+      .select({
+        blockId: questionBlocks.id,
+        originalText: thaiSentenceVersions.originalText,
+        translationKo: thaiSentenceVersions.translationKo,
+        mediaAssetId: thaiSentenceVersions.mediaAssetId,
+      })
+      .from(questionBlocks)
+      .innerJoin(
+        questionBlockSentences,
+        eq(questionBlockSentences.blockId, questionBlocks.id),
+      )
+      .innerJoin(
+        thaiSentenceVersions,
+        eq(thaiSentenceVersions.id, questionBlockSentences.sentenceVersionId),
+      )
+      .where(
+        and(
+          eq(questionBlocks.questionVersionId, origin.questionVersionId),
+          origin.blockId ? eq(questionBlocks.id, origin.blockId) : undefined,
+          origin.sentenceVersionId
+            ? eq(
+                questionBlockSentences.sentenceVersionId,
+                origin.sentenceVersionId,
+              )
+            : undefined,
+        ),
+      )
+      .limit(1);
+    const location = locations[0];
+    if (!location) {
+      if (origin.sentenceVersionId) {
+        const options = await this.database
+          .select({
+            originalText: thaiSentenceVersions.originalText,
+            translationKo: thaiSentenceVersions.translationKo,
+            mediaAssetId: thaiSentenceVersions.mediaAssetId,
+          })
+          .from(questionOptions)
+          .innerJoin(
+            thaiSentenceVersions,
+            eq(thaiSentenceVersions.id, questionOptions.sentenceVersionId),
+          )
+          .where(
+            and(
+              eq(questionOptions.questionVersionId, origin.questionVersionId),
+              eq(questionOptions.sentenceVersionId, origin.sentenceVersionId),
+            ),
+          )
+          .limit(1);
+        if (!options[0]) return null;
+        return this.buildQuestionTarget(origin, row.version, options[0]);
+      }
+      return null;
     }
+    return this.buildQuestionTarget(origin, row.version, location);
+  }
+
+  private buildQuestionTarget(
+    origin: Extract<ContentErrorReportOrigin, { kind: 'QUESTION' }>,
+    version: number,
+    context: {
+      originalText: string;
+      translationKo: string;
+      mediaAssetId: string;
+    },
+  ): ResolvedContentErrorReportTarget {
     return {
       reference: {
         kind: 'QUESTION',
@@ -264,16 +329,16 @@ export class DrizzleContentErrorReportRepository
         contentVersionId: origin.questionVersionId,
         questionVersionId: origin.questionVersionId,
         sentenceVersionId: origin.sentenceVersionId,
-        mediaAssetId: null,
+        mediaAssetId: context.mediaAssetId,
         locationId: origin.blockId,
       },
       snapshot: {
-        title: `문제 ${origin.questionId}`,
-        primaryText: `문제 버전 ${row.version}`,
+        title: context.originalText,
+        primaryText: context.translationKo,
         secondaryText: null,
-        versionLabel: `버전 ${row.version}`,
-        locationLabel: origin.blockId ? '문제 블록' : '문제 상단',
-        audioAssetId: null,
+        versionLabel: `버전 ${version}`,
+        locationLabel: origin.blockId ? '문제 블록' : '문제',
+        audioAssetId: context.mediaAssetId,
       },
     };
   }
@@ -281,32 +346,9 @@ export class DrizzleContentErrorReportRepository
   private async resolveVocabulary(
     origin: Extract<ContentErrorReportOrigin, { kind: 'VOCABULARY' }>,
   ): Promise<ResolvedContentErrorReportTarget | null> {
-    const rows = await this.database
-      .select({
-        thai: vocabularies.thai,
-        meaning: vocabularyMeanings.meaningKo,
-        pronunciation: vocabularyPronunciations.pronunciationKo,
-        mediaAssetId: vocabularyPronunciations.mediaAssetId,
-      })
+    const vocabRows = await this.database
+      .select({ thai: vocabularies.thai })
       .from(vocabularies)
-      .leftJoin(
-        vocabularyMeanings,
-        and(
-          eq(vocabularyMeanings.vocabularyId, vocabularies.id),
-          origin.meaningId
-            ? eq(vocabularyMeanings.id, origin.meaningId)
-            : undefined,
-        ),
-      )
-      .leftJoin(
-        vocabularyPronunciations,
-        and(
-          eq(vocabularyPronunciations.vocabularyId, vocabularies.id),
-          origin.pronunciationId
-            ? eq(vocabularyPronunciations.id, origin.pronunciationId)
-            : undefined,
-        ),
-      )
       .where(
         and(
           eq(vocabularies.id, origin.vocabularyId),
@@ -314,8 +356,61 @@ export class DrizzleContentErrorReportRepository
         ),
       )
       .limit(1);
-    const row = rows[0];
-    if (!row) return null;
+    const vocabulary = vocabRows[0];
+    if (!vocabulary) return null;
+    const meaning = origin.meaningId
+      ? (
+          await this.database
+            .select({ value: vocabularyMeanings.meaningKo })
+            .from(vocabularyMeanings)
+            .where(
+              and(
+                eq(vocabularyMeanings.id, origin.meaningId),
+                eq(vocabularyMeanings.vocabularyId, origin.vocabularyId),
+              ),
+            )
+            .limit(1)
+        )[0]
+      : null;
+    if (origin.meaningId && !meaning) return null;
+    const pronunciation = origin.pronunciationId
+      ? (
+          await this.database
+            .select({
+              value: vocabularyPronunciations.pronunciationKo,
+              mediaAssetId: vocabularyPronunciations.mediaAssetId,
+            })
+            .from(vocabularyPronunciations)
+            .where(
+              and(
+                eq(vocabularyPronunciations.id, origin.pronunciationId),
+                eq(vocabularyPronunciations.vocabularyId, origin.vocabularyId),
+              ),
+            )
+            .limit(1)
+        )[0]
+      : null;
+    if (origin.pronunciationId && !pronunciation) return null;
+    if (origin.meaningId && origin.pronunciationId) {
+      const links = await this.database
+        .select({ vocabularyId: vocabularyMeaningPronunciations.vocabularyId })
+        .from(vocabularyMeaningPronunciations)
+        .where(
+          and(
+            eq(
+              vocabularyMeaningPronunciations.vocabularyId,
+              origin.vocabularyId,
+            ),
+            eq(vocabularyMeaningPronunciations.meaningId, origin.meaningId),
+            eq(
+              vocabularyMeaningPronunciations.pronunciationId,
+              origin.pronunciationId,
+            ),
+          ),
+        )
+        .limit(1);
+      if (!links[0]) return null;
+    }
     return {
       reference: {
         kind: 'VOCABULARY',
@@ -323,16 +418,16 @@ export class DrizzleContentErrorReportRepository
         contentVersionId: null,
         questionVersionId: null,
         sentenceVersionId: null,
-        mediaAssetId: row.mediaAssetId,
+        mediaAssetId: pronunciation?.mediaAssetId ?? null,
         locationId: origin.meaningId ?? origin.pronunciationId,
       },
       snapshot: {
-        title: row.thai,
-        primaryText: row.meaning ?? row.pronunciation ?? row.thai,
-        secondaryText: row.pronunciation,
+        title: vocabulary.thai,
+        primaryText: meaning?.value ?? vocabulary.thai,
+        secondaryText: pronunciation?.value ?? null,
         versionLabel: null,
         locationLabel: '어휘 상세',
-        audioAssetId: row.mediaAssetId,
+        audioAssetId: pronunciation?.mediaAssetId ?? null,
       },
     };
   }
@@ -344,10 +439,54 @@ export class DrizzleContentErrorReportRepository
     const rows = await this.database
       .select()
       .from(thaiSentenceVersions)
-      .where(eq(thaiSentenceVersions.id, sentenceVersionId))
+      .where(
+        and(
+          eq(thaiSentenceVersions.id, sentenceVersionId),
+          sql`${thaiSentenceVersions.frozenAt} is not null`,
+        ),
+      )
       .limit(1);
     const row = rows[0];
     if (!row) return null;
+    const exposures = await this.database
+      .select({ questionId: questions.id })
+      .from(questionBlockSentences)
+      .innerJoin(
+        questionBlocks,
+        eq(questionBlocks.id, questionBlockSentences.blockId),
+      )
+      .innerJoin(
+        questionVersions,
+        eq(questionVersions.id, questionBlocks.questionVersionId),
+      )
+      .innerJoin(
+        questions,
+        and(
+          eq(questions.id, questionVersions.questionId),
+          eq(questions.currentPublishedVersionId, questionVersions.id),
+        ),
+      )
+      .where(
+        and(
+          eq(questionBlockSentences.sentenceVersionId, sentenceVersionId),
+          eq(questions.status, 'PUBLISHED'),
+        ),
+      )
+      .limit(1);
+    if (!exposures[0]) return null;
+    if (tokenPosition !== null) {
+      const tokens = await this.database
+        .select({ id: tokenOccurrences.id })
+        .from(tokenOccurrences)
+        .where(
+          and(
+            eq(tokenOccurrences.sentenceVersionId, sentenceVersionId),
+            eq(tokenOccurrences.position, tokenPosition),
+          ),
+        )
+        .limit(1);
+      if (!tokens[0]) return null;
+    }
     return {
       reference: {
         kind: 'SENTENCE',
@@ -379,11 +518,16 @@ export class DrizzleContentErrorReportRepository
         thai: vocabularies.thai,
         pronunciation: vocabularyPronunciations.pronunciationKo,
         mediaAssetId: vocabularyPronunciations.mediaAssetId,
+        mediaStatus: mediaAssets.status,
       })
       .from(vocabularyPronunciations)
       .innerJoin(
         vocabularies,
         eq(vocabularies.id, vocabularyPronunciations.vocabularyId),
+      )
+      .innerJoin(
+        mediaAssets,
+        eq(mediaAssets.id, vocabularyPronunciations.mediaAssetId),
       )
       .where(
         and(
@@ -393,7 +537,7 @@ export class DrizzleContentErrorReportRepository
       )
       .limit(1);
     const row = rows[0];
-    if (!row?.mediaAssetId) return null;
+    if (!row?.mediaAssetId || row.mediaStatus !== 'READY') return null;
     return {
       reference: {
         kind: 'AUDIO',
@@ -420,6 +564,17 @@ export class DrizzleContentErrorReportRepository
   ): Promise<ResolvedContentErrorReportTarget | null> {
     const sentence = await this.resolveSentence(sentenceVersionId, null);
     if (!sentence?.reference.mediaAssetId) return null;
+    const ready = await this.database
+      .select({ id: mediaAssets.id })
+      .from(mediaAssets)
+      .where(
+        and(
+          eq(mediaAssets.id, sentence.reference.mediaAssetId),
+          eq(mediaAssets.status, 'READY'),
+        ),
+      )
+      .limit(1);
+    if (!ready[0]) return null;
     return {
       reference: {
         ...sentence.reference,
