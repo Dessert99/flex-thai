@@ -91,6 +91,12 @@ export * from './learning/saved-content.repository.js';
 /** 저장 문제·어휘의 가용성 use case를 공개한다 */
 export * from './learning/saved-content.js';
 
+/** 단어장 write port를 공개한다 */
+export * from './learning/wordbook.repository.js';
+
+/** 단어장 업무 규칙 use case를 공개한다 */
+export * from './learning/wordbook.js';
+
 /** private media 읽기 URL provider port를 공개한다 */
 export * from './media/media-read-url.provider.js';
 

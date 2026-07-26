@@ -6,3 +6,6 @@ export * from './health/status.js';
 export * from './identity/auth.js';
 export * from './learning/questions.js';
 export * from './learning/vocabularies.js';
+
+/** 사용자 단어장 HTTP 계약을 공개한다 */
+export * from './learning/wordbooks.js';
