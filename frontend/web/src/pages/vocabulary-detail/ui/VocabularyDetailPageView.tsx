@@ -28,6 +28,7 @@ export function VocabularyDetailPageView({
         </h1>
       </header>
       <VocabularyWordbookPicker
+        key={detail.id}
         onConfirmed={onWordbookMembershipConfirmed}
         vocabularyId={detail.id}
       />
@@ -46,6 +47,7 @@ export function VocabularyDetailPageView({
             <InteractiveThaiSentence
               key={sentence.sentenceVersionId}
               sentence={sentence}
+              showTranslation
             />
           ))}
         </section>

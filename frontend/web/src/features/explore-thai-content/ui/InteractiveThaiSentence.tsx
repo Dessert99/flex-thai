@@ -10,11 +10,13 @@ import { ThaiFeedbackTrigger, type ThaiFeedback } from './ThaiFeedbackTrigger';
 
 interface InteractiveThaiSentenceProps {
   sentence: PublicThaiSentence;
+  showTranslation?: boolean;
 }
 
 /** 태국어 문장을 token trigger와 대표 표현 trigger로 렌더링한다 */
 export function InteractiveThaiSentence({
   sentence,
+  showTranslation = false,
 }: InteractiveThaiSentenceProps) {
   const [selectedFeedback, setSelectedFeedback] = useState<ThaiFeedback | null>(
     null,
@@ -40,6 +42,11 @@ export function InteractiveThaiSentence({
           }}
         />
       </p>
+      {showTranslation ? (
+        <p className='text-body text-muted-foreground'>
+          {sentence.translationKo}
+        </p>
+      ) : null}
 
       {sentence.expressions.some((expression) => expression.representative) ? (
         <div className='flex flex-wrap gap-cluster'>

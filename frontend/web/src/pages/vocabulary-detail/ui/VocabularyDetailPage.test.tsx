@@ -1,11 +1,16 @@
 /** 어휘 상세의 발음 음성·원문·관련 문제 링크를 검증한다 */
+import type { VocabularyDetailResponse } from '@flex-thia/contracts';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '@/shared/test';
 import { VocabularyDetailPageContainer } from './VocabularyDetailPageContainer';
+import { VocabularyDetailPageView } from './VocabularyDetailPageView';
 
 const mocks = vi.hoisted(() => ({ authenticatedRequest: vi.fn() }));
+const firstWordbookId = '01933b6a-8f13-7a19-b7e5-536d70f57ab4';
+const firstVocabularyId = '01933b6a-8f13-7a19-b7e5-536d70f57aaa';
+const secondVocabularyId = '01933b6a-8f13-7a19-b7e5-536d70f57aab';
 vi.mock('@/shared/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/shared/api')>();
   return { ...actual, authenticatedRequest: mocks.authenticatedRequest };
@@ -13,7 +18,10 @@ vi.mock('@/shared/api', async (importOriginal) => {
 
 beforeEach(() => {
   mocks.authenticatedRequest.mockImplementation(
-    ({ path }: { path: string }) => {
+    ({ method, path }: { method?: string; path: string }) => {
+      if (method === 'PUT' || method === 'DELETE') {
+        return Promise.resolve();
+      }
       if (path.endsWith('/questions?page=1&pageSize=10')) {
         return Promise.resolve(createRelatedQuestions());
       }
@@ -21,7 +29,7 @@ beforeEach(() => {
         return Promise.resolve({
           items: [
             {
-              id: '01933b6a-8f13-7a19-b7e5-536d70f57ab4',
+              id: firstWordbookId,
               name: 'FLEX 핵심',
               itemCount: 0,
               createdAt: '2026-07-26T00:00:00.000Z',
@@ -65,8 +73,9 @@ describe('어휘 상세 페이지', () => {
       <VocabularyDetailPageContainer vocabularyId='01933b6a-8f13-7a19-b7e5-536d70f57aaa' />,
     );
 
+    expect(await screen.findByText('나는 온다')).toBeVisible();
     await user.click(
-      await screen.findByRole('button', { name: 'ฉัน 뜻과 발음 듣기' }),
+      screen.getByRole('button', { name: 'ฉัน 뜻과 발음 듣기' }),
     );
     expect(screen.getByText('나')).toBeVisible();
 
@@ -76,11 +85,52 @@ describe('어휘 상세 페이지', () => {
     ).toHaveAttribute('aria-pressed', 'false');
     expect(container.querySelector('button button')).toBeNull();
   });
+
+  it('route 어휘가 바뀌면 새 membership으로 초기화해 새 어휘를 추가한다', async () => {
+    const user = userEvent.setup();
+    const { rerender } = renderWithProviders(
+      <VocabularyDetailPageView
+        detail={createDetail(firstVocabularyId)}
+        onWordbookMembershipConfirmed={vi.fn()}
+        relatedQuestions={[]}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: '단어장에 추가' }));
+    const firstMembership = await screen.findByRole('button', {
+      name: 'FLEX 핵심',
+    });
+    await user.click(firstMembership);
+    expect(firstMembership).toHaveAttribute('aria-pressed', 'true');
+
+    rerender(
+      <VocabularyDetailPageView
+        detail={createDetail(secondVocabularyId)}
+        onWordbookMembershipConfirmed={vi.fn()}
+        relatedQuestions={[]}
+      />,
+    );
+    await user.keyboard('{Escape}');
+    await user.click(screen.getByRole('button', { name: '단어장에 추가' }));
+    const secondMembership = await screen.findByRole('button', {
+      name: 'FLEX 핵심',
+    });
+
+    expect(secondMembership).toHaveAttribute('aria-pressed', 'false');
+    await user.click(secondMembership);
+    expect(mocks.authenticatedRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: 'PUT',
+        path: `/me/wordbooks/${firstWordbookId}/items/${secondVocabularyId}`,
+      }),
+    );
+  });
 });
 
-function createDetail() {
+function createDetail(
+  id: string = firstVocabularyId,
+): VocabularyDetailResponse {
   return {
-    id: '01933b6a-8f13-7a19-b7e5-536d70f57aaa',
+    id,
     thai: 'สวัสดี',
     kind: 'WORD',
     meanings: [

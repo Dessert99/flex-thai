@@ -7,9 +7,14 @@ export default defineConfig([
   ...fsd.configs.recommended,
   {
     rules: {
-      // 독립 file route Page 수가 권장 휴리스틱을 넘지만 slice 경계는 유지한다.
-      'fsd/excessive-slicing': 'off',
       'fsd/import-locality': 'error',
+    },
+  },
+  {
+    files: ['src/pages/**'],
+    rules: {
+      // 독립 file route Page 수가 권장 휴리스틱을 넘지만 다른 layer 진단은 유지한다.
+      'fsd/excessive-slicing': 'off',
     },
   },
   {
