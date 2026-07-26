@@ -71,6 +71,13 @@
       "when": 1785055925146,
       "tag": "0009_wave1-wordbooks",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785074778466,
+      "tag": "0010_dark_thundra",
+      "breakpoints": true
     }
   ]
 }
