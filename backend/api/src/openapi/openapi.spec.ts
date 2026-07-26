@@ -40,7 +40,11 @@ const ACTIVE_PATHS = [
   '/api/v1/admin/vocabularies',
   '/api/v1/admin/vocabularies/{vocabularyId}',
   '/api/v1/admin/vocabularies/{vocabularyId}/hide',
+  '/api/v1/admin/vocabularies/{vocabularyId}/merge',
+  '/api/v1/admin/vocabularies/{vocabularyId}/merge-preview',
   '/api/v1/admin/vocabularies/{vocabularyId}/publish',
+  '/api/v1/admin/vocabularies/{vocabularyId}/relations',
+  '/api/v1/admin/vocabularies/{vocabularyId}/relations/{relationId}',
   '/api/v1/admin/vocabularies/{vocabularyId}/restore',
   '/api/v1/admin/users',
   '/api/v1/admin/users/{userId}/status',
@@ -945,7 +949,7 @@ describe('OpenAPI 문서', () => {
     await app?.close();
   });
 
-  it('현재 활성 endpoint의 서로 다른 path 예순여덟 개만 공개한다', () => {
+  it('현재 활성 endpoint의 서로 다른 path 일흔두 개만 공개한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);

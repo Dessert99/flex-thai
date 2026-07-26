@@ -105,10 +105,23 @@ export class VocabularyAdminRepositoryError extends Error {
     readonly code:
       | 'VOCABULARY_DUPLICATE'
       | 'VOCABULARY_IN_USE'
-      | 'VOCABULARY_PERSISTENCE_CONFLICT',
+      | 'VOCABULARY_PERSISTENCE_CONFLICT'
+      | 'MEANING_RELATION_DUPLICATE'
+      | 'MEANING_RELATION_NOT_FOUND'
+      | 'VOCABULARY_MERGE_CONFLICT'
+      | 'VOCABULARY_NOT_FOUND',
     readonly operation: string,
   ) {
     super(`${code}:${operation}`);
     this.name = 'VocabularyAdminRepositoryError';
   }
 }
+
+export type {
+  VocabularyMeaningOwner,
+  VocabularyMergeMovedCounts,
+  VocabularyMergeStoredResult,
+  VocabularyRelationsMergeRepository,
+  VocabularyRelationsMergeStoredRelation,
+} from './vocabulary-relations-merge.repository.js';
+export { VocabularyRelationsMergeRepositoryError } from './vocabulary-relations-merge.repository.js';

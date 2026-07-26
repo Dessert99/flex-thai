@@ -7,6 +7,7 @@ import {
   eq,
   inArray,
   isNotNull,
+  or,
   type SQL,
   sql,
 } from 'drizzle-orm';
@@ -33,6 +34,7 @@ import {
   wordbookItems,
   wordbooks,
 } from '../schema/index.js';
+import { vocabularyMeaningRelations } from '../schema/vocabulary.schema.js';
 import * as schema from '../schema/index.js';
 import type {
   LearnerQuestionExpressionProjection,
@@ -129,6 +131,16 @@ export interface LearnerVocabularyExampleSentenceProjection {
 export interface LearnerVocabularyDetailProjection extends LearnerVocabularySummaryProjection {
   meaningPronunciations: LearnerVocabularyMeaningPronunciationProjection[];
   exampleSentences: LearnerVocabularyExampleSentenceProjection[];
+  relations: Array<{
+    id: string;
+    type: 'SYNONYM' | 'ANTONYM' | 'RELATED';
+    direction: 'DIRECTED' | 'BIDIRECTIONAL';
+    meaningId: string;
+    relatedVocabularyId: string;
+    relatedThai: string;
+    relatedMeaningId: string;
+    relatedMeaningKo: string;
+  }>;
 }
 
 /** 관련 문제 summary의 시험 영역 */
@@ -428,6 +440,8 @@ export class DrizzleLearnerVocabularyQuery {
       );
     this.assertLinksValid(summary, links);
 
+    const exampleSentences = await this.loadExampleSentences(vocabularyId);
+    const relations = await this.loadPassedRelations(vocabularyId);
     return {
       ...summary,
       meaningPronunciations: [...links].sort(
@@ -435,7 +449,8 @@ export class DrizzleLearnerVocabularyQuery {
           left.meaningId.localeCompare(right.meaningId) ||
           left.pronunciationId.localeCompare(right.pronunciationId),
       ),
-      exampleSentences: await this.loadExampleSentences(vocabularyId),
+      exampleSentences,
+      relations,
     };
   }
 
@@ -693,6 +708,97 @@ export class DrizzleLearnerVocabularyQuery {
         'PUBLISHED_VOCABULARY_LINK_INVALID',
       );
     }
+  }
+
+  private async loadPassedRelations(vocabularyId: string) {
+    const sourceMeanings = alias(
+      vocabularyMeanings,
+      'learner_relation_source_meanings',
+    );
+    const targetMeanings = alias(
+      vocabularyMeanings,
+      'learner_relation_target_meanings',
+    );
+    const sourceVocabularies = alias(
+      vocabularies,
+      'learner_relation_source_vocabularies',
+    );
+    const targetVocabularies = alias(
+      vocabularies,
+      'learner_relation_target_vocabularies',
+    );
+    const rows = await this.database
+      .select({
+        id: vocabularyMeaningRelations.id,
+        type: vocabularyMeaningRelations.type,
+        direction: vocabularyMeaningRelations.direction,
+        sourceMeaningId: sourceMeanings.id,
+        sourceVocabularyId: sourceVocabularies.id,
+        sourceThai: sourceVocabularies.thai,
+        sourceMeaningKo: sourceMeanings.meaningKo,
+        targetMeaningId: targetMeanings.id,
+        targetVocabularyId: targetVocabularies.id,
+        targetThai: targetVocabularies.thai,
+        targetMeaningKo: targetMeanings.meaningKo,
+      })
+      .from(vocabularyMeaningRelations)
+      .innerJoin(
+        sourceMeanings,
+        eq(vocabularyMeaningRelations.sourceMeaningId, sourceMeanings.id),
+      )
+      .innerJoin(
+        targetMeanings,
+        eq(vocabularyMeaningRelations.targetMeaningId, targetMeanings.id),
+      )
+      .innerJoin(
+        sourceVocabularies,
+        eq(sourceMeanings.vocabularyId, sourceVocabularies.id),
+      )
+      .innerJoin(
+        targetVocabularies,
+        eq(targetMeanings.vocabularyId, targetVocabularies.id),
+      )
+      .where(
+        and(
+          eq(vocabularyMeaningRelations.status, 'PASSED'),
+          or(
+            and(
+              eq(sourceVocabularies.id, vocabularyId),
+              eq(targetVocabularies.status, 'PUBLISHED'),
+            ),
+            and(
+              eq(vocabularyMeaningRelations.direction, 'BIDIRECTIONAL'),
+              eq(targetVocabularies.id, vocabularyId),
+              eq(sourceVocabularies.status, 'PUBLISHED'),
+            ),
+          ),
+        ),
+      )
+      .orderBy(asc(vocabularyMeaningRelations.id));
+
+    return rows.map((row) =>
+      row.sourceVocabularyId === vocabularyId
+        ? {
+            id: row.id,
+            type: row.type,
+            direction: row.direction,
+            meaningId: row.sourceMeaningId,
+            relatedVocabularyId: row.targetVocabularyId,
+            relatedThai: row.targetThai,
+            relatedMeaningId: row.targetMeaningId,
+            relatedMeaningKo: row.targetMeaningKo,
+          }
+        : {
+            id: row.id,
+            type: row.type,
+            direction: row.direction,
+            meaningId: row.targetMeaningId,
+            relatedVocabularyId: row.sourceVocabularyId,
+            relatedThai: row.sourceThai,
+            relatedMeaningId: row.sourceMeaningId,
+            relatedMeaningKo: row.sourceMeaningKo,
+          },
+    );
   }
 
   private async loadExampleSentences(

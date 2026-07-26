@@ -1,5 +1,6 @@
 /** 관리자 어휘의 usage·audio readiness·DRAFT form 상태를 표현한다 */
 import type {
+  AdminVocabularyMergePreviewResponse,
   AdminVocabularyDetailResponse,
   AdminVocabularyReplaceRequest,
 } from '@flex-thia/contracts';
@@ -8,15 +9,28 @@ import { Badge } from '@/shared/ui/badge';
 import { PageError, PageLoading } from '@/shared/ui/page-state';
 import { mapVocabularyDetailToForm } from '../model/mapVocabularyForm';
 import { VocabularyForm } from './VocabularyForm';
+import { VocabularyMergePanel } from './VocabularyMergePanel';
+import { VocabularyRelationManager } from './VocabularyRelationManager';
 
 interface Props {
   actions: ReactNode;
   data: AdminVocabularyDetailResponse | undefined;
   error: boolean;
   onReplace: (payload: AdminVocabularyReplaceRequest) => void;
+  onCreateRelation: (sourceMeaningId: string, targetMeaningId: string) => void;
+  onDeleteRelation: (relationId: string) => void;
+  onMerge: (preview: AdminVocabularyMergePreviewResponse) => void;
+  onPreviewMerge: (representativeVocabularyId: string) => void;
+  onRelationStatusChange: (
+    relationId: string,
+    status: 'PENDING' | 'PASSED' | 'FAILED',
+  ) => void;
   onRetry: () => void;
   replaceError: boolean;
   replacing: boolean;
+  relationMutating: boolean;
+  mergeMutating: boolean;
+  mergePreview: AdminVocabularyMergePreviewResponse | null;
 }
 
 /** 공개 상세의 child order를 보존하고 DRAFT만 교체 form을 표시한다 */
@@ -25,9 +39,17 @@ export function AdminVocabularyDetailPageView({
   data,
   error,
   onReplace,
+  onCreateRelation,
+  onDeleteRelation,
+  onMerge,
+  onPreviewMerge,
+  onRelationStatusChange,
   onRetry,
   replaceError,
   replacing,
+  relationMutating,
+  mergeMutating,
+  mergePreview,
 }: Props) {
   if (data === undefined && !error)
     return <PageLoading message='어휘 상세를 불러오고 있습니다.' />;
@@ -70,6 +92,21 @@ export function AdminVocabularyDetailPageView({
         <p>문장 버전 사용처 {data.usage.sentenceVersionIds.length}개</p>
         <p>문제 버전 사용처 {data.usage.questionVersionIds.length}개</p>
       </div>
+      <VocabularyRelationManager
+        detail={data}
+        disabled={relationMutating || data.status === 'MERGED'}
+        onCreate={onCreateRelation}
+        onDelete={onDeleteRelation}
+        onStatusChange={onRelationStatusChange}
+      />
+      {data.status !== 'MERGED' ? (
+        <VocabularyMergePanel
+          disabled={mergeMutating}
+          onMerge={onMerge}
+          onPreview={onPreviewMerge}
+          preview={mergePreview}
+        />
+      ) : null}
       {data.status === 'DRAFT' ? (
         <VocabularyForm
           defaultValues={mapVocabularyDetailToForm(data)}

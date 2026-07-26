@@ -20,6 +20,9 @@ const ids = {
   secondMeaning: '00000000-0000-4000-8000-000000000028',
   secondPronunciation: '00000000-0000-4000-8000-000000000029',
   dangling: '00000000-0000-4000-8000-000000000030',
+  relation: '00000000-0000-4000-8000-000000000031',
+  relatedVocabulary: '00000000-0000-4000-8000-000000000032',
+  relatedMeaning: '00000000-0000-4000-8000-000000000033',
 } as const;
 
 const vocabulary = {
@@ -127,6 +130,18 @@ describe('학습자 어휘 공개 응답 계약', () => {
       meaningPronunciations: [
         { meaningId: ids.meaning, pronunciationId: ids.pronunciation },
       ],
+      relations: [
+        {
+          id: ids.relation,
+          type: 'SYNONYM',
+          direction: 'BIDIRECTIONAL',
+          meaningId: ids.meaning,
+          relatedVocabularyId: ids.relatedVocabulary,
+          relatedThai: 'หวัดดี',
+          relatedMeaningId: ids.relatedMeaning,
+          relatedMeaningKo: '안녕',
+        },
+      ],
       exampleSentences: [
         {
           sentenceVersionId: ids.sentence,
@@ -175,6 +190,7 @@ describe('학습자 어휘 공개 응답 계약', () => {
           pronunciationId: ids.secondPronunciation,
         },
       ],
+      relations: [],
       exampleSentences: [],
     };
 
@@ -187,6 +203,7 @@ describe('학습자 어휘 공개 응답 계약', () => {
       meaningPronunciations: [
         { meaningId: ids.meaning, pronunciationId: ids.pronunciation },
       ],
+      relations: [],
       exampleSentences: [],
     };
 

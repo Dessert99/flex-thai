@@ -47,6 +47,19 @@ const vocabularyMeaningPronunciationSchema = z
   })
   .strict();
 
+const vocabularyMeaningRelationSchema = z
+  .object({
+    id: uuidSchema,
+    type: z.enum(['SYNONYM', 'ANTONYM', 'RELATED']),
+    direction: z.enum(['DIRECTED', 'BIDIRECTIONAL']),
+    meaningId: uuidSchema,
+    relatedVocabularyId: uuidSchema,
+    relatedThai: z.string().min(1),
+    relatedMeaningId: uuidSchema,
+    relatedMeaningKo: z.string().min(1),
+  })
+  .strict();
+
 const vocabularySummaryShape = {
   id: uuidSchema,
   thai: z.string().min(1),
@@ -86,6 +99,7 @@ export const vocabularyDetailResponseSchema = z
   .object({
     ...vocabularySummaryShape,
     meaningPronunciations: z.array(vocabularyMeaningPronunciationSchema),
+    relations: z.array(vocabularyMeaningRelationSchema),
     exampleSentences: z.array(publicThaiSentenceSchema),
   })
   .strict()
@@ -121,6 +135,15 @@ export const vocabularyDetailResponseSchema = z
         });
       }
       pairs.add(pair);
+    });
+    detail.relations.forEach((relation, index) => {
+      if (!meaningIds.has(relation.meaningId)) {
+        context.addIssue({
+          code: 'custom',
+          message: '관계는 상세에 존재하는 뜻에서 시작해야 합니다.',
+          path: ['relations', index, 'meaningId'],
+        });
+      }
     });
   });
 

@@ -142,6 +142,21 @@ describe('어휘 상세 페이지', () => {
       }),
     );
   });
+
+  it('검증을 통과한 관계의 연관 뜻과 어휘를 표시한다', () => {
+    renderWithProviders(
+      <VocabularyDetailPageView
+        detail={createDetail()}
+        onWordbookMembershipConfirmed={vi.fn()}
+        relatedQuestions={[]}
+      />,
+    );
+
+    expect(screen.getByText('연관 뜻')).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'หวัดดี · 안녕' }),
+    ).toBeInTheDocument();
+  });
 });
 
 describe('어휘 오류 신고 연결', () => {
@@ -230,6 +245,18 @@ function createDetail(
     ],
     audioEligibleMeaningCount: 1,
     meaningPronunciations: [],
+    relations: [
+      {
+        id: '01933b6a-8f13-7a19-b7e5-536d70f57ac0',
+        type: 'SYNONYM',
+        direction: 'BIDIRECTIONAL',
+        meaningId: '01933b6a-8f13-7a19-b7e5-536d70f57aac',
+        relatedVocabularyId: '01933b6a-8f13-7a19-b7e5-536d70f57ac1',
+        relatedThai: 'หวัดดี',
+        relatedMeaningId: '01933b6a-8f13-7a19-b7e5-536d70f57ac2',
+        relatedMeaningKo: '안녕',
+      },
+    ],
     exampleSentences: [
       {
         sentenceVersionId: '01933b6a-8f13-7a19-b7e5-536d70f57ab5',

@@ -43,6 +43,7 @@ function createDetail(): AdminVocabularyDetailResponse {
     thai: 'สวัสดี',
     kind: 'WORD',
     status: 'DRAFT',
+    mergedIntoVocabularyId: null,
     meanings: [
       {
         id: '01933b6a-8f13-7a19-b7e5-536d70f57aab',
@@ -78,6 +79,7 @@ function createDetail(): AdminVocabularyDetailResponse {
         pronunciationId: '01933b6a-8f13-7a19-b7e5-536d70f57aad',
       },
     ],
+    relations: [],
     usage: { sentenceVersionIds: [], questionVersionIds: [] },
     createdAt: '2026-07-25T00:00:00.000Z',
     updatedAt: '2026-07-25T00:00:00.000Z',

@@ -1,12 +1,18 @@
 /** 관리자 어휘의 모든 상태 조회와 참조 보존 전체 교체 계약을 정의한다 */
 import { z } from 'zod';
 import { pageMetadataSchema } from '../learning/questions.js';
+import { adminVocabularyRelationSchema } from './vocabulary-relations.js';
 
 const uuidSchema = z.uuid();
 const utcDateTimeSchema = z.string().datetime();
 const difficultySchema = z.number().int().safe().min(1).max(5);
 const vocabularyKindSchema = z.enum(['WORD', 'EXPRESSION']);
-const vocabularyStatusSchema = z.enum(['DRAFT', 'PUBLISHED', 'HIDDEN']);
+const vocabularyStatusSchema = z.enum([
+  'DRAFT',
+  'PUBLISHED',
+  'HIDDEN',
+  'MERGED',
+]);
 const mediaStatusSchema = z.enum(['UPLOADING', 'READY', 'REJECTED']);
 
 const httpIntegerSchema = (minimum: number, maximum: number) =>
@@ -123,6 +129,7 @@ const adminVocabularyListItemSchema = z
     thai: z.string().min(1),
     kind: vocabularyKindSchema,
     status: vocabularyStatusSchema,
+    mergedIntoVocabularyId: uuidSchema.nullable(),
     meaningCount: z.number().int().safe().nonnegative(),
     pronunciationCount: z.number().int().safe().nonnegative(),
     updatedAt: utcDateTimeSchema,
@@ -171,9 +178,11 @@ export const adminVocabularyDetailResponseSchema = z
     thai: z.string().min(1),
     kind: vocabularyKindSchema,
     status: vocabularyStatusSchema,
+    mergedIntoVocabularyId: uuidSchema.nullable(),
     meanings: z.array(adminVocabularyMeaningSchema),
     pronunciations: z.array(adminVocabularyPronunciationSchema),
     meaningPronunciations: z.array(adminVocabularyMeaningPronunciationSchema),
+    relations: z.array(adminVocabularyRelationSchema),
     usage: z
       .object({
         sentenceVersionIds: z.array(uuidSchema),
@@ -227,6 +236,18 @@ export const adminVocabularyDetailResponseSchema = z
         path: ['meaningPronunciations'],
       });
     }
+    vocabulary.relations.forEach((relation, index) => {
+      if (
+        !meaningIds.includes(relation.sourceMeaningId) &&
+        !meaningIds.includes(relation.targetMeaningId)
+      ) {
+        context.addIssue({
+          code: 'custom',
+          message: '관계는 상세 응답 안의 뜻 하나 이상과 연결되어야 합니다.',
+          path: ['relations', index],
+        });
+      }
+    });
   });
 
 /** 검증된 관리자 어휘 목록 query type */

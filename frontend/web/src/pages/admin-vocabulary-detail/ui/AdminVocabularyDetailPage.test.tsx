@@ -22,6 +22,10 @@ describe('관리자 어휘 상세', () => {
     renderDetail();
     expect(await screen.findByText('음성 준비 완료')).toBeInTheDocument();
     expect(screen.getByText('문장 버전 사용처 1개')).toBeInTheDocument();
+    expect(screen.getByText('RELATED · PENDING')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: '병합 미리보기' }),
+    ).toBeInTheDocument();
   });
 
   it('schema field 오류에는 교체 요청을 보내지 않는다', async () => {
@@ -62,6 +66,7 @@ function createDetail() {
     thai: 'สวัสดี',
     kind: 'WORD',
     status: 'DRAFT',
+    mergedIntoVocabularyId: null,
     meanings: [
       {
         id: '01933b6a-8f13-7a19-b7e5-536d70f57aab',
@@ -84,6 +89,18 @@ function createDetail() {
       {
         meaningId: '01933b6a-8f13-7a19-b7e5-536d70f57aab',
         pronunciationId: '01933b6a-8f13-7a19-b7e5-536d70f57aac',
+      },
+    ],
+    relations: [
+      {
+        id: '01933b6a-8f13-7a19-b7e5-536d70f57aaf',
+        sourceMeaningId: '01933b6a-8f13-7a19-b7e5-536d70f57aab',
+        targetMeaningId: '01933b6a-8f13-7a19-b7e5-536d70f57ab0',
+        type: 'RELATED',
+        direction: 'DIRECTED',
+        status: 'PENDING',
+        createdAt: '2026-07-25T00:00:00.000Z',
+        updatedAt: '2026-07-25T00:00:00.000Z',
       },
     ],
     usage: {

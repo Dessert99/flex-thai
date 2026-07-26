@@ -390,6 +390,7 @@ describe('DrizzleAdminVocabularyQuery 상세', () => {
           thai: 'สวัสดี',
           kind: 'WORD',
           status: 'DRAFT',
+          mergedIntoVocabularyId: null,
           createdAt,
           updatedAt,
         },
@@ -433,6 +434,7 @@ describe('DrizzleAdminVocabularyQuery 상세', () => {
       thai: 'สวัสดี',
       kind: 'WORD',
       status: 'DRAFT',
+      mergedIntoVocabularyId: null,
       meanings: [
         {
           id: ids.meaning,
@@ -454,6 +456,7 @@ describe('DrizzleAdminVocabularyQuery 상세', () => {
       meaningPronunciations: [
         { meaningId: ids.meaning, pronunciationId: ids.pronunciation },
       ],
+      relations: [],
       usage: {
         sentenceVersionIds: [ids.sentenceA, ids.sentenceB],
         questionVersionIds: [ids.questionA, ids.questionB],
@@ -486,6 +489,7 @@ describe('DrizzleAdminVocabularyQuery 상세', () => {
           thai: 'สวัสดี',
           kind: 'WORD',
           status: 'DRAFT',
+          mergedIntoVocabularyId: null,
           createdAt: new Date(),
           updatedAt: new Date(),
         },

@@ -11,7 +11,8 @@ export interface Vocabulary {
   thai: string;
   normalizedThai: string;
   kind: 'WORD' | 'EXPRESSION';
-  status: 'DRAFT' | 'PUBLISHED' | 'HIDDEN';
+  status: 'DRAFT' | 'PUBLISHED' | 'HIDDEN' | 'MERGED';
+  mergedIntoVocabularyId?: string | null;
 }
 
 /** 어휘 상태 전이 위반을 안정적인 code로 전달한다 */

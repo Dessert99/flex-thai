@@ -22,6 +22,7 @@ import {
   QuestionPublicationError,
   UserManagementError,
   VocabularyAdminError,
+  VocabularyRelationsMergeAdminError,
   WordbookDomainError,
 } from '@flex-thia/domain';
 import { LearnerPublicResponseError } from '../../learning/learner-content.service.js';
@@ -278,6 +279,9 @@ describe('공개 오류 응답 변환', () => {
     [new VocabularyAdminError('VOCABULARY_IN_USE'), 409],
     [new VocabularyAdminError('VOCABULARY_AUDIO_NOT_READY'), 409],
     [new VocabularyAdminError('VOCABULARY_STATE_CONFLICT'), 409],
+    [new VocabularyRelationsMergeAdminError('MEANING_RELATION_NOT_FOUND'), 404],
+    [new VocabularyRelationsMergeAdminError('MEANING_RELATION_DUPLICATE'), 409],
+    [new VocabularyRelationsMergeAdminError('VOCABULARY_MERGE_CONFLICT'), 409],
   ] as const)(
     '관리자 domain 오류 %s를 정확한 공개 상태 %i로 변환한다',
     (error, status) => {
