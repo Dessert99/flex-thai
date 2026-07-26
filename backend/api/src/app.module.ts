@@ -1,4 +1,5 @@
 /** HTTP 기능 모듈을 하나의 NestJS 애플리케이션으로 조립한다 */
+import { randomUUID } from 'node:crypto';
 import { CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
 import { S3Client } from '@aws-sdk/client-s3';
 import { SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
@@ -8,14 +9,17 @@ import { readApiEnv } from '@flex-thia/config';
 import {
   createDataApiDatabase,
   createLocalDatabase,
+  DrizzleAdminConceptQuery,
   DrizzleAdminMediaQuery,
   DrizzleAdminQuestionQuery,
   DrizzleAdminVocabularyQuery,
   DrizzleContentDraftRepository,
   DrizzleContentImportQuery,
   DrizzleContentImportRepository,
+  DrizzleConceptAdminRepository,
   DrizzleEmailChallengeRepository,
   DrizzleLearnerQuestionQuery,
+  DrizzleLearnerConceptQuery,
   DrizzleLearnerVocabularyQuery,
   DrizzleLearningRepository,
   DrizzleMediaAdminRepository,
@@ -25,12 +29,15 @@ import {
   DrizzleUserRepository,
   DrizzleUserManagementQuery,
   DrizzleVocabularyAdminRepository,
+  DrizzleVocabularyPracticeQuery,
+  DrizzleVocabularyPracticeRepository,
   DrizzleWordbookQuery,
   DrizzleWordbookRepository,
 } from '@flex-thia/database';
 import {
   ContentDraftService,
   ContentImportService,
+  ConceptService,
   IdentityAuthenticationService,
   MediaAdminService,
   QuestionAdminService,
@@ -40,6 +47,7 @@ import {
   PasswordlessAuthenticationService,
   UserManagementService,
   VocabularyAdminService,
+  VocabularyPracticeService,
   WordbookService,
 } from '@flex-thia/domain';
 import {
@@ -48,12 +56,15 @@ import {
   CognitoPasswordlessAuthenticationProvider,
   FakeAudioUploadProvider,
   FakeEmailChallengeSender,
+  FakeConceptContentValidator,
   FakeMediaReadUrlProvider,
   FakePasswordlessAuthenticationProvider,
   S3AudioUploadProvider,
   SesEmailChallengeSender,
+  UnavailableConceptContentValidator,
 } from '@flex-thia/providers';
 import { AdminModule } from './admin/admin.module.js';
+import { ConceptsModule } from './concepts/concepts.module.js';
 import { HealthController } from './health/health.controller.js';
 import {
   ReadinessController,
@@ -61,6 +72,7 @@ import {
 } from './health/readiness.service.js';
 import { IdentityModule } from './identity/identity.module.js';
 import { LearningModule } from './learning/learning.module.js';
+import { VocabularyPracticeModule } from './learning/vocabulary-practice.module.js';
 
 /** 기초 API의 root module */
 @Module({})
@@ -88,6 +100,15 @@ const requireValue = (value: string | undefined, name: string): string => {
   }
 
   return value;
+};
+
+const shuffle = <Value>(items: readonly Value[]): Value[] => {
+  const copied = [...items];
+  for (let index = copied.length - 1; index > 0; index -= 1) {
+    const target = Math.floor(Math.random() * (index + 1));
+    [copied[index], copied[target]] = [copied[target]!, copied[index]!];
+  }
+  return copied;
 };
 
 /** 환경 설정에 맞는 DB와 AWS 또는 local adapter를 root module에 조립한다 */
@@ -205,6 +226,24 @@ export const createApplicationModule = (
     questionPublicationRepository,
   );
   const vocabularyRepository = new DrizzleVocabularyAdminRepository(database);
+  const vocabularyPracticeQuery = new DrizzleVocabularyPracticeQuery(database);
+  const vocabularyPractice = new VocabularyPracticeService({
+    repository: new DrizzleVocabularyPracticeRepository(
+      database,
+      vocabularyPracticeQuery,
+    ),
+    createId: randomUUID,
+    now: () => new Date(),
+    shuffle,
+  });
+  const conceptValidator =
+    env.NODE_ENV === 'production'
+      ? new UnavailableConceptContentValidator()
+      : new FakeConceptContentValidator();
+  const concepts = new ConceptService(
+    new DrizzleConceptAdminRepository(database),
+    conceptValidator,
+  );
 
   return {
     module: AppModule,
@@ -245,6 +284,20 @@ export const createApplicationModule = (
             async (transaction) =>
               (await transaction.loadVersion(versionId))?.questionId ?? null,
           ),
+        users,
+        authorizer,
+      }),
+      VocabularyPracticeModule.register({
+        practice: vocabularyPractice,
+        mediaReadUrls,
+        users,
+        authorizer,
+      }),
+      ConceptsModule.register({
+        learnerQuery: new DrizzleLearnerConceptQuery(database),
+        adminQuery: new DrizzleAdminConceptQuery(database),
+        adminService: concepts,
+        mediaReadUrls,
         users,
         authorizer,
       }),

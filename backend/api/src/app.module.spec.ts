@@ -53,6 +53,8 @@ describe('createApplicationModule 조립', () => {
       'IdentityModule',
       'LearningModule',
       'AdminModule',
+      'VocabularyPracticeModule',
+      'ConceptsModule',
     ]);
     expect(importedModuleNames).not.toContain('JobsModule');
     expect(importedModuleNames).not.toContain('UploadsModule');
