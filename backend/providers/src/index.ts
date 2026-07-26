@@ -31,8 +31,17 @@ export * from './storage/cloudfront-media-read-url.provider.js';
 /** private audio S3 upload와 hash inspection adapter를 공개한다 */
 export * from './storage/audio-upload.provider.js';
 
+/** 검증된 S3 콘텐츠 제작 입력 reader를 공개한다 */
+export * from './storage/s3-content-production-input.reader.js';
+
 /** 운영 개념 외부 검증 미구성 adapter를 공개한다 */
 export * from './validation/unavailable-concept-content.validator.js';
 
 /** AWS를 호출하지 않는 로컬·테스트 adapter를 공개한다 */
 export * from './fakes/index.js';
+
+/** AI 어휘 제작의 local input·OCR·추출·검증 provider를 공개한다 */
+export * from './fakes/fake-content-input.provider.js';
+export * from './fakes/fake-content-ocr.provider.js';
+export * from './fakes/fake-vocabulary-extraction.provider.js';
+export * from './fakes/fake-vocabulary-cross-validation.provider.js';
