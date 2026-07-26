@@ -1,0 +1,187 @@
+/** 이메일 challenge repository의 제한과 소비 경쟁을 검증한다 */
+import { describe, expect, it } from 'vitest';
+import { DrizzleEmailChallengeRepository } from './drizzle-email-challenge.repository.js';
+
+const now = new Date('2026-07-26T00:00:00.000Z');
+const challengeId = '00000000-0000-4000-8000-000000000001';
+
+interface TestRow {
+  id: string;
+  email: string;
+  purpose: 'LOGIN';
+  codeHmac: string;
+  linkHmac: string;
+  attempts: number;
+  status: 'PENDING' | 'RESERVED' | 'SUCCEEDED' | 'EXPIRED';
+  expiresAt: Date;
+  resendAt: Date;
+  reservedAt: Date | null;
+  consumedAt: Date | null;
+  deliveryStatus: string;
+  createdAt: Date;
+}
+
+const makeRow = (): TestRow => ({
+  id: challengeId,
+  email: 'user@hufs.ac.kr',
+  purpose: 'LOGIN',
+  codeHmac: 'code:123456',
+  linkHmac: `link:${'A'.repeat(43)}`,
+  attempts: 0,
+  status: 'PENDING',
+  expiresAt: new Date('2026-07-26T00:10:00.000Z'),
+  resendAt: new Date('2026-07-26T00:01:00.000Z'),
+  reservedAt: null,
+  consumedAt: null,
+  deliveryStatus: 'PENDING',
+  createdAt: now,
+});
+
+const makeDatabase = (counts: number[] = [], initialRow = makeRow()) => {
+  let row = initialRow;
+  let countIndex = 0;
+  let transactionTail = Promise.resolve();
+
+  const transactionApi = {
+    execute: async () => undefined,
+    select: (selection?: unknown) => ({
+      from: () => ({
+        where: () => {
+          if (selection) {
+            const value = counts[countIndex] ?? 0;
+            countIndex += 1;
+            return Promise.resolve([{ value }]);
+          }
+          return {
+            limit: async () => [row],
+          };
+        },
+      }),
+    }),
+    insert: () => ({
+      values: (values: Partial<TestRow>) => ({
+        returning: async () => {
+          row = { ...makeRow(), ...values };
+          return [row];
+        },
+      }),
+    }),
+    update: () => ({
+      set: (values: Partial<TestRow>) => ({
+        where: () => ({
+          returning: async () => {
+            row = { ...row, ...values };
+            return [row];
+          },
+        }),
+      }),
+    }),
+  };
+
+  return {
+    database: {
+      transaction: async <T>(
+        operation: (transaction: typeof transactionApi) => Promise<T>,
+      ): Promise<T> => {
+        const previous = transactionTail;
+        let release: () => void = () => undefined;
+        transactionTail = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        await previous;
+        try {
+          return await operation(transactionApi);
+        } finally {
+          release();
+        }
+      },
+      update: transactionApi.update,
+    },
+    getRow: () => row,
+  };
+};
+
+const verifier = {
+  hashAnswer: (answer: string) => answer,
+  verifyAnswer: (answer: string, stored: string) =>
+    stored.endsWith(`:${answer}`),
+};
+
+const createInput = {
+  email: 'user@hufs.ac.kr',
+  codeHmac: 'code:123456',
+  linkHmac: `link:${'A'.repeat(43)}`,
+  expiresAt: new Date('2026-07-26T00:10:00.000Z'),
+  resendAt: new Date('2026-07-26T00:01:00.000Z'),
+  now,
+  limits: {
+    emailDaily: 5 as const,
+    globalDaily: 500 as const,
+    maxAttempts: 5 as const,
+  },
+};
+
+describe('DrizzleEmailChallengeRepository', () => {
+  it('동시 code와 link 성공 중 하나만 소비를 예약한다', async () => {
+    const { database } = makeDatabase();
+    const repository = new DrizzleEmailChallengeRepository(
+      database as never,
+      verifier,
+    );
+
+    const outcomes = await Promise.allSettled([
+      repository.reserveConsumption({
+        challengeId,
+        answer: { kind: 'CODE', answer: '123456' },
+        now,
+      }),
+      repository.reserveConsumption({
+        challengeId,
+        answer: { kind: 'LINK', answer: 'A'.repeat(43) },
+        now,
+      }),
+    ]);
+
+    expect(
+      outcomes.filter(({ status }) => status === 'fulfilled'),
+    ).toHaveLength(1);
+  });
+
+  it.each([
+    [[1], 'CHALLENGE_RESEND_COOLDOWN'],
+    [[0, 5], 'EMAIL_DAILY_LIMIT_EXCEEDED'],
+    [[0, 4, 500], 'GLOBAL_DAILY_LIMIT_EXCEEDED'],
+  ] as const)(
+    'cooldown·이메일·전체 일일 상한 경계에서 생성을 거부한다',
+    async (counts, code) => {
+      const { database } = makeDatabase([...counts]);
+      const repository = new DrizzleEmailChallengeRepository(
+        database as never,
+        verifier,
+      );
+
+      await expect(repository.createWithinLimits(createInput)).rejects.toMatchObject(
+        { code },
+      );
+    },
+  );
+
+  it('다섯 번째 오답은 challenge를 만료시킨다', async () => {
+    const row = makeRow();
+    row.attempts = 4;
+    const { database, getRow } = makeDatabase([], row);
+    const repository = new DrizzleEmailChallengeRepository(
+      database as never,
+      verifier,
+    );
+
+    await expect(
+      repository.reserveConsumption({
+        challengeId,
+        answer: { kind: 'CODE', answer: '000000' },
+        now,
+      }),
+    ).rejects.toMatchObject({ code: 'CHALLENGE_ATTEMPTS_EXCEEDED' });
+    expect(getRow()).toMatchObject({ attempts: 5, status: 'EXPIRED' });
+  });
+});

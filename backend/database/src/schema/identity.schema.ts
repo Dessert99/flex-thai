@@ -25,10 +25,25 @@ export const challengeStatusEnum = pgEnum('challenge_status', [
   'CANCELLED',
 ]);
 
+/** passwordless 이메일 challenge의 예약 가능한 상태 */
+export const emailChallengeStatus = pgEnum('email_challenge_status', [
+  'PENDING',
+  'RESERVED',
+  'SUCCEEDED',
+  'EXPIRED',
+]);
+
+/** challenge 메일 발송 추적 상태 */
+export const emailChallengeDeliveryStatus = pgEnum(
+  'email_challenge_delivery_status',
+  ['PENDING', 'SENT', 'FAILED'],
+);
+
 /** 이메일 인증 코드가 증명할 행위 */
 export const authChallengePurposeEnum = pgEnum('auth_challenge_purpose', [
   'SIGNUP',
   'PASSWORD_RESET',
+  'LOGIN',
 ]);
 
 /** Cognito 신원과 애플리케이션 권한의 연결 */
@@ -61,11 +76,18 @@ export const authChallenges = pgTable(
   {
     id: uuid('id').defaultRandom().primaryKey(),
     email: text('email').notNull(),
-    purpose: authChallengePurposeEnum('purpose').notNull(),
+    purpose: authChallengePurposeEnum('purpose').default('LOGIN').notNull(),
     codeHmac: text('code_hmac').notNull(),
+    linkHmac: text('link_hmac').notNull(),
     attempts: integer('attempts').default(0).notNull(),
-    status: challengeStatusEnum('status').default('PENDING').notNull(),
+    status: emailChallengeStatus('status').default('PENDING').notNull(),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    resendAt: timestamp('resend_at', { withTimezone: true }).notNull(),
+    reservedAt: timestamp('reserved_at', { withTimezone: true }),
+    consumedAt: timestamp('consumed_at', { withTimezone: true }),
+    deliveryStatus: emailChallengeDeliveryStatus('delivery_status')
+      .default('PENDING')
+      .notNull(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),
