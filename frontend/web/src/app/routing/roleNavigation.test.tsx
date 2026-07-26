@@ -56,6 +56,10 @@ describe('역할별 내비게이션', () => {
       'href',
       '/admin/concepts',
     );
+    expect(screen.getByRole('link', { name: '오류 신고' })).toHaveAttribute(
+      'href',
+      '/admin/content-error-reports',
+    );
     expect(
       screen.queryByRole('link', { name: '학습 홈' }),
     ).not.toBeInTheDocument();

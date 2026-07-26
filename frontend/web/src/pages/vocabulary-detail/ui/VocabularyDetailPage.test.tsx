@@ -11,6 +11,24 @@ const mocks = vi.hoisted(() => ({ authenticatedRequest: vi.fn() }));
 const firstWordbookId = '01933b6a-8f13-7a19-b7e5-536d70f57ab4';
 const firstVocabularyId = '01933b6a-8f13-7a19-b7e5-536d70f57aaa';
 const secondVocabularyId = '01933b6a-8f13-7a19-b7e5-536d70f57aab';
+
+vi.mock('@/features/report-content-error', () => ({
+  ContentErrorReportDialog: ({
+    origin,
+    triggerLabel,
+  }: {
+    origin: unknown;
+    triggerLabel: string;
+  }) => (
+    <button
+      data-origin={JSON.stringify(origin)}
+      type='button'
+    >
+      {triggerLabel}
+    </button>
+  ),
+}));
+
 vi.mock('@/shared/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/shared/api')>();
   return { ...actual, authenticatedRequest: mocks.authenticatedRequest };
@@ -121,6 +139,66 @@ describe('어휘 상세 페이지', () => {
       expect.objectContaining({
         method: 'PUT',
         path: `/me/wordbooks/${firstWordbookId}/items/${secondVocabularyId}`,
+      }),
+    );
+  });
+});
+
+describe('어휘 오류 신고 연결', () => {
+  it('어휘 하위 콘텐츠별 식별자를 오류 신고 origin에 명시한다', async () => {
+    const user = userEvent.setup();
+    const detail = createDetail();
+    renderWithProviders(
+      <VocabularyDetailPageView
+        detail={detail}
+        onWordbookMembershipConfirmed={vi.fn()}
+        relatedQuestions={[]}
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', { name: '어휘 오류 신고' }),
+    ).toHaveAttribute(
+      'data-origin',
+      JSON.stringify({
+        kind: 'VOCABULARY',
+        vocabularyId: detail.id,
+        meaningId: null,
+        pronunciationId: null,
+      }),
+    );
+    expect(
+      screen.getByRole('button', { name: '예문 오류 신고' }),
+    ).toHaveAttribute(
+      'data-origin',
+      JSON.stringify({
+        kind: 'SENTENCE',
+        sentenceVersionId: detail.exampleSentences[0]?.sentenceVersionId,
+        tokenPosition: null,
+      }),
+    );
+    expect(
+      screen.getByRole('button', { name: '뜻 오류 신고' }),
+    ).toHaveAttribute(
+      'data-origin',
+      JSON.stringify({
+        kind: 'VOCABULARY',
+        vocabularyId: detail.id,
+        meaningId: detail.meanings[0]?.id,
+        pronunciationId: null,
+      }),
+    );
+    await user.click(screen.getByRole('tab', { name: '발음' }));
+    expect(
+      screen.getByRole('button', { name: '발음 오류 신고' }),
+    ).toHaveAttribute(
+      'data-origin',
+      JSON.stringify({
+        kind: 'AUDIO',
+        source: {
+          kind: 'VOCABULARY',
+          pronunciationId: detail.pronunciations[0]?.id,
+        },
       }),
     );
   });

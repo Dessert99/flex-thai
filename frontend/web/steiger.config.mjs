@@ -33,6 +33,7 @@ export default defineConfig([
       'src/features/upload-audio/**',
       'src/features/manage-wordbook/**',
       'src/features/manage-wordbook-items/**',
+      'src/features/report-content-error/**',
       'src/features/save-vocabulary-to-wordbooks/**',
       'src/features/start-vocabulary-practice/**',
     ],

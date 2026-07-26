@@ -76,6 +76,7 @@ describe('root route 제목', () => {
     ['/concepts', '개념 학습'],
     ['/concepts/00000000-0000-4000-8000-000000000102', '개념 상세'],
     ['/admin/concepts', '개념 관리'],
+    ['/admin/content-error-reports', '콘텐츠 오류 신고 관리'],
     ['/admin/users', '사용자 관리'],
   ])('%s 경로에 %s 제목을 제공한다', (pathname, title) => {
     expect(getRouteTitle(pathname)).toBe(title);

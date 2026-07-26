@@ -22,6 +22,7 @@ const approvedTargets = [
   '/admin/content-imports',
   '/admin/questions',
   '/admin/vocabularies',
+  '/admin/content-error-reports',
   '/forbidden',
 ] as const;
 

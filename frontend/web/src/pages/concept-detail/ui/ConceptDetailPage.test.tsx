@@ -3,6 +3,23 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ConceptDetailPageView } from './ConceptDetailPageView';
 
+vi.mock('@/features/report-content-error', () => ({
+  ContentErrorReportDialog: ({
+    origin,
+    triggerLabel,
+  }: {
+    origin: unknown;
+    triggerLabel: string;
+  }) => (
+    <button
+      data-origin={JSON.stringify(origin)}
+      type='button'
+    >
+      {triggerLabel}
+    </button>
+  ),
+}));
+
 vi.mock('@/features/explore-thai-content', () => ({
   InteractiveThaiSentence: ({
     sentence,
@@ -11,14 +28,16 @@ vi.mock('@/features/explore-thai-content', () => ({
   }) => <span>{sentence.originalText}</span>,
 }));
 
-describe('ConceptDetailPageView', () => {
+describe('개념 상세 페이지', () => {
   it('블록 제목 목차와 태국어 예시를 semantic 구조로 렌더링한다', () => {
     const blockId = '33333333-3333-4333-8333-333333333333';
+    const conceptId = '11111111-1111-4111-8111-111111111111';
+    const conceptVersionId = '22222222-2222-4222-8222-222222222222';
     render(
       <ConceptDetailPageView
         data={{
-          id: '11111111-1111-4111-8111-111111111111',
-          versionId: '22222222-2222-4222-8222-222222222222',
+          id: conceptId,
+          versionId: conceptVersionId,
           category: 'GRAMMAR',
           position: 0,
           title: '기본 어순',
@@ -62,5 +81,27 @@ describe('ConceptDetailPageView', () => {
     expect(
       screen.getByText('ฉันเรียนภาษาไทย').closest('[lang="th"]'),
     ).not.toBeNull();
+    expect(
+      screen.getByRole('button', { name: '개념 오류 신고' }),
+    ).toHaveAttribute(
+      'data-origin',
+      JSON.stringify({
+        kind: 'CONCEPT',
+        conceptId,
+        conceptVersionId,
+        blockId: null,
+      }),
+    );
+    expect(
+      screen.getByRole('button', { name: '개념 블록 오류 신고' }),
+    ).toHaveAttribute(
+      'data-origin',
+      JSON.stringify({
+        kind: 'CONCEPT',
+        conceptId,
+        conceptVersionId,
+        blockId,
+      }),
+    );
   });
 });

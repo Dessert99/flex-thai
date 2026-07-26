@@ -3,6 +3,7 @@ import {
   InteractiveThaiSentence,
   useThaiAudioPlayback,
 } from '@/features/explore-thai-content';
+import { ContentErrorReportDialog } from '@/features/report-content-error';
 import { Button } from '@/shared/ui/button';
 import {
   Sheet,
@@ -16,12 +17,16 @@ import type { QuestionBlockViewModel } from '../model/questionViewModel';
 
 interface QuestionContentProps {
   blocks: readonly QuestionBlockViewModel[];
+  questionId: string;
+  questionVersionId: string;
   transcriptRevealed: boolean;
 }
 
 /** 문제 block의 순서와 대본 공개 정책을 보존해 표시한다 */
 export function QuestionContent({
   blocks,
+  questionId,
+  questionVersionId,
   transcriptRevealed,
 }: QuestionContentProps) {
   const sentences = blocks.flatMap((block) =>
@@ -35,6 +40,8 @@ export function QuestionContent({
     <div className='grid gap-section lg:grid-cols-[minmax(0,1fr)_18rem]'>
       <QuestionBlocks
         blocks={blocks}
+        questionId={questionId}
+        questionVersionId={questionVersionId}
         transcriptRevealed={transcriptRevealed}
       />
 
@@ -86,7 +93,12 @@ export function QuestionContent({
   );
 }
 
-function QuestionBlocks({ blocks, transcriptRevealed }: QuestionContentProps) {
+function QuestionBlocks({
+  blocks,
+  questionId,
+  questionVersionId,
+  transcriptRevealed,
+}: QuestionContentProps) {
   return (
     <div className='grid gap-section'>
       {blocks.map((block) => (
@@ -94,6 +106,20 @@ function QuestionBlocks({ blocks, transcriptRevealed }: QuestionContentProps) {
           className='grid gap-cluster rounded-panel border border-default p-page'
           key={block.id}
         >
+          <ContentErrorReportDialog
+            origin={{
+              kind: 'QUESTION',
+              questionId,
+              questionVersionId,
+              blockId: block.id,
+              sentenceVersionId: null,
+            }}
+            preview={{
+              title: '문제 블록',
+              metadata: `블록 ${block.id}`,
+            }}
+            triggerLabel='문제 블록 오류 신고'
+          />
           {block.sentences.map(({ position, sentence, speaker }) => {
             const transcriptHidden =
               block.displayMode === 'AUDIO_THEN_REVEAL' && !transcriptRevealed;

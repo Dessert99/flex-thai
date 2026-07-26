@@ -4,6 +4,7 @@ import type {
   SubmitQuestionAttemptResponse,
 } from '@flex-thia/contracts';
 import { useState } from 'react';
+import { ContentErrorReportDialog } from '@/features/report-content-error';
 import { SubmitAnswerForm } from '@/features/submit-answer';
 import { SavedQuestionButton } from '@/features/toggle-saved-question';
 import { Button } from '@/shared/ui/button';
@@ -36,14 +37,32 @@ export function QuestionSolvingPageView({
         <h1 className='text-title text-primary'>
           {detail.questionType.displayName}
         </h1>
-        <SavedQuestionButton
-          onConfirmed={onSavedConfirmed}
-          questionId={detail.questionId}
-          saved={detail.saved}
-        />
+        <div className='flex flex-wrap items-center gap-cluster'>
+          <ContentErrorReportDialog
+            origin={{
+              kind: 'QUESTION',
+              questionId: detail.questionId,
+              questionVersionId: detail.questionVersionId,
+              blockId: null,
+              sentenceVersionId: null,
+            }}
+            preview={{
+              title: detail.questionType.displayName,
+              metadata: `문제 ${detail.questionId}`,
+            }}
+            triggerLabel='문제 오류 신고'
+          />
+          <SavedQuestionButton
+            onConfirmed={onSavedConfirmed}
+            questionId={detail.questionId}
+            saved={detail.saved}
+          />
+        </div>
       </header>
       <QuestionContent
         blocks={blocks}
+        questionId={detail.questionId}
+        questionVersionId={detail.questionVersionId}
         transcriptRevealed={transcriptRevealed}
       />
       {hasHiddenTranscript && !transcriptRevealed ? (
@@ -89,6 +108,8 @@ export function QuestionSolvingPageView({
           <h2 className='text-title text-primary'>해설</h2>
           <QuestionContent
             blocks={toExplanationBlockViewModels(submission)}
+            questionId={detail.questionId}
+            questionVersionId={detail.questionVersionId}
             transcriptRevealed
           />
         </section>
