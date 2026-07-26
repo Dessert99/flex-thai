@@ -4,6 +4,7 @@ import { getTableConfig } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 import {
   auditLogs,
+  expressionOccurrences,
   questionBlockKindEnum,
   questionBlocks,
   questionBlockSentences,
@@ -18,6 +19,7 @@ import {
   questions,
   questionVersions,
   questionVersionStatusEnum,
+  tokenOccurrenceRoleEnum,
 } from './index.js';
 
 const indexSummaries = (table: Parameters<typeof getTableConfig>[0]) =>
@@ -56,6 +58,21 @@ const foreignKeySummaries = (table: Parameters<typeof getTableConfig>[0]) =>
   });
 
 describe('문제 게시 데이터베이스 schema', () => {
+  it('태국어 표현 피드백과 지시문 token 역할을 저장한다', () => {
+    expect(tokenOccurrenceRoleEnum.enumValues).toContain('INSTRUCTION');
+    expect(
+      Object.values(getTableColumns(expressionOccurrences)).map(
+        (column) => column.name,
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        'meaning_id',
+        'pronunciation_id',
+        'context_meaning_ko',
+      ]),
+    );
+  });
+
   it('문제 enum의 허용 값을 고정한다', () => {
     expect(questionSkillEnum.enumValues).toEqual(['READING', 'LISTENING']);
     expect(questionTemplateEnum.enumValues).toEqual([
