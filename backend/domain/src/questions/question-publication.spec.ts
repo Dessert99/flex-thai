@@ -57,6 +57,7 @@ const candidate = (): QuestionVersionValidationCandidate => ({
       id: 'option-1',
       position: 0,
       isCorrect: true,
+      span: null,
       sentence: {
         id: 'sentence-1',
         input: {
@@ -77,6 +78,7 @@ const candidate = (): QuestionVersionValidationCandidate => ({
       id: 'option-2',
       position: 1,
       isCorrect: false,
+      span: null,
       sentence: {
         id: 'sentence-2',
         input: {

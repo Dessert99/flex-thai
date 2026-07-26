@@ -4,6 +4,7 @@ import { getTableConfig } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 import {
   auditLogs,
+  expressionOccurrences,
   questionBlockKindEnum,
   questionBlocks,
   questionBlockSentences,
@@ -18,6 +19,7 @@ import {
   questions,
   questionVersions,
   questionVersionStatusEnum,
+  tokenOccurrenceRoleEnum,
 } from './index.js';
 
 const indexSummaries = (table: Parameters<typeof getTableConfig>[0]) =>
@@ -56,12 +58,28 @@ const foreignKeySummaries = (table: Parameters<typeof getTableConfig>[0]) =>
   });
 
 describe('문제 게시 데이터베이스 schema', () => {
+  it('태국어 표현 피드백과 지시문 token 역할을 저장한다', () => {
+    expect(tokenOccurrenceRoleEnum.enumValues).toContain('INSTRUCTION');
+    expect(
+      Object.values(getTableColumns(expressionOccurrences)).map(
+        (column) => column.name,
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        'meaning_id',
+        'pronunciation_id',
+        'context_meaning_ko',
+      ]),
+    );
+  });
+
   it('문제 enum의 허용 값을 고정한다', () => {
     expect(questionSkillEnum.enumValues).toEqual(['READING', 'LISTENING']);
     expect(questionTemplateEnum.enumValues).toEqual([
       'STANDARD_CHOICE',
       'PASSAGE_CHOICE',
       'DIALOGUE_CHOICE',
+      'INLINE_SPAN_CHOICE',
     ]);
     expect(questionStatusEnum.enumValues).toEqual([
       'DRAFT',
@@ -154,6 +172,20 @@ describe('문제 게시 데이터베이스 schema', () => {
     });
   });
 
+  it('inline option 범위를 문장 버전과 token index로 함께 저장한다', () => {
+    expect(
+      Object.values(getTableColumns(questionOptions)).map(
+        (column) => column.name,
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        'span_sentence_version_id',
+        'span_start_token_index',
+        'span_end_token_index',
+      ]),
+    );
+  });
+
   it('문제 버전마다 정답 선택지는 최대 하나만 허용한다', () => {
     expect(indexSummaries(questionOptions)).toContainEqual({
       name: 'question_options_one_correct_per_version',
@@ -174,7 +206,7 @@ describe('문제 게시 데이터베이스 schema', () => {
     ];
     const foreignKeys = tables.flatMap(foreignKeySummaries);
 
-    expect(foreignKeys).toHaveLength(9);
+    expect(foreignKeys).toHaveLength(10);
     expect(foreignKeys.every(({ onDelete }) => onDelete === 'restrict')).toBe(
       true,
     );
@@ -208,7 +240,13 @@ describe('문제 게시 데이터베이스 schema', () => {
     expect(
       getTableConfig(questionOptions).checks.map(({ name }) => name),
     ).toEqual(
-      expect.arrayContaining(['question_options_position_nonnegative']),
+      expect.arrayContaining([
+        'question_options_position_nonnegative',
+        'question_options_sentence_or_span',
+      ]),
+    );
+    expect(getTableColumns(questionOptions).sentenceVersionId.notNull).toBe(
+      false,
     );
   });
 

@@ -1,5 +1,6 @@
 /** 학습자 문제 조회·답안 제출의 정답 비노출 공개 JSON 계약을 정의한다 */
 import { z } from 'zod';
+import { publicThaiSentenceSchema } from '../thai-content/sentences.js';
 
 const uuidSchema = z.uuid();
 const nonnegativeSafeIntegerSchema = z.number().safe().nonnegative();
@@ -7,7 +8,6 @@ const positiveSafeIntegerSchema = z.number().safe().positive();
 const difficultySchema = z.number().safe().min(1).max(5);
 const positionSchema = nonnegativeSafeIntegerSchema;
 const utcDateTimeSchema = z.string().datetime();
-const audioUrlSchema = z.string().url();
 
 const httpIntegerSchema = (minimum: number, maximum: number) =>
   z
@@ -36,6 +36,7 @@ const questionTemplateSchema = z.enum([
   'STANDARD_CHOICE',
   'PASSAGE_CHOICE',
   'DIALOGUE_CHOICE',
+  'INLINE_SPAN_CHOICE',
 ]);
 const questionDisplayModeSchema = z.enum([
   'TEXT',
@@ -58,47 +59,11 @@ const questionTypeSchema = z
   })
   .strict();
 
-const sentenceTokenSchema = z
-  .object({
-    position: positionSchema,
-    surface: z.string().min(1),
-    startOffset: positionSchema,
-    endOffset: positiveSafeIntegerSchema,
-    vocabularyId: uuidSchema,
-    meaningId: uuidSchema,
-    pronunciationId: uuidSchema,
-    contextMeaningKo: z.string().min(1),
-    role: z.enum(['TARGET', 'REQUIRED', 'SUPPORTING']),
-  })
-  .strict();
-
-const sentenceExpressionSchema = z
-  .object({
-    startTokenIndex: positionSchema,
-    endTokenIndex: positiveSafeIntegerSchema,
-    vocabularyId: uuidSchema,
-    representative: z.boolean(),
-  })
-  .strict();
-
-const publicSentenceSchema = z
-  .object({
-    sentenceVersionId: uuidSchema,
-    originalText: z.string().min(1),
-    translationKo: z.string().min(1),
-    pronunciationKo: z.string().min(1),
-    toneMarks: z.string(),
-    audioUrl: audioUrlSchema,
-    tokens: z.array(sentenceTokenSchema),
-    expressions: z.array(sentenceExpressionSchema),
-  })
-  .strict();
-
 const questionBlockSentenceSchema = z
   .object({
     position: positionSchema,
     speaker: z.string().min(1).nullable(),
-    sentence: publicSentenceSchema,
+    sentence: publicThaiSentenceSchema,
   })
   .strict();
 
@@ -122,13 +87,36 @@ const explanationBlockSchema = z
   })
   .strict();
 
-const questionOptionSchema = z
+/** 문장 token 범위에 연결된 inline 선택지 계약 */
+export const questionOptionSpanSchema = z
   .object({
-    id: uuidSchema,
-    position: positionSchema,
-    sentence: publicSentenceSchema,
+    sentenceVersionId: uuidSchema,
+    startTokenIndex: positionSchema,
+    endTokenIndex: positiveSafeIntegerSchema,
   })
   .strict();
+
+const questionOptionBaseShape = {
+  id: uuidSchema,
+  position: positionSchema,
+};
+
+const questionOptionSchema = z.union([
+  z
+    .object({
+      ...questionOptionBaseShape,
+      sentence: publicThaiSentenceSchema,
+      span: z.null(),
+    })
+    .strict(),
+  z
+    .object({
+      ...questionOptionBaseShape,
+      sentence: z.null(),
+      span: questionOptionSpanSchema,
+    })
+    .strict(),
+]);
 
 /** 페이지 번호 방식의 공통 응답 metadata */
 export const pageMetadataSchema = z
@@ -186,7 +174,23 @@ export const questionDetailResponseSchema = z
     options: z.array(questionOptionSchema),
     saved: z.boolean(),
   })
-  .strict();
+  .strict()
+  .superRefine((detail, context) => {
+    const inline = detail.template === 'INLINE_SPAN_CHOICE';
+    detail.options.forEach((option, index) => {
+      if (
+        (inline && option.sentence !== null) ||
+        (!inline && option.span !== null)
+      ) {
+        context.addIssue({
+          code: 'custom',
+          message:
+            '문제 template과 선택지 sentence·span 조합이 일치해야 합니다.',
+          path: ['options', index],
+        });
+      }
+    });
+  });
 
 /** 첫 답·재시도와 멱등 재전송에 사용하는 답안 요청 */
 export const submitQuestionAttemptRequestSchema = z

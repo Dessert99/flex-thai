@@ -173,6 +173,9 @@ const graph = (): QuestionAdminVersionGraph => ({
       sentenceVersionId: 'sentence-version-id',
       position: 0,
       isCorrect: true,
+      spanSentenceVersionId: null,
+      spanStartTokenIndex: null,
+      spanEndTokenIndex: null,
     },
   ],
 });
@@ -545,6 +548,7 @@ const replacementInput = (
       clientRef: `option-${position}`,
       position,
       sentence: sentence(position === 0 ? 'จ' : 'ฉ'),
+      span: null,
     })),
     correctOptionRef: 'option-0',
   };

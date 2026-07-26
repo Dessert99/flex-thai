@@ -1,10 +1,17 @@
 /** 정답 비노출 문제 상세와 사용자 제어 대본·답안 행동을 조합한다 */
-import type { QuestionDetailResponse } from '@flex-thia/contracts';
+import type {
+  QuestionDetailResponse,
+  SubmitQuestionAttemptResponse,
+} from '@flex-thia/contracts';
 import { useState } from 'react';
 import { SubmitAnswerForm } from '@/features/submit-answer';
 import { SavedQuestionButton } from '@/features/toggle-saved-question';
 import { Button } from '@/shared/ui/button';
-import { toQuestionSentenceViewModels } from '../model/questionViewModel';
+import {
+  type QuestionBlockViewModel,
+  toQuestionBlockViewModels,
+} from '../model/questionViewModel';
+import { QuestionContent } from './QuestionContent';
 
 interface QuestionSolvingPageViewProps {
   detail: QuestionDetailResponse;
@@ -17,9 +24,10 @@ export function QuestionSolvingPageView({
   onSavedConfirmed,
 }: QuestionSolvingPageViewProps) {
   const [transcriptRevealed, setTranscriptRevealed] = useState(false);
-  const sentences = toQuestionSentenceViewModels(detail);
-  const hasHiddenTranscript = sentences.some(
-    (sentence) => sentence.hiddenInitially,
+  const [submission, setSubmission] = useState<SubmitQuestionAttemptResponse>();
+  const blocks = toQuestionBlockViewModels(detail);
+  const hasHiddenTranscript = blocks.some(
+    (block) => block.displayMode === 'AUDIO_THEN_REVEAL',
   );
 
   return (
@@ -34,30 +42,10 @@ export function QuestionSolvingPageView({
           saved={detail.saved}
         />
       </header>
-      {sentences.map((sentence) => (
-        <section
-          className='grid gap-cluster rounded-panel border border-default p-page'
-          key={sentence.id}
-        >
-          {/* 계약 대본을 인접 제공하므로 VTT endpoint가 없는 audio 규칙만 제한한다. */}
-          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-          <audio
-            controls
-            src={sentence.audioUrl}
-          />
-          {!sentence.hiddenInitially || transcriptRevealed ? (
-            <>
-              <p
-                className='font-thai text-title text-primary'
-                lang='th'
-              >
-                {sentence.originalText}
-              </p>
-              <p className='text-body text-subtle'>{sentence.translationKo}</p>
-            </>
-          ) : null}
-        </section>
-      ))}
+      <QuestionContent
+        blocks={blocks}
+        transcriptRevealed={transcriptRevealed}
+      />
       {hasHiddenTranscript && !transcriptRevealed ? (
         <Button
           onClick={() => {
@@ -70,13 +58,57 @@ export function QuestionSolvingPageView({
         </Button>
       ) : null}
       <SubmitAnswerForm
-        options={detail.options.map((option) => ({
-          id: option.id,
-          label: option.sentence.originalText,
-        }))}
+        inlineSentences={detail.blocks
+          .filter((block) => block.kind === 'QUESTION')
+          .flatMap((block) => block.sentences.map(({ sentence }) => sentence))}
+        onConfirmed={(response) => {
+          setTranscriptRevealed(true);
+          setSubmission(response);
+        }}
+        onReset={() => {
+          setSubmission(undefined);
+        }}
+        options={detail.options.map((option) =>
+          option.sentence === null
+            ? {
+                id: option.id,
+                label: null,
+                span: option.span,
+              }
+            : {
+                id: option.id,
+                label: option.sentence.originalText,
+                span: null,
+              },
+        )}
         questionId={detail.questionId}
         questionVersionId={detail.questionVersionId}
       />
+      {submission === undefined ? null : (
+        <section className='grid gap-cluster'>
+          <h2 className='text-title text-primary'>해설</h2>
+          <QuestionContent
+            blocks={toExplanationBlockViewModels(submission)}
+            transcriptRevealed
+          />
+        </section>
+      )}
     </article>
   );
+}
+
+function toExplanationBlockViewModels(
+  response: SubmitQuestionAttemptResponse,
+): QuestionBlockViewModel[] {
+  return [...response.feedback.explanationBlocks]
+    .sort((left, right) => left.position - right.position)
+    .map((block) => ({
+      id: block.id,
+      kind: block.kind,
+      displayMode: block.displayMode,
+      position: block.position,
+      sentences: [...block.sentences].sort(
+        (left, right) => left.position - right.position,
+      ),
+    }));
 }

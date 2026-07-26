@@ -62,8 +62,18 @@ const payload = {
     },
   ],
   options: [
-    { clientRef: 'option.correct', position: 0, sentence: sentenceInput },
-    { clientRef: 'option.wrong', position: 1, sentence: sentenceInput },
+    {
+      clientRef: 'option.correct',
+      position: 0,
+      sentence: sentenceInput,
+      span: null,
+    },
+    {
+      clientRef: 'option.wrong',
+      position: 1,
+      sentence: sentenceInput,
+      span: null,
+    },
   ],
   correctOptionRef: 'option.correct',
 } as const;
@@ -128,6 +138,68 @@ describe('관리자 문제 path·query·교체 payload 계약', () => {
         options: [{ ...payload.options[0], isCorrect: true }],
       }),
     ).toThrow();
+  });
+
+  it('inline 교체 option은 sentence null과 span 좌표를 함께 요구한다', () => {
+    const inline = {
+      ...payload,
+      questionTypeSlug: 'reading-inline-choice',
+      options: [
+        {
+          clientRef: 'option.correct',
+          position: 0,
+          sentence: null,
+          span: {
+            blockPosition: 0,
+            sentencePosition: 0,
+            startTokenIndex: 0,
+            endTokenIndex: 1,
+          },
+        },
+      ],
+    };
+
+    expect(
+      adminQuestionVersionPayloadSchema.parse(inline).options[0]?.sentence,
+    ).toBeNull();
+    expect(() =>
+      adminQuestionVersionPayloadSchema.parse({
+        ...inline,
+        options: [{ ...inline.options[0], sentence: sentenceInput }],
+      }),
+    ).toThrow();
+  });
+
+  it('관리자 표현 입력에 뜻과 발음 및 문맥상 뜻을 보존한다', () => {
+    const expressionSentence = {
+      ...sentenceInput,
+      originalText: 'สวัสดีครับ',
+      tokens: [
+        sentenceInput.tokens[0],
+        {
+          ...sentenceInput.tokens[0],
+          surface: 'ครับ',
+          startOffset: 6,
+          endOffset: 10,
+        },
+      ],
+      expressions: [
+        {
+          startTokenIndex: 0,
+          endTokenIndex: 2,
+          vocabulary: { id: ids.vocabulary },
+          meaning: { id: ids.meaning },
+          pronunciation: { id: ids.pronunciation },
+          contextMeaningKo: '안녕하세요',
+        },
+      ],
+    };
+
+    expect(
+      adminQuestionVersionPayloadSchema.parse(
+        withBlockSentence(expressionSentence),
+      ).blocks[0]?.sentences[0]?.sentence.expressions[0],
+    ).toMatchObject({ contextMeaningKo: '안녕하세요' });
   });
 
   it.each([
@@ -267,6 +339,7 @@ describe('관리자 문제 공개 응답 계약', () => {
               id: ids.option,
               position: 0,
               sentenceVersionId: ids.sentence,
+              span: null,
             },
           ],
           correctOptionId: ids.option,
@@ -279,6 +352,20 @@ describe('관리자 문제 공개 응답 계약', () => {
     } as const;
 
     expect(adminQuestionDetailResponseSchema.parse(detail)).toEqual(detail);
+    expect(() =>
+      adminQuestionDetailResponseSchema.parse({
+        ...detail,
+        versions: [
+          {
+            ...detail.versions[0],
+            questionType: {
+              ...detail.versions[0].questionType,
+              template: 'INLINE_SPAN_CHOICE',
+            },
+          },
+        ],
+      }),
+    ).toThrow();
     expect(() =>
       adminQuestionDetailResponseSchema.parse({
         ...detail,
@@ -352,6 +439,7 @@ describe('관리자 문제 공개 응답 계약', () => {
               id: ids.option,
               position: 0,
               sentenceVersionId: ids.sentence,
+              span: null,
             },
           ],
           correctOptionId: ids.option,

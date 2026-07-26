@@ -329,6 +329,9 @@ describe('DrizzleQuestionPublicationRepository가 문제 게시 생명주기를 
             endTokenIndex: 2,
             vocabularyId: 'expression-id',
             vocabularyKind: 'EXPRESSION',
+            meaningId: 'expression-meaning-id',
+            pronunciationId: 'expression-pronunciation-id',
+            contextMeaningKo: '표현 뜻',
             representative: true,
             vocabularyStatus: 'PUBLISHED',
           },
@@ -361,7 +364,7 @@ describe('DrizzleQuestionPublicationRepository가 문제 게시 생명주기를 
       expect(candidate?.blocks[0]?.sentences[0]?.sentence).toBe(
         candidate?.options[0]?.sentence,
       );
-      expect(candidate?.options[0]?.sentence.input).toEqual({
+      expect(candidate?.options[0]?.sentence?.input).toEqual({
         originalText: 'กข',
         translationKo: '정답',
         pronunciationKo: '꼬 커',
@@ -386,16 +389,19 @@ describe('DrizzleQuestionPublicationRepository가 문제 게시 생명주기를 
             endTokenIndex: 2,
             vocabularyId: 'expression-id',
             vocabularyKind: 'EXPRESSION',
+            meaningId: 'expression-meaning-id',
+            pronunciationId: 'expression-pronunciation-id',
+            contextMeaningKo: '표현 뜻',
             adminSelected: true,
           },
         ],
       });
-      expect(candidate?.options[0]?.sentence.referencedVocabularies).toEqual([
+      expect(candidate?.options[0]?.sentence?.referencedVocabularies).toEqual([
         { id: 'word-id', status: 'PUBLISHED' },
         { id: 'expression-id', status: 'PUBLISHED' },
       ]);
       expect(
-        candidate?.options[0]?.sentence.pronunciationMediaAssets,
+        candidate?.options[0]?.sentence?.pronunciationMediaAssets,
       ).toHaveLength(1);
     });
   });
@@ -419,9 +425,9 @@ describe('DrizzleQuestionPublicationRepository가 문제 게시 생명주기를 
     await withTransaction(fake.database, async (transaction) => {
       const candidate = await transaction.loadValidationCandidate('version-id');
 
-      expect(candidate?.options[0]?.sentence.pronunciationMediaAssets).toEqual([
-        null,
-      ]);
+      expect(candidate?.options[0]?.sentence?.pronunciationMediaAssets).toEqual(
+        [null],
+      );
     });
   });
 
@@ -574,6 +580,9 @@ describe('DrizzleQuestionPublicationRepository가 문제 게시 생명주기를 
             endTokenIndex: 3,
             vocabularyId: 'expression-1',
             vocabularyKind: 'EXPRESSION',
+            meaningId: 'expression-meaning-1',
+            pronunciationId: 'expression-pronunciation-1',
+            contextMeaningKo: '표현 뜻 1',
             representative: false,
             vocabularyStatus: 'PUBLISHED',
           },
@@ -583,6 +592,9 @@ describe('DrizzleQuestionPublicationRepository가 문제 게시 생명주기를 
             endTokenIndex: 2,
             vocabularyId: 'expression-0',
             vocabularyKind: 'EXPRESSION',
+            meaningId: 'expression-meaning-0',
+            pronunciationId: 'expression-pronunciation-0',
+            contextMeaningKo: '표현 뜻 0',
             representative: true,
             vocabularyStatus: 'PUBLISHED',
           },
@@ -605,12 +617,12 @@ describe('DrizzleQuestionPublicationRepository가 문제 게시 생명주기를 
         'option-1',
       ]);
       expect(
-        candidate?.options[0]?.sentence.input.tokens.map(
+        candidate?.options[0]?.sentence?.input.tokens.map(
           (occurrence) => occurrence.position,
         ),
       ).toEqual([0, 1]);
       expect(
-        candidate?.options[0]?.sentence.input.expressions.map(
+        candidate?.options[0]?.sentence?.input.expressions.map(
           (occurrence) => occurrence.startTokenIndex,
         ),
       ).toEqual([0, 1]);

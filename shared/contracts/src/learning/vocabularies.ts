@@ -1,5 +1,6 @@
 /** 학습자 공용·저장 어휘와 관련 문제의 공개 JSON 계약을 정의한다 */
 import { z } from 'zod';
+import { publicThaiSentenceSchema } from '../thai-content/sentences.js';
 import { pageMetadataSchema, questionListItemSchema } from './questions.js';
 
 const uuidSchema = z.uuid();
@@ -55,17 +56,6 @@ const vocabularySummaryShape = {
   saved: z.boolean(),
 };
 
-const exampleSentenceSchema = z
-  .object({
-    sentenceVersionId: uuidSchema,
-    originalText: z.string().min(1),
-    translationKo: z.string().min(1),
-    pronunciationKo: z.string().min(1),
-    toneMarks: z.string(),
-    audioUrl: z.string().url(),
-  })
-  .strict();
-
 /** 공용 어휘 검색의 표기·분류·난이도와 페이지 query */
 export const vocabularyListQuerySchema = z
   .object({
@@ -95,7 +85,7 @@ export const vocabularyDetailResponseSchema = z
   .object({
     ...vocabularySummaryShape,
     meaningPronunciations: z.array(vocabularyMeaningPronunciationSchema),
-    exampleSentences: z.array(exampleSentenceSchema),
+    exampleSentences: z.array(publicThaiSentenceSchema),
   })
   .strict()
   .superRefine((detail, context) => {

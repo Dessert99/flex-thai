@@ -26,6 +26,7 @@ export const tokenOccurrenceRoleEnum = pgEnum('token_occurrence_role', [
   'TARGET',
   'REQUIRED',
   'SUPPORTING',
+  'INSTRUCTION',
 ]);
 
 /** 여러 문제 버전이 재사용할 문장의 논리 정체성 */
@@ -130,6 +131,9 @@ export const expressionOccurrences = pgTable(
     endTokenIndex: integer('end_token_index').notNull(),
     vocabularyId: uuid('vocabulary_id').notNull(),
     vocabularyKind: vocabularyKindEnum('vocabulary_kind').notNull(),
+    meaningId: uuid('meaning_id').notNull(),
+    pronunciationId: uuid('pronunciation_id').notNull(),
+    contextMeaningKo: text('context_meaning_ko').notNull(),
     representative: boolean('representative').default(false).notNull(),
   },
   (table) => [
@@ -138,6 +142,19 @@ export const expressionOccurrences = pgTable(
       name: 'expression_occurrences_vocabulary_kind_fk',
       columns: [table.vocabularyId, table.vocabularyKind],
       foreignColumns: [vocabularies.id, vocabularies.kind],
+    }).onDelete('restrict'),
+    foreignKey({
+      name: 'expression_occurrences_meaning_vocabulary_fk',
+      columns: [table.meaningId, table.vocabularyId],
+      foreignColumns: [vocabularyMeanings.id, vocabularyMeanings.vocabularyId],
+    }).onDelete('restrict'),
+    foreignKey({
+      name: 'expression_occurrences_pronunciation_vocabulary_fk',
+      columns: [table.pronunciationId, table.vocabularyId],
+      foreignColumns: [
+        vocabularyPronunciations.id,
+        vocabularyPronunciations.vocabularyId,
+      ],
     }).onDelete('restrict'),
     check(
       'expression_occurrences_vocabulary_kind_expression',

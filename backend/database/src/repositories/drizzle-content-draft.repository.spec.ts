@@ -2,6 +2,7 @@
 import { randomUUID } from 'node:crypto';
 import { DatabaseErrorException } from '@aws-sdk/client-rds-data';
 import type {
+  CanonicalDraftSentenceInput,
   ContentDraftTransaction,
   CreateQuestionDraftCommand,
   CreateVocabularyDraftCommand,
@@ -193,6 +194,9 @@ const questionGraph: ResolvedQuestionDraftGraph = {
           endTokenIndex: 2,
           vocabularyId: ids.expression,
           vocabularyKind: 'EXPRESSION',
+          meaningId: ids.meaning,
+          pronunciationId: ids.pronunciation,
+          contextMeaningKo: '질문 표현',
           representative: true,
         },
       ],
@@ -255,6 +259,9 @@ const questionGraph: ResolvedQuestionDraftGraph = {
       sentenceVersionId: ids.optionOneSentenceVersion,
       position: 0,
       isCorrect: false,
+      spanSentenceVersionId: null,
+      spanStartTokenIndex: null,
+      spanEndTokenIndex: null,
     },
     {
       id: ids.optionTwo,
@@ -262,6 +269,9 @@ const questionGraph: ResolvedQuestionDraftGraph = {
       sentenceVersionId: ids.optionTwoSentenceVersion,
       position: 1,
       isCorrect: true,
+      spanSentenceVersionId: null,
+      spanStartTokenIndex: null,
+      spanEndTokenIndex: null,
     },
   ],
 };
@@ -1195,7 +1205,7 @@ const integrationVocabularyCommand = (
 
 const integrationSentence = (
   fixture: IntegrationFixture,
-): CreateQuestionDraftCommand['input']['options'][number]['sentence'] => ({
+): CanonicalDraftSentenceInput => ({
   originalText: fixture.wordText,
   translationKo: '통합 문장',
   pronunciationKo: '통합 발음',
@@ -1240,11 +1250,13 @@ const integrationQuestionCommand = (
         clientRef: '__proto__',
         position: 0,
         sentence: integrationSentence(fixture),
+        span: null,
       },
       {
         clientRef: 'constructor',
         position: 1,
         sentence: integrationSentence(fixture),
+        span: null,
       },
     ],
     correctOptionRef: 'constructor',
@@ -1346,6 +1358,9 @@ const createCrossOwnershipGraph = (
         sentenceVersionId: firstOptionSentence.version.id,
         position: 0,
         isCorrect: false,
+        spanSentenceVersionId: null,
+        spanStartTokenIndex: null,
+        spanEndTokenIndex: null,
       },
       {
         id: randomUUID(),
@@ -1353,6 +1368,9 @@ const createCrossOwnershipGraph = (
         sentenceVersionId: secondOptionSentence.version.id,
         position: 1,
         isCorrect: true,
+        spanSentenceVersionId: null,
+        spanStartTokenIndex: null,
+        spanEndTokenIndex: null,
       },
     ],
   };

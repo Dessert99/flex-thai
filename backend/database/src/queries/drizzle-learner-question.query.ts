@@ -28,6 +28,7 @@ import {
   savedQuestions,
   thaiSentenceVersions,
   tokenOccurrences,
+  vocabularyPronunciations,
 } from '../schema/index.js';
 import * as schema from '../schema/index.js';
 
@@ -103,7 +104,10 @@ export interface LearnerQuestionTokenProjection {
   meaningId: string;
   pronunciationId: string;
   contextMeaningKo: string;
-  role: 'TARGET' | 'REQUIRED' | 'SUPPORTING';
+  pronunciationKo: string;
+  toneMarks: string;
+  media: LearnerQuestionMediaProjection | null;
+  role: 'TARGET' | 'REQUIRED' | 'SUPPORTING' | 'INSTRUCTION';
 }
 
 /** 문장 안 다단어 표현 범위의 내부 projection */
@@ -111,6 +115,12 @@ export interface LearnerQuestionExpressionProjection {
   startTokenIndex: number;
   endTokenIndex: number;
   vocabularyId: string;
+  meaningId: string;
+  pronunciationId: string;
+  contextMeaningKo: string;
+  pronunciationKo: string;
+  toneMarks: string;
+  media: LearnerQuestionMediaProjection | null;
   representative: boolean;
 }
 
@@ -142,12 +152,25 @@ export interface LearnerQuestionBlockProjection {
   sentences: LearnerQuestionBlockSentenceProjection[];
 }
 
-/** 정답 flag를 제외한 선택지 projection */
-export interface LearnerQuestionOptionProjection {
+interface LearnerQuestionOptionProjectionBase {
   id: string;
   position: number;
-  sentence: LearnerQuestionSentenceProjection;
 }
+
+/** 정답 flag를 제외한 일반 문장 또는 inline 범위 선택지 projection */
+export type LearnerQuestionOptionProjection =
+  | (LearnerQuestionOptionProjectionBase & {
+      sentence: LearnerQuestionSentenceProjection;
+      span: null;
+    })
+  | (LearnerQuestionOptionProjectionBase & {
+      sentence: null;
+      span: {
+        sentenceVersionId: string;
+        startTokenIndex: number;
+        endTokenIndex: number;
+      };
+    });
 
 /** 현재 게시 버전의 제출 전 문제 상세 projection */
 export interface LearnerQuestionDetailProjection {
@@ -156,7 +179,11 @@ export interface LearnerQuestionDetailProjection {
   questionType: LearnerQuestionTypeProjection;
   skill: LearnerQuestionSkill;
   difficulty: number;
-  template: 'STANDARD_CHOICE' | 'PASSAGE_CHOICE' | 'DIALOGUE_CHOICE';
+  template:
+    | 'STANDARD_CHOICE'
+    | 'PASSAGE_CHOICE'
+    | 'DIALOGUE_CHOICE'
+    | 'INLINE_SPAN_CHOICE';
   blocks: LearnerQuestionBlockProjection[];
   options: LearnerQuestionOptionProjection[];
   saved: boolean;
@@ -449,6 +476,9 @@ export class DrizzleLearnerQuestionQuery {
       .select({
         id: questionOptions.id,
         sentenceVersionId: questionOptions.sentenceVersionId,
+        spanSentenceVersionId: questionOptions.spanSentenceVersionId,
+        spanStartTokenIndex: questionOptions.spanStartTokenIndex,
+        spanEndTokenIndex: questionOptions.spanEndTokenIndex,
         position: questionOptions.position,
       })
       .from(questionOptions)
@@ -457,7 +487,9 @@ export class DrizzleLearnerQuestionQuery {
     const sentenceIds = [
       ...new Set([
         ...blockSentenceRows.map((row) => row.sentenceVersionId),
-        ...optionRows.map((row) => row.sentenceVersionId),
+        ...optionRows
+          .map((row) => row.sentenceVersionId)
+          .filter((id): id is string => id !== null),
       ]),
     ];
     const sentences = await this.loadSentences(sentenceIds);
@@ -474,11 +506,38 @@ export class DrizzleLearnerQuestionQuery {
       difficulty: base.difficulty,
       template: base.template,
       blocks: this.assembleBlocks(blockRows, blockSentenceRows, sentences),
-      options: optionRows.sort(comparePosition).map((option) => ({
-        id: option.id,
-        position: option.position,
-        sentence: requireSentence(sentences, option.sentenceVersionId),
-      })),
+      options: optionRows
+        .sort(comparePosition)
+        .map((option): LearnerQuestionOptionProjection => {
+          if (option.sentenceVersionId !== null) {
+            return {
+              id: option.id,
+              position: option.position,
+              sentence: requireSentence(sentences, option.sentenceVersionId),
+              span: null,
+            };
+          }
+          if (
+            option.spanSentenceVersionId === null ||
+            option.spanSentenceVersionId === undefined ||
+            option.spanStartTokenIndex === null ||
+            option.spanStartTokenIndex === undefined ||
+            option.spanEndTokenIndex === null ||
+            option.spanEndTokenIndex === undefined
+          ) {
+            throw new Error('inline option span projection is incomplete');
+          }
+          return {
+            id: option.id,
+            position: option.position,
+            sentence: null,
+            span: {
+              sentenceVersionId: option.spanSentenceVersionId,
+              startTokenIndex: option.spanStartTokenIndex,
+              endTokenIndex: option.spanEndTokenIndex,
+            },
+          };
+        }),
       saved: base.saved,
     };
   }
@@ -583,6 +642,22 @@ export class DrizzleLearnerQuestionQuery {
     if (sentenceVersionIds.length === 0) {
       return new Map();
     }
+    const tokenPronunciations = alias(
+      vocabularyPronunciations,
+      'learner_question_token_pronunciations',
+    );
+    const tokenMediaAssets = alias(
+      mediaAssets,
+      'learner_question_token_media_assets',
+    );
+    const expressionPronunciations = alias(
+      vocabularyPronunciations,
+      'learner_question_expression_pronunciations',
+    );
+    const expressionMediaAssets = alias(
+      mediaAssets,
+      'learner_question_expression_media_assets',
+    );
     const sentenceRows = await this.database
       .select({
         sentenceVersionId: thaiSentenceVersions.id,
@@ -615,9 +690,23 @@ export class DrizzleLearnerQuestionQuery {
         meaningId: tokenOccurrences.meaningId,
         pronunciationId: tokenOccurrences.pronunciationId,
         contextMeaningKo: tokenOccurrences.contextMeaningKo,
+        pronunciationKo: tokenPronunciations.pronunciationKo,
+        toneMarks: tokenPronunciations.toneMarks,
+        mediaStorageKey: tokenMediaAssets.storageKey,
         role: tokenOccurrences.role,
       })
       .from(tokenOccurrences)
+      .innerJoin(
+        tokenPronunciations,
+        and(
+          eq(tokenOccurrences.pronunciationId, tokenPronunciations.id),
+          eq(tokenOccurrences.vocabularyId, tokenPronunciations.vocabularyId),
+        ),
+      )
+      .leftJoin(
+        tokenMediaAssets,
+        eq(tokenPronunciations.mediaAssetId, tokenMediaAssets.id),
+      )
       .where(inArray(tokenOccurrences.sentenceVersionId, sentenceVersionIds))
       .orderBy(
         asc(tokenOccurrences.sentenceVersionId),
@@ -630,9 +719,32 @@ export class DrizzleLearnerQuestionQuery {
         startTokenIndex: expressionOccurrences.startTokenIndex,
         endTokenIndex: expressionOccurrences.endTokenIndex,
         vocabularyId: expressionOccurrences.vocabularyId,
+        meaningId: expressionOccurrences.meaningId,
+        pronunciationId: expressionOccurrences.pronunciationId,
+        contextMeaningKo: expressionOccurrences.contextMeaningKo,
+        pronunciationKo: expressionPronunciations.pronunciationKo,
+        toneMarks: expressionPronunciations.toneMarks,
+        mediaStorageKey: expressionMediaAssets.storageKey,
         representative: expressionOccurrences.representative,
       })
       .from(expressionOccurrences)
+      .innerJoin(
+        expressionPronunciations,
+        and(
+          eq(
+            expressionOccurrences.pronunciationId,
+            expressionPronunciations.id,
+          ),
+          eq(
+            expressionOccurrences.vocabularyId,
+            expressionPronunciations.vocabularyId,
+          ),
+        ),
+      )
+      .leftJoin(
+        expressionMediaAssets,
+        eq(expressionPronunciations.mediaAssetId, expressionMediaAssets.id),
+      )
       .where(
         inArray(expressionOccurrences.sentenceVersionId, sentenceVersionIds),
       )
@@ -667,6 +779,12 @@ export class DrizzleLearnerQuestionQuery {
               meaningId: token.meaningId,
               pronunciationId: token.pronunciationId,
               contextMeaningKo: token.contextMeaningKo,
+              pronunciationKo: token.pronunciationKo,
+              toneMarks: token.toneMarks,
+              media:
+                token.mediaStorageKey === null
+                  ? null
+                  : { storageKey: token.mediaStorageKey },
               role: token.role,
             })),
           expressions: expressionRows
@@ -679,6 +797,15 @@ export class DrizzleLearnerQuestionQuery {
               startTokenIndex: expression.startTokenIndex,
               endTokenIndex: expression.endTokenIndex,
               vocabularyId: expression.vocabularyId,
+              meaningId: expression.meaningId,
+              pronunciationId: expression.pronunciationId,
+              contextMeaningKo: expression.contextMeaningKo,
+              pronunciationKo: expression.pronunciationKo,
+              toneMarks: expression.toneMarks,
+              media:
+                expression.mediaStorageKey === null
+                  ? null
+                  : { storageKey: expression.mediaStorageKey },
               representative: expression.representative,
             })),
         },

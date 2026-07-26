@@ -223,6 +223,22 @@ describe('콘텐츠 기반 데이터베이스 schema', () => {
         foreignColumns: ['id', 'kind'],
         onDelete: 'restrict',
       },
+      {
+        name: 'expression_occurrences_meaning_vocabulary_fk',
+        sourceTable: 'expression_occurrences',
+        targetTable: 'vocabulary_meanings',
+        columns: ['meaning_id', 'vocabulary_id'],
+        foreignColumns: ['id', 'vocabulary_id'],
+        onDelete: 'restrict',
+      },
+      {
+        name: 'expression_occurrences_pronunciation_vocabulary_fk',
+        sourceTable: 'expression_occurrences',
+        targetTable: 'vocabulary_pronunciations',
+        columns: ['pronunciation_id', 'vocabulary_id'],
+        foreignColumns: ['id', 'vocabulary_id'],
+        onDelete: 'restrict',
+      },
     ]);
   });
 

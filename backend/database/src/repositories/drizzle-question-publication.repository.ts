@@ -223,6 +223,9 @@ const createQuestionPublicationTransaction = (
           sentenceVersionId: questionOptions.sentenceVersionId,
           position: questionOptions.position,
           isCorrect: questionOptions.isCorrect,
+          spanSentenceVersionId: questionOptions.spanSentenceVersionId,
+          spanStartTokenIndex: questionOptions.spanStartTokenIndex,
+          spanEndTokenIndex: questionOptions.spanEndTokenIndex,
         })
         .from(questionOptions)
         .where(eq(questionOptions.questionVersionId, versionId))
@@ -230,7 +233,9 @@ const createQuestionPublicationTransaction = (
       const sentenceVersionIds = [
         ...new Set([
           ...blockSentenceRows.map((row) => row.sentenceVersionId),
-          ...optionRows.map((row) => row.sentenceVersionId),
+          ...optionRows
+            .map((row) => row.sentenceVersionId)
+            .filter((id): id is string => id !== null),
         ]),
       ];
       const orderedBlockRows = [...blockRows].sort(comparePosition);
@@ -340,6 +345,9 @@ const createQuestionPublicationTransaction = (
           endTokenIndex: expressionOccurrences.endTokenIndex,
           vocabularyId: expressionOccurrences.vocabularyId,
           vocabularyKind: expressionOccurrences.vocabularyKind,
+          meaningId: expressionOccurrences.meaningId,
+          pronunciationId: expressionOccurrences.pronunciationId,
+          contextMeaningKo: expressionOccurrences.contextMeaningKo,
           representative: expressionOccurrences.representative,
           vocabularyStatus: vocabularies.status,
         })
@@ -424,6 +432,9 @@ const createQuestionPublicationTransaction = (
               endTokenIndex: expression.endTokenIndex,
               vocabularyId: expression.vocabularyId,
               vocabularyKind: expression.vocabularyKind,
+              meaningId: expression.meaningId,
+              pronunciationId: expression.pronunciationId,
+              contextMeaningKo: expression.contextMeaningKo,
               adminSelected: expression.representative,
             })),
           },
@@ -471,12 +482,37 @@ const createQuestionPublicationTransaction = (
               sentence: getSentence(row.sentenceVersionId),
             })),
         })),
-        options: orderedOptionRows.map((option) => ({
-          id: option.id,
-          position: option.position,
-          isCorrect: option.isCorrect,
-          sentence: getSentence(option.sentenceVersionId),
-        })),
+        options: orderedOptionRows.map((option) => {
+          if (option.sentenceVersionId !== null) {
+            return {
+              id: option.id,
+              position: option.position,
+              isCorrect: option.isCorrect,
+              sentence: getSentence(option.sentenceVersionId),
+              span: null,
+            };
+          }
+          if (
+            option.spanSentenceVersionId === null ||
+            option.spanStartTokenIndex === null ||
+            option.spanEndTokenIndex === null
+          ) {
+            throw new QuestionPublicationPersistenceError(
+              'loadValidationCandidate',
+            );
+          }
+          return {
+            id: option.id,
+            position: option.position,
+            isCorrect: option.isCorrect,
+            sentence: null,
+            span: {
+              sentenceVersionId: option.spanSentenceVersionId,
+              startTokenIndex: option.spanStartTokenIndex,
+              endTokenIndex: option.spanEndTokenIndex,
+            },
+          };
+        }),
       } satisfies QuestionVersionValidationCandidate;
     },
 
@@ -565,7 +601,9 @@ const createQuestionPublicationTransaction = (
         .orderBy(asc(questionOptions.position));
       const sentenceVersionIds = [
         ...new Set(
-          [...blockRows, ...optionRows].map((row) => row.sentenceVersionId),
+          [...blockRows, ...optionRows]
+            .map((row) => row.sentenceVersionId)
+            .filter((id): id is string => id !== null),
         ),
       ];
       if (sentenceVersionIds.length === 0) {

@@ -135,6 +135,8 @@ describe('학습자 어휘 공개 응답 계약', () => {
           toneMarks: 'R-F-F-L-L-M',
           audioUrl:
             'https://media.example.com/sentences/example.mp3?Expires=300',
+          tokens: [],
+          expressions: [],
         },
       ],
     };

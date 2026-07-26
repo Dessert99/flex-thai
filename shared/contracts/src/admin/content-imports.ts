@@ -43,7 +43,7 @@ const canonicalTokenInputSchema = z
     meaning: refSchema,
     pronunciation: refSchema,
     contextMeaningKo: z.string().min(1),
-    role: z.enum(['TARGET', 'REQUIRED', 'SUPPORTING']),
+    role: z.enum(['TARGET', 'REQUIRED', 'SUPPORTING', 'INSTRUCTION']),
   })
   .strict();
 
@@ -52,6 +52,9 @@ const canonicalExpressionInputSchema = z
     startTokenIndex: nonnegativeIntegerSchema,
     endTokenIndex: positiveIntegerSchema,
     vocabulary: refSchema,
+    meaning: refSchema,
+    pronunciation: refSchema,
+    contextMeaningKo: z.string().min(1),
     representative: z.boolean().optional(),
   })
   .strict();
@@ -189,13 +192,34 @@ const questionBlockInputSchema = z
   })
   .strict();
 
-const questionOptionInputSchema = z
+const questionOptionBaseShape = {
+  clientRef: clientRefSchema,
+  position: nonnegativeIntegerSchema,
+};
+const questionOptionSpanInputSchema = z
   .object({
-    clientRef: clientRefSchema,
-    position: nonnegativeIntegerSchema,
-    sentence: canonicalSentenceInputSchema,
+    blockPosition: nonnegativeIntegerSchema,
+    sentencePosition: nonnegativeIntegerSchema,
+    startTokenIndex: nonnegativeIntegerSchema,
+    endTokenIndex: positiveIntegerSchema,
   })
   .strict();
+const questionOptionInputSchema = z.union([
+  z
+    .object({
+      ...questionOptionBaseShape,
+      sentence: canonicalSentenceInputSchema,
+      span: z.null().default(null),
+    })
+    .strict(),
+  z
+    .object({
+      ...questionOptionBaseShape,
+      sentence: z.null(),
+      span: questionOptionSpanInputSchema,
+    })
+    .strict(),
+]);
 
 const canonicalQuestionVersionShape = {
   questionTypeSlug: z.string().min(1),

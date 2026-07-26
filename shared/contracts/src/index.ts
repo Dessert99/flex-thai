@@ -6,3 +6,4 @@ export * from './health/status.js';
 export * from './identity/auth.js';
 export * from './learning/questions.js';
 export * from './learning/vocabularies.js';
+export * from './thai-content/sentences.js';

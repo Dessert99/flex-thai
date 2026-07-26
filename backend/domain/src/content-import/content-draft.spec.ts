@@ -4,6 +4,7 @@ import type {
   ContentDraftRepository,
   ContentDraftTransaction,
   ImportedVocabularyReferenceItem,
+  QuestionTypeVersionReferenceRecord,
   VocabularyReferenceRecord,
 } from './content-draft.repository.js';
 import {
@@ -27,6 +28,8 @@ const ids = {
   expression: '00000000-0000-4000-8000-000000000007',
   typeVersion: '00000000-0000-4000-8000-000000000008',
   otherVocabulary: '00000000-0000-4000-8000-000000000009',
+  expressionMeaning: '00000000-0000-4000-8000-000000000012',
+  expressionPronunciation: '00000000-0000-4000-8000-000000000013',
 } as const;
 
 const occurredAt = new Date('2026-07-24T00:00:00.000Z');
@@ -96,6 +99,8 @@ const importedExpression: ImportedVocabularyReferenceItem = {
   targetId: ids.expression,
   referenceMap: {
     'expression-ref': ids.expression,
+    'expression-meaning-ref': ids.expressionMeaning,
+    'expression-pronunciation-ref': ids.expressionPronunciation,
   },
 };
 
@@ -111,6 +116,7 @@ interface TransactionOptions {
     mediaAssetId: string | null;
   }>;
   questionTypeExists?: boolean;
+  questionTypeVersion?: QuestionTypeVersionReferenceRecord;
 }
 
 const createTransaction = (
@@ -127,11 +133,17 @@ const createTransaction = (
   ];
   const meanings = options.meanings ?? [
     { id: ids.meaning, vocabularyId: ids.vocabulary },
+    { id: ids.expressionMeaning, vocabularyId: ids.expression },
   ];
   const pronunciations = options.pronunciations ?? [
     {
       id: ids.pronunciation,
       vocabularyId: ids.vocabulary,
+      mediaAssetId: ids.media,
+    },
+    {
+      id: ids.expressionPronunciation,
+      vocabularyId: ids.expression,
       mediaAssetId: ids.media,
     },
   ];
@@ -181,13 +193,13 @@ const createTransaction = (
     findQuestionTypeVersion: vi.fn().mockResolvedValue(
       options.questionTypeExists === false
         ? null
-        : {
+        : (options.questionTypeVersion ?? {
             id: ids.typeVersion,
             slug: 'standard-choice',
             version: 1,
             template: 'STANDARD_CHOICE',
             optionCount: 2,
-          },
+          }),
     ),
     saveVocabularyDraft: vi.fn().mockResolvedValue(undefined),
     saveQuestionDraft: vi.fn().mockResolvedValue(undefined),
@@ -291,6 +303,9 @@ const sentenceInput = (): CanonicalDraftSentenceInput => ({
       startTokenIndex: 0,
       endTokenIndex: 2,
       vocabulary: { clientRef: 'expression-ref' },
+      meaning: { clientRef: 'expression-meaning-ref' },
+      pronunciation: { clientRef: 'expression-pronunciation-ref' },
+      contextMeaningKo: '표현 뜻',
       representative: true,
     },
   ],
@@ -319,11 +334,13 @@ const questionCommand = (
         clientRef: 'option-1',
         position: 0,
         sentence: sentenceInput(),
+        span: null,
       },
       {
         clientRef: 'option-2',
         position: 1,
         sentence: sentenceInput(),
+        span: null,
       },
     ],
     correctOptionRef: 'option-2',
@@ -573,6 +590,9 @@ describe('ContentDraftService 문제 초안', () => {
       expect.objectContaining({
         vocabularyId: ids.expression,
         vocabularyKind: 'EXPRESSION',
+        meaningId: ids.expressionMeaning,
+        pronunciationId: ids.expressionPronunciation,
+        contextMeaningKo: '표현 뜻',
         representative: true,
       }),
     ]);
@@ -592,6 +612,64 @@ describe('ContentDraftService 문제 초안', () => {
       targetType: 'QUESTION',
       targetId: result.targetId,
     });
+  });
+
+  it('인라인 선택지는 별도 문장 없이 문제 문장의 span만 저장한다', async () => {
+    const transaction = createTransaction({
+      questionTypeVersion: {
+        id: ids.typeVersion,
+        slug: 'standard-choice',
+        version: 1,
+        template: 'INLINE_SPAN_CHOICE',
+        optionCount: 2,
+      },
+    });
+    const service = new ContentDraftService(
+      createRepository(transaction),
+      createIdGenerator(),
+    );
+    const command = questionCommand();
+    command.input.options = [
+      {
+        clientRef: 'option-1',
+        position: 0,
+        sentence: null,
+        span: {
+          blockPosition: 0,
+          sentencePosition: 0,
+          startTokenIndex: 0,
+          endTokenIndex: 1,
+        },
+      },
+      {
+        clientRef: 'option-2',
+        position: 1,
+        sentence: null,
+        span: {
+          blockPosition: 0,
+          sentencePosition: 0,
+          startTokenIndex: 1,
+          endTokenIndex: 2,
+        },
+      },
+    ];
+
+    await service.createQuestionItem(command);
+
+    const saved = vi.mocked(transaction.saveQuestionDraft).mock.calls[0]![0];
+    expect(saved.graph.sentences).toHaveLength(1);
+    expect(saved.graph.options).toEqual([
+      expect.objectContaining({
+        sentenceVersionId: null,
+        spanStartTokenIndex: 0,
+        spanEndTokenIndex: 1,
+      }),
+      expect.objectContaining({
+        sentenceVersionId: null,
+        spanStartTokenIndex: 1,
+        spanEndTokenIndex: 2,
+      }),
+    ]);
   });
 
   it('question option __proto__ clientRef를 own JSON key로 보존한다', async () => {
@@ -692,13 +770,14 @@ describe('ContentDraftService 문제 초안', () => {
       {
         ...sentence.expressions[0]!,
         vocabulary: { id: ids.expression },
+        meaning: { id: ids.expressionMeaning },
+        pronunciation: { id: ids.expressionPronunciation },
       },
     ];
     const command = questionCommand(sentence);
-    command.input.options = command.input.options.map((option) => ({
-      ...option,
-      sentence,
-    }));
+    command.input.options = command.input.options.map((option) =>
+      option.sentence === null ? option : { ...option, sentence },
+    );
 
     await service.createQuestionItem(command);
 

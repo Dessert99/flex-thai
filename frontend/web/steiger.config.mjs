@@ -20,6 +20,7 @@ export default defineConfig([
     files: [
       'src/features/change-question-state/**',
       'src/features/change-vocabulary-state/**',
+      'src/features/explore-thai-content/**',
       'src/features/submit-answer/**',
       'src/features/toggle-saved-question/**',
       'src/features/toggle-saved-vocabulary/**',

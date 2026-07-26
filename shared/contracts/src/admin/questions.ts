@@ -66,7 +66,7 @@ const adminQuestionTokenInputSchema = z
     meaning: adminContentReferenceSchema,
     pronunciation: adminContentReferenceSchema,
     contextMeaningKo: z.string().min(1),
-    role: z.enum(['TARGET', 'REQUIRED', 'SUPPORTING']),
+    role: z.enum(['TARGET', 'REQUIRED', 'SUPPORTING', 'INSTRUCTION']),
   })
   .strict();
 
@@ -75,6 +75,9 @@ const adminQuestionExpressionInputSchema = z
     startTokenIndex: z.number().int().safe().nonnegative(),
     endTokenIndex: positiveIntegerSchema,
     vocabulary: adminContentReferenceSchema,
+    meaning: adminContentReferenceSchema,
+    pronunciation: adminContentReferenceSchema,
+    contextMeaningKo: z.string().min(1),
     representative: z.boolean().optional(),
   })
   .strict();
@@ -119,13 +122,34 @@ const adminQuestionBlockInputSchema = z
   })
   .strict();
 
-const adminQuestionOptionInputSchema = z
+const adminQuestionOptionBaseShape = {
+  clientRef: z.string().min(1),
+  position: z.number().int().safe().nonnegative(),
+};
+const adminQuestionOptionSpanInputSchema = z
   .object({
-    clientRef: z.string().min(1),
-    position: z.number().int().safe().nonnegative(),
-    sentence: adminQuestionSentenceInputSchema,
+    blockPosition: z.number().int().safe().nonnegative(),
+    sentencePosition: z.number().int().safe().nonnegative(),
+    startTokenIndex: z.number().int().safe().nonnegative(),
+    endTokenIndex: positiveIntegerSchema,
   })
   .strict();
+const adminQuestionOptionInputSchema = z.union([
+  z
+    .object({
+      ...adminQuestionOptionBaseShape,
+      sentence: adminQuestionSentenceInputSchema,
+      span: z.null().default(null),
+    })
+    .strict(),
+  z
+    .object({
+      ...adminQuestionOptionBaseShape,
+      sentence: z.null(),
+      span: adminQuestionOptionSpanInputSchema,
+    })
+    .strict(),
+]);
 
 /** 초안 문제 버전을 기존 콘텐츠 UUID 전용 canonical 구조로 전체 교체하는 요청 */
 export const adminQuestionVersionPayloadSchema = z
@@ -166,6 +190,7 @@ const questionValidationIssueSchema = z
       'THAI_CONTENT_INVALID',
       'VOCABULARY_NOT_PUBLISHED',
       'MEDIA_ASSET_NOT_READY',
+      'INLINE_SPAN_INVALID',
     ]),
   })
   .strict();
@@ -230,7 +255,12 @@ const adminQuestionTypeVersionSchema = z
     slug: z.string().min(1),
     version: positiveIntegerSchema,
     skill: z.enum(['READING', 'LISTENING']),
-    template: z.enum(['STANDARD_CHOICE', 'PASSAGE_CHOICE', 'DIALOGUE_CHOICE']),
+    template: z.enum([
+      'STANDARD_CHOICE',
+      'PASSAGE_CHOICE',
+      'DIALOGUE_CHOICE',
+      'INLINE_SPAN_CHOICE',
+    ]),
   })
   .strict();
 
@@ -263,13 +293,33 @@ const adminQuestionBlockSchema = z
   })
   .strict();
 
-const adminQuestionOptionSchema = z
+const adminQuestionOptionBase = {
+  id: uuidSchema,
+  position: z.number().int().safe().nonnegative(),
+};
+const adminQuestionOptionSpanSchema = z
   .object({
-    id: uuidSchema,
-    position: z.number().int().safe().nonnegative(),
     sentenceVersionId: uuidSchema,
+    startTokenIndex: z.number().int().safe().nonnegative(),
+    endTokenIndex: positiveIntegerSchema,
   })
   .strict();
+const adminQuestionOptionSchema = z.union([
+  z
+    .object({
+      ...adminQuestionOptionBase,
+      sentenceVersionId: uuidSchema,
+      span: z.null(),
+    })
+    .strict(),
+  z
+    .object({
+      ...adminQuestionOptionBase,
+      sentenceVersionId: z.null(),
+      span: adminQuestionOptionSpanSchema,
+    })
+    .strict(),
+]);
 
 const adminQuestionValidationStateSchema = z.discriminatedUnion('status', [
   z
@@ -321,6 +371,16 @@ const adminQuestionVersionDetailSchema = z
         path: ['correctOptionId'],
       });
     }
+    const inline = version.questionType.template === 'INLINE_SPAN_CHOICE';
+    version.options.forEach((option, index) => {
+      if (inline !== (option.sentenceVersionId === null)) {
+        context.addIssue({
+          code: 'custom',
+          message: '문제 유형과 선택지 표현 방식이 일치해야 합니다.',
+          path: ['options', index],
+        });
+      }
+    });
   });
 
 /** 문제의 모든 버전·검증·정답 option ID를 공개하는 관리자 상세 */

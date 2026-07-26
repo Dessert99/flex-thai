@@ -43,6 +43,10 @@ const sentence = {
       meaningId: ids.meaning,
       pronunciationId: ids.pronunciation,
       contextMeaningKo: '안녕하세요',
+      pronunciationKo: '싸왓디',
+      toneMarks: 'L-L-M',
+      audioUrl:
+        'https://media.example.com/vocabularies/greeting.mp3?Expires=300',
       role: 'TARGET',
     },
   ],
@@ -81,7 +85,7 @@ const detail = {
       sentences: [{ position: 0, speaker: null, sentence }],
     },
   ],
-  options: [{ id: ids.option, position: 0, sentence }],
+  options: [{ id: ids.option, position: 0, sentence, span: null }],
   saved: false,
 } as const;
 
@@ -169,6 +173,69 @@ describe('학습자 문제 공개 응답 계약', () => {
 
   it('문제 상세는 공개 블록·선택지·문장 피드백과 서명 URL만 허용한다', () => {
     expect(questionDetailResponseSchema.parse(detail)).toEqual(detail);
+  });
+
+  it('inline 선택지는 논리 option ID와 명시적 token 범위를 공개한다', () => {
+    const inline = {
+      ...detail,
+      template: 'INLINE_SPAN_CHOICE',
+      options: [
+        {
+          id: ids.option,
+          position: 0,
+          sentence: null,
+          span: {
+            sentenceVersionId: ids.sentence,
+            startTokenIndex: 0,
+            endTokenIndex: 1,
+          },
+        },
+      ],
+    };
+
+    expect(questionDetailResponseSchema.parse(inline)).toEqual(inline);
+    expect(
+      submitQuestionAttemptRequestSchema.parse({
+        questionVersionId: ids.version,
+        selectedOptionId: ids.option,
+        clientAttemptId: ids.clientAttempt,
+        durationMs: 1,
+      }).selectedOptionId,
+    ).toBe(ids.option);
+  });
+
+  it('template과 option의 sentence·span 조합이 다르면 거부한다', () => {
+    expect(() =>
+      questionDetailResponseSchema.parse({
+        ...detail,
+        options: [
+          {
+            id: ids.option,
+            position: 0,
+            sentence: null,
+            span: {
+              sentenceVersionId: ids.sentence,
+              startTokenIndex: 0,
+              endTokenIndex: 1,
+            },
+          },
+        ],
+      }),
+    ).toThrow();
+    expect(() =>
+      questionDetailResponseSchema.parse({
+        ...detail,
+        template: 'INLINE_SPAN_CHOICE',
+        options: [
+          {
+            id: ids.option,
+            position: 0,
+            sentence,
+            span: null,
+          },
+        ],
+      }),
+    ).toThrow();
   });
 
   it('문제 목록에서 정답과 내부 검증 결과를 거부한다', () => {

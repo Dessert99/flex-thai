@@ -134,9 +134,12 @@ export interface ResolvedQuestionBlock {
 export interface ResolvedQuestionOption {
   id: string;
   questionVersionId: string;
-  sentenceVersionId: string;
+  sentenceVersionId: string | null;
   position: number;
   isCorrect: boolean;
+  spanSentenceVersionId: string | null;
+  spanStartTokenIndex: number | null;
+  spanEndTokenIndex: number | null;
 }
 
 /** adapter가 그대로 삽입할 canonical question draft graph */

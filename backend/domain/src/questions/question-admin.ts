@@ -289,7 +289,7 @@ const assertSentenceInput = (value: unknown, path: string): void => {
     );
     requireEnum(
       token.role,
-      ['TARGET', 'REQUIRED', 'SUPPORTING'],
+      ['TARGET', 'REQUIRED', 'SUPPORTING', 'INSTRUCTION'],
       `${tokenPath}.role`,
     );
     if (
@@ -311,7 +311,14 @@ const assertSentenceInput = (value: unknown, path: string): void => {
     const expression = requireRecord(value, expressionPath);
     requireExactKeys(
       expression,
-      ['startTokenIndex', 'endTokenIndex', 'vocabulary'],
+      [
+        'startTokenIndex',
+        'endTokenIndex',
+        'vocabulary',
+        'meaning',
+        'pronunciation',
+        'contextMeaningKo',
+      ],
       ['representative'],
       expressionPath,
     );
@@ -328,6 +335,15 @@ const assertSentenceInput = (value: unknown, path: string): void => {
       `${expressionPath}.endTokenIndex`,
     );
     assertReference(expression.vocabulary, `${expressionPath}.vocabulary`);
+    assertReference(expression.meaning, `${expressionPath}.meaning`);
+    assertReference(
+      expression.pronunciation,
+      `${expressionPath}.pronunciation`,
+    );
+    requireNonemptyString(
+      expression.contextMeaningKo,
+      `${expressionPath}.contextMeaningKo`,
+    );
     if (
       expression.representative !== undefined &&
       typeof expression.representative !== 'boolean'
@@ -415,7 +431,7 @@ const assertQuestionInput = (value: unknown): void => {
     const option = requireRecord(value, optionPath);
     requireExactKeys(
       option,
-      ['clientRef', 'position', 'sentence'],
+      ['clientRef', 'position', 'sentence', 'span'],
       [],
       optionPath,
     );
@@ -432,7 +448,50 @@ const assertQuestionInput = (value: unknown): void => {
     if (position !== optionIndex) {
       failInvalidContent(`${optionPath}.position`);
     }
-    assertSentenceInput(option.sentence, `${optionPath}.sentence`);
+    if (option.sentence === null) {
+      const span = requireRecord(option.span, `${optionPath}.span`);
+      requireExactKeys(
+        span,
+        [
+          'blockPosition',
+          'sentencePosition',
+          'startTokenIndex',
+          'endTokenIndex',
+        ],
+        [],
+        `${optionPath}.span`,
+      );
+      requireSafeInteger(
+        span.blockPosition,
+        0,
+        Number.MAX_SAFE_INTEGER,
+        `${optionPath}.span.blockPosition`,
+      );
+      requireSafeInteger(
+        span.sentencePosition,
+        0,
+        Number.MAX_SAFE_INTEGER,
+        `${optionPath}.span.sentencePosition`,
+      );
+      const start = requireSafeInteger(
+        span.startTokenIndex,
+        0,
+        Number.MAX_SAFE_INTEGER,
+        `${optionPath}.span.startTokenIndex`,
+      );
+      const end = requireSafeInteger(
+        span.endTokenIndex,
+        1,
+        Number.MAX_SAFE_INTEGER,
+        `${optionPath}.span.endTokenIndex`,
+      );
+      if (end <= start) failInvalidContent(`${optionPath}.span`);
+    } else {
+      assertSentenceInput(option.sentence, `${optionPath}.sentence`);
+      if (option.span !== null) {
+        failInvalidContent(`${optionPath}.span`);
+      }
+    }
     return clientRef;
   });
   const correctOptionRef = requireNonemptyString(
@@ -592,11 +651,33 @@ const resolveSentence = async (input: {
     if (vocabulary.kind !== 'EXPRESSION') {
       throw new QuestionAdminError('QUESTION_REFERENCE_MISMATCH', path);
     }
+    const meaning = await requireMeaning(
+      input.transaction,
+      expression.meaning,
+      `${input.path}.expressions.${index}.meaning`,
+    );
+    const pronunciation = await requirePronunciation(
+      input.transaction,
+      expression.pronunciation,
+      `${input.path}.expressions.${index}.pronunciation`,
+    );
+    if (
+      meaning.vocabularyId !== vocabulary.id ||
+      pronunciation.vocabularyId !== vocabulary.id
+    ) {
+      throw new QuestionAdminError(
+        'QUESTION_REFERENCE_MISMATCH',
+        `${input.path}.expressions.${index}`,
+      );
+    }
     expressionCandidates.push({
       startTokenIndex: expression.startTokenIndex,
       endTokenIndex: expression.endTokenIndex,
       vocabularyId: vocabulary.id,
       vocabularyKind: vocabulary.kind,
+      meaningId: meaning.id,
+      pronunciationId: pronunciation.id,
+      contextMeaningKo: expression.contextMeaningKo,
       adminSelected: expression.representative ?? false,
     });
   }
@@ -640,6 +721,9 @@ const resolveSentence = async (input: {
         endTokenIndex: expression.endTokenIndex,
         vocabularyId: expression.vocabularyId,
         vocabularyKind: expression.vocabularyKind,
+        meaningId: expression.meaningId,
+        pronunciationId: expression.pronunciationId,
+        contextMeaningKo: expression.contextMeaningKo,
         representative: expression.representative,
       }),
     ),
@@ -710,6 +794,9 @@ export class QuestionAdminService {
           sentenceVersionId: option.sentenceVersionId,
           position: option.position,
           isCorrect: option.isCorrect,
+          spanSentenceVersionId: option.spanSentenceVersionId,
+          spanStartTokenIndex: option.spanStartTokenIndex,
+          spanEndTokenIndex: option.spanEndTokenIndex,
         })),
       };
       await transaction.createVersion(graph);
@@ -787,20 +874,64 @@ export class QuestionAdminService {
       }
 
       const options = [];
+      const spanKeys = new Set<string>();
       for (const [optionIndex, option] of command.input.options.entries()) {
-        const sentence = await resolveSentence({
-          transaction,
-          sentence: option.sentence,
-          path: `options.${optionIndex}.sentence`,
-          newId: () => assertGeneratedId(this.generateId),
-        });
-        sentences.push(sentence);
+        const inline = typeVersion.template === 'INLINE_SPAN_CHOICE';
+        if (inline !== (option.sentence === null)) {
+          throw new QuestionAdminError(
+            'QUESTION_CONTENT_INVALID',
+            `options.${optionIndex}`,
+          );
+        }
+        const sentence =
+          option.sentence === null
+            ? null
+            : await resolveSentence({
+                transaction,
+                sentence: option.sentence,
+                path: `options.${optionIndex}.sentence`,
+                newId: () => assertGeneratedId(this.generateId),
+              });
+        if (sentence !== null) {
+          sentences.push(sentence);
+        }
+        const targetBlock = option.span
+          ? blocks[option.span.blockPosition]
+          : undefined;
+        const targetSentence = option.span
+          ? targetBlock?.sentences[option.span.sentencePosition]
+          : undefined;
+        const targetGraph = targetSentence
+          ? sentences.find(
+              ({ version }) => version.id === targetSentence.sentenceVersionId,
+            )
+          : undefined;
+        const spanKey = option.span
+          ? `${option.span.blockPosition}:${option.span.sentencePosition}:${option.span.startTokenIndex}:${option.span.endTokenIndex}`
+          : null;
+        if (
+          option.span &&
+          (!targetGraph ||
+            option.span.endTokenIndex <= option.span.startTokenIndex ||
+            option.span.startTokenIndex < 0 ||
+            option.span.endTokenIndex > targetGraph.tokens.length ||
+            spanKeys.has(spanKey!))
+        ) {
+          throw new QuestionAdminError(
+            'QUESTION_CONTENT_INVALID',
+            `options.${optionIndex}.span`,
+          );
+        }
+        if (spanKey) spanKeys.add(spanKey);
         options.push({
           id: assertGeneratedId(this.generateId),
           questionVersionId: current.id,
-          sentenceVersionId: sentence.version.id,
+          sentenceVersionId: sentence?.version.id ?? null,
           position: option.position,
           isCorrect: option.clientRef === command.input.correctOptionRef,
+          spanSentenceVersionId: targetSentence?.sentenceVersionId ?? null,
+          spanStartTokenIndex: option.span?.startTokenIndex ?? null,
+          spanEndTokenIndex: option.span?.endTokenIndex ?? null,
         });
       }
 

@@ -282,6 +282,38 @@ describe('DrizzleLearnerVocabularyQuery 상세와 예문', () => {
           mediaStorageKey: 'private/sentence-1.mp3',
         },
       ],
+      [
+        {
+          sentenceVersionId: 'sentence-1',
+          position: 0,
+          surface: 'สวัสดี',
+          startOffset: 0,
+          endOffset: 6,
+          vocabularyId: 'vocabulary-1',
+          meaningId: 'meaning-1',
+          pronunciationId: 'pronunciation-1',
+          contextMeaningKo: '안녕하세요',
+          pronunciationKo: '싸왓디',
+          toneMarks: '-',
+          mediaStorageKey: 'private/pronunciation-1.mp3',
+          role: 'TARGET',
+        },
+      ],
+      [
+        {
+          sentenceVersionId: 'sentence-1',
+          startTokenIndex: 0,
+          endTokenIndex: 2,
+          vocabularyId: 'expression-1',
+          meaningId: 'expression-meaning-1',
+          pronunciationId: 'expression-pronunciation-1',
+          contextMeaningKo: '인사 표현',
+          pronunciationKo: '싸왓디',
+          toneMarks: '-',
+          mediaStorageKey: 'private/expression-1.mp3',
+          representative: true,
+        },
+      ],
     ]);
     const query = new DrizzleLearnerVocabularyQuery(fake.database as never);
 
@@ -296,6 +328,14 @@ describe('DrizzleLearnerVocabularyQuery 상세와 예문', () => {
     ).toEqual(['sentence-1', 'sentence-2']);
     expect(detail?.exampleSentences[0]?.media).toEqual({
       storageKey: 'private/sentence-1.mp3',
+    });
+    expect(detail?.exampleSentences[0]?.tokens[0]).toMatchObject({
+      contextMeaningKo: '안녕하세요',
+      media: { storageKey: 'private/pronunciation-1.mp3' },
+    });
+    expect(detail?.exampleSentences[0]?.expressions[0]).toMatchObject({
+      contextMeaningKo: '인사 표현',
+      representative: true,
     });
     const exampleCondition = toSql(fake.selectCalls[4]?.condition);
     expect(exampleCondition.params).toEqual(

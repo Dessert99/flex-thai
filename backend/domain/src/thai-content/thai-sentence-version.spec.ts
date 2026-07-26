@@ -5,6 +5,7 @@ import {
   resolveRepresentativeExpressions,
   validateThaiSentenceVersion,
   type ThaiSentenceVersionInput,
+  type ThaiExpressionOccurrenceInput,
 } from './thai-sentence-version.js';
 
 const sentence = (): ThaiSentenceVersionInput => ({
@@ -40,7 +41,40 @@ const sentence = (): ThaiSentenceVersionInput => ({
   expressions: [],
 });
 
+const expressionFeedback = {
+  meaningId: 'expression-meaning',
+  pronunciationId: 'expression-pronunciation',
+  contextMeaningKo: '표현 뜻',
+} as const;
+
 describe('ThaiSentenceVersion 문장 버전 검증', () => {
+  it('표현의 선택 뜻과 발음 및 문맥상 뜻을 보존한다', () => {
+    const expression: ThaiExpressionOccurrenceInput = {
+      startTokenIndex: 0,
+      endTokenIndex: 2,
+      vocabularyId: 'expression',
+      vocabularyKind: 'EXPRESSION',
+      meaningId: 'expression-meaning',
+      pronunciationId: 'expression-pronunciation',
+      contextMeaningKo: '태국어 표현',
+      adminSelected: true,
+    };
+
+    expect(resolveRepresentativeExpressions([expression])[0]).toMatchObject({
+      meaningId: 'expression-meaning',
+      pronunciationId: 'expression-pronunciation',
+      contextMeaningKo: '태국어 표현',
+      representative: true,
+    });
+  });
+
+  it('문제 지시문 어휘에 INSTRUCTION 역할을 허용한다', () => {
+    const input = sentence();
+    input.tokens[0] = { ...input.tokens[0]!, role: 'INSTRUCTION' };
+
+    expect(validateThaiSentenceVersion(input)).toEqual([]);
+  });
+
   it('offset을 UTF-16 code unit이 아니라 Unicode code point로 해석한다', () => {
     expect(validateThaiSentenceVersion(sentence())).toEqual([]);
   });
@@ -81,6 +115,7 @@ describe('ThaiSentenceVersion 문장 버전 검증', () => {
     const fractionalStart = sentence();
     fractionalStart.expressions = [
       {
+        ...expressionFeedback,
         startTokenIndex: 0.5,
         endTokenIndex: 1,
         vocabularyId: 'expression-1',
@@ -91,6 +126,7 @@ describe('ThaiSentenceVersion 문장 버전 검증', () => {
     const fractionalEnd = sentence();
     fractionalEnd.expressions = [
       {
+        ...expressionFeedback,
         startTokenIndex: 0,
         endTokenIndex: 1.5,
         vocabularyId: 'expression-1',
@@ -113,6 +149,7 @@ describe('ThaiSentenceVersion 문장 버전 검증', () => {
     const input = sentence();
     input.expressions = [
       {
+        ...expressionFeedback,
         startTokenIndex: 0,
         endTokenIndex: 1,
         vocabularyId: 'expression-1',
@@ -131,6 +168,7 @@ describe('ThaiSentenceVersion 문장 버전 검증', () => {
     const input = sentence();
     input.expressions = [
       {
+        ...expressionFeedback,
         startTokenIndex: 0,
         endTokenIndex: 2,
         vocabularyId: 'word-1',
@@ -158,6 +196,7 @@ describe('ThaiSentenceVersion 문장 버전 검증', () => {
     expect(
       resolveRepresentativeExpressions([
         {
+          ...expressionFeedback,
           startTokenIndex: 0,
           endTokenIndex: 2,
           vocabularyId: 'short',
@@ -165,6 +204,7 @@ describe('ThaiSentenceVersion 문장 버전 검증', () => {
           adminSelected: true,
         },
         {
+          ...expressionFeedback,
           startTokenIndex: 0,
           endTokenIndex: 3,
           vocabularyId: 'long',
@@ -172,6 +212,7 @@ describe('ThaiSentenceVersion 문장 버전 검증', () => {
           adminSelected: false,
         },
         {
+          ...expressionFeedback,
           startTokenIndex: 4,
           endTokenIndex: 6,
           vocabularyId: 'separate',
@@ -193,6 +234,7 @@ describe('ThaiSentenceVersion 문장 버전 검증', () => {
     expect(
       resolveRepresentativeExpressions([
         {
+          ...expressionFeedback,
           startTokenIndex: 0,
           endTokenIndex: 2,
           vocabularyId: 'first',
@@ -200,6 +242,7 @@ describe('ThaiSentenceVersion 문장 버전 검증', () => {
           adminSelected: false,
         },
         {
+          ...expressionFeedback,
           startTokenIndex: 1,
           endTokenIndex: 3,
           vocabularyId: 'middle',
@@ -207,6 +250,7 @@ describe('ThaiSentenceVersion 문장 버전 검증', () => {
           adminSelected: false,
         },
         {
+          ...expressionFeedback,
           startTokenIndex: 2,
           endTokenIndex: 4,
           vocabularyId: 'last',
@@ -228,6 +272,7 @@ describe('ThaiSentenceVersion 문장 버전 검증', () => {
     expect(
       resolveRepresentativeExpressions([
         {
+          ...expressionFeedback,
           startTokenIndex: 0,
           endTokenIndex: 2,
           vocabularyId: 'first',
@@ -235,6 +280,7 @@ describe('ThaiSentenceVersion 문장 버전 검증', () => {
           adminSelected: false,
         },
         {
+          ...expressionFeedback,
           startTokenIndex: 0,
           endTokenIndex: 2,
           vocabularyId: 'second',

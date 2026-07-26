@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type {
   QuestionAdminRepository,
   QuestionAdminTransaction,
+  QuestionAdminTypeVersion,
   QuestionAdminVersionGraph,
   QuestionAdminVersionSource,
 } from './question-admin.repository.js';
@@ -49,15 +50,27 @@ const sourceVersion = (
       sentenceVersionId: '00000000-0000-4000-8000-000000000104',
       position: 0,
       isCorrect: true,
+      spanSentenceVersionId: null,
+      spanStartTokenIndex: null,
+      spanEndTokenIndex: null,
     },
   ],
   ...overrides,
 });
 
+function requireAdminOptionSentence(command: ReplaceQuestionVersionCommand) {
+  const sentence = command.input.options.at(0)?.sentence;
+  if (sentence === null || sentence === undefined) {
+    throw new Error('일반 선택지 문장이 없습니다.');
+  }
+  return sentence;
+}
+
 interface TransactionOverrides {
   question?: Awaited<ReturnType<QuestionAdminTransaction['loadQuestion']>>;
   latestVersion?: QuestionAdminVersionSource | null;
   versionById?: Record<string, QuestionAdminVersionSource | null>;
+  typeVersion?: QuestionAdminTypeVersion;
   mediaReady?: boolean;
   onCreate?: (graph: QuestionAdminVersionGraph) => void;
   onReplace?: (graph: QuestionAdminVersionGraph) => void;
@@ -100,13 +113,15 @@ const createTransaction = (
   },
   findQuestionTypeVersion: () => {
     calls.push('findQuestionTypeVersion');
-    return Promise.resolve({
-      id: '00000000-0000-4000-8000-000000000102',
-      slug: 'reading-standard',
-      version: 1,
-      template: 'STANDARD_CHOICE',
-      optionCount: 1,
-    });
+    return Promise.resolve(
+      overrides.typeVersion ?? {
+        id: '00000000-0000-4000-8000-000000000102',
+        slug: 'reading-standard',
+        version: 1,
+        template: 'STANDARD_CHOICE',
+        optionCount: 1,
+      },
+    );
   },
   findMediaAssetById: (mediaAssetId) => {
     calls.push('findMediaAssetById');
@@ -253,6 +268,7 @@ const replaceCommand = (): ReplaceQuestionVersionCommand => ({
           tokens: [],
           expressions: [],
         },
+        span: null,
       },
     ],
     correctOptionRef: 'correct',
@@ -465,12 +481,57 @@ describe('QuestionAdminService 문제 버전 전체 교체', () => {
     ]);
   });
 
+  it('인라인 선택지는 별도 문장 없이 문제 문장의 span만 저장한다', async () => {
+    const calls: string[] = [];
+    let replaced: QuestionAdminVersionGraph | undefined;
+    const command = replaceCommand();
+    command.input.options = [
+      {
+        clientRef: 'correct',
+        position: 0,
+        sentence: null,
+        span: {
+          blockPosition: 0,
+          sentencePosition: 0,
+          startTokenIndex: 0,
+          endTokenIndex: 1,
+        },
+      },
+    ];
+    const service = createService(
+      createTransaction(calls, {
+        typeVersion: {
+          id: '00000000-0000-4000-8000-000000000102',
+          slug: 'reading-standard',
+          version: 1,
+          template: 'INLINE_SPAN_CHOICE',
+          optionCount: 1,
+        },
+        onReplace: (graph) => {
+          replaced = graph;
+        },
+      }),
+      calls,
+    );
+
+    await service.replaceVersion(command);
+
+    expect(replaced?.sentences).toHaveLength(1);
+    expect(replaced?.options).toEqual([
+      expect.objectContaining({
+        sentenceVersionId: null,
+        spanStartTokenIndex: 0,
+        spanEndTokenIndex: 1,
+      }),
+    ]);
+  });
+
   it('공개 계약이 허용하는 공백 slug와 빈 toneMarks를 그대로 허용한다', async () => {
     const calls: string[] = [];
     const command = replaceCommand();
     command.input.questionTypeSlug = ' ';
     command.input.blocks[0]!.sentences[0]!.sentence.toneMarks = '';
-    command.input.options[0]!.sentence.toneMarks = '';
+    requireAdminOptionSentence(command).toneMarks = '';
     const service = createService(createTransaction(calls), calls);
 
     await expect(service.replaceVersion(command)).resolves.toMatchObject({
@@ -489,7 +550,7 @@ describe('QuestionAdminService 문제 버전 전체 교체', () => {
     sentence.tokens[0]!.vocabulary = { id: nilUuid };
     sentence.tokens[0]!.meaning = { id: maxUuid };
     sentence.tokens[0]!.pronunciation = { id: maxUuid };
-    command.input.options[0]!.sentence.mediaAssetId = maxUuid;
+    requireAdminOptionSentence(command).mediaAssetId = maxUuid;
     const transaction = createTransaction(calls);
     transaction.findVocabularyMeaningById = (id) =>
       Promise.resolve({ id, vocabularyId: nilUuid });

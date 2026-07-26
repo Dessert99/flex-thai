@@ -418,11 +418,23 @@ const resolveSentence = async (input: {
         `${expressionPath}.vocabulary`,
       );
     }
+    const meaning = await input.resolver.meaning(
+      expression.meaning,
+      `${expressionPath}.meaning`,
+    );
+    const pronunciation = await input.resolver.pronunciation(
+      expression.pronunciation,
+      `${expressionPath}.pronunciation`,
+    );
+    assertSameVocabulary(vocabulary, meaning, pronunciation, expressionPath);
     expressionCandidates.push({
       startTokenIndex: expression.startTokenIndex,
       endTokenIndex: expression.endTokenIndex,
       vocabularyId: vocabulary.record.id,
       vocabularyKind: vocabulary.record.kind,
+      meaningId: meaning.record.id,
+      pronunciationId: pronunciation.record.id,
+      contextMeaningKo: expression.contextMeaningKo,
       adminSelected: expression.representative ?? false,
     });
   }
@@ -451,6 +463,9 @@ const resolveSentence = async (input: {
     endTokenIndex: expression.endTokenIndex,
     vocabularyId: expression.vocabularyId,
     vocabularyKind: expression.vocabularyKind,
+    meaningId: expression.meaningId,
+    pronunciationId: expression.pronunciationId,
+    contextMeaningKo: expression.contextMeaningKo,
     representative: expression.representative,
     id: input.newId(),
     sentenceVersionId,
@@ -651,25 +666,69 @@ export class ContentDraftService {
       }
 
       const options = [];
+      const spanKeys = new Set<string>();
       const referenceEntries: Array<readonly [string, string]> = [
         [command.input.clientRef, questionId],
       ];
       for (const [optionIndex, option] of command.input.options.entries()) {
-        const sentence = await resolveSentence({
-          transaction,
-          resolver,
-          sentence: option.sentence,
-          path: `options.${optionIndex}.sentence`,
-          newId: this.newId,
-        });
-        sentences.push(sentence);
+        const inline = typeVersion.template === 'INLINE_SPAN_CHOICE';
+        if (inline !== (option.sentence === null)) {
+          throw new ContentDraftError(
+            'IMPORT_CONTENT_INVALID',
+            `options.${optionIndex}`,
+          );
+        }
+        const sentence =
+          option.sentence === null
+            ? null
+            : await resolveSentence({
+                transaction,
+                resolver,
+                sentence: option.sentence,
+                path: `options.${optionIndex}.sentence`,
+                newId: this.newId,
+              });
+        if (sentence !== null) {
+          sentences.push(sentence);
+        }
         const optionId = this.newId();
+        const targetBlock = option.span
+          ? blocks[option.span.blockPosition]
+          : undefined;
+        const targetSentence = option.span
+          ? targetBlock?.sentences[option.span.sentencePosition]
+          : undefined;
+        const targetGraph = targetSentence
+          ? sentences.find(
+              ({ version }) => version.id === targetSentence.sentenceVersionId,
+            )
+          : undefined;
+        const spanKey = option.span
+          ? `${option.span.blockPosition}:${option.span.sentencePosition}:${option.span.startTokenIndex}:${option.span.endTokenIndex}`
+          : null;
+        if (
+          option.span &&
+          (!targetGraph ||
+            option.span.endTokenIndex <= option.span.startTokenIndex ||
+            option.span.startTokenIndex < 0 ||
+            option.span.endTokenIndex > targetGraph.tokens.length ||
+            spanKeys.has(spanKey!))
+        ) {
+          throw new ContentDraftError(
+            'IMPORT_CONTENT_INVALID',
+            `options.${optionIndex}.span`,
+          );
+        }
+        if (spanKey) spanKeys.add(spanKey);
         options.push({
           id: optionId,
           questionVersionId,
-          sentenceVersionId: sentence.version.id,
+          sentenceVersionId: sentence?.version.id ?? null,
           position: option.position,
           isCorrect: option.clientRef === command.input.correctOptionRef,
+          spanSentenceVersionId: targetSentence?.sentenceVersionId ?? null,
+          spanStartTokenIndex: option.span?.startTokenIndex ?? null,
+          spanEndTokenIndex: option.span?.endTokenIndex ?? null,
         });
         referenceEntries.push([option.clientRef, optionId]);
       }

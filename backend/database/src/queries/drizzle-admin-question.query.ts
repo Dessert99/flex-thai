@@ -82,12 +82,25 @@ export interface AdminQuestionBlockProjection {
   sentences: AdminQuestionBlockSentenceProjection[];
 }
 
-/** isCorrect 대신 관리자 공개 정답 ID를 조립할 option */
-export interface AdminQuestionOptionProjection {
+interface AdminQuestionOptionProjectionBase {
   id: string;
   position: number;
-  sentenceVersionId: string;
 }
+
+/** isCorrect 대신 문장 또는 inline 범위를 조립할 관리자 option */
+export type AdminQuestionOptionProjection =
+  | (AdminQuestionOptionProjectionBase & {
+      sentenceVersionId: string;
+      span: null;
+    })
+  | (AdminQuestionOptionProjectionBase & {
+      sentenceVersionId: null;
+      span: {
+        sentenceVersionId: string;
+        startTokenIndex: number;
+        endTokenIndex: number;
+      };
+    });
 
 /** 문제 유형 version과 템플릿을 고정한 관리자 projection */
 export interface AdminQuestionTypeVersionProjection {
@@ -95,7 +108,11 @@ export interface AdminQuestionTypeVersionProjection {
   slug: string;
   version: number;
   skill: 'READING' | 'LISTENING';
-  template: 'STANDARD_CHOICE' | 'PASSAGE_CHOICE' | 'DIALOGUE_CHOICE';
+  template:
+    | 'STANDARD_CHOICE'
+    | 'PASSAGE_CHOICE'
+    | 'DIALOGUE_CHOICE'
+    | 'INLINE_SPAN_CHOICE';
 }
 
 /** 관리자 상세의 불변 문제 버전 projection */
@@ -387,6 +404,9 @@ export class DrizzleAdminQuestionQuery {
         sentenceVersionId: questionOptions.sentenceVersionId,
         position: questionOptions.position,
         isCorrect: questionOptions.isCorrect,
+        spanSentenceVersionId: questionOptions.spanSentenceVersionId,
+        spanStartTokenIndex: questionOptions.spanStartTokenIndex,
+        spanEndTokenIndex: questionOptions.spanEndTokenIndex,
       })
       .from(questionOptions)
       .where(inArray(questionOptions.questionVersionId, versionIds))
@@ -439,11 +459,35 @@ export class DrizzleAdminQuestionQuery {
           },
           difficulty: version.difficulty,
           blocks,
-          options: storedOptions.map(({ id, position, sentenceVersionId }) => ({
-            id,
-            position,
-            sentenceVersionId,
-          })),
+          options: storedOptions.map(
+            (option): AdminQuestionOptionProjection => {
+              if (option.sentenceVersionId !== null) {
+                return {
+                  id: option.id,
+                  position: option.position,
+                  sentenceVersionId: option.sentenceVersionId,
+                  span: null,
+                };
+              }
+              if (
+                option.spanSentenceVersionId === null ||
+                option.spanStartTokenIndex === null ||
+                option.spanEndTokenIndex === null
+              ) {
+                throw new AdminQuestionQueryError('findById.option');
+              }
+              return {
+                id: option.id,
+                position: option.position,
+                sentenceVersionId: null,
+                span: {
+                  sentenceVersionId: option.spanSentenceVersionId,
+                  startTokenIndex: option.spanStartTokenIndex,
+                  endTokenIndex: option.spanEndTokenIndex,
+                },
+              };
+            },
+          ),
           correctOptionId: correctOptions[0]!.id,
           createdAt: version.createdAt,
           publishedAt: version.publishedAt,

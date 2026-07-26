@@ -202,7 +202,7 @@ describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
           questionTypeDisplayName: '독해 선택',
           skill: 'READING',
           difficulty: 3,
-          template: 'STANDARD_CHOICE',
+          template: 'INLINE_SPAN_CHOICE',
           saved: true,
         },
       ],
@@ -237,13 +237,19 @@ describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
       [
         {
           id: 'option-2',
-          sentenceVersionId: 'sentence-id',
+          sentenceVersionId: null,
           position: 2,
+          spanSentenceVersionId: 'sentence-id',
+          spanStartTokenIndex: 1,
+          spanEndTokenIndex: 2,
         },
         {
           id: 'option-1',
-          sentenceVersionId: 'sentence-id',
+          sentenceVersionId: null,
           position: 1,
+          spanSentenceVersionId: 'sentence-id',
+          spanStartTokenIndex: 0,
+          spanEndTokenIndex: 1,
         },
       ],
       [
@@ -267,6 +273,9 @@ describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
           meaningId: 'meaning-2',
           pronunciationId: 'pronunciation-2',
           contextMeaningKo: '좋다',
+          pronunciationKo: '디',
+          toneMarks: 'M',
+          mediaStorageKey: 'private/token-2.mp3',
           role: 'SUPPORTING',
         },
         {
@@ -279,6 +288,9 @@ describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
           meaningId: 'meaning-1',
           pronunciationId: 'pronunciation-1',
           contextMeaningKo: '안녕',
+          pronunciationKo: '싸왓디',
+          toneMarks: 'L-L-M',
+          mediaStorageKey: 'private/token-1.mp3',
           role: 'TARGET',
         },
       ],
@@ -289,6 +301,12 @@ describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
           startTokenIndex: 0,
           endTokenIndex: 2,
           vocabularyId: 'expression-2',
+          meaningId: 'expression-meaning-2',
+          pronunciationId: 'expression-pronunciation-2',
+          contextMeaningKo: '인사',
+          pronunciationKo: '싸왓디',
+          toneMarks: 'L-L-M',
+          mediaStorageKey: 'private/expression-2.mp3',
           representative: false,
         },
         {
@@ -297,6 +315,12 @@ describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
           startTokenIndex: 0,
           endTokenIndex: 2,
           vocabularyId: 'expression-1',
+          meaningId: 'expression-meaning-1',
+          pronunciationId: 'expression-pronunciation-1',
+          contextMeaningKo: '안녕하세요',
+          pronunciationKo: '싸왓디',
+          toneMarks: 'L-L-M',
+          mediaStorageKey: 'private/expression-1.mp3',
           representative: true,
         },
         {
@@ -305,6 +329,12 @@ describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
           startTokenIndex: 1,
           endTokenIndex: 3,
           vocabularyId: 'expression-3',
+          meaningId: 'expression-meaning-3',
+          pronunciationId: 'expression-pronunciation-3',
+          contextMeaningKo: '좋은 인사',
+          pronunciationKo: '디',
+          toneMarks: 'M',
+          mediaStorageKey: 'private/expression-3.mp3',
           representative: false,
         },
       ],
@@ -316,6 +346,11 @@ describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
     expect(detail).not.toBeNull();
     expect(detail?.blocks.map((block) => block.position)).toEqual([1, 2]);
     expect(detail?.options.map((option) => option.position)).toEqual([1, 2]);
+    expect(detail?.options[0]?.span).toEqual({
+      sentenceVersionId: 'sentence-id',
+      startTokenIndex: 0,
+      endTokenIndex: 1,
+    });
     expect(
       detail?.blocks[0]?.sentences[0]?.sentence.tokens.map(
         (token) => token.position,
@@ -326,6 +361,18 @@ describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
         (expression) => expression.vocabularyId,
       ),
     ).toEqual(['expression-1', 'expression-2', 'expression-3']);
+    expect(detail?.blocks[0]?.sentences[0]?.sentence.tokens[0]).toMatchObject({
+      pronunciationKo: '싸왓디',
+      toneMarks: 'L-L-M',
+      media: { storageKey: 'private/token-1.mp3' },
+    });
+    expect(
+      detail?.blocks[0]?.sentences[0]?.sentence.expressions[0],
+    ).toMatchObject({
+      meaningId: 'expression-meaning-1',
+      contextMeaningKo: '안녕하세요',
+      media: { storageKey: 'private/expression-1.mp3' },
+    });
     expect(
       fake.selectCalls[6]?.orderBy.map((order) => toSql(order).sql),
     ).toEqual([
@@ -334,9 +381,7 @@ describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
       expect.stringContaining('"end_token_index" asc'),
       expect.stringContaining('"id" asc'),
     ]);
-    expect(detail?.blocks[0]?.sentences[0]?.sentence).toBe(
-      detail?.options[0]?.sentence,
-    );
+    expect(detail?.options[0]?.sentence).toBeNull();
     expect(detail?.blocks[0]?.sentences[0]?.sentence.media).toEqual({
       storageKey: 'private/sentence.mp3',
     });
