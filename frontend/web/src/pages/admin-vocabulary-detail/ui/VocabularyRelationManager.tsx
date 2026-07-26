@@ -37,7 +37,7 @@ export function VocabularyRelationManager({
   onDelete,
   onUpdate,
 }: VocabularyRelationManagerProps) {
-  const [sourceMeaningId, setSourceMeaningId] = useState(
+  const [selectedSourceMeaningId, setSelectedSourceMeaningId] = useState(
     detail.meanings[0]?.id ?? '',
   );
   const [targetMeaningId, setTargetMeaningId] = useState('');
@@ -45,6 +45,11 @@ export function VocabularyRelationManager({
     useState<AdminVocabularyRelationCreateRequest['type']>('RELATED');
   const [direction, setDirection] =
     useState<AdminVocabularyRelationCreateRequest['direction']>('DIRECTED');
+  const sourceMeaningId = detail.meanings.some(
+    ({ id: meaningId }) => meaningId === selectedSourceMeaningId,
+  )
+    ? selectedSourceMeaningId
+    : (detail.meanings[0]?.id ?? '');
 
   return (
     <section className='grid gap-cluster'>
@@ -64,7 +69,7 @@ export function VocabularyRelationManager({
         <div className='grid gap-cluster'>
           <Label htmlFor='relation-source-meaning'>기준 뜻</Label>
           <Select
-            onValueChange={setSourceMeaningId}
+            onValueChange={setSelectedSourceMeaningId}
             value={sourceMeaningId}
           >
             <SelectTrigger
@@ -112,7 +117,15 @@ export function VocabularyRelationManager({
             관계 추가
           </Button>
         </div>
-      ) : null}
+      ) : (
+        <Button
+          disabled
+          type='button'
+          variant='outline'
+        >
+          관계 추가
+        </Button>
+      )}
     </section>
   );
 }

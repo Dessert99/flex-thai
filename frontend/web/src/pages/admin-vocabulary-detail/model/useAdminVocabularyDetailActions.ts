@@ -47,7 +47,10 @@ export const vocabularyMergeInvalidationKeys = (
     ['admin', 'vocabularies', 'detail', sourceVocabularyId],
     ['admin', 'vocabularies', 'detail', representativeVocabularyId],
     ['admin', 'vocabularies', 'list'],
+    ['admin', 'home', 'vocabularies'],
     ['learner', 'vocabularies'],
+    ['learner', 'home', 'vocabularies'],
+    // 추천 통합 뒤에는 ['learner', 'home', 'recommendations'] prefix도 추가한다.
     ['learner', 'vocabulary'],
     ['learner', 'wordbooks'],
   ] as const;

@@ -168,7 +168,9 @@ describe('관리자 어휘 병합 control', () => {
     ).toEqual(
       expect.arrayContaining([
         ['admin', 'vocabularies', 'detail', representativeVocabularyId],
+        ['admin', 'home', 'vocabularies'],
         ['learner', 'vocabularies'],
+        ['learner', 'home', 'vocabularies'],
         ['learner', 'vocabulary'],
         ['learner', 'wordbooks'],
       ]),
