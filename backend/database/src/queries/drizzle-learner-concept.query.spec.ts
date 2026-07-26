@@ -3,6 +3,7 @@ import { PgDialect } from 'drizzle-orm/pg-core';
 import { describe, expect, it, vi } from 'vitest';
 import {
   assembleLearnerConceptDetail,
+  assertCompleteConceptGraph,
   DrizzleLearnerConceptQuery,
   publishedConceptCondition,
 } from './drizzle-learner-concept.query.js';
@@ -145,5 +146,28 @@ describe('assembleLearnerConceptDetail', () => {
 
     expect(compiled.params.filter((value) => value === 'PUBLISHED')).toHaveLength(2);
     expect(compiled.params).toContain('concept-1');
+  });
+
+  it('게시 후 READY graph가 훼손되면 부분 응답 대신 실패한다', () => {
+    expect(() =>
+      assertCompleteConceptGraph({
+        exampleReferences: 1,
+        readySentences: 1,
+        tokenOccurrences: 2,
+        readyTokens: 1,
+        expressionOccurrences: 1,
+        readyExpressions: 1,
+      }),
+    ).toThrowError('PUBLISHED_CONCEPT_GRAPH_INVALID:feedbackGraph');
+    expect(() =>
+      assertCompleteConceptGraph({
+        exampleReferences: 1,
+        readySentences: 0,
+        tokenOccurrences: 0,
+        readyTokens: 0,
+        expressionOccurrences: 0,
+        readyExpressions: 0,
+      }),
+    ).toThrowError('PUBLISHED_CONCEPT_GRAPH_INVALID:sentenceGraph');
   });
 });

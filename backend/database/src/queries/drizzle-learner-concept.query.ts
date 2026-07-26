@@ -1,5 +1,5 @@
 /** 현재 게시된 개념과 상호작용 태국어 예시를 조회한다 */
-import { and, asc, eq, inArray, type SQL } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, type SQL } from 'drizzle-orm';
 import { alias, type PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import {
@@ -35,6 +35,16 @@ type LearnerConceptDatabase = PgDatabase<
 export type LearnerConceptCategory =
   | 'THAI_SCRIPT_PRONUNCIATION'
   | 'GRAMMAR';
+
+/** 게시 graph 훼손을 부분 응답 대신 fail-closed 오류로 전달한다 */
+export class LearnerConceptQueryError extends Error {
+  readonly code = 'PUBLISHED_CONCEPT_GRAPH_INVALID';
+
+  constructor(readonly operation: string) {
+    super(`PUBLISHED_CONCEPT_GRAPH_INVALID:${operation}`);
+    this.name = 'LearnerConceptQueryError';
+  }
+}
 
 /** private media key projection */
 export interface ConceptMediaProjection {
@@ -168,6 +178,26 @@ export const publishedConceptCondition = (
     : eq(conceptVersions.category, conceptIdOrCategory.category),
 )!;
 
+/** READY join 결과가 원본 graph 개수와 같지 않으면 전체 상세을 실패시킨다 */
+export const assertCompleteConceptGraph = (counts: {
+  exampleReferences: number;
+  readySentences: number;
+  tokenOccurrences: number;
+  readyTokens: number;
+  expressionOccurrences: number;
+  readyExpressions: number;
+}): void => {
+  if (counts.exampleReferences !== counts.readySentences) {
+    throw new LearnerConceptQueryError('sentenceGraph');
+  }
+  if (
+    counts.tokenOccurrences !== counts.readyTokens ||
+    counts.expressionOccurrences !== counts.readyExpressions
+  ) {
+    throw new LearnerConceptQueryError('feedbackGraph');
+  }
+};
+
 /** 공개 개념 flat rows를 정렬된 상세와 목차로 조립한다 */
 export const assembleLearnerConceptDetail = (
   concept: LearnerConceptBase,
@@ -278,6 +308,14 @@ export class DrizzleLearnerConceptQuery {
       .where(eq(conceptBlocks.conceptVersionId, concept.versionId))
       .orderBy(asc(conceptBlocks.position));
     const sentenceMedia = alias(mediaAssets, 'concept_sentence_media');
+    const referenceRows = await this.database
+      .select({ id: conceptBlockExamples.id })
+      .from(conceptBlockExamples)
+      .innerJoin(
+        conceptBlocks,
+        eq(conceptBlockExamples.blockId, conceptBlocks.id),
+      )
+      .where(eq(conceptBlocks.conceptVersionId, concept.versionId));
     const sentenceRows = await this.database
       .select({
         blockId: conceptBlockExamples.blockId,
@@ -297,7 +335,10 @@ export class DrizzleLearnerConceptQuery {
       )
       .innerJoin(
         thaiSentenceVersions,
-        eq(conceptBlockExamples.sentenceVersionId, thaiSentenceVersions.id),
+        and(
+          eq(conceptBlockExamples.sentenceVersionId, thaiSentenceVersions.id),
+          isNotNull(thaiSentenceVersions.frozenAt),
+        ),
       )
       .innerJoin(
         sentenceMedia,
@@ -386,6 +427,30 @@ export class DrizzleLearnerConceptQuery {
               asc(expressionOccurrences.sentenceVersionId),
               asc(expressionOccurrences.startTokenIndex),
             );
+    const rawTokenRows =
+      sentenceIds.length === 0
+        ? []
+        : await this.database
+            .select({ id: tokenOccurrences.id })
+            .from(tokenOccurrences)
+            .where(inArray(tokenOccurrences.sentenceVersionId, sentenceIds));
+    const rawExpressionRows =
+      sentenceIds.length === 0
+        ? []
+        : await this.database
+            .select({ id: expressionOccurrences.id })
+            .from(expressionOccurrences)
+            .where(
+              inArray(expressionOccurrences.sentenceVersionId, sentenceIds),
+            );
+    assertCompleteConceptGraph({
+      exampleReferences: referenceRows.length,
+      readySentences: sentenceRows.length,
+      tokenOccurrences: rawTokenRows.length,
+      readyTokens: tokenRows.length,
+      expressionOccurrences: rawExpressionRows.length,
+      readyExpressions: expressionRows.length,
+    });
     const examples: LearnerExampleRow[] = sentenceRows.map((row) => ({
       blockId: row.blockId,
       position: row.position,
