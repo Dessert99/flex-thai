@@ -50,9 +50,7 @@ export const auditLogListQuerySchema = z
   });
 
 /** 감사 기록 UUID path */
-export const auditLogIdPathSchema = z
-  .object({ auditLogId: z.uuid() })
-  .strict();
+export const auditLogIdPathSchema = z.object({ auditLogId: z.uuid() }).strict();
 
 const auditLogActorSchema = z.discriminatedUnion('kind', [
   z
@@ -103,9 +101,7 @@ export const auditLogDetailResponseSchema = auditLogListItemSchema
 export type AuditLogListQuery = z.infer<typeof auditLogListQuerySchema>;
 
 /** 감사 기록 목록 항목 */
-export type AuditLogListItemResponse = z.infer<
-  typeof auditLogListItemSchema
->;
+export type AuditLogListItemResponse = z.infer<typeof auditLogListItemSchema>;
 
 /** 감사 기록 목록 응답 */
 export type AuditLogListResponse = z.infer<typeof auditLogListResponseSchema>;

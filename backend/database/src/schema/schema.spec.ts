@@ -61,9 +61,9 @@ describe('기초 데이터베이스 schema', () => {
   });
 
   it('사용자와 감사 로그는 stable 최신순 조회 index를 가진다', () => {
-    expect(getTableConfig(users).indexes.map(({ config }) => config.name)).toContain(
-      'users_updated_at_id_idx',
-    );
+    expect(
+      getTableConfig(users).indexes.map(({ config }) => config.name),
+    ).toContain('users_updated_at_id_idx');
     expect(
       getTableConfig(auditLogs).indexes.map(({ config }) => config.name),
     ).toEqual(

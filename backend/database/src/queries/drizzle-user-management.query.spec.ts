@@ -1,6 +1,6 @@
 /** 관리자 사용자 검색과 원자적 역할·상태 변경 adapter를 검증한다 */
 import { describe, expect, it, vi } from 'vitest';
-import { auditLogs, users } from '../schema/index.js';
+import { auditLogs } from '../schema/index.js';
 import { DrizzleUserManagementQuery } from './drizzle-user-management.query.js';
 
 const now = new Date('2026-07-26T00:00:00.000Z');
@@ -136,7 +136,9 @@ describe('DrizzleUserManagementQuery', () => {
       page: { page: 2, pageSize: 20, totalItems: 21, totalPages: 2 },
     });
 
-    expect(fake.calls.filter(({ operation }) => operation === 'select')).toHaveLength(2);
+    expect(
+      fake.calls.filter(({ operation }) => operation === 'select'),
+    ).toHaveLength(2);
   });
 
   it('상태 변경을 lock·조회·수정·audit 순서로 한 transaction에 저장한다', async () => {
@@ -194,7 +196,12 @@ describe('DrizzleUserManagementQuery', () => {
 
   it('마지막 active admin의 제거를 차단한다', async () => {
     const admin = { ...row, role: 'ADMIN' } as const;
-    const fake = createDatabase([[admin], [{ total: 0 }], [admin], [{ total: 0 }]]);
+    const fake = createDatabase([
+      [admin],
+      [{ total: 0 }],
+      [admin],
+      [{ total: 0 }],
+    ]);
     const query = new DrizzleUserManagementQuery(fake.database as never);
 
     await expect(query.changeStatusWithAudit(statusChange)).resolves.toEqual({
@@ -215,7 +222,9 @@ describe('DrizzleUserManagementQuery', () => {
       kind: 'UPDATED',
       user: { ...row, role: 'ADMIN' },
     });
-    expect(fake.calls.find(({ operation }) => operation === 'update')?.value).toEqual({
+    expect(
+      fake.calls.find(({ operation }) => operation === 'update')?.value,
+    ).toEqual({
       role: 'ADMIN',
       updatedAt: now,
     });

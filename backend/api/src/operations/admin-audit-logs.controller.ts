@@ -86,7 +86,10 @@ export class AdminAuditLogsController {
     @Param() rawPath: unknown,
   ): Promise<AuditLogDetailResponse> {
     const path = auditLogIdPathSchema.parse(rawPath);
-    const detail = await this.auditLogs.get({ role: user.role }, path.auditLogId);
+    const detail = await this.auditLogs.get(
+      { role: user.role },
+      path.auditLogId,
+    );
     return auditLogDetailResponseSchema.parse({
       ...toListResponse(detail),
       summary: detail.summary,

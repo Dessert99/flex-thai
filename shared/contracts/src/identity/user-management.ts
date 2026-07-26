@@ -20,9 +20,7 @@ const httpIntegerSchema = (minimum: number, maximum: number) =>
 
 const httpBooleanSchema = z.union([
   z.boolean(),
-  z
-    .enum(['true', 'false'])
-    .transform((value) => value === 'true'),
+  z.enum(['true', 'false']).transform((value) => value === 'true'),
 ]);
 
 const pageMetadataSchema = z
@@ -135,9 +133,7 @@ export type UserStatusUpdateInput = z.infer<
 >;
 
 /** 사용자 역할 변경 요청 */
-export type UserRoleUpdateInput = z.infer<
-  typeof userRoleUpdateRequestSchema
->;
+export type UserRoleUpdateInput = z.infer<typeof userRoleUpdateRequestSchema>;
 
 /** beta 안내 발송 추적 요청 */
 export type BetaInvitationInput = z.infer<typeof betaInvitationRequestSchema>;

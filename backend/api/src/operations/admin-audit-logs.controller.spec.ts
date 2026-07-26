@@ -55,8 +55,13 @@ describe('AdminAuditLogsController', () => {
     });
     expect(service.list).toHaveBeenCalledWith(
       { role: 'ADMIN' },
-      expect.objectContaining({ from: expect.any(Date), page: 1 }),
+      expect.objectContaining({ page: 1 }),
     );
+    const listCall = service.list.mock.calls[0] as unknown as [
+      unknown,
+      { from: unknown },
+    ];
+    expect(listCall[1].from).toBeInstanceOf(Date);
   });
 
   it('상세에서만 summary와 requestId를 직렬화한다', async () => {
@@ -69,7 +74,9 @@ describe('AdminAuditLogsController', () => {
     };
     const controller = new AdminAuditLogsController(service as never);
 
-    await expect(controller.get(user, { auditLogId: auditId })).resolves.toEqual({
+    await expect(
+      controller.get(user, { auditLogId: auditId }),
+    ).resolves.toEqual({
       ...item,
       createdAt: item.createdAt.toISOString(),
       summary: { before: 'ACTIVE', after: 'DISABLED' },

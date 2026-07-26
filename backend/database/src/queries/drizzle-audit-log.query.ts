@@ -5,16 +5,7 @@ import type {
   AuditLogListQuery,
   AuditLogQuery,
 } from '@flex-thia/domain';
-import {
-  and,
-  count,
-  desc,
-  eq,
-  gte,
-  ilike,
-  lte,
-  or,
-} from 'drizzle-orm';
+import { and, count, desc, eq, gte, ilike, lte, or } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import { auditLogs, users } from '../schema/index.js';
@@ -78,9 +69,7 @@ export class DrizzleAuditLogQuery implements AuditLogQuery {
         ? eq(auditLogs.actorUserId, query.actorUserId)
         : undefined,
       query.action ? eq(auditLogs.action, query.action) : undefined,
-      query.targetType
-        ? eq(auditLogs.targetType, query.targetType)
-        : undefined,
+      query.targetType ? eq(auditLogs.targetType, query.targetType) : undefined,
       query.targetId ? eq(auditLogs.targetId, query.targetId) : undefined,
       query.from ? gte(auditLogs.createdAt, query.from) : undefined,
       query.to ? lte(auditLogs.createdAt, query.to) : undefined,

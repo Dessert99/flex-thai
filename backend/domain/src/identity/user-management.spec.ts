@@ -141,9 +141,7 @@ describe('UserManagementService', () => {
 
     await expect(
       service.listUsers(learner, { page: 1, pageSize: 20 }),
-    ).rejects.toEqual(
-      new UserManagementError('ADMIN_REQUIRED'),
-    );
+    ).rejects.toEqual(new UserManagementError('ADMIN_REQUIRED'));
     await expect(
       service.changeStatus(learner, target.id, 'ACTIVE', now),
     ).rejects.toEqual(new UserManagementError('ADMIN_REQUIRED'));
