@@ -5,7 +5,9 @@ import {
   IdentityAuthenticationService,
   type IdentityUserRepository,
   PasswordlessAuthenticationService,
+  UserManagementService,
 } from '@flex-thia/domain';
+import { AdminUserManagementController } from './admin-user-management.controller.js';
 import { AdminMfaGuard } from './admin-mfa.guard.js';
 import { ApplicationRoleGuard } from './application-role.guard.js';
 import {
@@ -21,7 +23,8 @@ import { MeController } from './me.controller.js';
 /** Identity HTTP 경계를 구성하는 실행 환경 의존성 */
 export interface IdentityModuleOptions {
   identity: IdentityAuthenticationService;
-  passwordless?: PasswordlessAuthenticationService;
+  passwordless: PasswordlessAuthenticationService;
+  userManagement: UserManagementService;
   users: IdentityUserRepository;
   authorizer: AuthorizerGuardOptions;
   allowedOrigins: string[];
@@ -35,7 +38,11 @@ export class IdentityModule {
     return {
       global: true,
       module: IdentityModule,
-      controllers: [IdentityController, MeController],
+      controllers: [
+        IdentityController,
+        MeController,
+        AdminUserManagementController,
+      ],
       providers: [
         Reflector,
         {
@@ -45,6 +52,10 @@ export class IdentityModule {
         {
           provide: PasswordlessAuthenticationService,
           useValue: options.passwordless,
+        },
+        {
+          provide: UserManagementService,
+          useValue: options.userManagement,
         },
         {
           provide: IDENTITY_USER_REPOSITORY,

@@ -39,6 +39,24 @@ describe('readApiEnv가 API 환경 변수를 검증한다', () => {
     ).toThrow('production 필수 환경 변수가 누락되었습니다');
   });
 
+  it('production passwordless 보안 값이 빠지면 시작을 거부한다', () => {
+    expect(() =>
+      readApiEnv({
+        NODE_ENV: 'production',
+        AUTH_MODE: 'cognito',
+        DATABASE_MODE: 'data-api',
+        RDS_RESOURCE_ARN: 'resource-arn',
+        RDS_SECRET_ARN: 'secret-arn',
+        COGNITO_USER_POOL_ID: 'pool-id',
+        COGNITO_CLIENT_ID: 'client-id',
+        MEDIA_CDN_BASE_URL: 'https://cdn.example.com/media',
+        MEDIA_KEY_PAIR_ID: 'key-pair-id',
+        MEDIA_PRIVATE_KEY_SECRET_ARN: 'media-secret-arn',
+        MEDIA_BUCKET_NAME: 'media-bucket',
+      }),
+    ).toThrow('production 필수 환경 변수가 누락되었습니다');
+  });
+
   it('production은 MEDIA_BUCKET_NAME 누락 시 시작을 거부한다', () => {
     expect(() =>
       readApiEnv({
@@ -70,6 +88,10 @@ describe('readApiEnv가 API 환경 변수를 검증한다', () => {
         MEDIA_KEY_PAIR_ID: 'key-pair-id',
         MEDIA_PRIVATE_KEY_SECRET_ARN: 'media-secret-arn',
         MEDIA_BUCKET_NAME: 'media-bucket',
+        CUSTOM_AUTH_SECRET: 'C'.repeat(32),
+        CHALLENGE_HMAC_PEPPER: 'P'.repeat(32),
+        EMAIL_LINK_CONFIRMATION_URL: 'https://www.example.com/login/confirm',
+        FROM_EMAIL: 'login@example.com',
       }),
     ).toMatchObject({
       RDS_RESOURCE_ARN: 'resource-arn',
@@ -78,6 +100,10 @@ describe('readApiEnv가 API 환경 변수를 검증한다', () => {
       MEDIA_KEY_PAIR_ID: 'key-pair-id',
       MEDIA_PRIVATE_KEY_SECRET_ARN: 'media-secret-arn',
       MEDIA_BUCKET_NAME: 'media-bucket',
+      CUSTOM_AUTH_SECRET: 'C'.repeat(32),
+      CHALLENGE_HMAC_PEPPER: 'P'.repeat(32),
+      EMAIL_LINK_CONFIRMATION_URL: 'https://www.example.com/login/confirm',
+      FROM_EMAIL: 'login@example.com',
     });
   });
 
@@ -99,6 +125,28 @@ describe('readApiEnv가 API 환경 변수를 검증한다', () => {
     ).toThrow('production MEDIA_CDN_BASE_URL은 HTTPS여야 합니다');
   });
 
+  it('production 이메일 확인 링크는 HTTPS URL만 허용한다', () => {
+    expect(() =>
+      readApiEnv({
+        NODE_ENV: 'production',
+        AUTH_MODE: 'cognito',
+        DATABASE_MODE: 'data-api',
+        RDS_RESOURCE_ARN: 'resource-arn',
+        RDS_SECRET_ARN: 'secret-arn',
+        COGNITO_USER_POOL_ID: 'pool-id',
+        COGNITO_CLIENT_ID: 'client-id',
+        CUSTOM_AUTH_SECRET: 'C'.repeat(32),
+        CHALLENGE_HMAC_PEPPER: 'P'.repeat(32),
+        EMAIL_LINK_CONFIRMATION_URL: 'http://www.example.com/login/confirm',
+        FROM_EMAIL: 'login@example.com',
+        MEDIA_CDN_BASE_URL: 'https://cdn.example.com/media',
+        MEDIA_KEY_PAIR_ID: 'key-pair-id',
+        MEDIA_PRIVATE_KEY_SECRET_ARN: 'media-secret-arn',
+        MEDIA_BUCKET_NAME: 'media-bucket',
+      }),
+    ).toThrow('production EMAIL_LINK_CONFIRMATION_URL은 HTTPS여야 합니다');
+  });
+
   it('development와 test에는 fake media provider용 기본값을 제공한다', () => {
     expect(readApiEnv({ NODE_ENV: 'development' })).toMatchObject({
       MEDIA_CDN_BASE_URL: 'https://fake-media.invalid/media',
@@ -118,10 +166,10 @@ describe('readApiEnv가 API 환경 변수를 검증한다', () => {
     expect(readApiEnv({})).toMatchObject({
       FAKE_USER_SUB: 'local-admin-sub',
       FAKE_USER_EMAIL: 'admin@hufs.ac.kr',
-      FAKE_USER_PASSWORD: 'qwer1234!@#',
       FAKE_LEARNER_SUB: 'local-learner-sub',
       FAKE_LEARNER_EMAIL: 'learner@hufs.ac.kr',
-      FAKE_LEARNER_PASSWORD: 'qwer1234!@#',
+      CHALLENGE_HMAC_PEPPER: 'local-only-email-challenge-pepper',
+      EMAIL_LINK_CONFIRMATION_URL: 'http://localhost:5173/login/confirm',
     });
   });
 });

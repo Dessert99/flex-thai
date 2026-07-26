@@ -26,12 +26,20 @@ const apiEnvSchema = z
     RDS_SECRET_ARN: z.string().optional(),
     COGNITO_USER_POOL_ID: z.string().optional(),
     COGNITO_CLIENT_ID: z.string().optional(),
+    CUSTOM_AUTH_SECRET: z.string().min(32).optional(),
     INPUT_BUCKET_NAME: z.string().optional(),
     JOB_QUEUE_URL: z.string().optional(),
-    CHALLENGE_HMAC_PEPPER: z.string().optional(),
+    CHALLENGE_HMAC_PEPPER: z
+      .string()
+      .min(32)
+      .default('local-only-email-challenge-pepper'),
     CHALLENGE_HMAC_PEPPER_SECRET_ARN: z.string().optional(),
+    EMAIL_LINK_CONFIRMATION_URL: z
+      .string()
+      .url()
+      .default('http://localhost:5173/login/confirm'),
     SCHOOL_EMAIL_DOMAINS: z.string().default('hufs.ac.kr'),
-    FROM_EMAIL: z.string().optional(),
+    FROM_EMAIL: z.string().email().optional(),
     AUTH_LIMIT_PARAMETER_PREFIX: z.string().default('/flex-thia/prod/auth'),
     ALARM_TOPIC_ARN: z.string().optional(),
     MEDIA_CDN_BASE_URL: z.string().trim().url().optional(),
@@ -40,10 +48,8 @@ const apiEnvSchema = z
     MEDIA_PRIVATE_KEY_SECRET_ARN: z.string().trim().min(1).optional(),
     FAKE_USER_SUB: z.string().default('local-admin-sub'),
     FAKE_USER_EMAIL: z.string().default('admin@hufs.ac.kr'),
-    FAKE_USER_PASSWORD: z.string().default('qwer1234!@#'),
     FAKE_LEARNER_SUB: z.string().default('local-learner-sub'),
     FAKE_LEARNER_EMAIL: z.string().default('learner@hufs.ac.kr'),
-    FAKE_LEARNER_PASSWORD: z.string().default('qwer1234!@#'),
     FAKE_PHONE_NUMBER: z.string().default('+821000000000'),
     ALLOWED_ORIGINS: z.string().default('http://localhost:5173'),
   })
@@ -68,6 +74,10 @@ const apiEnvSchema = z
         value.RDS_SECRET_ARN,
         value.COGNITO_USER_POOL_ID,
         value.COGNITO_CLIENT_ID,
+        value.CUSTOM_AUTH_SECRET,
+        value.CHALLENGE_HMAC_PEPPER,
+        value.EMAIL_LINK_CONFIRMATION_URL,
+        value.FROM_EMAIL,
         value.MEDIA_CDN_BASE_URL,
         value.MEDIA_BUCKET_NAME,
         value.MEDIA_KEY_PAIR_ID,
@@ -89,6 +99,17 @@ const apiEnvSchema = z
           code: 'custom',
           path: ['MEDIA_CDN_BASE_URL'],
           message: 'production MEDIA_CDN_BASE_URL은 HTTPS여야 합니다',
+        });
+      }
+
+      if (
+        value.EMAIL_LINK_CONFIRMATION_URL &&
+        new URL(value.EMAIL_LINK_CONFIRMATION_URL).protocol !== 'https:'
+      ) {
+        context.addIssue({
+          code: 'custom',
+          path: ['EMAIL_LINK_CONFIRMATION_URL'],
+          message: 'production EMAIL_LINK_CONFIRMATION_URL은 HTTPS여야 합니다',
         });
       }
     }

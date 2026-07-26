@@ -2,6 +2,7 @@
 import { CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
 import { S3Client } from '@aws-sdk/client-s3';
 import { SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
+import { SESv2Client } from '@aws-sdk/client-sesv2';
 import { type DynamicModule, Module } from '@nestjs/common';
 import { readApiEnv } from '@flex-thia/config';
 import {
@@ -13,6 +14,7 @@ import {
   DrizzleContentDraftRepository,
   DrizzleContentImportQuery,
   DrizzleContentImportRepository,
+  DrizzleEmailChallengeRepository,
   DrizzleLearnerQuestionQuery,
   DrizzleLearnerVocabularyQuery,
   DrizzleLearningRepository,
@@ -21,7 +23,10 @@ import {
   DrizzleQuestionPublicationRepository,
   DrizzleReadinessProbe,
   DrizzleUserRepository,
+  DrizzleUserManagementQuery,
   DrizzleVocabularyAdminRepository,
+  DrizzleWordbookQuery,
+  DrizzleWordbookRepository,
 } from '@flex-thia/database';
 import {
   ContentDraftService,
@@ -32,15 +37,21 @@ import {
   QuestionAttemptService,
   QuestionPublicationService,
   SavedContentService,
+  PasswordlessAuthenticationService,
+  UserManagementService,
   VocabularyAdminService,
+  WordbookService,
 } from '@flex-thia/domain';
 import {
+  ChallengeCrypto,
   CloudFrontMediaReadUrlProvider,
-  CognitoAuthenticationProvider,
+  CognitoPasswordlessAuthenticationProvider,
   FakeAudioUploadProvider,
-  FakeAuthenticationProvider,
+  FakeEmailChallengeSender,
   FakeMediaReadUrlProvider,
+  FakePasswordlessAuthenticationProvider,
   S3AudioUploadProvider,
+  SesEmailChallengeSender,
 } from '@flex-thia/providers';
 import { AdminModule } from './admin/admin.module.js';
 import { HealthController } from './health/health.controller.js';
@@ -80,33 +91,57 @@ export const createApplicationModule = (
   const users = new DrizzleUserRepository(database);
   const fakeAuthenticationProvider =
     env.AUTH_MODE === 'fake'
-      ? new FakeAuthenticationProvider({
+      ? new FakePasswordlessAuthenticationProvider({
+          mode: env.NODE_ENV === 'development' ? 'local' : env.NODE_ENV,
           accounts: [
             {
               email: env.FAKE_USER_EMAIL,
-              password: env.FAKE_USER_PASSWORD,
               subject: env.FAKE_USER_SUB,
-              requireTotp: true,
+              role: 'ADMIN',
             },
             {
               email: env.FAKE_LEARNER_EMAIL,
-              password: env.FAKE_LEARNER_PASSWORD,
               subject: env.FAKE_LEARNER_SUB,
-              requireTotp: false,
+              role: 'LEARNER',
             },
           ],
         })
       : undefined;
   const authenticationProvider =
     fakeAuthenticationProvider ??
-    new CognitoAuthenticationProvider(
+    new CognitoPasswordlessAuthenticationProvider(
       new CognitoIdentityProviderClient({ region: env.AWS_REGION }),
       requireValue(env.COGNITO_USER_POOL_ID, 'COGNITO_USER_POOL_ID'),
       requireValue(env.COGNITO_CLIENT_ID, 'COGNITO_CLIENT_ID'),
+      requireValue(env.CUSTOM_AUTH_SECRET, 'CUSTOM_AUTH_SECRET'),
     );
   const identity = new IdentityAuthenticationService(
     authenticationProvider,
     users,
+  );
+  const challengeCrypto = new ChallengeCrypto(env.CHALLENGE_HMAC_PEPPER);
+  const emailChallengeRepository = new DrizzleEmailChallengeRepository(
+    database,
+    challengeCrypto,
+  );
+  const emailChallengeSender =
+    env.AUTH_MODE === 'fake'
+      ? new FakeEmailChallengeSender()
+      : new SesEmailChallengeSender(
+          new SESv2Client({ region: env.AWS_REGION }),
+          requireValue(env.FROM_EMAIL, 'FROM_EMAIL'),
+        );
+  const passwordless = new PasswordlessAuthenticationService(
+    emailChallengeRepository,
+    authenticationProvider,
+    emailChallengeSender,
+    challengeCrypto,
+    env.EMAIL_LINK_CONFIRMATION_URL,
+  );
+  const userManagementRepository = new DrizzleUserManagementQuery(database);
+  const userManagement = new UserManagementService(
+    userManagementRepository,
+    userManagementRepository,
   );
   const learningRepository = new DrizzleLearningRepository(database);
   const mediaReadUrls =
@@ -157,6 +192,8 @@ export const createApplicationModule = (
     imports: [
       IdentityModule.register({
         identity,
+        passwordless,
+        userManagement,
         users,
         authorizer,
         allowedOrigins: env.ALLOWED_ORIGINS.split(',')
@@ -168,6 +205,8 @@ export const createApplicationModule = (
         vocabularyQuery: new DrizzleLearnerVocabularyQuery(database),
         questionAttempts: new QuestionAttemptService(learningRepository),
         savedContent: new SavedContentService(learningRepository),
+        wordbookQuery: new DrizzleWordbookQuery(database),
+        wordbooks: new WordbookService(new DrizzleWordbookRepository(database)),
         mediaReadUrls,
         users,
         authorizer,
