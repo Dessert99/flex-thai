@@ -17,6 +17,7 @@ import {
   MediaAssetDomainError,
   QuestionAdminError,
   QuestionPublicationError,
+  QuestionTaxonomyError,
   UploadPolicyError,
   UserManagementError,
   VocabularyAdminError,
@@ -119,11 +120,24 @@ const QUESTION_ADMIN_STATUS: Record<QuestionAdminError['code'], number> = {
   QUESTION_VERSION_NOT_FOUND: HttpStatus.NOT_FOUND,
   QUESTION_VERSION_MISMATCH: HttpStatus.CONFLICT,
   QUESTION_TYPE_NOT_FOUND: HttpStatus.NOT_FOUND,
+  QUESTION_TAXONOMY_NOT_FOUND: HttpStatus.NOT_FOUND,
   QUESTION_REFERENCE_NOT_FOUND: HttpStatus.NOT_FOUND,
   QUESTION_REFERENCE_MISMATCH: HttpStatus.CONFLICT,
   QUESTION_MEDIA_NOT_READY: HttpStatus.CONFLICT,
   QUESTION_CONTENT_INVALID: HttpStatus.BAD_REQUEST,
   IMMUTABLE_VERSION: HttpStatus.CONFLICT,
+};
+
+const QUESTION_TAXONOMY_STATUS: Record<
+  QuestionTaxonomyError['code'],
+  number
+> = {
+  TYPE_VERSION_NOT_FOUND: HttpStatus.NOT_FOUND,
+  TYPE_VERSION_IMMUTABLE: HttpStatus.CONFLICT,
+  TYPE_VERSION_NOT_READY: HttpStatus.CONFLICT,
+  INVALID_LIFECYCLE_TRANSITION: HttpStatus.CONFLICT,
+  DIFFICULTY_CRITERIA_INVALID: HttpStatus.BAD_REQUEST,
+  APPROVED_EXAMPLE_INVALID: HttpStatus.BAD_REQUEST,
 };
 
 const QUESTION_PUBLICATION_STATUS: Record<
@@ -281,6 +295,14 @@ export const buildErrorResponse = (
 
   if (error instanceof QuestionPublicationError) {
     const status = QUESTION_PUBLICATION_STATUS[error.code];
+    return {
+      status,
+      body: createProblem(error.code, status, requestId),
+    };
+  }
+  if (error instanceof QuestionTaxonomyError) {
+    const status =
+      QUESTION_TAXONOMY_STATUS[error.code] ?? INTERNAL_SERVER_ERROR_STATUS;
     return {
       status,
       body: createProblem(error.code, status, requestId),
