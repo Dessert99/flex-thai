@@ -1,5 +1,8 @@
 /** 관리자 오류 신고 상태와 담당자 mutation을 정의한다 */
-import { adminContentErrorReportDetailResponseSchema } from '@flex-thia/contracts';
+import {
+  adminContentErrorReportDetailResponseSchema,
+  type ContentErrorReportStatus,
+} from '@flex-thia/contracts';
 import { authenticatedRequest } from '@/shared/api';
 
 const response = {
@@ -10,7 +13,7 @@ const response = {
 /** 오류 신고 상태를 변경한다 */
 export const changeContentErrorReportStatus = (
   reportId: string,
-  status: string,
+  status: ContentErrorReportStatus,
 ) =>
   authenticatedRequest({
     method: 'PUT',

@@ -69,6 +69,7 @@ export class AdminContentErrorReportsController {
   @ApiOperation({ summary: '콘텐츠 오류 신고 상세와 이력을 조회한다' })
   @ApiParam({ name: 'reportId', type: String, format: 'uuid' })
   @ApiOkResponse({ type: AdminContentErrorReportDetailResponseDto })
+  @ApiProblemResponses(400, 401, 403, 404, 500)
   detail(@Param() path: Record<string, unknown>) {
     return this.reports.detail(
       contentErrorReportIdPathSchema.parse(path).reportId,
@@ -81,6 +82,7 @@ export class AdminContentErrorReportsController {
   @ApiParam({ name: 'reportId', type: String, format: 'uuid' })
   @ApiBody({ type: ChangeContentErrorReportStatusRequestDto })
   @ApiOkResponse({ type: AdminContentErrorReportDetailResponseDto })
+  @ApiProblemResponses(400, 401, 403, 404, 409, 500)
   changeStatus(
     @CurrentUser() user: AuthenticatedUser,
     @AdminRequestId() requestId: string,
@@ -101,6 +103,7 @@ export class AdminContentErrorReportsController {
   @ApiParam({ name: 'reportId', type: String, format: 'uuid' })
   @ApiBody({ type: AssignContentErrorReportRequestDto })
   @ApiOkResponse({ type: AdminContentErrorReportDetailResponseDto })
+  @ApiProblemResponses(400, 401, 403, 404, 409, 500)
   assign(
     @CurrentUser() user: AuthenticatedUser,
     @AdminRequestId() requestId: string,
@@ -119,6 +122,7 @@ export class AdminContentErrorReportsController {
   @ApiOperation({ summary: '콘텐츠 오류 신고 담당자를 해제한다' })
   @ApiParam({ name: 'reportId', type: String, format: 'uuid' })
   @ApiOkResponse({ type: AdminContentErrorReportDetailResponseDto })
+  @ApiProblemResponses(400, 401, 403, 404, 409, 500)
   unassign(
     @CurrentUser() user: AuthenticatedUser,
     @AdminRequestId() requestId: string,

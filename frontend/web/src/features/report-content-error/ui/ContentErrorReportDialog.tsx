@@ -101,8 +101,8 @@ export function ContentErrorReportDialog({
               <strong>{preview.title}</strong>
               <p>{preview.metadata}</p>
             </section>
-            <label>
-              신고 분류
+            <div>
+              <span>신고 분류</span>
               <Select
                 value={category ?? ''}
                 onValueChange={(value) =>
@@ -123,16 +123,16 @@ export function ContentErrorReportDialog({
                   ))}
                 </SelectContent>
               </Select>
-            </label>
-            <label>
-              추가 설명
+            </div>
+            <div>
+              <span>추가 설명</span>
               <Textarea
                 aria-label='추가 설명'
                 maxLength={1000}
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
               />
-            </label>
+            </div>
             {error ? <p role='alert'>신고를 제출하지 못했습니다.</p> : null}
             <DialogFooter>
               <Button

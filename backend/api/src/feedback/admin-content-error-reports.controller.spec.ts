@@ -49,6 +49,10 @@ describe('AdminContentErrorReportsController', () => {
         'swagger/apiParameters',
         handler,
       ) as Array<{ in: string }> | undefined;
+      const responses = Reflect.getMetadata(
+        'swagger/apiResponse',
+        handler,
+      ) as Record<string, unknown>;
       expect(Reflect.getMetadata(METHOD_METADATA, handler)).toBe(method);
       expect(Reflect.getMetadata(PATH_METADATA, handler)).toBe(path);
       expect(Reflect.getMetadata('swagger/apiOperation', handler)).toBeTruthy();
@@ -62,6 +66,13 @@ describe('AdminContentErrorReportsController', () => {
       expect(parameters?.some((item) => item.in === 'path') ?? false).toBe(
         param,
       );
+      const expectedStatuses =
+        name === 'list'
+          ? ['200', '400', '401', '403', '500']
+          : name === 'detail'
+            ? ['200', '400', '401', '403', '404', '500']
+            : ['200', '400', '401', '403', '404', '409', '500'];
+      expect(Object.keys(responses).sort()).toEqual(expectedStatuses.sort());
     }
   });
 });

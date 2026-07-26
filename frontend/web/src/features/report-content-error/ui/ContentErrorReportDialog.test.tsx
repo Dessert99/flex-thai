@@ -27,15 +27,63 @@ describe('ContentErrorReportDialog', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: '오류 신고' }));
     expect(screen.getByText('เข้าใจ')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '신고 제출' })).toBeDisabled();
     fireEvent.click(screen.getByLabelText('신고 분류'));
+    expect(await screen.findAllByRole('option')).toHaveLength(6);
     fireEvent.click(await screen.findByRole('option', { name: '뜻·해석' }));
+    expect(screen.getByLabelText('추가 설명')).toHaveAttribute(
+      'maxlength',
+      '1000',
+    );
     fireEvent.change(screen.getByLabelText('추가 설명'), {
       target: { value: '뜻이 달라요' },
     });
     fireEvent.click(screen.getByRole('button', { name: '신고 제출' }));
     await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
+    expect(onSubmit).toHaveBeenCalledWith({
+      origin: {
+        kind: 'VOCABULARY',
+        vocabularyId: '00000000-0000-4000-8000-000000000001',
+        meaningId: null,
+        pronunciationId: null,
+      },
+      category: 'MEANING_TRANSLATION',
+      description: '뜻이 달라요',
+    });
     expect(
       await screen.findByText('신고가 접수되었습니다.'),
     ).toBeInTheDocument();
+  });
+
+  it('API 오류 뒤 입력을 유지하고 재시도하며 닫으면 trigger로 focus가 돌아간다', async () => {
+    const onSubmit = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('실패'))
+      .mockResolvedValueOnce(undefined);
+    render(
+      <ContentErrorReportDialog
+        onSubmit={onSubmit}
+        origin={{
+          kind: 'SENTENCE',
+          sentenceVersionId: '00000000-0000-4000-8000-000000000001',
+          tokenPosition: null,
+        }}
+        preview={{ title: '문장', metadata: '개념 학습' }}
+      />,
+    );
+    const trigger = screen.getByRole('button', { name: '오류 신고' });
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByLabelText('신고 분류'));
+    fireEvent.click(await screen.findByRole('option', { name: '기타' }));
+    fireEvent.change(screen.getByLabelText('추가 설명'), {
+      target: { value: ' 유지할 설명 ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '신고 제출' }));
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.getByLabelText('추가 설명')).toHaveValue(' 유지할 설명 ');
+    fireEvent.click(screen.getByRole('button', { name: '신고 제출' }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(2));
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => expect(trigger).toHaveFocus());
   });
 });
