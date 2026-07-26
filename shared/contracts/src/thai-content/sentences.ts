@@ -56,3 +56,9 @@ export const publicThaiSentenceSchema = z
 
 /** 직렬화 가능한 공개 태국어 문장 타입 */
 export type PublicThaiSentence = z.infer<typeof publicThaiSentenceSchema>;
+
+/** 직렬화 가능한 단어 피드백 타입 */
+export type ThaiTokenFeedback = z.infer<typeof thaiTokenFeedbackSchema>;
+
+/** 직렬화 가능한 표현 피드백 타입 */
+export type ThaiExpressionFeedback = z.infer<typeof thaiExpressionFeedbackSchema>;
