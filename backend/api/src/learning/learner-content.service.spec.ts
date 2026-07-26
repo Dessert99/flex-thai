@@ -38,10 +38,26 @@ const sentence = {
       meaningId: ids.meaning,
       pronunciationId: ids.pronunciation,
       contextMeaningKo: '안녕하세요',
+      pronunciationKo: '싸왓디',
+      toneMarks: 'L-L-M',
+      media: { storageKey: 'private/shared.mp3' },
       role: 'TARGET',
     },
   ],
-  expressions: [],
+  expressions: [
+    {
+      startTokenIndex: 0,
+      endTokenIndex: 1,
+      vocabularyId: ids.vocabulary,
+      meaningId: ids.meaning,
+      pronunciationId: ids.pronunciation,
+      contextMeaningKo: '안녕하세요',
+      pronunciationKo: '싸왓디',
+      toneMarks: 'L-L-M',
+      media: { storageKey: 'private/shared.mp3' },
+      representative: true,
+    },
+  ],
 } as const;
 
 const questionType = {
@@ -89,7 +105,7 @@ const dependencies = () => ({
           sentences: [{ position: 0, speaker: null, sentence }],
         },
       ],
-      options: [{ id: ids.option, position: 0, sentence }],
+      options: [{ id: ids.option, position: 0, sentence, span: null }],
       saved: false,
     }),
     getExplanation: vi.fn().mockResolvedValue([
@@ -180,6 +196,8 @@ const dependencies = () => ({
           pronunciationKo: '카오 풋 와 싸왓디',
           toneMarks: 'R-F-F-L-L-M',
           media: { storageKey: 'private/shared.mp3' },
+          tokens: sentence.tokens,
+          expressions: sentence.expressions,
         },
       ],
     }),
@@ -253,6 +271,12 @@ describe('LearnerContentService 문제 응답', () => {
     expect(result.options[0]?.sentence.audioUrl).toBe(
       'https://media.example.com/signed',
     );
+    expect(result.blocks[0]?.sentences[0]?.sentence.tokens[0]?.audioUrl).toBe(
+      'https://media.example.com/signed',
+    );
+    expect(
+      result.blocks[0]?.sentences[0]?.sentence.expressions[0]?.audioUrl,
+    ).toBe('https://media.example.com/signed');
     expect(JSON.stringify(result)).not.toContain('storageKey');
     expect(JSON.stringify(result)).not.toContain('EXPLANATION');
     expect(JSON.stringify(result)).not.toContain('isCorrect');

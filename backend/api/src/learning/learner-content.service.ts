@@ -124,16 +124,32 @@ const toVocabularyListQuery = (
 const mapSentence = async (
   sentence: LearnerQuestionSentenceProjection,
   signMedia: SignMedia,
-) => ({
-  sentenceVersionId: sentence.sentenceVersionId,
-  originalText: sentence.originalText,
-  translationKo: sentence.translationKo,
-  pronunciationKo: sentence.pronunciationKo,
-  toneMarks: sentence.toneMarks,
-  audioUrl: await signMedia(sentence.media.storageKey),
-  tokens: sentence.tokens,
-  expressions: sentence.expressions,
-});
+) => {
+  const mapFeedback = async <
+    Feedback extends {
+      media: { storageKey: string } | null;
+    },
+  >(
+    feedback: Feedback,
+  ) => {
+    const { media, ...publicFeedback } = feedback;
+    return {
+      ...publicFeedback,
+      audioUrl: media ? await signMedia(media.storageKey) : null,
+    };
+  };
+
+  return {
+    sentenceVersionId: sentence.sentenceVersionId,
+    originalText: sentence.originalText,
+    translationKo: sentence.translationKo,
+    pronunciationKo: sentence.pronunciationKo,
+    toneMarks: sentence.toneMarks,
+    audioUrl: await signMedia(sentence.media.storageKey),
+    tokens: await Promise.all(sentence.tokens.map(mapFeedback)),
+    expressions: await Promise.all(sentence.expressions.map(mapFeedback)),
+  };
+};
 
 const mapBlocks = (
   blocks: LearnerQuestionBlockProjection[],
@@ -217,6 +233,7 @@ export class LearnerContentService {
           id: option.id,
           position: option.position,
           sentence: await mapSentence(option.sentence, signMedia),
+          ...(option.span === null ? {} : { span: option.span }),
         })),
       ),
     });
@@ -320,14 +337,9 @@ export class LearnerContentService {
       ...(await mapVocabularySummary(detail, signMedia)),
       meaningPronunciations: detail.meaningPronunciations,
       exampleSentences: await Promise.all(
-        detail.exampleSentences.map(async (example) => ({
-          sentenceVersionId: example.sentenceVersionId,
-          originalText: example.originalText,
-          translationKo: example.translationKo,
-          pronunciationKo: example.pronunciationKo,
-          toneMarks: example.toneMarks,
-          audioUrl: await signMedia(example.media.storageKey),
-        })),
+        detail.exampleSentences.map((example) =>
+          mapSentence(example, signMedia),
+        ),
       ),
     });
   }
