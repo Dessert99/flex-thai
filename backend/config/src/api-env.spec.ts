@@ -212,7 +212,8 @@ describe('readApiEnv가 API 환경 변수를 검증한다', () => {
   });
 
   it('local fake 관리자와 학생 계정 기본값을 제공한다', () => {
-    expect(readApiEnv({})).toMatchObject({
+    const env = readApiEnv({});
+    expect(env).toMatchObject({
       FAKE_USER_SUB: 'local-admin-sub',
       FAKE_USER_EMAIL: 'admin@hufs.ac.kr',
       FAKE_LEARNER_SUB: 'local-learner-sub',
@@ -220,6 +221,7 @@ describe('readApiEnv가 API 환경 변수를 검증한다', () => {
       CHALLENGE_HMAC_PEPPER: 'local-only-email-challenge-pepper',
       EMAIL_LINK_CONFIRMATION_URL: 'http://localhost:5173/login/confirm',
     });
+    expect(env).not.toHaveProperty('AUTH_LIMIT_PARAMETER_PREFIX');
   });
 
   it('사용하지 않는 legacy SSM 인증 제한 설정을 공개하지 않는다', () => {

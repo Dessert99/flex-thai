@@ -16,7 +16,6 @@ import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3Deployment from 'aws-cdk-lib/aws-s3-deployment';
 import type { Construct } from 'constructs';
-import type { ApplicationStack } from './application-stack.js';
 import type { InfrastructureConfig } from './config.js';
 import type { DataStack } from './data-stack.js';
 
@@ -24,11 +23,13 @@ import type { DataStack } from './data-stack.js';
 export interface EdgeStackProps extends StackProps {
   config: InfrastructureConfig;
   dataStack: DataStack;
-  applicationStack: ApplicationStack;
 }
 
 /** CloudFront와 정식 Web domain을 배치할 글로벌 경계 Stack */
 export class EdgeStack extends Stack {
+  /** signed media URL 생성 시 사용하는 CloudFront 공개키 ID */
+  readonly mediaKeyPairId: string;
+
   constructor(scope: Construct, id: string, props: EdgeStackProps) {
     super(scope, id, props);
 
@@ -66,6 +67,7 @@ export class EdgeStack extends Stack {
       encodedKey: props.config.mediaPublicKeyPem,
       comment: 'FLEX THIA private media signed URL public key',
     });
+    this.mediaKeyPairId = publicKey.publicKeyId;
     const mediaKeyGroup = new cloudfront.KeyGroup(this, 'MediaKeyGroup', {
       items: [publicKey],
       comment: 'FLEX THIA private media signed URL key group',

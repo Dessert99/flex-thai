@@ -15,11 +15,12 @@ import type { DataStack } from './data-stack.js';
 export interface ApplicationStackProps extends StackProps {
   config: InfrastructureConfig;
   dataStack: DataStack;
+  mediaKeyPairId: string;
 }
 
 /** Cognito, Lambda, API Gateway, workflow를 배치할 서울 Stack */
 export class ApplicationStack extends Stack {
-  /** 학교 이메일 확인 기반 비밀번호 identity 경계 */
+  /** 학교 이메일 확인 기반 Custom Auth identity 경계 */
   readonly identity: Identity;
   /** SQS와 Step Functions 비동기 Job 경계 */
   readonly asyncJobs: AsyncJobs;
@@ -44,10 +45,14 @@ export class ApplicationStack extends Stack {
     const emailIdentity = new ses.EmailIdentity(this, 'EmailIdentity', {
       identity: ses.Identity.publicHostedZone(hostedZone),
     });
-    this.identity = new Identity(this, 'Identity');
     const workerRoot = fileURLToPath(
       new URL('../../backend/worker/src/', import.meta.url),
     );
+    this.identity = new Identity(this, 'Identity', {
+      defineAuthChallengeEntry: `${workerRoot}identity/define-auth-challenge.ts`,
+      createAuthChallengeEntry: `${workerRoot}identity/create-auth-challenge.ts`,
+      verifyAuthChallengeEntry: `${workerRoot}identity/verify-auth-challenge.ts`,
+    });
     this.asyncJobs = new AsyncJobs(this, 'AsyncJobs', {
       jobStarterEntry: `${workerRoot}job-starter.ts`,
       foundationEntry: `${workerRoot}foundation-task.ts`,
@@ -66,10 +71,16 @@ export class ApplicationStack extends Stack {
       cluster: props.dataStack.cluster,
       clusterSecret: props.dataStack.clusterSecret,
       challengeHmacPepper: props.dataStack.challengeHmacPepper,
+      customAuthSecret: this.identity.customAuthSecret,
       emailIdentity,
+      emailLinkConfirmationUrl: `https://${webDomain}/login/confirm`,
       fromEmail: `no-reply@${props.config.rootDomain}`,
       inputBucket: props.dataStack.inputBucket,
       jobQueue: this.asyncJobs.queue,
+      mediaBucket: props.dataStack.mediaBucket,
+      mediaCdnBaseUrl: `https://${webDomain}/media`,
+      mediaKeyPairId: props.mediaKeyPairId,
+      mediaPrivateKey: props.dataStack.mediaPrivateKey,
       userPool: this.identity.userPool,
       userPoolClient: this.identity.userPoolClient,
     });
@@ -84,8 +95,5 @@ export class ApplicationStack extends Stack {
       this.observability.alarmTopic.topicArn,
     );
     this.observability.alarmTopic.grantPublish(this.httpApi.apiFunction);
-    for (const parameter of this.observability.authLimitParameters) {
-      parameter.grantRead(this.httpApi.apiFunction);
-    }
   }
 }

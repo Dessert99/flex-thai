@@ -31,7 +31,7 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
         `select
            (select u.cognito_sub from question_attempts qa join users u on u.id = qa.user_id limit 1) as attempt_owner,
            (select u.cognito_sub from saved_questions sq join users u on u.id = sq.user_id limit 1) as question_owner,
-           (select u.cognito_sub from saved_vocabularies sv join users u on u.id = sv.user_id limit 1) as vocabulary_owner,
+           (select u.cognito_sub from wordbooks w join users u on u.id = w.user_id join wordbook_items wi on wi.wordbook_id = w.id limit 1) as vocabulary_owner,
            (select u.cognito_sub from content_imports ci join users u on u.id = ci.requested_by limit 1) as import_owner`,
       );
 

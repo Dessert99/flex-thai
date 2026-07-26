@@ -24,8 +24,6 @@ export interface ObservabilityProps {
 export class Observability extends Construct {
   /** 모든 운영 알람이 이메일을 보내는 SNS topic */
   readonly alarmTopic: sns.Topic;
-  /** API가 runtime에 읽을 이메일 인증 상한 Parameter */
-  readonly authLimitParameters: ssm.StringParameter[] = [];
 
   constructor(scope: Construct, id: string, props: ObservabilityProps) {
     super(scope, id);
@@ -189,32 +187,16 @@ export class Observability extends Construct {
     );
 
     const parameters: Record<string, string> = {
-      'auth/allowed-email-domains': props.config.allowedEmailDomains,
-      'auth/challenge-ttl-seconds': '600',
-      'auth/challenge-cooldown-seconds': '60',
-      'auth/challenge-email-daily-limit': '5',
-      'auth/challenge-global-daily-limit': '500',
-      'auth/step-up-ttl-seconds': '300',
       'jobs/map-max-concurrency': '2',
       'jobs/provider-max-concurrency': '1',
       'uploads/max-file-bytes': '26214400',
       'uploads/max-job-bytes': '262144000',
     };
     for (const [name, value] of Object.entries(parameters)) {
-      const parameter = new ssm.StringParameter(
-        this,
-        `Parameter${name.replaceAll('/', '-')}`,
-        {
-          parameterName: `/flex-thia/prod/${name}`,
-          stringValue: value,
-        },
-      );
-      if (
-        name.startsWith('auth/challenge-') &&
-        name !== 'auth/challenge-ttl-seconds'
-      ) {
-        this.authLimitParameters.push(parameter);
-      }
+      new ssm.StringParameter(this, `Parameter${name.replaceAll('/', '-')}`, {
+        parameterName: `/flex-thia/prod/${name}`,
+        stringValue: value,
+      });
     }
 
     const emailSubscriber: budgets.CfnBudget.SubscriberProperty = {

@@ -50,6 +50,27 @@
       "when": 1784867355937,
       "tag": "0006_admin-content",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785055925144,
+      "tag": "0007_wave1-identity-challenge",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785055925145,
+      "tag": "0008_wave1-thai-interactions",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785055925146,
+      "tag": "0009_wave1-wordbooks",
+      "breakpoints": true
     }
   ]
 }

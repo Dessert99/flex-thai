@@ -402,6 +402,16 @@ describe('DrizzleLearningRepository transaction', () => {
 });
 
 describe('DrizzleLearningRepository 저장 콘텐츠', () => {
+  it('어휘 저장은 단어장 repository만 사용하도록 legacy method를 공개하지 않는다', () => {
+    const repository = new DrizzleLearningRepository(
+      createFake().database as never,
+    );
+
+    expect(repository).not.toHaveProperty('isVocabularyAvailable');
+    expect(repository).not.toHaveProperty('saveVocabulary');
+    expect(repository).not.toHaveProperty('removeVocabulary');
+  });
+
   it('문제와 current version 모두 PUBLISHED일 때만 가용하다', async () => {
     const availableFake = createFake({
       selectResults: [[{ id: 'question-id' }]],

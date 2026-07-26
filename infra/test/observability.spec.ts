@@ -1,7 +1,7 @@
 /** 비용과 poison message를 운영자가 놓치지 않게 고정한다 */
 import { App } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
-import { describe, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { ApplicationStack } from '../src/application-stack.js';
 import { readInfrastructureConfig } from '../src/config.js';
 import { DataStack } from '../src/data-stack.js';
@@ -24,6 +24,7 @@ describe('Observability', () => {
       new ApplicationStack(app, 'ObservabilityApplication', {
         config,
         dataStack,
+        mediaKeyPairId: 'KTESTMEDIAKEY',
       }),
     );
 
@@ -61,6 +62,7 @@ describe('Observability', () => {
       new ApplicationStack(app, 'AlarmApplication', {
         config,
         dataStack,
+        mediaKeyPairId: 'KTESTMEDIAKEY',
       }),
     );
 
@@ -82,25 +84,18 @@ describe('Observability', () => {
     });
   });
 
-  it('인증 발송 상한을 포함한 운영 설정 열 개를 Parameter Store에 둔다', () => {
+  it('실제로 runtime에서 읽는 job과 upload 설정만 Parameter Store에 둔다', () => {
     const app = new App();
     const dataStack = new DataStack(app, 'ParameterData');
     const template = Template.fromStack(
       new ApplicationStack(app, 'ParameterApplication', {
         config,
         dataStack,
+        mediaKeyPairId: 'KTESTMEDIAKEY',
       }),
     );
 
-    template.resourceCountIs('AWS::SSM::Parameter', 10);
-    template.hasResourceProperties('AWS::SSM::Parameter', {
-      Name: '/flex-thia/prod/auth/allowed-email-domains',
-      Value: 'hufs.ac.kr',
-    });
-    template.hasResourceProperties('AWS::SSM::Parameter', {
-      Name: '/flex-thia/prod/auth/challenge-global-daily-limit',
-      Value: '500',
-    });
+    template.resourceCountIs('AWS::SSM::Parameter', 4);
     template.hasResourceProperties('AWS::SSM::Parameter', {
       Name: '/flex-thia/prod/jobs/map-max-concurrency',
       Value: '2',
@@ -109,5 +104,9 @@ describe('Observability', () => {
       Name: '/flex-thia/prod/uploads/max-job-bytes',
       Value: '262144000',
     });
+    expect(JSON.stringify(template.toJSON())).not.toContain(
+      '/flex-thia/prod/auth/',
+    );
+    expect(JSON.stringify(template.toJSON())).not.toContain('ssm:GetParameter');
   });
 });

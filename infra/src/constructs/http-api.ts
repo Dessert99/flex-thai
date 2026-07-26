@@ -27,10 +27,16 @@ export interface HttpApiProps {
   cluster: rds.DatabaseCluster;
   clusterSecret: secretsmanager.ISecret;
   challengeHmacPepper: secretsmanager.ISecret;
+  customAuthSecret: secretsmanager.ISecret;
   emailIdentity: ses.IEmailIdentity;
+  emailLinkConfirmationUrl: string;
   fromEmail: string;
   inputBucket: s3.IBucket;
   jobQueue: sqs.IQueue;
+  mediaBucket: s3.IBucket;
+  mediaCdnBaseUrl: string;
+  mediaKeyPairId: string;
+  mediaPrivateKey: secretsmanager.ISecret;
   userPool: cognito.IUserPool;
   userPoolClient: cognito.IUserPoolClient;
 }
@@ -71,25 +77,31 @@ export class HttpApi extends Construct {
         INPUT_BUCKET_NAME: props.inputBucket.bucketName,
         JOB_QUEUE_URL: props.jobQueue.queueUrl,
         CHALLENGE_HMAC_PEPPER_SECRET_ARN: props.challengeHmacPepper.secretArn,
+        CUSTOM_AUTH_SECRET_ARN: props.customAuthSecret.secretArn,
         SCHOOL_EMAIL_DOMAINS: props.allowedEmailDomains,
+        EMAIL_LINK_CONFIRMATION_URL: props.emailLinkConfirmationUrl,
         FROM_EMAIL: props.fromEmail,
-        AUTH_LIMIT_PARAMETER_PREFIX: '/flex-thia/prod/auth',
+        MEDIA_BUCKET_NAME: props.mediaBucket.bucketName,
+        MEDIA_CDN_BASE_URL: props.mediaCdnBaseUrl,
+        MEDIA_KEY_PAIR_ID: props.mediaKeyPairId,
+        MEDIA_PRIVATE_KEY_SECRET_ARN: props.mediaPrivateKey.secretArn,
         ALLOWED_ORIGINS: props.allowedOrigins.join(','),
       },
     });
     props.cluster.grantDataApiAccess(this.apiFunction);
     props.clusterSecret.grantRead(this.apiFunction);
     props.challengeHmacPepper.grantRead(this.apiFunction);
+    props.customAuthSecret.grantRead(this.apiFunction);
+    props.mediaPrivateKey.grantRead(this.apiFunction);
     props.emailIdentity.grant(this.apiFunction, 'ses:SendEmail');
     props.inputBucket.grantReadWrite(this.apiFunction, 'inputs/*');
+    props.mediaBucket.grantReadWrite(this.apiFunction);
     props.jobQueue.grantSendMessages(this.apiFunction);
     this.apiFunction.addToRolePolicy(
       new iam.PolicyStatement({
         actions: [
-          'cognito-idp:AdminGetUser',
           'cognito-idp:AdminCreateUser',
           'cognito-idp:AdminSetUserPassword',
-          'cognito-idp:AdminInitiateAuth',
         ],
         resources: [props.userPool.userPoolArn],
       }),
@@ -116,10 +128,17 @@ export class HttpApi extends Construct {
     this.api = new apigwv2.HttpApi(this, 'Gateway', {
       corsPreflight: {
         allowOrigins: props.allowedOrigins,
-        allowMethods: [apigwv2.CorsHttpMethod.GET, apigwv2.CorsHttpMethod.POST],
+        allowMethods: [
+          apigwv2.CorsHttpMethod.GET,
+          apigwv2.CorsHttpMethod.POST,
+          apigwv2.CorsHttpMethod.PUT,
+          apigwv2.CorsHttpMethod.PATCH,
+          apigwv2.CorsHttpMethod.DELETE,
+        ],
         allowHeaders: [
           'authorization',
           'content-type',
+          'idempotency-key',
           'x-csrf-protection',
           'x-step-up-token',
         ],
@@ -164,28 +183,103 @@ export class HttpApi extends Construct {
     for (const [method, path] of [
       [apigwv2.HttpMethod.GET, '/health'],
       [apigwv2.HttpMethod.GET, '/ready'],
-      [apigwv2.HttpMethod.POST, '/auth/signup'],
-      [apigwv2.HttpMethod.POST, '/auth/signup/verify'],
-      [apigwv2.HttpMethod.POST, '/auth/login'],
-      [apigwv2.HttpMethod.POST, '/auth/password/forgot'],
-      [apigwv2.HttpMethod.POST, '/auth/password/reset'],
-      [apigwv2.HttpMethod.POST, '/auth/refresh'],
-      [apigwv2.HttpMethod.POST, '/auth/logout'],
+      [apigwv2.HttpMethod.POST, '/api/v1/auth/challenges'],
+      [apigwv2.HttpMethod.POST, '/api/v1/auth/challenges/{challengeId}/code'],
+      [apigwv2.HttpMethod.POST, '/api/v1/auth/challenges/{challengeId}/link'],
+      [apigwv2.HttpMethod.POST, '/api/v1/auth/challenges/{challengeId}/resend'],
+      [apigwv2.HttpMethod.POST, '/api/v1/auth/mfa/totp/challenge'],
+      [apigwv2.HttpMethod.POST, '/api/v1/auth/refresh'],
+      [apigwv2.HttpMethod.POST, '/api/v1/auth/logout'],
     ] as const) {
       this.api.addRoutes({ path, methods: [method], integration });
     }
     for (const [method, path] of [
-      [apigwv2.HttpMethod.POST, '/auth/phone/challenges'],
-      [apigwv2.HttpMethod.POST, '/auth/phone/challenges/{challengeId}/verify'],
-      [apigwv2.HttpMethod.POST, '/auth/step-up/challenges'],
+      [apigwv2.HttpMethod.GET, '/api/v1/me'],
+      [apigwv2.HttpMethod.POST, '/api/v1/auth/mfa/totp/setup'],
+      [apigwv2.HttpMethod.POST, '/api/v1/auth/mfa/totp/setup/verify'],
+      [apigwv2.HttpMethod.POST, '/api/v1/admin/content-imports'],
+      [apigwv2.HttpMethod.GET, '/api/v1/admin/content-imports'],
+      [apigwv2.HttpMethod.GET, '/api/v1/admin/content-imports/{importId}'],
       [
         apigwv2.HttpMethod.POST,
-        '/auth/step-up/challenges/{challengeId}/verify',
+        '/api/v1/admin/media-assets/audio-upload-requests',
       ],
-      [apigwv2.HttpMethod.POST, '/uploads/policies'],
-      [apigwv2.HttpMethod.POST, '/uploads/{uploadId}/complete'],
-      [apigwv2.HttpMethod.POST, '/jobs'],
-      [apigwv2.HttpMethod.GET, '/jobs/{jobId}'],
+      [apigwv2.HttpMethod.GET, '/api/v1/admin/media-assets/{mediaAssetId}'],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/media-assets/{mediaAssetId}/complete',
+      ],
+      [apigwv2.HttpMethod.GET, '/api/v1/admin/questions'],
+      [apigwv2.HttpMethod.GET, '/api/v1/admin/questions/{questionId}'],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/questions/{questionId}/versions',
+      ],
+      [apigwv2.HttpMethod.POST, '/api/v1/admin/questions/{questionId}/hide'],
+      [apigwv2.HttpMethod.POST, '/api/v1/admin/questions/{questionId}/restore'],
+      [apigwv2.HttpMethod.PUT, '/api/v1/admin/question-versions/{versionId}'],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/question-versions/{versionId}/validate',
+      ],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/question-versions/{versionId}/publish',
+      ],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/question-versions/{versionId}/invalidate',
+      ],
+      [apigwv2.HttpMethod.GET, '/api/v1/admin/vocabularies'],
+      [apigwv2.HttpMethod.GET, '/api/v1/admin/vocabularies/{vocabularyId}'],
+      [apigwv2.HttpMethod.PUT, '/api/v1/admin/vocabularies/{vocabularyId}'],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/vocabularies/{vocabularyId}/publish',
+      ],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/vocabularies/{vocabularyId}/hide',
+      ],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/vocabularies/{vocabularyId}/restore',
+      ],
+      [apigwv2.HttpMethod.GET, '/api/v1/admin/users'],
+      [apigwv2.HttpMethod.PATCH, '/api/v1/admin/users/{userId}/status'],
+      [apigwv2.HttpMethod.POST, '/api/v1/admin/users/invitations'],
+      [apigwv2.HttpMethod.GET, '/api/v1/me/wordbooks'],
+      [apigwv2.HttpMethod.POST, '/api/v1/me/wordbooks'],
+      [apigwv2.HttpMethod.PATCH, '/api/v1/me/wordbooks/{wordbookId}'],
+      [apigwv2.HttpMethod.DELETE, '/api/v1/me/wordbooks/{wordbookId}'],
+      [apigwv2.HttpMethod.GET, '/api/v1/me/wordbooks/{wordbookId}/items'],
+      [
+        apigwv2.HttpMethod.PUT,
+        '/api/v1/me/wordbooks/{wordbookId}/items/{vocabularyId}',
+      ],
+      [
+        apigwv2.HttpMethod.DELETE,
+        '/api/v1/me/wordbooks/{wordbookId}/items/{vocabularyId}',
+      ],
+      [apigwv2.HttpMethod.POST, '/api/v1/me/wordbooks/{wordbookId}/items/copy'],
+      [apigwv2.HttpMethod.POST, '/api/v1/me/wordbooks/{wordbookId}/items/move'],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/me/wordbooks/{wordbookId}/items/remove',
+      ],
+      [
+        apigwv2.HttpMethod.GET,
+        '/api/v1/me/vocabularies/{vocabularyId}/wordbook-memberships',
+      ],
+      [apigwv2.HttpMethod.GET, '/api/v1/me/question-attempts'],
+      [apigwv2.HttpMethod.PUT, '/api/v1/me/saved-questions/{questionId}'],
+      [apigwv2.HttpMethod.DELETE, '/api/v1/me/saved-questions/{questionId}'],
+      [apigwv2.HttpMethod.GET, '/api/v1/questions'],
+      [apigwv2.HttpMethod.GET, '/api/v1/questions/{questionId}'],
+      [apigwv2.HttpMethod.POST, '/api/v1/questions/{questionId}/attempts'],
+      [apigwv2.HttpMethod.GET, '/api/v1/vocabularies'],
+      [apigwv2.HttpMethod.GET, '/api/v1/vocabularies/{vocabularyId}'],
+      [apigwv2.HttpMethod.GET, '/api/v1/vocabularies/{vocabularyId}/questions'],
     ] as const) {
       this.api.addRoutes({
         path,

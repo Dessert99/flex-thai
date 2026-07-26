@@ -8,19 +8,13 @@ const savedAt = new Date('2026-07-24T00:00:00.000Z');
 
 class FakeSavedContentRepository implements SavedContentRepository {
   readonly savedQuestions = new Set<string>();
-  readonly savedVocabularies = new Set<string>();
   readonly savedQuestionDates: Date[] = [];
   questionAvailable = true;
-  vocabularyAvailable = true;
   questionAvailabilityChecks = 0;
 
   isQuestionAvailable(): Promise<boolean> {
     this.questionAvailabilityChecks += 1;
     return Promise.resolve(this.questionAvailable);
-  }
-
-  isVocabularyAvailable(): Promise<boolean> {
-    return Promise.resolve(this.vocabularyAvailable);
   }
 
   saveQuestion(
@@ -37,19 +31,16 @@ class FakeSavedContentRepository implements SavedContentRepository {
     this.savedQuestions.delete(`${userIdInput}:${questionId}`);
     return Promise.resolve();
   }
-
-  saveVocabulary(userIdInput: string, vocabularyId: string): Promise<void> {
-    this.savedVocabularies.add(`${userIdInput}:${vocabularyId}`);
-    return Promise.resolve();
-  }
-
-  removeVocabulary(userIdInput: string, vocabularyId: string): Promise<void> {
-    this.savedVocabularies.delete(`${userIdInput}:${vocabularyId}`);
-    return Promise.resolve();
-  }
 }
 
 describe('SavedContentService 저장 콘텐츠', () => {
+  it('어휘 저장은 단어장 경계만 사용하도록 legacy method를 공개하지 않는다', () => {
+    const service = new SavedContentService(new FakeSavedContentRepository());
+
+    expect(service).not.toHaveProperty('saveVocabulary');
+    expect(service).not.toHaveProperty('removeVocabulary');
+  });
+
   it('공개 문제를 중복 없이 저장한다', async () => {
     const repository = new FakeSavedContentRepository();
     const service = new SavedContentService(repository);

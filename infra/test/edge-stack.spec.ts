@@ -3,7 +3,6 @@ import { runInNewContext } from 'node:vm';
 import { App } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import { describe, expect, it } from 'vitest';
-import { ApplicationStack } from '../src/application-stack.js';
 import { readInfrastructureConfig } from '../src/config.js';
 import { DataStack } from '../src/data-stack.js';
 import { EdgeStack } from '../src/edge-stack.js';
@@ -48,14 +47,9 @@ describe('EdgeStack 웹 전송 경계', () => {
   it('Web bucket public access를 막고 CloudFront OAC만 연결한다', () => {
     const app = new App();
     const dataStack = new DataStack(app, 'EdgeData');
-    const applicationStack = new ApplicationStack(app, 'EdgeApplication', {
-      config,
-      dataStack,
-    });
     const stack = new EdgeStack(app, 'Edge', {
       config,
       dataStack,
-      applicationStack,
     });
     const template = Template.fromStack(stack);
 
@@ -81,14 +75,9 @@ describe('EdgeStack 웹 전송 경계', () => {
   it('루트와 www DNS를 같은 CloudFront 배포에 연결한다', () => {
     const app = new App();
     const dataStack = new DataStack(app, 'EdgeDnsData');
-    const applicationStack = new ApplicationStack(app, 'EdgeDnsApplication', {
-      config,
-      dataStack,
-    });
     const stack = new EdgeStack(app, 'EdgeDns', {
       config,
       dataStack,
-      applicationStack,
     });
     const template = Template.fromStack(stack);
 
@@ -131,15 +120,9 @@ describe('EdgeStack 웹 전송 경계', () => {
   it('루트 요청의 path와 query를 보존해 www로 리다이렉트한다', () => {
     const app = new App();
     const dataStack = new DataStack(app, 'EdgeRedirectData');
-    const applicationStack = new ApplicationStack(
-      app,
-      'EdgeRedirectApplication',
-      { config, dataStack },
-    );
     const stack = new EdgeStack(app, 'EdgeRedirect', {
       config,
       dataStack,
-      applicationStack,
     });
     const template = Template.fromStack(stack);
     const code = readRedirectFunctionCode(template);

@@ -49,22 +49,23 @@ const dataStack = new DataStack(app, 'FlexThiaDataProd', {
   env: { account: config.account, region: config.appRegion },
   crossRegionReferences: true,
 });
-const applicationStack = new ApplicationStack(app, 'FlexThiaApplicationProd', {
-  config,
-  dataStack,
-  env: { account: config.account, region: config.appRegion },
-});
 const edgeStack = new EdgeStack(app, 'FlexThiaEdgeProd', {
   config,
   dataStack,
-  applicationStack,
   env: { account: config.account, region: config.edgeRegion },
+  crossRegionReferences: true,
+});
+const applicationStack = new ApplicationStack(app, 'FlexThiaApplicationProd', {
+  config,
+  dataStack,
+  mediaKeyPairId: edgeStack.mediaKeyPairId,
+  env: { account: config.account, region: config.appRegion },
   crossRegionReferences: true,
 });
 
 applicationStack.addDependency(dataStack);
+applicationStack.addDependency(edgeStack);
 edgeStack.addDependency(dataStack);
-edgeStack.addDependency(applicationStack);
 applyProjectTags(dataStack);
 applyProjectTags(applicationStack);
 applyProjectTags(edgeStack);
