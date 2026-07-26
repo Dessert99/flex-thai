@@ -177,6 +177,20 @@ describe('VocabularyPracticeService 세션 생성', () => {
     expect(repository.created?.startedAt).toEqual(now);
   });
 
+  it('선택지는 source 순서와 별개로 주입된 shuffle로 섞는다', async () => {
+    const repository = new FakeVocabularyPracticeRepository();
+    const service = createService(repository, (items) =>
+      items.length === 4 ? [...items].reverse() : [...items],
+    );
+
+    const result = await service.create(createInput());
+    const firstQuestion = result.questions[0];
+
+    expect(firstQuestion?.options.at(-1)?.id).toBe(
+      firstQuestion?.correctOptionId,
+    );
+  });
+
   it('후보가 부족하면 문항 수를 줄이지 않는다', async () => {
     const repository = new FakeVocabularyPracticeRepository();
     repository.source = createSource(9);
@@ -215,6 +229,8 @@ describe('VocabularyPracticeService 조회와 답안', () => {
     ['NOT_FOUND', 'PRACTICE_SESSION_NOT_FOUND'],
     ['INVALID_OPTION', 'PRACTICE_OPTION_INVALID'],
     ['COMPLETED', 'PRACTICE_SESSION_COMPLETED'],
+    ['ALREADY_ANSWERED', 'PRACTICE_QUESTION_ALREADY_ANSWERED'],
+    ['IDEMPOTENCY_CONFLICT', 'PRACTICE_ANSWER_IDEMPOTENCY_CONFLICT'],
   ] as const)('%s 답안 상태를 %s 오류로 바꾼다', async (status, code) => {
     const repository = new FakeVocabularyPracticeRepository();
     repository.answerResult = { status };

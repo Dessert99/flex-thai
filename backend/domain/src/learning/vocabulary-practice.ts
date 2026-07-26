@@ -18,7 +18,9 @@ export type VocabularyPracticeDomainErrorCode =
   | 'PRACTICE_SOURCE_INSUFFICIENT'
   | 'PRACTICE_SESSION_NOT_FOUND'
   | 'PRACTICE_OPTION_INVALID'
-  | 'PRACTICE_SESSION_COMPLETED';
+  | 'PRACTICE_SESSION_COMPLETED'
+  | 'PRACTICE_QUESTION_ALREADY_ANSWERED'
+  | 'PRACTICE_ANSWER_IDEMPOTENCY_CONFLICT';
 
 /** 단어 연습 생성·조회·답안의 안정적인 업무 오류 */
 export class VocabularyPracticeDomainError extends Error {
@@ -197,6 +199,16 @@ export class VocabularyPracticeService {
     if (result.status === 'COMPLETED') {
       throw new VocabularyPracticeDomainError('PRACTICE_SESSION_COMPLETED');
     }
+    if (result.status === 'ALREADY_ANSWERED') {
+      throw new VocabularyPracticeDomainError(
+        'PRACTICE_QUESTION_ALREADY_ANSWERED',
+      );
+    }
+    if (result.status === 'IDEMPOTENCY_CONFLICT') {
+      throw new VocabularyPracticeDomainError(
+        'PRACTICE_ANSWER_IDEMPOTENCY_CONFLICT',
+      );
+    }
     return {
       answer: result.answer,
       correctOptionId: result.question.correctOptionId,
@@ -237,12 +249,7 @@ export class VocabularyPracticeService {
       correctOption,
       ...distractorLabels.map((label) => ({ id: this.createId(), label })),
     ];
-    // 정답 위치가 항상 첫 번째가 되지 않도록 position 기반으로 회전한다.
-    const rotation = (position - 1) % options.length;
-    const rotatedOptions = [
-      ...options.slice(rotation),
-      ...options.slice(0, rotation),
-    ];
+    const shuffledOptions = this.shuffle(options);
     const pronunciation = isAudioMode(mode)
       ? (candidate.pronunciations[0] ?? null)
       : null;
@@ -257,7 +264,7 @@ export class VocabularyPracticeService {
       mediaAssetId: pronunciation?.mediaAssetId ?? null,
       mode,
       prompt: promptFor(mode, candidate),
-      options: rotatedOptions,
+      options: shuffledOptions,
       correctOptionId: correctOption.id,
       card: candidate.card,
     };

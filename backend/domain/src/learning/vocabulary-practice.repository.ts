@@ -132,6 +132,8 @@ export type SubmitPracticeAnswerResult =
   | { status: 'NOT_FOUND' }
   | { status: 'INVALID_OPTION' }
   | { status: 'COMPLETED' }
+  | { status: 'ALREADY_ANSWERED' }
+  | { status: 'IDEMPOTENCY_CONFLICT' }
   | {
       status: 'ANSWERED';
       answer: PracticeAnswerRecord;
