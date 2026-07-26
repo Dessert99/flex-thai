@@ -120,8 +120,13 @@ export class ContentErrorReportHttpService {
         assignee: detail.assignee,
       }),
       history: detail.history.map((entry) => ({
-        ...entry,
+        id: entry.id,
+        action: entry.action,
         actor: { id: entry.actorUserId, email: entry.actorEmail },
+        fromStatus: entry.fromStatus,
+        toStatus: entry.toStatus,
+        fromAssigneeUserId: entry.fromAssigneeUserId,
+        toAssigneeUserId: entry.toAssigneeUserId,
         createdAt: entry.createdAt.toISOString(),
       })),
     });

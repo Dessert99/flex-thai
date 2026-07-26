@@ -16,12 +16,13 @@ import {
 } from '../schema/feedback.schema.js';
 import { users } from '../schema/identity.schema.js';
 
-const feedbackSchema = {
-  ...baseSchema,
-  contentErrorReports,
-  contentErrorReportHistory,
-};
-type FeedbackDatabase = PgDatabase<PgQueryResultHKT, typeof feedbackSchema>;
+type FeedbackDatabase = PgDatabase<
+  PgQueryResultHKT,
+  typeof baseSchema & {
+    contentErrorReports: typeof contentErrorReports;
+    contentErrorReportHistory: typeof contentErrorReportHistory;
+  }
+>;
 
 /** 관리자 오류 신고 stable page 응답 */
 export interface ContentErrorReportPageProjection {

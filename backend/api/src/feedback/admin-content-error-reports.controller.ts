@@ -14,6 +14,8 @@ import {
   ApiBody,
   ApiOkResponse,
   ApiOperation,
+  ApiParam,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import {
@@ -34,6 +36,7 @@ import { RequireRole } from '../identity/require-role.decorator.js';
 import { ApiProblemResponses } from '../openapi/openapi.decorators.js';
 import {
   AdminContentErrorReportDetailResponseDto,
+  AdminContentErrorReportListQueryDto,
   AdminContentErrorReportListResponseDto,
   AssignContentErrorReportRequestDto,
   ChangeContentErrorReportStatusRequestDto,
@@ -52,6 +55,7 @@ export class AdminContentErrorReportsController {
   /** 필터와 stable page로 신고를 조회한다 */
   @Get()
   @ApiOperation({ summary: '콘텐츠 오류 신고를 조회한다' })
+  @ApiQuery({ type: AdminContentErrorReportListQueryDto })
   @ApiOkResponse({ type: AdminContentErrorReportListResponseDto })
   @ApiProblemResponses(400, 401, 403, 500)
   list(@Query() query: Record<string, unknown>) {
@@ -62,6 +66,8 @@ export class AdminContentErrorReportsController {
 
   /** immutable snapshot과 처리 이력을 조회한다 */
   @Get(':reportId')
+  @ApiOperation({ summary: '콘텐츠 오류 신고 상세와 이력을 조회한다' })
+  @ApiParam({ name: 'reportId', type: String, format: 'uuid' })
   @ApiOkResponse({ type: AdminContentErrorReportDetailResponseDto })
   detail(@Param() path: Record<string, unknown>) {
     return this.reports.detail(
@@ -71,6 +77,8 @@ export class AdminContentErrorReportsController {
 
   /** 허용된 상태로 전이한다 */
   @Put(':reportId/status')
+  @ApiOperation({ summary: '콘텐츠 오류 신고 상태를 변경한다' })
+  @ApiParam({ name: 'reportId', type: String, format: 'uuid' })
   @ApiBody({ type: ChangeContentErrorReportStatusRequestDto })
   @ApiOkResponse({ type: AdminContentErrorReportDetailResponseDto })
   changeStatus(
@@ -89,6 +97,8 @@ export class AdminContentErrorReportsController {
 
   /** ACTIVE ADMIN을 담당자로 배정한다 */
   @Put(':reportId/assignee')
+  @ApiOperation({ summary: '콘텐츠 오류 신고 담당자를 배정한다' })
+  @ApiParam({ name: 'reportId', type: String, format: 'uuid' })
   @ApiBody({ type: AssignContentErrorReportRequestDto })
   @ApiOkResponse({ type: AdminContentErrorReportDetailResponseDto })
   assign(
@@ -106,6 +116,8 @@ export class AdminContentErrorReportsController {
 
   /** 현재 담당자를 해제한다 */
   @Delete(':reportId/assignee')
+  @ApiOperation({ summary: '콘텐츠 오류 신고 담당자를 해제한다' })
+  @ApiParam({ name: 'reportId', type: String, format: 'uuid' })
   @ApiOkResponse({ type: AdminContentErrorReportDetailResponseDto })
   unassign(
     @CurrentUser() user: AuthenticatedUser,

@@ -38,17 +38,25 @@ import {
   vocabularyPronunciations,
 } from '../schema/vocabulary.schema.js';
 
-const feedbackSchema = {
-  ...baseSchema,
-  contentErrorReports,
-  contentErrorReportHistory,
-};
-type FeedbackDatabase = PgDatabase<PgQueryResultHKT, typeof feedbackSchema>;
+type FeedbackDatabase = PgDatabase<
+  PgQueryResultHKT,
+  typeof baseSchema & {
+    contentErrorReports: typeof contentErrorReports;
+    contentErrorReportHistory: typeof contentErrorReportHistory;
+  }
+>;
 
 /** concept-learning이 제공할 공개 대상 lookup */
 export interface ConceptErrorReportTargetLookup {
   resolve(
     origin: Extract<ContentErrorReportOrigin, { kind: 'CONCEPT' }>,
+  ): Promise<ResolvedContentErrorReportTarget | null>;
+  resolveSentence(input: {
+    sentenceVersionId: string;
+    tokenPosition: number | null;
+  }): Promise<ResolvedContentErrorReportTarget | null>;
+  resolveSentenceAudio(
+    sentenceVersionId: string,
   ): Promise<ResolvedContentErrorReportTarget | null>;
 }
 
@@ -286,6 +294,7 @@ export class DrizzleContentErrorReportRepository
       .limit(1);
     const location = locations[0];
     if (!location) {
+      if (origin.blockId) return null;
       if (origin.sentenceVersionId) {
         const options = await this.database
           .select({
@@ -379,8 +388,13 @@ export class DrizzleContentErrorReportRepository
             .select({
               value: vocabularyPronunciations.pronunciationKo,
               mediaAssetId: vocabularyPronunciations.mediaAssetId,
+              mediaStatus: mediaAssets.status,
             })
             .from(vocabularyPronunciations)
+            .leftJoin(
+              mediaAssets,
+              eq(mediaAssets.id, vocabularyPronunciations.mediaAssetId),
+            )
             .where(
               and(
                 eq(vocabularyPronunciations.id, origin.pronunciationId),
@@ -390,7 +404,11 @@ export class DrizzleContentErrorReportRepository
             .limit(1)
         )[0]
       : null;
-    if (origin.pronunciationId && !pronunciation) return null;
+    if (
+      origin.pronunciationId &&
+      (!pronunciation?.mediaAssetId || pronunciation.mediaStatus !== 'READY')
+    )
+      return null;
     if (origin.meaningId && origin.pronunciationId) {
       const links = await this.database
         .select({ vocabularyId: vocabularyMeaningPronunciations.vocabularyId })
@@ -473,7 +491,13 @@ export class DrizzleContentErrorReportRepository
         ),
       )
       .limit(1);
-    if (!exposures[0]) return null;
+    if (!exposures[0])
+      return (
+        this.conceptLookup?.resolveSentence({
+          sentenceVersionId,
+          tokenPosition,
+        }) ?? null
+      );
     if (tokenPosition !== null) {
       const tokens = await this.database
         .select({ id: tokenOccurrences.id })
@@ -563,7 +587,11 @@ export class DrizzleContentErrorReportRepository
     sentenceVersionId: string,
   ): Promise<ResolvedContentErrorReportTarget | null> {
     const sentence = await this.resolveSentence(sentenceVersionId, null);
-    if (!sentence?.reference.mediaAssetId) return null;
+    if (!sentence)
+      return (
+        this.conceptLookup?.resolveSentenceAudio(sentenceVersionId) ?? null
+      );
+    if (!sentence.reference.mediaAssetId) return null;
     const ready = await this.database
       .select({ id: mediaAssets.id })
       .from(mediaAssets)
