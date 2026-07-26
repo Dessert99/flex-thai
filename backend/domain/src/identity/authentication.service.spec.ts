@@ -15,10 +15,8 @@ const tokens = {
 };
 
 describe('IdentityAuthenticationService', () => {
-  it('Cognito 인증 성공 뒤에만 DB identity를 연결한다', async () => {
-    const provider = {
-      login: vi.fn().mockResolvedValue({ kind: 'AUTHENTICATED', tokens }),
-    };
+  it('passwordless 인증 성공 뒤에만 DB identity를 연결한다', async () => {
+    const provider = {};
     const users = {
       upsertIdentity: vi.fn().mockResolvedValue({
         id: '00000000-0000-4000-8000-000000000001',
@@ -35,15 +33,14 @@ describe('IdentityAuthenticationService', () => {
     );
 
     await expect(
-      service.login(' ADMIN@EXAMPLE.COM ', 'Strong1!'),
+      service.completePasswordless({
+        kind: 'AUTHENTICATED',
+        tokens: { ...tokens, email: ' ADMIN@EXAMPLE.COM ' },
+      }),
     ).resolves.toMatchObject({
       kind: 'AUTHENTICATED',
       user: { role: 'ADMIN' },
     });
-    expect(provider.login).toHaveBeenCalledWith(
-      'admin@example.com',
-      'Strong1!',
-    );
     expect(users.upsertIdentity).toHaveBeenCalledWith({
       subject: 'cognito-sub',
       email: 'admin@example.com',
@@ -51,12 +48,7 @@ describe('IdentityAuthenticationService', () => {
   });
 
   it('MFA challenge에는 사용자를 upsert하지 않는다', async () => {
-    const provider = {
-      login: vi.fn().mockResolvedValue({
-        kind: 'MFA_REQUIRED',
-        challengeToken: 'session',
-      }),
-    };
+    const provider = {};
     const users = { upsertIdentity: vi.fn() };
     const service = new IdentityAuthenticationService(
       provider as never,
@@ -64,7 +56,10 @@ describe('IdentityAuthenticationService', () => {
     );
 
     await expect(
-      service.login('admin@example.com', 'Strong1!'),
+      service.completePasswordless({
+        kind: 'MFA_REQUIRED',
+        challengeToken: 'session',
+      }),
     ).resolves.toEqual({
       kind: 'MFA_REQUIRED',
       challengeToken: 'session',
@@ -93,7 +88,6 @@ describe('IdentityAuthenticationService', () => {
 
   it('비활성 계정에 발급된 refresh token을 즉시 폐기한다', async () => {
     const provider = {
-      login: vi.fn().mockResolvedValue({ kind: 'AUTHENTICATED', tokens }),
       revoke: vi.fn().mockResolvedValue(undefined),
     };
     const users = {
@@ -112,7 +106,7 @@ describe('IdentityAuthenticationService', () => {
     );
 
     await expect(
-      service.login('admin@example.com', 'Strong1!'),
+      service.completePasswordless({ kind: 'AUTHENTICATED', tokens }),
     ).rejects.toMatchObject({ code: 'ACCOUNT_DISABLED' });
     expect(provider.revoke).toHaveBeenCalledWith('refresh');
   });
@@ -200,7 +194,7 @@ describe('IdentityAuthenticationService', () => {
 
   it('공개 가능한 provider 오류만 Identity 오류로 변환한다', async () => {
     const provider = {
-      login: vi
+      refresh: vi
         .fn()
         .mockRejectedValue(
           new AuthenticationProviderError('INVALID_CREDENTIALS'),
@@ -211,8 +205,8 @@ describe('IdentityAuthenticationService', () => {
       {} as never,
     );
 
-    await expect(
-      service.login('admin@example.com', 'wrong'),
-    ).rejects.toBeInstanceOf(IdentityDomainError);
+    await expect(service.refresh('refresh')).rejects.toBeInstanceOf(
+      IdentityDomainError,
+    );
   });
 });

@@ -3,6 +3,7 @@ import {
   AuthenticationProviderError,
   type AuthenticationProvider,
   type IdentityTokenSet,
+  type ProviderLoginResult,
 } from './authentication.js';
 import type {
   IdentityUser,
@@ -42,20 +43,13 @@ export class IdentityAuthenticationService {
     private readonly now: () => Date = () => new Date(),
   ) {}
 
-  /** 이메일·비밀번호 인증 뒤 활성 사용자만 token을 받게 한다 */
-  async login(
-    emailInput: string,
-    password: string,
+  /** passwordless provider 결과를 최신 활성 사용자와 결합한다 */
+  async completePasswordless(
+    result: ProviderLoginResult,
   ): Promise<AuthenticationResult> {
-    const email = normalizeEmail(emailInput);
-    const result = await this.callProvider(() =>
-      this.provider.login(email, password),
-    );
-
     if (result.kind === 'MFA_REQUIRED') {
       return result;
     }
-
     return this.completeAuthentication(result.tokens);
   }
 
