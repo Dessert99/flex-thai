@@ -240,7 +240,13 @@ describe('문제 게시 데이터베이스 schema', () => {
     expect(
       getTableConfig(questionOptions).checks.map(({ name }) => name),
     ).toEqual(
-      expect.arrayContaining(['question_options_position_nonnegative']),
+      expect.arrayContaining([
+        'question_options_position_nonnegative',
+        'question_options_sentence_or_span',
+      ]),
+    );
+    expect(getTableColumns(questionOptions).sentenceVersionId.notNull).toBe(
+      false,
     );
   });
 

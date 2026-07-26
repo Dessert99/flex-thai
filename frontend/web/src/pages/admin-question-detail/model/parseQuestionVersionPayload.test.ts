@@ -52,6 +52,7 @@ function createValidPayload() {
         clientRef: 'option-1',
         position: 0,
         sentence: createSentence('정답 문장'),
+        span: null,
       },
     ],
     correctOptionRef: 'option-1',

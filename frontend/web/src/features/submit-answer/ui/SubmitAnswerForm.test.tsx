@@ -31,6 +31,46 @@ const options = [
   },
 ];
 
+const inlineSentence = {
+  sentenceVersionId: '01933b6a-8f13-7a19-b7e5-536d70f57aff',
+  originalText: 'ฉันรัก',
+  translationKo: '나는 사랑한다',
+  pronunciationKo: '찬 락',
+  toneMarks: 'R H',
+  audioUrl: null,
+  tokens: [
+    {
+      position: 0,
+      surface: 'ฉัน',
+      startOffset: 0,
+      endOffset: 3,
+      vocabularyId: '01933b6a-8f13-7a19-b7e5-536d70f57a01',
+      meaningId: '01933b6a-8f13-7a19-b7e5-536d70f57a02',
+      pronunciationId: '01933b6a-8f13-7a19-b7e5-536d70f57a03',
+      contextMeaningKo: '나',
+      pronunciationKo: '찬',
+      toneMarks: 'R',
+      audioUrl: null,
+      role: 'TARGET' as const,
+    },
+    {
+      position: 1,
+      surface: 'รัก',
+      startOffset: 3,
+      endOffset: 6,
+      vocabularyId: '01933b6a-8f13-7a19-b7e5-536d70f57a04',
+      meaningId: '01933b6a-8f13-7a19-b7e5-536d70f57a05',
+      pronunciationId: '01933b6a-8f13-7a19-b7e5-536d70f57a06',
+      contextMeaningKo: '사랑하다',
+      pronunciationKo: '락',
+      toneMarks: 'H',
+      audioUrl: null,
+      role: 'TARGET' as const,
+    },
+  ],
+  expressions: [],
+};
+
 beforeEach(() => {
   mocks.createClientAttemptId
     .mockReset()
@@ -74,15 +114,19 @@ describe('답안 제출 폼', () => {
     );
     expect(await screen.findByText('정답입니다.')).toBeInTheDocument();
   });
+});
 
+describe('답안 선택 상호작용', () => {
   it('inline 범위를 문장 안에 표시하고 별도 radio로 선택한다', async () => {
     const user = userEvent.setup();
     renderWithProviders(
       <SubmitAnswerForm
+        inlineSentences={[inlineSentence]}
         options={options.map((option, index) => ({
-          ...option,
+          id: option.id,
+          label: null,
           span: {
-            sentenceVersionId: '01933b6a-8f13-7a19-b7e5-536d70f57aff',
+            sentenceVersionId: inlineSentence.sentenceVersionId,
             startTokenIndex: index,
             endTokenIndex: index + 1,
           },
@@ -92,13 +136,19 @@ describe('답안 제출 폼', () => {
       />,
     );
 
-    expect(screen.getAllByTestId('inline-option-span')).toHaveLength(2);
+    const marks = screen.getAllByTestId('inline-option-span');
+    expect(marks).toHaveLength(2);
+    expect(marks.map((mark) => mark.textContent)).toEqual(['ฉัน', 'รัก']);
     const radios = screen.getAllByRole('radio');
     const secondRadio = getRadio(radios, 1);
+    expect(secondRadio).toHaveAttribute('aria-describedby', marks[1]?.id);
     await user.click(secondRadio);
 
     expect(secondRadio).toBeChecked();
-    expect(secondRadio.querySelector('button')).toBeNull();
+    expect(marks[1]?.querySelector('button')).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'รัก 뜻과 발음 듣기' }),
+    ).toBeVisible();
   });
 
   it('방향키로 radio를 이동하고 제출 뒤 선택·정답 상태를 유지한다', async () => {
@@ -124,6 +174,31 @@ describe('답안 제출 폼', () => {
       await screen.findByRole('radio', { name: /선택한 답/ }),
     ).toBeChecked();
     expect(screen.getByText('정답')).toBeVisible();
+  });
+
+  it('제출 중 선택을 잠그고 서버가 반환한 option을 선택한 답으로 고정한다', async () => {
+    const pending = deferred<ReturnType<typeof createFeedback>>();
+    mocks.submitAnswer.mockReturnValue(pending.promise);
+    const user = userEvent.setup();
+    renderWithProviders(
+      <SubmitAnswerForm
+        options={options}
+        questionId='01933b6a-8f13-7a19-b7e5-536d70f57aaa'
+        questionVersionId='01933b6a-8f13-7a19-b7e5-536d70f57aab'
+      />,
+    );
+
+    const radios = screen.getAllByRole('radio');
+    await user.click(getRadio(radios, 0));
+    await user.click(screen.getByRole('button', { name: '답안 제출' }));
+
+    expect(getRadio(radios, 1)).toBeDisabled();
+    await user.click(getRadio(radios, 1));
+    pending.resolve(createFeedback(false));
+
+    expect(
+      await screen.findByRole('radio', { name: /선택한 답/ }),
+    ).toHaveAccessibleName(/ตัวเลือกหนึ่ง 선택한 답/);
   });
 });
 
@@ -154,4 +229,12 @@ function createFeedback(isCorrect: boolean) {
       explanationBlocks: [],
     },
   };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((complete) => {
+    resolve = complete;
+  });
+  return { promise, resolve };
 }

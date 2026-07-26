@@ -671,14 +671,26 @@ export class ContentDraftService {
         [command.input.clientRef, questionId],
       ];
       for (const [optionIndex, option] of command.input.options.entries()) {
-        const sentence = await resolveSentence({
-          transaction,
-          resolver,
-          sentence: option.sentence,
-          path: `options.${optionIndex}.sentence`,
-          newId: this.newId,
-        });
-        sentences.push(sentence);
+        const inline = typeVersion.template === 'INLINE_SPAN_CHOICE';
+        if (inline !== (option.sentence === null)) {
+          throw new ContentDraftError(
+            'IMPORT_CONTENT_INVALID',
+            `options.${optionIndex}`,
+          );
+        }
+        const sentence =
+          option.sentence === null
+            ? null
+            : await resolveSentence({
+                transaction,
+                resolver,
+                sentence: option.sentence,
+                path: `options.${optionIndex}.sentence`,
+                newId: this.newId,
+              });
+        if (sentence !== null) {
+          sentences.push(sentence);
+        }
         const optionId = this.newId();
         const targetBlock = option.span
           ? blocks[option.span.blockPosition]
@@ -711,7 +723,7 @@ export class ContentDraftService {
         options.push({
           id: optionId,
           questionVersionId,
-          sentenceVersionId: sentence.version.id,
+          sentenceVersionId: sentence?.version.id ?? null,
           position: option.position,
           isCorrect: option.clientRef === command.input.correctOptionRef,
           spanSentenceVersionId: targetSentence?.sentenceVersionId ?? null,

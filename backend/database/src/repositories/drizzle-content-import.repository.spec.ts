@@ -423,6 +423,7 @@ const createIntegrationFixture = async (
           clientRef: `${questionRef}-option`,
           position: 0,
           sentence,
+          span: null,
         },
       ],
       correctOptionRef: `${questionRef}-option`,

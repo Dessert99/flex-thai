@@ -241,9 +241,10 @@ export const questionOptions = pgTable(
     questionVersionId: uuid('question_version_id')
       .references(() => questionVersions.id, { onDelete: 'restrict' })
       .notNull(),
-    sentenceVersionId: uuid('sentence_version_id')
-      .references(() => thaiSentenceVersions.id, { onDelete: 'restrict' })
-      .notNull(),
+    sentenceVersionId: uuid('sentence_version_id').references(
+      () => thaiSentenceVersions.id,
+      { onDelete: 'restrict' },
+    ),
     spanSentenceVersionId: uuid('span_sentence_version_id').references(
       () => thaiSentenceVersions.id,
       { onDelete: 'restrict' },
@@ -267,9 +268,9 @@ export const questionOptions = pgTable(
       .where(sql`${table.isCorrect} = true`),
     check('question_options_position_nonnegative', sql`${table.position} >= 0`),
     check(
-      'question_options_span_all_or_none',
-      sql`(${table.spanSentenceVersionId} is null and ${table.spanStartTokenIndex} is null and ${table.spanEndTokenIndex} is null)
-        or (${table.spanSentenceVersionId} is not null and ${table.spanStartTokenIndex} is not null and ${table.spanEndTokenIndex} is not null)`,
+      'question_options_sentence_or_span',
+      sql`(${table.sentenceVersionId} is not null and ${table.spanSentenceVersionId} is null and ${table.spanStartTokenIndex} is null and ${table.spanEndTokenIndex} is null)
+        or (${table.sentenceVersionId} is null and ${table.spanSentenceVersionId} is not null and ${table.spanStartTokenIndex} is not null and ${table.spanEndTokenIndex} is not null)`,
     ),
     check(
       'question_options_span_range',

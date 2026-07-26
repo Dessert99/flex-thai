@@ -1,5 +1,8 @@
 /** 답안 선택과 멱등 제출 command의 수명주기를 관리한다 */
-import type { SubmitQuestionAttemptResponse } from '@flex-thia/contracts';
+import type {
+  PublicThaiSentence,
+  SubmitQuestionAttemptResponse,
+} from '@flex-thia/contracts';
 import { useMutation } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { Button } from '@/shared/ui/button';
@@ -10,8 +13,10 @@ import {
   type SubmitAnswerCommand,
 } from '../api/submitAnswerMutation';
 import { createClientAttemptId } from '../model/createClientAttemptId';
+import { InlineSentenceChoices } from './InlineSentenceChoices';
 
 interface SubmitAnswerFormProps {
+  inlineSentences?: readonly PublicThaiSentence[];
   onConfirmed?: (response: SubmitQuestionAttemptResponse) => void;
   onReset?: () => void;
   options: readonly SubmitAnswerOption[];
@@ -19,19 +24,25 @@ interface SubmitAnswerFormProps {
   questionVersionId: string;
 }
 
-/** 표준·inline 선택지가 공유하는 제출 표시 정보 */
-export interface SubmitAnswerOption {
+interface SubmitAnswerOptionBase {
   id: string;
-  label: string;
-  span: {
-    sentenceVersionId: string;
-    startTokenIndex: number;
-    endTokenIndex: number;
-  } | null;
 }
+
+/** 표준 문장 또는 QUESTION 문장 inline 범위를 가리키는 제출 선택지 */
+export type SubmitAnswerOption =
+  | (SubmitAnswerOptionBase & { label: string; span: null })
+  | (SubmitAnswerOptionBase & {
+      label: null;
+      span: {
+        sentenceVersionId: string;
+        startTokenIndex: number;
+        endTokenIndex: number;
+      };
+    });
 
 /** 실패 재시도에는 command를 보존하고 다시 풀기에서만 새 제출을 시작한다 */
 export function SubmitAnswerForm({
+  inlineSentences = [],
   onConfirmed,
   onReset,
   options,
@@ -46,6 +57,7 @@ export function SubmitAnswerForm({
     mutationFn: submitAnswer,
     retry: false,
     onSuccess: (response) => {
+      setSelectedOptionId(response.attempt.selectedOptionId);
       setFeedback(response);
       onConfirmed?.(response);
     },
@@ -99,6 +111,8 @@ export function SubmitAnswerForm({
     >
       <AnswerOptions
         feedback={feedback}
+        disabled={mutation.isPending || feedback !== undefined}
+        inlineSentences={inlineSentences}
         onSelect={selectOption}
         options={options}
         selectedOptionId={selectedOptionId}
@@ -125,19 +139,29 @@ export function SubmitAnswerForm({
 }
 
 function AnswerOptions({
+  disabled,
   feedback,
+  inlineSentences,
   onSelect,
   options,
   selectedOptionId,
 }: {
+  disabled: boolean;
   feedback: SubmitQuestionAttemptResponse | undefined;
+  inlineSentences: readonly PublicThaiSentence[];
   onSelect: (optionId: string) => void;
   options: readonly SubmitAnswerOption[];
   selectedOptionId: string | undefined;
 }) {
+  const confirmedOptionId =
+    feedback?.attempt.selectedOptionId ?? selectedOptionId;
   return (
     <fieldset className='grid gap-cluster'>
       <legend className='sr-only'>답안 선택</legend>
+      <InlineSentenceChoices
+        options={options}
+        sentences={inlineSentences}
+      />
       {options.map((option) => (
         <div
           className='flex items-center gap-cluster rounded-control border border-default p-cluster'
@@ -149,12 +173,13 @@ function AnswerOptions({
             }
             aria-label={getOptionAccessibleName(
               option,
-              selectedOptionId,
+              confirmedOptionId,
               feedback,
+              inlineSentences,
             )}
-            checked={selectedOptionId === option.id}
+            checked={confirmedOptionId === option.id}
             className='size-icon shrink-0 p-px shadow-none'
-            disabled={feedback !== undefined}
+            disabled={disabled}
             id={`answer-${option.id}`}
             name='answer'
             onChange={() => {
@@ -168,18 +193,9 @@ function AnswerOptions({
             htmlFor={`answer-${option.id}`}
             lang='th'
           >
-            {option.span === null ? (
-              option.label
-            ) : (
-              <mark
-                data-testid='inline-option-span'
-                id={`inline-option-${option.id}`}
-              >
-                {option.label}
-              </mark>
-            )}
+            {getOptionSurface(option, inlineSentences)}
           </Label>
-          {selectedOptionId === option.id && feedback !== undefined ? (
+          {confirmedOptionId === option.id && feedback !== undefined ? (
             <span>선택한 답</span>
           ) : null}
           {feedback?.feedback.correctOptionId === option.id ? (
@@ -205,18 +221,39 @@ function getOptionAccessibleName(
   option: SubmitAnswerOption,
   selectedOptionId: string | undefined,
   feedback: SubmitQuestionAttemptResponse | undefined,
+  inlineSentences: readonly PublicThaiSentence[],
 ) {
+  const surface = getOptionSurface(option, inlineSentences);
   if (feedback === undefined) {
-    return option.label;
+    return surface;
   }
 
   return [
-    option.label,
+    surface,
     selectedOptionId === option.id ? '선택한 답' : null,
     feedback.feedback.correctOptionId === option.id ? '정답' : null,
   ]
     .filter((value) => value !== null)
     .join(' ');
+}
+
+function getOptionSurface(
+  option: SubmitAnswerOption,
+  sentences: readonly PublicThaiSentence[],
+) {
+  if (option.span === null) {
+    return option.label;
+  }
+  const sentence = sentences.find(
+    (candidate) =>
+      candidate.sentenceVersionId === option.span.sentenceVersionId,
+  );
+  return (
+    sentence?.tokens
+      .slice(option.span.startTokenIndex, option.span.endTokenIndex)
+      .map((token) => token.surface)
+      .join('') ?? ''
+  );
 }
 
 function SubmissionError() {

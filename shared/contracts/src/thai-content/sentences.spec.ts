@@ -64,4 +64,19 @@ describe('공개 태국어 문장 계약', () => {
       }),
     ).toThrow();
   });
+
+  it('token과 표현의 fractional 좌표를 거부한다', () => {
+    expect(() =>
+      publicThaiSentenceSchema.parse({
+        ...sentence,
+        tokens: [{ ...sentence.tokens[0], startOffset: 0.5 }],
+      }),
+    ).toThrow();
+    expect(() =>
+      publicThaiSentenceSchema.parse({
+        ...sentence,
+        expressions: [{ ...sentence.expressions[0], startTokenIndex: 0.5 }],
+      }),
+    ).toThrow();
+  });
 });

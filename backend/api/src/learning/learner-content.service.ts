@@ -229,12 +229,21 @@ export class LearnerContentService {
       ...detail,
       blocks: await mapBlocks(detail.blocks, signMedia),
       options: await Promise.all(
-        detail.options.map(async (option) => ({
-          id: option.id,
-          position: option.position,
-          sentence: await mapSentence(option.sentence, signMedia),
-          ...(option.span === null ? {} : { span: option.span }),
-        })),
+        detail.options.map(async (option) =>
+          option.sentence === null
+            ? {
+                id: option.id,
+                position: option.position,
+                sentence: null,
+                span: option.span,
+              }
+            : {
+                id: option.id,
+                position: option.position,
+                sentence: await mapSentence(option.sentence, signMedia),
+                span: null,
+              },
+        ),
       ),
     });
   }

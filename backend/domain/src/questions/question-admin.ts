@@ -431,8 +431,8 @@ const assertQuestionInput = (value: unknown): void => {
     const option = requireRecord(value, optionPath);
     requireExactKeys(
       option,
-      ['clientRef', 'position', 'sentence'],
-      ['span'],
+      ['clientRef', 'position', 'sentence', 'span'],
+      [],
       optionPath,
     );
     const clientRef = requireNonemptyString(
@@ -448,8 +448,7 @@ const assertQuestionInput = (value: unknown): void => {
     if (position !== optionIndex) {
       failInvalidContent(`${optionPath}.position`);
     }
-    assertSentenceInput(option.sentence, `${optionPath}.sentence`);
-    if (option.span !== undefined) {
+    if (option.sentence === null) {
       const span = requireRecord(option.span, `${optionPath}.span`);
       requireExactKeys(
         span,
@@ -487,6 +486,11 @@ const assertQuestionInput = (value: unknown): void => {
         `${optionPath}.span.endTokenIndex`,
       );
       if (end <= start) failInvalidContent(`${optionPath}.span`);
+    } else {
+      assertSentenceInput(option.sentence, `${optionPath}.sentence`);
+      if (option.span !== null) {
+        failInvalidContent(`${optionPath}.span`);
+      }
     }
     return clientRef;
   });
@@ -872,13 +876,25 @@ export class QuestionAdminService {
       const options = [];
       const spanKeys = new Set<string>();
       for (const [optionIndex, option] of command.input.options.entries()) {
-        const sentence = await resolveSentence({
-          transaction,
-          sentence: option.sentence,
-          path: `options.${optionIndex}.sentence`,
-          newId: () => assertGeneratedId(this.generateId),
-        });
-        sentences.push(sentence);
+        const inline = typeVersion.template === 'INLINE_SPAN_CHOICE';
+        if (inline !== (option.sentence === null)) {
+          throw new QuestionAdminError(
+            'QUESTION_CONTENT_INVALID',
+            `options.${optionIndex}`,
+          );
+        }
+        const sentence =
+          option.sentence === null
+            ? null
+            : await resolveSentence({
+                transaction,
+                sentence: option.sentence,
+                path: `options.${optionIndex}.sentence`,
+                newId: () => assertGeneratedId(this.generateId),
+              });
+        if (sentence !== null) {
+          sentences.push(sentence);
+        }
         const targetBlock = option.span
           ? blocks[option.span.blockPosition]
           : undefined;
@@ -910,7 +926,7 @@ export class QuestionAdminService {
         options.push({
           id: assertGeneratedId(this.generateId),
           questionVersionId: current.id,
-          sentenceVersionId: sentence.version.id,
+          sentenceVersionId: sentence?.version.id ?? null,
           position: option.position,
           isCorrect: option.clientRef === command.input.correctOptionRef,
           spanSentenceVersionId: targetSentence?.sentenceVersionId ?? null,

@@ -4,6 +4,7 @@ import type {
   ContentDraftRepository,
   ContentDraftTransaction,
   ImportedVocabularyReferenceItem,
+  QuestionTypeVersionReferenceRecord,
   VocabularyReferenceRecord,
 } from './content-draft.repository.js';
 import {
@@ -115,6 +116,7 @@ interface TransactionOptions {
     mediaAssetId: string | null;
   }>;
   questionTypeExists?: boolean;
+  questionTypeVersion?: QuestionTypeVersionReferenceRecord;
 }
 
 const createTransaction = (
@@ -191,13 +193,13 @@ const createTransaction = (
     findQuestionTypeVersion: vi.fn().mockResolvedValue(
       options.questionTypeExists === false
         ? null
-        : {
+        : (options.questionTypeVersion ?? {
             id: ids.typeVersion,
             slug: 'standard-choice',
             version: 1,
             template: 'STANDARD_CHOICE',
             optionCount: 2,
-          },
+          }),
     ),
     saveVocabularyDraft: vi.fn().mockResolvedValue(undefined),
     saveQuestionDraft: vi.fn().mockResolvedValue(undefined),
@@ -332,11 +334,13 @@ const questionCommand = (
         clientRef: 'option-1',
         position: 0,
         sentence: sentenceInput(),
+        span: null,
       },
       {
         clientRef: 'option-2',
         position: 1,
         sentence: sentenceInput(),
+        span: null,
       },
     ],
     correctOptionRef: 'option-2',
@@ -610,6 +614,64 @@ describe('ContentDraftService 문제 초안', () => {
     });
   });
 
+  it('인라인 선택지는 별도 문장 없이 문제 문장의 span만 저장한다', async () => {
+    const transaction = createTransaction({
+      questionTypeVersion: {
+        id: ids.typeVersion,
+        slug: 'standard-choice',
+        version: 1,
+        template: 'INLINE_SPAN_CHOICE',
+        optionCount: 2,
+      },
+    });
+    const service = new ContentDraftService(
+      createRepository(transaction),
+      createIdGenerator(),
+    );
+    const command = questionCommand();
+    command.input.options = [
+      {
+        clientRef: 'option-1',
+        position: 0,
+        sentence: null,
+        span: {
+          blockPosition: 0,
+          sentencePosition: 0,
+          startTokenIndex: 0,
+          endTokenIndex: 1,
+        },
+      },
+      {
+        clientRef: 'option-2',
+        position: 1,
+        sentence: null,
+        span: {
+          blockPosition: 0,
+          sentencePosition: 0,
+          startTokenIndex: 1,
+          endTokenIndex: 2,
+        },
+      },
+    ];
+
+    await service.createQuestionItem(command);
+
+    const saved = vi.mocked(transaction.saveQuestionDraft).mock.calls[0]![0];
+    expect(saved.graph.sentences).toHaveLength(1);
+    expect(saved.graph.options).toEqual([
+      expect.objectContaining({
+        sentenceVersionId: null,
+        spanStartTokenIndex: 0,
+        spanEndTokenIndex: 1,
+      }),
+      expect.objectContaining({
+        sentenceVersionId: null,
+        spanStartTokenIndex: 1,
+        spanEndTokenIndex: 2,
+      }),
+    ]);
+  });
+
   it('question option __proto__ clientRef를 own JSON key로 보존한다', async () => {
     const transaction = createTransaction();
     const service = new ContentDraftService(
@@ -713,10 +775,9 @@ describe('ContentDraftService 문제 초안', () => {
       },
     ];
     const command = questionCommand(sentence);
-    command.input.options = command.input.options.map((option) => ({
-      ...option,
-      sentence,
-    }));
+    command.input.options = command.input.options.map((option) =>
+      option.sentence === null ? option : { ...option, sentence },
+    );
 
     await service.createQuestionItem(command);
 

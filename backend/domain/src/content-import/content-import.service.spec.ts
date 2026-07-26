@@ -75,6 +75,7 @@ const questionInput = (clientRef: string) => ({
       clientRef: `${clientRef}-option`,
       position: 0,
       sentence: sentenceInput,
+      span: null,
     },
   ],
   correctOptionRef: `${clientRef}-option`,

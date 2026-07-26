@@ -3,8 +3,9 @@ import type {
   PublicThaiSentence,
   ThaiExpressionFeedback,
 } from '@flex-thia/contracts';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { segmentThaiSentence } from '../model/segmentThaiSentence';
+import { useThaiAudioPlayback } from '../model/useThaiAudioPlayback';
 import { ThaiFeedbackTrigger, type ThaiFeedback } from './ThaiFeedbackTrigger';
 
 interface InteractiveThaiSentenceProps {
@@ -18,37 +19,11 @@ export function InteractiveThaiSentence({
   const [selectedFeedback, setSelectedFeedback] = useState<ThaiFeedback | null>(
     null,
   );
-  const [playbackError, setPlaybackError] = useState<string | null>(null);
-  const playingAudioRef = useRef<HTMLAudioElement | null>(null);
-
-  useEffect(
-    () => () => {
-      playingAudioRef.current?.pause();
-    },
-    [],
-  );
+  const { playAudio, playbackError } = useThaiAudioPlayback();
 
   const activateFeedback = async (feedback: ThaiFeedback) => {
     setSelectedFeedback(feedback);
-    setPlaybackError(null);
-
-    if (feedback.audioUrl === null) {
-      return;
-    }
-
-    if (playingAudioRef.current !== null) {
-      playingAudioRef.current.pause();
-      playingAudioRef.current.currentTime = 0;
-    }
-
-    const audio = new Audio(feedback.audioUrl);
-    playingAudioRef.current = audio;
-
-    try {
-      await audio.play();
-    } catch {
-      setPlaybackError('음성을 재생할 수 없습니다.');
-    }
+    await playAudio(feedback.audioUrl);
   };
 
   return (

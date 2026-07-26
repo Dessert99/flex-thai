@@ -101,7 +101,7 @@ const candidate = (): QuestionVersionValidationCandidate => ({
 describe('QuestionVersion 문제 버전 게시 검증', () => {
   it('INLINE_SPAN_CHOICE는 QUESTION 문장 안의 네 범위를 허용한다', () => {
     const input = candidate();
-    const sentence = input.options[0]!.sentence;
+    const sentence = requireOptionSentence(input);
     sentence.input.originalText = 'กขคง';
     sentence.input.tokens = Array.from({ length: 4 }, (_, position) => ({
       position,
@@ -124,7 +124,7 @@ describe('QuestionVersion 문제 버전 게시 검증', () => {
       id: `option-${position}`,
       position,
       isCorrect: position === 1,
-      sentence,
+      sentence: null,
       span: {
         sentenceVersionId: sentence.id,
         startTokenIndex: position,
@@ -140,16 +140,17 @@ describe('QuestionVersion 문제 버전 게시 검증', () => {
 
   it('inline 범위가 QUESTION 문장 밖이거나 token 범위를 벗어나면 거부한다', () => {
     const input = candidate();
+    const sentence = requireOptionSentence(input);
     input.typeVersion = {
       ...input.typeVersion,
       template: 'INLINE_SPAN_CHOICE',
     };
-    input.blocks[0]!.sentences = [
-      { speaker: null, sentence: input.options[0]!.sentence },
-    ];
+    input.blocks[0]!.sentences = [{ speaker: null, sentence }];
     input.options = input.options.map((option) => ({
-      ...option,
-      sentence: option.sentence,
+      id: option.id,
+      position: option.position,
+      isCorrect: option.isCorrect,
+      sentence: null,
       span: {
         sentenceVersionId: 'other-sentence',
         startTokenIndex: 0,
@@ -249,7 +250,7 @@ describe('QuestionVersion 문제 버전 게시 검증', () => {
         kind: 'DIALOGUE',
         displayMode: 'TEXT',
         position: 0,
-        sentences: [{ speaker: ' ', sentence: input.options[0]!.sentence }],
+        sentences: [{ speaker: ' ', sentence: requireOptionSentence(input) }],
       },
       { ...input.blocks[0]!, position: 1 },
     ];
@@ -262,7 +263,7 @@ describe('QuestionVersion 문제 버전 게시 검증', () => {
 
   it('태국어 token offset이 원문과 다르면 문장 경로로 게시 검증을 실패한다', () => {
     const input = candidate();
-    input.options[0]!.sentence.input.tokens = [
+    requireOptionSentence(input).input.tokens = [
       {
         position: 0,
         surface: 'ข',
@@ -284,7 +285,7 @@ describe('QuestionVersion 문제 버전 게시 검증', () => {
 
   it('숨긴 어휘를 참조하면 게시 검증을 실패한다', () => {
     const input = candidate();
-    input.options[0]!.sentence.referencedVocabularies = [
+    requireOptionSentence(input).referencedVocabularies = [
       { id: 'vocabulary-id', status: 'HIDDEN' },
     ];
 
@@ -296,7 +297,7 @@ describe('QuestionVersion 문제 버전 게시 검증', () => {
 
   it('문장 음성이 READY가 아니면 게시 검증을 실패한다', () => {
     const input = candidate();
-    input.options[0]!.sentence.mediaAsset = notReadyAudio('audio-1');
+    requireOptionSentence(input).mediaAsset = notReadyAudio('audio-1');
 
     expect(validateQuestionVersion(input).issues).toContainEqual({
       path: 'options.0.sentence.mediaAsset',
@@ -306,7 +307,7 @@ describe('QuestionVersion 문제 버전 게시 검증', () => {
 
   it('발음 음성 중 READY가 아닌 자산이 있으면 게시 검증을 실패한다', () => {
     const input = candidate();
-    input.options[0]!.sentence.pronunciationMediaAssets = [
+    requireOptionSentence(input).pronunciationMediaAssets = [
       notReadyAudio('pronunciation-audio'),
     ];
 
@@ -318,7 +319,7 @@ describe('QuestionVersion 문제 버전 게시 검증', () => {
 
   it('선택한 발음 음성이 아직 없으면 해당 index의 게시 검증을 실패한다', () => {
     const input = candidate();
-    input.options[0]!.sentence.pronunciationMediaAssets = [null];
+    requireOptionSentence(input).pronunciationMediaAssets = [null];
 
     expect(validateQuestionVersion(input)).toMatchObject({
       status: 'FAILED',
@@ -331,3 +332,11 @@ describe('QuestionVersion 문제 버전 게시 검증', () => {
     });
   });
 });
+
+function requireOptionSentence(input: QuestionVersionValidationCandidate) {
+  const sentence = input.options.at(0)?.sentence;
+  if (sentence === null || sentence === undefined) {
+    throw new Error('일반 선택지 문장이 없습니다.');
+  }
+  return sentence;
+}

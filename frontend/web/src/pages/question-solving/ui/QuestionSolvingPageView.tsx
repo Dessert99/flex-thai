@@ -58,6 +58,9 @@ export function QuestionSolvingPageView({
         </Button>
       ) : null}
       <SubmitAnswerForm
+        inlineSentences={detail.blocks
+          .filter((block) => block.kind === 'QUESTION')
+          .flatMap((block) => block.sentences.map(({ sentence }) => sentence))}
         onConfirmed={(response) => {
           setTranscriptRevealed(true);
           setSubmission(response);
@@ -65,11 +68,19 @@ export function QuestionSolvingPageView({
         onReset={() => {
           setSubmission(undefined);
         }}
-        options={detail.options.map((option) => ({
-          id: option.id,
-          label: option.sentence.originalText,
-          span: option.span ?? null,
-        }))}
+        options={detail.options.map((option) =>
+          option.sentence === null
+            ? {
+                id: option.id,
+                label: null,
+                span: option.span,
+              }
+            : {
+                id: option.id,
+                label: option.sentence.originalText,
+                span: null,
+              },
+        )}
         questionId={detail.questionId}
         questionVersionId={detail.questionVersionId}
       />

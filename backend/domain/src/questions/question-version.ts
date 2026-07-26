@@ -41,6 +41,23 @@ export interface QuestionSentenceCandidate {
   pronunciationMediaAssets: Array<MediaAsset | null>;
 }
 
+interface QuestionOptionCandidateBase {
+  id: string;
+  position: number;
+  isCorrect: boolean;
+}
+
+/** 일반 선택지 문장 또는 QUESTION 문장 inline 범위 중 하나인 검증 후보 */
+export type QuestionOptionCandidate =
+  | (QuestionOptionCandidateBase & {
+      sentence: QuestionSentenceCandidate;
+      span: null;
+    })
+  | (QuestionOptionCandidateBase & {
+      sentence: null;
+      span: QuestionOptionSpan;
+    });
+
 /** 검증할 문제 버전 전체 스냅샷 */
 export interface QuestionVersionValidationCandidate {
   id: string;
@@ -61,13 +78,7 @@ export interface QuestionVersionValidationCandidate {
       sentence: QuestionSentenceCandidate;
     }>;
   }>;
-  options: Array<{
-    id: string;
-    position: number;
-    isCorrect: boolean;
-    sentence: QuestionSentenceCandidate;
-    span: QuestionOptionSpan | null;
-  }>;
+  options: QuestionOptionCandidate[];
 }
 
 /** 문제 게시 불가 원인을 안정적인 path와 code로 보존한다 */
@@ -219,9 +230,11 @@ export const validateQuestionVersion = (
         code: 'OPTION_POSITION_INVALID',
       });
     }
-    issues.push(
-      ...validateSentence(option.sentence, `options.${optionIndex}.sentence`),
-    );
+    if (option.sentence !== null) {
+      issues.push(
+        ...validateSentence(option.sentence, `options.${optionIndex}.sentence`),
+      );
+    }
   });
 
   if (candidate.options.length !== candidate.typeVersion.optionCount) {
@@ -241,12 +254,19 @@ export const validateQuestionVersion = (
   const spans = new Set<string>();
   candidate.options.forEach((option, optionIndex) => {
     if (!inline) {
-      if (option.span !== null) {
+      if (option.span !== null || option.sentence === null) {
         issues.push({
           path: `options.${optionIndex}.span`,
           code: 'INLINE_SPAN_INVALID',
         });
       }
+      return;
+    }
+    if (option.sentence !== null) {
+      issues.push({
+        path: `options.${optionIndex}.span`,
+        code: 'INLINE_SPAN_INVALID',
+      });
       return;
     }
     const sentence = questionSentences.find(

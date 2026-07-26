@@ -75,17 +75,26 @@ export interface CanonicalDraftQuestionBlockInput {
 }
 
 /** 문제 선택지의 client ref와 표시 순서 입력 */
-export interface CanonicalDraftQuestionOptionInput {
+interface CanonicalDraftQuestionOptionBase {
   clientRef: string;
   position: number;
-  sentence: CanonicalDraftSentenceInput;
-  span?: {
-    blockPosition: number;
-    sentencePosition: number;
-    startTokenIndex: number;
-    endTokenIndex: number;
-  };
 }
+
+/** 일반 선택지 문장 또는 문제 문장 inline 범위 중 하나인 canonical 입력 */
+export type CanonicalDraftQuestionOptionInput =
+  | (CanonicalDraftQuestionOptionBase & {
+      sentence: CanonicalDraftSentenceInput;
+      span: null;
+    })
+  | (CanonicalDraftQuestionOptionBase & {
+      sentence: null;
+      span: {
+        blockPosition: number;
+        sentencePosition: number;
+        startTokenIndex: number;
+        endTokenIndex: number;
+      };
+    });
 
 /** 한 import item이 생성할 canonical 문제 입력 */
 export interface CanonicalDraftQuestionInput {

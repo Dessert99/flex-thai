@@ -364,7 +364,7 @@ describe('DrizzleQuestionPublicationRepository가 문제 게시 생명주기를 
       expect(candidate?.blocks[0]?.sentences[0]?.sentence).toBe(
         candidate?.options[0]?.sentence,
       );
-      expect(candidate?.options[0]?.sentence.input).toEqual({
+      expect(candidate?.options[0]?.sentence?.input).toEqual({
         originalText: 'กข',
         translationKo: '정답',
         pronunciationKo: '꼬 커',
@@ -396,12 +396,12 @@ describe('DrizzleQuestionPublicationRepository가 문제 게시 생명주기를 
           },
         ],
       });
-      expect(candidate?.options[0]?.sentence.referencedVocabularies).toEqual([
+      expect(candidate?.options[0]?.sentence?.referencedVocabularies).toEqual([
         { id: 'word-id', status: 'PUBLISHED' },
         { id: 'expression-id', status: 'PUBLISHED' },
       ]);
       expect(
-        candidate?.options[0]?.sentence.pronunciationMediaAssets,
+        candidate?.options[0]?.sentence?.pronunciationMediaAssets,
       ).toHaveLength(1);
     });
   });
@@ -425,9 +425,9 @@ describe('DrizzleQuestionPublicationRepository가 문제 게시 생명주기를 
     await withTransaction(fake.database, async (transaction) => {
       const candidate = await transaction.loadValidationCandidate('version-id');
 
-      expect(candidate?.options[0]?.sentence.pronunciationMediaAssets).toEqual([
-        null,
-      ]);
+      expect(candidate?.options[0]?.sentence?.pronunciationMediaAssets).toEqual(
+        [null],
+      );
     });
   });
 
@@ -617,12 +617,12 @@ describe('DrizzleQuestionPublicationRepository가 문제 게시 생명주기를 
         'option-1',
       ]);
       expect(
-        candidate?.options[0]?.sentence.input.tokens.map(
+        candidate?.options[0]?.sentence?.input.tokens.map(
           (occurrence) => occurrence.position,
         ),
       ).toEqual([0, 1]);
       expect(
-        candidate?.options[0]?.sentence.input.expressions.map(
+        candidate?.options[0]?.sentence?.input.expressions.map(
           (occurrence) => occurrence.startTokenIndex,
         ),
       ).toEqual([0, 1]);

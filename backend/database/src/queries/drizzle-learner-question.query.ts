@@ -152,17 +152,25 @@ export interface LearnerQuestionBlockProjection {
   sentences: LearnerQuestionBlockSentenceProjection[];
 }
 
-/** 정답 flag를 제외한 선택지 projection */
-export interface LearnerQuestionOptionProjection {
+interface LearnerQuestionOptionProjectionBase {
   id: string;
   position: number;
-  sentence: LearnerQuestionSentenceProjection;
-  span: {
-    sentenceVersionId: string;
-    startTokenIndex: number;
-    endTokenIndex: number;
-  } | null;
 }
+
+/** 정답 flag를 제외한 일반 문장 또는 inline 범위 선택지 projection */
+export type LearnerQuestionOptionProjection =
+  | (LearnerQuestionOptionProjectionBase & {
+      sentence: LearnerQuestionSentenceProjection;
+      span: null;
+    })
+  | (LearnerQuestionOptionProjectionBase & {
+      sentence: null;
+      span: {
+        sentenceVersionId: string;
+        startTokenIndex: number;
+        endTokenIndex: number;
+      };
+    });
 
 /** 현재 게시 버전의 제출 전 문제 상세 projection */
 export interface LearnerQuestionDetailProjection {
@@ -479,7 +487,9 @@ export class DrizzleLearnerQuestionQuery {
     const sentenceIds = [
       ...new Set([
         ...blockSentenceRows.map((row) => row.sentenceVersionId),
-        ...optionRows.map((row) => row.sentenceVersionId),
+        ...optionRows
+          .map((row) => row.sentenceVersionId)
+          .filter((id): id is string => id !== null),
       ]),
     ];
     const sentences = await this.loadSentences(sentenceIds);
@@ -496,24 +506,38 @@ export class DrizzleLearnerQuestionQuery {
       difficulty: base.difficulty,
       template: base.template,
       blocks: this.assembleBlocks(blockRows, blockSentenceRows, sentences),
-      options: optionRows.sort(comparePosition).map((option) => ({
-        id: option.id,
-        position: option.position,
-        sentence: requireSentence(sentences, option.sentenceVersionId),
-        span:
-          option.spanSentenceVersionId === null ||
-          option.spanSentenceVersionId === undefined ||
-          option.spanStartTokenIndex === null ||
-          option.spanStartTokenIndex === undefined ||
-          option.spanEndTokenIndex === null ||
-          option.spanEndTokenIndex === undefined
-            ? null
-            : {
-                sentenceVersionId: option.spanSentenceVersionId,
-                startTokenIndex: option.spanStartTokenIndex,
-                endTokenIndex: option.spanEndTokenIndex,
-              },
-      })),
+      options: optionRows
+        .sort(comparePosition)
+        .map((option): LearnerQuestionOptionProjection => {
+          if (option.sentenceVersionId !== null) {
+            return {
+              id: option.id,
+              position: option.position,
+              sentence: requireSentence(sentences, option.sentenceVersionId),
+              span: null,
+            };
+          }
+          if (
+            option.spanSentenceVersionId === null ||
+            option.spanSentenceVersionId === undefined ||
+            option.spanStartTokenIndex === null ||
+            option.spanStartTokenIndex === undefined ||
+            option.spanEndTokenIndex === null ||
+            option.spanEndTokenIndex === undefined
+          ) {
+            throw new Error('inline option span projection is incomplete');
+          }
+          return {
+            id: option.id,
+            position: option.position,
+            sentence: null,
+            span: {
+              sentenceVersionId: option.spanSentenceVersionId,
+              startTokenIndex: option.spanStartTokenIndex,
+              endTokenIndex: option.spanEndTokenIndex,
+            },
+          };
+        }),
       saved: base.saved,
     };
   }

@@ -85,7 +85,7 @@ const detail = {
       sentences: [{ position: 0, speaker: null, sentence }],
     },
   ],
-  options: [{ id: ids.option, position: 0, sentence }],
+  options: [{ id: ids.option, position: 0, sentence, span: null }],
   saved: false,
 } as const;
 
@@ -181,7 +181,9 @@ describe('학습자 문제 공개 응답 계약', () => {
       template: 'INLINE_SPAN_CHOICE',
       options: [
         {
-          ...detail.options[0],
+          id: ids.option,
+          position: 0,
+          sentence: null,
           span: {
             sentenceVersionId: ids.sentence,
             startTokenIndex: 0,
@@ -200,6 +202,40 @@ describe('학습자 문제 공개 응답 계약', () => {
         durationMs: 1,
       }).selectedOptionId,
     ).toBe(ids.option);
+  });
+
+  it('template과 option의 sentence·span 조합이 다르면 거부한다', () => {
+    expect(() =>
+      questionDetailResponseSchema.parse({
+        ...detail,
+        options: [
+          {
+            id: ids.option,
+            position: 0,
+            sentence: null,
+            span: {
+              sentenceVersionId: ids.sentence,
+              startTokenIndex: 0,
+              endTokenIndex: 1,
+            },
+          },
+        ],
+      }),
+    ).toThrow();
+    expect(() =>
+      questionDetailResponseSchema.parse({
+        ...detail,
+        template: 'INLINE_SPAN_CHOICE',
+        options: [
+          {
+            id: ids.option,
+            position: 0,
+            sentence,
+            span: null,
+          },
+        ],
+      }),
+    ).toThrow();
   });
 
   it('문제 목록에서 정답과 내부 검증 결과를 거부한다', () => {

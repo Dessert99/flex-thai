@@ -78,8 +78,8 @@ const question = {
     },
   ],
   options: [
-    { clientRef: 'option.correct', position: 0, sentence },
-    { clientRef: 'option.wrong', position: 1, sentence },
+    { clientRef: 'option.correct', position: 0, sentence, span: null },
+    { clientRef: 'option.wrong', position: 1, sentence, span: null },
   ],
   correctOptionRef: 'option.correct',
 } as const;
@@ -98,6 +98,47 @@ describe('관리자 콘텐츠 가져오기 canonical 요청 계약', () => {
     ).toThrow();
     expect(() =>
       contentImportRequestSchema.parse({ ...request, rawJson: '{}' }),
+    ).toThrow();
+  });
+
+  it('inline option은 독립 문장 없이 block 문장 좌표만 허용한다', () => {
+    const inlineQuestion = {
+      ...question,
+      questionTypeSlug: 'reading-inline-choice',
+      options: question.options.map((option, position) => ({
+        clientRef: option.clientRef,
+        position,
+        sentence: null,
+        span: {
+          blockPosition: 0,
+          sentencePosition: 0,
+          startTokenIndex: 0,
+          endTokenIndex: 1,
+        },
+      })),
+    };
+
+    expect(
+      contentImportRequestSchema.parse({
+        ...request,
+        questions: [inlineQuestion],
+      }).questions[0]?.options[0]?.sentence,
+    ).toBeNull();
+    expect(() =>
+      contentImportRequestSchema.parse({
+        ...request,
+        questions: [
+          {
+            ...inlineQuestion,
+            options: [
+              {
+                ...inlineQuestion.options[0],
+                sentence,
+              },
+            ],
+          },
+        ],
+      }),
     ).toThrow();
   });
 

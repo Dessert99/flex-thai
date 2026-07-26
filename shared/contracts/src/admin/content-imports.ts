@@ -192,22 +192,34 @@ const questionBlockInputSchema = z
   })
   .strict();
 
-const questionOptionInputSchema = z
+const questionOptionBaseShape = {
+  clientRef: clientRefSchema,
+  position: nonnegativeIntegerSchema,
+};
+const questionOptionSpanInputSchema = z
   .object({
-    clientRef: clientRefSchema,
-    position: nonnegativeIntegerSchema,
-    sentence: canonicalSentenceInputSchema,
-    span: z
-      .object({
-        blockPosition: nonnegativeIntegerSchema,
-        sentencePosition: nonnegativeIntegerSchema,
-        startTokenIndex: nonnegativeIntegerSchema,
-        endTokenIndex: positiveIntegerSchema,
-      })
-      .strict()
-      .optional(),
+    blockPosition: nonnegativeIntegerSchema,
+    sentencePosition: nonnegativeIntegerSchema,
+    startTokenIndex: nonnegativeIntegerSchema,
+    endTokenIndex: positiveIntegerSchema,
   })
   .strict();
+const questionOptionInputSchema = z.union([
+  z
+    .object({
+      ...questionOptionBaseShape,
+      sentence: canonicalSentenceInputSchema,
+      span: z.null().default(null),
+    })
+    .strict(),
+  z
+    .object({
+      ...questionOptionBaseShape,
+      sentence: z.null(),
+      span: questionOptionSpanInputSchema,
+    })
+    .strict(),
+]);
 
 const canonicalQuestionVersionShape = {
   questionTypeSlug: z.string().min(1),

@@ -268,7 +268,7 @@ describe('LearnerContentService 문제 응답', () => {
     expect(result.blocks[0]?.sentences[0]?.sentence.audioUrl).toBe(
       'https://media.example.com/signed',
     );
-    expect(result.options[0]?.sentence.audioUrl).toBe(
+    expect(result.options[0]?.sentence?.audioUrl).toBe(
       'https://media.example.com/signed',
     );
     expect(result.blocks[0]?.sentences[0]?.sentence.tokens[0]?.audioUrl).toBe(

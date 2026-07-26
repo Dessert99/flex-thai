@@ -2,6 +2,7 @@
 import { randomUUID } from 'node:crypto';
 import { DatabaseErrorException } from '@aws-sdk/client-rds-data';
 import type {
+  CanonicalDraftSentenceInput,
   ContentDraftTransaction,
   CreateQuestionDraftCommand,
   CreateVocabularyDraftCommand,
@@ -1204,7 +1205,7 @@ const integrationVocabularyCommand = (
 
 const integrationSentence = (
   fixture: IntegrationFixture,
-): CreateQuestionDraftCommand['input']['options'][number]['sentence'] => ({
+): CanonicalDraftSentenceInput => ({
   originalText: fixture.wordText,
   translationKo: '통합 문장',
   pronunciationKo: '통합 발음',
@@ -1249,11 +1250,13 @@ const integrationQuestionCommand = (
         clientRef: '__proto__',
         position: 0,
         sentence: integrationSentence(fixture),
+        span: null,
       },
       {
         clientRef: 'constructor',
         position: 1,
         sentence: integrationSentence(fixture),
+        span: null,
       },
     ],
     correctOptionRef: 'constructor',

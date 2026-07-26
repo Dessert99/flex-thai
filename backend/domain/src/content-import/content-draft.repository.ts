@@ -134,7 +134,7 @@ export interface ResolvedQuestionBlock {
 export interface ResolvedQuestionOption {
   id: string;
   questionVersionId: string;
-  sentenceVersionId: string;
+  sentenceVersionId: string | null;
   position: number;
   isCorrect: boolean;
   spanSentenceVersionId: string | null;

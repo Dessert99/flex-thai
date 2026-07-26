@@ -2,8 +2,8 @@
 import { z } from 'zod';
 
 const uuidSchema = z.uuid();
-const positionSchema = z.number().safe().nonnegative();
-const positivePositionSchema = z.number().safe().positive();
+const positionSchema = z.number().int().safe().nonnegative();
+const positivePositionSchema = z.number().int().safe().positive();
 const nullableAudioUrlSchema = z.string().url().nullable();
 
 /** 단어의 문맥 학습 피드백 계약 */

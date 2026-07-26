@@ -96,14 +96,27 @@ export const questionOptionSpanSchema = z
   })
   .strict();
 
-const questionOptionSchema = z
-  .object({
-    id: uuidSchema,
-    position: positionSchema,
-    sentence: publicThaiSentenceSchema,
-    span: questionOptionSpanSchema.optional(),
-  })
-  .strict();
+const questionOptionBaseShape = {
+  id: uuidSchema,
+  position: positionSchema,
+};
+
+const questionOptionSchema = z.union([
+  z
+    .object({
+      ...questionOptionBaseShape,
+      sentence: publicThaiSentenceSchema,
+      span: z.null(),
+    })
+    .strict(),
+  z
+    .object({
+      ...questionOptionBaseShape,
+      sentence: z.null(),
+      span: questionOptionSpanSchema,
+    })
+    .strict(),
+]);
 
 /** 페이지 번호 방식의 공통 응답 metadata */
 export const pageMetadataSchema = z
@@ -161,7 +174,23 @@ export const questionDetailResponseSchema = z
     options: z.array(questionOptionSchema),
     saved: z.boolean(),
   })
-  .strict();
+  .strict()
+  .superRefine((detail, context) => {
+    const inline = detail.template === 'INLINE_SPAN_CHOICE';
+    detail.options.forEach((option, index) => {
+      if (
+        (inline && option.sentence !== null) ||
+        (!inline && option.span !== null)
+      ) {
+        context.addIssue({
+          code: 'custom',
+          message:
+            '문제 template과 선택지 sentence·span 조합이 일치해야 합니다.',
+          path: ['options', index],
+        });
+      }
+    });
+  });
 
 /** 첫 답·재시도와 멱등 재전송에 사용하는 답안 요청 */
 export const submitQuestionAttemptRequestSchema = z

@@ -202,7 +202,7 @@ describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
           questionTypeDisplayName: '독해 선택',
           skill: 'READING',
           difficulty: 3,
-          template: 'STANDARD_CHOICE',
+          template: 'INLINE_SPAN_CHOICE',
           saved: true,
         },
       ],
@@ -237,12 +237,15 @@ describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
       [
         {
           id: 'option-2',
-          sentenceVersionId: 'sentence-id',
+          sentenceVersionId: null,
           position: 2,
+          spanSentenceVersionId: 'sentence-id',
+          spanStartTokenIndex: 1,
+          spanEndTokenIndex: 2,
         },
         {
           id: 'option-1',
-          sentenceVersionId: 'sentence-id',
+          sentenceVersionId: null,
           position: 1,
           spanSentenceVersionId: 'sentence-id',
           spanStartTokenIndex: 0,
@@ -378,9 +381,7 @@ describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
       expect.stringContaining('"end_token_index" asc'),
       expect.stringContaining('"id" asc'),
     ]);
-    expect(detail?.blocks[0]?.sentences[0]?.sentence).toBe(
-      detail?.options[0]?.sentence,
-    );
+    expect(detail?.options[0]?.sentence).toBeNull();
     expect(detail?.blocks[0]?.sentences[0]?.sentence.media).toEqual({
       storageKey: 'private/sentence.mp3',
     });

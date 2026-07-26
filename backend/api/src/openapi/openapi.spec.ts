@@ -71,6 +71,8 @@ type OpenApiSchemaNode = {
   format?: string;
   properties?: Record<string, OpenApiSchemaNode>;
   items?: OpenApiSchemaNode;
+  anyOf?: OpenApiSchemaNode[];
+  oneOf?: OpenApiSchemaNode[];
   required?: string[];
   additionalProperties?: boolean;
 };
@@ -912,8 +914,13 @@ describe('OpenAPI 문서', () => {
     const blockSentence =
       payload?.properties?.blocks?.items?.properties?.sentences?.items
         ?.properties?.sentence;
-    const optionSentence =
-      payload?.properties?.options?.items?.properties?.sentence;
+    const optionItems = payload?.properties?.options?.items;
+    const optionVariants = optionItems?.anyOf ??
+      optionItems?.oneOf ?? [optionItems];
+    const standardOption = optionVariants.find(
+      (variant) => variant?.properties?.sentence?.properties !== undefined,
+    );
+    const optionSentence = standardOption?.properties?.sentence;
 
     [blockSentence, optionSentence].forEach((sentence) => {
       const token = sentence?.properties?.tokens?.items;
@@ -935,9 +942,9 @@ describe('OpenAPI 문서', () => {
         expect(Object.keys(reference?.properties ?? {})).toEqual(['id']);
       });
     });
-    expect(
-      payload?.properties?.options?.items?.properties?.clientRef,
-    ).toMatchObject({ type: 'string' });
+    expect(standardOption?.properties?.clientRef).toMatchObject({
+      type: 'string',
+    });
     expect(payload?.properties?.correctOptionRef).toMatchObject({
       type: 'string',
     });
