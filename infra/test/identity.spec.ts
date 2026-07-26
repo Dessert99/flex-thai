@@ -1,7 +1,7 @@
-/** 학교 이메일 검증 뒤 서버 전용 비밀번호 인증만 열리게 고정한다 */
+/** 학교 이메일 확인용 Cognito Custom Auth 경계를 고정한다 */
 import { App } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
-import { describe, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { ApplicationStack } from '../src/application-stack.js';
 import { readInfrastructureConfig } from '../src/config.js';
 import { DataStack } from '../src/data-stack.js';
@@ -16,8 +16,17 @@ const config = readInfrastructureConfig({
     '-----BEGIN PUBLIC KEY-----\ndGVzdA==\n-----END PUBLIC KEY-----',
 });
 
+type SynthesizedLambda = {
+  Properties: {
+    Environment?: {
+      Variables?: Record<string, unknown>;
+    };
+    Handler?: string;
+  };
+};
+
 describe('Identity 학교 이메일 인증 경계', () => {
-  it('Cognito 관리자 비밀번호 인증과 회전식 refresh token만 허용한다', () => {
+  it('Cognito Custom Auth와 7일 회전식 refresh token만 허용한다', () => {
     const app = new App();
     const dataStack = new DataStack(app, 'IdentityData');
     const stack = new ApplicationStack(app, 'IdentityApplication', {
@@ -27,9 +36,13 @@ describe('Identity 학교 이메일 인증 경계', () => {
     const template = Template.fromStack(stack);
 
     template.hasResourceProperties('AWS::Cognito::UserPoolClient', {
-      ExplicitAuthFlows: ['ALLOW_ADMIN_USER_PASSWORD_AUTH'],
+      ExplicitAuthFlows: ['ALLOW_CUSTOM_AUTH', 'ALLOW_REFRESH_TOKEN_AUTH'],
       PreventUserExistenceErrors: 'ENABLED',
       EnableTokenRevocation: true,
+      RefreshTokenValidity: 7,
+      TokenValidityUnits: Match.objectLike({
+        RefreshToken: 'days',
+      }),
       RefreshTokenRotation: Match.objectLike({
         Feature: 'ENABLED',
         RetryGracePeriodSeconds: 10,
@@ -41,7 +54,11 @@ describe('Identity 학교 이메일 인증 경계', () => {
       AdminCreateUserConfig: {
         AllowAdminCreateUserOnly: true,
       },
-      LambdaConfig: Match.absent(),
+      LambdaConfig: Match.objectLike({
+        CreateAuthChallenge: Match.anyValue(),
+        DefineAuthChallenge: Match.anyValue(),
+        VerifyAuthChallengeResponse: Match.anyValue(),
+      }),
       Policies: {
         PasswordPolicy: {
           MinimumLength: 8,
@@ -54,7 +71,7 @@ describe('Identity 학교 이메일 인증 경계', () => {
     });
   });
 
-  it('SES domain identity를 만들고 custom auth Lambda는 만들지 않는다', () => {
+  it('SES identity와 세 개의 custom auth Lambda를 만든다', () => {
     const app = new App();
     const dataStack = new DataStack(app, 'IdentityDataResources');
     const stack = new ApplicationStack(app, 'IdentityResources', {
@@ -63,13 +80,76 @@ describe('Identity 학교 이메일 인증 경계', () => {
     });
     const template = Template.fromStack(stack);
 
-    template.resourceCountIs('AWS::Lambda::Function', 3);
+    template.resourceCountIs('AWS::Lambda::Function', 6);
     template.resourceCountIs('AWS::SES::EmailIdentity', 1);
     template.hasResourceProperties('AWS::IAM::Policy', {
       PolicyDocument: {
         Statement: Match.arrayWith([
           Match.objectLike({
             Action: 'ses:SendEmail',
+            Effect: 'Allow',
+          }),
+        ]),
+      },
+    });
+  });
+
+  it('API와 Create Auth Challenge가 같은 32-byte 이상 secret을 사용한다', () => {
+    const app = new App();
+    const dataStack = new DataStack(app, 'IdentitySecretData');
+    const stack = new ApplicationStack(app, 'IdentitySecretApplication', {
+      config,
+      dataStack,
+    });
+    const template = Template.fromStack(stack);
+    const functions = Object.values(
+      template.findResources('AWS::Lambda::Function') as Record<
+        string,
+        SynthesizedLambda
+      >,
+    );
+    const api = functions.find(
+      ({ Properties }) => Properties.Handler === 'lambda.handler',
+    );
+    const createChallenge = functions.find(
+      ({ Properties }) =>
+        Properties.Environment?.Variables?.CUSTOM_AUTH_SECRET !== undefined &&
+        Properties.Handler !== 'lambda.handler',
+    );
+
+    expect(api?.Properties.Environment?.Variables?.CUSTOM_AUTH_SECRET).toEqual(
+      createChallenge?.Properties.Environment?.Variables?.CUSTOM_AUTH_SECRET,
+    );
+    expect(
+      JSON.stringify(
+        api?.Properties.Environment?.Variables?.CUSTOM_AUTH_SECRET,
+      ),
+    ).toContain('secretsmanager');
+    template.hasResourceProperties('AWS::SecretsManager::Secret', {
+      GenerateSecretString: Match.objectLike({
+        ExcludePunctuation: true,
+        PasswordLength: 48,
+      }),
+    });
+  });
+
+  it('API 계정 생성 권한은 관리자 생성과 임시 비밀번호 설정으로 제한한다', () => {
+    const app = new App();
+    const dataStack = new DataStack(app, 'IdentityIamData');
+    const stack = new ApplicationStack(app, 'IdentityIamApplication', {
+      config,
+      dataStack,
+    });
+    const template = Template.fromStack(stack);
+
+    template.hasResourceProperties('AWS::IAM::Policy', {
+      PolicyDocument: {
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Action: [
+              'cognito-idp:AdminCreateUser',
+              'cognito-idp:AdminSetUserPassword',
+            ],
             Effect: 'Allow',
           }),
         ]),

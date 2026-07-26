@@ -16,6 +16,12 @@ const config = readInfrastructureConfig({
     '-----BEGIN PUBLIC KEY-----\ndGVzdA==\n-----END PUBLIC KEY-----',
 });
 
+type SynthesizedRoute = {
+  Properties: {
+    RouteKey: string;
+  };
+};
+
 describe('HttpApi 운영 API 경계', () => {
   it('API Lambda의 실행 시간과 동시성을 제한한다', () => {
     const app = new App();
@@ -35,7 +41,7 @@ describe('HttpApi 운영 API 경계', () => {
     });
   });
 
-  it('Job은 JWT로 보호하고 health는 공개한다', () => {
+  it('실제 v1 인증·wordbook·관리자 route를 권한별로 연결한다', () => {
     const app = new App();
     const dataStack = new DataStack(app, 'HttpRouteData');
     const stack = new ApplicationStack(app, 'HttpRoutes', {
@@ -49,21 +55,59 @@ describe('HttpApi 운영 API 경계', () => {
       IdentitySource: ['$request.header.Authorization'],
     });
     template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
-      RouteKey: 'POST /jobs',
+      RouteKey: 'POST /api/v1/jobs',
       AuthorizationType: 'JWT',
     });
     template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
       RouteKey: 'GET /health',
       AuthorizationType: 'NONE',
     });
-    template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
-      RouteKey: 'POST /auth/signup',
-      AuthorizationType: 'NONE',
-    });
-    template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
-      RouteKey: 'POST /auth/password/reset',
-      AuthorizationType: 'NONE',
-    });
+    for (const routeKey of [
+      'POST /api/v1/auth/challenges',
+      'POST /api/v1/auth/challenges/{challengeId}/code',
+      'POST /api/v1/auth/challenges/{challengeId}/link',
+      'POST /api/v1/auth/challenges/{challengeId}/resend',
+      'POST /api/v1/auth/mfa/totp/challenge',
+      'POST /api/v1/auth/refresh',
+      'POST /api/v1/auth/logout',
+    ]) {
+      template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
+        RouteKey: routeKey,
+        AuthorizationType: 'NONE',
+      });
+    }
+    for (const routeKey of [
+      'GET /api/v1/me',
+      'POST /api/v1/auth/mfa/totp/setup',
+      'POST /api/v1/auth/mfa/totp/setup/verify',
+      'GET /api/v1/admin/users',
+      'PATCH /api/v1/admin/users/{userId}/status',
+      'POST /api/v1/admin/users/invitations',
+      'GET /api/v1/me/wordbooks',
+      'POST /api/v1/me/wordbooks',
+      'PATCH /api/v1/me/wordbooks/{wordbookId}',
+      'DELETE /api/v1/me/wordbooks/{wordbookId}',
+      'GET /api/v1/me/wordbooks/{wordbookId}/items',
+      'PUT /api/v1/me/wordbooks/{wordbookId}/items/{vocabularyId}',
+      'DELETE /api/v1/me/wordbooks/{wordbookId}/items/{vocabularyId}',
+      'POST /api/v1/me/wordbooks/{wordbookId}/items/copy',
+      'POST /api/v1/me/wordbooks/{wordbookId}/items/move',
+      'POST /api/v1/me/wordbooks/{wordbookId}/items/remove',
+      'GET /api/v1/me/vocabularies/{vocabularyId}/wordbook-memberships',
+    ]) {
+      template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
+        RouteKey: routeKey,
+        AuthorizationType: 'JWT',
+      });
+    }
+    const routeKeys = Object.values(
+      template.findResources('AWS::ApiGatewayV2::Route') as Record<
+        string,
+        SynthesizedRoute
+      >,
+    ).map(({ Properties }) => Properties.RouteKey);
+    expect(routeKeys).not.toContain('POST /auth/signup');
+    expect(routeKeys).not.toContain('POST /auth/password/reset');
     template.hasResourceProperties('AWS::ApiGatewayV2::Stage', {
       DefaultRouteSettings: {
         ThrottlingBurstLimit: 10,
