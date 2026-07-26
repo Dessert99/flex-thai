@@ -1,0 +1,42 @@
+/** 콘텐츠 제작 adapter와 HTTP Controller를 기능 단위로 조립한다 */
+import { DynamicModule, Module } from '@nestjs/common';
+import type {
+  ContentProductionPresetCatalog,
+  ContentProductionService,
+  UploadPolicyService,
+  UploadRepository,
+} from '@flex-thia/domain';
+import { ContentProductionController } from './content-production.controller.js';
+import { ContentProductionApplicationService } from './content-production.service.js';
+
+/** 환경별 콘텐츠 제작 adapter를 주입하기 위한 module 옵션 */
+export interface ContentProductionModuleOptions {
+  uploads: UploadRepository;
+  uploadPolicies: UploadPolicyService;
+  presets: ContentProductionPresetCatalog;
+  contentProduction: ContentProductionService;
+}
+
+/** root application이 한 번 등록할 콘텐츠 제작 기능 module */
+@Module({})
+export class ContentProductionModule {
+  /** local fake와 production adapter를 같은 HTTP 경계에 연결한다 */
+  static register(options: ContentProductionModuleOptions): DynamicModule {
+    return {
+      module: ContentProductionModule,
+      controllers: [ContentProductionController],
+      providers: [
+        {
+          provide: ContentProductionApplicationService,
+          useValue: new ContentProductionApplicationService(
+            options.uploads,
+            options.presets,
+            options.contentProduction,
+            options.uploadPolicies,
+          ),
+        },
+      ],
+      exports: [ContentProductionApplicationService],
+    };
+  }
+}

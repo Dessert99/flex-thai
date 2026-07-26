@@ -1,8 +1,8 @@
 /** AWS 없이 queue 전송과 일시 실패 재시도를 검증하는 in-memory adapter */
-import type { JobQueue } from '@flex-thia/domain';
+import type { ContentProductionQueue, JobQueue } from '@flex-thia/domain';
 
 /** 전송 message를 기록하고 지정 횟수만큼 실패하는 fake queue */
-export class FakeJobQueue implements JobQueue {
+export class FakeJobQueue implements JobQueue, ContentProductionQueue {
   readonly messages: Array<{ jobId: string; attempt: number }> = [];
 
   constructor(private failuresRemaining = 0) {}

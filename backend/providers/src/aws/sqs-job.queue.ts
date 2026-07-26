@@ -1,9 +1,9 @@
 /** 작은 Job message만 SQS Standard Queue로 보내는 AWS adapter */
 import { SendMessageCommand, type SQSClient } from '@aws-sdk/client-sqs';
-import type { JobQueue } from '@flex-thia/domain';
+import type { ContentProductionQueue, JobQueue } from '@flex-thia/domain';
 
 /** AWS SQS Standard Queue adapter */
-export class SqsJobQueue implements JobQueue {
+export class SqsJobQueue implements JobQueue, ContentProductionQueue {
   constructor(
     private readonly client: SQSClient,
     private readonly queueUrl: string,

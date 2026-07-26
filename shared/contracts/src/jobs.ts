@@ -2,7 +2,12 @@
 import { z } from 'zod';
 
 /** 초기 비동기 작업 종류 */
-export const jobTypeSchema = z.enum(['VOCAB_IMPORT', 'QUESTION_GENERATION']);
+export const jobTypeSchema = z.enum([
+  'VOCAB_IMPORT',
+  'VOCABULARY_EXTRACTION',
+  'QUESTION_GENERATION',
+  'VOCABULARY_THEN_QUESTION_GENERATION',
+]);
 
 /** 지원 입력 형식 */
 export const inputTypeSchema = z.enum(['TEXT', 'PDF', 'IMAGE']);
@@ -37,3 +42,6 @@ export type CreateJobRequest = z.infer<typeof createJobRequestSchema>;
 
 /** 직렬화 가능한 Job response type */
 export type JobResponse = z.infer<typeof jobResponseSchema>;
+
+/** 신규 콘텐츠 제작 계약을 기존 Job package 경계에서 호환 노출한다 */
+export * from './content-production/content-production.js';
