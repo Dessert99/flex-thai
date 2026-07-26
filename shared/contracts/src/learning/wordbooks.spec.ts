@@ -155,6 +155,7 @@ describe('단어장 공개 응답 계약', () => {
             audioUrl: 'https://media.example.com/greeting.mp3?Expires=300',
           },
         ],
+        audioEligibleMeaningCount: 1,
         saved: true,
         addedAt: '2026-07-26T00:30:00.000Z',
       },

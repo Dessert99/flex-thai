@@ -55,6 +55,7 @@ const dependencies = () => ({
               media: { storageKey: 'private/shared.mp3' },
             },
           ],
+          audioEligibleMeaningCount: 1,
           saved: true,
           addedAt: now,
         },
@@ -105,6 +106,7 @@ describe('LearnerWordbooksService 공개 응답', () => {
 
     expect(result.wordbook.createdAt).toBe(now.toISOString());
     expect(result.items[0]?.addedAt).toBe(now.toISOString());
+    expect(result.items[0]?.audioEligibleMeaningCount).toBe(1);
     expect(result.items[0]?.pronunciations).toEqual([
       expect.objectContaining({
         audioUrl: 'https://media.example.com/shared.mp3',

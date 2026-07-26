@@ -55,6 +55,12 @@ export * from './queries/drizzle-wordbook.query.js';
 /** 사용자 단어장 원자 write adapter를 공개한다 */
 export * from './repositories/drizzle-wordbook.repository.js';
 
+/** 단어 연습 source·세션 read model을 공개한다 */
+export * from './queries/drizzle-vocabulary-practice.query.js';
+
+/** 단어 연습 세션·답안 transaction adapter를 공개한다 */
+export * from './repositories/drizzle-vocabulary-practice.repository.js';
+
 /** 관리자 media 상태와 발음·문장 사용처 read model을 공개한다 */
 export * from './queries/drizzle-admin-media.query.js';
 
@@ -75,3 +81,21 @@ export * from './repositories/drizzle-user.repository.js';
 
 /** 기초 ERD schema를 패키지 공개 경계에 노출한다 */
 export * from './schema/index.js';
+
+/** 관리자 개념 수명주기 adapter를 공개한다 */
+export * from './repositories/drizzle-concept-admin.repository.js';
+
+/** 학습자 게시 개념 read model을 공개한다 */
+export * from './queries/drizzle-learner-concept.query.js';
+
+/** 관리자 모든 상태 개념 read model을 공개한다 */
+export * from './queries/drizzle-admin-concept.query.js';
+
+/** 개념 학습 화면의 콘텐츠 오류 신고 target lookup을 공개한다 */
+export * from './queries/drizzle-concept-error-report-target.lookup.js';
+
+/** 콘텐츠 오류 신고 transaction adapter를 공개한다 */
+export * from './repositories/drizzle-content-error-report.repository.js';
+
+/** 콘텐츠 오류 신고 관리자 query를 공개한다 */
+export * from './queries/drizzle-content-error-report.query.js';

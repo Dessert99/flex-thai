@@ -13,6 +13,7 @@ const approvedTargets = [
   '/learn',
   '/questions',
   '/history',
+  '/practice',
   '/vocabularies',
   '/wordbooks',
   '/admin',
@@ -21,6 +22,7 @@ const approvedTargets = [
   '/admin/content-imports',
   '/admin/questions',
   '/admin/vocabularies',
+  '/admin/content-error-reports',
   '/forbidden',
 ] as const;
 
@@ -29,7 +31,57 @@ const vocabularyId = '01933b6a-8f13-7a19-b7e5-536d70f57aab';
 const importId = '01933b6a-8f13-7a19-b7e5-536d70f57aac';
 const versionId = '01933b6a-8f13-7a19-b7e5-536d70f57aad';
 const wordbookId = '01933b6a-8f13-7a19-b7e5-536d70f57aae';
+const sessionId = '01933b6a-8f13-7a19-b7e5-536d70f57aaf';
+const conceptId = '01933b6a-8f13-7a19-b7e5-536d70f57ab0';
 const dynamicTargets = [
+  {
+    build: () =>
+      router.buildLocation({
+        params: { sessionId },
+        to: '/practice/$sessionId',
+      }),
+    label: '단어 연습 진행',
+  },
+  {
+    build: () =>
+      router.buildLocation({
+        params: { sessionId },
+        to: '/practice/$sessionId/result',
+      }),
+    label: '단어 연습 결과',
+  },
+  {
+    build: () =>
+      router.buildLocation({
+        search: { category: 'GRAMMAR' },
+        to: '/concepts',
+      }),
+    label: '학습자 개념 목록',
+  },
+  {
+    build: () =>
+      router.buildLocation({
+        params: { conceptId },
+        to: '/concepts/$conceptId',
+      }),
+    label: '학습자 개념 상세',
+  },
+  {
+    build: () =>
+      router.buildLocation({
+        search: { page: 1, pageSize: 20 },
+        to: '/admin/concepts',
+      }),
+    label: '관리자 개념 목록',
+  },
+  {
+    build: () =>
+      router.buildLocation({
+        params: { conceptId },
+        to: '/admin/concepts/$conceptId',
+      }),
+    label: '관리자 개념 상세',
+  },
   {
     build: () =>
       router.buildLocation({
@@ -111,6 +163,10 @@ describe('route 도달 가능성', () => {
   );
 
   it.each([
+    '/practice/$sessionId',
+    '/practice/$sessionId/result',
+    '/concepts/$conceptId',
+    '/admin/concepts/$conceptId',
     '/wordbooks/$wordbookId',
     '/questions/$questionId',
     '/vocabularies/$vocabularyId',

@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import * as schema from '../schema/index.js';
 import { questions, vocabularies } from '../schema/index.js';
 import { DrizzleLearnerVocabularyQuery } from './drizzle-learner-vocabulary.query.js';
+import { DrizzleWordbookQuery } from './drizzle-wordbook.query.js';
 
 type QueryResult = Array<Record<string, unknown>>;
 
@@ -66,10 +67,36 @@ const createSelectFake = (selectResults: QueryResult[]) => {
   return { database: { select }, selectCalls };
 };
 
+const createSqlCaptureDatabase = (results: unknown[][][] = []) => {
+  const queries: string[] = [];
+  const client = {
+    query(config: { text: string }) {
+      queries.push(config.text);
+      return Promise.resolve({ rows: results.shift() ?? [] });
+    },
+  };
+  return {
+    database: drizzle({ client: client as never, schema }),
+    queries,
+  };
+};
+
 const summaryRows = {
   bases: [
-    { id: 'vocabulary-2', thai: 'ขอบคุณ', kind: 'WORD', saved: false },
-    { id: 'vocabulary-1', thai: 'สวัสดี', kind: 'WORD', saved: true },
+    {
+      id: 'vocabulary-2',
+      thai: 'ขอบคุณ',
+      kind: 'WORD',
+      audioEligibleMeaningCount: 1,
+      saved: false,
+    },
+    {
+      id: 'vocabulary-1',
+      thai: 'สวัสดี',
+      kind: 'WORD',
+      audioEligibleMeaningCount: 2,
+      saved: true,
+    },
   ],
   meanings: [
     {
@@ -135,6 +162,86 @@ const summaryRows = {
 } as const;
 
 describe('DrizzleLearnerVocabularyQuery 공용 어휘 검색', () => {
+  it('전체 SELECT에서도 correlated subquery 컬럼을 명시적으로 한정한다', async () => {
+    const capture = createSqlCaptureDatabase();
+    const query = new DrizzleLearnerVocabularyQuery(capture.database);
+
+    await query.listVocabularies('user-id', { page: 1, pageSize: 20 });
+
+    expect(capture.queries[1]).toContain('saved_items.vocabulary_id');
+    expect(capture.queries[1]).toContain('saved_wordbooks.user_id');
+    expect(capture.queries[1]).toContain('eligible_links.vocabulary_id');
+    expect(capture.queries[1]).toContain(
+      'eligible_pronunciations.vocabulary_id',
+    );
+    expect(capture.queries[1]).toContain('"vocabularies"."id"');
+  });
+
+  it('WHERE의 correlated helper도 전체 query에서 컬럼 한정을 유지한다', async () => {
+    const listCapture = createSqlCaptureDatabase();
+    await new DrizzleLearnerVocabularyQuery(
+      listCapture.database,
+    ).listVocabularies('user-id', {
+      query: '안녕',
+      partOfSpeech: '감탄사',
+      difficulty: 1,
+      page: 1,
+      pageSize: 20,
+    });
+
+    expect(listCapture.queries[0]).toContain(
+      '"vocabulary_meanings"."vocabulary_id" = "vocabularies"."id"',
+    );
+    expect(listCapture.queries[0]).toContain(
+      '"vocabulary_pronunciations"."vocabulary_id" = "vocabularies"."id"',
+    );
+
+    const relatedCapture = createSqlCaptureDatabase();
+    await new DrizzleLearnerVocabularyQuery(
+      relatedCapture.database,
+    ).listRelatedQuestions('user-id', 'vocabulary-id', {
+      page: 1,
+      pageSize: 20,
+    });
+
+    expect(relatedCapture.queries[0]).toContain(
+      '"question_blocks"."question_version_id" = "question_versions"."id"',
+    );
+    expect(relatedCapture.queries[0]).toMatch(
+      /"token_occurrences"\."sentence_version_id"\s*=\s*"question_block_sentences"\."sentence_version_id"/u,
+    );
+
+    const createdAt = new Date('2026-07-27T00:00:00.000Z');
+    const detailCapture = createSqlCaptureDatabase([
+      [['vocabulary-id', 'สวัสดี', 'WORD', 0, false]],
+      [],
+      [
+        [
+          'pronunciation-id',
+          'vocabulary-id',
+          '싸왓디',
+          '-',
+          'media-id',
+          'READY',
+          'private/vocabulary.mp3',
+          createdAt,
+        ],
+      ],
+      [],
+      [],
+    ]);
+    await new DrizzleLearnerVocabularyQuery(
+      detailCapture.database,
+    ).getVocabularyDetail('user-id', 'vocabulary-id');
+
+    expect(detailCapture.queries[4]).toMatch(
+      /"token_occurrences"\."sentence_version_id"\s*=\s*"thai_sentence_versions"\."id"/u,
+    );
+    expect(detailCapture.queries[4]).toMatch(
+      /"question_block_sentences"\."sentence_version_id"\s*=\s*"thai_sentence_versions"\."id"/u,
+    );
+  });
+
   it('저장 여부는 사용자 소유 단어장 membership으로 계산한다', async () => {
     const fake = createSelectFake([
       [{ totalItems: 2 }],
@@ -150,12 +257,26 @@ describe('DrizzleLearnerVocabularyQuery 공용 어휘 검색', () => {
     });
 
     expect(result.items.map(({ saved }) => saved)).toEqual([false, true]);
+    expect(
+      result.items.map(({ audioEligibleMeaningCount }) => ({
+        audioEligibleMeaningCount,
+      })),
+    ).toEqual([
+      { audioEligibleMeaningCount: 1 },
+      { audioEligibleMeaningCount: 2 },
+    ]);
     const savedSql = toSql(fake.selectCalls[1]?.fields.saved);
     expect(savedSql.sql).toContain('exists');
     expect(savedSql.sql).toContain('wordbooks');
     expect(savedSql.sql).toContain('wordbook_items');
     expect(savedSql.sql).not.toContain('saved_vocabularies');
     expect(savedSql.params).toContain('user-id');
+    const eligibleSql = toSql(
+      fake.selectCalls[1]?.fields.audioEligibleMeaningCount,
+    );
+    expect(eligibleSql.sql).toContain('count(distinct');
+    expect(eligibleSql.sql).toContain('vocabulary_meaning_pronunciations');
+    expect(eligibleSql.params).toContain('READY');
     expect(fake.selectCalls[1]?.joins).toHaveLength(0);
   });
 
@@ -482,7 +603,8 @@ describe('DrizzleLearnerVocabularyQuery 관련 문제와 저장 목록', () => {
 });
 
 const integrationDatabaseUrl =
-  process.env.LEARNER_VOCABULARY_QUERY_TEST_DATABASE_URL;
+  process.env.LEARNER_VOCABULARY_QUERY_TEST_DATABASE_URL ??
+  process.env.VOCABULARY_PRACTICE_TEST_DATABASE_URL;
 
 const ids = {
   user: '11000000-0000-4000-8000-000000000001',
@@ -515,7 +637,66 @@ const ids = {
   block: '71000000-0000-4000-8000-000000000001',
   option: '81000000-0000-4000-8000-000000000001',
   wordbook: '91000000-0000-4000-8000-000000000001',
+  invalidVocabulary: '31000000-0000-4000-8000-000000000099',
+  invalidMeaning: '32000000-0000-4000-8000-000000000099',
+  invalidPronunciation: '33000000-0000-4000-8000-000000000099',
 } as const;
+
+const cleanupVocabularyQueryFixture = async (pool: Pool): Promise<void> => {
+  await pool.query(`delete from wordbook_items where wordbook_id = $1`, [
+    ids.wordbook,
+  ]);
+  await pool.query(`delete from wordbooks where id = $1`, [ids.wordbook]);
+  await pool.query(`delete from question_options where id = $1`, [ids.option]);
+  await pool.query(`delete from question_block_sentences where block_id = $1`, [
+    ids.block,
+  ]);
+  await pool.query(`delete from question_blocks where id = $1`, [ids.block]);
+  await pool.query(
+    `update questions set current_published_version_id = null where id = $1`,
+    [ids.question],
+  );
+  await pool.query(`delete from question_versions where id = $1`, [
+    ids.questionVersion,
+  ]);
+  await pool.query(`delete from questions where id = $1`, [ids.question]);
+  await pool.query(`delete from question_type_versions where id = $1`, [
+    ids.typeVersion,
+  ]);
+  await pool.query(`delete from question_types where id = $1`, [ids.type]);
+  await pool.query(
+    `delete from expression_occurrences where sentence_version_id = $1`,
+    [ids.sentenceVersion],
+  );
+  await pool.query(
+    `delete from token_occurrences where sentence_version_id = $1`,
+    [ids.sentenceVersion],
+  );
+  await pool.query(`delete from thai_sentence_versions where id = $1`, [
+    ids.sentenceVersion,
+  ]);
+  await pool.query(`delete from thai_sentences where id = $1`, [ids.sentence]);
+  await pool.query(
+    `delete from vocabulary_meaning_pronunciations
+     where vocabulary_id = any($1::uuid[])`,
+    [[...ids.vocabulary, ids.invalidVocabulary]],
+  );
+  await pool.query(
+    `delete from vocabulary_pronunciations where id = any($1::uuid[])`,
+    [[...ids.pronunciation, ids.invalidPronunciation]],
+  );
+  await pool.query(
+    `delete from vocabulary_meanings where id = any($1::uuid[])`,
+    [[...ids.meaning, ids.invalidMeaning]],
+  );
+  await pool.query(`delete from vocabularies where id = any($1::uuid[])`, [
+    [...ids.vocabulary, ids.invalidVocabulary],
+  ]);
+  await pool.query(`delete from media_assets where id = any($1::uuid[])`, [
+    [...ids.media],
+  ]);
+  await pool.query(`delete from users where id = $1`, [ids.user]);
+};
 
 const createVocabularyQueryFixture = async (pool: Pool): Promise<void> => {
   const sha256 = 'b'.repeat(64);
@@ -540,9 +721,9 @@ const createVocabularyQueryFixture = async (pool: Pool): Promise<void> => {
   await pool.query(
     `insert into vocabularies (id, thai, normalized_thai, kind, status)
      values
-       ($1, 'สวัสดี', 'สวัสดี', 'WORD', 'PUBLISHED'),
-       ($2, 'ขอบคุณมาก', 'ขอบคุณมาก', 'EXPRESSION', 'PUBLISHED'),
-       ($3, 'ซ่อน', 'ซ่อน', 'WORD', 'HIDDEN')`,
+       ($1, 'ศัพท์ทดสอบอัลฟา', 'ศัพท์ทดสอบอัลฟา', 'WORD', 'PUBLISHED'),
+       ($2, 'วลีทดสอบเบตา', 'วลีทดสอบเบตา', 'EXPRESSION', 'PUBLISHED'),
+       ($3, 'ศัพท์ทดสอบซ่อน', 'ศัพท์ทดสอบซ่อน', 'WORD', 'HIDDEN')`,
     [...ids.vocabulary],
   );
   await pool.query(
@@ -591,7 +772,7 @@ const createVocabularyQueryFixture = async (pool: Pool): Promise<void> => {
     `insert into thai_sentence_versions (
        id, sentence_id, version, original_text, translation_ko,
        pronunciation_ko, tone_marks, media_asset_id, frozen_at
-     ) values ($1, $2, 1, 'สวัสดี ขอบคุณมาก', '안녕하세요, 매우 감사합니다',
+     ) values ($1, $2, 1, 'ศัพท์ทดสอบอัลฟา วลีทดสอบเบตา', '안녕하세요, 매우 감사합니다',
                '싸왓디 컵쿤 막', '-', $3, now())`,
     [ids.sentenceVersion, ids.sentence, ids.media[2]],
   );
@@ -599,7 +780,7 @@ const createVocabularyQueryFixture = async (pool: Pool): Promise<void> => {
     `insert into token_occurrences (
        sentence_version_id, position, surface, start_offset, end_offset,
        vocabulary_id, meaning_id, pronunciation_id, context_meaning_ko, role
-     ) values ($1, 0, 'สวัสดี', 0, 6, $2, $3, $4, '안녕하세요', 'TARGET')`,
+     ) values ($1, 0, 'ศัพท์ทดสอบอัลฟา', 0, 15, $2, $3, $4, '안녕하세요', 'TARGET')`,
     [
       ids.sentenceVersion,
       ids.vocabulary[0],
@@ -610,9 +791,15 @@ const createVocabularyQueryFixture = async (pool: Pool): Promise<void> => {
   await pool.query(
     `insert into expression_occurrences (
        sentence_version_id, start_token_index, end_token_index,
-       vocabulary_id, vocabulary_kind, representative
-     ) values ($1, 0, 2, $2, 'EXPRESSION', true)`,
-    [ids.sentenceVersion, ids.vocabulary[1]],
+       vocabulary_id, vocabulary_kind, meaning_id, pronunciation_id,
+       context_meaning_ko, representative
+     ) values ($1, 0, 2, $2, 'EXPRESSION', $3, $4, '매우 감사합니다', true)`,
+    [
+      ids.sentenceVersion,
+      ids.vocabulary[1],
+      ids.meaning[2],
+      ids.pronunciation[2],
+    ],
   );
   await pool.query(
     `insert into question_types (id, slug, display_name, skill)
@@ -675,25 +862,34 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
   () => {
     let pool: Pool;
     let query: DrizzleLearnerVocabularyQuery;
+    let wordbookQuery: DrizzleWordbookQuery;
 
     beforeAll(async () => {
       if (!integrationDatabaseUrl) {
         throw new Error('LEARNER_VOCABULARY_QUERY_TEST_DATABASE_URL_REQUIRED');
       }
       pool = new Pool({ connectionString: integrationDatabaseUrl });
+      await cleanupVocabularyQueryFixture(pool);
       await createVocabularyQueryFixture(pool);
       query = new DrizzleLearnerVocabularyQuery(
+        drizzle({ client: pool, schema }),
+      );
+      wordbookQuery = new DrizzleWordbookQuery(
         drizzle({ client: pool, schema }),
       );
     });
 
     afterAll(async () => {
-      await pool.end();
+      try {
+        await cleanupVocabularyQueryFixture(pool);
+      } finally {
+        await pool.end();
+      }
     });
 
     it('검색·필터·페이지가 어휘 중복 없이 모든 뜻과 발음을 보존한다', async () => {
       const result = await query.listVocabularies(ids.user, {
-        query: '\u200b สวัสดี ',
+        query: '\u200b ศัพท์ทดสอบอัลฟา ',
         kind: 'WORD',
         partOfSpeech: '감탄사',
         difficulty: 1,
@@ -704,6 +900,7 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       expect(result.page).toMatchObject({ totalItems: 1, totalPages: 1 });
       expect(result.items[0]).toMatchObject({
         id: ids.vocabulary[0],
+        audioEligibleMeaningCount: 2,
         saved: true,
       });
       expect(result.items[0]?.meanings).toHaveLength(2);
@@ -732,6 +929,20 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       );
     });
 
+    it('단어장 목록과 항목의 correlated count를 실제 PostgreSQL에서 계산한다', async () => {
+      const summaries = await wordbookQuery.listWordbooks(ids.user);
+      const result = await wordbookQuery.listItems(ids.user, ids.wordbook, {
+        page: 1,
+        pageSize: 20,
+      });
+
+      expect(summaries[0]?.itemCount).toBe(1);
+      expect(result?.items[0]).toMatchObject({
+        id: ids.vocabulary[0],
+        audioEligibleMeaningCount: 2,
+      });
+    });
+
     it('token과 expression 관련 문제를 각각 중복 없이 반환한다', async () => {
       for (const vocabularyId of ids.vocabulary.slice(0, 2)) {
         const related = await query.listRelatedQuestions(
@@ -746,30 +957,27 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
     });
 
     it('게시 어휘의 발음 media 불변식 손상을 stable 오류로 전달한다', async () => {
-      const invalidVocabularyId = '31000000-0000-4000-8000-000000000099';
-      const invalidMeaningId = '32000000-0000-4000-8000-000000000099';
-      const invalidPronunciationId = '33000000-0000-4000-8000-000000000099';
       await pool.query(
         `insert into vocabularies
            (id, thai, normalized_thai, kind, status)
-         values ($1, 'เสีย', 'เสีย', 'WORD', 'PUBLISHED')`,
-        [invalidVocabularyId],
+         values ($1, 'ศัพท์ทดสอบเสียหาย', 'ศัพท์ทดสอบเสียหาย', 'WORD', 'PUBLISHED')`,
+        [ids.invalidVocabulary],
       );
       await pool.query(
         `insert into vocabulary_meanings
-           (id, vocabulary_id, meaning_ko, part_of_speech, difficulty)
+         (id, vocabulary_id, meaning_ko, part_of_speech, difficulty)
          values ($1, $2, '손상', '명사', 1)`,
-        [invalidMeaningId, invalidVocabularyId],
+        [ids.invalidMeaning, ids.invalidVocabulary],
       );
       await pool.query(
         `insert into vocabulary_pronunciations
-           (id, vocabulary_id, pronunciation_ko, tone_marks)
+         (id, vocabulary_id, pronunciation_ko, tone_marks)
          values ($1, $2, '씨아', '-')`,
-        [invalidPronunciationId, invalidVocabularyId],
+        [ids.invalidPronunciation, ids.invalidVocabulary],
       );
 
       await expect(
-        query.getVocabularyDetail(ids.user, invalidVocabularyId),
+        query.getVocabularyDetail(ids.user, ids.invalidVocabulary),
       ).rejects.toMatchObject({
         code: 'PUBLISHED_VOCABULARY_MEDIA_INVALID',
       });

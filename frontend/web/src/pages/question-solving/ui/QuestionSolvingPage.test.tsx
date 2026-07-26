@@ -16,6 +16,23 @@ import { QuestionSolvingPageView } from './QuestionSolvingPageView';
 
 const mocks = vi.hoisted(() => ({ authenticatedRequest: vi.fn() }));
 
+vi.mock('@/features/report-content-error', () => ({
+  ContentErrorReportDialog: ({
+    origin,
+    triggerLabel,
+  }: {
+    origin: unknown;
+    triggerLabel: string;
+  }) => (
+    <button
+      data-origin={JSON.stringify(origin)}
+      type='button'
+    >
+      {triggerLabel}
+    </button>
+  ),
+}));
+
 vi.mock('@/shared/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/shared/api')>();
   return { ...actual, authenticatedRequest: mocks.authenticatedRequest };
@@ -113,6 +130,43 @@ describe('문제 풀이 페이지', () => {
 
     expect(await screen.findByRole('status')).toHaveTextContent(
       '음성을 재생할 수 없습니다.',
+    );
+  });
+});
+
+describe('문제 오류 신고 연결', () => {
+  it('문제와 블록 식별자를 오류 신고 origin에 명시한다', () => {
+    const detail = createDialogueQuestion();
+    renderWithProviders(
+      <QuestionSolvingPageView
+        detail={detail}
+        onSavedConfirmed={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', { name: '문제 오류 신고' }),
+    ).toHaveAttribute(
+      'data-origin',
+      JSON.stringify({
+        kind: 'QUESTION',
+        questionId: detail.questionId,
+        questionVersionId: detail.questionVersionId,
+        blockId: null,
+        sentenceVersionId: null,
+      }),
+    );
+    expect(
+      screen.getByRole('button', { name: '문제 블록 오류 신고' }),
+    ).toHaveAttribute(
+      'data-origin',
+      JSON.stringify({
+        kind: 'QUESTION',
+        questionId: detail.questionId,
+        questionVersionId: detail.questionVersionId,
+        blockId: detail.blocks[0]?.id,
+        sentenceVersionId: null,
+      }),
     );
   });
 });

@@ -181,6 +181,7 @@ const mapVocabularySummary = async (
       audioUrl: await signMedia(pronunciation.media.storageKey),
     })),
   ),
+  audioEligibleMeaningCount: vocabulary.audioEligibleMeaningCount,
   saved: vocabulary.saved,
 });
 

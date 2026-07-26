@@ -97,6 +97,7 @@ export interface LearnerVocabularySummaryProjection {
   kind: LearnerVocabularyKind;
   meanings: LearnerVocabularyMeaningProjection[];
   pronunciations: LearnerVocabularyPronunciationProjection[];
+  audioEligibleMeaningCount: number;
   saved: boolean;
 }
 
@@ -178,6 +179,7 @@ interface VocabularyBaseRow {
   id: string;
   thai: string;
   kind: LearnerVocabularyKind;
+  audioEligibleMeaningCount: number;
   saved: boolean;
 }
 
@@ -240,11 +242,23 @@ const savedInAnyWordbook = (
   userId: string,
 ): SQL<boolean> => sql<boolean>`exists (
   select 1
-  from ${wordbookItems}
-  inner join ${wordbooks}
-    on ${wordbooks.id} = ${wordbookItems.wordbookId}
-  where ${wordbookItems.vocabularyId} = ${vocabularies.id}
-    and ${wordbooks.userId} = ${userId}
+  from ${wordbookItems} saved_items
+  inner join ${wordbooks} saved_wordbooks
+    on saved_wordbooks.id = saved_items.wordbook_id
+  where saved_items.vocabulary_id = "vocabularies"."id"
+    and saved_wordbooks.user_id = ${userId}
+)`;
+
+const audioEligibleMeaningCount = (): SQL<number> => sql<number>`(
+  select count(distinct eligible_links.meaning_id)::integer
+  from ${vocabularyMeaningPronunciations} eligible_links
+  inner join ${vocabularyPronunciations} eligible_pronunciations
+    on eligible_pronunciations.id = eligible_links.pronunciation_id
+    and eligible_pronunciations.vocabulary_id = eligible_links.vocabulary_id
+  inner join ${mediaAssets} eligible_media
+    on eligible_media.id = eligible_pronunciations.media_asset_id
+    and eligible_media.status = ${'READY'}
+  where eligible_links.vocabulary_id = "vocabularies"."id"
 )`;
 
 const currentQuestionUsesSentence = (): SQL => sql`(
@@ -358,6 +372,7 @@ export class DrizzleLearnerVocabularyQuery {
         id: vocabularies.id,
         thai: vocabularies.thai,
         kind: vocabularies.kind,
+        audioEligibleMeaningCount: audioEligibleMeaningCount(),
         saved: savedInAnyWordbook(userId),
       })
       .from(vocabularies)
@@ -382,6 +397,7 @@ export class DrizzleLearnerVocabularyQuery {
         id: vocabularies.id,
         thai: vocabularies.thai,
         kind: vocabularies.kind,
+        audioEligibleMeaningCount: audioEligibleMeaningCount(),
         saved: savedInAnyWordbook(userId),
       })
       .from(vocabularies)
@@ -652,6 +668,7 @@ export class DrizzleLearnerVocabularyQuery {
           toneMarks: pronunciation.toneMarks,
           media: { storageKey: pronunciation.mediaStorageKey! },
         })),
+        audioEligibleMeaningCount: base.audioEligibleMeaningCount,
         saved: base.saved,
       };
     });

@@ -21,4 +21,19 @@ describe('로컬 seed SQL', () => {
     expect(seedSql).not.toMatch(/insert into saved_vocabularies/iu);
     expect(seedSql).toContain("'저장한 어휘'");
   });
+
+  it('단어 연습·개념 학습·오류 신고를 직접 확인할 대표 데이터를 만든다', () => {
+    expect(seedSql).toContain("'ขอโทษ'");
+    expect(seedSql).toMatch(/insert into concepts/iu);
+    expect(seedSql).toMatch(/insert into concept_versions/iu);
+    expect(seedSql).toMatch(/insert into content_error_reports/iu);
+    expect(seedSql).toMatch(/insert into content_error_report_history/iu);
+  });
+
+  it('개념 block 신고 snapshot을 현재 canonical 위치와 문맥으로 저장한다', () => {
+    expect(seedSql).toContain(
+      '"primaryText":"인사말 예문","secondaryText":"기본 인사말의 발음과 성조를 실제 문장으로 익힙니다."',
+    );
+    expect(seedSql).toContain('"locationLabel":"개념 블록 2"');
+  });
 });

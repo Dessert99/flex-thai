@@ -19,5 +19,14 @@ export * from './questions.schema.js';
 /** 학습자 답안과 저장 콘텐츠 schema를 공개한다 */
 export * from './learning.schema.js';
 
+/** 어휘 연습 세션·문항·답안 schema를 공개한다 */
+export * from './learning-practice.schema.js';
+
+/** 개념·버전·학습 블록 schema를 공개한다 */
+export * from './concepts.schema.js';
+
+/** 콘텐츠 오류 신고·처리 이력 schema를 공개한다 */
+export * from './feedback.schema.js';
+
 /** 관리자 콘텐츠 가져오기 요청·항목 schema를 공개한다 */
 export * from './content-import.schema.js';

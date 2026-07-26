@@ -11,8 +11,20 @@ import {
 } from './openapi.js';
 
 const ACTIVE_PATHS = [
+  '/api/v1/admin/concept-versions/{versionId}',
+  '/api/v1/admin/concept-versions/{versionId}/publish',
+  '/api/v1/admin/concept-versions/{versionId}/validate',
+  '/api/v1/admin/concepts',
+  '/api/v1/admin/concepts/{conceptId}',
+  '/api/v1/admin/concepts/{conceptId}/hide',
+  '/api/v1/admin/concepts/{conceptId}/restore',
+  '/api/v1/admin/concepts/{conceptId}/versions',
   '/api/v1/admin/content-imports',
   '/api/v1/admin/content-imports/{importId}',
+  '/api/v1/admin/content-error-reports',
+  '/api/v1/admin/content-error-reports/{reportId}',
+  '/api/v1/admin/content-error-reports/{reportId}/assignee',
+  '/api/v1/admin/content-error-reports/{reportId}/status',
   '/api/v1/admin/media-assets/audio-upload-requests',
   '/api/v1/admin/media-assets/{mediaAssetId}',
   '/api/v1/admin/media-assets/{mediaAssetId}/complete',
@@ -42,10 +54,16 @@ const ACTIVE_PATHS = [
   '/api/v1/auth/mfa/totp/setup/verify',
   '/api/v1/auth/refresh',
   '/api/v1/auth/logout',
+  '/api/v1/concepts',
+  '/api/v1/concepts/{conceptId}',
+  '/api/v1/content-error-reports',
   '/api/v1/me',
   '/api/v1/me/question-attempts',
   '/api/v1/me/saved-questions/{questionId}',
   '/api/v1/me/vocabularies/{vocabularyId}/wordbook-memberships',
+  '/api/v1/me/vocabulary-practice/sessions',
+  '/api/v1/me/vocabulary-practice/sessions/{sessionId}',
+  '/api/v1/me/vocabulary-practice/sessions/{sessionId}/questions/{questionId}/answers',
   '/api/v1/me/wordbooks',
   '/api/v1/me/wordbooks/{wordbookId}',
   '/api/v1/me/wordbooks/{wordbookId}/items',
@@ -109,7 +127,10 @@ type LearnerOperationExpectation = {
   pathParameters?: readonly string[];
   query?: readonly string[];
   body?: string;
-  success: readonly [status: string, dto?: string];
+  success: readonly [
+    status: string,
+    dto?: string | readonly [string, ...string[]],
+  ];
   errors: readonly string[];
 };
 
@@ -368,11 +389,19 @@ const expectProtectedOpenApiOperations = (
     const [successStatus, successDto] = expected.success;
     const success = operation.responses[successStatus];
     expect(success).toBeDefined();
-    if (successDto) {
+    if (typeof successDto === 'string') {
       const content = hasOpenApiContent(success) ? success.content : undefined;
       expect(Object.keys(content ?? {})).toEqual(['application/json']);
       expect(content?.['application/json']?.schema).toEqual({
         $ref: `#/components/schemas/${successDto}`,
+      });
+    } else if (successDto) {
+      const content = hasOpenApiContent(success) ? success.content : undefined;
+      expect(Object.keys(content ?? {})).toEqual(['application/json']);
+      expect(content?.['application/json']?.schema).toEqual({
+        oneOf: successDto.map((dto) => ({
+          $ref: `#/components/schemas/${dto}`,
+        })),
       });
     } else {
       expect(success).not.toHaveProperty('content');
@@ -393,6 +422,114 @@ const expectProtectedOpenApiOperations = (
 };
 
 const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
+  {
+    method: 'get',
+    path: '/api/v1/admin/concepts',
+    query: ['category', 'status', 'page', 'pageSize'],
+    success: ['200', 'AdminConceptListResponseDto'],
+    errors: ['400', '401', '403', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/concepts',
+    body: 'CreateConceptRequestDto',
+    success: ['201', 'ConceptVersionResponseDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/admin/concepts/{conceptId}',
+    pathParameters: ['conceptId'],
+    success: ['200', 'AdminConceptDetailResponseDto'],
+    errors: ['400', '401', '403', '404', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/concepts/{conceptId}/versions',
+    pathParameters: ['conceptId'],
+    success: ['201', 'ConceptVersionResponseDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'put',
+    path: '/api/v1/admin/concept-versions/{versionId}',
+    pathParameters: ['versionId'],
+    body: 'ReplaceConceptVersionRequestDto',
+    success: ['200', 'ConceptVersionResponseDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/concept-versions/{versionId}/validate',
+    pathParameters: ['versionId'],
+    success: ['200', 'ConceptValidationReportDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/concept-versions/{versionId}/publish',
+    pathParameters: ['versionId'],
+    success: ['204'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/concepts/{conceptId}/hide',
+    pathParameters: ['conceptId'],
+    success: ['204'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/concepts/{conceptId}/restore',
+    pathParameters: ['conceptId'],
+    success: ['204'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/admin/content-error-reports',
+    query: [
+      'status',
+      'targetKind',
+      'category',
+      'assigneeUserId',
+      'page',
+      'pageSize',
+    ],
+    success: ['200', 'AdminContentErrorReportListResponseDto'],
+    errors: ['400', '401', '403', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/admin/content-error-reports/{reportId}',
+    pathParameters: ['reportId'],
+    success: ['200', 'AdminContentErrorReportDetailResponseDto'],
+    errors: ['400', '401', '403', '404', '500'],
+  },
+  {
+    method: 'put',
+    path: '/api/v1/admin/content-error-reports/{reportId}/status',
+    pathParameters: ['reportId'],
+    body: 'ChangeContentErrorReportStatusRequestDto',
+    success: ['200', 'AdminContentErrorReportDetailResponseDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'put',
+    path: '/api/v1/admin/content-error-reports/{reportId}/assignee',
+    pathParameters: ['reportId'],
+    body: 'AssignContentErrorReportRequestDto',
+    success: ['200', 'AdminContentErrorReportDetailResponseDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'delete',
+    path: '/api/v1/admin/content-error-reports/{reportId}/assignee',
+    pathParameters: ['reportId'],
+    success: ['200', 'AdminContentErrorReportDetailResponseDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
   {
     method: 'post',
     path: '/api/v1/admin/content-imports',
@@ -578,6 +715,61 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
 const LEARNER_OPERATIONS: readonly LearnerOperationExpectation[] = [
   {
     method: 'get',
+    path: '/api/v1/concepts',
+    query: ['category'],
+    success: ['200', 'ConceptListResponseDto'],
+    errors: ['400', '401', '403', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/concepts/{conceptId}',
+    pathParameters: ['conceptId'],
+    success: ['200', 'ConceptDetailResponseDto'],
+    errors: ['400', '401', '403', '404', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/content-error-reports',
+    body: 'CreateContentErrorReportRequestDto',
+    success: ['201', 'CreateContentErrorReportResponseDto'],
+    errors: ['400', '401', '403', '404', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/me/vocabulary-practice/sessions',
+    body: 'CreateVocabularyPracticeRequestDto',
+    success: [
+      '201',
+      [
+        'ActiveVocabularyPracticeSessionResponseDto',
+        'CompletedVocabularyPracticeSessionResponseDto',
+      ],
+    ],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/me/vocabulary-practice/sessions/{sessionId}',
+    pathParameters: ['sessionId'],
+    success: [
+      '200',
+      [
+        'ActiveVocabularyPracticeSessionResponseDto',
+        'CompletedVocabularyPracticeSessionResponseDto',
+      ],
+    ],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/me/vocabulary-practice/sessions/{sessionId}/questions/{questionId}/answers',
+    pathParameters: ['sessionId', 'questionId'],
+    body: 'SubmitVocabularyPracticeAnswerRequestDto',
+    success: ['200', 'VocabularyPracticeAnswerResponseDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'get',
     path: '/api/v1/questions',
     query: [
       'skill',
@@ -753,7 +945,7 @@ describe('OpenAPI 문서', () => {
     await app?.close();
   });
 
-  it('현재 활성 endpoint의 서로 다른 path 오십 개만 공개한다', () => {
+  it('현재 활성 endpoint의 서로 다른 path 예순여덟 개만 공개한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
@@ -1007,21 +1199,21 @@ describe('OpenAPI 문서', () => {
     });
   });
 
-  it('학습자 operation 스무 개의 요청·성공·보안·오류 계약을 모두 고정한다', () => {
+  it('학습자 operation 스물여섯 개의 요청·성공·보안·오류 계약을 모두 고정한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
 
-    expect(LEARNER_OPERATIONS).toHaveLength(20);
+    expect(LEARNER_OPERATIONS).toHaveLength(26);
     expectProtectedOpenApiOperations(document, LEARNER_OPERATIONS);
   });
 
-  it('관리자 operation 스물네 개의 입력·성공·Bearer·오류 계약을 모두 고정한다', () => {
+  it('관리자 operation 서른여덟 개의 입력·성공·Bearer·오류 계약을 모두 고정한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
 
-    expect(ADMIN_OPERATIONS).toHaveLength(24);
+    expect(ADMIN_OPERATIONS).toHaveLength(38);
     expectProtectedOpenApiOperations(document, ADMIN_OPERATIONS);
   });
 

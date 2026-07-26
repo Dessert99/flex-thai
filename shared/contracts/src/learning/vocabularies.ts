@@ -53,6 +53,7 @@ const vocabularySummaryShape = {
   kind: z.enum(['WORD', 'EXPRESSION']),
   meanings: z.array(vocabularyMeaningSchema),
   pronunciations: z.array(vocabularyPronunciationSchema),
+  audioEligibleMeaningCount: z.number().int().safe().nonnegative(),
   saved: z.boolean(),
 };
 

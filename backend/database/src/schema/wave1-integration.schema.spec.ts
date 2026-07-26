@@ -108,7 +108,9 @@ describe('Wave 1 병합 migration', () => {
     );
 
     expect(
-      journal.entries.slice(-3).map(({ idx, tag }) => ({ idx, tag })),
+      journal.entries
+        .filter(({ idx }) => idx >= 7 && idx <= 9)
+        .map(({ idx, tag }) => ({ idx, tag })),
     ).toEqual([
       { idx: 7, tag: '0007_wave1-identity-challenge' },
       { idx: 8, tag: '0008_wave1-thai-interactions' },

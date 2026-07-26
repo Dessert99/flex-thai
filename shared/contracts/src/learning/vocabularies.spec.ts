@@ -44,6 +44,7 @@ const vocabulary = {
         'https://media.example.com/vocabularies/greeting.mp3?Expires=300',
     },
   ],
+  audioEligibleMeaningCount: 1,
   saved: true,
 } as const;
 
@@ -109,6 +110,15 @@ describe('학습자 어휘 공개 응답 계약', () => {
     expect(
       vocabularyListResponseSchema.parse({ items: [vocabulary], page }),
     ).toEqual({ items: [vocabulary], page });
+  });
+
+  it('공용 어휘 목록에 음성 연습 가능한 어의 수를 포함한다', () => {
+    const parsed = vocabularyListResponseSchema.parse({
+      items: [vocabulary],
+      page,
+    });
+
+    expect(parsed.items[0]?.audioEligibleMeaningCount).toBe(1);
   });
 
   it('어휘 상세에 게시 문장의 공개 예문을 허용한다', () => {

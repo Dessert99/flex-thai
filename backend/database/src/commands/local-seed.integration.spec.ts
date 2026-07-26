@@ -56,5 +56,53 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
         import_owner: 'local-admin-sub',
       });
     });
+
+    it('단어 연습 후보와 두 개념 영역과 신고 이력을 수동 테스트할 수 있다', async () => {
+      const practice = await pool.query(
+        `select
+           count(distinct vm.id)::integer as meaning_count,
+           count(distinct v.thai)::integer as thai_count,
+           count(distinct vm.meaning_ko)::integer as label_count
+         from wordbooks w
+         join wordbook_items wi on wi.wordbook_id = w.id
+         join vocabularies v on v.id = wi.vocabulary_id and v.status = 'PUBLISHED'
+         join vocabulary_meanings vm on vm.vocabulary_id = v.id
+         join vocabulary_meaning_pronunciations vmp
+           on vmp.vocabulary_id = v.id and vmp.meaning_id = vm.id
+         join vocabulary_pronunciations vp
+           on vp.id = vmp.pronunciation_id and vp.vocabulary_id = v.id
+         join media_assets ma on ma.id = vp.media_asset_id and ma.status = 'READY'
+         where w.user_id = '00000000-0000-4000-8000-000000000002'`,
+      );
+      const concepts = await pool.query(
+        `select cv.category, count(*)::integer as count
+         from concepts c
+         join concept_versions cv on cv.id = c.current_published_version_id
+         where c.status = 'PUBLISHED' and cv.status = 'PUBLISHED'
+         group by cv.category
+         order by cv.category::text`,
+      );
+      const feedback = await pool.query(
+        `select
+           count(distinct r.id)::integer as report_count,
+           count(h.id)::integer as history_count
+         from content_error_reports r
+         join content_error_report_history h on h.report_id = r.id`,
+      );
+
+      expect(practice.rows[0]).toEqual({
+        meaning_count: 10,
+        thai_count: 10,
+        label_count: 10,
+      });
+      expect(concepts.rows).toEqual([
+        { category: 'GRAMMAR', count: 1 },
+        { category: 'THAI_SCRIPT_PRONUNCIATION', count: 1 },
+      ]);
+      expect(feedback.rows[0]).toMatchObject({
+        report_count: 2,
+        history_count: 4,
+      });
+    });
   },
 );

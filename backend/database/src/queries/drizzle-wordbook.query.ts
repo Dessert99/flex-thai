@@ -6,6 +6,7 @@ import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import {
   mediaAssets,
   vocabularies,
+  vocabularyMeaningPronunciations,
   vocabularyMeanings,
   vocabularyPronunciations,
   wordbookItems,
@@ -48,6 +49,7 @@ interface WordbookItemBase {
   id: string;
   thai: string;
   kind: 'WORD' | 'EXPRESSION';
+  audioEligibleMeaningCount: number;
   addedAt: Date;
 }
 
@@ -117,8 +119,8 @@ const wordbookFields = {
   name: wordbooks.name,
   itemCount: sql<number>`(
     select count(*)::integer
-    from ${wordbookItems}
-    where ${wordbookItems.wordbookId} = ${wordbooks.id}
+    from ${wordbookItems} counted_items
+    where counted_items.wordbook_id = "wordbooks"."id"
   )`,
   createdAt: wordbooks.createdAt,
   updatedAt: wordbooks.updatedAt,
@@ -166,6 +168,18 @@ export class DrizzleWordbookQuery {
         id: vocabularies.id,
         thai: vocabularies.thai,
         kind: vocabularies.kind,
+        audioEligibleMeaningCount: sql<number>`(
+          select count(distinct eligible_links.meaning_id)::integer
+          from ${vocabularyMeaningPronunciations} eligible_links
+          inner join ${vocabularyPronunciations} eligible_pronunciations
+            on eligible_pronunciations.id = eligible_links.pronunciation_id
+            and eligible_pronunciations.vocabulary_id =
+              eligible_links.vocabulary_id
+          inner join ${mediaAssets} eligible_media
+            on eligible_media.id = eligible_pronunciations.media_asset_id
+            and eligible_media.status = ${'READY'}
+          where eligible_links.vocabulary_id = "vocabularies"."id"
+        )`,
         addedAt: wordbookItems.addedAt,
       })
       .from(vocabularies)
@@ -285,6 +299,7 @@ export class DrizzleWordbookQuery {
             media: { storageKey: mediaStorageKey! },
           }),
         ),
+        audioEligibleMeaningCount: base.audioEligibleMeaningCount,
         saved: true,
         addedAt: base.addedAt,
       };

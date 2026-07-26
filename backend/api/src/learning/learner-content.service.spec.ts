@@ -158,6 +158,7 @@ const dependencies = () => ({
               media: { storageKey: 'private/shared.mp3' },
             },
           ],
+          audioEligibleMeaningCount: 1,
           saved: true,
         },
       ],
@@ -184,6 +185,7 @@ const dependencies = () => ({
           media: { storageKey: 'private/shared.mp3' },
         },
       ],
+      audioEligibleMeaningCount: 1,
       saved: true,
       meaningPronunciations: [
         { meaningId: ids.meaning, pronunciationId: ids.pronunciation },
@@ -414,6 +416,7 @@ describe('LearnerContentService 어휘 응답', () => {
     expect(vocabularies.items[0]?.pronunciations[0]?.audioUrl).toBe(
       'https://media.example.com/signed',
     );
+    expect(vocabularies.items[0]?.audioEligibleMeaningCount).toBe(1);
     expect(related.items).toHaveLength(1);
     expect(fakes.savedContent.saveQuestion).toHaveBeenCalledWith(
       'user-1',
