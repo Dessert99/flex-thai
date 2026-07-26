@@ -14,6 +14,10 @@ const challenge = {
   attempts: 0,
   status: 'PENDING' as const,
 };
+const replacementChallenge = {
+  ...challenge,
+  id: '00000000-0000-4000-8000-000000000002',
+};
 const providerResult = {
   kind: 'AUTHENTICATED' as const,
   tokens: {
@@ -31,6 +35,9 @@ const makeService = () => {
     reserveConsumption: vi.fn().mockResolvedValue(challenge),
     finalizeConsumption: vi.fn().mockResolvedValue(undefined),
     releaseConsumption: vi.fn().mockResolvedValue(undefined),
+    markDelivery: vi.fn().mockResolvedValue(undefined),
+    replaceForResend: vi.fn().mockResolvedValue(replacementChallenge),
+    restoreReplacedChallenge: vi.fn().mockResolvedValue(undefined),
   };
   const provider = {
     complete: vi.fn().mockResolvedValue(providerResult),
@@ -121,5 +128,63 @@ describe('PasswordlessAuthenticationService', () => {
     ).rejects.toThrow('provider unavailable');
     expect(repository.finalizeConsumption).not.toHaveBeenCalled();
     expect(repository.releaseConsumption).toHaveBeenCalledWith(challengeId);
+  });
+
+  it('메일 발송 실패를 persistence에 기록한다', async () => {
+    const { repository, sender, service } = makeService();
+    sender.send.mockRejectedValue(new Error('SES unavailable'));
+
+    await expect(service.start('user@hufs.ac.kr', now)).rejects.toThrow(
+      'SES unavailable',
+    );
+    expect(repository.markDelivery).toHaveBeenCalledWith(
+      challengeId,
+      'FAILED',
+    );
+  });
+
+  it('재전송은 기존 challenge를 교체하고 발송 실패 시 이전 상태를 복구한다', async () => {
+    const { repository, sender, service } = makeService();
+    sender.send.mockRejectedValue(new Error('SES unavailable'));
+
+    await expect(service.resend(challengeId, now)).rejects.toThrow(
+      'SES unavailable',
+    );
+    expect(repository.replaceForResend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        challengeId,
+        codeHmac: 'code-hmac',
+        linkHmac: 'link-hmac',
+      }),
+    );
+    expect(repository.restoreReplacedChallenge).toHaveBeenCalledWith({
+      previousChallengeId: challengeId,
+      replacementChallengeId: replacementChallenge.id,
+    });
+  });
+
+  it('메일 발송 성공 뒤 상태 저장 실패를 발송 실패로 오분류하지 않는다', async () => {
+    const { repository, service } = makeService();
+    repository.markDelivery.mockRejectedValueOnce(
+      new Error('database unavailable'),
+    );
+
+    await expect(service.start('user@hufs.ac.kr', now)).rejects.toThrow(
+      'database unavailable',
+    );
+    expect(repository.markDelivery).toHaveBeenCalledTimes(1);
+    expect(repository.markDelivery).toHaveBeenCalledWith(challengeId, 'SENT');
+  });
+
+  it('재전송 메일 성공 뒤 상태 저장 실패에는 이전 challenge를 복구하지 않는다', async () => {
+    const { repository, service } = makeService();
+    repository.markDelivery.mockRejectedValueOnce(
+      new Error('database unavailable'),
+    );
+
+    await expect(service.resend(challengeId, now)).rejects.toThrow(
+      'database unavailable',
+    );
+    expect(repository.restoreReplacedChallenge).not.toHaveBeenCalled();
   });
 });

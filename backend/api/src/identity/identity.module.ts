@@ -4,6 +4,7 @@ import { Reflector } from '@nestjs/core';
 import {
   IdentityAuthenticationService,
   type IdentityUserRepository,
+  PasswordlessAuthenticationService,
 } from '@flex-thia/domain';
 import { AdminMfaGuard } from './admin-mfa.guard.js';
 import { ApplicationRoleGuard } from './application-role.guard.js';
@@ -20,6 +21,7 @@ import { MeController } from './me.controller.js';
 /** Identity HTTP 경계를 구성하는 실행 환경 의존성 */
 export interface IdentityModuleOptions {
   identity: IdentityAuthenticationService;
+  passwordless?: PasswordlessAuthenticationService;
   users: IdentityUserRepository;
   authorizer: AuthorizerGuardOptions;
   allowedOrigins: string[];
@@ -39,6 +41,10 @@ export class IdentityModule {
         {
           provide: IdentityAuthenticationService,
           useValue: options.identity,
+        },
+        {
+          provide: PasswordlessAuthenticationService,
+          useValue: options.passwordless,
         },
         {
           provide: IDENTITY_USER_REPOSITORY,

@@ -41,6 +41,8 @@ const makeDatabase = (counts: number[] = [], initialRow = makeRow()) => {
   let row = initialRow;
   let countIndex = 0;
   let transactionTail = Promise.resolve();
+  const insertedValues: Array<Partial<TestRow>> = [];
+  const updatedValues: Array<Partial<TestRow>> = [];
 
   const transactionApi = {
     execute: async () => undefined,
@@ -61,6 +63,7 @@ const makeDatabase = (counts: number[] = [], initialRow = makeRow()) => {
     insert: () => ({
       values: (values: Partial<TestRow>) => ({
         returning: async () => {
+          insertedValues.push(values);
           row = { ...makeRow(), ...values };
           return [row];
         },
@@ -70,6 +73,7 @@ const makeDatabase = (counts: number[] = [], initialRow = makeRow()) => {
       set: (values: Partial<TestRow>) => ({
         where: () => ({
           returning: async () => {
+            updatedValues.push(values);
             row = { ...row, ...values };
             return [row];
           },
@@ -98,6 +102,8 @@ const makeDatabase = (counts: number[] = [], initialRow = makeRow()) => {
       update: transactionApi.update,
     },
     getRow: () => row,
+    insertedValues,
+    updatedValues,
   };
 };
 
@@ -183,5 +189,64 @@ describe('DrizzleEmailChallengeRepository', () => {
       }),
     ).rejects.toMatchObject({ code: 'CHALLENGE_ATTEMPTS_EXCEEDED' });
     expect(getRow()).toMatchObject({ attempts: 5, status: 'EXPIRED' });
+  });
+
+  it('재전송은 기존 PENDING을 만료시키고 같은 transaction에서 새 행을 만든다', async () => {
+    const resendNow = new Date('2026-07-26T00:01:00.000Z');
+    const { database, insertedValues, updatedValues } = makeDatabase([
+      1, 1,
+    ]);
+    const repository = new DrizzleEmailChallengeRepository(
+      database as never,
+      verifier,
+    );
+
+    await repository.replaceForResend({
+      ...createInput,
+      challengeId,
+      now: resendNow,
+      expiresAt: new Date('2026-07-26T00:11:00.000Z'),
+      resendAt: new Date('2026-07-26T00:02:00.000Z'),
+    });
+
+    expect(updatedValues).toContainEqual({ status: 'EXPIRED' });
+    expect(insertedValues).toContainEqual(
+      expect.objectContaining({
+        email: 'user@hufs.ac.kr',
+        codeHmac: 'code:123456',
+        status: 'PENDING',
+      }),
+    );
+  });
+
+  it('새 challenge가 이미 예약됐으면 이전 challenge를 복구하지 않는다', async () => {
+    let updateCount = 0;
+    const transaction = {
+      execute: async () => undefined,
+      update: () => ({
+        set: () => ({
+          where: () => ({
+            returning: async () => {
+              updateCount += 1;
+              return [];
+            },
+          }),
+        }),
+      }),
+    };
+    const repository = new DrizzleEmailChallengeRepository(
+      {
+        transaction: async (operation: (value: typeof transaction) => unknown) =>
+          operation(transaction),
+      } as never,
+      verifier,
+    );
+
+    await repository.restoreReplacedChallenge({
+      previousChallengeId: challengeId,
+      replacementChallengeId: '00000000-0000-4000-8000-000000000002',
+    });
+
+    expect(updateCount).toBe(1);
   });
 });

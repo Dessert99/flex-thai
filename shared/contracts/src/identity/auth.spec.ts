@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   confirmEmailLinkRequestSchema,
+  emailChallengeIdPathSchema,
   loginRequestSchema,
   loginResponseSchema,
   startEmailAuthenticationRequestSchema,
@@ -37,6 +38,16 @@ describe('identity 인증 계약', () => {
         token: 'A'.repeat(43),
       }),
     ).toEqual({ token: 'A'.repeat(43) });
+    expect(
+      emailChallengeIdPathSchema.parse({
+        challengeId: '00000000-0000-4000-8000-000000000001',
+      }),
+    ).toEqual({
+      challengeId: '00000000-0000-4000-8000-000000000001',
+    });
+    expect(() =>
+      emailChallengeIdPathSchema.parse({ challengeId: 'not-a-uuid' }),
+    ).toThrow();
   });
 
   it('로그인 이메일을 정규화하고 빈 비밀번호를 거부한다', () => {

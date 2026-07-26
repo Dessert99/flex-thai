@@ -53,17 +53,38 @@ export class PasswordlessAuthenticationService {
         maxAttempts: 5,
       },
     });
-    const linkUrl = new URL(this.linkConfirmationUrl);
-    linkUrl.searchParams.set('challengeId', challenge.id);
-    linkUrl.searchParams.set('token', secrets.linkToken);
+    await this.deliver(challenge, secrets);
 
-    await this.sender.send({
-      email,
-      code: secrets.code,
-      linkUrl: linkUrl.toString(),
+    return {
+      challengeId: challenge.id,
       expiresAt: challenge.expiresAt,
-    });
+      resendAt: challenge.resendAt,
+    };
+  }
 
+  /** 기존 PENDING을 원자 교체한 뒤 새 코드와 링크를 발송한다 */
+  async resend(
+    challengeId: string,
+    now: Date,
+  ): Promise<EmailChallengeStartResult> {
+    const secrets = this.secrets.createChallengeSecrets();
+    const challenge = await this.repository.replaceForResend({
+      challengeId,
+      codeHmac: secrets.codeHmac,
+      linkHmac: secrets.linkHmac,
+      expiresAt: new Date(now.getTime() + CHALLENGE_LIFETIME_MS),
+      resendAt: new Date(now.getTime() + RESEND_COOLDOWN_MS),
+      now,
+      limits: {
+        emailDaily: 5,
+        globalDaily: 500,
+        maxAttempts: 5,
+      },
+    });
+    await this.deliver(challenge, secrets, {
+      previousChallengeId: challengeId,
+      replacementChallengeId: challenge.id,
+    });
     return {
       challengeId: challenge.id,
       expiresAt: challenge.expiresAt,
@@ -115,6 +136,44 @@ export class PasswordlessAuthenticationService {
 
     await this.repository.finalizeConsumption(challengeId, now);
     return result;
+  }
+
+  private async deliver(
+    challenge: {
+      id: string;
+      email: string;
+      expiresAt: Date;
+    },
+    secrets: {
+      code: string;
+      linkToken: string;
+    },
+    replacement?: {
+      previousChallengeId: string;
+      replacementChallengeId: string;
+    },
+  ): Promise<void> {
+    const linkUrl = new URL(this.linkConfirmationUrl);
+    linkUrl.searchParams.set('challengeId', challenge.id);
+    linkUrl.searchParams.set('token', secrets.linkToken);
+    try {
+      await this.sender.send({
+        email: challenge.email,
+        code: secrets.code,
+        linkUrl: linkUrl.toString(),
+        expiresAt: challenge.expiresAt,
+      });
+    } catch (error) {
+      await this.repository.markDelivery(challenge.id, 'FAILED');
+      if (replacement) {
+        await this.repository.restoreReplacedChallenge({
+          previousChallengeId: replacement.previousChallengeId,
+          replacementChallengeId: replacement.replacementChallengeId,
+        });
+      }
+      throw error;
+    }
+    await this.repository.markDelivery(challenge.id, 'SENT');
   }
 }
 

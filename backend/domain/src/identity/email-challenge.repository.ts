@@ -21,6 +21,27 @@ export interface EmailChallengeRepository {
       maxAttempts: 5;
     };
   }): Promise<EmailChallenge>;
+  replaceForResend(input: {
+    challengeId: string;
+    codeHmac: string;
+    linkHmac: string;
+    expiresAt: Date;
+    resendAt: Date;
+    now: Date;
+    limits: {
+      emailDaily: 5;
+      globalDaily: 500;
+      maxAttempts: 5;
+    };
+  }): Promise<EmailChallenge>;
+  markDelivery(
+    challengeId: string,
+    status: 'SENT' | 'FAILED',
+  ): Promise<void>;
+  restoreReplacedChallenge(input: {
+    previousChallengeId: string;
+    replacementChallengeId: string;
+  }): Promise<void>;
   reserveConsumption(input: {
     challengeId: string;
     answer: EmailChallengeAnswer;

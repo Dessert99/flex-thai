@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   HttpCode,
+  Param,
   Post,
   Req,
   Res,
@@ -20,20 +21,29 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
-  loginRequestSchema,
+  confirmEmailLinkRequestSchema,
+  emailAuthenticationChallengeResponseSchema,
+  emailChallengeIdPathSchema,
   loginResponseSchema,
   type MeResponse,
+  startEmailAuthenticationRequestSchema,
   totpChallengeRequestSchema,
   totpSetupResponseSchema,
   totpSetupVerifyRequestSchema,
-  type LoginInput,
+  type ConfirmEmailLinkInput,
+  type EmailAuthenticationChallengeResponse,
+  type EmailChallengeIdPath,
   type LoginResponse,
+  type StartEmailAuthenticationInput,
   type TotpChallengeInput,
   type TotpSetupResponse,
   type TotpSetupVerifyInput,
+  type VerifyEmailCodeInput,
+  verifyEmailCodeRequestSchema,
 } from '@flex-thia/contracts';
 import {
   IdentityAuthenticationService,
+  PasswordlessAuthenticationService,
   type AuthenticationResult,
 } from '@flex-thia/domain';
 import {
@@ -47,7 +57,6 @@ import {
 } from '../openapi/openapi.decorators.js';
 import {
   AuthenticatedResponseDto,
-  LoginRequestDto,
   MeResponseDto,
   MfaRequiredResponseDto,
   ProblemDetailsDto,
@@ -81,28 +90,103 @@ type CookieResponse = Parameters<typeof writeRefreshCookie>[0] &
 )
 @Controller('auth')
 export class IdentityController {
-  constructor(private readonly identity: IdentityAuthenticationService) {}
+  constructor(
+    private readonly identity: IdentityAuthenticationService,
+    private readonly passwordless: PasswordlessAuthenticationService,
+  ) {}
 
-  /** 이메일·비밀번호 인증 결과를 token 또는 TOTP challenge로 반환한다 */
-  @ApiOperation({ summary: '이메일과 비밀번호로 로그인한다' })
-  @ApiBody({ type: LoginRequestDto })
-  @ApiAuthenticationResponse()
+  /** 학교 이메일 challenge를 계정 존재 여부 없는 응답으로 시작한다 */
+  @ApiOperation({ summary: '학교 이메일 로그인 challenge를 시작한다' })
   @ApiCsrfProtection()
   @ApiProblemResponse(400, '요청 body가 공개 계약과 일치하지 않음')
-  @ApiProblemResponse(401, '자격 증명이 올바르지 않음')
-  @ApiProblemResponse(403, '계정 상태 또는 CSRF 조건이 요청을 허용하지 않음')
-  @ApiProblemResponse(429, '로그인 요청 제한을 초과함')
+  @ApiProblemResponse(403, 'CSRF 조건이 요청을 허용하지 않음')
+  @ApiProblemResponse(429, 'challenge 발송 제한을 초과함')
   @ApiProblemResponse(500, '예상하지 못한 서버 오류')
-  @Post('login')
+  @Post('challenges')
   @UseGuards(CsrfGuard)
-  async login(
-    @Body() body: LoginInput,
+  async startChallenge(
+    @Body() body: StartEmailAuthenticationInput,
+  ): Promise<EmailAuthenticationChallengeResponse> {
+    const input = startEmailAuthenticationRequestSchema.parse(body);
+    return toChallengeResponse(
+      await this.passwordless.start(input.email, new Date()),
+    );
+  }
+
+  /** 6자리 코드 POST로만 challenge를 소비하고 인증을 완료한다 */
+  @ApiOperation({ summary: '이메일 코드로 로그인 challenge를 확인한다' })
+  @ApiAuthenticationResponse()
+  @ApiCsrfProtection()
+  @ApiProblemResponse(400, '요청 path 또는 body가 공개 계약과 일치하지 않음')
+  @ApiProblemResponse(401, 'challenge 또는 code가 올바르지 않음')
+  @ApiProblemResponse(403, '계정 상태 또는 CSRF 조건이 요청을 허용하지 않음')
+  @ApiProblemResponse(409, 'challenge를 이미 사용했거나 처리 중임')
+  @ApiProblemResponse(500, '예상하지 못한 서버 오류')
+  @Post('challenges/:challengeId/code')
+  @UseGuards(CsrfGuard)
+  async verifyCode(
+    @Param() path: EmailChallengeIdPath,
+    @Body() body: VerifyEmailCodeInput,
     @Res({ passthrough: true }) response: CookieResponse,
   ): Promise<LoginResponse> {
-    const input = loginRequestSchema.parse(body);
+    const { challengeId } = emailChallengeIdPathSchema.parse(path);
+    const { code } = verifyEmailCodeRequestSchema.parse(body);
+    const providerResult = await this.passwordless.completeCode(
+      challengeId,
+      code,
+      new Date(),
+    );
     return this.finish(
-      this.identity.login(input.email, input.password),
+      this.identity.completePasswordless(providerResult),
       response,
+    );
+  }
+
+  /** 명시적인 링크 확인 POST에서만 challenge를 소비한다 */
+  @ApiOperation({ summary: '이메일 링크로 로그인 challenge를 확인한다' })
+  @ApiAuthenticationResponse()
+  @ApiCsrfProtection()
+  @ApiProblemResponse(400, '요청 path 또는 body가 공개 계약과 일치하지 않음')
+  @ApiProblemResponse(401, 'challenge 또는 link token이 올바르지 않음')
+  @ApiProblemResponse(403, '계정 상태 또는 CSRF 조건이 요청을 허용하지 않음')
+  @ApiProblemResponse(409, 'challenge를 이미 사용했거나 처리 중임')
+  @ApiProblemResponse(500, '예상하지 못한 서버 오류')
+  @Post('challenges/:challengeId/link')
+  @UseGuards(CsrfGuard)
+  async confirmLink(
+    @Param() path: EmailChallengeIdPath,
+    @Body() body: ConfirmEmailLinkInput,
+    @Res({ passthrough: true }) response: CookieResponse,
+  ): Promise<LoginResponse> {
+    const { challengeId } = emailChallengeIdPathSchema.parse(path);
+    const { token } = confirmEmailLinkRequestSchema.parse(body);
+    const providerResult = await this.passwordless.completeLink(
+      challengeId,
+      token,
+      new Date(),
+    );
+    return this.finish(
+      this.identity.completePasswordless(providerResult),
+      response,
+    );
+  }
+
+  /** cooldown과 일일 상한 아래 기존 challenge를 새 challenge로 교체한다 */
+  @ApiOperation({ summary: '이메일 로그인 challenge를 재전송한다' })
+  @ApiCsrfProtection()
+  @ApiProblemResponse(400, '요청 path가 공개 계약과 일치하지 않음')
+  @ApiProblemResponse(401, 'challenge가 만료됨')
+  @ApiProblemResponse(403, 'CSRF 조건이 요청을 허용하지 않음')
+  @ApiProblemResponse(429, 'challenge 발송 제한을 초과함')
+  @ApiProblemResponse(500, '예상하지 못한 서버 오류')
+  @Post('challenges/:challengeId/resend')
+  @UseGuards(CsrfGuard)
+  async resend(
+    @Param() path: EmailChallengeIdPath,
+  ): Promise<EmailAuthenticationChallengeResponse> {
+    const { challengeId } = emailChallengeIdPathSchema.parse(path);
+    return toChallengeResponse(
+      await this.passwordless.resend(challengeId, new Date()),
     );
   }
 
@@ -266,3 +350,14 @@ const readBearerAccessToken = (request: CookieRequest): string => {
 
   return authorization.slice('Bearer '.length);
 };
+
+const toChallengeResponse = (input: {
+  challengeId: string;
+  expiresAt: Date;
+  resendAt: Date;
+}): EmailAuthenticationChallengeResponse =>
+  emailAuthenticationChallengeResponseSchema.parse({
+    challengeId: input.challengeId,
+    expiresAt: input.expiresAt.toISOString(),
+    resendAt: input.resendAt.toISOString(),
+  });

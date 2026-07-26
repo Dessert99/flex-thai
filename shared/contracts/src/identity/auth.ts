@@ -37,6 +37,13 @@ export const confirmEmailLinkRequestSchema = z
   })
   .strict();
 
+/** 이메일 challenge UUID path 계약 */
+export const emailChallengeIdPathSchema = z
+  .object({
+    challengeId: z.uuid(),
+  })
+  .strict();
+
 /** 이메일과 비밀번호 로그인 요청 */
 export const loginRequestSchema = z
   .object({ email: emailSchema, password: passwordSchema })
@@ -112,6 +119,11 @@ export type VerifyEmailCodeInput = z.infer<
 /** 이메일 링크 확인 요청 */
 export type ConfirmEmailLinkInput = z.infer<
   typeof confirmEmailLinkRequestSchema
+>;
+
+/** 이메일 challenge UUID path */
+export type EmailChallengeIdPath = z.infer<
+  typeof emailChallengeIdPathSchema
 >;
 
 /** 검증된 TOTP challenge 요청 type */
