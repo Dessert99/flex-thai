@@ -8,7 +8,15 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 import {
   betaInvitationRequestSchema,
   betaInvitationResponseSchema,
@@ -32,6 +40,13 @@ import {
 } from '../common/auth/current-user.decorator.js';
 import { AdminRequestId } from '../common/http/admin-request-id.js';
 import { ApiProblemResponses } from '../openapi/openapi.decorators.js';
+import {
+  BetaInvitationRequestDto,
+  BetaInvitationResponseDto,
+  ManagedIdentityUserResponseDto,
+  UserManagementListResponseDto,
+  UserStatusUpdateRequestDto,
+} from '../openapi/openapi.dto.js';
 import { AdminMfaGuard } from './admin-mfa.guard.js';
 import { ApplicationRoleGuard } from './application-role.guard.js';
 import { CognitoAuthorizerGuard } from './cognito-authorizer.guard.js';
@@ -48,6 +63,7 @@ export class AdminUserManagementController {
 
   /** 모든 사용자 공개 상태를 이메일 stable 순서로 조회한다 */
   @ApiOperation({ summary: '사용자 활성 상태 목록을 조회한다' })
+  @ApiOkResponse({ type: UserManagementListResponseDto })
   @ApiProblemResponses(401, 403, 500)
   @Get()
   async listUsers(
@@ -62,6 +78,9 @@ export class AdminUserManagementController {
 
   /** 대상 사용자를 ACTIVE 또는 DISABLED로 변경한다 */
   @ApiOperation({ summary: '사용자 활성 상태를 변경한다' })
+  @ApiParam({ name: 'userId', type: 'string', format: 'uuid' })
+  @ApiBody({ type: UserStatusUpdateRequestDto })
+  @ApiOkResponse({ type: ManagedIdentityUserResponseDto })
   @ApiProblemResponses(400, 401, 403, 404, 500)
   @Patch(':userId/status')
   async changeStatus(
@@ -83,6 +102,8 @@ export class AdminUserManagementController {
 
   /** beta 안내 발송을 가입 gate와 무관한 추적 record로 남긴다 */
   @ApiOperation({ summary: 'beta 안내 발송 기록을 남긴다' })
+  @ApiBody({ type: BetaInvitationRequestDto })
+  @ApiCreatedResponse({ type: BetaInvitationResponseDto })
   @ApiProblemResponses(400, 401, 403, 500)
   @Post('invitations')
   async recordBetaInvitation(

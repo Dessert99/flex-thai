@@ -7,6 +7,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import type { ProblemDetailsResponse } from '@flex-thia/contracts';
+import { WordbookPersistenceError } from '@flex-thia/database';
 import {
   AuthDomainError,
   ContentImportError,
@@ -19,6 +20,7 @@ import {
   UploadPolicyError,
   UserManagementError,
   VocabularyAdminError,
+  WordbookDomainError,
 } from '@flex-thia/domain';
 import { ZodError } from 'zod';
 import {
@@ -36,12 +38,6 @@ export interface ErrorResponse {
 }
 
 const AUTH_STATUS: Record<AuthDomainError['code'], number> = {
-  SCHOOL_EMAIL_REQUIRED: HttpStatus.BAD_REQUEST,
-  CHALLENGE_INVALID: HttpStatus.UNAUTHORIZED,
-  CHALLENGE_RATE_LIMITED: HttpStatus.TOO_MANY_REQUESTS,
-  PASSWORD_POLICY_VIOLATION: HttpStatus.BAD_REQUEST,
-  ACCOUNT_ALREADY_EXISTS: HttpStatus.CONFLICT,
-  INVALID_CREDENTIALS: HttpStatus.UNAUTHORIZED,
   ADMIN_REQUIRED: HttpStatus.FORBIDDEN,
   PHONE_VERIFICATION_REQUIRED: HttpStatus.FORBIDDEN,
   STEP_UP_INVALID: HttpStatus.UNAUTHORIZED,
@@ -93,6 +89,13 @@ const LEARNING_STATUS: Record<LearningDomainError['code'], number> = {
   QUESTION_UNAVAILABLE: HttpStatus.CONFLICT,
   QUESTION_OPTION_MISMATCH: HttpStatus.CONFLICT,
   ATTEMPT_IDEMPOTENCY_CONFLICT: HttpStatus.CONFLICT,
+  VOCABULARY_UNAVAILABLE: HttpStatus.NOT_FOUND,
+};
+
+const WORDBOOK_STATUS: Record<WordbookDomainError['code'], number> = {
+  WORDBOOK_NAME_INVALID: HttpStatus.BAD_REQUEST,
+  WORDBOOK_NOT_FOUND: HttpStatus.NOT_FOUND,
+  WORDBOOK_SAME_TARGET: HttpStatus.BAD_REQUEST,
   VOCABULARY_UNAVAILABLE: HttpStatus.NOT_FOUND,
 };
 
@@ -211,6 +214,22 @@ export const buildErrorResponse = (
 
   if (error instanceof LearningDomainError) {
     const status = LEARNING_STATUS[error.code];
+    return {
+      status,
+      body: createProblem(error.code, status, requestId),
+    };
+  }
+
+  if (error instanceof WordbookDomainError) {
+    const status = WORDBOOK_STATUS[error.code];
+    return {
+      status,
+      body: createProblem(error.code, status, requestId),
+    };
+  }
+
+  if (error instanceof WordbookPersistenceError) {
+    const status = HttpStatus.CONFLICT;
     return {
       status,
       body: createProblem(error.code, status, requestId),

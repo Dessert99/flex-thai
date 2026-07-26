@@ -2,7 +2,6 @@
 import { z } from 'zod';
 
 const emailSchema = z.string().trim().toLowerCase().email().max(254);
-const passwordSchema = z.string().min(1).max(256);
 const totpCodeSchema = z.string().regex(/^\d{6}$/u);
 
 /** 이메일 challenge 시작 요청 계약 */
@@ -42,11 +41,6 @@ export const emailChallengeIdPathSchema = z
   .object({
     challengeId: z.uuid(),
   })
-  .strict();
-
-/** 이메일과 비밀번호 로그인 요청 */
-export const loginRequestSchema = z
-  .object({ email: emailSchema, password: passwordSchema })
   .strict();
 
 /** Cognito SOFTWARE_TOKEN_MFA challenge 완료 요청 */
@@ -99,9 +93,6 @@ export const loginResponseSchema = z.discriminatedUnion('status', [
 /** 현재 인증 사용자 응답 */
 export const meResponseSchema = userSchema;
 
-/** 검증된 로그인 요청 type */
-export type LoginInput = z.infer<typeof loginRequestSchema>;
-
 /** 이메일 challenge 시작 요청 */
 export type StartEmailAuthenticationInput = z.infer<
   typeof startEmailAuthenticationRequestSchema
@@ -113,9 +104,7 @@ export type EmailAuthenticationChallengeResponse = z.infer<
 >;
 
 /** 이메일 코드 확인 요청 */
-export type VerifyEmailCodeInput = z.infer<
-  typeof verifyEmailCodeRequestSchema
->;
+export type VerifyEmailCodeInput = z.infer<typeof verifyEmailCodeRequestSchema>;
 
 /** 이메일 링크 확인 요청 */
 export type ConfirmEmailLinkInput = z.infer<
@@ -123,9 +112,7 @@ export type ConfirmEmailLinkInput = z.infer<
 >;
 
 /** 이메일 challenge UUID path */
-export type EmailChallengeIdPath = z.infer<
-  typeof emailChallengeIdPathSchema
->;
+export type EmailChallengeIdPath = z.infer<typeof emailChallengeIdPathSchema>;
 
 /** 검증된 TOTP challenge 요청 type */
 export type TotpChallengeInput = z.infer<typeof totpChallengeRequestSchema>;

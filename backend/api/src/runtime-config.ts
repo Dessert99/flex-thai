@@ -11,10 +11,26 @@ export interface ApiSecretReader {
 
 /** Secrets Manager의 SecretString만 읽는 기본 API reader */
 export class AwsApiSecretReader implements ApiSecretReader {
+  private readonly cache = new Map<string, Promise<string>>();
+
   constructor(private readonly client = new SecretsManagerClient({})) {}
 
   /** ARN 하나의 secret 원문을 Lambda 메모리로 읽는다 */
   async read(secretArn: string): Promise<string> {
+    const cached = this.cache.get(secretArn);
+    if (cached) return cached;
+
+    const pending = this.readUncached(secretArn);
+    this.cache.set(secretArn, pending);
+    try {
+      return await pending;
+    } catch (error) {
+      this.cache.delete(secretArn);
+      throw error;
+    }
+  }
+
+  private async readUncached(secretArn: string): Promise<string> {
     const result = await this.client.send(
       new GetSecretValueCommand({ SecretId: secretArn }),
     );
@@ -25,12 +41,29 @@ export class AwsApiSecretReader implements ApiSecretReader {
   }
 }
 
-/** legacy secret을 읽지 않고 입력 설정의 복사본을 반환한다 */
-export const loadApiRuntimeSource = (
+/** 배포 secret ARN을 API가 소비하는 직접 환경 값으로 해석한다 */
+export const loadApiRuntimeSource = async (
   source: Record<string, string | undefined>,
-  secrets?: ApiSecretReader,
+  secrets: ApiSecretReader = new AwsApiSecretReader(),
 ): Promise<Record<string, string | undefined>> => {
-  // 이전 호출 계약은 유지하되 Identity MVP에서는 secret reader를 사용하지 않는다
-  void secrets;
-  return Promise.resolve({ ...source });
+  if (
+    source.NODE_ENV === 'production' &&
+    (source.CUSTOM_AUTH_SECRET || source.CHALLENGE_HMAC_PEPPER)
+  ) {
+    throw new Error('production 인증 secret은 ARN으로만 전달해야 합니다');
+  }
+
+  const runtimeSource = { ...source };
+  const customAuthArn = runtimeSource.CUSTOM_AUTH_SECRET_ARN;
+  const pepperArn = runtimeSource.CHALLENGE_HMAC_PEPPER_SECRET_ARN;
+
+  if (customAuthArn) {
+    runtimeSource.CUSTOM_AUTH_SECRET = await secrets.read(customAuthArn);
+  }
+
+  if (pepperArn) {
+    runtimeSource.CHALLENGE_HMAC_PEPPER = await secrets.read(pepperArn);
+  }
+
+  return runtimeSource;
 };

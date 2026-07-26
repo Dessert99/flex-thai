@@ -4,7 +4,7 @@ import type {
   SmsSender,
   StepUpRepository,
 } from './challenge.repository.js';
-import { AuthDomainError } from './passwordless-auth.service.js';
+import { AuthDomainError } from './auth-domain.error.js';
 
 /** step-up 요청 전에 필요한 DB role과 Cognito 전화 정보 */
 export interface StepUpUser {

@@ -4,7 +4,6 @@ import {
   questionAttemptListResponseSchema,
   questionDetailResponseSchema,
   questionListResponseSchema,
-  savedVocabularyListResponseSchema,
   submitQuestionAttemptResponseSchema,
   vocabularyDetailResponseSchema,
   vocabularyListResponseSchema,
@@ -14,8 +13,6 @@ import {
   type QuestionDetailResponse,
   type QuestionListQuery,
   type QuestionListResponse,
-  type SavedVocabularyListQuery,
-  type SavedVocabularyListResponse,
   type SubmitQuestionAttemptRequest,
   type SubmitQuestionAttemptResponse,
   type VocabularyDetailResponse,
@@ -49,16 +46,13 @@ type QuestionQuery = Pick<
 
 type VocabularyQuery = Pick<
   DrizzleLearnerVocabularyQuery,
-  | 'getVocabularyDetail'
-  | 'listRelatedQuestions'
-  | 'listSavedVocabularies'
-  | 'listVocabularies'
+  'getVocabularyDetail' | 'listRelatedQuestions' | 'listVocabularies'
 >;
 
 type QuestionAttempts = Pick<QuestionAttemptService, 'submit'>;
 type SavedContent = Pick<
   SavedContentService,
-  'removeQuestion' | 'removeVocabulary' | 'saveQuestion' | 'saveVocabulary'
+  'removeQuestion' | 'saveQuestion'
 >;
 
 interface LearnerContentDependencies {
@@ -375,43 +369,6 @@ export class LearnerContentService {
       ),
     );
   }
-
-  /** 현재 사용자가 저장한 게시 어휘의 private media를 URL로 바꾼다 */
-  async listSavedVocabularies(
-    userId: string,
-    query: SavedVocabularyListQuery,
-  ): Promise<SavedVocabularyListResponse> {
-    const result =
-      await this.dependencies.vocabularyQuery.listSavedVocabularies(
-        userId,
-        query,
-      );
-    const signMedia = this.createResponseSigner();
-    return parseLearnerPublicResponse(savedVocabularyListResponseSchema, {
-      ...result,
-      items: await Promise.all(
-        result.items.map((item) => mapVocabularySummary(item, signMedia)),
-      ),
-    });
-  }
-
-  /** 현재 게시 어휘를 현재 시각으로 멱등 저장한다 */
-  saveVocabulary(userId: string, vocabularyId: string): Promise<void> {
-    return this.dependencies.savedContent.saveVocabulary(
-      userId,
-      vocabularyId,
-      this.now(),
-    );
-  }
-
-  /** 어휘 공개 상태와 무관하게 저장 연결을 멱등 제거한다 */
-  removeVocabulary(userId: string, vocabularyId: string): Promise<void> {
-    return this.dependencies.savedContent.removeVocabulary(
-      userId,
-      vocabularyId,
-    );
-  }
-
   private createResponseSigner(): SignMedia {
     const expiresAt = new Date(this.now().getTime() + MEDIA_URL_TTL_MS);
     const cache = new Map<string, Promise<string>>();

@@ -4,9 +4,7 @@ import { EmailChallengeError } from './email-challenge.js';
 
 describe('EmailChallengeError', () => {
   it('공개 가능한 challenge 오류 code를 보존한다', () => {
-    expect(
-      new EmailChallengeError('CHALLENGE_ALREADY_USED'),
-    ).toMatchObject({
+    expect(new EmailChallengeError('CHALLENGE_ALREADY_USED')).toMatchObject({
       name: 'EmailChallengeError',
       code: 'CHALLENGE_ALREADY_USED',
     });

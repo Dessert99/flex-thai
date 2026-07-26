@@ -4,12 +4,14 @@ import { Reflector } from '@nestjs/core';
 import {
   type DrizzleLearnerQuestionQuery,
   type DrizzleLearnerVocabularyQuery,
+  type DrizzleWordbookQuery,
 } from '@flex-thia/database';
 import {
   type MediaReadUrlProvider,
   type QuestionAttemptService,
   type SavedContentService,
   type IdentityUserRepository,
+  type WordbookService,
 } from '@flex-thia/domain';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
 import {
@@ -21,6 +23,8 @@ import {
 import { LearnerContentService } from './learner-content.service.js';
 import { LearnerQuestionsController } from './learner-questions.controller.js';
 import { LearnerVocabulariesController } from './learner-vocabularies.controller.js';
+import { LearnerWordbooksController } from './learner-wordbooks.controller.js';
+import { LearnerWordbooksService } from './learner-wordbooks.service.js';
 
 /** Learning HTTP 경계가 조립 시 받는 이미 선택된 adapter와 use case */
 export interface LearningModuleOptions {
@@ -28,6 +32,8 @@ export interface LearningModuleOptions {
   vocabularyQuery: DrizzleLearnerVocabularyQuery;
   questionAttempts: QuestionAttemptService;
   savedContent: SavedContentService;
+  wordbookQuery: DrizzleWordbookQuery;
+  wordbooks: WordbookService;
   mediaReadUrls: MediaReadUrlProvider;
   users: IdentityUserRepository;
   authorizer: AuthorizerGuardOptions;
@@ -40,7 +46,11 @@ export class LearningModule {
   static register(options: LearningModuleOptions): DynamicModule {
     return {
       module: LearningModule,
-      controllers: [LearnerQuestionsController, LearnerVocabulariesController],
+      controllers: [
+        LearnerQuestionsController,
+        LearnerVocabulariesController,
+        LearnerWordbooksController,
+      ],
       providers: [
         {
           provide: LearnerContentService,
@@ -49,6 +59,14 @@ export class LearningModule {
             vocabularyQuery: options.vocabularyQuery,
             questionAttempts: options.questionAttempts,
             savedContent: options.savedContent,
+            mediaReadUrls: options.mediaReadUrls,
+          }),
+        },
+        {
+          provide: LearnerWordbooksService,
+          useValue: new LearnerWordbooksService({
+            query: options.wordbookQuery,
+            wordbooks: options.wordbooks,
             mediaReadUrls: options.mediaReadUrls,
           }),
         },
@@ -64,7 +82,7 @@ export class LearningModule {
         CognitoAuthorizerGuard,
         ApplicationRoleGuard,
       ],
-      exports: [LearnerContentService],
+      exports: [LearnerContentService, LearnerWordbooksService],
     };
   }
 }

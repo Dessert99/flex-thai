@@ -15,10 +15,13 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiCreatedResponse,
   ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiParam,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import {
@@ -42,20 +45,36 @@ import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
 import { CognitoAuthorizerGuard } from '../identity/cognito-authorizer.guard.js';
 import { RequireRole } from '../identity/require-role.decorator.js';
 import { ApiProblemResponse } from '../openapi/openapi.decorators.js';
+import {
+  VocabularyWordbookMembershipResponseDto,
+  WordbookBulkItemsRequestDto,
+  WordbookItemListQueryDto,
+  WordbookItemListResponseDto,
+  WordbookListResponseDto,
+  WordbookNameRequestDto,
+  WordbookRemoveItemsRequestDto,
+  WordbookResponseDto,
+} from '../openapi/openapi.dto.js';
 import { LearnerWordbooksService } from './learner-wordbooks.service.js';
 
-const ApiWordbookProblems = (notFound = true) =>
+type WordbookProblemStatus = 400 | 404 | 409;
+
+const wordbookProblemDescription: Record<WordbookProblemStatus, string> = {
+  400: '요청이 공개 계약과 일치하지 않음',
+  404: '소유 단어장 또는 공개 어휘를 찾을 수 없음',
+  409: '같은 이름 또는 변경 대상이 충돌함',
+};
+
+const ApiWordbookProblems = (...domainStatuses: WordbookProblemStatus[]) =>
   applyDecorators(
-    ApiProblemResponse(400, '요청이 공개 계약과 일치하지 않음'),
     ApiProblemResponse(401, 'access token이 없거나 올바르지 않음'),
     ApiProblemResponse(
       403,
       '학습자 역할 또는 계정 상태가 요청을 허용하지 않음',
     ),
-    ...(notFound
-      ? [ApiProblemResponse(404, '소유 단어장 또는 공개 어휘를 찾을 수 없음')]
-      : []),
-    ApiProblemResponse(409, '같은 이름 또는 변경 대상이 충돌함'),
+    ...domainStatuses.map((status) =>
+      ApiProblemResponse(status, wordbookProblemDescription[status]),
+    ),
     ApiProblemResponse(500, '예상하지 못한 서버 오류'),
   );
 
@@ -70,8 +89,8 @@ export class LearnerWordbooksController {
 
   /** 현재 사용자의 단어장 목록을 조회한다 */
   @ApiOperation({ summary: '내 단어장 목록을 조회한다' })
-  @ApiOkResponse()
-  @ApiWordbookProblems(false)
+  @ApiOkResponse({ type: WordbookListResponseDto })
+  @ApiWordbookProblems()
   @Get('me/wordbooks')
   listWordbooks(
     @CurrentUser() user: AuthenticatedUser,
@@ -81,8 +100,9 @@ export class LearnerWordbooksController {
 
   /** trim한 이름으로 단어장을 생성한다 */
   @ApiOperation({ summary: '내 단어장을 생성한다' })
-  @ApiCreatedResponse()
-  @ApiWordbookProblems(false)
+  @ApiBody({ type: WordbookNameRequestDto })
+  @ApiCreatedResponse({ type: WordbookResponseDto })
+  @ApiWordbookProblems(400, 409)
   @Post('me/wordbooks')
   create(
     @CurrentUser() user: AuthenticatedUser,
@@ -94,8 +114,10 @@ export class LearnerWordbooksController {
 
   /** 소유 단어장의 이름을 변경한다 */
   @ApiOperation({ summary: '내 단어장 이름을 변경한다' })
-  @ApiOkResponse()
-  @ApiWordbookProblems()
+  @ApiParam({ name: 'wordbookId', type: 'string', format: 'uuid' })
+  @ApiBody({ type: WordbookNameRequestDto })
+  @ApiOkResponse({ type: WordbookResponseDto })
+  @ApiWordbookProblems(400, 404, 409)
   @Patch('me/wordbooks/:wordbookId')
   rename(
     @CurrentUser() user: AuthenticatedUser,
@@ -109,8 +131,9 @@ export class LearnerWordbooksController {
 
   /** 소유 단어장을 삭제한다 */
   @ApiOperation({ summary: '내 단어장을 삭제한다' })
+  @ApiParam({ name: 'wordbookId', type: 'string', format: 'uuid' })
   @ApiNoContentResponse()
-  @ApiWordbookProblems()
+  @ApiWordbookProblems(400, 404)
   @Delete('me/wordbooks/:wordbookId')
   @HttpCode(204)
   async delete(
@@ -123,8 +146,10 @@ export class LearnerWordbooksController {
 
   /** 소유 단어장의 공개 항목을 검색·필터·페이지로 조회한다 */
   @ApiOperation({ summary: '내 단어장 항목을 조회한다' })
-  @ApiOkResponse()
-  @ApiWordbookProblems()
+  @ApiParam({ name: 'wordbookId', type: 'string', format: 'uuid' })
+  @ApiQuery({ type: WordbookItemListQueryDto })
+  @ApiOkResponse({ type: WordbookItemListResponseDto })
+  @ApiWordbookProblems(400, 404)
   @Get('me/wordbooks/:wordbookId/items')
   listItems(
     @CurrentUser() user: AuthenticatedUser,
@@ -138,8 +163,10 @@ export class LearnerWordbooksController {
 
   /** 현재 게시 어휘를 소유 단어장에 멱등 추가한다 */
   @ApiOperation({ summary: '어휘를 내 단어장에 추가한다' })
+  @ApiParam({ name: 'wordbookId', type: 'string', format: 'uuid' })
+  @ApiParam({ name: 'vocabularyId', type: 'string', format: 'uuid' })
   @ApiNoContentResponse()
-  @ApiWordbookProblems()
+  @ApiWordbookProblems(400, 404)
   @Put('me/wordbooks/:wordbookId/items/:vocabularyId')
   @HttpCode(204)
   async addVocabulary(
@@ -156,8 +183,10 @@ export class LearnerWordbooksController {
 
   /** 공개 상태와 무관하게 소유 단어장 membership을 멱등 제거한다 */
   @ApiOperation({ summary: '어휘를 내 단어장에서 제거한다' })
+  @ApiParam({ name: 'wordbookId', type: 'string', format: 'uuid' })
+  @ApiParam({ name: 'vocabularyId', type: 'string', format: 'uuid' })
   @ApiNoContentResponse()
-  @ApiWordbookProblems()
+  @ApiWordbookProblems(400, 404)
   @Delete('me/wordbooks/:wordbookId/items/:vocabularyId')
   @HttpCode(204)
   async removeVocabulary(
@@ -174,8 +203,10 @@ export class LearnerWordbooksController {
 
   /** 선택 membership을 다른 소유 단어장에 복사한다 */
   @ApiOperation({ summary: '선택 항목을 다른 단어장에 복사한다' })
+  @ApiParam({ name: 'wordbookId', type: 'string', format: 'uuid' })
+  @ApiBody({ type: WordbookBulkItemsRequestDto })
   @ApiNoContentResponse()
-  @ApiWordbookProblems()
+  @ApiWordbookProblems(400, 404)
   @Post('me/wordbooks/:wordbookId/items/copy')
   @HttpCode(204)
   async copyVocabularies(
@@ -194,8 +225,10 @@ export class LearnerWordbooksController {
 
   /** 선택 membership을 다른 소유 단어장으로 원자 이동한다 */
   @ApiOperation({ summary: '선택 항목을 다른 단어장으로 이동한다' })
+  @ApiParam({ name: 'wordbookId', type: 'string', format: 'uuid' })
+  @ApiBody({ type: WordbookBulkItemsRequestDto })
   @ApiNoContentResponse()
-  @ApiWordbookProblems()
+  @ApiWordbookProblems(400, 404)
   @Post('me/wordbooks/:wordbookId/items/move')
   @HttpCode(204)
   async moveVocabularies(
@@ -214,8 +247,10 @@ export class LearnerWordbooksController {
 
   /** 선택 membership을 현재 소유 단어장에서 제거한다 */
   @ApiOperation({ summary: '선택 항목을 현재 단어장에서 제거한다' })
+  @ApiParam({ name: 'wordbookId', type: 'string', format: 'uuid' })
+  @ApiBody({ type: WordbookRemoveItemsRequestDto })
   @ApiNoContentResponse()
-  @ApiWordbookProblems()
+  @ApiWordbookProblems(400, 404)
   @Post('me/wordbooks/:wordbookId/items/remove')
   @HttpCode(204)
   async removeVocabularies(
@@ -234,8 +269,9 @@ export class LearnerWordbooksController {
 
   /** 어휘가 속한 현재 사용자 단어장 ID 목록을 조회한다 */
   @ApiOperation({ summary: '어휘의 내 단어장 membership을 조회한다' })
-  @ApiOkResponse()
-  @ApiWordbookProblems(false)
+  @ApiParam({ name: 'vocabularyId', type: 'string', format: 'uuid' })
+  @ApiOkResponse({ type: VocabularyWordbookMembershipResponseDto })
+  @ApiWordbookProblems(400)
   @Get('me/vocabularies/:vocabularyId/wordbook-memberships')
   listMemberships(
     @CurrentUser() user: AuthenticatedUser,

@@ -2,10 +2,7 @@
 
 /** 이메일 challenge 처리 상태 */
 export type EmailChallengeStatus =
-  | 'PENDING'
-  | 'RESERVED'
-  | 'SUCCEEDED'
-  | 'EXPIRED';
+  'PENDING' | 'RESERVED' | 'SUCCEEDED' | 'EXPIRED';
 
 /** persistence와 use case가 공유하는 이메일 challenge */
 export interface EmailChallenge {

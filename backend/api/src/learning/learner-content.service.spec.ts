@@ -215,10 +215,6 @@ const dependencies = () => ({
       ],
       page,
     }),
-    listSavedVocabularies: vi.fn().mockResolvedValue({
-      items: [],
-      page: { ...page, totalItems: 0, totalPages: 0 },
-    }),
   },
   questionAttempts: {
     submit: vi.fn().mockResolvedValue({
@@ -240,8 +236,6 @@ const dependencies = () => ({
   savedContent: {
     saveQuestion: vi.fn().mockResolvedValue(undefined),
     removeQuestion: vi.fn().mockResolvedValue(undefined),
-    saveVocabulary: vi.fn().mockResolvedValue(undefined),
-    removeVocabulary: vi.fn().mockResolvedValue(undefined),
   },
   mediaReadUrls: {
     createReadUrl: vi
@@ -391,7 +385,7 @@ describe('LearnerContentService 어휘 응답', () => {
     });
   });
 
-  it('목록·풀이 기록·저장 변경의 사용자와 strict 공개 값을 전달한다', async () => {
+  it('목록·풀이 기록·문제 저장 변경의 사용자와 strict 공개 값을 전달한다', async () => {
     const fakes = dependencies();
     const service = new LearnerContentService({ ...fakes });
 
@@ -412,14 +406,8 @@ describe('LearnerContentService 어휘 응답', () => {
       ids.vocabulary,
       { page: 1, pageSize: 20 },
     );
-    const saved = await service.listSavedVocabularies('user-1', {
-      page: 1,
-      pageSize: 20,
-    });
     await service.saveQuestion('user-1', ids.question);
     await service.removeQuestion('user-1', ids.question);
-    await service.saveVocabulary('user-1', ids.vocabulary);
-    await service.removeVocabulary('user-1', ids.vocabulary);
 
     expect(questions.items).toHaveLength(1);
     expect(attempts.items[0]?.submittedAt).toBe('2026-07-24T00:00:00.000Z');
@@ -427,7 +415,6 @@ describe('LearnerContentService 어휘 응답', () => {
       'https://media.example.com/signed',
     );
     expect(related.items).toHaveLength(1);
-    expect(saved.items).toHaveLength(0);
     expect(fakes.savedContent.saveQuestion).toHaveBeenCalledWith(
       'user-1',
       ids.question,
@@ -436,15 +423,6 @@ describe('LearnerContentService 어휘 응답', () => {
     expect(fakes.savedContent.removeQuestion).toHaveBeenCalledWith(
       'user-1',
       ids.question,
-    );
-    expect(fakes.savedContent.saveVocabulary).toHaveBeenCalledWith(
-      'user-1',
-      ids.vocabulary,
-      expect.any(Date),
-    );
-    expect(fakes.savedContent.removeVocabulary).toHaveBeenCalledWith(
-      'user-1',
-      ids.vocabulary,
     );
   });
 });

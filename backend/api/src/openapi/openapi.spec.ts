@@ -30,7 +30,13 @@ const ACTIVE_PATHS = [
   '/api/v1/admin/vocabularies/{vocabularyId}/hide',
   '/api/v1/admin/vocabularies/{vocabularyId}/publish',
   '/api/v1/admin/vocabularies/{vocabularyId}/restore',
-  '/api/v1/auth/login',
+  '/api/v1/admin/users',
+  '/api/v1/admin/users/{userId}/status',
+  '/api/v1/admin/users/invitations',
+  '/api/v1/auth/challenges',
+  '/api/v1/auth/challenges/{challengeId}/code',
+  '/api/v1/auth/challenges/{challengeId}/link',
+  '/api/v1/auth/challenges/{challengeId}/resend',
   '/api/v1/auth/mfa/totp/challenge',
   '/api/v1/auth/mfa/totp/setup',
   '/api/v1/auth/mfa/totp/setup/verify',
@@ -39,8 +45,14 @@ const ACTIVE_PATHS = [
   '/api/v1/me',
   '/api/v1/me/question-attempts',
   '/api/v1/me/saved-questions/{questionId}',
-  '/api/v1/me/saved-vocabularies',
-  '/api/v1/me/saved-vocabularies/{vocabularyId}',
+  '/api/v1/me/vocabularies/{vocabularyId}/wordbook-memberships',
+  '/api/v1/me/wordbooks',
+  '/api/v1/me/wordbooks/{wordbookId}',
+  '/api/v1/me/wordbooks/{wordbookId}/items',
+  '/api/v1/me/wordbooks/{wordbookId}/items/{vocabularyId}',
+  '/api/v1/me/wordbooks/{wordbookId}/items/copy',
+  '/api/v1/me/wordbooks/{wordbookId}/items/move',
+  '/api/v1/me/wordbooks/{wordbookId}/items/remove',
   '/api/v1/questions',
   '/api/v1/questions/{questionId}',
   '/api/v1/questions/{questionId}/attempts',
@@ -60,6 +72,9 @@ const INACTIVE_MVP_PATHS = [
   '/api/v1/auth/phone/challenges/{challengeId}/verify',
   '/api/v1/auth/step-up/challenges',
   '/api/v1/auth/step-up/challenges/{challengeId}/verify',
+  '/api/v1/auth/login',
+  '/api/v1/me/saved-vocabularies',
+  '/api/v1/me/saved-vocabularies/{vocabularyId}',
   '/api/v1/uploads/policies',
   '/api/v1/uploads/{uploadId}/complete',
   '/api/v1/jobs',
@@ -89,7 +104,7 @@ type OpenApiInlineParameter = {
 };
 
 type LearnerOperationExpectation = {
-  method: 'get' | 'post' | 'put' | 'delete';
+  method: 'get' | 'post' | 'put' | 'patch' | 'delete';
   path: string;
   pathParameters?: readonly string[];
   query?: readonly string[];
@@ -105,6 +120,7 @@ type AdminOperationExpectation = LearnerOperationExpectation & {
 type IdentityOperationExpectation = {
   method: 'get' | 'post';
   path: string;
+  pathParameters?: readonly string[];
   headers: readonly string[];
   body?: string;
   security: readonly Record<string, readonly never[]>[];
@@ -121,12 +137,41 @@ type SystemOperationExpectation = {
 const IDENTITY_OPERATIONS: readonly IdentityOperationExpectation[] = [
   {
     method: 'post',
-    path: '/api/v1/auth/login',
+    path: '/api/v1/auth/challenges',
     headers: ['Origin', 'X-CSRF-Protection'],
-    body: 'LoginRequestDto',
+    body: 'StartEmailAuthenticationRequestDto',
+    security: [],
+    success: ['201', 'EmailAuthenticationChallengeResponseDto'],
+    errors: ['400', '403', '429', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/auth/challenges/{challengeId}/code',
+    pathParameters: ['challengeId'],
+    headers: ['Origin', 'X-CSRF-Protection'],
+    body: 'VerifyEmailCodeRequestDto',
     security: [],
     success: ['201', 'authentication'],
-    errors: ['400', '401', '403', '429', '500'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/auth/challenges/{challengeId}/link',
+    pathParameters: ['challengeId'],
+    headers: ['Origin', 'X-CSRF-Protection'],
+    body: 'ConfirmEmailLinkRequestDto',
+    security: [],
+    success: ['201', 'authentication'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/auth/challenges/{challengeId}/resend',
+    pathParameters: ['challengeId'],
+    headers: ['Origin', 'X-CSRF-Protection'],
+    security: [],
+    success: ['201', 'EmailAuthenticationChallengeResponseDto'],
+    errors: ['400', '401', '403', '404', '429', '500'],
   },
   {
     method: 'post',
@@ -507,6 +552,27 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
     success: ['204'],
     errors: ['400', '401', '403', '404', '409', '500'],
   },
+  {
+    method: 'get',
+    path: '/api/v1/admin/users',
+    success: ['200', 'UserManagementListResponseDto'],
+    errors: ['401', '403', '500'],
+  },
+  {
+    method: 'patch',
+    path: '/api/v1/admin/users/{userId}/status',
+    pathParameters: ['userId'],
+    body: 'UserStatusUpdateRequestDto',
+    success: ['200', 'ManagedIdentityUserResponseDto'],
+    errors: ['400', '401', '403', '404', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/users/invitations',
+    body: 'BetaInvitationRequestDto',
+    success: ['201', 'BetaInvitationResponseDto'],
+    errors: ['400', '401', '403', '500'],
+  },
 ];
 
 const LEARNER_OPERATIONS: readonly LearnerOperationExpectation[] = [
@@ -585,23 +651,83 @@ const LEARNER_OPERATIONS: readonly LearnerOperationExpectation[] = [
   },
   {
     method: 'get',
-    path: '/api/v1/me/saved-vocabularies',
-    query: ['page', 'pageSize'],
-    success: ['200', 'SavedVocabularyListResponseDto'],
-    errors: ['400', '401', '403', '500'],
+    path: '/api/v1/me/wordbooks',
+    success: ['200', 'WordbookListResponseDto'],
+    errors: ['401', '403', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/me/wordbooks',
+    body: 'WordbookNameRequestDto',
+    success: ['201', 'WordbookResponseDto'],
+    errors: ['400', '401', '403', '409', '500'],
+  },
+  {
+    method: 'patch',
+    path: '/api/v1/me/wordbooks/{wordbookId}',
+    pathParameters: ['wordbookId'],
+    body: 'WordbookNameRequestDto',
+    success: ['200', 'WordbookResponseDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'delete',
+    path: '/api/v1/me/wordbooks/{wordbookId}',
+    pathParameters: ['wordbookId'],
+    success: ['204'],
+    errors: ['400', '401', '403', '404', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/me/wordbooks/{wordbookId}/items',
+    pathParameters: ['wordbookId'],
+    query: ['query', 'kind', 'partOfSpeech', 'difficulty', 'page', 'pageSize'],
+    success: ['200', 'WordbookItemListResponseDto'],
+    errors: ['400', '401', '403', '404', '500'],
   },
   {
     method: 'put',
-    path: '/api/v1/me/saved-vocabularies/{vocabularyId}',
-    pathParameters: ['vocabularyId'],
+    path: '/api/v1/me/wordbooks/{wordbookId}/items/{vocabularyId}',
+    pathParameters: ['wordbookId', 'vocabularyId'],
     success: ['204'],
     errors: ['400', '401', '403', '404', '500'],
   },
   {
     method: 'delete',
-    path: '/api/v1/me/saved-vocabularies/{vocabularyId}',
-    pathParameters: ['vocabularyId'],
+    path: '/api/v1/me/wordbooks/{wordbookId}/items/{vocabularyId}',
+    pathParameters: ['wordbookId', 'vocabularyId'],
     success: ['204'],
+    errors: ['400', '401', '403', '404', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/me/wordbooks/{wordbookId}/items/copy',
+    pathParameters: ['wordbookId'],
+    body: 'WordbookBulkItemsRequestDto',
+    success: ['204'],
+    errors: ['400', '401', '403', '404', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/me/wordbooks/{wordbookId}/items/move',
+    pathParameters: ['wordbookId'],
+    body: 'WordbookBulkItemsRequestDto',
+    success: ['204'],
+    errors: ['400', '401', '403', '404', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/me/wordbooks/{wordbookId}/items/remove',
+    pathParameters: ['wordbookId'],
+    body: 'WordbookRemoveItemsRequestDto',
+    success: ['204'],
+    errors: ['400', '401', '403', '404', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/me/vocabularies/{vocabularyId}/wordbook-memberships',
+    pathParameters: ['vocabularyId'],
+    success: ['200', 'VocabularyWordbookMembershipResponseDto'],
     errors: ['400', '401', '403', '500'],
   },
 ];
@@ -627,7 +753,7 @@ describe('OpenAPI 문서', () => {
     await app?.close();
   });
 
-  it('현재 활성 endpoint의 서로 다른 path 서른여덟 개만 공개한다', () => {
+  it('현재 활성 endpoint의 서로 다른 path 오십 개만 공개한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
@@ -640,26 +766,31 @@ describe('OpenAPI 문서', () => {
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
 
-    expect(INACTIVE_MVP_PATHS).toHaveLength(12);
+    expect(INACTIVE_MVP_PATHS).toHaveLength(15);
     INACTIVE_MVP_PATHS.forEach((path) => {
       expect(document.paths).not.toHaveProperty(path);
     });
   });
 
-  it('로그인 요청·응답과 Problem Details schema를 공개한다', () => {
+  it('passwordless 요청·응답과 Problem Details schema를 공개한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
-    const operation = document.paths['/api/v1/auth/login']?.post;
+    const operation = document.paths['/api/v1/auth/challenges']?.post;
 
     expect(operation?.requestBody).toBeDefined();
     expect(operation?.responses).toHaveProperty('201');
     expect(operation?.responses).toHaveProperty('400');
-    expect(operation?.responses).toHaveProperty('401');
+    expect(operation?.responses).toHaveProperty('403');
     expect(document.components?.schemas).toHaveProperty(
       'AuthenticatedResponseDto',
     );
-    expect(document.components?.schemas).toHaveProperty('LoginRequestDto');
+    expect(document.components?.schemas).toHaveProperty(
+      'StartEmailAuthenticationRequestDto',
+    );
+    expect(document.components?.schemas).toHaveProperty(
+      'EmailAuthenticationChallengeResponseDto',
+    );
     expect(document.components?.schemas).toHaveProperty(
       'MfaRequiredResponseDto',
     );
@@ -668,10 +799,7 @@ describe('OpenAPI 문서', () => {
       content: {
         'application/json': {
           schema: {
-            oneOf: [
-              { $ref: '#/components/schemas/AuthenticatedResponseDto' },
-              { $ref: '#/components/schemas/MfaRequiredResponseDto' },
-            ],
+            $ref: '#/components/schemas/EmailAuthenticationChallengeResponseDto',
           },
         },
       },
@@ -706,12 +834,12 @@ describe('OpenAPI 문서', () => {
     expect(response).not.toHaveProperty('content');
   });
 
-  it('Identity operation 일곱 개의 요청·성공·보안·오류 계약을 모두 고정한다', () => {
+  it('Identity operation 열 개의 요청·성공·보안·오류 계약을 모두 고정한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
 
-    expect(IDENTITY_OPERATIONS).toHaveLength(7);
+    expect(IDENTITY_OPERATIONS).toHaveLength(10);
     expect(document.security).toBeUndefined();
     expect(
       collectOpenApiOperations(
@@ -740,10 +868,25 @@ describe('OpenAPI 문서', () => {
       const headerParameters = parameters.filter(
         (parameter) => parameter.in === 'header',
       );
-      expect(parameters).toEqual(headerParameters);
+      const pathParameters = parameters.filter(
+        (parameter) => parameter.in === 'path',
+      );
+      expect(parameters).toHaveLength(
+        expected.headers.length + (expected.pathParameters?.length ?? 0),
+      );
       expect(headerParameters.map(({ name }) => name).sort()).toEqual(
         [...expected.headers].sort(),
       );
+      expect(pathParameters.map(({ name }) => name).sort()).toEqual(
+        [...(expected.pathParameters ?? [])].sort(),
+      );
+      pathParameters.forEach((parameter) => {
+        expect(parameter.required).toBe(true);
+        expect(parameter.schema).toEqual({
+          type: 'string',
+          format: 'uuid',
+        });
+      });
       headerParameters.forEach((parameter) => {
         expect(parameter.required).toBe(true);
 
@@ -864,21 +1007,21 @@ describe('OpenAPI 문서', () => {
     });
   });
 
-  it('학습자 operation 열두 개의 요청·성공·보안·오류 계약을 모두 고정한다', () => {
+  it('학습자 operation 스무 개의 요청·성공·보안·오류 계약을 모두 고정한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
 
-    expect(LEARNER_OPERATIONS).toHaveLength(12);
+    expect(LEARNER_OPERATIONS).toHaveLength(20);
     expectProtectedOpenApiOperations(document, LEARNER_OPERATIONS);
   });
 
-  it('관리자 operation 스물한 개의 입력·성공·Bearer·오류 계약을 모두 고정한다', () => {
+  it('관리자 operation 스물네 개의 입력·성공·Bearer·오류 계약을 모두 고정한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
 
-    expect(ADMIN_OPERATIONS).toHaveLength(21);
+    expect(ADMIN_OPERATIONS).toHaveLength(24);
     expectProtectedOpenApiOperations(document, ADMIN_OPERATIONS);
   });
 

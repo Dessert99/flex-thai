@@ -1,19 +1,36 @@
 /** MVP root가 Identity·Learning·Admin과 환경별 provider를 조립하는지 검증한다 */
 import {
+  DrizzleEmailChallengeRepository,
+  DrizzleUserManagementQuery,
+  DrizzleWordbookQuery,
+  DrizzleWordbookRepository,
+} from '@flex-thia/database';
+import {
   completeMediaAsset,
+  IdentityAuthenticationService,
   type MediaAdminRepository,
   type MediaAsset,
   type MediaAdminService,
+  PasswordlessAuthenticationService,
+  UserManagementService,
+  WordbookService,
 } from '@flex-thia/domain';
 import { describe, expect, it, vi } from 'vitest';
 import {
+  ChallengeCrypto,
   CloudFrontMediaReadUrlProvider,
+  CognitoPasswordlessAuthenticationProvider,
   FakeAudioUploadProvider,
+  FakeEmailChallengeSender,
   FakeMediaReadUrlProvider,
+  FakePasswordlessAuthenticationProvider,
   S3AudioUploadProvider,
+  SesEmailChallengeSender,
 } from '@flex-thia/providers';
 import { AdminContentService } from './admin/admin-content.service.js';
+import { AdminUserManagementController } from './identity/admin-user-management.controller.js';
 import { LearnerContentService } from './learning/learner-content.service.js';
+import { LearnerWordbooksService } from './learning/learner-wordbooks.service.js';
 import { createApplicationModule } from './app.module.js';
 
 describe('createApplicationModule 조립', () => {
@@ -47,6 +64,41 @@ describe('createApplicationModule 조립', () => {
     expect(rootControllerNames).not.toContain('UploadsController');
     expect(application.providers).toHaveLength(1);
 
+    const identity = application.imports?.[0] as {
+      controllers: unknown[];
+      providers: { provide: unknown; useValue: unknown }[];
+    };
+    const authentication = identity.providers.find(
+      ({ provide }) => provide === IdentityAuthenticationService,
+    )?.useValue as { provider: unknown };
+    const passwordless = identity.providers.find(
+      ({ provide }) => provide === PasswordlessAuthenticationService,
+    )?.useValue as {
+      provider: unknown;
+      repository: unknown;
+      sender: unknown;
+      secrets: {
+        createChallengeSecrets(): { code: string };
+      };
+    };
+    const management = identity.providers.find(
+      ({ provide }) => provide === UserManagementService,
+    )?.useValue as { invitations: unknown; users: unknown };
+
+    expect(identity.controllers).toContain(AdminUserManagementController);
+    expect(authentication.provider).toBeInstanceOf(
+      FakePasswordlessAuthenticationProvider,
+    );
+    expect(passwordless.provider).toBe(authentication.provider);
+    expect(passwordless.repository).toBeInstanceOf(
+      DrizzleEmailChallengeRepository,
+    );
+    expect(passwordless.sender).toBeInstanceOf(FakeEmailChallengeSender);
+    expect(passwordless.secrets).toBeInstanceOf(ChallengeCrypto);
+    expect(passwordless.secrets.createChallengeSecrets().code).toBe('123456');
+    expect(management.users).toBeInstanceOf(DrizzleUserManagementQuery);
+    expect(management.invitations).toBe(management.users);
+
     const learning = application.imports?.[1] as {
       providers: { provide: unknown; useValue: unknown }[];
     };
@@ -73,6 +125,19 @@ describe('createApplicationModule 조립', () => {
     );
     expect(content.dependencies.questionAttempts.repository).toBe(
       content.dependencies.savedContent.repository,
+    );
+    const wordbooks = learning.providers.find(
+      (provider) => provider.provide === LearnerWordbooksService,
+    )?.useValue as {
+      dependencies: {
+        query: unknown;
+        wordbooks: { repository: unknown };
+      };
+    };
+    expect(wordbooks.dependencies.query).toBeInstanceOf(DrizzleWordbookQuery);
+    expect(wordbooks.dependencies.wordbooks).toBeInstanceOf(WordbookService);
+    expect(wordbooks.dependencies.wordbooks.repository).toBeInstanceOf(
+      DrizzleWordbookRepository,
     );
 
     const admin = application.imports?.[2] as {
@@ -217,6 +282,12 @@ describe('createApplicationModule 조립', () => {
       MEDIA_KEY_PAIR_ID: 'key-pair',
       MEDIA_PRIVATE_KEY_SECRET_ARN: 'arn:media-secret',
       MEDIA_BUCKET_NAME: 'media-bucket',
+      CUSTOM_AUTH_SECRET: 'C'.repeat(32),
+      CUSTOM_AUTH_SECRET_ARN: 'arn:custom-auth-secret',
+      CHALLENGE_HMAC_PEPPER: 'P'.repeat(32),
+      CHALLENGE_HMAC_PEPPER_SECRET_ARN: 'arn:pepper-secret',
+      EMAIL_LINK_CONFIRMATION_URL: 'https://www.example.com/login/confirm',
+      FROM_EMAIL: 'login@example.com',
     });
     const learning = application.imports?.[1] as {
       providers: { provide: unknown; useValue: unknown }[];
@@ -242,5 +313,20 @@ describe('createApplicationModule 조립', () => {
     expect(adminContent.dependencies.media.storage).toBeInstanceOf(
       S3AudioUploadProvider,
     );
+
+    const identity = application.imports?.[0] as {
+      providers: { provide: unknown; useValue: unknown }[];
+    };
+    const authentication = identity.providers.find(
+      ({ provide }) => provide === IdentityAuthenticationService,
+    )?.useValue as { provider: unknown };
+    const passwordless = identity.providers.find(
+      ({ provide }) => provide === PasswordlessAuthenticationService,
+    )?.useValue as { provider: unknown; sender: unknown };
+    expect(authentication.provider).toBeInstanceOf(
+      CognitoPasswordlessAuthenticationProvider,
+    );
+    expect(passwordless.provider).toBe(authentication.provider);
+    expect(passwordless.sender).toBeInstanceOf(SesEmailChallengeSender);
   });
 });

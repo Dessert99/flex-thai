@@ -1,6 +1,5 @@
-/** Cognito 비밀번호·TOTP·회전 refresh 명령을 Identity port로 변환한다 */
+/** Cognito TOTP·회전 refresh 명령을 Identity port로 변환한다 */
 import {
-  AdminInitiateAuthCommand,
   AdminRespondToAuthChallengeCommand,
   AssociateSoftwareTokenCommand,
   type AuthenticationResultType,
@@ -14,7 +13,6 @@ import {
   AuthenticationProviderError,
   type AuthenticationProvider,
   type IdentityTokenSet,
-  type ProviderLoginResult,
 } from '@flex-thia/domain';
 
 const decodeIdToken = (idToken: string): { subject: string; email: string } => {
@@ -55,41 +53,13 @@ const toTokenSet = (
 const isAwsError = (error: unknown, names: string[]): boolean =>
   names.includes((error as { name?: string }).name ?? '');
 
-/** 사전 준비 계정의 Cognito 비밀번호·TOTP 인증을 구현한다 */
+/** passwordless 인증 뒤 Cognito TOTP·refresh 수명주기를 구현한다 */
 export class CognitoAuthenticationProvider implements AuthenticationProvider {
   constructor(
     private readonly client: CognitoIdentityProviderClient,
     private readonly userPoolId: string,
     private readonly clientId: string,
   ) {}
-
-  /** 비밀번호 성공 결과를 token 또는 TOTP challenge로 제한한다 */
-  async login(email: string, password: string): Promise<ProviderLoginResult> {
-    try {
-      const result = await this.client.send(
-        new AdminInitiateAuthCommand({
-          UserPoolId: this.userPoolId,
-          ClientId: this.clientId,
-          AuthFlow: 'ADMIN_USER_PASSWORD_AUTH',
-          AuthParameters: { USERNAME: email, PASSWORD: password },
-        }),
-      );
-
-      if (result.ChallengeName === 'SOFTWARE_TOKEN_MFA') {
-        if (!result.Session) {
-          throw new AuthenticationProviderError('AUTH_CONFIGURATION_ERROR');
-        }
-        return { kind: 'MFA_REQUIRED', challengeToken: result.Session };
-      }
-
-      return {
-        kind: 'AUTHENTICATED',
-        tokens: toTokenSet(result.AuthenticationResult),
-      };
-    } catch (error) {
-      return throwMappedError(error, 'INVALID_CREDENTIALS');
-    }
-  }
 
   /** Cognito SOFTWARE_TOKEN_MFA session과 code를 token으로 교환한다 */
   async completeTotpChallenge(input: {

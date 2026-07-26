@@ -13,11 +13,9 @@ const makeEvent = (
 });
 
 describe('defineAuthChallenge', () => {
-  it('성공한 custom challenge 뒤 token 발급을 지시한다', async () => {
-    const result = await defineAuthChallenge(
-      makeEvent([
-        { challengeName: 'CUSTOM_CHALLENGE', challengeResult: true },
-      ]),
+  it('성공한 custom challenge 뒤 token 발급을 지시한다', () => {
+    const result = defineAuthChallenge(
+      makeEvent([{ challengeName: 'CUSTOM_CHALLENGE', challengeResult: true }]),
     );
 
     expect(result.response).toMatchObject({
@@ -26,8 +24,8 @@ describe('defineAuthChallenge', () => {
     });
   });
 
-  it('다섯 번 실패하면 더 이상 challenge를 만들지 않는다', async () => {
-    const result = await defineAuthChallenge(
+  it('다섯 번 실패하면 더 이상 challenge를 만들지 않는다', () => {
+    const result = defineAuthChallenge(
       makeEvent(
         Array.from({ length: 5 }, () => ({
           challengeName: 'CUSTOM_CHALLENGE',
