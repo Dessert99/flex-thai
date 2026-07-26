@@ -20,10 +20,12 @@ const listResponse = {
       role: 'LEARNER',
       status: 'ACTIVE',
       mfaEnrolled: false,
+      mfaEnrolledAt: null,
       createdAt: '2026-07-26T00:00:00.000Z',
       updatedAt: '2026-07-26T00:00:00.000Z',
     },
   ],
+  page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
 } as const;
 
 beforeEach(() => {
@@ -85,7 +87,7 @@ describe('사용자 관리 페이지', () => {
 
     expect(
       await screen.findByText(
-        '사용자 상태를 변경하지 못했습니다. 다시 시도해 주세요.',
+        '사용자 정보를 변경하지 못했습니다. 다시 시도해 주세요.',
       ),
     ).toBeInTheDocument();
   });
