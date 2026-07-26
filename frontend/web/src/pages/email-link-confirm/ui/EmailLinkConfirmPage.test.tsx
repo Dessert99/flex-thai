@@ -1,4 +1,4 @@
-/** 링크 mount 무호출·명시적 POST·no-referrer·redirect를 검증한다 */
+/** 링크 mount 무호출·명시적 POST·redirect를 검증한다 */
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -35,13 +35,10 @@ beforeEach(() => {
 });
 
 describe('이메일 링크 확인 페이지', () => {
-  it('mount만으로 확인 API를 호출하지 않고 no-referrer를 요청한다', () => {
+  it('mount만으로 확인 API를 호출하지 않는다', () => {
     renderWithProviders(<EmailLinkConfirmPageContainer />);
 
     expect(mocks.confirmEmailLinkSession).not.toHaveBeenCalled();
-    expect(
-      document.head.querySelector('meta[name="referrer"]'),
-    ).toHaveAttribute('content', 'no-referrer');
   });
 
   it('button click의 POST 결과가 MFA면 TOTP 화면으로 이동한다', async () => {

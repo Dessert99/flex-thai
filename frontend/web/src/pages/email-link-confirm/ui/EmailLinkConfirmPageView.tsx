@@ -22,43 +22,37 @@ export function EmailLinkConfirmPageView({
   pending,
 }: EmailLinkConfirmPageViewProps) {
   return (
-    <>
-      <meta
-        content='no-referrer'
-        name='referrer'
-      />
-      <main className='grid min-h-screen place-items-center bg-surface p-page'>
-        <Card className='w-full max-w-form border-default bg-surface shadow-overlay'>
-          <CardHeader>
-            <h1 className='text-title text-primary'>로그인 확인</h1>
-            <CardDescription className='text-body text-subtle'>
-              아래 button을 눌러야 로그인 링크가 사용됩니다.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className='flex flex-col gap-section'>
-            {invalidLink ? (
-              <p className='text-body text-danger'>
-                로그인 링크가 올바르지 않습니다.
-              </p>
-            ) : null}
-            {errorMessage ? (
-              <p
-                aria-live='polite'
-                className='text-body text-danger'
-              >
-                {errorMessage}
-              </p>
-            ) : null}
-            <Button
-              disabled={invalidLink || pending}
-              onClick={onConfirm}
-              type='button'
+    <main className='grid min-h-screen place-items-center bg-surface p-page'>
+      <Card className='w-full max-w-form border-default bg-surface shadow-overlay'>
+        <CardHeader>
+          <h1 className='text-title text-primary'>로그인 확인</h1>
+          <CardDescription className='text-body text-subtle'>
+            아래 button을 눌러야 로그인 링크가 사용됩니다.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className='flex flex-col gap-section'>
+          {invalidLink ? (
+            <p className='text-body text-danger'>
+              로그인 링크가 올바르지 않습니다.
+            </p>
+          ) : null}
+          {errorMessage ? (
+            <p
+              aria-live='polite'
+              className='text-body text-danger'
             >
-              {pending ? '확인 중' : '로그인 확인'}
-            </Button>
-          </CardContent>
-        </Card>
-      </main>
-    </>
+              {errorMessage}
+            </p>
+          ) : null}
+          <Button
+            disabled={invalidLink || pending}
+            onClick={onConfirm}
+            type='button'
+          >
+            {pending ? '확인 중' : '로그인 확인'}
+          </Button>
+        </CardContent>
+      </Card>
+    </main>
   );
 }
