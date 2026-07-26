@@ -328,6 +328,9 @@ const createVocabularyAdminTransaction = (
       .update(vocabularies)
       .set({
         status: input.nextStatus,
+        ...(input.publishedAt === undefined
+          ? {}
+          : { publishedAt: input.publishedAt }),
         updatedAt: input.updatedAt,
       })
       .where(

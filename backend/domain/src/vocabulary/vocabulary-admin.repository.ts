@@ -86,6 +86,7 @@ export interface VocabularyAdminTransaction {
     vocabularyId: string;
     expectedStatus: Vocabulary['status'];
     nextStatus: Vocabulary['status'];
+    publishedAt?: Date | undefined;
     updatedAt: Date;
   }): Promise<void>;
   appendAuditLog(input: VocabularyAdminAuditInput): Promise<void>;

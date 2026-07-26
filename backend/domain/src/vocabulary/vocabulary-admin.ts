@@ -579,6 +579,8 @@ export class VocabularyAdminService {
           vocabularyId: current.vocabulary.id,
           expectedStatus: rule.expectedStatus,
           nextStatus: rule.nextStatus,
+          publishedAt:
+            rule.nextStatus === 'PUBLISHED' ? command.occurredAt : undefined,
           updatedAt: command.occurredAt,
         });
         await transaction.appendAuditLog(

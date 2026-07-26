@@ -271,6 +271,45 @@ describe('DrizzleVocabularyAdminRepository 잠금·전체 교체', () => {
       ),
     ).rejects.toMatchObject({ code: 'VOCABULARY_PERSISTENCE_CONFLICT' });
   });
+
+  it('게시·복구는 게시 시각을 쓰고 숨김은 기존 게시 시각을 보존한다', async () => {
+    const publishedAt = new Date('2026-07-27T00:00:00.000Z');
+    const publish = createFake({ updateResults: [[{ id: 'vocabulary-id' }]] });
+    const hide = createFake({ updateResults: [[{ id: 'vocabulary-id' }]] });
+
+    await new DrizzleVocabularyAdminRepository(
+      publish.database as never,
+    ).runInTransaction((transaction) =>
+      transaction.transitionVocabularyStatus({
+        vocabularyId: 'vocabulary-id',
+        expectedStatus: 'DRAFT',
+        nextStatus: 'PUBLISHED',
+        publishedAt,
+        updatedAt: publishedAt,
+      }),
+    );
+    await new DrizzleVocabularyAdminRepository(
+      hide.database as never,
+    ).runInTransaction((transaction) =>
+      transaction.transitionVocabularyStatus({
+        vocabularyId: 'vocabulary-id',
+        expectedStatus: 'PUBLISHED',
+        nextStatus: 'HIDDEN',
+        publishedAt: undefined,
+        updatedAt: publishedAt,
+      }),
+    );
+
+    expect(publish.calls[0]?.values).toEqual({
+      status: 'PUBLISHED',
+      publishedAt,
+      updatedAt: publishedAt,
+    });
+    expect(hide.calls[0]?.values).toEqual({
+      status: 'HIDDEN',
+      updatedAt: publishedAt,
+    });
+  });
 });
 
 const integrationDatabaseUrl = process.env.VOCABULARY_ADMIN_TEST_DATABASE_URL;
@@ -562,9 +601,16 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       await pool.query(
         `insert into expression_occurrences (
            id, sentence_version_id, start_token_index, end_token_index,
-           vocabulary_id, vocabulary_kind, representative
-         ) values ($1, $2, 0, 2, $3, 'EXPRESSION', true)`,
-        [randomUUID(), sentenceVersionId, fixture.vocabularyId],
+           vocabulary_id, vocabulary_kind, meaning_id, pronunciation_id,
+           context_meaning_ko, representative
+         ) values ($1, $2, 0, 2, $3, 'EXPRESSION', $4, $5, '기존 뜻', true)`,
+        [
+          randomUUID(),
+          sentenceVersionId,
+          fixture.vocabularyId,
+          fixture.meaningId,
+          fixture.pronunciationId,
+        ],
       );
       const service = new VocabularyAdminService(
         new DrizzleVocabularyAdminRepository(drizzle({ client: pool, schema })),

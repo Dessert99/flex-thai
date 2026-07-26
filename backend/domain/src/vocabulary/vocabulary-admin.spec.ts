@@ -475,6 +475,7 @@ describe('VocabularyAdminService 게시·노출 상태', () => {
       vocabularyId: ids.vocabulary,
       expectedStatus: 'DRAFT',
       nextStatus: 'PUBLISHED',
+      publishedAt: context.occurredAt,
       updatedAt: context.occurredAt,
     });
   });
@@ -519,12 +520,14 @@ describe('VocabularyAdminService 게시·노출 상태', () => {
       expect.objectContaining({
         expectedStatus: 'PUBLISHED',
         nextStatus: 'HIDDEN',
+        publishedAt: undefined,
       }),
     );
     expect(hidden.transitionVocabularyStatus).toHaveBeenCalledWith(
       expect.objectContaining({
         expectedStatus: 'HIDDEN',
         nextStatus: 'PUBLISHED',
+        publishedAt: context.occurredAt,
       }),
     );
 

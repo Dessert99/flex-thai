@@ -37,6 +37,7 @@ export const vocabularies = pgTable(
     normalizedThai: text('normalized_thai').notNull(),
     kind: vocabularyKindEnum('kind').notNull(),
     status: vocabularyStatusEnum('status').default('DRAFT').notNull(),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),
