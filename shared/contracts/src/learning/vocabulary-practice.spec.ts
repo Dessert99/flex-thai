@@ -40,6 +40,9 @@ const card = {
       audioUrl: 'https://media.example.com/practice/learn.mp3?Expires=300',
     },
   ],
+  meaningPronunciations: [
+    { meaningId: ids.meaning, pronunciationId: ids.pronunciation },
+  ],
 } as const;
 
 const question = {
@@ -171,6 +174,7 @@ describe('단어 연습 공개 응답 계약', () => {
       completedAt: null,
       cards: [card],
       questions: [question],
+      answeredQuestionIds: [],
     } as const;
     expect(
       vocabularyPracticeSessionResponseSchema.parse(activeSession),
@@ -206,6 +210,7 @@ describe('단어 연습 공개 응답 계약', () => {
       completedAt: '2026-07-26T00:10:00.000Z',
       cards: [card],
       questions: [question],
+      answeredQuestionIds: [ids.question],
       result: {
         total: { correct: 1, incorrect: 0 },
         byMode: [{ mode: 'THAI_TO_MEANING', correct: 1, incorrect: 0 }],
@@ -247,6 +252,98 @@ describe('단어 연습 공개 응답 계약', () => {
         },
         sessionCompleted: false,
         answeredAt: '2026-07-26T00:10:00.000Z',
+      }),
+    ).toThrow();
+  });
+
+  it('답변 진행은 중복 없는 세션 문항 ID만 허용한다', () => {
+    const activeSession = {
+      id: ids.session,
+      sourceLabel: '공용 검색',
+      modes: ['THAI_TO_MEANING'],
+      questionCount: 1,
+      order: 'SOURCE',
+      status: 'ACTIVE',
+      startedAt: '2026-07-26T00:00:00.000Z',
+      completedAt: null,
+      cards: [card],
+      questions: [question],
+      answeredQuestionIds: [ids.question],
+    } as const;
+
+    expect(
+      vocabularyPracticeSessionResponseSchema.parse(activeSession),
+    ).toEqual(activeSession);
+    expect(() =>
+      vocabularyPracticeSessionResponseSchema.parse({
+        ...activeSession,
+        answeredQuestionIds: [ids.question, ids.question],
+      }),
+    ).toThrow();
+    expect(() =>
+      vocabularyPracticeSessionResponseSchema.parse({
+        ...activeSession,
+        answeredQuestionIds: [ids.session],
+      }),
+    ).toThrow();
+  });
+
+  it('완료 세션은 모든 문항 답변을 요구한다', () => {
+    expect(() =>
+      vocabularyPracticeSessionResponseSchema.parse({
+        id: ids.session,
+        sourceLabel: '공용 검색',
+        modes: ['THAI_TO_MEANING'],
+        questionCount: 1,
+        order: 'SOURCE',
+        status: 'COMPLETED',
+        startedAt: '2026-07-26T00:00:00.000Z',
+        completedAt: '2026-07-26T00:10:00.000Z',
+        cards: [card],
+        questions: [question],
+        answeredQuestionIds: [],
+        result: {
+          total: { correct: 1, incorrect: 0 },
+          byMode: [{ mode: 'THAI_TO_MEANING', correct: 1, incorrect: 0 }],
+          incorrectCards: [],
+        },
+      }),
+    ).toThrow();
+  });
+
+  it('카드는 최소 한 뜻·발음과 유효한 뜻-발음 관계를 요구한다', () => {
+    const answer = {
+      questionId: ids.question,
+      selectedOptionId: ids.option,
+      selectedLabel: '배우다',
+      isCorrect: true,
+      correctOptionId: ids.option,
+      card,
+      sessionCompleted: false,
+      answeredAt: '2026-07-26T00:10:00.000Z',
+    } as const;
+
+    expect(() =>
+      vocabularyPracticeAnswerResponseSchema.parse({
+        ...answer,
+        card: { ...card, meanings: [] },
+      }),
+    ).toThrow();
+    expect(() =>
+      vocabularyPracticeAnswerResponseSchema.parse({
+        ...answer,
+        card: { ...card, pronunciations: [] },
+      }),
+    ).toThrow();
+    expect(() =>
+      vocabularyPracticeAnswerResponseSchema.parse({
+        ...answer,
+        card: {
+          ...card,
+          meaningPronunciations: [
+            { meaningId: ids.meaning, pronunciationId: ids.option },
+          ],
+        },
       }),
     ).toThrow();
   });

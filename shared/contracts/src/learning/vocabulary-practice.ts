@@ -81,10 +81,53 @@ export const vocabularyPracticeQuestionPathSchema = z
   })
   .strict();
 
-/** 전체 뜻·발음·성조·음성을 공개하는 단어 연습 카드 */
-export const practiceCardSchema = vocabularySummarySchema.omit({
-  saved: true,
-});
+const meaningPronunciationSchema = z
+  .object({
+    meaningId: z.uuid(),
+    pronunciationId: z.uuid(),
+  })
+  .strict();
+
+/** 전체 뜻·발음·성조·뜻-발음 관계를 공개하는 단어 연습 카드 */
+export const practiceCardSchema = z
+  .object({
+    ...vocabularySummarySchema.omit({ saved: true }).shape,
+    meanings: vocabularySummarySchema.shape.meanings.min(1),
+    pronunciations: vocabularySummarySchema.shape.pronunciations.min(1),
+    meaningPronunciations: z.array(meaningPronunciationSchema).min(1),
+  })
+  .strict()
+  .superRefine((card, context) => {
+    const meaningIds = new Set(card.meanings.map(({ id }) => id));
+    const pronunciationIds = new Set(card.pronunciations.map(({ id }) => id));
+    const pairs = new Set<string>();
+
+    card.meaningPronunciations.forEach((link, index) => {
+      if (!meaningIds.has(link.meaningId)) {
+        context.addIssue({
+          code: 'custom',
+          message: '카드에 존재하는 뜻만 발음과 연결할 수 있습니다.',
+          path: ['meaningPronunciations', index, 'meaningId'],
+        });
+      }
+      if (!pronunciationIds.has(link.pronunciationId)) {
+        context.addIssue({
+          code: 'custom',
+          message: '카드에 존재하는 발음만 뜻과 연결할 수 있습니다.',
+          path: ['meaningPronunciations', index, 'pronunciationId'],
+        });
+      }
+      const pair = `${link.meaningId}:${link.pronunciationId}`;
+      if (pairs.has(pair)) {
+        context.addIssue({
+          code: 'custom',
+          message: '같은 뜻과 발음 관계를 중복할 수 없습니다.',
+          path: ['meaningPronunciations', index],
+        });
+      }
+      pairs.add(pair);
+    });
+  });
 
 const textPromptSchema = z
   .object({
@@ -160,6 +203,7 @@ const vocabularyPracticeSessionShape = {
   startedAt: z.iso.datetime(),
   cards: z.array(practiceCardSchema).min(1),
   questions: z.array(practiceQuestionSchema).min(1),
+  answeredQuestionIds: z.array(z.uuid()),
 };
 
 const activeVocabularyPracticeSessionSchema = z
@@ -180,13 +224,41 @@ const completedVocabularyPracticeSessionSchema = z
   .strict();
 
 /** 진행 상태에 따라 결과 공개 여부를 강제하는 단어 연습 세션 응답 */
-export const vocabularyPracticeSessionResponseSchema = z.discriminatedUnion(
-  'status',
-  [
+export const vocabularyPracticeSessionResponseSchema = z
+  .discriminatedUnion('status', [
     activeVocabularyPracticeSessionSchema,
     completedVocabularyPracticeSessionSchema,
-  ],
-);
+  ])
+  .superRefine((session, context) => {
+    const questionIds = new Set(session.questions.map(({ id }) => id));
+    const answeredIds = new Set(session.answeredQuestionIds);
+    if (answeredIds.size !== session.answeredQuestionIds.length) {
+      context.addIssue({
+        code: 'custom',
+        message: '같은 문항의 답변 진행을 중복할 수 없습니다.',
+        path: ['answeredQuestionIds'],
+      });
+    }
+    session.answeredQuestionIds.forEach((questionId, index) => {
+      if (!questionIds.has(questionId)) {
+        context.addIssue({
+          code: 'custom',
+          message: '세션에 존재하는 문항만 답변 처리할 수 있습니다.',
+          path: ['answeredQuestionIds', index],
+        });
+      }
+    });
+    if (
+      session.status === 'COMPLETED' &&
+      answeredIds.size !== questionIds.size
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message: '완료 세션은 모든 문항에 답해야 합니다.',
+        path: ['answeredQuestionIds'],
+      });
+    }
+  });
 
 /** 한 문항 제출 직후 공개하는 정답 여부와 전체 학습 카드 */
 export const vocabularyPracticeAnswerResponseSchema = z
