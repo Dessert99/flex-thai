@@ -55,6 +55,7 @@ describe('createApplicationModule 조립', () => {
       'AdminModule',
       'VocabularyPracticeModule',
       'ConceptsModule',
+      'ContentErrorReportsModule',
     ]);
     expect(importedModuleNames).not.toContain('JobsModule');
     expect(importedModuleNames).not.toContain('UploadsModule');

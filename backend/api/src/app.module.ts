@@ -17,6 +17,9 @@ import {
   DrizzleContentImportQuery,
   DrizzleContentImportRepository,
   DrizzleConceptAdminRepository,
+  DrizzleConceptErrorReportTargetLookup,
+  DrizzleContentErrorReportQuery,
+  DrizzleContentErrorReportRepository,
   DrizzleEmailChallengeRepository,
   DrizzleLearnerQuestionQuery,
   DrizzleLearnerConceptQuery,
@@ -36,6 +39,7 @@ import {
 } from '@flex-thia/database';
 import {
   ContentDraftService,
+  ContentErrorReportService,
   ContentImportService,
   ConceptService,
   IdentityAuthenticationService,
@@ -65,6 +69,7 @@ import {
 } from '@flex-thia/providers';
 import { AdminModule } from './admin/admin.module.js';
 import { ConceptsModule } from './concepts/concepts.module.js';
+import { ContentErrorReportsModule } from './feedback/content-error-reports.module.js';
 import { HealthController } from './health/health.controller.js';
 import {
   ReadinessController,
@@ -244,6 +249,15 @@ export const createApplicationModule = (
     new DrizzleConceptAdminRepository(database),
     conceptValidator,
   );
+  const feedbackRepository = new DrizzleContentErrorReportRepository(
+    database,
+    new DrizzleConceptErrorReportTargetLookup(database),
+  );
+  const feedback = new ContentErrorReportService(
+    feedbackRepository,
+    feedbackRepository,
+    feedbackRepository,
+  );
 
   return {
     module: AppModule,
@@ -298,6 +312,12 @@ export const createApplicationModule = (
         adminQuery: new DrizzleAdminConceptQuery(database),
         adminService: concepts,
         mediaReadUrls,
+        users,
+        authorizer,
+      }),
+      ContentErrorReportsModule.register({
+        reports: feedback,
+        query: new DrizzleContentErrorReportQuery(database),
         users,
         authorizer,
       }),
