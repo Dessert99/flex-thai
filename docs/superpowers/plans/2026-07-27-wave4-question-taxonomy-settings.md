@@ -290,7 +290,6 @@ Expected: 기본값 호환, 명시 분류 저장, clone 보존 테스트 통과.
   - `POST /api/v1/admin/question-type-versions/:versionId/examples`
   - `DELETE /api/v1/admin/question-type-versions/:versionId/examples/:exampleId`
   - `POST /api/v1/admin/question-type-versions/:versionId/activate`
-  - `POST /api/v1/admin/question-type-versions/:versionId/discard`
   - `POST /api/v1/admin/question-type-versions/:versionId/retire`
   - `POST /api/v1/admin/question-topics`, `POST /api/v1/admin/question-tags`
   - `POST /api/v1/admin/question-topics/:id/archive`, `POST /api/v1/admin/question-tags/:id/archive`
