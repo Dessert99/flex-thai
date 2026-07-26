@@ -22,4 +22,21 @@ export class SavedContentService {
   removeQuestion(userId: string, questionId: string): Promise<void> {
     return this.repository.removeQuestion(userId, questionId);
   }
+
+  /** 통합 전 기존 저장 어휘 endpoint의 멱등 저장을 유지한다 */
+  async saveVocabulary(
+    userId: string,
+    vocabularyId: string,
+    savedAt: Date,
+  ): Promise<void> {
+    if (!(await this.repository.isVocabularyAvailable(vocabularyId))) {
+      throw new LearningDomainError('VOCABULARY_UNAVAILABLE');
+    }
+    await this.repository.saveVocabulary(userId, vocabularyId, savedAt);
+  }
+
+  /** 통합 전 기존 저장 어휘 endpoint의 멱등 제거를 유지한다 */
+  removeVocabulary(userId: string, vocabularyId: string): Promise<void> {
+    return this.repository.removeVocabulary(userId, vocabularyId);
+  }
 }

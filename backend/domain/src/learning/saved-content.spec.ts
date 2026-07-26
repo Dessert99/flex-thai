@@ -8,13 +8,19 @@ const savedAt = new Date('2026-07-24T00:00:00.000Z');
 
 class FakeSavedContentRepository implements SavedContentRepository {
   readonly savedQuestions = new Set<string>();
+  readonly savedVocabularies = new Set<string>();
   readonly savedQuestionDates: Date[] = [];
   questionAvailable = true;
+  vocabularyAvailable = true;
   questionAvailabilityChecks = 0;
 
   isQuestionAvailable(): Promise<boolean> {
     this.questionAvailabilityChecks += 1;
     return Promise.resolve(this.questionAvailable);
+  }
+
+  isVocabularyAvailable(): Promise<boolean> {
+    return Promise.resolve(this.vocabularyAvailable);
   }
 
   saveQuestion(
@@ -29,6 +35,19 @@ class FakeSavedContentRepository implements SavedContentRepository {
 
   removeQuestion(userIdInput: string, questionId: string): Promise<void> {
     this.savedQuestions.delete(`${userIdInput}:${questionId}`);
+    return Promise.resolve();
+  }
+
+  saveVocabulary(
+    userIdInput: string,
+    vocabularyId: string,
+  ): Promise<void> {
+    this.savedVocabularies.add(`${userIdInput}:${vocabularyId}`);
+    return Promise.resolve();
+  }
+
+  removeVocabulary(userIdInput: string, vocabularyId: string): Promise<void> {
+    this.savedVocabularies.delete(`${userIdInput}:${vocabularyId}`);
     return Promise.resolve();
   }
 }

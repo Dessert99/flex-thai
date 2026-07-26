@@ -4,6 +4,7 @@ import {
   and,
   asc,
   count,
+  desc,
   eq,
   inArray,
   isNotNull,
@@ -24,6 +25,7 @@ import {
   questionTypeVersions,
   questionVersions,
   savedQuestions,
+  savedVocabularies,
   thaiSentenceVersions,
   tokenOccurrences,
   vocabularies,
@@ -556,6 +558,46 @@ export class DrizzleLearnerVocabularyQuery {
         saved: row.saved,
         firstResult: row.firstResult,
       })),
+      page: toPageMetadata(query, totalItems),
+    };
+  }
+
+  /** 통합 전 기존 저장 어휘 목록 endpoint의 read model을 유지한다 */
+  async listSavedVocabularies(
+    userId: string,
+    query: LearnerVocabularyPageQuery,
+  ): Promise<LearnerVocabularyListProjection> {
+    const condition = and(
+      eq(savedVocabularies.userId, userId),
+      eq(vocabularies.status, 'PUBLISHED'),
+    );
+    const [totalRow] = await this.database
+      .select({ totalItems: count() })
+      .from(savedVocabularies)
+      .innerJoin(
+        vocabularies,
+        eq(vocabularies.id, savedVocabularies.vocabularyId),
+      )
+      .where(condition);
+    const totalItems = totalRow?.totalItems ?? 0;
+    const bases = await this.database
+      .select({
+        id: vocabularies.id,
+        thai: vocabularies.thai,
+        kind: vocabularies.kind,
+        saved: sql<boolean>`true`,
+      })
+      .from(savedVocabularies)
+      .innerJoin(
+        vocabularies,
+        eq(vocabularies.id, savedVocabularies.vocabularyId),
+      )
+      .where(condition)
+      .orderBy(desc(savedVocabularies.savedAt), asc(vocabularies.id))
+      .limit(query.pageSize)
+      .offset((query.page - 1) * query.pageSize);
+    return {
+      items: await this.loadSummaries(bases),
       page: toPageMetadata(query, totalItems),
     };
   }

@@ -146,6 +146,17 @@ export const vocabularyRelatedQuestionsResponseSchema = z
   })
   .strict();
 
+/** 통합 전 기존 저장 어휘 목록의 페이지 query */
+export const savedVocabularyListQuerySchema = z.object(pageQueryShape).strict();
+
+/** 통합 전 기존 저장 어휘 목록의 페이지 응답 */
+export const savedVocabularyListResponseSchema = z
+  .object({
+    items: z.array(vocabularySummarySchema),
+    page: pageMetadataSchema,
+  })
+  .strict();
+
 /** 어휘 상세·관련 문제·저장 경로의 UUID parameter */
 export const vocabularyIdPathSchema = z
   .object({ vocabularyId: uuidSchema })
@@ -175,6 +186,16 @@ export type VocabularyRelatedQuestionsQuery = z.infer<
 /** 직렬화 가능한 관련 문제 목록 응답 type */
 export type VocabularyRelatedQuestionsResponse = z.infer<
   typeof vocabularyRelatedQuestionsResponseSchema
+>;
+
+/** 통합 전 기존 저장 어휘 목록 query type */
+export type SavedVocabularyListQuery = z.infer<
+  typeof savedVocabularyListQuerySchema
+>;
+
+/** 통합 전 기존 저장 어휘 목록 응답 type */
+export type SavedVocabularyListResponse = z.infer<
+  typeof savedVocabularyListResponseSchema
 >;
 
 /** 검증된 어휘 UUID path type */
