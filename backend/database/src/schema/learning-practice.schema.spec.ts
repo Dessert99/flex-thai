@@ -1,4 +1,5 @@
 /** 단어 연습 세션·문항·답안 schema의 snapshot과 원자성 제약을 검증한다 */
+import { readFileSync } from 'node:fs';
 import { getTableColumns, getTableName } from 'drizzle-orm';
 import { getTableConfig } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
@@ -7,6 +8,11 @@ import {
   vocabularyPracticeQuestions,
   vocabularyPracticeSessions,
 } from './learning-practice.schema.js';
+
+const migrationSql = readFileSync(
+  new URL('../../drizzle/0010_dark_thundra.sql', import.meta.url),
+  'utf8',
+);
 
 const uniqueIndexes = (table: Parameters<typeof getTableConfig>[0]) =>
   getTableConfig(table)
@@ -94,6 +100,26 @@ describe('단어 연습 데이터베이스 schema', () => {
       target: 'vocabulary_practice_questions',
       onDelete: 'restrict',
     });
+  });
+
+  it('복합 FK가 참조하는 unique index를 FK보다 먼저 생성한다', () => {
+    const questionIndex = migrationSql.indexOf(
+      'CREATE UNIQUE INDEX "vocabulary_practice_questions_session_id_unique"',
+    );
+    const questionForeignKey = migrationSql.indexOf(
+      'ADD CONSTRAINT "vocabulary_practice_answers_question_session_fk"',
+    );
+    const sessionIndex = migrationSql.indexOf(
+      'CREATE UNIQUE INDEX "vocabulary_practice_sessions_id_user_unique"',
+    );
+    const sessionForeignKey = migrationSql.indexOf(
+      'ADD CONSTRAINT "vocabulary_practice_answers_session_user_fk"',
+    );
+
+    expect(questionIndex).toBeGreaterThan(-1);
+    expect(sessionIndex).toBeGreaterThan(-1);
+    expect(questionIndex).toBeLessThan(questionForeignKey);
+    expect(sessionIndex).toBeLessThan(sessionForeignKey);
   });
 
   it('문항 meaning과 pronunciation이 같은 vocabulary에 속하게 고정한다', () => {

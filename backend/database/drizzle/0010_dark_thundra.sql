@@ -56,6 +56,8 @@ CREATE TABLE "vocabulary_practice_sessions" (
 	CONSTRAINT "vocabulary_practice_sessions_source_match" CHECK (("vocabulary_practice_sessions"."source_type" = 'SEARCH_SELECTION' and "vocabulary_practice_sessions"."source_wordbook_id" is null) or "vocabulary_practice_sessions"."source_type" = 'WORDBOOK')
 );
 --> statement-breakpoint
+CREATE UNIQUE INDEX "vocabulary_practice_questions_session_id_unique" ON "vocabulary_practice_questions" USING btree ("session_id","id");--> statement-breakpoint
+CREATE UNIQUE INDEX "vocabulary_practice_sessions_id_user_unique" ON "vocabulary_practice_sessions" USING btree ("id","user_id");--> statement-breakpoint
 ALTER TABLE "vocabulary_practice_answers" ADD CONSTRAINT "vocabulary_practice_answers_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "vocabulary_practice_answers" ADD CONSTRAINT "vocabulary_practice_answers_question_session_fk" FOREIGN KEY ("session_id","question_id") REFERENCES "public"."vocabulary_practice_questions"("session_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "vocabulary_practice_answers" ADD CONSTRAINT "vocabulary_practice_answers_session_user_fk" FOREIGN KEY ("session_id","user_id") REFERENCES "public"."vocabulary_practice_sessions"("id","user_id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
@@ -69,5 +71,3 @@ ALTER TABLE "vocabulary_practice_sessions" ADD CONSTRAINT "vocabulary_practice_s
 CREATE UNIQUE INDEX "vocabulary_practice_answers_session_question_unique" ON "vocabulary_practice_answers" USING btree ("session_id","question_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "vocabulary_practice_answers_user_client_unique" ON "vocabulary_practice_answers" USING btree ("user_id","client_answer_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "vocabulary_practice_questions_session_position_unique" ON "vocabulary_practice_questions" USING btree ("session_id","position");--> statement-breakpoint
-CREATE UNIQUE INDEX "vocabulary_practice_questions_session_id_unique" ON "vocabulary_practice_questions" USING btree ("session_id","id");--> statement-breakpoint
-CREATE UNIQUE INDEX "vocabulary_practice_sessions_id_user_unique" ON "vocabulary_practice_sessions" USING btree ("id","user_id");
