@@ -6,6 +6,8 @@ export * from './health/status.js';
 export * from './identity/auth.js';
 export * from './identity/user-management.js';
 export * from './learning/questions.js';
+/** 문제 분류 설정 계약을 패키지 경계에 노출한다 */
+export * from './questions/question-taxonomy-settings.js';
 export * from './learning/vocabularies.js';
 export * from './thai-content/sentences.js';
 
