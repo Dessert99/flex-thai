@@ -153,18 +153,39 @@ describe('개인 추천 점수 계산', () => {
     ]);
   });
 
-  it('양수 후보가 한 종류라도 없으면 두 목록을 함께 fallback한다', () => {
+  it('한 섹션만 양수여도 개인화하고 각 섹션을 최근 게시 후보로 3개까지 채운다', () => {
     const result = buildRecommendationResult({
       meaningfulSignalCount: 5,
-      questions: [question(1, '2026-07-26T00:00:00.000Z')],
+      questions: [
+        question(1, '2026-07-24T00:00:00.000Z'),
+        question(2, '2026-07-26T00:00:00.000Z'),
+        question(3, '2026-07-25T00:00:00.000Z'),
+      ],
       vocabularies: [
-        vocabulary(2, '2026-07-26T00:00:00.000Z', { inWordbook: true }),
+        vocabulary(4, '2026-07-24T00:00:00.000Z', { inWordbook: true }),
+        vocabulary(5, '2026-07-26T00:00:00.000Z'),
+        vocabulary(6, '2026-07-25T00:00:00.000Z'),
       ],
     });
 
-    expect(result.mode).toBe('FALLBACK');
-    expect(result.questions[0]?.reasonCode).toBe('RECENTLY_PUBLISHED');
-    expect(result.vocabularies[0]?.reasonCode).toBe('RECENTLY_PUBLISHED');
+    expect(result.mode).toBe('PERSONALIZED');
+    expect(
+      result.questions.map(({ questionId, reasonCode }) => ({
+        questionId,
+        reasonCode,
+      })),
+    ).toEqual([
+      { questionId: uuid(2), reasonCode: 'RECENTLY_PUBLISHED' },
+      { questionId: uuid(3), reasonCode: 'RECENTLY_PUBLISHED' },
+      { questionId: uuid(1), reasonCode: 'RECENTLY_PUBLISHED' },
+    ]);
+    expect(
+      result.vocabularies.map(({ id, reasonCode }) => ({ id, reasonCode })),
+    ).toEqual([
+      { id: uuid(4), reasonCode: 'IN_WORDBOOK' },
+      { id: uuid(5), reasonCode: 'RECENTLY_PUBLISHED' },
+      { id: uuid(6), reasonCode: 'RECENTLY_PUBLISHED' },
+    ]);
   });
 
   it('같은 점수는 게시 시각과 ID로 정렬하고 낮은 기여 code도 보존한다', () => {

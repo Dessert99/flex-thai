@@ -267,46 +267,74 @@ export const buildRecommendationResult = (
     return fallback(input);
   }
 
-  const questions = input.questions
-    .map(scoreQuestion)
-    .filter(({ score }) => score > 0)
-    .sort(
-      (left, right) =>
-        right.score - left.score ||
-        comparePublishedAtThenId(
-          {
-            id: left.value.questionId,
-            publishedAt: left.value.publishedAt,
-          },
-          {
-            id: right.value.questionId,
-            publishedAt: right.value.publishedAt,
-          },
-        ),
-    );
+  const questions = input.questions.map(scoreQuestion).sort(
+    (left, right) =>
+      right.score - left.score ||
+      comparePublishedAtThenId(
+        {
+          id: left.value.questionId,
+          publishedAt: left.value.publishedAt,
+        },
+        {
+          id: right.value.questionId,
+          publishedAt: right.value.publishedAt,
+        },
+      ),
+  );
   const vocabularies = input.vocabularies
     .map(scoreVocabulary)
-    .filter(({ score }) => score > 0)
     .sort(
       (left, right) =>
         right.score - left.score ||
         comparePublishedAtThenId(left.value, right.value),
     );
+  const positiveQuestions = questions.filter(({ score }) => score > 0);
+  const positiveVocabularies = vocabularies.filter(({ score }) => score > 0);
 
-  if (questions.length === 0 || vocabularies.length === 0) {
+  if (positiveQuestions.length === 0 && positiveVocabularies.length === 0) {
     return fallback(input);
   }
+
+  const recommendedQuestions = positiveQuestions
+    .slice(0, RESULT_LIMIT)
+    .map(({ value, reasonCode }) => toQuestion(value, reasonCode));
+  const recommendedVocabularies = positiveVocabularies
+    .slice(0, RESULT_LIMIT)
+    .map(({ value, reasonCode }) => toVocabulary(value, reasonCode));
 
   return {
     mode: 'PERSONALIZED',
     meaningfulSignalCount: input.meaningfulSignalCount,
     activationThreshold: ACTIVATION_THRESHOLD,
-    questions: questions
-      .slice(0, RESULT_LIMIT)
-      .map(({ value, reasonCode }) => toQuestion(value, reasonCode)),
-    vocabularies: vocabularies
-      .slice(0, RESULT_LIMIT)
-      .map(({ value, reasonCode }) => toVocabulary(value, reasonCode)),
+    questions: [
+      ...recommendedQuestions,
+      ...questions
+        .filter(({ score }) => score === 0)
+        .sort((left, right) =>
+          comparePublishedAtThenId(
+            {
+              id: left.value.questionId,
+              publishedAt: left.value.publishedAt,
+            },
+            {
+              id: right.value.questionId,
+              publishedAt: right.value.publishedAt,
+            },
+          ),
+        )
+        .slice(0, RESULT_LIMIT - recommendedQuestions.length)
+        .map(({ value }) => toQuestion(value, 'RECENTLY_PUBLISHED')),
+    ],
+    vocabularies: [
+      ...recommendedVocabularies,
+      ...vocabularies
+        .filter(({ score }) => score === 0)
+        .sort((left, right) =>
+          comparePublishedAtThenId(left.value, right.value),
+        )
+        .slice(0, RESULT_LIMIT - recommendedVocabularies.length)
+        .map(({ value }) => toVocabulary(value, 'RECENTLY_PUBLISHED')),
+    ],
   };
 };
 
@@ -401,11 +429,17 @@ const questionCandidateQuery = (userId: string): SQL => sql`
       and qv.published_at is not null
   ),
   valid_first_attempts as (
-    select qa.question_id, qa.is_correct
+    select
+      qa.question_id,
+      qa.question_version_id,
+      attempted_type.question_type_id,
+      qa.is_correct
     from question_attempts qa
     join question_versions attempted_version
       on attempted_version.id = qa.question_version_id
      and attempted_version.question_id = qa.question_id
+    join question_type_versions attempted_type
+      on attempted_type.id = attempted_version.type_version_id
     where qa.user_id = ${userId}
       and qa.attempt_no = 1
       and attempted_version.status <> 'INVALIDATED'
@@ -431,11 +465,19 @@ const questionCandidateQuery = (userId: string): SQL => sql`
     join token_occurrences token
       on token.sentence_version_id = sentence.sentence_version_id
      and token.role in ('TARGET', 'REQUIRED')
+    join vocabularies signal_vocabulary
+      on signal_vocabulary.id = token.vocabulary_id
+     and signal_vocabulary.status = 'PUBLISHED'
+     and signal_vocabulary.published_at is not null
     union
     select distinct sentence.question_id, expression.vocabulary_id
     from question_sentences sentence
     join expression_occurrences expression
       on expression.sentence_version_id = sentence.sentence_version_id
+    join vocabularies signal_vocabulary
+      on signal_vocabulary.id = expression.vocabulary_id
+     and signal_vocabulary.status = 'PUBLISHED'
+     and signal_vocabulary.published_at is not null
     where exists (
       select 1
       from token_occurrences overlapping_token
@@ -472,7 +514,7 @@ const questionCandidateQuery = (userId: string): SQL => sql`
     where saved.user_id = ${userId}
   ),
   incorrect_question_types as (
-    select distinct current_question.question_type_id
+    select distinct first_attempt.question_type_id
     from valid_first_attempts first_attempt
     join current_questions current_question
       on current_question.question_id = first_attempt.question_id
@@ -539,11 +581,17 @@ const vocabularyCandidateQuery = (userId: string): SQL => sql`
       and qv.published_at is not null
   ),
   valid_first_attempts as (
-    select qa.question_id, qa.is_correct
+    select
+      qa.question_id,
+      qa.question_version_id,
+      attempted_type.question_type_id,
+      qa.is_correct
     from question_attempts qa
     join question_versions attempted_version
       on attempted_version.id = qa.question_version_id
      and attempted_version.question_id = qa.question_id
+    join question_type_versions attempted_type
+      on attempted_type.id = attempted_version.type_version_id
     where qa.user_id = ${userId}
       and qa.attempt_no = 1
       and attempted_version.status <> 'INVALIDATED'
@@ -569,11 +617,65 @@ const vocabularyCandidateQuery = (userId: string): SQL => sql`
     join token_occurrences token
       on token.sentence_version_id = sentence.sentence_version_id
      and token.role in ('TARGET', 'REQUIRED')
+    join vocabularies signal_vocabulary
+      on signal_vocabulary.id = token.vocabulary_id
+     and signal_vocabulary.status = 'PUBLISHED'
+     and signal_vocabulary.published_at is not null
     union
     select distinct sentence.question_id, expression.vocabulary_id
     from question_sentences sentence
     join expression_occurrences expression
       on expression.sentence_version_id = sentence.sentence_version_id
+    join vocabularies signal_vocabulary
+      on signal_vocabulary.id = expression.vocabulary_id
+     and signal_vocabulary.status = 'PUBLISHED'
+     and signal_vocabulary.published_at is not null
+    where exists (
+      select 1
+      from token_occurrences overlapping_token
+      where overlapping_token.sentence_version_id =
+          expression.sentence_version_id
+        and overlapping_token.position >= expression.start_token_index
+        and overlapping_token.position < expression.end_token_index
+      and overlapping_token.role in ('TARGET', 'REQUIRED')
+    )
+  ),
+  attempted_question_sentences as (
+    select
+      first_attempt.question_id,
+      block_sentence.sentence_version_id
+    from valid_first_attempts first_attempt
+    join question_blocks block
+      on block.question_version_id = first_attempt.question_version_id
+    join question_block_sentences block_sentence
+      on block_sentence.block_id = block.id
+    union
+    select
+      first_attempt.question_id,
+      coalesce(option.sentence_version_id, option.span_sentence_version_id)
+    from valid_first_attempts first_attempt
+    join question_options option
+      on option.question_version_id = first_attempt.question_version_id
+  ),
+  attempted_question_vocabulary as (
+    select distinct sentence.question_id, token.vocabulary_id
+    from attempted_question_sentences sentence
+    join token_occurrences token
+      on token.sentence_version_id = sentence.sentence_version_id
+     and token.role in ('TARGET', 'REQUIRED')
+    join vocabularies signal_vocabulary
+      on signal_vocabulary.id = token.vocabulary_id
+     and signal_vocabulary.status = 'PUBLISHED'
+     and signal_vocabulary.published_at is not null
+    union
+    select distinct sentence.question_id, expression.vocabulary_id
+    from attempted_question_sentences sentence
+    join expression_occurrences expression
+      on expression.sentence_version_id = sentence.sentence_version_id
+    join vocabularies signal_vocabulary
+      on signal_vocabulary.id = expression.vocabulary_id
+     and signal_vocabulary.status = 'PUBLISHED'
+     and signal_vocabulary.published_at is not null
     where exists (
       select 1
       from token_occurrences overlapping_token
@@ -597,12 +699,12 @@ const vocabularyCandidateQuery = (userId: string): SQL => sql`
       and answer.is_correct = false
   ),
   first_incorrect_question_vocabulary as (
-    select distinct question_vocabulary.vocabulary_id
+    select distinct attempted_vocabulary.vocabulary_id
     from valid_first_attempts first_attempt
     join current_questions current_question
       on current_question.question_id = first_attempt.question_id
-    join question_vocabulary
-      on question_vocabulary.question_id = first_attempt.question_id
+    join attempted_question_vocabulary attempted_vocabulary
+      on attempted_vocabulary.question_id = first_attempt.question_id
     where first_attempt.is_correct = false
   ),
   saved_question_vocabulary as (
