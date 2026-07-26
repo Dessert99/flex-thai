@@ -1,9 +1,12 @@
 /** 개념 관리자 repository의 정렬과 게시 조건을 검증한다 */
+import { PgDialect } from 'drizzle-orm/pg-core';
 import { describe, expect, it, vi } from 'vitest';
 import {
   assembleConceptValidationCandidate,
   ConceptPersistenceError,
   DrizzleConceptAdminRepository,
+  draftRevisionCondition,
+  publishableVersionCondition,
 } from './drizzle-concept-admin.repository.js';
 
 const context = {
@@ -57,6 +60,7 @@ describe('assembleConceptValidationCandidate', () => {
           sentenceExists: true,
           audioAssetExists: true,
           audioAssetStatus: 'READY',
+          interactionIssues: [],
         },
         {
           blockId: 'block-1',
@@ -66,6 +70,7 @@ describe('assembleConceptValidationCandidate', () => {
           sentenceExists: true,
           audioAssetExists: true,
           audioAssetStatus: 'READY',
+          interactionIssues: [],
         },
       ],
     );
@@ -84,6 +89,23 @@ describe('assembleConceptValidationCandidate', () => {
 });
 
 describe('DrizzleConceptAdminRepository 상태 전이', () => {
+  it('게시 조건이 DRAFT·PASSED와 현재 검증 revision을 함께 요구한다', () => {
+    const publishParams = new PgDialect().sqlToQuery(
+      publishableVersionCondition('version-1', 3),
+    ).params;
+    const draftParams = new PgDialect().sqlToQuery(
+      draftRevisionCondition('version-1', 3),
+    ).params;
+
+    expect(publishParams).toEqual(
+      expect.arrayContaining(['version-1', 'DRAFT', 'PASSED', 3]),
+    );
+    expect(publishParams.filter((value) => value === 3)).toHaveLength(2);
+    expect(draftParams).toEqual(
+      expect.arrayContaining(['version-1', 'DRAFT', 3]),
+    );
+  });
+
   it('숨김 상태 전이와 감사 기록을 같은 transaction에서 실행한다', async () => {
     const auditValues: unknown[] = [];
     const session = {

@@ -1,6 +1,11 @@
 /** 관리자 개념 상세의 버전·블록 정렬을 검증한다 */
+import { PgDialect } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
-import { assembleAdminConceptDetail } from './drizzle-admin-concept.query.js';
+import {
+  adminConceptOffset,
+  assembleAdminConceptDetail,
+  buildAdminConceptConditions,
+} from './drizzle-admin-concept.query.js';
 
 describe('assembleAdminConceptDetail', () => {
   it('버전을 내림차순으로 정렬하고 각 블록을 position 순으로 조립한다', () => {
@@ -47,5 +52,20 @@ describe('assembleAdminConceptDetail', () => {
     );
 
     expect(detail?.versions.map(({ version }) => version)).toEqual([2, 1]);
+  });
+
+  it('관리자 category/status 필터와 pagination offset을 고정한다', () => {
+    const filter = {
+      category: 'GRAMMAR' as const,
+      status: 'HIDDEN' as const,
+      page: 3,
+      pageSize: 20,
+    };
+    const params = buildAdminConceptConditions(filter).flatMap(
+      (condition) => new PgDialect().sqlToQuery(condition).params,
+    );
+
+    expect(params).toEqual(expect.arrayContaining(['GRAMMAR', 'HIDDEN']));
+    expect(adminConceptOffset(filter)).toBe(40);
   });
 });

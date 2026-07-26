@@ -20,6 +20,7 @@ import {
   eq,
   inArray,
   isNull,
+  type SQL,
 } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
@@ -32,6 +33,14 @@ import {
   conceptVersions,
 } from '../schema/concepts.schema.js';
 import { thaiSentenceVersions } from '../schema/thai-content.schema.js';
+import {
+  expressionOccurrences,
+  tokenOccurrences,
+} from '../schema/thai-content.schema.js';
+import {
+  vocabularyMeanings,
+  vocabularyPronunciations,
+} from '../schema/vocabulary.schema.js';
 
 const conceptSchema = {
   auditLogs,
@@ -41,6 +50,10 @@ const conceptSchema = {
   concepts,
   conceptVersions,
   thaiSentenceVersions,
+  tokenOccurrences,
+  expressionOccurrences,
+  vocabularyMeanings,
+  vocabularyPronunciations,
 };
 type ConceptDatabase = PgDatabase<PgQueryResultHKT, typeof conceptSchema>;
 type ConceptSession = Pick<
@@ -79,6 +92,13 @@ interface CandidateExampleRow {
   sentenceExists: boolean;
   audioAssetExists: boolean;
   audioAssetStatus: 'UPLOADING' | 'READY' | 'REJECTED' | null;
+  interactionIssues: Array<{
+    kind: 'TOKEN' | 'EXPRESSION';
+    index: number;
+    referenceValid: boolean;
+    audioAssetExists: boolean;
+    audioAssetStatus: 'UPLOADING' | 'READY' | 'REJECTED' | null;
+  }>;
 }
 
 /** 개념 저장 조건 충돌을 stable code로 전달한다 */
@@ -93,6 +113,28 @@ const byPosition = (
   left: { position: number },
   right: { position: number },
 ): number => left.position - right.position;
+
+/** 초안 교체·검증의 revision 조건을 고정한다 */
+export const draftRevisionCondition = (
+  versionId: string,
+  revision: number,
+): SQL => and(
+  eq(conceptVersions.id, versionId),
+  eq(conceptVersions.status, 'DRAFT'),
+  eq(conceptVersions.revision, revision),
+)!;
+
+/** 게시가 현재 revision의 PASSED 검증만 사용하게 한다 */
+export const publishableVersionCondition = (
+  versionId: string,
+  revision: number,
+): SQL => and(
+  eq(conceptVersions.id, versionId),
+  eq(conceptVersions.status, 'DRAFT'),
+  eq(conceptVersions.validationStatus, 'PASSED'),
+  eq(conceptVersions.revision, revision),
+  eq(conceptVersions.validatedRevision, revision),
+)!;
 
 /** DB flat rows를 position 순서의 검증 후보로 조립한다 */
 export const assembleConceptValidationCandidate = (
@@ -190,6 +232,91 @@ const loadCandidate = async (
       asc(conceptBlocks.position),
       asc(conceptBlockExamples.position),
     );
+  const sentenceIds = examples
+    .filter(({ sentenceId }) => sentenceId !== null)
+    .map(({ sentenceVersionId }) => sentenceVersionId);
+  const tokenFeedback =
+    sentenceIds.length === 0
+      ? []
+      : await session
+          .select({
+            sentenceVersionId: tokenOccurrences.sentenceVersionId,
+            index: tokenOccurrences.position,
+            meaningReferenceId: vocabularyMeanings.id,
+            pronunciationReferenceId: vocabularyPronunciations.id,
+            audioAssetId: mediaAssets.id,
+            audioAssetStatus: mediaAssets.status,
+          })
+          .from(tokenOccurrences)
+          .leftJoin(
+            vocabularyMeanings,
+            and(
+              eq(tokenOccurrences.meaningId, vocabularyMeanings.id),
+              eq(
+                tokenOccurrences.vocabularyId,
+                vocabularyMeanings.vocabularyId,
+              ),
+            ),
+          )
+          .leftJoin(
+            vocabularyPronunciations,
+            and(
+              eq(
+                tokenOccurrences.pronunciationId,
+                vocabularyPronunciations.id,
+              ),
+              eq(
+                tokenOccurrences.vocabularyId,
+                vocabularyPronunciations.vocabularyId,
+              ),
+            ),
+          )
+          .leftJoin(
+            mediaAssets,
+            eq(vocabularyPronunciations.mediaAssetId, mediaAssets.id),
+          )
+          .where(inArray(tokenOccurrences.sentenceVersionId, sentenceIds));
+  const expressionFeedback =
+    sentenceIds.length === 0
+      ? []
+      : await session
+          .select({
+            sentenceVersionId: expressionOccurrences.sentenceVersionId,
+            index: expressionOccurrences.startTokenIndex,
+            meaningReferenceId: vocabularyMeanings.id,
+            pronunciationReferenceId: vocabularyPronunciations.id,
+            audioAssetId: mediaAssets.id,
+            audioAssetStatus: mediaAssets.status,
+          })
+          .from(expressionOccurrences)
+          .leftJoin(
+            vocabularyMeanings,
+            and(
+              eq(expressionOccurrences.meaningId, vocabularyMeanings.id),
+              eq(
+                expressionOccurrences.vocabularyId,
+                vocabularyMeanings.vocabularyId,
+              ),
+            ),
+          )
+          .leftJoin(
+            vocabularyPronunciations,
+            and(
+              eq(
+                expressionOccurrences.pronunciationId,
+                vocabularyPronunciations.id,
+              ),
+              eq(
+                expressionOccurrences.vocabularyId,
+                vocabularyPronunciations.vocabularyId,
+              ),
+            ),
+          )
+          .leftJoin(
+            mediaAssets,
+            eq(vocabularyPronunciations.mediaAssetId, mediaAssets.id),
+          )
+          .where(inArray(expressionOccurrences.sentenceVersionId, sentenceIds));
   return assembleConceptValidationCandidate(
     version,
     blocks,
@@ -201,6 +328,36 @@ const loadCandidate = async (
       sentenceExists: row.sentenceId !== null,
       audioAssetExists: row.mediaAssetId !== null,
       audioAssetStatus: row.audioAssetStatus,
+      interactionIssues: [
+        ...tokenFeedback
+          .filter(
+            ({ sentenceVersionId }) =>
+              sentenceVersionId === row.sentenceVersionId,
+          )
+          .map((feedback) => ({
+            kind: 'TOKEN' as const,
+            index: feedback.index,
+            referenceValid:
+              feedback.meaningReferenceId !== null &&
+              feedback.pronunciationReferenceId !== null,
+            audioAssetExists: feedback.audioAssetId !== null,
+            audioAssetStatus: feedback.audioAssetStatus,
+          })),
+        ...expressionFeedback
+          .filter(
+            ({ sentenceVersionId }) =>
+              sentenceVersionId === row.sentenceVersionId,
+          )
+          .map((feedback) => ({
+            kind: 'EXPRESSION' as const,
+            index: feedback.index,
+            referenceValid:
+              feedback.meaningReferenceId !== null &&
+              feedback.pronunciationReferenceId !== null,
+            audioAssetExists: feedback.audioAssetId !== null,
+            audioAssetStatus: feedback.audioAssetStatus,
+          })),
+      ],
     })),
   );
 };
@@ -352,11 +509,8 @@ export class DrizzleConceptAdminRepository implements ConceptAdminRepository {
         validatedRevision: null,
         validatedAt: null,
         updatedAt: context.occurredAt,
-      }).where(and(
-        eq(conceptVersions.id, versionId),
-        eq(conceptVersions.status, 'DRAFT'),
-        eq(conceptVersions.revision, input.revision),
-      )).returning({ version: conceptVersions.version });
+      }).where(draftRevisionCondition(versionId, input.revision))
+        .returning({ version: conceptVersions.version });
       const stored = rows[0];
       if (!stored) {
         const [current] = await transaction
@@ -415,11 +569,9 @@ export class DrizzleConceptAdminRepository implements ConceptAdminRepository {
         validatedRevision: input.expectedRevision,
         validatedAt: input.validatedAt,
         updatedAt: input.validatedAt,
-      }).where(and(
-        eq(conceptVersions.id, input.versionId),
-        eq(conceptVersions.status, 'DRAFT'),
-        eq(conceptVersions.revision, input.expectedRevision),
-      )).returning({ id: conceptVersions.id });
+      }).where(
+        draftRevisionCondition(input.versionId, input.expectedRevision),
+      ).returning({ id: conceptVersions.id });
       if (rows.length !== 1) throw new ConceptPersistenceError('CONCEPT_REVISION_CONFLICT');
       await appendAudit(transaction, context, 'CONCEPT_VERSION_VALIDATED', 'CONCEPT_VERSION', input.versionId, { status, issueCount: input.issues.length });
       return { versionId: input.versionId, revision: input.expectedRevision, status, issues: input.issues, validatedAt: input.validatedAt };
@@ -446,13 +598,12 @@ export class DrizzleConceptAdminRepository implements ConceptAdminRepository {
       const [version] = await transaction.select({
         id: conceptVersions.id,
         conceptId: conceptVersions.conceptId,
-      }).from(conceptVersions).where(and(
-        eq(conceptVersions.id, input.versionId),
-        eq(conceptVersions.status, 'DRAFT'),
-        eq(conceptVersions.validationStatus, 'PASSED'),
-        eq(conceptVersions.revision, input.expectedRevision),
-        eq(conceptVersions.validatedRevision, input.expectedRevision),
-      )).for('update').limit(1);
+      }).from(conceptVersions).where(
+        publishableVersionCondition(
+          input.versionId,
+          input.expectedRevision,
+        ),
+      ).for('update').limit(1);
       if (!version) throw new ConceptPersistenceError('CONCEPT_VALIDATION_REQUIRED');
       if (concept.currentPublishedVersionId) {
         const retired = await transaction.update(conceptVersions).set({ status: 'RETIRED' })

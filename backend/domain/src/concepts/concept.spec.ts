@@ -29,6 +29,7 @@ const candidate = (): ConceptValidationCandidate => ({
           sentenceExists: true,
           audioAssetExists: true,
           audioAssetStatus: 'READY',
+          interactionIssues: [],
         },
       ],
     },
@@ -78,6 +79,7 @@ describe('validateConceptCandidate', () => {
             sentenceExists: true,
             audioAssetExists: true,
             audioAssetStatus: 'READY',
+            interactionIssues: [],
           },
           {
             position: 1,
@@ -86,6 +88,7 @@ describe('validateConceptCandidate', () => {
             sentenceExists: true,
             audioAssetExists: true,
             audioAssetStatus: 'READY',
+            interactionIssues: [],
           },
         ],
       },
@@ -95,6 +98,38 @@ describe('validateConceptCandidate', () => {
       expect.arrayContaining([
         expect.objectContaining({ code: 'CONCEPT_RULE_COLUMN_MISMATCH' }),
         expect.objectContaining({ code: 'CONCEPT_DUPLICATE_SENTENCE' }),
+      ]),
+    );
+  });
+
+  it('token과 expression의 참조·음성이 준비되지 않으면 게시 검증에 실패한다', () => {
+    const input = candidate();
+    const block = input.blocks[0];
+    if (block?.kind === 'THAI_EXAMPLES') {
+      block.examples[0]!.interactionIssues = [
+        {
+          kind: 'TOKEN',
+          index: 0,
+          referenceValid: true,
+          audioAssetExists: true,
+          audioAssetStatus: 'UPLOADING',
+        },
+        {
+          kind: 'EXPRESSION',
+          index: 0,
+          referenceValid: false,
+          audioAssetExists: false,
+          audioAssetStatus: null,
+        },
+      ];
+    }
+
+    expect(validateConceptCandidate(input)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'CONCEPT_FEEDBACK_AUDIO_NOT_READY' }),
+        expect.objectContaining({
+          code: 'CONCEPT_FEEDBACK_REFERENCE_NOT_FOUND',
+        }),
       ]),
     );
   });

@@ -147,6 +147,18 @@ const byPosition = (
   right: { position: number },
 ): number => left.position - right.position;
 
+/** 관리자 category/status 목록 조건을 undefined 없이 만든다 */
+export const buildAdminConceptConditions = (
+  filter: AdminConceptListFilter,
+): SQL[] => [
+  ...(filter.status ? [eq(concepts.status, filter.status)] : []),
+  ...(filter.category ? [eq(conceptVersions.category, filter.category)] : []),
+];
+
+/** 관리자 page의 SQL offset을 계산한다 */
+export const adminConceptOffset = (filter: AdminConceptListFilter): number =>
+  (filter.page - 1) * filter.pageSize;
+
 /** 관리자 flat rows를 버전 내림차순 상세로 조립한다 */
 export const assembleAdminConceptDetail = (
   concept: ConceptRow | null,
@@ -216,12 +228,7 @@ export class DrizzleAdminConceptQuery {
       .from(conceptVersions)
       .groupBy(conceptVersions.conceptId)
       .as('latest_concept_versions');
-    const conditions: Array<SQL<unknown> | undefined> = [
-      filter.status ? eq(concepts.status, filter.status) : undefined,
-      filter.category
-        ? eq(conceptVersions.category, filter.category)
-        : undefined,
-    ];
+    const conditions = buildAdminConceptConditions(filter);
     const [{ total = 0 } = { total: 0 }] = await this.database
       .select({ total: count() })
       .from(concepts)
@@ -256,7 +263,7 @@ export class DrizzleAdminConceptQuery {
       .where(and(...conditions))
       .orderBy(desc(concepts.updatedAt), desc(concepts.id))
       .limit(filter.pageSize)
-      .offset((filter.page - 1) * filter.pageSize);
+      .offset(adminConceptOffset(filter));
     return {
       items,
       page: filter.page,

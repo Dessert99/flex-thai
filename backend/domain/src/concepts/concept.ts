@@ -50,6 +50,16 @@ export interface ConceptExampleReference extends ConceptExampleInput {
   sentenceExists: boolean;
   audioAssetExists: boolean;
   audioAssetStatus: ConceptMediaAssetStatus;
+  interactionIssues: ConceptInteractionReferenceIssue[];
+}
+
+/** 태국어 문장의 token/expression 피드백 참조 문제 */
+export interface ConceptInteractionReferenceIssue {
+  kind: 'TOKEN' | 'EXPRESSION';
+  index: number;
+  referenceValid: boolean;
+  audioAssetExists: boolean;
+  audioAssetStatus: ConceptMediaAssetStatus;
 }
 
 /** 태국어 예시 블록 */
@@ -174,6 +184,16 @@ export const validateConceptCandidate = (
         } else if (example.audioAssetStatus !== 'READY') {
           issues.push(issue('REFERENCE', `${examplePath}.sentenceVersionId`, 'CONCEPT_AUDIO_NOT_READY', '문장 음성이 아직 준비되지 않았습니다.'));
         }
+        example.interactionIssues.forEach((interaction) => {
+          const interactionPath = `${examplePath}.${interaction.kind === 'TOKEN' ? 'tokens' : 'expressions'}.${interaction.index}`;
+          if (!interaction.referenceValid) {
+            issues.push(issue('REFERENCE', interactionPath, 'CONCEPT_FEEDBACK_REFERENCE_NOT_FOUND', '단어·표현의 뜻 또는 발음 참조를 찾을 수 없습니다.'));
+          } else if (!interaction.audioAssetExists) {
+            issues.push(issue('REFERENCE', interactionPath, 'CONCEPT_FEEDBACK_AUDIO_NOT_FOUND', '단어·표현의 발음 음성을 찾을 수 없습니다.'));
+          } else if (interaction.audioAssetStatus !== 'READY') {
+            issues.push(issue('REFERENCE', interactionPath, 'CONCEPT_FEEDBACK_AUDIO_NOT_READY', '단어·표현의 발음 음성이 아직 준비되지 않았습니다.'));
+          }
+        });
       });
     }
   });

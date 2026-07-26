@@ -1,5 +1,5 @@
 /** 현재 게시된 개념과 상호작용 태국어 예시를 조회한다 */
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray, type SQL } from 'drizzle-orm';
 import { alias, type PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import {
@@ -157,6 +157,17 @@ const byPosition = (
   right: { position: number },
 ): number => left.position - right.position;
 
+/** logical/current 게시 상태와 선택적 영역을 함께 고정한다 */
+export const publishedConceptCondition = (
+  conceptIdOrCategory: { conceptId: string } | { category: LearnerConceptCategory },
+): SQL => and(
+  eq(concepts.status, 'PUBLISHED'),
+  eq(conceptVersions.status, 'PUBLISHED'),
+  'conceptId' in conceptIdOrCategory
+    ? eq(concepts.id, conceptIdOrCategory.conceptId)
+    : eq(conceptVersions.category, conceptIdOrCategory.category),
+)!;
+
 /** 공개 개념 flat rows를 정렬된 상세와 목차로 조립한다 */
 export const assembleLearnerConceptDetail = (
   concept: LearnerConceptBase,
@@ -224,13 +235,7 @@ export class DrizzleLearnerConceptQuery {
         conceptVersions,
         eq(concepts.currentPublishedVersionId, conceptVersions.id),
       )
-      .where(
-        and(
-          eq(concepts.status, 'PUBLISHED'),
-          eq(conceptVersions.status, 'PUBLISHED'),
-          eq(conceptVersions.category, category),
-        ),
-      )
+      .where(publishedConceptCondition({ category }))
       .orderBy(
         asc(conceptVersions.position),
         asc(conceptVersions.title),
@@ -256,13 +261,7 @@ export class DrizzleLearnerConceptQuery {
         conceptVersions,
         eq(concepts.currentPublishedVersionId, conceptVersions.id),
       )
-      .where(
-        and(
-          eq(concepts.id, conceptId),
-          eq(concepts.status, 'PUBLISHED'),
-          eq(conceptVersions.status, 'PUBLISHED'),
-        ),
-      )
+      .where(publishedConceptCondition({ conceptId }))
       .limit(1);
     if (!concept) return null;
     const blocks = await this.database
