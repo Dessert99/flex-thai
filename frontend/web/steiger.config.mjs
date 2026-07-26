@@ -33,9 +33,9 @@ export default defineConfig([
     },
   },
   {
-    files: ['src/pages/**'],
+    files: ['src/pages/wordbook-detail/**', 'src/pages/wordbook-list/**'],
     rules: {
-      // 통합 Task 15에서 old saved-vocabularies slice가 제거될 때 20개 이하로 복귀한다.
+      // 통합 Task 15에서 old saved-vocabularies page 제거와 함께 삭제한다.
       'fsd/excessive-slicing': 'off',
     },
   },

@@ -20,10 +20,7 @@ interface WordbookActionsProps {
 }
 
 /** rename 입력과 destructive 삭제 확인을 독립 Dialog로 관리한다 */
-export function WordbookActions({
-  name,
-  wordbookId,
-}: WordbookActionsProps) {
+export function WordbookActions({ name, wordbookId }: WordbookActionsProps) {
   const queryClient = useQueryClient();
   const [renameOpen, setRenameOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -55,7 +52,9 @@ export function WordbookActions({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>단어장 이름 변경</DialogTitle>
-            <DialogDescription>1자에서 50자 사이로 입력하세요.</DialogDescription>
+            <DialogDescription>
+              1자에서 50자 사이로 입력하세요.
+            </DialogDescription>
           </DialogHeader>
           <WordbookForm
             initialName={name}

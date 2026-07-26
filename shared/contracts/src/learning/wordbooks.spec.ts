@@ -56,10 +56,16 @@ describe('단어장 요청 계약', () => {
   });
 
   it('알 수 없는 query와 범위를 벗어난 페이지를 거부한다', () => {
-    expect(() => wordbookItemListQuerySchema.parse({ status: 'PUBLISHED' })).toThrow();
+    expect(() =>
+      wordbookItemListQuerySchema.parse({ status: 'PUBLISHED' }),
+    ).toThrow();
     expect(() => wordbookItemListQuerySchema.parse({ page: '0' })).toThrow();
-    expect(() => wordbookItemListQuerySchema.parse({ pageSize: '101' })).toThrow();
-    expect(() => wordbookItemListQuerySchema.parse({ difficulty: '6' })).toThrow();
+    expect(() =>
+      wordbookItemListQuerySchema.parse({ pageSize: '101' }),
+    ).toThrow();
+    expect(() =>
+      wordbookItemListQuerySchema.parse({ difficulty: '6' }),
+    ).toThrow();
   });
 
   it('단어장과 항목 path는 UUID와 알려진 key만 허용한다', () => {

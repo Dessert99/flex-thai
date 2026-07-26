@@ -35,9 +35,7 @@ export const wordbookNameRequestSchema = z
   .strict();
 
 /** 단어장 UUID path */
-export const wordbookIdPathSchema = z
-  .object({ wordbookId: z.uuid() })
-  .strict();
+export const wordbookIdPathSchema = z.object({ wordbookId: z.uuid() }).strict();
 
 /** 단어장과 공용 어휘 UUID path */
 export const wordbookItemPathSchema = z
@@ -127,9 +125,7 @@ export type WordbookIdPath = z.infer<typeof wordbookIdPathSchema>;
 export type WordbookItemPath = z.infer<typeof wordbookItemPathSchema>;
 
 /** 검증된 단어장 항목 목록 query type */
-export type WordbookItemListQuery = z.infer<
-  typeof wordbookItemListQuerySchema
->;
+export type WordbookItemListQuery = z.infer<typeof wordbookItemListQuerySchema>;
 
 /** 검증된 단어장 bulk 복사·이동 요청 type */
 export type WordbookBulkItemsRequest = z.infer<

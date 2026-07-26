@@ -138,7 +138,9 @@ export function WordbookDetailPageView({
       >
         <Button
           disabled={data.page.page <= 1}
-          onClick={() => onSearchChange({ ...search, page: data.page.page - 1 })}
+          onClick={() =>
+            onSearchChange({ ...search, page: data.page.page - 1 })
+          }
           type='button'
           variant='outline'
         >
@@ -146,7 +148,9 @@ export function WordbookDetailPageView({
         </Button>
         <Button
           disabled={data.page.page >= data.page.totalPages}
-          onClick={() => onSearchChange({ ...search, page: data.page.page + 1 })}
+          onClick={() =>
+            onSearchChange({ ...search, page: data.page.page + 1 })
+          }
           type='button'
           variant='outline'
         >

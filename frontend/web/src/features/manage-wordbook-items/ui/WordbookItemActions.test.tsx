@@ -45,6 +45,12 @@ describe('단어장 선택 항목 행동', () => {
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: ['learner', 'wordbooks'],
     });
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: ['learner', 'vocabularies'],
+    });
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: ['learner', 'vocabulary'],
+    });
     expect(onConfirmed).toHaveBeenCalled();
   });
 
@@ -57,7 +63,9 @@ describe('단어장 선택 항목 행동', () => {
     await user.click(screen.getByRole('button', { name: '선택 제거' }));
     await user.click(screen.getByRole('button', { name: '제거 확인' }));
 
-    expect(await screen.findByText('선택 항목을 변경하지 못했습니다.')).toBeVisible();
+    expect(
+      await screen.findByText('선택 항목을 변경하지 못했습니다.'),
+    ).toBeVisible();
     expect(onConfirmed).not.toHaveBeenCalled();
   });
 });

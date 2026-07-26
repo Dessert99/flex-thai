@@ -62,7 +62,9 @@ describe('단어장 상세 페이지', () => {
     const item = screen.getByRole('button', { name: '선택' });
     expect(item).toHaveAttribute('aria-pressed', 'false');
     await user.click(item);
-    await user.click(screen.getByRole('button', { name: '현재 페이지 전체 선택' }));
+    await user.click(
+      screen.getByRole('button', { name: '현재 페이지 전체 선택' }),
+    );
 
     expect(onSelectionChange).toHaveBeenCalledWith(vocabularyId);
     expect(onSelectPage).toHaveBeenCalled();
@@ -72,7 +74,9 @@ describe('단어장 상세 페이지', () => {
     const { rerender } = renderView({ data: undefined, loading: true });
     expect(screen.getByText('단어장 항목을 불러오고 있습니다.')).toBeVisible();
     rerender(baseView({ data: undefined, error: true }));
-    expect(screen.getByText('단어장 항목을 불러오지 못했습니다.')).toBeVisible();
+    expect(
+      screen.getByText('단어장 항목을 불러오지 못했습니다.'),
+    ).toBeVisible();
     rerender(baseView({ data: { ...data, items: [] } }));
     expect(screen.getByText('조건에 맞는 어휘가 없습니다.')).toBeVisible();
   });

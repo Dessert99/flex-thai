@@ -41,10 +41,7 @@ export interface WordbookRepository {
     vocabularyId: string,
     addedAt: Date,
   ): Promise<
-    | 'ADDED'
-    | 'ALREADY_EXISTS'
-    | 'WORDBOOK_NOT_FOUND'
-    | 'VOCABULARY_UNAVAILABLE'
+    'ADDED' | 'ALREADY_EXISTS' | 'WORDBOOK_NOT_FOUND' | 'VOCABULARY_UNAVAILABLE'
   >;
   removeVocabulary(
     userId: string,

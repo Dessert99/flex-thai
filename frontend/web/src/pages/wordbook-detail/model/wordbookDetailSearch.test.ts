@@ -23,6 +23,8 @@ describe('단어장 상세 검색값', () => {
 
   it('알 수 없는 key와 잘못된 page를 거부한다', () => {
     expect(() => parseWordbookDetailSearch({ page: '0' })).toThrow();
-    expect(() => parseWordbookDetailSearch({ page: '1', extra: true })).toThrow();
+    expect(() =>
+      parseWordbookDetailSearch({ page: '1', extra: true }),
+    ).toThrow();
   });
 });

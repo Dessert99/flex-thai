@@ -32,8 +32,6 @@ import {
   vocabularyMeaningPronunciations,
   vocabularyMeanings,
   vocabularyPronunciations,
-  wordbookItems,
-  wordbooks,
 } from '../schema/index.js';
 import * as schema from '../schema/index.js';
 
@@ -232,13 +230,13 @@ const buildVocabularyFilter = (query: LearnerVocabularyListQuery): SQL[] => {
   return conditions;
 };
 
-const savedInAnyWordbook = (userId: string): SQL<boolean> => sql<boolean>`exists (
+const savedInLegacyList = (
+  userId: string,
+): SQL<boolean> => sql<boolean>`exists (
   select 1
-  from ${wordbookItems}
-  inner join ${wordbooks}
-    on ${wordbooks.id} = ${wordbookItems.wordbookId}
-  where ${wordbookItems.vocabularyId} = ${vocabularies.id}
-    and ${wordbooks.userId} = ${userId}
+  from ${savedVocabularies}
+  where ${savedVocabularies.vocabularyId} = ${vocabularies.id}
+    and ${savedVocabularies.userId} = ${userId}
 )`;
 
 const currentQuestionUsesSentence = (): SQL => sql`(
@@ -352,7 +350,7 @@ export class DrizzleLearnerVocabularyQuery {
         id: vocabularies.id,
         thai: vocabularies.thai,
         kind: vocabularies.kind,
-        saved: savedInAnyWordbook(userId),
+        saved: savedInLegacyList(userId),
       })
       .from(vocabularies)
       .where(and(...conditions))
@@ -376,7 +374,7 @@ export class DrizzleLearnerVocabularyQuery {
         id: vocabularies.id,
         thai: vocabularies.thai,
         kind: vocabularies.kind,
-        saved: savedInAnyWordbook(userId),
+        saved: savedInLegacyList(userId),
       })
       .from(vocabularies)
       .where(

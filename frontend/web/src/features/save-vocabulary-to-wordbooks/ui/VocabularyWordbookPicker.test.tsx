@@ -15,20 +15,19 @@ vi.mock('@/shared/api', async (importOriginal) => {
 });
 
 beforeEach(() => {
-  mocks.authenticatedRequest.mockReset().mockImplementation(
-    ({ method, path }: { method?: string; path: string }) => {
-      if (method === 'PUT' || method === 'DELETE') return Promise.resolve();
-      if (path === '/me/wordbooks') {
-        return Promise.resolve({
-          items: [
-            summary(firstId, 'FLEX'),
-            summary(secondId, '듣기'),
-          ],
-        });
-      }
-      return Promise.resolve({ wordbookIds: [firstId] });
-    },
-  );
+  mocks.authenticatedRequest
+    .mockReset()
+    .mockImplementation(
+      ({ method, path }: { method?: string; path: string }) => {
+        if (method === 'PUT' || method === 'DELETE') return Promise.resolve();
+        if (path === '/me/wordbooks') {
+          return Promise.resolve({
+            items: [summary(firstId, 'FLEX'), summary(secondId, '듣기')],
+          });
+        }
+        return Promise.resolve({ wordbookIds: [firstId] });
+      },
+    );
 });
 
 describe('어휘 단어장 picker', () => {
@@ -98,7 +97,9 @@ describe('어휘 단어장 picker', () => {
     const first = await screen.findByRole('button', { name: 'FLEX' });
     await user.click(first);
 
-    expect(await screen.findByText('단어장 membership을 변경하지 못했습니다.')).toBeVisible();
+    expect(
+      await screen.findByText('단어장 membership을 변경하지 못했습니다.'),
+    ).toBeVisible();
     expect(first).toHaveAttribute('aria-pressed', 'true');
     expect(onConfirmed).not.toHaveBeenCalled();
   });

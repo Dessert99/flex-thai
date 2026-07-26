@@ -19,9 +19,7 @@ export function pickerWordbookListQueryOptions() {
 }
 
 /** 어휘의 현재 사용자 단어장 membership query option을 만든다 */
-export function vocabularyWordbookMembershipQueryOptions(
-  vocabularyId: string,
-) {
+export function vocabularyWordbookMembershipQueryOptions(vocabularyId: string) {
   return queryOptions({
     queryKey: ['learner', 'vocabulary', vocabularyId, 'wordbook-memberships'],
     queryFn: () =>

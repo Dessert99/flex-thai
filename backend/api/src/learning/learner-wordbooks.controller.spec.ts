@@ -46,8 +46,7 @@ const metadata = (method: keyof LearnerWordbooksController) => {
   )?.value as object;
   return {
     code: Reflect.getMetadata(HTTP_CODE_METADATA, handler) as
-      | number
-      | undefined,
+      number | undefined,
     method: Reflect.getMetadata(METHOD_METADATA, handler) as RequestMethod,
     path: Reflect.getMetadata(PATH_METADATA, handler) as string,
   };
@@ -85,9 +84,7 @@ describe('LearnerWordbooksController 보호와 HTTP metadata', () => {
       method: RequestMethod.GET,
       path: 'me/wordbooks',
     });
-    expect(metadata('listItems').path).toBe(
-      'me/wordbooks/:wordbookId/items',
-    );
+    expect(metadata('listItems').path).toBe('me/wordbooks/:wordbookId/items');
     expect(metadata('listMemberships').path).toBe(
       'me/vocabularies/:vocabularyId/wordbook-memberships',
     );

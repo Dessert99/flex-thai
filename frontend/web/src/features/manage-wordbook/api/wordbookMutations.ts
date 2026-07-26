@@ -1,5 +1,8 @@
 /** 단어장 생성·이름 변경·삭제 HTTP mutation을 제공한다 */
-import { wordbookResponseSchema, type WordbookResponse } from '@flex-thia/contracts';
+import {
+  wordbookResponseSchema,
+  type WordbookResponse,
+} from '@flex-thia/contracts';
 import { authenticatedRequest } from '@/shared/api';
 
 /** trim된 이름으로 단어장을 생성한다 */

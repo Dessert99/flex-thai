@@ -53,6 +53,9 @@ export function WordbookItemActions({
           queryKey: ['learner', 'wordbooks'],
         }),
         queryClient.invalidateQueries({
+          queryKey: ['learner', 'vocabularies'],
+        }),
+        queryClient.invalidateQueries({
           queryKey: ['learner', 'vocabulary'],
         }),
       ]);

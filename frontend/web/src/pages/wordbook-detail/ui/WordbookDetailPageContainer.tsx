@@ -43,9 +43,7 @@ export function WordbookDetailPageContainer({
         onSearchChange={onSearchChange}
         onSelectionChange={toggleSelection}
         onSelectPage={() =>
-          setSelectedIds(
-            new Set(detail.data?.items.map(({ id }) => id) ?? []),
-          )
+          setSelectedIds(new Set(detail.data?.items.map(({ id }) => id) ?? []))
         }
         search={search}
         selectedIds={selectedIds}

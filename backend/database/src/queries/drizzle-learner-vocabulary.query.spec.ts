@@ -4,10 +4,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import * as schema from '../schema/index.js';
-import {
-  questions,
-  vocabularies,
-} from '../schema/index.js';
+import { questions, vocabularies } from '../schema/index.js';
 import { DrizzleLearnerVocabularyQuery } from './drizzle-learner-vocabulary.query.js';
 
 type QueryResult = Array<Record<string, unknown>>;
@@ -138,7 +135,7 @@ const summaryRows = {
 } as const;
 
 describe('DrizzleLearnerVocabularyQuery 공용 어휘 검색', () => {
-  it('저장 여부는 같은 어휘의 사용자 소유 단어장 membership 존재로 계산한다', async () => {
+  it('통합 전 저장 여부는 legacy 저장 목록 membership으로 계산한다', async () => {
     const fake = createSelectFake([
       [{ totalItems: 2 }],
       [...summaryRows.bases],
@@ -155,8 +152,9 @@ describe('DrizzleLearnerVocabularyQuery 공용 어휘 검색', () => {
     expect(result.items.map(({ saved }) => saved)).toEqual([false, true]);
     const savedSql = toSql(fake.selectCalls[1]?.fields.saved);
     expect(savedSql.sql).toContain('exists');
-    expect(savedSql.sql).toContain('wordbooks');
-    expect(savedSql.sql).toContain('wordbook_items');
+    expect(savedSql.sql).toContain('saved_vocabularies');
+    expect(savedSql.sql).not.toContain('wordbooks');
+    expect(savedSql.sql).not.toContain('wordbook_items');
     expect(savedSql.params).toContain('user-id');
     expect(fake.selectCalls[1]?.joins).toHaveLength(0);
   });
@@ -433,7 +431,6 @@ describe('DrizzleLearnerVocabularyQuery 관련 문제와 저장 목록', () => {
       '"questions"."id" asc',
     );
   });
-
 });
 
 const integrationDatabaseUrl =

@@ -60,7 +60,9 @@ describe('단어장 생성과 이름 변경', () => {
     await user.type(input, '새 이름');
     await user.click(screen.getByRole('button', { name: '변경 저장' }));
 
-    expect(await screen.findByText('단어장 이름을 변경하지 못했습니다.')).toBeVisible();
+    expect(
+      await screen.findByText('단어장 이름을 변경하지 못했습니다.'),
+    ).toBeVisible();
     expect(input).toHaveValue('새 이름');
   });
 });

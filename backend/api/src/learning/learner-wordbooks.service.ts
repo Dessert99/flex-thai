@@ -19,16 +19,30 @@ import type {
   WordbookItemProjection,
   WordbookSummaryProjection,
 } from '@flex-thia/database';
-import type {
-  MediaReadUrlProvider,
-  WordbookService,
-} from '@flex-thia/domain';
-import {
-  parseLearnerPublicResponse,
-} from './learner-content.service.js';
+import type { MediaReadUrlProvider, WordbookService } from '@flex-thia/domain';
+import type { ZodType } from 'zod';
 
 const MEDIA_URL_TTL_MS = 5 * 60 * 1_000;
 type SignMedia = (storageKey: string) => Promise<string>;
+
+/** 단어장 공개 응답 계약 실패를 request 검증 오류와 분리한다 */
+export class LearnerWordbooksPublicResponseError extends Error {
+  constructor() {
+    super('LEARNER_WORDBOOKS_PUBLIC_RESPONSE_INVALID');
+    this.name = 'LearnerWordbooksPublicResponseError';
+  }
+}
+
+const parsePublicResponse = <Output>(
+  schema: ZodType<Output>,
+  value: unknown,
+): Output => {
+  const result = schema.safeParse(value);
+  if (!result.success) {
+    throw new LearnerWordbooksPublicResponseError();
+  }
+  return result.data;
+};
 
 /** 단어장 HTTP application service가 소비하는 최소 의존성 */
 export interface LearnerWordbooksDependencies {
@@ -57,10 +71,7 @@ const mapWordbook = (wordbook: WordbookSummaryProjection) => ({
   updatedAt: wordbook.updatedAt.toISOString(),
 });
 
-const mapItem = async (
-  item: WordbookItemProjection,
-  signMedia: SignMedia,
-) => ({
+const mapItem = async (item: WordbookItemProjection, signMedia: SignMedia) => ({
   id: item.id,
   thai: item.thai,
   kind: item.kind,
@@ -88,7 +99,7 @@ export class LearnerWordbooksService {
   /** 현재 사용자의 단어장을 private 필드 없이 반환한다 */
   async listWordbooks(userId: string): Promise<WordbookListResponse> {
     const items = await this.dependencies.query.listWordbooks(userId);
-    return parseLearnerPublicResponse(wordbookListResponseSchema, {
+    return parsePublicResponse(wordbookListResponseSchema, {
       items: items.map(mapWordbook),
     });
   }
@@ -126,27 +137,23 @@ export class LearnerWordbooksService {
     wordbookId: string,
     query: WordbookItemListQuery,
   ): Promise<WordbookItemListResponse> {
-    const result = await this.dependencies.query.listItems(
-      userId,
-      wordbookId,
-      {
-        page: query.page,
-        pageSize: query.pageSize,
-        ...(query.query === undefined ? {} : { query: query.query }),
-        ...(query.kind === undefined ? {} : { kind: query.kind }),
-        ...(query.partOfSpeech === undefined
-          ? {}
-          : { partOfSpeech: query.partOfSpeech }),
-        ...(query.difficulty === undefined
-          ? {}
-          : { difficulty: query.difficulty }),
-      },
-    );
+    const result = await this.dependencies.query.listItems(userId, wordbookId, {
+      page: query.page,
+      pageSize: query.pageSize,
+      ...(query.query === undefined ? {} : { query: query.query }),
+      ...(query.kind === undefined ? {} : { kind: query.kind }),
+      ...(query.partOfSpeech === undefined
+        ? {}
+        : { partOfSpeech: query.partOfSpeech }),
+      ...(query.difficulty === undefined
+        ? {}
+        : { difficulty: query.difficulty }),
+    });
     if (!result) {
       throw new NotFoundException({ code: 'WORDBOOK_NOT_FOUND' });
     }
     const signMedia = this.createResponseSigner();
-    return parseLearnerPublicResponse(wordbookItemListResponseSchema, {
+    return parsePublicResponse(wordbookItemListResponseSchema, {
       wordbook: mapWordbook(result.wordbook),
       items: await Promise.all(
         result.items.map((item) => mapItem(item, signMedia)),
@@ -227,15 +234,12 @@ export class LearnerWordbooksService {
     userId: string,
     vocabularyId: string,
   ): Promise<VocabularyWordbookMembershipResponse> {
-    return parseLearnerPublicResponse(
-      vocabularyWordbookMembershipResponseSchema,
-      {
-        wordbookIds: await this.dependencies.query.listMemberships(
-          userId,
-          vocabularyId,
-        ),
-      },
-    );
+    return parsePublicResponse(vocabularyWordbookMembershipResponseSchema, {
+      wordbookIds: await this.dependencies.query.listMemberships(
+        userId,
+        vocabularyId,
+      ),
+    });
   }
 
   private async loadResponseProjection(
@@ -248,10 +252,7 @@ export class LearnerWordbooksService {
     if (!projection) {
       throw new NotFoundException({ code: 'WORDBOOK_NOT_FOUND' });
     }
-    return parseLearnerPublicResponse(
-      wordbookResponseSchema,
-      mapWordbook(projection),
-    );
+    return parsePublicResponse(wordbookResponseSchema, mapWordbook(projection));
   }
 
   private createResponseSigner(): SignMedia {

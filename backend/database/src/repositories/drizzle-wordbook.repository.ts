@@ -8,11 +8,7 @@ import type {
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
-import {
-  vocabularies,
-  wordbookItems,
-  wordbooks,
-} from '../schema/index.js';
+import { vocabularies, wordbookItems, wordbooks } from '../schema/index.js';
 import * as schema from '../schema/index.js';
 
 type WordbookDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
@@ -25,9 +21,7 @@ type WordbookRow = typeof wordbooks.$inferSelect;
 /** 단어장 unique와 예상하지 못한 저장 충돌을 stable code로 전달한다 */
 export class WordbookPersistenceError extends Error {
   constructor(
-    readonly code:
-      | 'WORDBOOK_NAME_CONFLICT'
-      | 'WORDBOOK_PERSISTENCE_CONFLICT',
+    readonly code: 'WORDBOOK_NAME_CONFLICT' | 'WORDBOOK_PERSISTENCE_CONFLICT',
     readonly operation: string,
   ) {
     super(`${code}:${operation}`);
@@ -37,7 +31,10 @@ export class WordbookPersistenceError extends Error {
 
 const toRecord = (row: WordbookRow): WordbookRecord => ({ ...row });
 
-const translatePersistenceError = (error: unknown, operation: string): never => {
+const translatePersistenceError = (
+  error: unknown,
+  operation: string,
+): never => {
   const candidate = error as { code?: unknown; constraint?: unknown };
   if (
     candidate.code === '23505' &&
@@ -60,12 +57,7 @@ const lockOwnedWordbooks = async (
   const rows = await transaction
     .select({ id: wordbooks.id })
     .from(wordbooks)
-    .where(
-      and(
-        eq(wordbooks.userId, userId),
-        inArray(wordbooks.id, uniqueIds),
-      ),
-    )
+    .where(and(eq(wordbooks.userId, userId), inArray(wordbooks.id, uniqueIds)))
     .orderBy(asc(wordbooks.id))
     .for('update')
     .limit(uniqueIds.length);
@@ -129,9 +121,7 @@ export class DrizzleWordbookRepository implements WordbookRepository {
       const [row] = await this.database
         .update(wordbooks)
         .set({ name, updatedAt: now })
-        .where(
-          and(eq(wordbooks.userId, userId), eq(wordbooks.id, wordbookId)),
-        )
+        .where(and(eq(wordbooks.userId, userId), eq(wordbooks.id, wordbookId)))
         .returning();
       return row ? toRecord(row) : null;
     } catch (error) {
@@ -155,10 +145,7 @@ export class DrizzleWordbookRepository implements WordbookRepository {
     vocabularyId: string,
     addedAt: Date,
   ): Promise<
-    | 'ADDED'
-    | 'ALREADY_EXISTS'
-    | 'WORDBOOK_NOT_FOUND'
-    | 'VOCABULARY_UNAVAILABLE'
+    'ADDED' | 'ALREADY_EXISTS' | 'WORDBOOK_NOT_FOUND' | 'VOCABULARY_UNAVAILABLE'
   > {
     return this.database.transaction(async (transaction) => {
       if (!(await lockOwnedWordbooks(transaction, userId, [wordbookId]))) {

@@ -48,7 +48,10 @@ const ApiWordbookProblems = (notFound = true) =>
   applyDecorators(
     ApiProblemResponse(400, '요청이 공개 계약과 일치하지 않음'),
     ApiProblemResponse(401, 'access token이 없거나 올바르지 않음'),
-    ApiProblemResponse(403, '학습자 역할 또는 계정 상태가 요청을 허용하지 않음'),
+    ApiProblemResponse(
+      403,
+      '학습자 역할 또는 계정 상태가 요청을 허용하지 않음',
+    ),
     ...(notFound
       ? [ApiProblemResponse(404, '소유 단어장 또는 공개 어휘를 찾을 수 없음')]
       : []),

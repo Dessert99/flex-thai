@@ -108,10 +108,7 @@ describe('DrizzleWordbookQuery 목록과 membership', () => {
     const call = fake.selectCalls[0];
     expect(call?.from).toBe(wordbookItems);
     expect(call?.joins).toEqual([{ kind: 'inner', table: wordbooks }]);
-    expect(toSql(call?.condition).params).toEqual([
-      'user-id',
-      'vocabulary-id',
-    ]);
+    expect(toSql(call?.condition).params).toEqual(['user-id', 'vocabulary-id']);
   });
 });
 

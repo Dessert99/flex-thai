@@ -1,15 +1,6 @@
 /** 사용자 소유 단어장 목록과 검색 가능한 항목 read model을 제공한다 */
 import { normalizeThaiSearchText } from '@flex-thia/domain';
-import {
-  and,
-  asc,
-  count,
-  desc,
-  eq,
-  inArray,
-  type SQL,
-  sql,
-} from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, type SQL, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import {
@@ -49,8 +40,7 @@ export interface WordbookSummaryProjection {
 }
 
 /** 단어장에 추가된 시각을 포함한 공용 어휘 projection */
-export interface WordbookItemProjection
-  extends LearnerVocabularySummaryProjection {
+export interface WordbookItemProjection extends LearnerVocabularySummaryProjection {
   addedAt: Date;
 }
 
@@ -160,9 +150,7 @@ export class DrizzleWordbookQuery {
     const [wordbook] = await this.database
       .select(wordbookFields)
       .from(wordbooks)
-      .where(
-        and(eq(wordbooks.userId, userId), eq(wordbooks.id, wordbookId)),
-      )
+      .where(and(eq(wordbooks.userId, userId), eq(wordbooks.id, wordbookId)))
       .limit(1);
     if (!wordbook) return null;
 
@@ -170,10 +158,7 @@ export class DrizzleWordbookQuery {
     const [totalRow] = await this.database
       .select({ totalItems: count() })
       .from(vocabularies)
-      .innerJoin(
-        wordbookItems,
-        eq(wordbookItems.vocabularyId, vocabularies.id),
-      )
+      .innerJoin(wordbookItems, eq(wordbookItems.vocabularyId, vocabularies.id))
       .where(and(...conditions));
     const totalItems = totalRow?.totalItems ?? 0;
     const bases = await this.database
@@ -184,10 +169,7 @@ export class DrizzleWordbookQuery {
         addedAt: wordbookItems.addedAt,
       })
       .from(vocabularies)
-      .innerJoin(
-        wordbookItems,
-        eq(wordbookItems.vocabularyId, vocabularies.id),
-      )
+      .innerJoin(wordbookItems, eq(wordbookItems.vocabularyId, vocabularies.id))
       .where(and(...conditions))
       .orderBy(desc(wordbookItems.addedAt), asc(vocabularies.id))
       .limit(query.pageSize)
@@ -288,28 +270,15 @@ export class DrizzleWordbookQuery {
         meanings: meanings
           .filter(({ vocabularyId }) => vocabularyId === base.id)
           .sort(compareCreatedAtThenId)
-          .map(
-            ({
-              id,
-              meaningKo,
-              partOfSpeech,
-              difficulty,
-              contextNote,
-            }) => ({
-              id,
-              meaningKo,
-              partOfSpeech,
-              difficulty,
-              contextNote,
-            }),
-          ),
-        pronunciations: vocabularyPronunciations.map(
-          ({
+          .map(({ id, meaningKo, partOfSpeech, difficulty, contextNote }) => ({
             id,
-            pronunciationKo,
-            toneMarks,
-            mediaStorageKey,
-          }) => ({
+            meaningKo,
+            partOfSpeech,
+            difficulty,
+            contextNote,
+          })),
+        pronunciations: vocabularyPronunciations.map(
+          ({ id, pronunciationKo, toneMarks, mediaStorageKey }) => ({
             id,
             pronunciationKo,
             toneMarks,

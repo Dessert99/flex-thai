@@ -3,14 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import { Pool } from 'pg';
-import {
-  afterAll,
-  beforeAll,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import * as schema from '../schema/index.js';
 import { wordbookItems, wordbooks } from '../schema/index.js';
 import {
@@ -87,17 +80,13 @@ const createFake = (options?: {
           onConflictDoNothing() {
             call.conflict = true;
             return {
-              returning: () =>
-                Promise.resolve(returningResults.shift() ?? []),
+              returning: () => Promise.resolve(returningResults.shift() ?? []),
             };
           },
           returning() {
             if (options?.insertError) {
               return Promise.reject(
-                Object.assign(
-                  new Error('insert-error'),
-                  options.insertError,
-                ),
+                Object.assign(new Error('insert-error'), options.insertError),
               );
             }
             return Promise.resolve(returningResults.shift() ?? []);
@@ -361,11 +350,7 @@ const createIntegrationFixture = async (
   await pool.query(
     `insert into wordbooks (id, user_id, name, created_at, updated_at)
      values ($1, $3, 'A', now(), now()), ($2, $3, 'B', now(), now())`,
-    [
-      fixture.sourceWordbookId,
-      fixture.targetWordbookId,
-      fixture.userId,
-    ],
+    [fixture.sourceWordbookId, fixture.targetWordbookId, fixture.userId],
   );
   await pool.query(
     `insert into wordbook_items (wordbook_id, vocabulary_id, added_at)
@@ -411,9 +396,9 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
         repository.create(fixture.userId, name, new Date()),
       ]);
 
-      expect(settled.filter(({ status }) => status === 'fulfilled')).toHaveLength(
-        1,
-      );
+      expect(
+        settled.filter(({ status }) => status === 'fulfilled'),
+      ).toHaveLength(1);
       const rejected = settled.find(({ status }) => status === 'rejected');
       expect(rejected).toMatchObject({
         reason: { code: 'WORDBOOK_NAME_CONFLICT' },

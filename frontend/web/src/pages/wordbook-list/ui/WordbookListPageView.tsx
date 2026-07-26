@@ -37,9 +37,7 @@ export function WordbookListPageView({ items }: WordbookListPageViewProps) {
                   <p className='text-body text-subtle'>
                     {wordbook.itemCount}개 항목
                   </p>
-                  <a href={`/wordbooks/${wordbook.id}`}>
-                    {wordbook.name} 열기
-                  </a>
+                  <a href={`/wordbooks/${wordbook.id}`}>{wordbook.name} 열기</a>
                   <WordbookActions
                     name={wordbook.name}
                     wordbookId={wordbook.id}

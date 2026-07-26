@@ -51,12 +51,7 @@ class FakeWordbookRepository implements WordbookRepository {
     return Promise.resolve({ ...this.createResult, name });
   }
 
-  rename(
-    userId: string,
-    wordbookId: string,
-    name: string,
-    updatedAt: Date,
-  ) {
+  rename(userId: string, wordbookId: string, name: string, updatedAt: Date) {
     this.renameInputs.push({ userId, wordbookId, name, now: updatedAt });
     return Promise.resolve(
       this.renameResult === null ? null : { ...this.renameResult, name },
@@ -134,9 +129,9 @@ describe('WordbookService 단어장 이름', () => {
     await expect(
       service.rename(ids.user, ids.wordbook, '이름'),
     ).rejects.toMatchObject({ code: 'WORDBOOK_NOT_FOUND' });
-    await expect(
-      service.delete(ids.user, ids.wordbook),
-    ).rejects.toMatchObject({ code: 'WORDBOOK_NOT_FOUND' });
+    await expect(service.delete(ids.user, ids.wordbook)).rejects.toMatchObject({
+      code: 'WORDBOOK_NOT_FOUND',
+    });
   });
 });
 
@@ -146,12 +141,9 @@ describe('WordbookService 항목 변경', () => {
     const service = new WordbookService(repository);
 
     await expect(
-      service.moveVocabularies(
-        ids.user,
-        ids.wordbook,
-        ids.wordbook,
-        [ids.vocabulary],
-      ),
+      service.moveVocabularies(ids.user, ids.wordbook, ids.wordbook, [
+        ids.vocabulary,
+      ]),
     ).rejects.toMatchObject({ code: 'WORDBOOK_SAME_TARGET' });
     expect(repository.transferInputs).toEqual([]);
   });
@@ -219,12 +211,9 @@ describe('WordbookService 항목 변경', () => {
       service.removeVocabulary(ids.user, ids.wordbook, ids.vocabulary),
     ).rejects.toMatchObject({ code: 'WORDBOOK_NOT_FOUND' });
     await expect(
-      service.copyVocabularies(
-        ids.user,
-        ids.wordbook,
-        ids.target,
-        [ids.vocabulary],
-      ),
+      service.copyVocabularies(ids.user, ids.wordbook, ids.target, [
+        ids.vocabulary,
+      ]),
     ).rejects.toMatchObject({ code: 'WORDBOOK_NOT_FOUND' });
   });
 });

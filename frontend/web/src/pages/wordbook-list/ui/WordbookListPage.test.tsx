@@ -23,9 +23,7 @@ describe('단어장 목록 페이지', () => {
 
     expect(await screen.findByText('아직 단어장이 없습니다.')).toBeVisible();
     expect(screen.getByLabelText('새 단어장 이름')).toBeVisible();
-    expect(
-      screen.getByRole('button', { name: '단어장 만들기' }),
-    ).toBeVisible();
+    expect(screen.getByRole('button', { name: '단어장 만들기' })).toBeVisible();
   });
 
   it('단어장 이름·항목 수·상세 링크를 표시한다', async () => {
@@ -45,9 +43,8 @@ describe('단어장 목록 페이지', () => {
 
     expect(await screen.findByText('FLEX 어휘')).toBeVisible();
     expect(screen.getByText('3개 항목')).toBeVisible();
-    expect(screen.getByRole('link', { name: 'FLEX 어휘 열기' })).toHaveAttribute(
-      'href',
-      `/wordbooks/${id}`,
-    );
+    expect(
+      screen.getByRole('link', { name: 'FLEX 어휘 열기' }),
+    ).toHaveAttribute('href', `/wordbooks/${id}`);
   });
 });

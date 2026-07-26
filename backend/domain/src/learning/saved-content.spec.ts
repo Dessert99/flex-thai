@@ -38,10 +38,7 @@ class FakeSavedContentRepository implements SavedContentRepository {
     return Promise.resolve();
   }
 
-  saveVocabulary(
-    userIdInput: string,
-    vocabularyId: string,
-  ): Promise<void> {
+  saveVocabulary(userIdInput: string, vocabularyId: string): Promise<void> {
     this.savedVocabularies.add(`${userIdInput}:${vocabularyId}`);
     return Promise.resolve();
   }

@@ -1,8 +1,10 @@
 /** 단어장 projection의 ISO·media URL 공개 응답과 use case 위임을 검증한다 */
 import { NotFoundException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
-import { LearnerPublicResponseError } from './learner-content.service.js';
-import { LearnerWordbooksService } from './learner-wordbooks.service.js';
+import {
+  LearnerWordbooksPublicResponseError,
+  LearnerWordbooksService,
+} from './learner-wordbooks.service.js';
 
 const ids = {
   wordbook: '00000000-0000-4000-8000-000000000101',
@@ -129,9 +131,7 @@ describe('LearnerWordbooksService 공개 응답', () => {
         page: 1,
         pageSize: 20,
       }),
-    ).rejects.toEqual(
-      new NotFoundException({ code: 'WORDBOOK_NOT_FOUND' }),
-    );
+    ).rejects.toEqual(new NotFoundException({ code: 'WORDBOOK_NOT_FOUND' }));
   });
 
   it('private 필드가 섞인 목록은 generic 공개 응답 오류로 제한한다', async () => {
@@ -142,7 +142,7 @@ describe('LearnerWordbooksService 공개 응답', () => {
     const service = new LearnerWordbooksService(fake);
 
     await expect(service.listWordbooks('user-id')).rejects.toBeInstanceOf(
-      LearnerPublicResponseError,
+      LearnerWordbooksPublicResponseError,
     );
   });
 });
@@ -162,10 +162,7 @@ describe('LearnerWordbooksService 쓰기 위임', () => {
       service.rename('user-id', ids.wordbook, { name: '듣기' }),
     ).resolves.toMatchObject({ name: '듣기', itemCount: 1 });
 
-    expect(fake.wordbooks.create).toHaveBeenCalledWith(
-      'user-id',
-      'FLEX 어휘',
-    );
+    expect(fake.wordbooks.create).toHaveBeenCalledWith('user-id', 'FLEX 어휘');
     expect(fake.wordbooks.rename).toHaveBeenCalledWith(
       'user-id',
       ids.wordbook,
