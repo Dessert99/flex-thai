@@ -43,6 +43,10 @@ const sentence = {
       meaningId: ids.meaning,
       pronunciationId: ids.pronunciation,
       contextMeaningKo: '안녕하세요',
+      pronunciationKo: '싸왓디',
+      toneMarks: 'L-L-M',
+      audioUrl:
+        'https://media.example.com/vocabularies/greeting.mp3?Expires=300',
       role: 'TARGET',
     },
   ],
