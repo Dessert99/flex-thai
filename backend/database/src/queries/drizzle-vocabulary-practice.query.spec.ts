@@ -79,6 +79,8 @@ describe('DrizzleVocabularyPracticeQuery source 조회', () => {
     expect(sqlText).toContain('vocabulary_meaning_pronunciations');
     expect(sqlText).toContain('array_position');
     expect(sqlText).toContain('ep.vocabulary_id = v.id');
+    expect(sqlText).toMatch(/coalesce\(\(\s+select jsonb_agg/u);
+    expect(sqlText).toContain(`'[]'::jsonb) as "pronunciations"`);
     expect(sqlText).not.toContain('where emp.meaning_id = m.id');
   });
 

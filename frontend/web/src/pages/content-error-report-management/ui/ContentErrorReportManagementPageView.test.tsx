@@ -82,6 +82,7 @@ const renderView = (
     loading: false,
     detailLoading: false,
     error: false,
+    detailError: false,
     mutationError: false,
     mutating: false,
     onSearchChange: vi.fn(),
@@ -229,6 +230,19 @@ describe('ContentErrorReportManagementPageView 탐색', () => {
 });
 
 describe('ContentErrorReportManagementPageView workflow', () => {
+  it('상세가 없어도 상세 조회 오류를 mutation 오류와 구분해 표시한다', () => {
+    renderView({
+      detail: undefined,
+      detailError: true,
+      mutationError: false,
+    });
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      '신고 상세를 불러오지 못했습니다.',
+    );
+    expect(screen.queryByText('변경을 저장하지 못했습니다.')).toBeNull();
+  });
+
   it('담당자 교체·해제와 mutation 오류를 표시한다', () => {
     const props = renderView({ mutationError: true });
     const assigneeInputs = screen.getAllByLabelText('담당자 ID');

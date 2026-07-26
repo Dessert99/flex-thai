@@ -6,6 +6,7 @@ import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import {
   mediaAssets,
   vocabularies,
+  vocabularyMeaningPronunciations,
   vocabularyMeanings,
   vocabularyPronunciations,
   wordbookItems,
@@ -48,6 +49,7 @@ interface WordbookItemBase {
   id: string;
   thai: string;
   kind: 'WORD' | 'EXPRESSION';
+  audioEligibleMeaningCount: number;
   addedAt: Date;
 }
 
@@ -166,6 +168,20 @@ export class DrizzleWordbookQuery {
         id: vocabularies.id,
         thai: vocabularies.thai,
         kind: vocabularies.kind,
+        audioEligibleMeaningCount: sql<number>`(
+          select count(distinct ${vocabularyMeaningPronunciations.meaningId})::integer
+          from ${vocabularyMeaningPronunciations}
+          inner join ${vocabularyPronunciations}
+            on ${vocabularyPronunciations.id} =
+              ${vocabularyMeaningPronunciations.pronunciationId}
+            and ${vocabularyPronunciations.vocabularyId} =
+              ${vocabularyMeaningPronunciations.vocabularyId}
+          inner join ${mediaAssets}
+            on ${mediaAssets.id} = ${vocabularyPronunciations.mediaAssetId}
+            and ${mediaAssets.status} = ${'READY'}
+          where ${vocabularyMeaningPronunciations.vocabularyId} =
+            ${vocabularies.id}
+        )`,
         addedAt: wordbookItems.addedAt,
       })
       .from(vocabularies)
@@ -285,6 +301,7 @@ export class DrizzleWordbookQuery {
             media: { storageKey: mediaStorageKey! },
           }),
         ),
+        audioEligibleMeaningCount: base.audioEligibleMeaningCount,
         saved: true,
         addedAt: base.addedAt,
       };

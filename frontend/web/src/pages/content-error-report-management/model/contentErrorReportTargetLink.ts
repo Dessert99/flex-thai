@@ -10,5 +10,7 @@ export const toContentErrorReportTargetLink = (reference: {
     return `/admin/questions/${reference.contentId}`;
   if (reference.kind === 'VOCABULARY')
     return `/admin/vocabularies/${reference.contentId}`;
+  if (reference.kind === 'CONCEPT')
+    return `/admin/concepts/${reference.contentId}`;
   return null;
 };

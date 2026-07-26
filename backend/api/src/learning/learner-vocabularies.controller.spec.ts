@@ -30,6 +30,7 @@ const detail = {
   kind: 'WORD',
   meanings: [],
   pronunciations: [],
+  audioEligibleMeaningCount: 0,
   saved: false,
   meaningPronunciations: [],
   exampleSentences: [],

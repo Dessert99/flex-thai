@@ -138,6 +138,36 @@ function ConceptBlock({
           {block.examples.map((example) => (
             <li key={example.sentence.sentenceVersionId}>
               <InteractiveThaiSentence sentence={example.sentence} />
+              <div lang='ko'>
+                <ContentErrorReportDialog
+                  origin={{
+                    kind: 'SENTENCE',
+                    sentenceVersionId: example.sentence.sentenceVersionId,
+                    tokenPosition: null,
+                  }}
+                  preview={{
+                    title: example.sentence.originalText,
+                    metadata: example.sentence.translationKo,
+                  }}
+                  triggerLabel='예문 오류 신고'
+                />
+                {example.sentence.audioUrl === null ? null : (
+                  <ContentErrorReportDialog
+                    origin={{
+                      kind: 'AUDIO',
+                      source: {
+                        kind: 'SENTENCE',
+                        sentenceVersionId: example.sentence.sentenceVersionId,
+                      },
+                    }}
+                    preview={{
+                      title: example.sentence.originalText,
+                      metadata: example.sentence.pronunciationKo,
+                    }}
+                    triggerLabel='예문 음성 오류 신고'
+                  />
+                )}
+              </div>
               {example.noteKo ? <p lang='ko'>{example.noteKo}</p> : null}
             </li>
           ))}

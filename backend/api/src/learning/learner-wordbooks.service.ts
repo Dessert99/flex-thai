@@ -84,6 +84,7 @@ const mapItem = async (item: WordbookItemProjection, signMedia: SignMedia) => ({
       audioUrl: await signMedia(pronunciation.media.storageKey),
     })),
   ),
+  audioEligibleMeaningCount: item.audioEligibleMeaningCount,
   saved: item.saved,
   addedAt: item.addedAt.toISOString(),
 });

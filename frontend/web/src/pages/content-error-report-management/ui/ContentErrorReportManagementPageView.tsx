@@ -15,6 +15,7 @@ export interface ContentErrorReportManagementPageViewProps {
   loading: boolean;
   detailLoading: boolean;
   error: boolean;
+  detailError: boolean;
   mutationError: boolean;
   mutating: boolean;
   onSearchChange: (search: ContentErrorReportSearch) => void;
@@ -55,6 +56,7 @@ export function ContentErrorReportManagementPageView({
   loading,
   detailLoading,
   error,
+  detailError,
   mutationError,
   mutating,
   onSearchChange,
@@ -192,6 +194,9 @@ export function ContentErrorReportManagementPageView({
         </nav>
       ) : null}
       {detailLoading ? <p role='status'>상세를 불러오는 중입니다.</p> : null}
+      {detailError ? (
+        <p role='alert'>신고 상세를 불러오지 못했습니다.</p>
+      ) : null}
       {detail ? (
         <section aria-label='신고 상세'>
           <h2>{detail.snapshot.title}</h2>

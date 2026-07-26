@@ -194,6 +194,27 @@ describe('VocabularyPracticeService 세션 생성', () => {
     ).toBe(false);
   });
 
+  it('100번째 뒤의 음성 적격 어의도 최종 100문항 한도 안에서 선택한다', async () => {
+    const repository = new FakeVocabularyPracticeRepository();
+    const source = createSource(110);
+    repository.source = {
+      ...source,
+      candidates: source.candidates.map((candidate, index) =>
+        index < 100 ? { ...candidate, pronunciations: [] } : candidate,
+      ),
+    };
+
+    const result = await createService(repository).create(
+      createInput({
+        modes: ['AUDIO_TO_MEANING'],
+        questionCount: 10,
+      }),
+    );
+
+    expect(result.questions).toHaveLength(10);
+    expect(result.questions[0]?.meaningId).toBe('meaning-101');
+  });
+
   it('RANDOM만 source 후보를 한 번 섞어 저장한다', async () => {
     const repository = new FakeVocabularyPracticeRepository();
     const service = createService(repository, (items) => [...items].reverse());

@@ -1,5 +1,6 @@
 /** 완료 단어 연습 query 상태를 결과 화면에 연결한다 */
 import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { PageError, PageLoading } from '@/shared/ui/page-state';
 import { vocabularyPracticeResultQueryOptions } from '../api/vocabularyPracticeResultQuery';
 import { VocabularyPracticeResultPageView } from './VocabularyPracticeResultPageView';
@@ -13,6 +14,11 @@ export function VocabularyPracticeResultPageContainer({
   sessionId: string;
 }) {
   const session = useQuery(vocabularyPracticeResultQueryOptions(sessionId));
+  useEffect(() => {
+    if (session.data?.status === 'ACTIVE') {
+      onContinue(session.data.id);
+    }
+  }, [onContinue, session.data]);
   if (session.isPending) {
     return <PageLoading message='연습 결과를 불러오고 있습니다.' />;
   }
@@ -24,6 +30,7 @@ export function VocabularyPracticeResultPageContainer({
       />
     );
   }
+  if (session.data.status === 'ACTIVE') return null;
   return (
     <VocabularyPracticeResultPageView
       onContinue={onContinue}

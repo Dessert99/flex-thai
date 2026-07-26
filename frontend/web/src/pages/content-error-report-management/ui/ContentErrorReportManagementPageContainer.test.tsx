@@ -64,6 +64,22 @@ describe('관리자 오류 신고 Container 조회', () => {
       '오류 신고를 불러오지 못했습니다.',
     );
   });
+
+  it('상세 조회 실패를 상세 오류로 표시한다', async () => {
+    requests.authenticatedRequest.mockImplementation((request) => {
+      if (request.path === `/admin/content-error-reports/${ids.report}`) {
+        return Promise.reject(new Error('network'));
+      }
+      return handleRequest(request);
+    });
+    renderContainer();
+
+    fireEvent.click(await screen.findByRole('button', { name: '문제 · OPEN' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      '신고 상세를 불러오지 못했습니다.',
+    );
+  });
 });
 
 describe('관리자 오류 신고 Container command', () => {

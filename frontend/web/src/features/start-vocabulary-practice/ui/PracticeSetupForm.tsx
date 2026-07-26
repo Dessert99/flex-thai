@@ -80,6 +80,7 @@ export function PracticeSetupForm(props: PracticeSetupFormProps) {
     >
       <PracticeSourceFieldset
         disabled={pending}
+        modes={modes}
         onRetrySearch={props.onRetrySearch}
         onSearch={props.onSearch}
         onSelectSource={setSourceType}

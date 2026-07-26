@@ -68,8 +68,20 @@ const createSelectFake = (selectResults: QueryResult[]) => {
 
 const summaryRows = {
   bases: [
-    { id: 'vocabulary-2', thai: 'ขอบคุณ', kind: 'WORD', saved: false },
-    { id: 'vocabulary-1', thai: 'สวัสดี', kind: 'WORD', saved: true },
+    {
+      id: 'vocabulary-2',
+      thai: 'ขอบคุณ',
+      kind: 'WORD',
+      audioEligibleMeaningCount: 1,
+      saved: false,
+    },
+    {
+      id: 'vocabulary-1',
+      thai: 'สวัสดี',
+      kind: 'WORD',
+      audioEligibleMeaningCount: 2,
+      saved: true,
+    },
   ],
   meanings: [
     {
@@ -150,12 +162,26 @@ describe('DrizzleLearnerVocabularyQuery 공용 어휘 검색', () => {
     });
 
     expect(result.items.map(({ saved }) => saved)).toEqual([false, true]);
+    expect(
+      result.items.map(({ audioEligibleMeaningCount }) => ({
+        audioEligibleMeaningCount,
+      })),
+    ).toEqual([
+      { audioEligibleMeaningCount: 1 },
+      { audioEligibleMeaningCount: 2 },
+    ]);
     const savedSql = toSql(fake.selectCalls[1]?.fields.saved);
     expect(savedSql.sql).toContain('exists');
     expect(savedSql.sql).toContain('wordbooks');
     expect(savedSql.sql).toContain('wordbook_items');
     expect(savedSql.sql).not.toContain('saved_vocabularies');
     expect(savedSql.params).toContain('user-id');
+    const eligibleSql = toSql(
+      fake.selectCalls[1]?.fields.audioEligibleMeaningCount,
+    );
+    expect(eligibleSql.sql).toContain('count(distinct');
+    expect(eligibleSql.sql).toContain('vocabulary_meaning_pronunciations');
+    expect(eligibleSql.params).toContain('READY');
     expect(fake.selectCalls[1]?.joins).toHaveLength(0);
   });
 

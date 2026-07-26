@@ -91,7 +91,10 @@ const meaningPronunciationSchema = z
 /** 전체 뜻·발음·성조·뜻-발음 관계를 공개하는 단어 연습 카드 */
 export const practiceCardSchema = z
   .object({
-    ...vocabularySummarySchema.omit({ saved: true }).shape,
+    ...vocabularySummarySchema.omit({
+      audioEligibleMeaningCount: true,
+      saved: true,
+    }).shape,
     meanings: vocabularySummarySchema.shape.meanings.min(1),
     pronunciations: vocabularySummarySchema.shape.pronunciations.min(1),
     meaningPronunciations: z.array(meaningPronunciationSchema).min(1),

@@ -1,6 +1,6 @@
 /** 단어 연습 결과 Container의 조회 상태와 연습 복귀 연결을 검증한다 */
 import type { VocabularyPracticeSessionResponse } from '@flex-thia/contracts';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '@/shared/test';
@@ -66,8 +66,7 @@ describe('단어 연습 결과 Container', () => {
     expect(mocks.authenticatedRequest).toHaveBeenCalledTimes(2);
   });
 
-  it('진행 중 세션의 연습 복귀를 Container 이동 경계에 전달한다', async () => {
-    const user = userEvent.setup();
+  it('진행 중 세션이면 사용자 조작 없이 진행 화면 이동을 요청한다', async () => {
     const onContinue = vi.fn();
     const { result: _result, ...sessionWithoutResult } = completedSession;
     expect(_result).toBeDefined();
@@ -78,11 +77,12 @@ describe('단어 연습 결과 Container', () => {
     });
 
     renderResult(onContinue);
-    await user.click(
-      await screen.findByRole('button', { name: '연습으로 돌아가기' }),
+    await waitFor(() =>
+      expect(onContinue).toHaveBeenCalledWith(completedSession.id),
     );
-
-    expect(onContinue).toHaveBeenCalledWith(completedSession.id);
+    expect(
+      screen.queryByRole('button', { name: '연습으로 돌아가기' }),
+    ).not.toBeInTheDocument();
   });
 });
 

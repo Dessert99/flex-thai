@@ -33,6 +33,7 @@ describe('개념 상세 페이지', () => {
     const blockId = '33333333-3333-4333-8333-333333333333';
     const conceptId = '11111111-1111-4111-8111-111111111111';
     const conceptVersionId = '22222222-2222-4222-8222-222222222222';
+    const sentenceVersionId = '44444444-4444-4444-8444-444444444444';
     render(
       <ConceptDetailPageView
         data={{
@@ -54,12 +55,12 @@ describe('개념 상세 페이지', () => {
                   position: 0,
                   noteKo: null,
                   sentence: {
-                    sentenceVersionId: '44444444-4444-4444-8444-444444444444',
+                    sentenceVersionId,
                     originalText: 'ฉันเรียนภาษาไทย',
                     translationKo: '나는 태국어를 공부한다',
                     pronunciationKo: '찬 리안 파싸 타이',
                     toneMarks: '',
-                    audioUrl: null,
+                    audioUrl: 'https://media.example.com/sentence.mp3',
                     tokens: [],
                     expressions: [],
                   },
@@ -103,5 +104,78 @@ describe('개념 상세 페이지', () => {
         blockId,
       }),
     );
+    expect(
+      screen.getByRole('button', { name: '예문 오류 신고' }),
+    ).toHaveAttribute(
+      'data-origin',
+      JSON.stringify({
+        kind: 'SENTENCE',
+        sentenceVersionId,
+        tokenPosition: null,
+      }),
+    );
+    expect(
+      screen.getByRole('button', { name: '예문 음성 오류 신고' }),
+    ).toHaveAttribute(
+      'data-origin',
+      JSON.stringify({
+        kind: 'AUDIO',
+        source: { kind: 'SENTENCE', sentenceVersionId },
+      }),
+    );
+  });
+});
+
+describe('개념 상세 페이지 예문 신고', () => {
+  it('음성이 없는 태국어 예시에는 음성 오류 신고를 제공하지 않는다', () => {
+    const blockId = '33333333-3333-4333-8333-333333333333';
+    render(
+      <ConceptDetailPageView
+        data={{
+          id: '11111111-1111-4111-8111-111111111111',
+          versionId: '22222222-2222-4222-8222-222222222222',
+          category: 'GRAMMAR',
+          position: 0,
+          title: '기본 어순',
+          summary: '요약',
+          tableOfContents: [{ blockId, heading: '예문', position: 0 }],
+          blocks: [
+            {
+              id: blockId,
+              kind: 'THAI_EXAMPLES',
+              position: 0,
+              heading: '예문',
+              examples: [
+                {
+                  position: 0,
+                  noteKo: null,
+                  sentence: {
+                    sentenceVersionId: '44444444-4444-4444-8444-444444444444',
+                    originalText: 'ฉันเรียนภาษาไทย',
+                    translationKo: '나는 태국어를 공부한다',
+                    pronunciationKo: '찬 리안 파싸 타이',
+                    toneMarks: '',
+                    audioUrl: null,
+                    tokens: [],
+                    expressions: [],
+                  },
+                },
+              ],
+            },
+          ],
+        }}
+        error={false}
+        loading={false}
+        notFound={false}
+        onRetry={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', { name: '예문 오류 신고' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: '예문 음성 오류 신고' }),
+    ).not.toBeInTheDocument();
   });
 });

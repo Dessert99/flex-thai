@@ -135,9 +135,9 @@ export class VocabularyPracticeService {
       input.order === 'RANDOM'
         ? this.shuffle(source.candidates)
         : [...source.candidates];
-    const assignments = assignCandidates(
-      sourceCandidates.slice(0, 100),
-      input.modes,
+    const assignments = assignCandidates(sourceCandidates, input.modes).slice(
+      0,
+      100,
     );
     const requestedCount =
       input.questionCount === 'ALL' ? assignments.length : input.questionCount;

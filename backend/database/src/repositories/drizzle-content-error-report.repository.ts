@@ -479,7 +479,10 @@ export class DrizzleContentErrorReportRepository
       .where(
         and(
           eq(questionBlocks.questionVersionId, origin.questionVersionId),
-          ne(questionBlocks.kind, 'EXPLANATION'),
+          // block 전체 신고에는 공개 해설을 포함하되 문장 단위 공개성에는 기존 제외 정책을 유지한다.
+          origin.blockId !== null && origin.sentenceVersionId === null
+            ? undefined
+            : ne(questionBlocks.kind, 'EXPLANATION'),
           origin.blockId === null
             ? undefined
             : eq(questionBlocks.id, origin.blockId),

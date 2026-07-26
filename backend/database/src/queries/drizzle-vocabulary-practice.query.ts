@@ -64,7 +64,7 @@ const candidateSelect = (
     v.thai as "thai",
     m.id as "meaningId",
     m.meaning_ko as "meaningKo",
-    (
+    coalesce((
       select jsonb_agg(jsonb_build_object(
         'id', p.id,
         'pronunciationKo', p.pronunciation_ko,
@@ -78,7 +78,7 @@ const candidateSelect = (
        and p.vocabulary_id = mp.vocabulary_id
       join media_assets a on a.id = p.media_asset_id and a.status = 'READY'
       where mp.meaning_id = m.id
-    ) as "pronunciations",
+    ), '[]'::jsonb) as "pronunciations",
     jsonb_build_object(
       'id', v.id,
       'thai', v.thai,

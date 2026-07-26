@@ -21,6 +21,7 @@ const data: WordbookItemListResponse = {
       kind: 'WORD',
       meanings: [],
       pronunciations: [],
+      audioEligibleMeaningCount: 0,
       saved: true,
       addedAt: '2026-07-26T00:00:00.000Z',
     },

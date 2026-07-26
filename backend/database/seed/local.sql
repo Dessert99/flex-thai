@@ -1132,7 +1132,7 @@ insert into content_error_reports (
     '00000000-0000-4000-8000-000000000001',
     '예문 발음 설명을 확인해 주세요.',
     '{"kind":"CONCEPT","contentId":"00000000-0000-4000-8000-000000000701","contentVersionId":"00000000-0000-4000-8000-000000000711","questionVersionId":null,"sentenceVersionId":null,"mediaAssetId":null,"locationId":"00000000-0000-4000-8000-000000000722"}',
-    '{"title":"태국어 인사말의 소리","primaryText":"기본 인사말의 발음과 성조를 실제 문장으로 익힙니다.","secondaryText":"인사말 예문","versionLabel":"버전 1","locationLabel":"개념 블록","audioAssetId":null}',
+    '{"title":"태국어 인사말의 소리","primaryText":"인사말 예문","secondaryText":"기본 인사말의 발음과 성조를 실제 문장으로 익힙니다.","versionLabel":"버전 1","locationLabel":"개념 블록 2","audioAssetId":null}',
     '2026-07-18T01:00:00Z',
     '2026-07-18T01:02:00Z'
   );

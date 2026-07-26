@@ -110,6 +110,7 @@ function createProps(
     loading: false,
     detailLoading: false,
     error: false,
+    detailError: false,
     mutationError: false,
     mutating: false,
     onSearchChange: vi.fn(),

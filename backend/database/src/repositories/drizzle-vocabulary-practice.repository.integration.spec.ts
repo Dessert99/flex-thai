@@ -26,7 +26,7 @@ const ids = {
 
 const card = {
   id: ids.vocabulary,
-  thai: 'เรียน',
+  thai: 'คำฝึกทดสอบระบบ',
   kind: 'WORD' as const,
   meanings: [
     {
@@ -81,7 +81,7 @@ const createSessionInput = (
     pronunciationId: null,
     mediaAssetId: null,
     mode: 'THAI_TO_MEANING' as const,
-    prompt: { type: 'TEXT' as const, text: 'เรียน' },
+    prompt: { type: 'TEXT' as const, text: 'คำฝึกทดสอบระบบ' },
     options,
     correctOptionId: ids.option,
     card,
@@ -120,7 +120,7 @@ integration('DrizzleVocabularyPracticeRepository PostgreSQL', () => {
       [ids.user, `practice-${ids.user}`, `practice-${ids.user}@example.com`],
     );
     await pool.query(
-      `insert into vocabularies (id, thai, normalized_thai, kind, status) values ($1, 'เรียน', 'เรียน', 'WORD', 'PUBLISHED')`,
+      `insert into vocabularies (id, thai, normalized_thai, kind, status) values ($1, 'คำฝึกทดสอบระบบ', 'คำฝึกทดสอบระบบ', 'WORD', 'PUBLISHED')`,
       [ids.vocabulary],
     );
     await pool.query(
@@ -302,11 +302,11 @@ integration('DrizzleVocabularyPracticeRepository PostgreSQL', () => {
       expect(session?.questions[0]?.card).toEqual(card);
       expect(session?.questions[0]?.prompt).toEqual({
         type: 'TEXT',
-        text: 'เรียน',
+        text: 'คำฝึกทดสอบระบบ',
       });
     } finally {
       await pool.query(
-        `update vocabularies set thai = 'เรียน', normalized_thai = 'เรียน' where id = $1`,
+        `update vocabularies set thai = 'คำฝึกทดสอบระบบ', normalized_thai = 'คำฝึกทดสอบระบบ' where id = $1`,
         [ids.vocabulary],
       );
       await pool.query(

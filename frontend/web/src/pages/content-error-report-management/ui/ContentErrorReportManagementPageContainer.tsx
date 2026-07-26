@@ -64,7 +64,8 @@ export function ContentErrorReportManagementPageContainer({
       loading={list.isLoading}
       detailLoading={detail.isLoading}
       error={list.isError}
-      mutationError={detail.isError || mutation.isError}
+      detailError={detail.isError}
+      mutationError={mutation.isError}
       mutating={mutation.isPending}
       onSearchChange={onSearchChange}
       onSelect={setSelectedId}

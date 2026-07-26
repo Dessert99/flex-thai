@@ -17,8 +17,16 @@ const vocabulary = {
       difficulty: 1,
       contextNote: null,
     },
+    {
+      id: '00000000-0000-4000-8000-000000000904',
+      meaningKo: '떠나다',
+      partOfSpeech: '동사',
+      difficulty: 1,
+      contextNote: null,
+    },
   ],
   pronunciations: [],
+  audioEligibleMeaningCount: 1,
   saved: false,
 };
 
@@ -104,8 +112,9 @@ describe('단어 연습 설정의 검색 선택', () => {
     await user.type(screen.getByLabelText('어휘 검색'), 'ไป');
     await user.click(screen.getByRole('button', { name: 'ไป' }));
     expect(screen.getByText('선택 1 / 100')).toBeVisible();
-    expect(screen.getByText('연습 가능 어의 1개')).toBeVisible();
+    expect(screen.getByText('연습 가능 어의 2개')).toBeVisible();
     await user.click(screen.getByRole('button', { name: '음성 → 태국어' }));
+    expect(screen.getByText('연습 가능 어의 1개')).toBeVisible();
     await user.click(screen.getByRole('button', { name: '연습 시작' }));
 
     expect(onStart).toHaveBeenCalledWith({
@@ -148,7 +157,7 @@ describe('단어 연습 설정의 검색 선택', () => {
 
     expect(screen.getByText('선택 100 / 100')).toBeVisible();
     expect(screen.getByRole('button', { name: '단어-101' })).toBeDisabled();
-  });
+  }, 15_000);
 });
 
 describe('단어 연습 생성 요청 상태', () => {

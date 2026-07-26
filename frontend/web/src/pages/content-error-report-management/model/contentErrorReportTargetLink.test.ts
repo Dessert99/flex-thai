@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { toContentErrorReportTargetLink } from './contentErrorReportTargetLink';
 
 describe('오류 신고 대상 링크', () => {
-  it('문제와 어휘만 기존 소유 화면으로 연결한다', () => {
+  it('문제·어휘·개념을 기존 소유 화면으로 연결한다', () => {
     expect(
       toContentErrorReportTargetLink({ kind: 'QUESTION', contentId: 'q' }),
     ).toBe('/admin/questions/q');
@@ -12,6 +12,6 @@ describe('오류 신고 대상 링크', () => {
     ).toBe('/admin/vocabularies/v');
     expect(
       toContentErrorReportTargetLink({ kind: 'CONCEPT', contentId: 'c' }),
-    ).toBeNull();
+    ).toBe('/admin/concepts/c');
   });
 });

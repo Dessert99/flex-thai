@@ -228,6 +228,7 @@ function createDetail(
         audioUrl: 'https://example.com/hello.mp3',
       },
     ],
+    audioEligibleMeaningCount: 1,
     meaningPronunciations: [],
     exampleSentences: [
       {

@@ -97,6 +97,7 @@ export interface LearnerVocabularySummaryProjection {
   kind: LearnerVocabularyKind;
   meanings: LearnerVocabularyMeaningProjection[];
   pronunciations: LearnerVocabularyPronunciationProjection[];
+  audioEligibleMeaningCount: number;
   saved: boolean;
 }
 
@@ -178,6 +179,7 @@ interface VocabularyBaseRow {
   id: string;
   thai: string;
   kind: LearnerVocabularyKind;
+  audioEligibleMeaningCount: number;
   saved: boolean;
 }
 
@@ -245,6 +247,20 @@ const savedInAnyWordbook = (
     on ${wordbooks.id} = ${wordbookItems.wordbookId}
   where ${wordbookItems.vocabularyId} = ${vocabularies.id}
     and ${wordbooks.userId} = ${userId}
+)`;
+
+const audioEligibleMeaningCount = (): SQL<number> => sql<number>`(
+  select count(distinct ${vocabularyMeaningPronunciations.meaningId})::integer
+  from ${vocabularyMeaningPronunciations}
+  inner join ${vocabularyPronunciations}
+    on ${vocabularyPronunciations.id} =
+      ${vocabularyMeaningPronunciations.pronunciationId}
+    and ${vocabularyPronunciations.vocabularyId} =
+      ${vocabularyMeaningPronunciations.vocabularyId}
+  inner join ${mediaAssets}
+    on ${mediaAssets.id} = ${vocabularyPronunciations.mediaAssetId}
+    and ${mediaAssets.status} = ${'READY'}
+  where ${vocabularyMeaningPronunciations.vocabularyId} = ${vocabularies.id}
 )`;
 
 const currentQuestionUsesSentence = (): SQL => sql`(
@@ -358,6 +374,7 @@ export class DrizzleLearnerVocabularyQuery {
         id: vocabularies.id,
         thai: vocabularies.thai,
         kind: vocabularies.kind,
+        audioEligibleMeaningCount: audioEligibleMeaningCount(),
         saved: savedInAnyWordbook(userId),
       })
       .from(vocabularies)
@@ -382,6 +399,7 @@ export class DrizzleLearnerVocabularyQuery {
         id: vocabularies.id,
         thai: vocabularies.thai,
         kind: vocabularies.kind,
+        audioEligibleMeaningCount: audioEligibleMeaningCount(),
         saved: savedInAnyWordbook(userId),
       })
       .from(vocabularies)
@@ -652,6 +670,7 @@ export class DrizzleLearnerVocabularyQuery {
           toneMarks: pronunciation.toneMarks,
           media: { storageKey: pronunciation.mediaStorageKey! },
         })),
+        audioEligibleMeaningCount: base.audioEligibleMeaningCount,
         saved: base.saved,
       };
     });

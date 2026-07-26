@@ -313,8 +313,54 @@ describe('DrizzleContentErrorReportRepository', () => {
     });
     const blockWhere = database.whereCalls[1];
     const query = new PgDialect().sqlToQuery(blockWhere as never);
-    expect(query.params).toContain('EXPLANATION');
-    expect(query.sql).toContain('<>');
+    expect(query.params).not.toContain('EXPLANATION');
+    expect(query.sql).not.toContain('<>');
+  });
+
+  it('공개 답안의 EXPLANATION block을 문제 신고 대상으로 snapshot한다', async () => {
+    const database = createSelectDatabase([
+      [{ version: 1 }],
+      [
+        {
+          blockId: 'explanation-block-id',
+          kind: 'EXPLANATION',
+          blockPosition: 3,
+          sentencePosition: 0,
+          sentenceVersionId: 'sentence-id',
+          originalText: '정답 해설',
+          translationKo: '해설 번역',
+          mediaAssetId: null,
+        },
+      ],
+    ]);
+    const repository = new DrizzleContentErrorReportRepository(
+      database as never,
+    );
+
+    await expect(
+      repository.resolve({
+        kind: 'QUESTION',
+        questionId: 'question-id',
+        questionVersionId: 'version-id',
+        blockId: 'explanation-block-id',
+        sentenceVersionId: null,
+      }),
+    ).resolves.toMatchObject({
+      reference: {
+        contentId: 'question-id',
+        contentVersionId: 'version-id',
+        locationId: 'explanation-block-id',
+      },
+      snapshot: {
+        title: '정답 해설',
+        primaryText: '해설 번역',
+        locationLabel: 'EXPLANATION 블록 4',
+      },
+    });
+    const blockWhere = database.whereCalls[1];
+    const query = new PgDialect().sqlToQuery(blockWhere as never);
+    expect(query.params).not.toContain('EXPLANATION');
+    expect(query.sql).not.toContain('<>');
   });
 
   it.each([
