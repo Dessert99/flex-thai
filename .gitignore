@@ -4,6 +4,7 @@ node_modules/
 
 # superpowers (로컬 도구 생성물)
 .superpowers/
+.worktrees/
 
 # turbo
 .turbo/
