@@ -1,16 +1,17 @@
-/** 관리자 사용자 목록·상태와 transaction audit 저장을 검증한다 */
+/** 관리자 사용자 검색과 원자적 역할·상태 변경 adapter를 검증한다 */
 import { describe, expect, it, vi } from 'vitest';
 import { auditLogs, users } from '../schema/index.js';
 import { DrizzleUserManagementQuery } from './drizzle-user-management.query.js';
 
 const now = new Date('2026-07-26T00:00:00.000Z');
+const actorUserId = '00000000-0000-4000-8000-000000000001';
 const row = {
   id: '00000000-0000-4000-8000-000000000002',
   cognitoSub: 'learner-sub',
   email: 'learner@hufs.ac.kr',
   role: 'LEARNER',
   status: 'ACTIVE',
-  mfaEnrolledAt: null,
+  mfaEnrolledAt: new Date('2026-07-20T00:00:00.000Z'),
   createdAt: now,
   updatedAt: now,
 } as const;
@@ -30,7 +31,14 @@ const createDatabase = (
         calls.push({ operation: 'select', table });
         return chain;
       }),
-      orderBy: vi.fn(consume),
+      where: vi.fn(() => chain),
+      orderBy: vi.fn(() => chain),
+      limit: vi.fn(() => chain),
+      offset: vi.fn(consume),
+      then: (
+        resolve: (value: unknown[]) => unknown,
+        reject?: (error: unknown) => unknown,
+      ) => consume().then(resolve, reject),
     };
     return chain;
   });
@@ -73,14 +81,20 @@ const createDatabase = (
     };
     return chain;
   });
+  const execute = vi.fn(() => {
+    calls.push({ operation: 'lock' });
+    return Promise.resolve([]);
+  });
   const transaction = vi.fn(
     async (
       operation: (transaction: {
+        execute: typeof execute;
         insert: typeof insert;
+        select: typeof select;
         update: typeof update;
       }) => Promise<unknown>,
     ) => {
-      const result = await operation({ insert, update });
+      const result = await operation({ execute, insert, select, update });
       commits += 1;
       return result;
     },
@@ -95,9 +109,8 @@ const createDatabase = (
 };
 
 const statusChange = {
-  action: 'IDENTITY_USER_DISABLED',
   actorSub: 'admin-sub',
-  actorUserId: '00000000-0000-4000-8000-000000000001',
+  actorUserId,
   occurredAt: now,
   requestId: 'request-1',
   status: 'DISABLED',
@@ -105,49 +118,124 @@ const statusChange = {
 } as const;
 
 describe('DrizzleUserManagementQuery', () => {
-  it('사용자 공개 필드만 stable 이메일 순서로 목록화한다', async () => {
-    const fake = createDatabase([[row]]);
-    const query = new DrizzleUserManagementQuery(fake.database as never);
-
-    await expect(query.listManagedUsers()).resolves.toEqual([row]);
-
-    expect(fake.calls).toContainEqual({ operation: 'select', table: users });
-  });
-
-  it('상태와 audit을 같은 transaction에서 저장하고 대상이 없으면 null이다', async () => {
-    const fake = createDatabase([[{ ...row, status: 'DISABLED' }], [], []]);
+  it('검색·역할·상태·MFA 조건과 stable 페이지 결과를 반환한다', async () => {
+    const fake = createDatabase([[{ total: 21 }], [row]]);
     const query = new DrizzleUserManagementQuery(fake.database as never);
 
     await expect(
-      query.changeStatusWithAudit(statusChange),
-    ).resolves.toMatchObject({ status: 'DISABLED' });
-    await expect(
-      query.changeStatusWithAudit({
-        ...statusChange,
-        action: 'IDENTITY_USER_ENABLED',
+      query.listManagedUsers({
+        query: 'learner',
+        role: 'LEARNER',
         status: 'ACTIVE',
-        userId: '00000000-0000-4000-8000-000000000099',
+        mfaEnrolled: true,
+        page: 2,
+        pageSize: 20,
       }),
-    ).resolves.toBeNull();
+    ).resolves.toEqual({
+      items: [row],
+      page: { page: 2, pageSize: 20, totalItems: 21, totalPages: 2 },
+    });
 
-    expect(fake.calls[0]).toEqual({
-      operation: 'update',
-      table: users,
-      value: { status: 'DISABLED', updatedAt: now },
-    });
-    expect(fake.calls[1]).toMatchObject({
-      operation: 'insert',
-      table: auditLogs,
-    });
-    expect(fake.calls[1]?.value).toMatchObject({
-      action: 'IDENTITY_USER_DISABLED',
-      targetId: row.id,
-    });
-    expect(fake.commits).toBe(2);
+    expect(fake.calls.filter(({ operation }) => operation === 'select')).toHaveLength(2);
   });
 
-  it('audit insert 실패 시 상태 변경 transaction을 commit하지 않는다', async () => {
-    const fake = createDatabase([[{ ...row, status: 'DISABLED' }]], {
+  it('상태 변경을 lock·조회·수정·audit 순서로 한 transaction에 저장한다', async () => {
+    const fake = createDatabase([[row], [{ ...row, status: 'DISABLED' }], []]);
+    const query = new DrizzleUserManagementQuery(fake.database as never);
+
+    await expect(query.changeStatusWithAudit(statusChange)).resolves.toEqual({
+      kind: 'UPDATED',
+      user: { ...row, status: 'DISABLED' },
+    });
+
+    expect(fake.calls.map(({ operation }) => operation)).toEqual([
+      'lock',
+      'select',
+      'update',
+      'insert',
+    ]);
+    expect(fake.calls.at(-1)?.value).toMatchObject({
+      action: 'IDENTITY_USER_DISABLED',
+      summary: { before: { status: 'ACTIVE' }, after: { status: 'DISABLED' } },
+    });
+  });
+
+  it('동일 상태는 updatedAt과 audit을 건드리지 않는 성공 no-op이다', async () => {
+    const disabled = { ...row, status: 'DISABLED' } as const;
+    const fake = createDatabase([[disabled]]);
+    const query = new DrizzleUserManagementQuery(fake.database as never);
+
+    await expect(query.changeStatusWithAudit(statusChange)).resolves.toEqual({
+      kind: 'UNCHANGED',
+      user: disabled,
+    });
+    expect(fake.calls.map(({ operation }) => operation)).toEqual([
+      'lock',
+      'select',
+    ]);
+  });
+
+  it('자기 disable과 자기 demote를 차단한다', async () => {
+    const admin = { ...row, id: actorUserId, role: 'ADMIN' } as const;
+    const fake = createDatabase([[admin], [admin]]);
+    const query = new DrizzleUserManagementQuery(fake.database as never);
+
+    await expect(
+      query.changeStatusWithAudit({ ...statusChange, userId: actorUserId }),
+    ).resolves.toEqual({ kind: 'SELF_LOCKOUT' });
+    await expect(
+      query.changeRoleWithAudit({
+        ...statusChange,
+        userId: actorUserId,
+        role: 'LEARNER',
+      }),
+    ).resolves.toEqual({ kind: 'SELF_LOCKOUT' });
+  });
+
+  it('마지막 active admin의 제거를 차단한다', async () => {
+    const admin = { ...row, role: 'ADMIN' } as const;
+    const fake = createDatabase([[admin], [{ total: 0 }], [admin], [{ total: 0 }]]);
+    const query = new DrizzleUserManagementQuery(fake.database as never);
+
+    await expect(query.changeStatusWithAudit(statusChange)).resolves.toEqual({
+      kind: 'LAST_ACTIVE_ADMIN',
+    });
+    await expect(
+      query.changeRoleWithAudit({ ...statusChange, role: 'LEARNER' }),
+    ).resolves.toEqual({ kind: 'LAST_ACTIVE_ADMIN' });
+  });
+
+  it('역할 변경은 MFA 등록 시각을 보존하고 before/after audit을 남긴다', async () => {
+    const fake = createDatabase([[row], [{ ...row, role: 'ADMIN' }], []]);
+    const query = new DrizzleUserManagementQuery(fake.database as never);
+
+    await expect(
+      query.changeRoleWithAudit({ ...statusChange, role: 'ADMIN' }),
+    ).resolves.toEqual({
+      kind: 'UPDATED',
+      user: { ...row, role: 'ADMIN' },
+    });
+    expect(fake.calls.find(({ operation }) => operation === 'update')?.value).toEqual({
+      role: 'ADMIN',
+      updatedAt: now,
+    });
+    expect(fake.calls.at(-1)?.value).toMatchObject({
+      action: 'IDENTITY_USER_ROLE_CHANGED',
+      summary: { before: { role: 'LEARNER' }, after: { role: 'ADMIN' } },
+    });
+  });
+
+  it('대상이 없으면 변경 없이 NOT_FOUND를 반환한다', async () => {
+    const fake = createDatabase([[]]);
+    const query = new DrizzleUserManagementQuery(fake.database as never);
+
+    await expect(query.changeStatusWithAudit(statusChange)).resolves.toEqual({
+      kind: 'NOT_FOUND',
+    });
+  });
+
+  it('audit insert 실패 시 사용자 변경 transaction을 commit하지 않는다', async () => {
+    const fake = createDatabase([[row], [{ ...row, status: 'DISABLED' }]], {
       failAuditAction: 'IDENTITY_USER_DISABLED',
     });
     const query = new DrizzleUserManagementQuery(fake.database as never);
@@ -167,19 +255,14 @@ describe('DrizzleUserManagementQuery', () => {
       query.recordInvitation({
         actorSub: 'admin-sub',
         email: 'new@hufs.ac.kr',
-        invitedByUserId: '00000000-0000-4000-8000-000000000001',
+        invitedByUserId: actorUserId,
         requestId: 'request-1',
         sentAt: now,
       }),
-    ).resolves.toEqual({
-      id: invitationId,
-      email: 'new@hufs.ac.kr',
-      invitedByUserId: '00000000-0000-4000-8000-000000000001',
-      sentAt: now,
-    });
-    expect(fake.calls[0]?.value).toMatchObject({
-      action: 'IDENTITY_BETA_INVITATION_RECORDED',
-      target: 'new@hufs.ac.kr',
+    ).resolves.toMatchObject({ id: invitationId, email: 'new@hufs.ac.kr' });
+    expect(fake.calls[0]).toMatchObject({
+      operation: 'insert',
+      table: auditLogs,
     });
   });
 });
