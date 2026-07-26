@@ -33,10 +33,10 @@ const options = [
 
 const inlineSentence = {
   sentenceVersionId: '01933b6a-8f13-7a19-b7e5-536d70f57aff',
-  originalText: 'ฉันรัก',
-  translationKo: '나는 사랑한다',
-  pronunciationKo: '찬 락',
-  toneMarks: 'R H',
+  originalText: 'ฉันรักเธอ',
+  translationKo: '나는 너를 사랑한다',
+  pronunciationKo: '찬 락 터',
+  toneMarks: 'R H M',
   audioUrl: null,
   tokens: [
     {
@@ -64,6 +64,20 @@ const inlineSentence = {
       contextMeaningKo: '사랑하다',
       pronunciationKo: '락',
       toneMarks: 'H',
+      audioUrl: null,
+      role: 'TARGET' as const,
+    },
+    {
+      position: 2,
+      surface: 'เธอ',
+      startOffset: 6,
+      endOffset: 9,
+      vocabularyId: '01933b6a-8f13-7a19-b7e5-536d70f57a07',
+      meaningId: '01933b6a-8f13-7a19-b7e5-536d70f57a08',
+      pronunciationId: '01933b6a-8f13-7a19-b7e5-536d70f57a09',
+      contextMeaningKo: '너',
+      pronunciationKo: '터',
+      toneMarks: 'M',
       audioUrl: null,
       role: 'TARGET' as const,
     },
@@ -199,6 +213,40 @@ describe('답안 선택 상호작용', () => {
     expect(
       await screen.findByRole('radio', { name: /선택한 답/ }),
     ).toHaveAccessibleName(/ตัวเลือกหนึ่ง 선택한 답/);
+  });
+});
+
+describe('겹치는 인라인 선택지 문맥', () => {
+  it('각 행에 원문을 한 번만 표시하고 radio를 해당 span mark와 연결한다', () => {
+    renderWithProviders(
+      <SubmitAnswerForm
+        inlineSentences={[inlineSentence]}
+        options={options.map((option, index) => ({
+          id: option.id,
+          label: null,
+          span: {
+            sentenceVersionId: inlineSentence.sentenceVersionId,
+            startTokenIndex: index,
+            endTokenIndex: index + 2,
+          },
+        }))}
+        questionId='01933b6a-8f13-7a19-b7e5-536d70f57aaa'
+        questionVersionId='01933b6a-8f13-7a19-b7e5-536d70f57aab'
+      />,
+    );
+
+    const rows = screen.getAllByTestId('inline-option-row');
+    expect(rows).toHaveLength(2);
+    const expectedMarks = ['ฉันรัก', 'รักเธอ'];
+    rows.forEach((row, index) => {
+      const sentence = row.querySelector('[data-testid="inline-sentence"]');
+      const mark = row.querySelector('mark');
+      const radio = row.querySelector('input[type="radio"]');
+      expect(sentence).toHaveTextContent(/^ฉันรักเธอ$/u);
+      expect(mark).toHaveTextContent(expectedMarks[index] ?? '');
+      expect(mark?.querySelector('button')).toBeNull();
+      expect(radio).toHaveAttribute('aria-describedby', mark?.id);
+    });
   });
 });
 

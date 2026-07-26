@@ -159,50 +159,56 @@ function AnswerOptions({
     <fieldset className='grid gap-cluster'>
       <legend className='sr-only'>답안 선택</legend>
       <InlineSentenceChoices
+        answerFeedback={feedback}
+        confirmedOptionId={confirmedOptionId}
+        disabled={disabled}
+        onSelect={onSelect}
         options={options}
         sentences={inlineSentences}
       />
-      {options.map((option) => (
-        <div
-          className='flex items-center gap-cluster rounded-control border border-default p-cluster'
-          key={option.id}
-        >
-          <Input
-            aria-describedby={
-              option.span === null ? undefined : `inline-option-${option.id}`
-            }
-            aria-label={getOptionAccessibleName(
-              option,
-              confirmedOptionId,
-              feedback,
-              inlineSentences,
-            )}
-            checked={confirmedOptionId === option.id}
-            className='size-icon shrink-0 p-px shadow-none'
-            disabled={disabled}
-            id={`answer-${option.id}`}
-            name='answer'
-            onChange={() => {
-              onSelect(option.id);
-            }}
-            type='radio'
-            value={option.id}
-          />
-          <Label
-            className='font-thai text-body'
-            htmlFor={`answer-${option.id}`}
-            lang='th'
+      {options
+        .filter(
+          (option): option is Extract<SubmitAnswerOption, { label: string }> =>
+            option.span === null,
+        )
+        .map((option) => (
+          <div
+            className='flex items-center gap-cluster rounded-control border border-default p-cluster'
+            key={option.id}
           >
-            {getOptionSurface(option, inlineSentences)}
-          </Label>
-          {confirmedOptionId === option.id && feedback !== undefined ? (
-            <span>선택한 답</span>
-          ) : null}
-          {feedback?.feedback.correctOptionId === option.id ? (
-            <span>정답</span>
-          ) : null}
-        </div>
-      ))}
+            <Input
+              aria-label={getOptionAccessibleName(
+                option,
+                confirmedOptionId,
+                feedback,
+                inlineSentences,
+              )}
+              checked={confirmedOptionId === option.id}
+              className='size-icon shrink-0 p-px shadow-none'
+              disabled={disabled}
+              id={`answer-${option.id}`}
+              name='answer'
+              onChange={() => {
+                onSelect(option.id);
+              }}
+              type='radio'
+              value={option.id}
+            />
+            <Label
+              className='font-thai text-body'
+              htmlFor={`answer-${option.id}`}
+              lang='th'
+            >
+              {option.label}
+            </Label>
+            {confirmedOptionId === option.id && feedback !== undefined ? (
+              <span>선택한 답</span>
+            ) : null}
+            {feedback?.feedback.correctOptionId === option.id ? (
+              <span>정답</span>
+            ) : null}
+          </div>
+        ))}
     </fieldset>
   );
 }

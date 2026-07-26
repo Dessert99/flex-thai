@@ -1,10 +1,18 @@
 /** 인라인 선택지를 문제 문장 좌표에 표시하고 토큰 피드백을 제공한다 */
-import type { PublicThaiSentence } from '@flex-thia/contracts';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import type {
+  PublicThaiSentence,
+  SubmitQuestionAttemptResponse,
+} from '@flex-thia/contracts';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/shared/ui/button';
+import { Input } from '@/shared/ui/input';
 import type { SubmitAnswerOption } from './SubmitAnswerForm';
 
 interface InlineSentenceChoicesProps {
+  answerFeedback: SubmitQuestionAttemptResponse | undefined;
+  confirmedOptionId: string | undefined;
+  disabled: boolean;
+  onSelect: (optionId: string) => void;
   options: readonly SubmitAnswerOption[];
   sentences: readonly PublicThaiSentence[];
 }
@@ -14,6 +22,10 @@ type ThaiFeedback = PublicThaiSentence['tokens'][number];
 
 /** 문제 문장 안의 선택 범위와 문장 밖 토큰 피드백 버튼을 함께 표시한다 */
 export function InlineSentenceChoices({
+  answerFeedback,
+  confirmedOptionId,
+  disabled,
+  onSelect,
   options,
   sentences,
 }: InlineSentenceChoicesProps) {
@@ -35,21 +47,29 @@ export function InlineSentenceChoices({
               option.span.sentenceVersionId === sentence.sentenceVersionId,
           ),
         )
-        .map((sentence) => (
-          <InlineSentenceFlow
-            key={sentence.sentenceVersionId}
-            onActivate={(tokenFeedback) => {
-              setFeedback(tokenFeedback);
-              void playAudio(tokenFeedback.audioUrl);
-            }}
-            onSelect={setFeedback}
-            options={inlineOptions.filter(
+        .flatMap((sentence) =>
+          inlineOptions
+            .filter(
               (option) =>
                 option.span.sentenceVersionId === sentence.sentenceVersionId,
-            )}
-            sentence={sentence}
-          />
-        ))}
+            )
+            .map((option) => (
+              <InlineOptionRow
+                confirmedOptionId={confirmedOptionId}
+                disabled={disabled}
+                feedback={answerFeedback}
+                key={option.id}
+                onActivate={(tokenFeedback) => {
+                  setFeedback(tokenFeedback);
+                  void playAudio(tokenFeedback.audioUrl);
+                }}
+                onFeedbackSelect={setFeedback}
+                onSelect={onSelect}
+                option={option}
+                sentence={sentence}
+              />
+            )),
+        )}
       {feedback === null ? null : (
         <p>
           {feedback.contextMeaningKo} · {feedback.pronunciationKo} ·{' '}
@@ -127,72 +147,106 @@ function useInlineAudioPlayback() {
   return { playAudio, playbackError };
 }
 
-function InlineSentenceFlow({
+function InlineOptionRow({
+  confirmedOptionId,
+  disabled,
+  feedback,
   onActivate,
+  onFeedbackSelect,
   onSelect,
-  options,
+  option,
   sentence,
 }: {
+  confirmedOptionId: string | undefined;
+  disabled: boolean;
+  feedback: SubmitQuestionAttemptResponse | undefined;
   onActivate: (feedback: ThaiFeedback) => void;
-  onSelect: (feedback: ThaiFeedback) => void;
-  options: readonly InlineOption[];
+  onFeedbackSelect: (feedback: ThaiFeedback) => void;
+  onSelect: (optionId: string) => void;
+  option: InlineOption;
   sentence: PublicThaiSentence;
 }) {
   const characters = Array.from(sentence.originalText);
-  const fragments: ReactNode[] = [];
-  let cursor = 0;
+  const tokens = sentence.tokens.slice(
+    option.span.startTokenIndex,
+    option.span.endTokenIndex,
+  );
+  const first = tokens.at(0);
+  const last = tokens.at(-1);
+  if (first === undefined || last === undefined) {
+    return null;
+  }
+  const surface = characters.slice(first.startOffset, last.endOffset).join('');
+  const accessibleName = getAccessibleName(
+    surface,
+    option,
+    confirmedOptionId,
+    feedback,
+  );
 
-  for (const option of [...options].sort(
-    (left, right) => left.span.startTokenIndex - right.span.startTokenIndex,
-  )) {
-    const tokens = sentence.tokens.slice(
-      option.span.startTokenIndex,
-      option.span.endTokenIndex,
-    );
-    const first = tokens.at(0);
-    const last = tokens.at(-1);
-    if (first === undefined || last === undefined) {
-      continue;
-    }
-    if (cursor < first.startOffset) {
-      fragments.push(
-        <span key={`text-${cursor}`}>
-          {characters.slice(cursor, first.startOffset).join('')}
-        </span>,
-      );
-    }
-    fragments.push(
-      <mark
-        data-testid='inline-option-span'
-        id={`inline-option-${option.id}`}
-        key={`mark-${option.id}`}
+  return (
+    <div
+      className='flex flex-wrap items-center gap-cluster rounded-control border border-default p-cluster'
+      data-testid='inline-option-row'
+    >
+      <Input
+        aria-describedby={`inline-option-${option.id}`}
+        aria-label={accessibleName}
+        checked={confirmedOptionId === option.id}
+        className='size-icon shrink-0 p-px shadow-none'
+        disabled={disabled}
+        id={`answer-${option.id}`}
+        name='answer'
+        onChange={() => onSelect(option.id)}
+        type='radio'
+        value={option.id}
+      />
+      <span
+        data-testid='inline-sentence'
+        lang='th'
       >
-        {characters.slice(first.startOffset, last.endOffset).join('')}
-      </mark>,
-      ...tokens.map((token) => (
+        {characters.slice(0, first.startOffset).join('')}
+        <mark
+          data-testid='inline-option-span'
+          id={`inline-option-${option.id}`}
+        >
+          {surface}
+        </mark>
+        {characters.slice(last.endOffset).join('')}
+      </span>
+      {tokens.map((token) => (
         <ThaiFeedbackTrigger
           feedback={token}
           key={`feedback-${option.id}-${token.position}`}
           label={`${token.surface} 뜻과 발음 듣기`}
           onActivate={onActivate}
-          onSelect={onSelect}
+          onSelect={onFeedbackSelect}
         />
-      )),
-    );
-    cursor = last.endOffset;
-  }
-  if (cursor < characters.length) {
-    fragments.push(
-      <span key={`text-${cursor}`}>{characters.slice(cursor).join('')}</span>,
-    );
-  }
-
-  return (
-    <p
-      className='flex flex-wrap items-baseline gap-cluster'
-      lang='th'
-    >
-      {fragments}
-    </p>
+      ))}
+      {confirmedOptionId === option.id && feedback !== undefined ? (
+        <span>선택한 답</span>
+      ) : null}
+      {feedback?.feedback.correctOptionId === option.id ? (
+        <span>정답</span>
+      ) : null}
+    </div>
   );
+}
+
+function getAccessibleName(
+  surface: string,
+  option: InlineOption,
+  confirmedOptionId: string | undefined,
+  feedback: SubmitQuestionAttemptResponse | undefined,
+) {
+  if (feedback === undefined) {
+    return surface;
+  }
+  return [
+    surface,
+    confirmedOptionId === option.id ? '선택한 답' : null,
+    feedback.feedback.correctOptionId === option.id ? '정답' : null,
+  ]
+    .filter((value) => value !== null)
+    .join(' ');
 }
