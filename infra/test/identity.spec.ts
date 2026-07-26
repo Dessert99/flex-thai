@@ -87,7 +87,7 @@ describe('Identity 학교 이메일 인증 경계', () => {
     });
     const template = Template.fromStack(stack);
 
-    template.resourceCountIs('AWS::Lambda::Function', 6);
+    template.resourceCountIs('AWS::Lambda::Function', 7);
     template.resourceCountIs('AWS::SES::EmailIdentity', 1);
     template.hasResourceProperties('AWS::IAM::Policy', {
       PolicyDocument: {

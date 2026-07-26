@@ -15,6 +15,7 @@ import { Construct } from 'constructs';
 export interface AsyncJobsProps {
   jobStarterEntry: string;
   foundationEntry: string;
+  failureMarkerEntry: string;
   cluster: rds.DatabaseCluster;
   clusterSecret: secretsmanager.ISecret;
 }
@@ -31,6 +32,8 @@ export class AsyncJobs extends Construct {
   readonly jobStarterFunction: nodejs.NodejsFunction;
   /** foundation Job 상태 전이를 실행하는 Lambda */
   readonly foundationFunction: nodejs.NodejsFunction;
+  /** 소진된 workflow의 현재 attempt를 terminal 실패로 닫는 Lambda */
+  readonly failureMarkerFunction: nodejs.NodejsFunction;
 
   constructor(scope: Construct, id: string, props: AsyncJobsProps) {
     super(scope, id);
@@ -51,19 +54,97 @@ export class AsyncJobs extends Construct {
         maxReceiveCount: 5,
       },
     });
+    const databaseEnvironment = {
+      DATABASE_MODE: 'data-api',
+      DATABASE_NAME: 'flex_thia',
+      RDS_RESOURCE_ARN: props.cluster.clusterArn,
+      RDS_SECRET_ARN: props.clusterSecret.secretArn,
+    };
     this.foundationFunction = this.createWorker(
       'FoundationTask',
       props.foundationEntry,
-      {
-        DATABASE_MODE: 'data-api',
-        DATABASE_NAME: 'flex_thia',
-        RDS_RESOURCE_ARN: props.cluster.clusterArn,
-        RDS_SECRET_ARN: props.clusterSecret.secretArn,
-      },
+      databaseEnvironment,
+      Duration.minutes(10),
+    );
+    this.failureMarkerFunction = this.createWorker(
+      'ContentProductionFailureMarker',
+      props.failureMarkerEntry,
+      databaseEnvironment,
     );
     const definition = new tasks.LambdaInvoke(this, 'RunFoundationTask', {
       lambdaFunction: this.foundationFunction,
       payloadResponseOnly: true,
+    });
+    const retryErrors = [
+      'Lambda.ServiceException',
+      'Lambda.AWSLambdaException',
+      'Lambda.SdkClientException',
+      'Lambda.TooManyRequestsException',
+      'States.Timeout',
+      'States.TaskFailed',
+    ];
+    // 10분 실행 상한과 5분 lease가 모두 지난 뒤 재호출해 중복 처리를 차단한다
+    definition.addRetry({
+      errors: retryErrors,
+      interval: Duration.minutes(16),
+      maxAttempts: 3,
+      backoffRate: 2,
+    });
+    const recoverAttempt = new tasks.LambdaInvoke(
+      this,
+      'RecoverContentProductionAttempt',
+      {
+        lambdaFunction: this.foundationFunction,
+        payloadResponseOnly: true,
+      },
+    );
+    recoverAttempt.addRetry({
+      errors: retryErrors,
+      interval: Duration.minutes(16),
+      maxAttempts: 3,
+      backoffRate: 2,
+    });
+    const workflowFailed = new sfn.Fail(
+      this,
+      'ContentProductionWorkflowFailed',
+      {
+        error: 'ContentProductionWorkflowFailed',
+        cause: '콘텐츠 제작 worker 제한 재시도를 소진했습니다',
+      },
+    );
+    const markAttemptFailed = new tasks.LambdaInvoke(
+      this,
+      'MarkContentProductionAttemptFailed',
+      {
+        lambdaFunction: this.failureMarkerFunction,
+        payloadResponseOnly: true,
+      },
+    );
+    markAttemptFailed.addRetry({
+      errors: retryErrors,
+      interval: Duration.minutes(1),
+      maxAttempts: 3,
+      backoffRate: 2,
+    });
+    markAttemptFailed.addCatch(workflowFailed, {
+      errors: ['States.ALL'],
+      resultPath: '$.failureMarkerError',
+    });
+    recoverAttempt.addCatch(markAttemptFailed, {
+      errors: ['States.ALL'],
+      resultPath: '$.recoveryError',
+    });
+    const waitForExpiredLease = new sfn.Wait(
+      this,
+      'WaitForExpiredContentProductionLease',
+      {
+        time: sfn.WaitTime.duration(Duration.minutes(16)),
+      },
+    );
+    waitForExpiredLease.next(recoverAttempt);
+    definition.addCatch(waitForExpiredLease, {
+      errors: ['States.ALL'],
+      resultPath: '$.workflowError',
     });
     this.stateMachine = new sfn.StateMachine(this, 'StateMachine', {
       definitionBody: sfn.DefinitionBody.fromChainable(definition),
@@ -89,18 +170,21 @@ export class AsyncJobs extends Construct {
     this.stateMachine.grantStartExecution(this.jobStarterFunction);
     props.cluster.grantDataApiAccess(this.foundationFunction);
     props.clusterSecret.grantRead(this.foundationFunction);
+    props.cluster.grantDataApiAccess(this.failureMarkerFunction);
+    props.clusterSecret.grantRead(this.failureMarkerFunction);
   }
 
   private createWorker(
     id: string,
     entry: string,
     environment: Record<string, string>,
+    timeout: Duration = Duration.seconds(60),
   ): nodejs.NodejsFunction {
     return new nodejs.NodejsFunction(this, id, {
       entry,
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_22_X,
-      timeout: Duration.seconds(60),
+      timeout,
       memorySize: 512,
       reservedConcurrentExecutions: 2,
       environment,

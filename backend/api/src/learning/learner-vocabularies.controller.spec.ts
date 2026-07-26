@@ -34,6 +34,7 @@ const detail = {
   saved: false,
   meaningPronunciations: [],
   exampleSentences: [],
+  relations: [],
 } as const;
 
 const service = () => ({

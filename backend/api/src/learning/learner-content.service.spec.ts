@@ -190,6 +190,18 @@ const dependencies = () => ({
       meaningPronunciations: [
         { meaningId: ids.meaning, pronunciationId: ids.pronunciation },
       ],
+      relations: [
+        {
+          id: '00000000-0000-4000-8000-000000000099',
+          type: 'SYNONYM',
+          direction: 'BIDIRECTIONAL',
+          meaningId: ids.meaning,
+          relatedVocabularyId: '00000000-0000-4000-8000-000000000098',
+          relatedThai: 'หวัดดี',
+          relatedMeaningId: '00000000-0000-4000-8000-000000000097',
+          relatedMeaningKo: '안녕',
+        },
+      ],
       exampleSentences: [
         {
           sentenceVersionId: ids.sentence,
@@ -354,6 +366,7 @@ describe('LearnerContentService 어휘 응답', () => {
     expect(result.exampleSentences[0]?.audioUrl).toBe(
       'https://media.example.com/signed',
     );
+    expect(result.relations[0]?.relatedMeaningKo).toBe('안녕');
     expect(JSON.stringify(result)).not.toContain('storageKey');
   });
 

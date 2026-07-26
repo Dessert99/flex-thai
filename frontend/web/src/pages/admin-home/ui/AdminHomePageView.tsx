@@ -202,5 +202,7 @@ function toQuestionStatusLabel(
 function toVocabularyStatusLabel(
   status: AdminVocabularyListResponse['items'][number]['status'],
 ) {
-  return { DRAFT: '초안', HIDDEN: '숨김', PUBLISHED: '게시' }[status];
+  return { DRAFT: '초안', HIDDEN: '숨김', MERGED: '병합됨', PUBLISHED: '게시' }[
+    status
+  ];
 }

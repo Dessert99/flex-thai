@@ -82,9 +82,12 @@ export function VocabularyManagementPageView({
                   }
                 >
                   {
-                    { DRAFT: '초안', HIDDEN: '숨김', PUBLISHED: '게시' }[
-                      item.status
-                    ]
+                    {
+                      DRAFT: '초안',
+                      HIDDEN: '숨김',
+                      MERGED: '병합됨',
+                      PUBLISHED: '게시',
+                    }[item.status]
                   }
                 </Badge>
               </TableCell>

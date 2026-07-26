@@ -1,7 +1,11 @@
 /** AWS와 HTTP에 의존하지 않는 비동기 Job aggregate */
 
 /** 지원하는 초기 비동기 작업 */
-export type JobType = 'VOCAB_IMPORT' | 'QUESTION_GENERATION';
+export type JobType =
+  | 'VOCAB_IMPORT'
+  | 'VOCABULARY_EXTRACTION'
+  | 'QUESTION_GENERATION'
+  | 'VOCABULARY_THEN_QUESTION_GENERATION';
 
 /** 지원하는 원본 형식 */
 export type InputType = 'TEXT' | 'PDF' | 'IMAGE';
@@ -45,3 +49,6 @@ export interface CreateJobCommand {
     sizeBytes: number;
   }>;
 }
+
+/** 신규 콘텐츠 제작 경계를 기존 Job 공개 경계에서 호환 노출한다 */
+export * from '../content-production/index.js';

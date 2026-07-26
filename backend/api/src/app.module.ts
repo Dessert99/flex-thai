@@ -4,6 +4,7 @@ import { CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-
 import { S3Client } from '@aws-sdk/client-s3';
 import { SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { SESv2Client } from '@aws-sdk/client-sesv2';
+import { SQSClient } from '@aws-sdk/client-sqs';
 import { type DynamicModule, Module } from '@nestjs/common';
 import { readApiEnv } from '@flex-thia/config';
 import {
@@ -18,6 +19,8 @@ import {
   DrizzleContentImportRepository,
   DrizzleConceptAdminRepository,
   DrizzleConceptErrorReportTargetLookup,
+  DrizzleContentProductionPresetCatalog,
+  DrizzleContentProductionRepository,
   DrizzleContentErrorReportQuery,
   DrizzleContentErrorReportRepository,
   DrizzleEmailChallengeRepository,
@@ -28,7 +31,9 @@ import {
   DrizzleMediaAdminRepository,
   DrizzleQuestionAdminRepository,
   DrizzleQuestionPublicationRepository,
+  DrizzleRecommendationQuery,
   DrizzleReadinessProbe,
+  DrizzleUploadRepository,
   DrizzleUserRepository,
   DrizzleUserManagementQuery,
   DrizzleVocabularyAdminRepository,
@@ -41,6 +46,7 @@ import {
   ContentDraftService,
   ContentErrorReportService,
   ContentImportService,
+  ContentProductionService,
   ConceptService,
   IdentityAuthenticationService,
   MediaAdminService,
@@ -49,6 +55,7 @@ import {
   QuestionPublicationService,
   SavedContentService,
   PasswordlessAuthenticationService,
+  UploadPolicyService,
   UserManagementService,
   VocabularyAdminService,
   VocabularyPracticeService,
@@ -58,17 +65,23 @@ import {
   ChallengeCrypto,
   CloudFrontMediaReadUrlProvider,
   CognitoPasswordlessAuthenticationProvider,
+  DeterministicContentProductionProcessor,
   FakeAudioUploadProvider,
   FakeEmailChallengeSender,
   FakeConceptContentValidator,
   FakeMediaReadUrlProvider,
   FakePasswordlessAuthenticationProvider,
+  FakeUploadProvider,
+  LocalContentProductionQueue,
   S3AudioUploadProvider,
+  S3UploadProvider,
   SesEmailChallengeSender,
+  SqsJobQueue,
   UnavailableConceptContentValidator,
 } from '@flex-thia/providers';
 import { AdminModule } from './admin/admin.module.js';
 import { ConceptsModule } from './concepts/concepts.module.js';
+import { ContentProductionModule } from './content-production/content-production.module.js';
 import { ContentErrorReportsModule } from './feedback/content-error-reports.module.js';
 import { HealthController } from './health/health.controller.js';
 import {
@@ -78,6 +91,7 @@ import {
 import { IdentityModule } from './identity/identity.module.js';
 import { LearningModule } from './learning/learning.module.js';
 import { VocabularyPracticeModule } from './learning/vocabulary-practice.module.js';
+import { RecommendationsModule } from './recommendations/recommendations.module.js';
 
 /** 기초 API의 root module */
 @Module({})
@@ -258,6 +272,34 @@ export const createApplicationModule = (
     feedbackRepository,
     feedbackRepository,
   );
+  const contentProductionUploads = new DrizzleUploadRepository(database);
+  const contentProductionStorage =
+    env.NODE_ENV === 'production'
+      ? new S3UploadProvider(
+          new S3Client({ region: env.AWS_REGION }),
+          requireValue(env.INPUT_BUCKET_NAME, 'INPUT_BUCKET_NAME'),
+        )
+      : new FakeUploadProvider();
+  const contentProductionRepository = new DrizzleContentProductionRepository(
+    database,
+  );
+  const contentProductionQueue =
+    env.NODE_ENV === 'production'
+      ? new SqsJobQueue(
+          new SQSClient({ region: env.AWS_REGION }),
+          requireValue(env.JOB_QUEUE_URL, 'JOB_QUEUE_URL'),
+        )
+      : new LocalContentProductionQueue(
+          contentProductionRepository,
+          new DeterministicContentProductionProcessor(),
+        );
+  const contentProductionPresets = new DrizzleContentProductionPresetCatalog(
+    database,
+  );
+  const contentProduction = new ContentProductionService(
+    contentProductionRepository,
+    contentProductionQueue,
+  );
 
   return {
     module: AppModule,
@@ -318,6 +360,23 @@ export const createApplicationModule = (
       ContentErrorReportsModule.register({
         reports: feedback,
         query: new DrizzleContentErrorReportQuery(database),
+        users,
+        authorizer,
+      }),
+      RecommendationsModule.register({
+        query: new DrizzleRecommendationQuery(database),
+        users,
+        authorizer,
+      }),
+      ContentProductionModule.register({
+        uploads: contentProductionUploads,
+        uploadPolicies: new UploadPolicyService(
+          contentProductionUploads,
+          contentProductionStorage,
+          randomUUID,
+        ),
+        presets: contentProductionPresets,
+        contentProduction,
         users,
         authorizer,
       }),

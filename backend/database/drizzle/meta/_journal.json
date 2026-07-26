@@ -99,6 +99,13 @@
       "when": 1785093972779,
       "tag": "0013_jazzy_daimon_hellstrom",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1785099423122,
+      "tag": "0014_new_blazing_skull",
+      "breakpoints": true
     }
   ]
 }

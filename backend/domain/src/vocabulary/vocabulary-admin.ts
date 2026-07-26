@@ -12,6 +12,12 @@ import {
   type Vocabulary,
   VocabularyDomainError,
 } from './vocabulary.js';
+import type { VocabularyRelationsMergeRepository } from './vocabulary-relations-merge.repository.js';
+import {
+  type CreateVocabularyRelationCommand,
+  type UpdateVocabularyRelationCommand,
+  VocabularyRelationsMergeService,
+} from './vocabulary-relations-merge.service.js';
 
 const STANDARD_UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -369,10 +375,18 @@ const toResult = (
 
 /** 잠금 아래 관리자 어휘 전체 교체와 exact 상태 전이를 원자 실행한다 */
 export class VocabularyAdminService {
+  private readonly relationsMerge: VocabularyRelationsMergeService;
+
   constructor(
     private readonly repository: VocabularyAdminRepository,
     private readonly generateId: () => string = randomUUID,
-  ) {}
+  ) {
+    this.relationsMerge = new VocabularyRelationsMergeService(
+      repository as VocabularyAdminRepository &
+        VocabularyRelationsMergeRepository,
+      generateId,
+    );
+  }
 
   /** 미사용 DRAFT만 새 child UUID와 명시적 mapping으로 전체 교체한다 */
   async replace(
@@ -539,6 +553,42 @@ export class VocabularyAdminService {
     });
   }
 
+  /** 두 뜻의 소유권을 확인하고 PENDING 관계를 생성한다 */
+  async createRelation(command: CreateVocabularyRelationCommand) {
+    return this.relationsMerge.createRelation(command);
+  }
+
+  /** 관계 메타데이터 또는 검토 상태를 불변 조건 아래 변경한다 */
+  async updateRelation(command: UpdateVocabularyRelationCommand) {
+    return this.relationsMerge.updateRelation(command);
+  }
+
+  /** 경로 어휘에 연결된 뜻 관계를 삭제한다 */
+  async deleteRelation(input: {
+    vocabularyId: string;
+    relationId: string;
+  }): Promise<void> {
+    return this.relationsMerge.deleteRelation(input);
+  }
+
+  /** 현재 source·대표 graph의 병합 비교와 opaque token을 반환한다 */
+  async previewMerge(
+    sourceVocabularyId: string,
+    representativeVocabularyId: string,
+  ) {
+    return this.relationsMerge.previewMerge(
+      sourceVocabularyId,
+      representativeVocabularyId,
+    );
+  }
+
+  /** 같은 preview token일 때만 live 참조를 대표 어휘로 병합한다 */
+  async merge(
+    command: Parameters<VocabularyRelationsMergeService['merge']>[0],
+  ) {
+    return this.relationsMerge.merge(command);
+  }
+
   private async transition(
     command: TransitionVocabularyCommand,
     rule: {
@@ -602,3 +652,16 @@ export class VocabularyAdminService {
     }
   }
 }
+
+export { VocabularyRelationsMergeAdminError } from './vocabulary-relations-merge.service.js';
+export { VocabularyRelationsMergeService };
+export {
+  assertVocabularyMergePair,
+  createVocabularyMergeFingerprint,
+} from './vocabulary-relations-merge.js';
+export type {
+  CreateVocabularyRelationCommand,
+  UpdateVocabularyRelationCommand,
+  VocabularyRelationsMergeContext,
+} from './vocabulary-relations-merge.service.js';
+export type { VocabularyMergeGraph } from './vocabulary-relations-merge.js';

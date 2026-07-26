@@ -459,6 +459,21 @@ describe('DrizzleLearnerVocabularyQuery 상세와 예문', () => {
           representative: true,
         },
       ],
+      [
+        {
+          id: 'relation-1',
+          type: 'SYNONYM',
+          direction: 'BIDIRECTIONAL',
+          sourceMeaningId: 'meaning-1',
+          sourceVocabularyId: 'vocabulary-1',
+          sourceThai: 'สวัสดี',
+          sourceMeaningKo: '안녕하세요',
+          targetMeaningId: 'related-meaning-1',
+          targetVocabularyId: 'related-vocabulary-1',
+          targetThai: 'หวัดดี',
+          targetMeaningKo: '안녕',
+        },
+      ],
     ]);
     const query = new DrizzleLearnerVocabularyQuery(fake.database as never);
 
@@ -482,6 +497,27 @@ describe('DrizzleLearnerVocabularyQuery 상세와 예문', () => {
       contextMeaningKo: '인사 표현',
       representative: true,
     });
+    expect(detail?.relations).toEqual([
+      {
+        id: 'relation-1',
+        type: 'SYNONYM',
+        direction: 'BIDIRECTIONAL',
+        meaningId: 'meaning-1',
+        relatedVocabularyId: 'related-vocabulary-1',
+        relatedThai: 'หวัดดี',
+        relatedMeaningId: 'related-meaning-1',
+        relatedMeaningKo: '안녕',
+      },
+    ]);
+    const relationCondition = toSql(fake.selectCalls[7]?.condition);
+    expect(relationCondition.params).toEqual(
+      expect.arrayContaining([
+        'PASSED',
+        'PUBLISHED',
+        'BIDIRECTIONAL',
+        'vocabulary-1',
+      ]),
+    );
     const exampleCondition = toSql(fake.selectCalls[4]?.condition);
     expect(exampleCondition.params).toEqual(
       expect.arrayContaining(['vocabulary-1', 'PUBLISHED', 'PUBLISHED']),

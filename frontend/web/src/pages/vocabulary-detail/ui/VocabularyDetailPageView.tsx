@@ -46,6 +46,29 @@ export function VocabularyDetailPageView({
         onConfirmed={onWordbookMembershipConfirmed}
         vocabularyId={detail.id}
       />
+      {detail.relations.length > 0 ? (
+        <section
+          aria-labelledby='vocabulary-relations-title'
+          className='grid gap-cluster'
+        >
+          <h2
+            className='text-heading text-primary'
+            id='vocabulary-relations-title'
+          >
+            연관 뜻
+          </h2>
+          <ul>
+            {detail.relations.map((relation) => (
+              <li key={relation.id}>
+                <a href={`/vocabularies/${relation.relatedVocabularyId}`}>
+                  <span lang='th'>{relation.relatedThai}</span> ·{' '}
+                  {relation.relatedMeaningKo}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       <VocabularyExamples sentences={detail.exampleSentences} />
       <VocabularyDetailTabs
         detail={detail}

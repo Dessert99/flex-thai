@@ -340,6 +340,7 @@ export class LearnerContentService {
     return parseLearnerPublicResponse(vocabularyDetailResponseSchema, {
       ...(await mapVocabularySummary(detail, signMedia)),
       meaningPronunciations: detail.meaningPronunciations,
+      relations: detail.relations,
       exampleSentences: await Promise.all(
         detail.exampleSentences.map((example) =>
           mapSentence(example, signMedia),

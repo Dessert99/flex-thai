@@ -25,6 +25,12 @@ const ACTIVE_PATHS = [
   '/api/v1/admin/content-error-reports/{reportId}',
   '/api/v1/admin/content-error-reports/{reportId}/assignee',
   '/api/v1/admin/content-error-reports/{reportId}/status',
+  '/api/v1/admin/content-production/jobs',
+  '/api/v1/admin/content-production/jobs/{jobId}',
+  '/api/v1/admin/content-production/jobs/{jobId}/retry',
+  '/api/v1/admin/content-production/presets',
+  '/api/v1/admin/content-production/uploads/policies',
+  '/api/v1/admin/content-production/uploads/{uploadId}/complete',
   '/api/v1/admin/media-assets/audio-upload-requests',
   '/api/v1/admin/media-assets/{mediaAssetId}',
   '/api/v1/admin/media-assets/{mediaAssetId}/complete',
@@ -40,7 +46,11 @@ const ACTIVE_PATHS = [
   '/api/v1/admin/vocabularies',
   '/api/v1/admin/vocabularies/{vocabularyId}',
   '/api/v1/admin/vocabularies/{vocabularyId}/hide',
+  '/api/v1/admin/vocabularies/{vocabularyId}/merge',
+  '/api/v1/admin/vocabularies/{vocabularyId}/merge-preview',
   '/api/v1/admin/vocabularies/{vocabularyId}/publish',
+  '/api/v1/admin/vocabularies/{vocabularyId}/relations',
+  '/api/v1/admin/vocabularies/{vocabularyId}/relations/{relationId}',
   '/api/v1/admin/vocabularies/{vocabularyId}/restore',
   '/api/v1/admin/users',
   '/api/v1/admin/users/{userId}/status',
@@ -59,6 +69,7 @@ const ACTIVE_PATHS = [
   '/api/v1/content-error-reports',
   '/api/v1/me',
   '/api/v1/me/question-attempts',
+  '/api/v1/me/recommendations',
   '/api/v1/me/saved-questions/{questionId}',
   '/api/v1/me/vocabularies/{vocabularyId}/wordbook-memberships',
   '/api/v1/me/vocabulary-practice/sessions',
@@ -554,6 +565,54 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
   },
   {
     method: 'post',
+    path: '/api/v1/admin/content-production/uploads/policies',
+    body: 'ContentProductionUploadPolicyRequestDto',
+    success: ['201', 'ContentProductionUploadPolicyResponseDto'],
+    errors: ['400', '401', '403', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/content-production/uploads/{uploadId}/complete',
+    pathParameters: ['uploadId'],
+    success: ['200', 'CompletedContentProductionUploadResponseDto'],
+    errors: ['400', '401', '403', '404', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/admin/content-production/presets',
+    success: ['200', 'ContentProductionPresetListResponseDto'],
+    errors: ['401', '403', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/content-production/jobs',
+    body: 'CreateContentProductionJobRequestDto',
+    success: ['202', 'ContentProductionJobSummaryDto'],
+    errors: ['400', '401', '403', '409', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/admin/content-production/jobs',
+    query: ['limit'],
+    success: ['200', 'ContentProductionJobListResponseDto'],
+    errors: ['400', '401', '403', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/admin/content-production/jobs/{jobId}',
+    pathParameters: ['jobId'],
+    success: ['200', 'ContentProductionJobDetailResponseDto'],
+    errors: ['400', '401', '403', '404', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/content-production/jobs/{jobId}/retry',
+    pathParameters: ['jobId'],
+    success: ['202', 'ContentProductionJobSummaryDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'post',
     path: '/api/v1/admin/media-assets/audio-upload-requests',
     body: 'AudioUploadRequestDto',
     success: ['201', 'AudioUploadResponseDto'],
@@ -690,6 +749,45 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
     errors: ['400', '401', '403', '404', '409', '500'],
   },
   {
+    method: 'post',
+    path: '/api/v1/admin/vocabularies/{vocabularyId}/relations',
+    pathParameters: ['vocabularyId'],
+    body: 'AdminVocabularyRelationCreateRequestDto',
+    success: ['201', 'AdminVocabularyRelationDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'put',
+    path: '/api/v1/admin/vocabularies/{vocabularyId}/relations/{relationId}',
+    pathParameters: ['vocabularyId', 'relationId'],
+    body: 'AdminVocabularyRelationUpdateRequestDto',
+    success: ['200', 'AdminVocabularyRelationDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'delete',
+    path: '/api/v1/admin/vocabularies/{vocabularyId}/relations/{relationId}',
+    pathParameters: ['vocabularyId', 'relationId'],
+    success: ['204'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/vocabularies/{vocabularyId}/merge-preview',
+    pathParameters: ['vocabularyId'],
+    body: 'AdminVocabularyMergePreviewRequestDto',
+    success: ['200', 'AdminVocabularyMergePreviewResponseDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/vocabularies/{vocabularyId}/merge',
+    pathParameters: ['vocabularyId'],
+    body: 'AdminVocabularyMergeExecuteRequestDto',
+    success: ['200', 'AdminVocabularyMergeResponseDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
     method: 'get',
     path: '/api/v1/admin/users',
     success: ['200', 'UserManagementListResponseDto'],
@@ -713,6 +811,12 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
 ];
 
 const LEARNER_OPERATIONS: readonly LearnerOperationExpectation[] = [
+  {
+    method: 'get',
+    path: '/api/v1/me/recommendations',
+    success: ['200', 'RecommendationResponseDto'],
+    errors: ['401', '403', '500'],
+  },
   {
     method: 'get',
     path: '/api/v1/concepts',
@@ -945,7 +1049,7 @@ describe('OpenAPI 문서', () => {
     await app?.close();
   });
 
-  it('현재 활성 endpoint의 서로 다른 path 예순여덟 개만 공개한다', () => {
+  it('현재 활성 endpoint의 서로 다른 path 일흔아홉 개만 공개한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
@@ -1199,21 +1303,21 @@ describe('OpenAPI 문서', () => {
     });
   });
 
-  it('학습자 operation 스물여섯 개의 요청·성공·보안·오류 계약을 모두 고정한다', () => {
+  it('학습자 operation 스물일곱 개의 요청·성공·보안·오류 계약을 모두 고정한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
 
-    expect(LEARNER_OPERATIONS).toHaveLength(26);
+    expect(LEARNER_OPERATIONS).toHaveLength(27);
     expectProtectedOpenApiOperations(document, LEARNER_OPERATIONS);
   });
 
-  it('관리자 operation 서른여덟 개의 입력·성공·Bearer·오류 계약을 모두 고정한다', () => {
+  it('관리자 operation 쉰 개의 입력·성공·Bearer·오류 계약을 모두 고정한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
 
-    expect(ADMIN_OPERATIONS).toHaveLength(38);
+    expect(ADMIN_OPERATIONS).toHaveLength(50);
     expectProtectedOpenApiOperations(document, ADMIN_OPERATIONS);
   });
 

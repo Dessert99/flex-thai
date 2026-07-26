@@ -150,3 +150,6 @@ export * from './feedback/content-error-report.query.js';
 
 /** 콘텐츠 오류 신고 use case를 공개한다 */
 export * from './feedback/content-error-report.service.js';
+
+/** 비동기 콘텐츠 제작 작업의 규칙과 port를 공개한다 */
+export * from './content-production/index.js';

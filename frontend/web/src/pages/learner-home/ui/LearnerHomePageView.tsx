@@ -1,41 +1,39 @@
-/** 학습자 홈의 최근 문제·어휘를 통계나 추천 없이 표현한다 */
-import type {
-  QuestionListResponse,
-  VocabularyListResponse,
-} from '@flex-thia/contracts';
+/** 학습자 홈에서 개인화 또는 최근 게시 추천과 이유를 표현한다 */
+import type { RecommendationResponse } from '@flex-thia/contracts';
 import type { ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { PageEmpty, PageError, PageLoading } from '@/shared/ui/page-state';
 
 interface LearnerHomePageViewProps {
-  onRetryQuestions: () => void;
-  onRetryVocabularies: () => void;
-  questions: QuestionListResponse['items'];
-  questionsError: boolean;
-  vocabularies: VocabularyListResponse['items'];
-  vocabulariesError: boolean;
+  error: boolean;
+  onRetry: () => void;
+  recommendation: RecommendationResponse | null;
   waiting: boolean;
 }
 
-/** 독립적인 최근 목록 상태를 지우지 않고 학습 시작점을 제공한다 */
+/** 단일 추천 요청의 로딩·오류·빈 상태와 두 추천 목록을 조립한다 */
 export function LearnerHomePageView({
-  onRetryQuestions,
-  onRetryVocabularies,
-  questions,
-  questionsError,
-  vocabularies,
-  vocabulariesError,
+  error,
+  onRetry,
+  recommendation,
   waiting,
 }: LearnerHomePageViewProps) {
   if (waiting) {
     return <PageLoading message='학습 홈을 불러오고 있습니다.' />;
   }
 
+  if (error || recommendation === null) {
+    return (
+      <PageError
+        message='추천 콘텐츠를 불러오지 못했습니다.'
+        onRetry={onRetry}
+      />
+    );
+  }
+
   if (
-    !questionsError &&
-    !vocabulariesError &&
-    questions.length === 0 &&
-    vocabularies.length === 0
+    recommendation.questions.length === 0 &&
+    recommendation.vocabularies.length === 0
   ) {
     return (
       <PageEmpty
@@ -53,6 +51,8 @@ export function LearnerHomePageView({
     );
   }
 
+  const personalized = recommendation.mode === 'PERSONALIZED';
+
   return (
     <section
       aria-labelledby='learner-home-title'
@@ -65,47 +65,47 @@ export function LearnerHomePageView({
         >
           학습 홈
         </h1>
-        <p className='text-body text-subtle'>
-          최근 공개된 문제와 어휘부터 학습을 시작해 보세요.
-        </p>
+        {personalized ? (
+          <p className='text-body text-subtle'>
+            학습 기록을 바탕으로 지금 다시 보면 좋은 콘텐츠를 골랐어요.
+          </p>
+        ) : (
+          <div className='space-y-cluster'>
+            <p className='text-body text-primary'>
+              개인 추천을 준비하고 있어요.
+            </p>
+            <p className='text-body text-subtle'>
+              학습 신호 {recommendation.meaningfulSignalCount}개 ·{' '}
+              {recommendation.activationThreshold}개부터 개인화하며, 지금은 최근
+              게시 콘텐츠를 보여드려요.
+            </p>
+          </div>
+        )}
       </header>
       <div className='grid gap-section lg:grid-cols-2'>
-        <RecentQuestions
-          error={questionsError}
-          items={questions}
-          onRetry={onRetryQuestions}
+        <RecommendedQuestions
+          items={recommendation.questions}
+          personalized={personalized}
         />
-        <RecentVocabularies
-          error={vocabulariesError}
-          items={vocabularies}
-          onRetry={onRetryVocabularies}
+        <RecommendedVocabularies
+          items={recommendation.vocabularies}
+          personalized={personalized}
         />
       </div>
     </section>
   );
 }
 
-function RecentQuestions({
-  error,
+function RecommendedQuestions({
   items,
-  onRetry,
+  personalized,
 }: {
-  error: boolean;
-  items: QuestionListResponse['items'];
-  onRetry: () => void;
+  items: RecommendationResponse['questions'];
+  personalized: boolean;
 }) {
   let content: ReactNode;
-  if (error) {
-    content = (
-      <PageError
-        message='최근 문제를 불러오지 못했습니다.'
-        onRetry={onRetry}
-      />
-    );
-  } else if (items.length === 0) {
-    content = (
-      <p className='text-body text-subtle'>표시할 최근 문제가 없습니다.</p>
-    );
+  if (items.length === 0) {
+    content = <p className='text-body text-subtle'>표시할 문제가 없습니다.</p>;
   } else {
     content = (
       <ul className='flex flex-col gap-cluster'>
@@ -120,6 +120,9 @@ function RecentQuestions({
                 {question.skill === 'READING' ? '읽기' : '듣기'} · 난이도{' '}
                 {question.difficulty}
               </span>
+              <span className='mt-cluster block text-caption text-subtle'>
+                {question.reason}
+              </span>
             </a>
           </li>
         ))}
@@ -130,34 +133,27 @@ function RecentQuestions({
   return (
     <Card className='rounded-panel border-default bg-surface'>
       <CardHeader>
-        <CardTitle className='text-title'>최근 문제</CardTitle>
+        <CardTitle>
+          <h2 className='text-title'>
+            {personalized ? '추천 문제' : '최근 문제'}
+          </h2>
+        </CardTitle>
       </CardHeader>
       <CardContent>{content}</CardContent>
     </Card>
   );
 }
 
-function RecentVocabularies({
-  error,
+function RecommendedVocabularies({
   items,
-  onRetry,
+  personalized,
 }: {
-  error: boolean;
-  items: VocabularyListResponse['items'];
-  onRetry: () => void;
+  items: RecommendationResponse['vocabularies'];
+  personalized: boolean;
 }) {
   let content: ReactNode;
-  if (error) {
-    content = (
-      <PageError
-        message='최근 어휘를 불러오지 못했습니다.'
-        onRetry={onRetry}
-      />
-    );
-  } else if (items.length === 0) {
-    content = (
-      <p className='text-body text-subtle'>표시할 최근 어휘가 없습니다.</p>
-    );
+  if (items.length === 0) {
+    content = <p className='text-body text-subtle'>표시할 어휘가 없습니다.</p>;
   } else {
     content = (
       <ul className='flex flex-col gap-cluster'>
@@ -173,6 +169,9 @@ function RecentVocabularies({
               >
                 {vocabulary.thai}
               </span>
+              <span className='mt-cluster block text-caption text-subtle'>
+                {vocabulary.reason}
+              </span>
             </a>
           </li>
         ))}
@@ -183,7 +182,11 @@ function RecentVocabularies({
   return (
     <Card className='rounded-panel border-default bg-surface'>
       <CardHeader>
-        <CardTitle className='text-title'>최근 어휘</CardTitle>
+        <CardTitle>
+          <h2 className='text-title'>
+            {personalized ? '추천 어휘' : '최근 어휘'}
+          </h2>
+        </CardTitle>
       </CardHeader>
       <CardContent>{content}</CardContent>
     </Card>

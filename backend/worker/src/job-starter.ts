@@ -44,13 +44,18 @@ export const createJobStarterHandler =
 
 let defaultHandler: ReturnType<typeof createJobStarterHandler> | undefined;
 
+/** infra가 주입하는 canonical Step Functions ARN 이름만 읽는다 */
+export const readJobStateMachineArn = (
+  source: Record<string, string | undefined>,
+): string | undefined => source.STATE_MACHINE_ARN;
+
 /** Lambda runtime에서 state machine ARN을 읽고 handler를 한 번만 만든다 */
 export const handler = (event: SQSEvent): Promise<void> => {
-  const stateMachineArn = process.env.JOB_STATE_MACHINE_ARN;
+  const stateMachineArn = readJobStateMachineArn(process.env);
 
   if (!stateMachineArn) {
     return Promise.reject(
-      new Error('JOB_STATE_MACHINE_ARN 환경 변수가 필요합니다'),
+      new Error('STATE_MACHINE_ARN 환경 변수가 필요합니다'),
     );
   }
 
