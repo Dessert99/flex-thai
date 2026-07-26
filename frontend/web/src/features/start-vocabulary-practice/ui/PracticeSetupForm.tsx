@@ -48,11 +48,9 @@ export function PracticeSetupForm(props: PracticeSetupFormProps) {
     setErrors(nextErrors);
     if (nextErrors.length > 0) return;
 
-    const source = createSource(
-      sourceType,
-      wordbookId,
-      [...selectedVocabularies.keys()],
-    );
+    const source = createSource(sourceType, wordbookId, [
+      ...selectedVocabularies.keys(),
+    ]);
     setPending(true);
     setSubmitError(false);
     try {

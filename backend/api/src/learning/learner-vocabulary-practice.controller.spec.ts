@@ -134,9 +134,7 @@ describe('LearnerVocabularyPracticeController 보호와 route', () => {
         }
       }
 
-      expect(createOperation?.summary).toBe(
-        '단어 연습 세션을 생성한다',
-      );
+      expect(createOperation?.summary).toBe('단어 연습 세션을 생성한다');
       expect(createOperation?.requestBody).toBeDefined();
       expect(JSON.stringify(createOperation?.responses['201'])).toContain(
         '#/components/schemas/ActiveVocabularyPracticeSessionResponseDto',

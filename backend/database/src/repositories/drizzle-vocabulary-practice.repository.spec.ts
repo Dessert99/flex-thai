@@ -137,9 +137,7 @@ describe('DrizzleVocabularyPracticeRepository 답안 transaction', () => {
         },
       ],
     ]);
-    const repository = new DrizzleVocabularyPracticeRepository(
-      fake.database,
-    );
+    const repository = new DrizzleVocabularyPracticeRepository(fake.database);
 
     await expect(repository.submitAnswer(input)).resolves.toEqual({
       status: 'IDEMPOTENCY_CONFLICT',
@@ -154,9 +152,7 @@ describe('DrizzleVocabularyPracticeRepository 답안 transaction', () => {
       [{ ...questionRow, status: 'ACTIVE', questionCount: 10 }],
       [{ id: 'existing-answer' }],
     ]);
-    const repository = new DrizzleVocabularyPracticeRepository(
-      fake.database,
-    );
+    const repository = new DrizzleVocabularyPracticeRepository(fake.database);
 
     await expect(repository.submitAnswer(input)).resolves.toEqual({
       status: 'ALREADY_ANSWERED',
@@ -203,9 +199,7 @@ describe('DrizzleVocabularyPracticeRepository 답안 transaction', () => {
       [{ ...questionRow, status: 'ACTIVE', questionCount: 10 }],
       [],
     ]);
-    const repository = new DrizzleVocabularyPracticeRepository(
-      fake.database,
-    );
+    const repository = new DrizzleVocabularyPracticeRepository(fake.database);
 
     await expect(
       repository.submitAnswer({ ...input, selectedOptionId: 'missing-option' }),

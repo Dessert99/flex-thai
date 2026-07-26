@@ -1,8 +1,5 @@
 /** 단어장 또는 최대 100개 검색 어휘의 연습 출처 선택을 표시한다 */
-import type {
-  VocabularySummary,
-  WordbookSummary,
-} from '@flex-thia/contracts';
+import type { VocabularySummary, WordbookSummary } from '@flex-thia/contracts';
 import { useState } from 'react';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
@@ -195,7 +192,8 @@ function SearchState({
   state: SearchStateValue;
 }) {
   if (!hasQuery || state === 'IDLE') return null;
-  if (state === 'LOADING') return <p role='status'>어휘를 검색하고 있습니다.</p>;
+  if (state === 'LOADING')
+    return <p role='status'>어휘를 검색하고 있습니다.</p>;
   if (state === 'ERROR') {
     return (
       <div>

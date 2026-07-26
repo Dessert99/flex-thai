@@ -60,21 +60,39 @@ export function PracticeSettingsFieldsets({
           }
           value={String(questionCount)}
         >
-          <RadioChoice id='count-10' label='10문항' value='10' />
-          <RadioChoice id='count-20' label='20문항' value='20' />
-          <RadioChoice id='count-ALL' label='전체' value='ALL' />
+          <RadioChoice
+            id='count-10'
+            label='10문항'
+            value='10'
+          />
+          <RadioChoice
+            id='count-20'
+            label='20문항'
+            value='20'
+          />
+          <RadioChoice
+            id='count-ALL'
+            label='전체'
+            value='ALL'
+          />
         </RadioGroup>
       </fieldset>
       <fieldset disabled={disabled}>
         <legend className='text-heading'>출제 순서</legend>
         <RadioGroup
-          onValueChange={(value) =>
-            onChangeOrder(value as 'SOURCE' | 'RANDOM')
-          }
+          onValueChange={(value) => onChangeOrder(value as 'SOURCE' | 'RANDOM')}
           value={order}
         >
-          <RadioChoice id='order-source' label='출처 순서' value='SOURCE' />
-          <RadioChoice id='order-random' label='무작위 순서' value='RANDOM' />
+          <RadioChoice
+            id='order-source'
+            label='출처 순서'
+            value='SOURCE'
+          />
+          <RadioChoice
+            id='order-random'
+            label='무작위 순서'
+            value='RANDOM'
+          />
         </RadioGroup>
       </fieldset>
     </>

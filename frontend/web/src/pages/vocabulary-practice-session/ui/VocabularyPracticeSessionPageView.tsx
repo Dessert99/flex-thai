@@ -37,13 +37,10 @@ export function VocabularyPracticeSessionPageView({
     useState<VocabularyPracticeAnswerResponse>();
   const preferredQuestionIndex = session.questions.findIndex(
     ({ id }) =>
-      id === preferredQuestionId &&
-      !session.answeredQuestionIds.includes(id),
+      id === preferredQuestionId && !session.answeredQuestionIds.includes(id),
   );
   const questionIndex =
-    preferredQuestionIndex >= 0
-      ? preferredQuestionIndex
-      : firstUnansweredIndex;
+    preferredQuestionIndex >= 0 ? preferredQuestionIndex : firstUnansweredIndex;
   const question =
     questionIndex < 0 ? undefined : session.questions[questionIndex];
   const feedback =
