@@ -62,9 +62,9 @@ const toSql = (query: unknown) =>
   new PgDialect().sqlToQuery(query as never).sql.toLowerCase();
 
 describe('DrizzleVocabularyPracticeQuery source 조회', () => {
-  it('검색 ID 순서와 PUBLISHED·READY·뜻-발음 연결을 query에 고정한다', async () => {
+  it('검색 ID 순서와 PUBLISHED·어휘 단위 READY 조건을 query에 고정한다', async () => {
     const fake = createDatabase([[candidateRow]]);
-    const query = new DrizzleVocabularyPracticeQuery(fake.database as never);
+    const query = new DrizzleVocabularyPracticeQuery(fake.database);
 
     await expect(
       query.loadSearchSelection('user-1', ['vocabulary-1']),
@@ -78,11 +78,13 @@ describe('DrizzleVocabularyPracticeQuery source 조회', () => {
     expect(sqlText).toContain('ready');
     expect(sqlText).toContain('vocabulary_meaning_pronunciations');
     expect(sqlText).toContain('array_position');
+    expect(sqlText).toContain('ep.vocabulary_id = v.id');
+    expect(sqlText).not.toContain('where emp.meaning_id = m.id');
   });
 
   it('단어장은 사용자 소유권을 먼저 확인하고 added_at 순서를 사용한다', async () => {
     const fake = createDatabase([[{ name: 'FLEX 어휘' }], [candidateRow]]);
-    const query = new DrizzleVocabularyPracticeQuery(fake.database as never);
+    const query = new DrizzleVocabularyPracticeQuery(fake.database);
 
     await expect(query.loadWordbook('user-1', 'wordbook-1')).resolves.toEqual({
       label: 'FLEX 어휘',
@@ -95,7 +97,7 @@ describe('DrizzleVocabularyPracticeQuery source 조회', () => {
 
   it('소유 단어장이 없으면 source 후보를 조회하지 않는다', async () => {
     const fake = createDatabase([[]]);
-    const query = new DrizzleVocabularyPracticeQuery(fake.database as never);
+    const query = new DrizzleVocabularyPracticeQuery(fake.database);
 
     await expect(query.loadWordbook('user-1', 'missing')).resolves.toBeNull();
     expect(fake.queries).toHaveLength(1);
@@ -157,7 +159,7 @@ describe('DrizzleVocabularyPracticeQuery 세션 조회', () => {
         },
       ],
     ]);
-    const query = new DrizzleVocabularyPracticeQuery(fake.database as never);
+    const query = new DrizzleVocabularyPracticeQuery(fake.database);
 
     const session = await query.getSession('user-1', 'session-1');
 

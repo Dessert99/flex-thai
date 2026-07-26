@@ -167,6 +167,33 @@ describe('VocabularyPracticeService 세션 생성', () => {
     ]);
   });
 
+  it('연결 발음 없는 어의는 비음성 방식에 포함하고 음성 방식에서는 건너뛴다', async () => {
+    const repository = new FakeVocabularyPracticeRepository();
+    const source = createSource();
+    const [unlinked, ...linked] = source.candidates;
+    if (!unlinked) throw new Error('테스트 후보가 필요합니다.');
+    repository.source = {
+      ...source,
+      candidates: [{ ...unlinked, pronunciations: [] }, ...linked],
+    };
+
+    const result = await createService(repository).create(
+      createInput({
+        modes: ['AUDIO_TO_MEANING', 'THAI_TO_MEANING'],
+      }),
+    );
+
+    expect(result.questions[0]).toMatchObject({
+      vocabularyId: unlinked.vocabularyId,
+      mode: 'THAI_TO_MEANING',
+    });
+    expect(
+      result.questions
+        .filter(({ mode }) => mode.startsWith('AUDIO'))
+        .some(({ meaningId }) => meaningId === unlinked.meaningId),
+    ).toBe(false);
+  });
+
   it('RANDOM만 source 후보를 한 번 섞어 저장한다', async () => {
     const repository = new FakeVocabularyPracticeRepository();
     const service = createService(repository, (items) => [...items].reverse());

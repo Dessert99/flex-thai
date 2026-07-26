@@ -129,12 +129,9 @@ const candidateSelect = (
     ${wordbookId === null ? sql`` : sql`and wi.wordbook_id = ${wordbookId}`}
     and exists (
       select 1
-      from vocabulary_meaning_pronunciations emp
-      join vocabulary_pronunciations ep
-        on ep.id = emp.pronunciation_id
-       and ep.vocabulary_id = emp.vocabulary_id
+      from vocabulary_pronunciations ep
       join media_assets ea on ea.id = ep.media_asset_id and ea.status = 'READY'
-      where emp.meaning_id = m.id
+      where ep.vocabulary_id = v.id
     )
   order by
     ${
