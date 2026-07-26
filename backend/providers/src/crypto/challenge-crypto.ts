@@ -1,11 +1,38 @@
 /** 짧은 인증 코드 원문을 저장하지 않도록 HMAC을 제공한다 */
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
-import type { ChallengeCryptoPort } from '@flex-thia/domain';
+import {
+  createHmac,
+  randomBytes,
+  randomInt,
+  timingSafeEqual,
+} from 'node:crypto';
+import type {
+  ChallengeCryptoPort,
+  ChallengeSecretsFactory,
+} from '@flex-thia/domain';
 
 /** secret pepper를 섞은 HMAC-SHA256 challenge adapter */
-export class ChallengeCrypto implements ChallengeCryptoPort {
+export class ChallengeCrypto
+  implements ChallengeCryptoPort, ChallengeSecretsFactory
+{
   constructor(private readonly pepper: string) {
     if (!pepper) throw new Error('challenge pepper가 필요합니다');
+  }
+
+  /** 코드·링크 원문과 저장용 HMAC을 한 번에 만들어 대응을 고정한다 */
+  createChallengeSecrets(): {
+    code: string;
+    linkToken: string;
+    codeHmac: string;
+    linkHmac: string;
+  } {
+    const code = randomInt(0, 1_000_000).toString().padStart(6, '0');
+    const linkToken = randomBytes(32).toString('base64url');
+    return {
+      code,
+      linkToken,
+      codeHmac: this.hashAnswer(code),
+      linkHmac: this.hashAnswer(linkToken),
+    };
   }
 
   /** random salt와 secret pepper로 원문을 복구할 수 없는 HMAC을 만든다 */
