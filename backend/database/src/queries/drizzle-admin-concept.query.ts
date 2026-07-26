@@ -9,6 +9,8 @@ import {
   conceptVersions,
 } from '../schema/concepts.schema.js';
 
+// Drizzle database generic이 runtime schema 값을 type query에 사용한다.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const adminConceptSchema = {
   conceptBlockExamples,
   conceptBlocks,
@@ -194,6 +196,8 @@ export const assembleAdminConceptDetail = (
               examples: exampleRows
                 .filter(({ blockId }) => blockId === block.id)
                 .sort(byPosition)
+                // blockId는 조립에만 사용하고 공개 응답에서는 제외한다.
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 .map(({ blockId: _blockId, ...example }) => example),
             };
           }),

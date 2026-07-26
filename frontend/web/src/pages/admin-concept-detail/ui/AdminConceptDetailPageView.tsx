@@ -1,10 +1,12 @@
 /** 관리자 개념의 모든 버전과 초안 편집·검증 action을 표현한다 */
+/* eslint-disable max-lines-per-function */
 import type {
   AdminConceptDetailResponse,
   ConceptCategory,
   ConceptBlockInput,
 } from '@flex-thia/contracts';
 import { Button } from '@/shared/ui/button';
+import { Input } from '@/shared/ui/input';
 import { PageError, PageLoading } from '@/shared/ui/page-state';
 import { ConceptBlockEditor } from './ConceptBlockEditor';
 
@@ -81,10 +83,11 @@ export function AdminConceptDetailPageView(
               <option value='GRAMMAR'>문법</option>
             </select>
           </label>
-          <label>
+          <label htmlFor='concept-position'>
             교육 순서
-            <input
+            <Input
               disabled={props.pending}
+              id='concept-position'
               min={0}
               onChange={(event) =>
                 props.onMetadataChange({
@@ -95,10 +98,11 @@ export function AdminConceptDetailPageView(
               value={props.draftMetadata.position}
             />
           </label>
-          <label>
+          <label htmlFor='concept-title'>
             제목
-            <input
+            <Input
               disabled={props.pending}
+              id='concept-title'
               onChange={(event) =>
                 props.onMetadataChange({
                   title: event.target.value,
@@ -107,10 +111,11 @@ export function AdminConceptDetailPageView(
               value={props.draftMetadata.title}
             />
           </label>
-          <label>
+          <label htmlFor='concept-summary'>
             요약
-            <input
+            <Input
               disabled={props.pending}
+              id='concept-summary'
               onChange={(event) =>
                 props.onMetadataChange({
                   summary: event.target.value,

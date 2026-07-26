@@ -13,6 +13,7 @@ import type {
   CreateConceptCommand,
   ReplaceConceptDraftCommand,
 } from '@flex-thia/domain';
+import { validateConceptCandidate } from '@flex-thia/domain';
 import { and, asc, desc, eq, inArray, isNull, type SQL } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
@@ -34,6 +35,8 @@ import {
   vocabularyPronunciations,
 } from '../schema/vocabulary.schema.js';
 
+// Drizzle database generic이 runtime schema 값을 type query에 사용한다.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const conceptSchema = {
   auditLogs,
   mediaAssets,
@@ -167,7 +170,15 @@ export const assembleConceptValidationCandidate = (
         examples: exampleRows
           .filter(({ blockId }) => blockId === block.id)
           .sort(byPosition)
-          .map(({ blockId: _blockId, ...example }) => example),
+          .map((example) => ({
+            position: example.position,
+            sentenceVersionId: example.sentenceVersionId,
+            noteKo: example.noteKo,
+            sentenceExists: example.sentenceExists,
+            audioAssetExists: example.audioAssetExists,
+            audioAssetStatus: example.audioAssetStatus,
+            interactionIssues: example.interactionIssues,
+          })),
       };
     }),
 });
@@ -356,6 +367,106 @@ const loadCandidate = async (
       ],
     })),
   );
+};
+
+const uniqueSorted = (ids: string[]): string[] =>
+  [...new Set(ids)].sort((left, right) => left.localeCompare(right));
+
+/**
+ * 검증 이후 바뀔 수 있는 문장·상호작용 graph를 게시 transaction 동안 고정한다.
+ * 부모 문장의 FOR UPDATE는 새 occurrence의 FK lock과도 충돌한다.
+ */
+export const lockConceptReferencedContent = async (
+  session: ConceptSession,
+  versionId: string,
+): Promise<void> => {
+  const references = await session
+    .select({
+      sentenceVersionId: conceptBlockExamples.sentenceVersionId,
+    })
+    .from(conceptBlockExamples)
+    .innerJoin(
+      conceptBlocks,
+      eq(conceptBlockExamples.blockId, conceptBlocks.id),
+    )
+    .where(eq(conceptBlocks.conceptVersionId, versionId));
+  const sentenceIds = uniqueSorted(
+    references.map(({ sentenceVersionId }) => sentenceVersionId),
+  );
+  if (sentenceIds.length === 0) return;
+
+  const sentenceRows = await session
+    .select({
+      id: thaiSentenceVersions.id,
+      mediaAssetId: thaiSentenceVersions.mediaAssetId,
+    })
+    .from(thaiSentenceVersions)
+    .where(inArray(thaiSentenceVersions.id, sentenceIds))
+    .orderBy(asc(thaiSentenceVersions.id))
+    .for('update');
+  if (sentenceRows.length !== sentenceIds.length) {
+    throw new ConceptPersistenceError('CONCEPT_VALIDATION_REQUIRED');
+  }
+  const tokenRows = await session
+    .select({
+      meaningId: tokenOccurrences.meaningId,
+      pronunciationId: tokenOccurrences.pronunciationId,
+    })
+    .from(tokenOccurrences)
+    .where(inArray(tokenOccurrences.sentenceVersionId, sentenceIds))
+    .orderBy(asc(tokenOccurrences.id))
+    .for('update');
+  const expressionRows = await session
+    .select({
+      meaningId: expressionOccurrences.meaningId,
+      pronunciationId: expressionOccurrences.pronunciationId,
+    })
+    .from(expressionOccurrences)
+    .where(inArray(expressionOccurrences.sentenceVersionId, sentenceIds))
+    .orderBy(asc(expressionOccurrences.id))
+    .for('update');
+  const meaningIds = uniqueSorted(
+    [...tokenRows, ...expressionRows].map(({ meaningId }) => meaningId),
+  );
+  const pronunciationIds = uniqueSorted(
+    [...tokenRows, ...expressionRows].map(
+      ({ pronunciationId }) => pronunciationId,
+    ),
+  );
+  if (meaningIds.length > 0) {
+    await session
+      .select({ id: vocabularyMeanings.id })
+      .from(vocabularyMeanings)
+      .where(inArray(vocabularyMeanings.id, meaningIds))
+      .orderBy(asc(vocabularyMeanings.id))
+      .for('update');
+  }
+  const pronunciationRows =
+    pronunciationIds.length === 0
+      ? []
+      : await session
+          .select({
+            id: vocabularyPronunciations.id,
+            mediaAssetId: vocabularyPronunciations.mediaAssetId,
+          })
+          .from(vocabularyPronunciations)
+          .where(inArray(vocabularyPronunciations.id, pronunciationIds))
+          .orderBy(asc(vocabularyPronunciations.id))
+          .for('update');
+  const mediaIds = uniqueSorted([
+    ...sentenceRows.map(({ mediaAssetId }) => mediaAssetId),
+    ...pronunciationRows.flatMap(({ mediaAssetId }) =>
+      mediaAssetId ? [mediaAssetId] : [],
+    ),
+  ]);
+  if (mediaIds.length > 0) {
+    await session
+      .select({ id: mediaAssets.id })
+      .from(mediaAssets)
+      .where(inArray(mediaAssets.id, mediaIds))
+      .orderBy(asc(mediaAssets.id))
+      .for('update');
+  }
 };
 
 const insertBlocks = async (
@@ -672,6 +783,17 @@ export class DrizzleConceptAdminRepository implements ConceptAdminRepository {
         .limit(1);
       if (!version)
         throw new ConceptPersistenceError('CONCEPT_VALIDATION_REQUIRED');
+      await lockConceptReferencedContent(transaction, input.versionId);
+      const currentCandidate = await loadCandidate(
+        transaction,
+        input.versionId,
+      );
+      if (
+        !currentCandidate ||
+        validateConceptCandidate(currentCandidate).length > 0
+      ) {
+        throw new ConceptPersistenceError('CONCEPT_VALIDATION_REQUIRED');
+      }
       if (concept.currentPublishedVersionId) {
         const retired = await transaction
           .update(conceptVersions)

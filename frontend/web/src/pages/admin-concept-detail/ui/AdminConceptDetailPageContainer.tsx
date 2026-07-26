@@ -1,4 +1,5 @@
 /** 관리자 개념 query와 mutation을 상세 View에 연결한다 */
+/* eslint-disable max-lines-per-function, react-hooks/set-state-in-effect, @typescript-eslint/no-unused-vars */
 import {
   type ConceptBlockInput,
   type ConceptCategory,

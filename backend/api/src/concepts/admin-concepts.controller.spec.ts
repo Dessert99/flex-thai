@@ -1,4 +1,5 @@
 /** 관리자 개념 controller의 역할·TOTP 경계를 검증한다 */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   GUARDS_METADATA,
   HTTP_CODE_METADATA,

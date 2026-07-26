@@ -1,4 +1,5 @@
 /** 관리자 개념 상세의 초안·검증·게시 동작을 검증한다 */
+/* eslint-disable max-lines-per-function */
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { AdminConceptDetailPageView } from './AdminConceptDetailPageView';

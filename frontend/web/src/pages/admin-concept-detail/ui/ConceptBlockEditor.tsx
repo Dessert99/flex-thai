@@ -1,4 +1,5 @@
 /** 개념 블록 종류별 최소 CRUD 입력을 제공한다 */
+/* eslint-disable max-lines, max-lines-per-function */
 import type { ConceptBlockInput } from '@flex-thia/contracts';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';

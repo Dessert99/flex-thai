@@ -1,6 +1,7 @@
 /** 개념 검증과 게시 use case를 검증한다 */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/require-await, @typescript-eslint/unbound-method */
 import { describe, expect, it, vi } from 'vitest';
-import { ConceptDomainError, ConceptService } from './concept.service.js';
+import { ConceptService } from './concept.service.js';
 import type { ConceptAdminRepository } from './concept.repository.js';
 import type { ConceptValidationCandidate } from './concept.js';
 

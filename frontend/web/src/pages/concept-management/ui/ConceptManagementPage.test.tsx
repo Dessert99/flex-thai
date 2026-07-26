@@ -8,6 +8,8 @@ describe('ConceptManagementPageView', () => {
     const onFilterChange = vi.fn();
     render(
       <ConceptManagementPageView
+        createMessage={null}
+        createPending={false}
         data={{
           items: [
             {
@@ -42,5 +44,46 @@ describe('ConceptManagementPageView', () => {
       category: 'GRAMMAR',
       page: 1,
     });
+  });
+
+  it('페이지를 이동하고 생성 중 중복 제출을 막으며 실패를 알린다', () => {
+    const onFilterChange = vi.fn();
+    const onCreate = vi.fn();
+    render(
+      <ConceptManagementPageView
+        createMessage='개념 생성에 실패했습니다.'
+        createPending
+        data={{
+          items: [
+            {
+              id: '11111111-1111-4111-8111-111111111111',
+              status: 'DRAFT',
+              category: 'GRAMMAR',
+              position: 0,
+              title: '기본 어순',
+              latestVersion: 1,
+              validationStatus: 'PENDING',
+            },
+          ],
+          page: 2,
+          pageSize: 20,
+          total: 41,
+        }}
+        error={false}
+        loading={false}
+        onFilterChange={onFilterChange}
+        onCreate={onCreate}
+        onRetry={vi.fn()}
+        search={{ page: 2, pageSize: 20 }}
+      />,
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      '개념 생성에 실패했습니다.',
+    );
+    expect(screen.getByRole('button', { name: '만드는 중…' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: '다음' }));
+    expect(onFilterChange).toHaveBeenCalledWith({ page: 3 });
+    expect(onCreate).not.toHaveBeenCalled();
   });
 });

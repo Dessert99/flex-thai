@@ -3,9 +3,9 @@ import { PgDialect } from 'drizzle-orm/pg-core';
 import { describe, expect, it, vi } from 'vitest';
 import {
   assembleConceptValidationCandidate,
-  ConceptPersistenceError,
   DrizzleConceptAdminRepository,
   draftRevisionCondition,
+  lockConceptReferencedContent,
   publishableVersionCondition,
 } from './drizzle-concept-admin.repository.js';
 
@@ -90,6 +90,97 @@ describe('assembleConceptValidationCandidate', () => {
 });
 
 describe('DrizzleConceptAdminRepository 상태 전이', () => {
+  it('게시할 문장·상호작용·참조·미디어를 안정된 순서로 잠근다', async () => {
+    const lockCalls: string[] = [];
+    const responses = [
+      [
+        {
+          id: 'sentence-1',
+          mediaAssetId: 'sentence-media-1',
+        },
+      ],
+      [
+        {
+          meaningId: 'meaning-1',
+          pronunciationId: 'pronunciation-1',
+        },
+      ],
+      [],
+      [{ id: 'meaning-1' }],
+      [{ id: 'pronunciation-1', mediaAssetId: 'word-media-1' }],
+      [{ id: 'sentence-media-1' }, { id: 'word-media-1' }],
+    ];
+    let lockIndex = 0;
+    const session = {
+      select: vi.fn(() => {
+        const chain = {
+          from: vi.fn(),
+          innerJoin: vi.fn(),
+          where: vi.fn(),
+          orderBy: vi.fn(),
+          for: vi.fn(),
+        };
+        chain.from.mockReturnValue(chain);
+        chain.innerJoin.mockReturnValue(chain);
+        chain.where.mockImplementation(() => {
+          if (session.select.mock.calls.length === 1) {
+            return Promise.resolve([
+              { sentenceVersionId: 'sentence-1' },
+              { sentenceVersionId: 'sentence-1' },
+            ]);
+          }
+          return chain;
+        });
+        chain.orderBy.mockReturnValue(chain);
+        chain.for.mockImplementation(() => {
+          lockCalls.push('FOR UPDATE');
+          return Promise.resolve(responses[lockIndex++]);
+        });
+        return chain;
+      }),
+    };
+
+    await lockConceptReferencedContent(session as never, 'version-1');
+
+    expect(lockCalls).toHaveLength(6);
+    expect(session.select).toHaveBeenCalledTimes(7);
+  });
+
+  it('게시 직전 참조 문장이 사라지면 검증 상태를 신뢰하지 않는다', async () => {
+    const session = {
+      select: vi
+        .fn()
+        .mockImplementationOnce(() => {
+          const chain = {
+            from: vi.fn(),
+            innerJoin: vi.fn(),
+            where: vi
+              .fn()
+              .mockResolvedValue([{ sentenceVersionId: 'sentence-1' }]),
+          };
+          chain.from.mockReturnValue(chain);
+          chain.innerJoin.mockReturnValue(chain);
+          return chain;
+        })
+        .mockImplementationOnce(() => {
+          const chain = {
+            from: vi.fn(),
+            where: vi.fn(),
+            orderBy: vi.fn(),
+            for: vi.fn().mockResolvedValue([]),
+          };
+          chain.from.mockReturnValue(chain);
+          chain.where.mockReturnValue(chain);
+          chain.orderBy.mockReturnValue(chain);
+          return chain;
+        }),
+    };
+
+    await expect(
+      lockConceptReferencedContent(session as never, 'version-1'),
+    ).rejects.toMatchObject({ code: 'CONCEPT_VALIDATION_REQUIRED' });
+  });
+
   it('게시 조건이 DRAFT·PASSED와 현재 검증 revision을 함께 요구한다', () => {
     const publishParams = new PgDialect().sqlToQuery(
       publishableVersionCondition('version-1', 3),
@@ -125,7 +216,9 @@ describe('DrizzleConceptAdminRepository 상태 전이', () => {
       })),
     };
     const database = {
-      transaction: vi.fn(async (work) => work(session)),
+      transaction: vi.fn((work: (value: typeof session) => Promise<unknown>) =>
+        work(session),
+      ),
     };
     const repository = new DrizzleConceptAdminRepository(database as never);
 
@@ -177,7 +270,9 @@ describe('DrizzleConceptAdminRepository 상태 전이', () => {
         })),
       };
       const database = {
-        transaction: vi.fn(async (work) => work(session)),
+        transaction: vi.fn(
+          (work: (value: typeof session) => Promise<unknown>) => work(session),
+        ),
       };
       const repository = new DrizzleConceptAdminRepository(database as never);
 

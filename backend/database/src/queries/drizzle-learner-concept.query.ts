@@ -16,6 +16,8 @@ import {
 } from '../schema/thai-content.schema.js';
 import { vocabularyPronunciations } from '../schema/vocabulary.schema.js';
 
+// Drizzle database generic이 runtime schema 값을 type query에 사용한다.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const conceptQuerySchema = {
   conceptBlockExamples,
   conceptBlocks,
@@ -240,6 +242,8 @@ export const assembleLearnerConceptDetail = (
         examples: exampleRows
           .filter(({ blockId }) => blockId === block.id)
           .sort(byPosition)
+          // blockId는 조립에만 사용하고 공개 응답에서는 제외한다.
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           .map(({ blockId: _blockId, ...example }) => example),
       };
     }),
@@ -477,6 +481,8 @@ export class DrizzleLearnerConceptQuery {
             ({ sentenceVersionId }) =>
               sentenceVersionId === row.sentenceVersionId,
           )
+          // sentenceVersionId는 그룹화에만 사용한다.
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           .map(({ sentenceVersionId: _id, storageKey, ...token }) => ({
             ...token,
             media: { storageKey },
@@ -486,6 +492,8 @@ export class DrizzleLearnerConceptQuery {
             ({ sentenceVersionId }) =>
               sentenceVersionId === row.sentenceVersionId,
           )
+          // sentenceVersionId는 그룹화에만 사용한다.
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           .map(({ sentenceVersionId: _id, storageKey, ...expression }) => ({
             ...expression,
             media: { storageKey },
