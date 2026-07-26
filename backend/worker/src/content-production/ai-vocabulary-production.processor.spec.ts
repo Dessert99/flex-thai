@@ -58,6 +58,7 @@ const createProcessor = (
       ],
     },
   ],
+  lookupOverride?: VocabularyProductionLookup,
 ) => {
   let ocrCount = 0;
   const reader: ContentProductionInputReader = {
@@ -75,7 +76,7 @@ const createProcessor = (
   const validation: VocabularyCrossValidationProvider = {
     validate: () => Promise.resolve({ status: 'PASSED', code: null }),
   };
-  const lookup: VocabularyProductionLookup = {
+  const lookup: VocabularyProductionLookup = lookupOverride ?? {
     findExact: () => Promise.resolve(null),
     findSuspected: () => Promise.resolve([]),
   };
@@ -152,5 +153,29 @@ describe('AI 어휘 제작 processor', () => {
       retryable: false,
       errorCode: 'NO_VOCABULARY_CANDIDATES',
     });
+  });
+
+  it('exact 기존 뜻 후보도 독립 AI 검증 결과를 남긴다', async () => {
+    const { processor } = createProcessor(undefined, {
+      findExact: () =>
+        Promise.resolve({
+          vocabularyId: 'existing-id',
+          meanings: [{ meaningKo: '안녕하세요' }],
+        }),
+      findSuspected: () => Promise.resolve([]),
+    });
+
+    const outcome = await processor.process(
+      workItem('TEXT'),
+      new AbortController().signal,
+    );
+
+    expect(outcome.artifacts?.validations).toContainEqual(
+      expect.objectContaining({
+        stage: 'AI_CROSS_VALIDATION',
+        status: 'PASSED',
+      }),
+    );
+    expect(outcome.status).toBe('NEEDS_ATTENTION');
   });
 });

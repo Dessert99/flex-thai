@@ -174,7 +174,7 @@ export class AiVocabularyProductionProcessor {
       records.push(evaluated.candidate);
       validations.push(...evaluated.validations);
 
-      if (evaluated.candidate.resultGroup !== 'NORMAL') {
+      if (evaluated.candidate.resultGroup === 'FAILED') {
         continue;
       }
 
