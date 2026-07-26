@@ -192,6 +192,7 @@ const summarySchema = z
     status: contentErrorReportStatusSchema,
     assignee: userSummarySchema.nullable(),
     description: z.string().nullable(),
+    canonicalReference: contentErrorReportCanonicalReferenceSchema,
     snapshot: contentErrorReportSnapshotSchema,
     createdAt: utcDateTimeSchema,
     updatedAt: utcDateTimeSchema,
@@ -216,7 +217,6 @@ export const adminContentErrorReportListResponseSchema = z
 /** 관리자 오류 신고 상세 응답 */
 export const adminContentErrorReportDetailResponseSchema = summarySchema
   .extend({
-    canonicalReference: contentErrorReportCanonicalReferenceSchema,
     history: z.array(historySchema),
   })
   .strict();
