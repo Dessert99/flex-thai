@@ -21,6 +21,14 @@ describe('역할별 내비게이션', () => {
       'href',
       '/wordbooks',
     );
+    expect(screen.getByRole('link', { name: '단어 연습' })).toHaveAttribute(
+      'href',
+      '/practice',
+    );
+    expect(screen.getByRole('link', { name: '개념 학습' })).toHaveAttribute(
+      'href',
+      '/concepts?category=GRAMMAR',
+    );
     expect(
       screen.queryByRole('link', { name: '저장한 어휘' }),
     ).not.toBeInTheDocument();
@@ -43,6 +51,10 @@ describe('역할별 내비게이션', () => {
     expect(screen.getByRole('link', { name: '사용자 관리' })).toHaveAttribute(
       'href',
       '/admin/users',
+    );
+    expect(screen.getByRole('link', { name: '개념 관리' })).toHaveAttribute(
+      'href',
+      '/admin/concepts',
     );
     expect(
       screen.queryByRole('link', { name: '학습 홈' }),

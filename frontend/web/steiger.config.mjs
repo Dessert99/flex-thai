@@ -34,6 +34,7 @@ export default defineConfig([
       'src/features/manage-wordbook/**',
       'src/features/manage-wordbook-items/**',
       'src/features/save-vocabulary-to-wordbooks/**',
+      'src/features/start-vocabulary-practice/**',
     ],
     rules: {
       'fsd/insignificant-slice': 'off',
