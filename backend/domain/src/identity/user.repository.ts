@@ -10,6 +10,12 @@ export interface IdentityUser {
   mfaEnrolledAt: Date | null;
 }
 
+/** 관리자 목록에서 사용자 생성·변경 시각을 포함한 신원 */
+export interface ManagedIdentityUser extends IdentityUser {
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 /** Identity 인증과 guard가 최신 사용자 상태를 조회·갱신하는 저장 port */
 export interface IdentityUserRepository {
   findBySub(subject: string): Promise<IdentityUser | null>;
@@ -18,4 +24,18 @@ export interface IdentityUserRepository {
     email: string;
   }): Promise<IdentityUser>;
   markMfaEnrolled(subject: string, enrolledAt: Date): Promise<IdentityUser>;
+}
+
+/** 관리자 사용자 목록과 활성 상태를 변경하는 저장 port */
+export interface IdentityUserManagementRepository {
+  listManagedUsers(): Promise<ManagedIdentityUser[]>;
+  changeStatusWithAudit(input: {
+    action: 'IDENTITY_USER_ENABLED' | 'IDENTITY_USER_DISABLED';
+    actorSub: string;
+    actorUserId: string;
+    occurredAt: Date;
+    requestId: string;
+    status: IdentityUser['status'];
+    userId: string;
+  }): Promise<ManagedIdentityUser | null>;
 }

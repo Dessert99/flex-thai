@@ -17,6 +17,7 @@ import {
   QuestionAdminError,
   QuestionPublicationError,
   UploadPolicyError,
+  UserManagementError,
   VocabularyAdminError,
 } from '@flex-thia/domain';
 import { ZodError } from 'zod';
@@ -67,6 +68,12 @@ const IDENTITY_STATUS: Record<IdentityDomainError['code'], number> = {
   INVALID_REFRESH_TOKEN: HttpStatus.UNAUTHORIZED,
   AUTH_RATE_LIMITED: HttpStatus.TOO_MANY_REQUESTS,
   ACCOUNT_DISABLED: HttpStatus.FORBIDDEN,
+};
+
+const USER_MANAGEMENT_STATUS: Record<UserManagementError['code'], number> = {
+  ADMIN_REQUIRED: HttpStatus.FORBIDDEN,
+  INVALID_SCHOOL_EMAIL: HttpStatus.BAD_REQUEST,
+  USER_NOT_FOUND: HttpStatus.NOT_FOUND,
 };
 
 const EMAIL_CHALLENGE_STATUS: Record<EmailChallengeError['code'], number> = {
@@ -188,6 +195,14 @@ export const buildErrorResponse = (
 
   if (error instanceof EmailChallengeError) {
     const status = EMAIL_CHALLENGE_STATUS[error.code];
+    return {
+      status,
+      body: createProblem(error.code, status, requestId),
+    };
+  }
+
+  if (error instanceof UserManagementError) {
+    const status = USER_MANAGEMENT_STATUS[error.code];
     return {
       status,
       body: createProblem(error.code, status, requestId),

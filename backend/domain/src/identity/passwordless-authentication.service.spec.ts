@@ -94,6 +94,16 @@ describe('PasswordlessAuthenticationService', () => {
     expect(result).not.toHaveProperty('existingUser');
   });
 
+  it('beta 안내 발송 기록이 없어도 새 학교 이메일 challenge를 시작한다', async () => {
+    const { repository, service } = makeService();
+
+    await expect(service.start('new@hufs.ac.kr', now)).resolves.toBeDefined();
+
+    expect(repository.createWithinLimits).toHaveBeenCalledWith(
+      expect.objectContaining({ email: 'new@hufs.ac.kr' }),
+    );
+  });
+
   it('학교 이메일이 아니면 challenge를 만들지 않는다', async () => {
     const { repository, service } = makeService();
 

@@ -16,6 +16,7 @@ import {
   MediaAssetDomainError,
   QuestionAdminError,
   QuestionPublicationError,
+  UserManagementError,
   VocabularyAdminError,
 } from '@flex-thia/domain';
 import { LearnerPublicResponseError } from '../../learning/learner-content.service.js';
@@ -236,6 +237,9 @@ describe('공개 오류 응답 변환', () => {
     [new QuestionPublicationError('QUESTION_VERSION_NOT_FOUND'), 404],
     [new QuestionPublicationError('QUESTION_VERSION_NOT_PUBLISHABLE'), 409],
     [new QuestionPublicationError('QUESTION_STATE_CONFLICT'), 409],
+    [new UserManagementError('ADMIN_REQUIRED'), 403],
+    [new UserManagementError('INVALID_SCHOOL_EMAIL'), 400],
+    [new UserManagementError('USER_NOT_FOUND'), 404],
     [new VocabularyAdminError('VOCABULARY_NOT_FOUND'), 404],
     [new VocabularyAdminError('VOCABULARY_MEDIA_NOT_FOUND'), 404],
     [new VocabularyAdminError('VOCABULARY_CONTENT_INVALID'), 400],
