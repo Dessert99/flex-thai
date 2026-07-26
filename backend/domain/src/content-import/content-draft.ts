@@ -666,6 +666,7 @@ export class ContentDraftService {
       }
 
       const options = [];
+      const spanKeys = new Set<string>();
       const referenceEntries: Array<readonly [string, string]> = [
         [command.input.clientRef, questionId],
       ];
@@ -679,12 +680,44 @@ export class ContentDraftService {
         });
         sentences.push(sentence);
         const optionId = this.newId();
+        const targetBlock = option.span
+          ? blocks[option.span.blockPosition]
+          : undefined;
+        const targetSentence = option.span
+          ? targetBlock?.sentences[option.span.sentencePosition]
+          : undefined;
+        const targetGraph = targetSentence
+          ? sentences.find(
+              ({ version }) =>
+                version.id === targetSentence.sentenceVersionId,
+            )
+          : undefined;
+        const spanKey = option.span
+          ? `${option.span.blockPosition}:${option.span.sentencePosition}:${option.span.startTokenIndex}:${option.span.endTokenIndex}`
+          : null;
+        if (
+          option.span &&
+          (!targetGraph ||
+            option.span.endTokenIndex <= option.span.startTokenIndex ||
+            option.span.startTokenIndex < 0 ||
+            option.span.endTokenIndex > targetGraph.tokens.length ||
+            spanKeys.has(spanKey!))
+        ) {
+          throw new ContentDraftError(
+            'IMPORT_CONTENT_INVALID',
+            `options.${optionIndex}.span`,
+          );
+        }
+        if (spanKey) spanKeys.add(spanKey);
         options.push({
           id: optionId,
           questionVersionId,
           sentenceVersionId: sentence.version.id,
           position: option.position,
           isCorrect: option.clientRef === command.input.correctOptionRef,
+          spanSentenceVersionId: targetSentence?.sentenceVersionId ?? null,
+          spanStartTokenIndex: option.span?.startTokenIndex ?? null,
+          spanEndTokenIndex: option.span?.endTokenIndex ?? null,
         });
         referenceEntries.push([option.clientRef, optionId]);
       }

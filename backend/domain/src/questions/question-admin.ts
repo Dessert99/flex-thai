@@ -432,7 +432,7 @@ const assertQuestionInput = (value: unknown): void => {
     requireExactKeys(
       option,
       ['clientRef', 'position', 'sentence'],
-      [],
+      ['span'],
       optionPath,
     );
     const clientRef = requireNonemptyString(
@@ -449,6 +449,45 @@ const assertQuestionInput = (value: unknown): void => {
       failInvalidContent(`${optionPath}.position`);
     }
     assertSentenceInput(option.sentence, `${optionPath}.sentence`);
+    if (option.span !== undefined) {
+      const span = requireRecord(option.span, `${optionPath}.span`);
+      requireExactKeys(
+        span,
+        [
+          'blockPosition',
+          'sentencePosition',
+          'startTokenIndex',
+          'endTokenIndex',
+        ],
+        [],
+        `${optionPath}.span`,
+      );
+      requireSafeInteger(
+        span.blockPosition,
+        0,
+        Number.MAX_SAFE_INTEGER,
+        `${optionPath}.span.blockPosition`,
+      );
+      requireSafeInteger(
+        span.sentencePosition,
+        0,
+        Number.MAX_SAFE_INTEGER,
+        `${optionPath}.span.sentencePosition`,
+      );
+      const start = requireSafeInteger(
+        span.startTokenIndex,
+        0,
+        Number.MAX_SAFE_INTEGER,
+        `${optionPath}.span.startTokenIndex`,
+      );
+      const end = requireSafeInteger(
+        span.endTokenIndex,
+        1,
+        Number.MAX_SAFE_INTEGER,
+        `${optionPath}.span.endTokenIndex`,
+      );
+      if (end <= start) failInvalidContent(`${optionPath}.span`);
+    }
     return clientRef;
   });
   const correctOptionRef = requireNonemptyString(
@@ -751,6 +790,9 @@ export class QuestionAdminService {
           sentenceVersionId: option.sentenceVersionId,
           position: option.position,
           isCorrect: option.isCorrect,
+          spanSentenceVersionId: option.spanSentenceVersionId,
+          spanStartTokenIndex: option.spanStartTokenIndex,
+          spanEndTokenIndex: option.spanEndTokenIndex,
         })),
       };
       await transaction.createVersion(graph);
@@ -828,6 +870,7 @@ export class QuestionAdminService {
       }
 
       const options = [];
+      const spanKeys = new Set<string>();
       for (const [optionIndex, option] of command.input.options.entries()) {
         const sentence = await resolveSentence({
           transaction,
@@ -836,12 +879,44 @@ export class QuestionAdminService {
           newId: () => assertGeneratedId(this.generateId),
         });
         sentences.push(sentence);
+        const targetBlock = option.span
+          ? blocks[option.span.blockPosition]
+          : undefined;
+        const targetSentence = option.span
+          ? targetBlock?.sentences[option.span.sentencePosition]
+          : undefined;
+        const targetGraph = targetSentence
+          ? sentences.find(
+              ({ version }) =>
+                version.id === targetSentence.sentenceVersionId,
+            )
+          : undefined;
+        const spanKey = option.span
+          ? `${option.span.blockPosition}:${option.span.sentencePosition}:${option.span.startTokenIndex}:${option.span.endTokenIndex}`
+          : null;
+        if (
+          option.span &&
+          (!targetGraph ||
+            option.span.endTokenIndex <= option.span.startTokenIndex ||
+            option.span.startTokenIndex < 0 ||
+            option.span.endTokenIndex > targetGraph.tokens.length ||
+            spanKeys.has(spanKey!))
+        ) {
+          throw new QuestionAdminError(
+            'QUESTION_CONTENT_INVALID',
+            `options.${optionIndex}.span`,
+          );
+        }
+        if (spanKey) spanKeys.add(spanKey);
         options.push({
           id: assertGeneratedId(this.generateId),
           questionVersionId: current.id,
           sentenceVersionId: sentence.version.id,
           position: option.position,
           isCorrect: option.clientRef === command.input.correctOptionRef,
+          spanSentenceVersionId: targetSentence?.sentenceVersionId ?? null,
+          spanStartTokenIndex: option.span?.startTokenIndex ?? null,
+          spanEndTokenIndex: option.span?.endTokenIndex ?? null,
         });
       }
 

@@ -141,6 +141,9 @@ const loadSourceChildren = async (
       sentenceVersionId: questionOptions.sentenceVersionId,
       position: questionOptions.position,
       isCorrect: questionOptions.isCorrect,
+      spanSentenceVersionId: questionOptions.spanSentenceVersionId,
+      spanStartTokenIndex: questionOptions.spanStartTokenIndex,
+      spanEndTokenIndex: questionOptions.spanEndTokenIndex,
     })
     .from(questionOptions)
     .where(eq(questionOptions.questionVersionId, version.id))

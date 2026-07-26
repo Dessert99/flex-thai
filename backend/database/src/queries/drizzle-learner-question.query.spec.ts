@@ -244,6 +244,9 @@ describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
           id: 'option-1',
           sentenceVersionId: 'sentence-id',
           position: 1,
+          spanSentenceVersionId: 'sentence-id',
+          spanStartTokenIndex: 0,
+          spanEndTokenIndex: 1,
         },
       ],
       [
@@ -340,6 +343,11 @@ describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
     expect(detail).not.toBeNull();
     expect(detail?.blocks.map((block) => block.position)).toEqual([1, 2]);
     expect(detail?.options.map((option) => option.position)).toEqual([1, 2]);
+    expect(detail?.options[0]?.span).toEqual({
+      sentenceVersionId: 'sentence-id',
+      startTokenIndex: 0,
+      endTokenIndex: 1,
+    });
     expect(
       detail?.blocks[0]?.sentences[0]?.sentence.tokens.map(
         (token) => token.position,

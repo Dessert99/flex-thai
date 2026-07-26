@@ -157,6 +157,11 @@ export interface LearnerQuestionOptionProjection {
   id: string;
   position: number;
   sentence: LearnerQuestionSentenceProjection;
+  span: {
+    sentenceVersionId: string;
+    startTokenIndex: number;
+    endTokenIndex: number;
+  } | null;
 }
 
 /** 현재 게시 버전의 제출 전 문제 상세 projection */
@@ -166,7 +171,11 @@ export interface LearnerQuestionDetailProjection {
   questionType: LearnerQuestionTypeProjection;
   skill: LearnerQuestionSkill;
   difficulty: number;
-  template: 'STANDARD_CHOICE' | 'PASSAGE_CHOICE' | 'DIALOGUE_CHOICE';
+  template:
+    | 'STANDARD_CHOICE'
+    | 'PASSAGE_CHOICE'
+    | 'DIALOGUE_CHOICE'
+    | 'INLINE_SPAN_CHOICE';
   blocks: LearnerQuestionBlockProjection[];
   options: LearnerQuestionOptionProjection[];
   saved: boolean;
@@ -459,6 +468,9 @@ export class DrizzleLearnerQuestionQuery {
       .select({
         id: questionOptions.id,
         sentenceVersionId: questionOptions.sentenceVersionId,
+        spanSentenceVersionId: questionOptions.spanSentenceVersionId,
+        spanStartTokenIndex: questionOptions.spanStartTokenIndex,
+        spanEndTokenIndex: questionOptions.spanEndTokenIndex,
         position: questionOptions.position,
       })
       .from(questionOptions)
@@ -488,6 +500,19 @@ export class DrizzleLearnerQuestionQuery {
         id: option.id,
         position: option.position,
         sentence: requireSentence(sentences, option.sentenceVersionId),
+        span:
+          option.spanSentenceVersionId === null ||
+          option.spanSentenceVersionId === undefined ||
+          option.spanStartTokenIndex === null ||
+          option.spanStartTokenIndex === undefined ||
+          option.spanEndTokenIndex === null ||
+          option.spanEndTokenIndex === undefined
+            ? null
+            : {
+                sentenceVersionId: option.spanSentenceVersionId,
+                startTokenIndex: option.spanStartTokenIndex,
+                endTokenIndex: option.spanEndTokenIndex,
+              },
       })),
       saved: base.saved,
     };

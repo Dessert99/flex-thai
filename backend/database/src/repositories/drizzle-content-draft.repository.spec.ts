@@ -258,6 +258,9 @@ const questionGraph: ResolvedQuestionDraftGraph = {
       sentenceVersionId: ids.optionOneSentenceVersion,
       position: 0,
       isCorrect: false,
+      spanSentenceVersionId: null,
+      spanStartTokenIndex: null,
+      spanEndTokenIndex: null,
     },
     {
       id: ids.optionTwo,
@@ -265,6 +268,9 @@ const questionGraph: ResolvedQuestionDraftGraph = {
       sentenceVersionId: ids.optionTwoSentenceVersion,
       position: 1,
       isCorrect: true,
+      spanSentenceVersionId: null,
+      spanStartTokenIndex: null,
+      spanEndTokenIndex: null,
     },
   ],
 };
@@ -1349,6 +1355,9 @@ const createCrossOwnershipGraph = (
         sentenceVersionId: firstOptionSentence.version.id,
         position: 0,
         isCorrect: false,
+        spanSentenceVersionId: null,
+        spanStartTokenIndex: null,
+        spanEndTokenIndex: null,
       },
       {
         id: randomUUID(),
@@ -1356,6 +1365,9 @@ const createCrossOwnershipGraph = (
         sentenceVersionId: secondOptionSentence.version.id,
         position: 1,
         isCorrect: true,
+        spanSentenceVersionId: null,
+        spanStartTokenIndex: null,
+        spanEndTokenIndex: null,
       },
     ],
   };

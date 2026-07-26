@@ -137,6 +137,9 @@ export interface ResolvedQuestionOption {
   sentenceVersionId: string;
   position: number;
   isCorrect: boolean;
+  spanSentenceVersionId: string | null;
+  spanStartTokenIndex: number | null;
+  spanEndTokenIndex: number | null;
 }
 
 /** adapter가 그대로 삽입할 canonical question draft graph */

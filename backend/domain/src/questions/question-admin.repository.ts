@@ -36,6 +36,9 @@ export interface QuestionAdminVersionSource extends QuestionVersionRecord {
     sentenceVersionId: string;
     position: number;
     isCorrect: boolean;
+    spanSentenceVersionId: string | null;
+    spanStartTokenIndex: number | null;
+    spanEndTokenIndex: number | null;
   }>;
 }
 

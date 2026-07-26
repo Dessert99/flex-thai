@@ -173,6 +173,9 @@ const graph = (): QuestionAdminVersionGraph => ({
       sentenceVersionId: 'sentence-version-id',
       position: 0,
       isCorrect: true,
+      spanSentenceVersionId: null,
+      spanStartTokenIndex: null,
+      spanEndTokenIndex: null,
     },
   ],
 });

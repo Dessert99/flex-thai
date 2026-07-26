@@ -87,6 +87,11 @@ export interface AdminQuestionOptionProjection {
   id: string;
   position: number;
   sentenceVersionId: string;
+  span: {
+    sentenceVersionId: string;
+    startTokenIndex: number;
+    endTokenIndex: number;
+  } | null;
 }
 
 /** 문제 유형 version과 템플릿을 고정한 관리자 projection */
@@ -95,7 +100,11 @@ export interface AdminQuestionTypeVersionProjection {
   slug: string;
   version: number;
   skill: 'READING' | 'LISTENING';
-  template: 'STANDARD_CHOICE' | 'PASSAGE_CHOICE' | 'DIALOGUE_CHOICE';
+  template:
+    | 'STANDARD_CHOICE'
+    | 'PASSAGE_CHOICE'
+    | 'DIALOGUE_CHOICE'
+    | 'INLINE_SPAN_CHOICE';
 }
 
 /** 관리자 상세의 불변 문제 버전 projection */
@@ -387,6 +396,9 @@ export class DrizzleAdminQuestionQuery {
         sentenceVersionId: questionOptions.sentenceVersionId,
         position: questionOptions.position,
         isCorrect: questionOptions.isCorrect,
+        spanSentenceVersionId: questionOptions.spanSentenceVersionId,
+        spanStartTokenIndex: questionOptions.spanStartTokenIndex,
+        spanEndTokenIndex: questionOptions.spanEndTokenIndex,
       })
       .from(questionOptions)
       .where(inArray(questionOptions.questionVersionId, versionIds))
@@ -439,10 +451,18 @@ export class DrizzleAdminQuestionQuery {
           },
           difficulty: version.difficulty,
           blocks,
-          options: storedOptions.map(({ id, position, sentenceVersionId }) => ({
-            id,
-            position,
-            sentenceVersionId,
+          options: storedOptions.map((option) => ({
+            id: option.id,
+            position: option.position,
+            sentenceVersionId: option.sentenceVersionId,
+            span:
+              option.spanSentenceVersionId === null
+                ? null
+                : {
+                    sentenceVersionId: option.spanSentenceVersionId,
+                    startTokenIndex: option.spanStartTokenIndex!,
+                    endTokenIndex: option.spanEndTokenIndex!,
+                  },
           })),
           correctOptionId: correctOptions[0]!.id,
           createdAt: version.createdAt,

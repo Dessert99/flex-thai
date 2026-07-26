@@ -29,6 +29,7 @@ export const questionTemplateEnum = pgEnum('question_template', [
   'STANDARD_CHOICE',
   'PASSAGE_CHOICE',
   'DIALOGUE_CHOICE',
+  'INLINE_SPAN_CHOICE',
 ]);
 
 /** 논리 문제의 학습자 노출 상태 */
@@ -243,6 +244,12 @@ export const questionOptions = pgTable(
     sentenceVersionId: uuid('sentence_version_id')
       .references(() => thaiSentenceVersions.id, { onDelete: 'restrict' })
       .notNull(),
+    spanSentenceVersionId: uuid('span_sentence_version_id').references(
+      () => thaiSentenceVersions.id,
+      { onDelete: 'restrict' },
+    ),
+    spanStartTokenIndex: integer('span_start_token_index'),
+    spanEndTokenIndex: integer('span_end_token_index'),
     position: integer('position').notNull(),
     isCorrect: boolean('is_correct').default(false).notNull(),
   },
@@ -259,5 +266,14 @@ export const questionOptions = pgTable(
       .on(table.questionVersionId)
       .where(sql`${table.isCorrect} = true`),
     check('question_options_position_nonnegative', sql`${table.position} >= 0`),
+    check(
+      'question_options_span_all_or_none',
+      sql`(${table.spanSentenceVersionId} is null and ${table.spanStartTokenIndex} is null and ${table.spanEndTokenIndex} is null)
+        or (${table.spanSentenceVersionId} is not null and ${table.spanStartTokenIndex} is not null and ${table.spanEndTokenIndex} is not null)`,
+    ),
+    check(
+      'question_options_span_range',
+      sql`${table.spanStartTokenIndex} is null or (${table.spanStartTokenIndex} >= 0 and ${table.spanEndTokenIndex} > ${table.spanStartTokenIndex})`,
+    ),
   ],
 );

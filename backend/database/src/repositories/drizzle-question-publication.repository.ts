@@ -223,6 +223,9 @@ const createQuestionPublicationTransaction = (
           sentenceVersionId: questionOptions.sentenceVersionId,
           position: questionOptions.position,
           isCorrect: questionOptions.isCorrect,
+          spanSentenceVersionId: questionOptions.spanSentenceVersionId,
+          spanStartTokenIndex: questionOptions.spanStartTokenIndex,
+          spanEndTokenIndex: questionOptions.spanEndTokenIndex,
         })
         .from(questionOptions)
         .where(eq(questionOptions.questionVersionId, versionId))
@@ -482,6 +485,14 @@ const createQuestionPublicationTransaction = (
           position: option.position,
           isCorrect: option.isCorrect,
           sentence: getSentence(option.sentenceVersionId),
+          span:
+            option.spanSentenceVersionId === null
+              ? null
+              : {
+                  sentenceVersionId: option.spanSentenceVersionId,
+                  startTokenIndex: option.spanStartTokenIndex!,
+                  endTokenIndex: option.spanEndTokenIndex!,
+                },
         })),
       } satisfies QuestionVersionValidationCandidate;
     },

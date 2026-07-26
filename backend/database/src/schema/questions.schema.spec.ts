@@ -79,6 +79,7 @@ describe('문제 게시 데이터베이스 schema', () => {
       'STANDARD_CHOICE',
       'PASSAGE_CHOICE',
       'DIALOGUE_CHOICE',
+      'INLINE_SPAN_CHOICE',
     ]);
     expect(questionStatusEnum.enumValues).toEqual([
       'DRAFT',
@@ -171,6 +172,20 @@ describe('문제 게시 데이터베이스 schema', () => {
     });
   });
 
+  it('inline option 범위를 문장 버전과 token index로 함께 저장한다', () => {
+    expect(
+      Object.values(getTableColumns(questionOptions)).map(
+        (column) => column.name,
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        'span_sentence_version_id',
+        'span_start_token_index',
+        'span_end_token_index',
+      ]),
+    );
+  });
+
   it('문제 버전마다 정답 선택지는 최대 하나만 허용한다', () => {
     expect(indexSummaries(questionOptions)).toContainEqual({
       name: 'question_options_one_correct_per_version',
@@ -191,7 +206,7 @@ describe('문제 게시 데이터베이스 schema', () => {
     ];
     const foreignKeys = tables.flatMap(foreignKeySummaries);
 
-    expect(foreignKeys).toHaveLength(9);
+    expect(foreignKeys).toHaveLength(10);
     expect(foreignKeys.every(({ onDelete }) => onDelete === 'restrict')).toBe(
       true,
     );
