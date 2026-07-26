@@ -66,6 +66,22 @@ import { LearningModule } from './learning/learning.module.js';
 @Module({})
 export class AppModule {}
 
+class LocalChallengeCrypto extends ChallengeCrypto {
+  /** 로컬 수동 테스트가 이메일 인프라 없이 고정 코드를 입력하도록 한다 */
+  override createChallengeSecrets(): ReturnType<
+    ChallengeCrypto['createChallengeSecrets']
+  > {
+    const generated = super.createChallengeSecrets();
+    const code = '123456';
+
+    return {
+      ...generated,
+      code,
+      codeHmac: this.hashAnswer(code),
+    };
+  }
+}
+
 const requireValue = (value: string | undefined, name: string): string => {
   if (!value) {
     throw new Error(`${name} 환경 변수가 필요합니다`);
@@ -119,7 +135,10 @@ export const createApplicationModule = (
     authenticationProvider,
     users,
   );
-  const challengeCrypto = new ChallengeCrypto(env.CHALLENGE_HMAC_PEPPER);
+  const challengeCrypto =
+    env.AUTH_MODE === 'fake'
+      ? new LocalChallengeCrypto(env.CHALLENGE_HMAC_PEPPER)
+      : new ChallengeCrypto(env.CHALLENGE_HMAC_PEPPER);
   const emailChallengeRepository = new DrizzleEmailChallengeRepository(
     database,
     challengeCrypto,

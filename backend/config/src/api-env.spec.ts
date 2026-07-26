@@ -57,6 +57,51 @@ describe('readApiEnv가 API 환경 변수를 검증한다', () => {
     ).toThrow('production 필수 환경 변수가 누락되었습니다');
   });
 
+  it('production은 로컬 기본 challenge pepper로 시작하지 않는다', () => {
+    expect(() =>
+      readApiEnv({
+        NODE_ENV: 'production',
+        AUTH_MODE: 'cognito',
+        DATABASE_MODE: 'data-api',
+        RDS_RESOURCE_ARN: 'resource-arn',
+        RDS_SECRET_ARN: 'secret-arn',
+        COGNITO_USER_POOL_ID: 'pool-id',
+        COGNITO_CLIENT_ID: 'client-id',
+        CUSTOM_AUTH_SECRET: 'C'.repeat(32),
+        EMAIL_LINK_CONFIRMATION_URL: 'https://www.example.com/login/confirm',
+        FROM_EMAIL: 'login@example.com',
+        MEDIA_CDN_BASE_URL: 'https://cdn.example.com/media',
+        MEDIA_KEY_PAIR_ID: 'key-pair-id',
+        MEDIA_PRIVATE_KEY_SECRET_ARN: 'media-secret-arn',
+        MEDIA_BUCKET_NAME: 'media-bucket',
+      }),
+    ).toThrow(
+      'production CHALLENGE_HMAC_PEPPER가 안전하게 설정되지 않았습니다',
+    );
+  });
+
+  it('production은 인증 secret 평문만 전달하면 시작하지 않는다', () => {
+    expect(() =>
+      readApiEnv({
+        NODE_ENV: 'production',
+        AUTH_MODE: 'cognito',
+        DATABASE_MODE: 'data-api',
+        RDS_RESOURCE_ARN: 'resource-arn',
+        RDS_SECRET_ARN: 'secret-arn',
+        COGNITO_USER_POOL_ID: 'pool-id',
+        COGNITO_CLIENT_ID: 'client-id',
+        CUSTOM_AUTH_SECRET: 'C'.repeat(32),
+        CHALLENGE_HMAC_PEPPER: 'P'.repeat(32),
+        EMAIL_LINK_CONFIRMATION_URL: 'https://www.example.com/login/confirm',
+        FROM_EMAIL: 'login@example.com',
+        MEDIA_CDN_BASE_URL: 'https://cdn.example.com/media',
+        MEDIA_KEY_PAIR_ID: 'key-pair-id',
+        MEDIA_PRIVATE_KEY_SECRET_ARN: 'media-secret-arn',
+        MEDIA_BUCKET_NAME: 'media-bucket',
+      }),
+    ).toThrow('production 인증 secret ARN이 누락되었습니다');
+  });
+
   it('production은 MEDIA_BUCKET_NAME 누락 시 시작을 거부한다', () => {
     expect(() =>
       readApiEnv({
@@ -89,7 +134,9 @@ describe('readApiEnv가 API 환경 변수를 검증한다', () => {
         MEDIA_PRIVATE_KEY_SECRET_ARN: 'media-secret-arn',
         MEDIA_BUCKET_NAME: 'media-bucket',
         CUSTOM_AUTH_SECRET: 'C'.repeat(32),
+        CUSTOM_AUTH_SECRET_ARN: 'custom-auth-secret-arn',
         CHALLENGE_HMAC_PEPPER: 'P'.repeat(32),
+        CHALLENGE_HMAC_PEPPER_SECRET_ARN: 'pepper-secret-arn',
         EMAIL_LINK_CONFIRMATION_URL: 'https://www.example.com/login/confirm',
         FROM_EMAIL: 'login@example.com',
       }),
@@ -101,7 +148,9 @@ describe('readApiEnv가 API 환경 변수를 검증한다', () => {
       MEDIA_PRIVATE_KEY_SECRET_ARN: 'media-secret-arn',
       MEDIA_BUCKET_NAME: 'media-bucket',
       CUSTOM_AUTH_SECRET: 'C'.repeat(32),
+      CUSTOM_AUTH_SECRET_ARN: 'custom-auth-secret-arn',
       CHALLENGE_HMAC_PEPPER: 'P'.repeat(32),
+      CHALLENGE_HMAC_PEPPER_SECRET_ARN: 'pepper-secret-arn',
       EMAIL_LINK_CONFIRMATION_URL: 'https://www.example.com/login/confirm',
       FROM_EMAIL: 'login@example.com',
     });
@@ -171,5 +220,13 @@ describe('readApiEnv가 API 환경 변수를 검증한다', () => {
       CHALLENGE_HMAC_PEPPER: 'local-only-email-challenge-pepper',
       EMAIL_LINK_CONFIRMATION_URL: 'http://localhost:5173/login/confirm',
     });
+  });
+
+  it('사용하지 않는 legacy SSM 인증 제한 설정을 공개하지 않는다', () => {
+    expect(
+      readApiEnv({
+        AUTH_LIMIT_PARAMETER_PREFIX: '/legacy/auth',
+      }),
+    ).not.toHaveProperty('AUTH_LIMIT_PARAMETER_PREFIX');
   });
 });

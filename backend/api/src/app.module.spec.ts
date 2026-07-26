@@ -77,7 +77,9 @@ describe('createApplicationModule 조립', () => {
       provider: unknown;
       repository: unknown;
       sender: unknown;
-      secrets: unknown;
+      secrets: {
+        createChallengeSecrets(): { code: string };
+      };
     };
     const management = identity.providers.find(
       ({ provide }) => provide === UserManagementService,
@@ -93,6 +95,7 @@ describe('createApplicationModule 조립', () => {
     );
     expect(passwordless.sender).toBeInstanceOf(FakeEmailChallengeSender);
     expect(passwordless.secrets).toBeInstanceOf(ChallengeCrypto);
+    expect(passwordless.secrets.createChallengeSecrets().code).toBe('123456');
     expect(management.users).toBeInstanceOf(DrizzleUserManagementQuery);
     expect(management.invitations).toBe(management.users);
 
@@ -280,7 +283,9 @@ describe('createApplicationModule 조립', () => {
       MEDIA_PRIVATE_KEY_SECRET_ARN: 'arn:media-secret',
       MEDIA_BUCKET_NAME: 'media-bucket',
       CUSTOM_AUTH_SECRET: 'C'.repeat(32),
+      CUSTOM_AUTH_SECRET_ARN: 'arn:custom-auth-secret',
       CHALLENGE_HMAC_PEPPER: 'P'.repeat(32),
+      CHALLENGE_HMAC_PEPPER_SECRET_ARN: 'arn:pepper-secret',
       EMAIL_LINK_CONFIRMATION_URL: 'https://www.example.com/login/confirm',
       FROM_EMAIL: 'login@example.com',
     });

@@ -1,11 +1,11 @@
 /** 이메일 인증과 step-up challenge 타입을 공개한다 */
 export * from './auth/challenge.js';
 
+/** 관리자 step-up 인증 오류를 공개한다 */
+export * from './auth/auth-domain.error.js';
+
 /** 인증 외부 의존성 port를 공개한다 */
 export * from './auth/challenge.repository.js';
-
-/** 이메일 확인 후 비밀번호를 설정하는 인증 use case를 공개한다 */
-export * from './auth/passwordless-auth.service.js';
 
 /** 관리자 step-up use case를 공개한다 */
 export * from './auth/step-up.service.js';

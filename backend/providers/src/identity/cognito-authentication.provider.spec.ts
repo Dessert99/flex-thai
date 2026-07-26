@@ -1,7 +1,6 @@
-/** Cognito 비밀번호·TOTP·회전 refresh 명령을 검증한다 */
+/** Cognito TOTP·회전 refresh 명령을 검증한다 */
 import { describe, expect, it, vi } from 'vitest';
 import {
-  AdminInitiateAuthCommand,
   AdminRespondToAuthChallengeCommand,
   AssociateSoftwareTokenCommand,
   GetTokensFromRefreshTokenCommand,
@@ -9,7 +8,6 @@ import {
   SetUserMFAPreferenceCommand,
   VerifySoftwareTokenCommand,
 } from '@aws-sdk/client-cognito-identity-provider';
-import { AuthenticationProviderError } from '@flex-thia/domain';
 import { CognitoAuthenticationProvider } from './cognito-authentication.provider.js';
 
 const idToken = `header.${Buffer.from(
@@ -17,24 +15,14 @@ const idToken = `header.${Buffer.from(
 ).toString('base64url')}.signature`;
 
 describe('CognitoAuthenticationProvider', () => {
-  it('SOFTWARE_TOKEN_MFA를 token이 아닌 challenge로 반환한다', async () => {
-    const send = vi.fn().mockResolvedValue({
-      ChallengeName: 'SOFTWARE_TOKEN_MFA',
-      Session: 'cognito-session',
-    });
+  it('password login 공개 메서드를 제공하지 않는다', () => {
     const provider = new CognitoAuthenticationProvider(
-      { send } as never,
+      { send: vi.fn() } as never,
       'pool',
       'client',
     );
 
-    await expect(
-      provider.login('admin@example.com', 'Strong1!'),
-    ).resolves.toEqual({
-      kind: 'MFA_REQUIRED',
-      challengeToken: 'cognito-session',
-    });
-    expect(send.mock.calls[0]?.[0]).toBeInstanceOf(AdminInitiateAuthCommand);
+    expect('login' in provider).toBe(false);
   });
 
   it('TOTP 로그인 challenge를 완료해 회전 가능한 token을 반환한다', async () => {
@@ -141,22 +129,5 @@ describe('CognitoAuthenticationProvider', () => {
     await provider.revoke('refresh');
 
     expect(send.mock.calls[0]?.[0]).toBeInstanceOf(RevokeTokenCommand);
-  });
-
-  it('Cognito rate limit을 안정적인 provider 오류로 변환한다', async () => {
-    const send = vi
-      .fn()
-      .mockRejectedValue(
-        Object.assign(new Error(), { name: 'TooManyRequestsException' }),
-      );
-    const provider = new CognitoAuthenticationProvider(
-      { send } as never,
-      'pool',
-      'client',
-    );
-
-    await expect(
-      provider.login('admin@example.com', 'Strong1!'),
-    ).rejects.toEqual(new AuthenticationProviderError('AUTH_RATE_LIMITED'));
   });
 });

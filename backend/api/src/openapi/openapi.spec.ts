@@ -152,7 +152,7 @@ const IDENTITY_OPERATIONS: readonly IdentityOperationExpectation[] = [
     body: 'VerifyEmailCodeRequestDto',
     security: [],
     success: ['201', 'authentication'],
-    errors: ['400', '401', '403', '409', '500'],
+    errors: ['400', '401', '403', '404', '409', '500'],
   },
   {
     method: 'post',
@@ -162,7 +162,7 @@ const IDENTITY_OPERATIONS: readonly IdentityOperationExpectation[] = [
     body: 'ConfirmEmailLinkRequestDto',
     security: [],
     success: ['201', 'authentication'],
-    errors: ['400', '401', '403', '409', '500'],
+    errors: ['400', '401', '403', '404', '409', '500'],
   },
   {
     method: 'post',
@@ -171,7 +171,7 @@ const IDENTITY_OPERATIONS: readonly IdentityOperationExpectation[] = [
     headers: ['Origin', 'X-CSRF-Protection'],
     security: [],
     success: ['201', 'EmailAuthenticationChallengeResponseDto'],
-    errors: ['400', '401', '403', '429', '500'],
+    errors: ['400', '401', '403', '404', '429', '500'],
   },
   {
     method: 'post',
@@ -653,7 +653,7 @@ const LEARNER_OPERATIONS: readonly LearnerOperationExpectation[] = [
     method: 'get',
     path: '/api/v1/me/wordbooks',
     success: ['200', 'WordbookListResponseDto'],
-    errors: ['400', '401', '403', '409', '500'],
+    errors: ['401', '403', '500'],
   },
   {
     method: 'post',
@@ -675,7 +675,7 @@ const LEARNER_OPERATIONS: readonly LearnerOperationExpectation[] = [
     path: '/api/v1/me/wordbooks/{wordbookId}',
     pathParameters: ['wordbookId'],
     success: ['204'],
-    errors: ['400', '401', '403', '404', '409', '500'],
+    errors: ['400', '401', '403', '404', '500'],
   },
   {
     method: 'get',
@@ -683,21 +683,21 @@ const LEARNER_OPERATIONS: readonly LearnerOperationExpectation[] = [
     pathParameters: ['wordbookId'],
     query: ['query', 'kind', 'partOfSpeech', 'difficulty', 'page', 'pageSize'],
     success: ['200', 'WordbookItemListResponseDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
+    errors: ['400', '401', '403', '404', '500'],
   },
   {
     method: 'put',
     path: '/api/v1/me/wordbooks/{wordbookId}/items/{vocabularyId}',
     pathParameters: ['wordbookId', 'vocabularyId'],
     success: ['204'],
-    errors: ['400', '401', '403', '404', '409', '500'],
+    errors: ['400', '401', '403', '404', '500'],
   },
   {
     method: 'delete',
     path: '/api/v1/me/wordbooks/{wordbookId}/items/{vocabularyId}',
     pathParameters: ['wordbookId', 'vocabularyId'],
     success: ['204'],
-    errors: ['400', '401', '403', '404', '409', '500'],
+    errors: ['400', '401', '403', '404', '500'],
   },
   {
     method: 'post',
@@ -705,7 +705,7 @@ const LEARNER_OPERATIONS: readonly LearnerOperationExpectation[] = [
     pathParameters: ['wordbookId'],
     body: 'WordbookBulkItemsRequestDto',
     success: ['204'],
-    errors: ['400', '401', '403', '404', '409', '500'],
+    errors: ['400', '401', '403', '404', '500'],
   },
   {
     method: 'post',
@@ -713,7 +713,7 @@ const LEARNER_OPERATIONS: readonly LearnerOperationExpectation[] = [
     pathParameters: ['wordbookId'],
     body: 'WordbookBulkItemsRequestDto',
     success: ['204'],
-    errors: ['400', '401', '403', '404', '409', '500'],
+    errors: ['400', '401', '403', '404', '500'],
   },
   {
     method: 'post',
@@ -721,14 +721,14 @@ const LEARNER_OPERATIONS: readonly LearnerOperationExpectation[] = [
     pathParameters: ['wordbookId'],
     body: 'WordbookRemoveItemsRequestDto',
     success: ['204'],
-    errors: ['400', '401', '403', '404', '409', '500'],
+    errors: ['400', '401', '403', '404', '500'],
   },
   {
     method: 'get',
     path: '/api/v1/me/vocabularies/{vocabularyId}/wordbook-memberships',
     pathParameters: ['vocabularyId'],
     success: ['200', 'VocabularyWordbookMembershipResponseDto'],
-    errors: ['400', '401', '403', '409', '500'],
+    errors: ['400', '401', '403', '500'],
   },
 ];
 

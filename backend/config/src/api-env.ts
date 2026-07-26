@@ -27,6 +27,7 @@ const apiEnvSchema = z
     COGNITO_USER_POOL_ID: z.string().optional(),
     COGNITO_CLIENT_ID: z.string().optional(),
     CUSTOM_AUTH_SECRET: z.string().min(32).optional(),
+    CUSTOM_AUTH_SECRET_ARN: z.string().optional(),
     INPUT_BUCKET_NAME: z.string().optional(),
     JOB_QUEUE_URL: z.string().optional(),
     CHALLENGE_HMAC_PEPPER: z
@@ -40,7 +41,6 @@ const apiEnvSchema = z
       .default('http://localhost:5173/login/confirm'),
     SCHOOL_EMAIL_DOMAINS: z.string().default('hufs.ac.kr'),
     FROM_EMAIL: z.string().email().optional(),
-    AUTH_LIMIT_PARAMETER_PREFIX: z.string().default('/flex-thia/prod/auth'),
     ALARM_TOPIC_ARN: z.string().optional(),
     MEDIA_CDN_BASE_URL: z.string().trim().url().optional(),
     MEDIA_BUCKET_NAME: z.string().trim().min(1).optional(),
@@ -88,6 +88,25 @@ const apiEnvSchema = z
         context.addIssue({
           code: 'custom',
           message: 'production 필수 환경 변수가 누락되었습니다',
+        });
+      }
+
+      if (
+        !value.CUSTOM_AUTH_SECRET_ARN ||
+        !value.CHALLENGE_HMAC_PEPPER_SECRET_ARN
+      ) {
+        context.addIssue({
+          code: 'custom',
+          message: 'production 인증 secret ARN이 누락되었습니다',
+        });
+      }
+
+      if (value.CHALLENGE_HMAC_PEPPER === 'local-only-email-challenge-pepper') {
+        context.addIssue({
+          code: 'custom',
+          path: ['CHALLENGE_HMAC_PEPPER'],
+          message:
+            'production CHALLENGE_HMAC_PEPPER가 안전하게 설정되지 않았습니다',
         });
       }
 
