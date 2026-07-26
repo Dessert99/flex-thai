@@ -13,6 +13,7 @@ import {
 import { WordbookPersistenceError } from '@flex-thia/database';
 import {
   AuthDomainError,
+  AuditLogError,
   ContentImportError,
   EmailChallengeError,
   IdentityDomainError,
@@ -272,6 +273,9 @@ describe('공개 오류 응답 변환', () => {
     [new UserManagementError('ADMIN_REQUIRED'), 403],
     [new UserManagementError('INVALID_SCHOOL_EMAIL'), 400],
     [new UserManagementError('USER_NOT_FOUND'), 404],
+    [new UserManagementError('SELF_LOCKOUT_FORBIDDEN'), 409],
+    [new UserManagementError('LAST_ACTIVE_ADMIN_REQUIRED'), 409],
+    [new AuditLogError('AUDIT_LOG_NOT_FOUND'), 404],
     [new VocabularyAdminError('VOCABULARY_NOT_FOUND'), 404],
     [new VocabularyAdminError('VOCABULARY_MEDIA_NOT_FOUND'), 404],
     [new VocabularyAdminError('VOCABULARY_CONTENT_INVALID'), 400],

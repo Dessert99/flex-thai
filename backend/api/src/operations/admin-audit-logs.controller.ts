@@ -1,0 +1,101 @@
+/** ADMIN·MFA로 보호한 감사 기록 목록·상세 HTTP 경계를 제공한다 */
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
+import {
+  auditLogDetailResponseSchema,
+  auditLogIdPathSchema,
+  auditLogListQuerySchema,
+  auditLogListResponseSchema,
+  type AuditLogDetailResponse,
+  type AuditLogListResponse,
+} from '@flex-thia/contracts';
+import {
+  AuditLogService,
+  type AuditLogDetail,
+  type AuditLogListItem,
+} from '@flex-thia/domain';
+import {
+  CurrentUser,
+  type AuthenticatedUser,
+} from '../common/auth/current-user.decorator.js';
+import { ApiProblemResponses } from '../openapi/openapi.decorators.js';
+import { AdminMfaGuard } from '../identity/admin-mfa.guard.js';
+import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
+import { CognitoAuthorizerGuard } from '../identity/cognito-authorizer.guard.js';
+import { RequireRole } from '../identity/require-role.decorator.js';
+import {
+  AuditLogDetailResponseDto,
+  AuditLogIdPathDto,
+  AuditLogListQueryDto,
+  AuditLogListResponseDto,
+} from './audit-log.dto.js';
+
+/** ADMIN과 TOTP 등록을 요구하는 감사 기록 endpoint */
+@ApiTags('Admin Audit Logs')
+@ApiBearerAuth('accessToken')
+@Controller('admin/audit-logs')
+@UseGuards(CognitoAuthorizerGuard, ApplicationRoleGuard, AdminMfaGuard)
+@RequireRole('ADMIN')
+export class AdminAuditLogsController {
+  constructor(private readonly auditLogs: AuditLogService) {}
+
+  /** 검색·필터된 감사 기록 페이지를 반환한다 */
+  @ApiOperation({ summary: '감사 기록 목록을 조회한다' })
+  @ApiOkResponse({ type: AuditLogListResponseDto })
+  @ApiProblemResponses(400, 401, 403, 500)
+  @Get()
+  async list(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() rawQuery: AuditLogListQueryDto,
+  ): Promise<AuditLogListResponse> {
+    const query = auditLogListQuerySchema.parse(rawQuery);
+    const page = await this.auditLogs.list(
+      { role: user.role },
+      {
+        page: query.page,
+        pageSize: query.pageSize,
+        ...(query.query ? { query: query.query } : {}),
+        ...(query.actorUserId ? { actorUserId: query.actorUserId } : {}),
+        ...(query.action ? { action: query.action } : {}),
+        ...(query.targetType ? { targetType: query.targetType } : {}),
+        ...(query.targetId ? { targetId: query.targetId } : {}),
+        ...(query.from ? { from: new Date(query.from) } : {}),
+        ...(query.to ? { to: new Date(query.to) } : {}),
+      },
+    );
+    return auditLogListResponseSchema.parse({
+      items: page.items.map(toListResponse),
+      page: page.page,
+    });
+  }
+
+  /** UUID 감사 기록의 summary와 request ID를 반환한다 */
+  @ApiOperation({ summary: '감사 기록 상세를 조회한다' })
+  @ApiParam({ name: 'auditLogId', type: AuditLogIdPathDto })
+  @ApiOkResponse({ type: AuditLogDetailResponseDto })
+  @ApiProblemResponses(400, 401, 403, 404, 500)
+  @Get(':auditLogId')
+  async get(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param() rawPath: unknown,
+  ): Promise<AuditLogDetailResponse> {
+    const path = auditLogIdPathSchema.parse(rawPath);
+    const detail = await this.auditLogs.get({ role: user.role }, path.auditLogId);
+    return auditLogDetailResponseSchema.parse({
+      ...toListResponse(detail),
+      summary: detail.summary,
+      requestId: detail.requestId,
+    });
+  }
+}
+
+const toListResponse = (item: AuditLogListItem | AuditLogDetail) => ({
+  ...item,
+  createdAt: item.createdAt.toISOString(),
+});
