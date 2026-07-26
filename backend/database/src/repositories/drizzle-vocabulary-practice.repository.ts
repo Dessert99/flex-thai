@@ -163,6 +163,10 @@ export class DrizzleVocabularyPracticeRepository implements VocabularyPracticeRe
       throw new Error('PRACTICE_WORDBOOK_SOURCE_REQUIRED');
     }
     return this.database.transaction(async (transaction) => {
+      const modes = sql.join(
+        input.modes.map((mode) => sql`${mode}::vocabulary_practice_mode`),
+        sql`, `,
+      );
       await transaction.execute(sql`
         insert into vocabulary_practice_sessions (
           id, user_id, source_type, source_wordbook_id, source_label, modes,
@@ -171,7 +175,7 @@ export class DrizzleVocabularyPracticeRepository implements VocabularyPracticeRe
         ) values (
           ${input.id}, ${input.userId}, ${input.sourceType},
           ${input.sourceWordbookId}, ${input.sourceLabel},
-          ${input.modes}::vocabulary_practice_mode[],
+          array[${modes}],
           ${input.requestedQuestionCount}, ${input.order}, 'ACTIVE',
           ${input.questionCount}, ${input.startedAt}, null
         )

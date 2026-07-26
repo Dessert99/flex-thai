@@ -80,7 +80,7 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
          join concept_versions cv on cv.id = c.current_published_version_id
          where c.status = 'PUBLISHED' and cv.status = 'PUBLISHED'
          group by cv.category
-         order by cv.category`,
+         order by cv.category::text`,
       );
       const feedback = await pool.query(
         `select
