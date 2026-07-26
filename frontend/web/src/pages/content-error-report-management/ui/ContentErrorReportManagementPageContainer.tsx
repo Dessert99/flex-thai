@@ -17,12 +17,15 @@ import {
 } from '../model/contentErrorReportSearch';
 import { ContentErrorReportManagementPageView } from './ContentErrorReportManagementPageView';
 
-const initialSearch: ContentErrorReportSearch = { page: 1, pageSize: 20 };
-
 /** 목록·상세를 동기화하고 모든 command 성공 뒤 feedback query를 갱신한다 */
-export function ContentErrorReportManagementPageContainer() {
+export function ContentErrorReportManagementPageContainer({
+  search,
+  onSearchChange,
+}: {
+  search: ContentErrorReportSearch;
+  onSearchChange: (search: ContentErrorReportSearch) => void;
+}) {
   const client = useQueryClient();
-  const [search, setSearch] = useState(initialSearch);
   const [selectedId, setSelectedId] = useState<string>();
   const list = useQuery(
     contentErrorReportListQueryOptions(
@@ -58,10 +61,12 @@ export function ContentErrorReportManagementPageContainer() {
       reports={list.data}
       detail={detail.data}
       search={search}
-      loading={list.isLoading || detail.isLoading}
-      error={list.isError || detail.isError || mutation.isError}
+      loading={list.isLoading}
+      detailLoading={detail.isLoading}
+      error={list.isError || detail.isError}
+      mutationError={mutation.isError}
       mutating={mutation.isPending}
-      onSearchChange={setSearch}
+      onSearchChange={onSearchChange}
       onSelect={setSelectedId}
       onStatusChange={(status) => mutation.mutate({ kind: 'STATUS', status })}
       onAssign={(assigneeUserId) =>

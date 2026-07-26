@@ -1,4 +1,5 @@
 /** 콘텐츠 오류 신고 생성과 관리자 workflow use case를 검증한다 */
+/* eslint-disable @typescript-eslint/unbound-method */
 import { describe, expect, it, vi } from 'vitest';
 import type {
   ContentErrorReport,
@@ -84,8 +85,8 @@ describe('ContentErrorReportService', () => {
     };
     await service.create('learner-id', input);
     await service.create('learner-id', input);
-    expect(repository.create).toHaveBeenCalledTimes(2);
-    expect(repository.create).toHaveBeenCalledWith({
+    expect(vi.mocked(repository.create)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(repository.create)).toHaveBeenCalledWith({
       reporterUserId: 'learner-id',
       category: 'MEANING_TRANSLATION',
       description: '뜻이 달라요',
@@ -99,14 +100,14 @@ describe('ContentErrorReportService', () => {
     const actor = { userId: 'admin-id', actorSub: 'sub', requestId: 'request' };
     await service.assign(actor, report, 'admin-id');
     await service.unassign(actor, { ...report, assigneeUserId: 'admin-id' });
-    expect(repository.changeAssignee).toHaveBeenNthCalledWith(
+    expect(vi.mocked(repository.changeAssignee)).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
         fromAssigneeUserId: null,
         toAssigneeUserId: 'admin-id',
       }),
     );
-    expect(repository.changeAssignee).toHaveBeenNthCalledWith(
+    expect(vi.mocked(repository.changeAssignee)).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
         fromAssigneeUserId: 'admin-id',
@@ -139,7 +140,7 @@ describe('ContentErrorReportService', () => {
       report,
       'RESOLVED',
     );
-    expect(repository.changeStatus).toHaveBeenCalledWith(
+    expect(vi.mocked(repository.changeStatus)).toHaveBeenCalledWith(
       expect.objectContaining({
         fromStatus: 'OPEN',
         toStatus: 'RESOLVED',

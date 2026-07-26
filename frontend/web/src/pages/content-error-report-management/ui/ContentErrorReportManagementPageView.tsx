@@ -13,7 +13,9 @@ export interface ContentErrorReportManagementPageViewProps {
   detail: AdminContentErrorReportDetailResponse | undefined;
   search: ContentErrorReportSearch;
   loading: boolean;
+  detailLoading: boolean;
   error: boolean;
+  mutationError: boolean;
   mutating: boolean;
   onSearchChange: (search: ContentErrorReportSearch) => void;
   onSelect: (reportId: string) => void;
@@ -27,7 +29,7 @@ const transitions: Record<
   ContentErrorReportStatus[]
 > = {
   OPEN: ['IN_PROGRESS', 'RESOLVED', 'REJECTED'],
-  IN_PROGRESS: ['RESOLVED', 'REJECTED'],
+  IN_PROGRESS: ['OPEN', 'RESOLVED', 'REJECTED'],
   RESOLVED: ['OPEN'],
   REJECTED: ['OPEN'],
 };
@@ -40,7 +42,9 @@ export function ContentErrorReportManagementPageView({
   detail,
   search,
   loading,
+  detailLoading,
   error,
+  mutationError,
   mutating,
   onSearchChange,
   onSelect,
@@ -76,6 +80,70 @@ export function ContentErrorReportManagementPageView({
           )}
         </select>
       </label>
+      <label>
+        대상
+        <select
+          value={search.targetKind ?? ''}
+          onChange={(event) =>
+            onSearchChange({
+              ...search,
+              ...(event.target.value
+                ? { targetKind: event.target.value as never }
+                : {}),
+              page: 1,
+            })
+          }
+        >
+          <option value=''>전체</option>
+          {['QUESTION', 'VOCABULARY', 'SENTENCE', 'AUDIO', 'CONCEPT'].map(
+            (value) => (
+              <option key={value}>{value}</option>
+            ),
+          )}
+        </select>
+      </label>
+      <label>
+        분류
+        <select
+          value={search.category ?? ''}
+          onChange={(event) =>
+            onSearchChange({
+              ...search,
+              ...(event.target.value
+                ? { category: event.target.value as never }
+                : {}),
+              page: 1,
+            })
+          }
+        >
+          <option value=''>전체</option>
+          {[
+            'MEANING_TRANSLATION',
+            'PRONUNCIATION_TONE',
+            'AUDIO',
+            'ANSWER_EXPLANATION',
+            'TOKENIZATION',
+            'OTHER',
+          ].map((value) => (
+            <option key={value}>{value}</option>
+          ))}
+        </select>
+      </label>
+      <label>
+        담당자 ID
+        <input
+          value={search.assigneeUserId ?? ''}
+          onChange={(event) =>
+            onSearchChange({
+              ...search,
+              ...(event.target.value
+                ? { assigneeUserId: event.target.value }
+                : {}),
+              page: 1,
+            })
+          }
+        />
+      </label>
       {!reports?.items.length ? (
         <p>접수된 오류 신고가 없습니다.</p>
       ) : (
@@ -92,11 +160,43 @@ export function ContentErrorReportManagementPageView({
           ))}
         </ul>
       )}
+      {reports ? (
+        <nav aria-label='페이지 이동'>
+          <button
+            disabled={search.page <= 1}
+            onClick={() => onSearchChange({ ...search, page: search.page - 1 })}
+            type='button'
+          >
+            이전
+          </button>
+          <span>
+            {search.page} / {reports.page.totalPages}
+          </span>
+          <button
+            disabled={search.page >= reports.page.totalPages}
+            onClick={() => onSearchChange({ ...search, page: search.page + 1 })}
+            type='button'
+          >
+            다음
+          </button>
+        </nav>
+      ) : null}
+      {detailLoading ? <p role='status'>상세를 불러오는 중입니다.</p> : null}
       {detail ? (
         <section aria-label='신고 상세'>
           <h2>{detail.snapshot.title}</h2>
           <p>{detail.snapshot.primaryText}</p>
+          <p>{detail.snapshot.secondaryText}</p>
+          <p>
+            {detail.snapshot.versionLabel} · {detail.snapshot.locationLabel}
+          </p>
           <p>{detail.description ?? '추가 설명 없음'}</p>
+          <p>신고자 {detail.reporter.email}</p>
+          <p>담당자 {detail.assignee?.email ?? '미배정'}</p>
+          <pre>{JSON.stringify(detail.canonicalReference, null, 2)}</pre>
+          {mutationError ? (
+            <p role='alert'>변경을 저장하지 못했습니다.</p>
+          ) : null}
           {toContentErrorReportTargetLink({
             kind: detail.targetKind,
             contentId: detail.canonicalReference.contentId,
@@ -118,7 +218,9 @@ export function ContentErrorReportManagementPageView({
           <ol>
             {detail.history.map((entry) => (
               <li key={entry.id}>
-                {entry.action} · {entry.actor.email}
+                {entry.action} · {entry.actor.email} · {entry.fromStatus ?? '-'}{' '}
+                → {entry.toStatus ?? '-'} · {entry.fromAssigneeUserId ?? '-'} →{' '}
+                {entry.toAssigneeUserId ?? '-'} · {entry.createdAt}
               </li>
             ))}
           </ol>
@@ -145,7 +247,10 @@ export function ContentErrorReportManagementPageView({
             <label>
               담당자 ID
               <input
+                key={detail.assignee?.id ?? 'unassigned'}
                 name='assigneeUserId'
+                pattern='[0-9a-fA-F-]{36}'
+                required
                 defaultValue={detail.assignee?.id}
               />
             </label>
