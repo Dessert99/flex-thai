@@ -126,6 +126,17 @@ export const conceptVersions = pgTable(
     check('concept_versions_version_positive', sql`${table.version} > 0`),
     check('concept_versions_revision_nonnegative', sql`${table.revision} >= 0`),
     check('concept_versions_position_nonnegative', sql`${table.position} >= 0`),
+    check(
+      'concept_versions_validation_consistent',
+      sql`(${table.validationStatus} = 'PENDING' and ${table.validatedRevision} is null and ${table.validatedAt} is null and jsonb_array_length(${table.validationIssues}) = 0)
+        or (${table.validationStatus} = 'PASSED' and ${table.validatedRevision} is not null and ${table.validatedAt} is not null and jsonb_array_length(${table.validationIssues}) = 0)
+        or (${table.validationStatus} = 'FAILED' and ${table.validatedRevision} is not null and ${table.validatedAt} is not null and jsonb_array_length(${table.validationIssues}) > 0)`,
+    ),
+    check(
+      'concept_versions_publication_consistent',
+      sql`(${table.status} = 'DRAFT' and ${table.publishedAt} is null)
+        or (${table.status} in ('PUBLISHED', 'RETIRED') and ${table.publishedAt} is not null)`,
+    ),
   ],
 );
 
@@ -171,6 +182,10 @@ export const conceptBlockExamples = pgTable(
     uniqueIndex('concept_block_examples_block_position_unique').on(
       table.blockId,
       table.position,
+    ),
+    uniqueIndex('concept_block_examples_block_sentence_unique').on(
+      table.blockId,
+      table.sentenceVersionId,
     ),
     check(
       'concept_block_examples_position_nonnegative',
