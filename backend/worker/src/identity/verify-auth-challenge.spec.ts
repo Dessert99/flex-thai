@@ -11,18 +11,16 @@ const makeEvent = (expectedHmac: string, answer: string) => ({
 });
 
 describe('verifyAuthChallenge', () => {
-  it('private HMAC과 answer가 같을 때만 성공한다', async () => {
-    const result = await verifyAuthChallenge(
+  it('private HMAC과 answer가 같을 때만 성공한다', () => {
+    const result = verifyAuthChallenge(
       makeEvent('opaque-answer', 'opaque-answer'),
     );
 
     expect(result.response.answerCorrect).toBe(true);
   });
 
-  it('길이가 다른 answer도 예외 없이 거부한다', async () => {
-    const result = await verifyAuthChallenge(
-      makeEvent('opaque-answer', 'short'),
-    );
+  it('길이가 다른 answer도 예외 없이 거부한다', () => {
+    const result = verifyAuthChallenge(makeEvent('opaque-answer', 'short'));
 
     expect(result.response.answerCorrect).toBe(false);
   });

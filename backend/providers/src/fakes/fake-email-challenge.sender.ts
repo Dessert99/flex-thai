@@ -11,12 +11,13 @@ export class FakeEmailChallengeSender implements EmailChallengeSender {
   }> = [];
 
   /** local 확인용 outbox에 하나의 독립된 message를 추가한다 */
-  async send(input: {
+  send(input: {
     email: string;
     code: string;
     linkUrl: string;
     expiresAt: Date;
   }): Promise<void> {
     this.messages.push({ ...input });
+    return Promise.resolve();
   }
 }

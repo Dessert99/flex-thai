@@ -32,7 +32,9 @@ export class FakePasswordlessAuthenticationProvider
 
   constructor(options: FakePasswordlessAuthenticationOptions) {
     if (options.mode === 'production') {
-      throw new Error('production에서는 passwordless fake를 사용할 수 없습니다');
+      throw new Error(
+        'production에서는 passwordless fake를 사용할 수 없습니다',
+      );
     }
     for (const account of options.accounts) {
       this.accounts.set(account.email, account);

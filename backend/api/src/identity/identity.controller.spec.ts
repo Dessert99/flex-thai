@@ -137,7 +137,10 @@ describe('IdentityController 인증 흐름', () => {
     const refresh = vi
       .fn()
       .mockResolvedValue({ kind: 'AUTHENTICATED', tokens, user });
-    const controller = new IdentityController({ refresh } as never, {} as never);
+    const controller = new IdentityController(
+      { refresh } as never,
+      {} as never,
+    );
     const cookieResponse = response();
 
     const result = await controller.refresh(

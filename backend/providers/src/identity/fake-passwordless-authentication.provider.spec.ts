@@ -22,12 +22,12 @@ describe('FakePasswordlessAuthenticationProvider', () => {
       accounts,
     });
 
-    await expect(provider.complete('learner@hufs.ac.kr')).resolves.toMatchObject(
-      {
-        kind: 'AUTHENTICATED',
-        tokens: { subject: 'learner-sub', email: 'learner@hufs.ac.kr' },
-      },
-    );
+    await expect(
+      provider.complete('learner@hufs.ac.kr'),
+    ).resolves.toMatchObject({
+      kind: 'AUTHENTICATED',
+      tokens: { subject: 'learner-sub', email: 'learner@hufs.ac.kr' },
+    });
   });
 
   it('관리자는 SOFTWARE_TOKEN_MFA와 고정 local code를 거친다', async () => {

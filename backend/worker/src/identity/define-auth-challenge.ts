@@ -29,8 +29,8 @@ export const defineAuthChallenge = <T extends DefineAuthChallengeEvent>(
     return event;
   }
   if (
-    customChallenges.filter(({ challengeResult }) => !challengeResult)
-      .length >= 5
+    customChallenges.filter(({ challengeResult }) => !challengeResult).length >=
+    5
   ) {
     event.response.issueTokens = false;
     event.response.failAuthentication = true;
