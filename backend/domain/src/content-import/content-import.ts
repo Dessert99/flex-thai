@@ -102,6 +102,8 @@ export interface CanonicalDraftQuestionInput {
   questionTypeSlug: string;
   questionTypeVersion: number;
   difficulty: number;
+  topicSlug?: string;
+  tagSlugs?: string[];
   blocks: CanonicalDraftQuestionBlockInput[];
   options: CanonicalDraftQuestionOptionInput[];
   correctOptionRef: string;

@@ -157,6 +157,8 @@ export const adminQuestionVersionPayloadSchema = z
     questionTypeSlug: z.string().min(1),
     questionTypeVersion: positiveIntegerSchema,
     difficulty: difficultySchema,
+    topicSlug: z.string().trim().min(1).default('general'),
+    tagSlugs: z.array(z.string().trim().min(1)).default([]),
     blocks: z.array(adminQuestionBlockInputSchema).min(1),
     options: z.array(adminQuestionOptionInputSchema).min(1),
     correctOptionRef: z.string().min(1),

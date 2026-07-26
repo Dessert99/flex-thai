@@ -150,6 +150,7 @@ const questionGraph: ResolvedQuestionDraftGraph = {
     questionId: ids.question,
     version: 1,
     typeVersionId: ids.questionTypeVersion,
+    topicId: ids.vocabulary,
     difficulty: 2,
     status: 'DRAFT',
     validationStatus: 'PENDING',
@@ -157,6 +158,7 @@ const questionGraph: ResolvedQuestionDraftGraph = {
     validatedAt: null,
     publishedAt: null,
   },
+  tagIds: [],
   sentences: [
     {
       sentence: { id: ids.blockThaiSentence },
@@ -1325,6 +1327,7 @@ const createCrossOwnershipGraph = (
       questionId,
       version: 1,
       typeVersionId: fixture.typeVersionId,
+      topicId: fixture.typeVersionId,
       difficulty: 2,
       status: 'DRAFT',
       validationStatus: 'PENDING',
@@ -1332,6 +1335,7 @@ const createCrossOwnershipGraph = (
       validatedAt: null,
       publishedAt: null,
     },
+    tagIds: [],
     sentences: [blockSentence, firstOptionSentence, secondOptionSentence],
     blocks: [
       {

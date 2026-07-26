@@ -123,6 +123,7 @@ const graph = (): QuestionAdminVersionGraph => ({
     questionId: 'question-id',
     version: 2,
     typeVersionId: 'type-version-id',
+    topicId: 'topic-id',
     difficulty: 3,
     status: 'DRAFT',
     validationStatus: 'PENDING',
@@ -130,6 +131,7 @@ const graph = (): QuestionAdminVersionGraph => ({
     validatedAt: null,
     publishedAt: null,
   },
+  tagIds: [],
   sentences: [
     {
       sentence: { id: 'sentence-id' },

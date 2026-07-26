@@ -27,6 +27,8 @@ const sourceVersion = (
   questionId: '00000000-0000-4000-8000-000000000100',
   version: 1,
   typeVersionId: '00000000-0000-4000-8000-000000000102',
+  topicId: '00000000-0000-4000-8000-000000000121',
+  tagIds: [],
   difficulty: 2,
   status: 'PUBLISHED',
   validationStatus: 'PASSED',
@@ -123,6 +125,9 @@ const createTransaction = (
       },
     );
   },
+  findActiveQuestionTopic: () =>
+    Promise.resolve({ id: '00000000-0000-4000-8000-000000000121' }),
+  findActiveQuestionTags: () => Promise.resolve([]),
   findMediaAssetById: (mediaAssetId) => {
     calls.push('findMediaAssetById');
     const base = {

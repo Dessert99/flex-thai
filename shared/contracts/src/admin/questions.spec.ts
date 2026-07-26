@@ -131,7 +131,11 @@ describe('관리자 문제 path·query·교체 payload 계약', () => {
   });
 
   it('초안 전체 교체는 기존 콘텐츠 UUID와 payload 내부 option 참조를 허용한다', () => {
-    expect(adminQuestionVersionPayloadSchema.parse(payload)).toEqual(payload);
+    expect(adminQuestionVersionPayloadSchema.parse(payload)).toEqual({
+      ...payload,
+      topicSlug: 'general',
+      tagSlugs: [],
+    });
     expect(() =>
       adminQuestionVersionPayloadSchema.parse({
         ...payload,
