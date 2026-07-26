@@ -134,6 +134,36 @@ describe('관리자 콘텐츠 가져오기 canonical 요청 계약', () => {
     ).toThrow();
   });
 
+  it('표현의 뜻과 발음 및 문맥상 뜻 참조를 요구한다', () => {
+    const expressionSentence = {
+      ...sentence,
+      originalText: 'สวัสดีครับ',
+      tokens: [
+        { ...sentence.tokens[0], endOffset: 6 },
+        {
+          ...sentence.tokens[0],
+          surface: 'ครับ',
+          startOffset: 6,
+          endOffset: 10,
+        },
+      ],
+      expressions: [
+        {
+          startTokenIndex: 0,
+          endTokenIndex: 2,
+          vocabulary: { clientRef: 'expression.greeting' },
+          meaning: { clientRef: 'expression.meaning' },
+          pronunciation: { clientRef: 'expression.pronunciation' },
+          contextMeaningKo: '안녕하세요',
+        },
+      ],
+    };
+
+    expect(canonicalSentenceInputSchema.parse(expressionSentence)).toEqual(
+      expressionSentence,
+    );
+  });
+
   it('선택지 순서·clientRef와 correctOptionRef 관계를 검증한다', () => {
     expect(() =>
       contentImportRequestSchema.parse({

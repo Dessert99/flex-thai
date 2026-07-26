@@ -39,7 +39,7 @@ export interface CanonicalDraftTokenInput {
   meaning: ContentDraftReference;
   pronunciation: ContentDraftReference;
   contextMeaningKo: string;
-  role: 'TARGET' | 'REQUIRED' | 'SUPPORTING';
+  role: 'TARGET' | 'REQUIRED' | 'SUPPORTING' | 'INSTRUCTION';
 }
 
 /** 여러 token에 걸친 공용 표현 참조 입력 */
@@ -47,6 +47,9 @@ export interface CanonicalDraftExpressionInput {
   startTokenIndex: number;
   endTokenIndex: number;
   vocabulary: ContentDraftReference;
+  meaning: ContentDraftReference;
+  pronunciation: ContentDraftReference;
+  contextMeaningKo: string;
   representative?: boolean;
 }
 

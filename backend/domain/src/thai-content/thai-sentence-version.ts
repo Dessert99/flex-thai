@@ -1,5 +1,12 @@
 /** 태국어 문장 스냅샷의 Unicode 범위와 동결 불변 조건을 정의한다 */
 
+/** 태국어 token이 문장에서 맡는 학습 역할 */
+export type ThaiTokenRole =
+  | 'TARGET'
+  | 'REQUIRED'
+  | 'SUPPORTING'
+  | 'INSTRUCTION';
+
 /** 문장 원문에서 어휘가 차지하는 code point 범위 */
 export interface ThaiTokenOccurrenceInput {
   position: number;
@@ -10,7 +17,7 @@ export interface ThaiTokenOccurrenceInput {
   meaningId: string;
   pronunciationId: string;
   contextMeaningKo: string;
-  role: 'TARGET' | 'REQUIRED' | 'SUPPORTING';
+  role: ThaiTokenRole;
 }
 
 /** 여러 토큰에 걸친 공용 표현 범위 */
@@ -19,6 +26,9 @@ export interface ThaiExpressionOccurrenceInput {
   endTokenIndex: number;
   vocabularyId: string;
   vocabularyKind: 'WORD' | 'EXPRESSION';
+  meaningId: string;
+  pronunciationId: string;
+  contextMeaningKo: string;
   adminSelected: boolean;
 }
 

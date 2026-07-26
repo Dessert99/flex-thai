@@ -27,6 +27,8 @@ const ids = {
   expression: '00000000-0000-4000-8000-000000000007',
   typeVersion: '00000000-0000-4000-8000-000000000008',
   otherVocabulary: '00000000-0000-4000-8000-000000000009',
+  expressionMeaning: '00000000-0000-4000-8000-000000000012',
+  expressionPronunciation: '00000000-0000-4000-8000-000000000013',
 } as const;
 
 const occurredAt = new Date('2026-07-24T00:00:00.000Z');
@@ -96,6 +98,8 @@ const importedExpression: ImportedVocabularyReferenceItem = {
   targetId: ids.expression,
   referenceMap: {
     'expression-ref': ids.expression,
+    'expression-meaning-ref': ids.expressionMeaning,
+    'expression-pronunciation-ref': ids.expressionPronunciation,
   },
 };
 
@@ -127,11 +131,17 @@ const createTransaction = (
   ];
   const meanings = options.meanings ?? [
     { id: ids.meaning, vocabularyId: ids.vocabulary },
+    { id: ids.expressionMeaning, vocabularyId: ids.expression },
   ];
   const pronunciations = options.pronunciations ?? [
     {
       id: ids.pronunciation,
       vocabularyId: ids.vocabulary,
+      mediaAssetId: ids.media,
+    },
+    {
+      id: ids.expressionPronunciation,
+      vocabularyId: ids.expression,
       mediaAssetId: ids.media,
     },
   ];
@@ -291,6 +301,9 @@ const sentenceInput = (): CanonicalDraftSentenceInput => ({
       startTokenIndex: 0,
       endTokenIndex: 2,
       vocabulary: { clientRef: 'expression-ref' },
+      meaning: { clientRef: 'expression-meaning-ref' },
+      pronunciation: { clientRef: 'expression-pronunciation-ref' },
+      contextMeaningKo: '표현 뜻',
       representative: true,
     },
   ],
@@ -573,6 +586,9 @@ describe('ContentDraftService 문제 초안', () => {
       expect.objectContaining({
         vocabularyId: ids.expression,
         vocabularyKind: 'EXPRESSION',
+        meaningId: ids.expressionMeaning,
+        pronunciationId: ids.expressionPronunciation,
+        contextMeaningKo: '표현 뜻',
         representative: true,
       }),
     ]);
@@ -692,6 +708,8 @@ describe('ContentDraftService 문제 초안', () => {
       {
         ...sentence.expressions[0]!,
         vocabulary: { id: ids.expression },
+        meaning: { id: ids.expressionMeaning },
+        pronunciation: { id: ids.expressionPronunciation },
       },
     ];
     const command = questionCommand(sentence);

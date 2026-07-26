@@ -289,7 +289,7 @@ const assertSentenceInput = (value: unknown, path: string): void => {
     );
     requireEnum(
       token.role,
-      ['TARGET', 'REQUIRED', 'SUPPORTING'],
+      ['TARGET', 'REQUIRED', 'SUPPORTING', 'INSTRUCTION'],
       `${tokenPath}.role`,
     );
     if (
@@ -311,7 +311,14 @@ const assertSentenceInput = (value: unknown, path: string): void => {
     const expression = requireRecord(value, expressionPath);
     requireExactKeys(
       expression,
-      ['startTokenIndex', 'endTokenIndex', 'vocabulary'],
+      [
+        'startTokenIndex',
+        'endTokenIndex',
+        'vocabulary',
+        'meaning',
+        'pronunciation',
+        'contextMeaningKo',
+      ],
       ['representative'],
       expressionPath,
     );
@@ -328,6 +335,15 @@ const assertSentenceInput = (value: unknown, path: string): void => {
       `${expressionPath}.endTokenIndex`,
     );
     assertReference(expression.vocabulary, `${expressionPath}.vocabulary`);
+    assertReference(expression.meaning, `${expressionPath}.meaning`);
+    assertReference(
+      expression.pronunciation,
+      `${expressionPath}.pronunciation`,
+    );
+    requireNonemptyString(
+      expression.contextMeaningKo,
+      `${expressionPath}.contextMeaningKo`,
+    );
     if (
       expression.representative !== undefined &&
       typeof expression.representative !== 'boolean'
@@ -592,11 +608,33 @@ const resolveSentence = async (input: {
     if (vocabulary.kind !== 'EXPRESSION') {
       throw new QuestionAdminError('QUESTION_REFERENCE_MISMATCH', path);
     }
+    const meaning = await requireMeaning(
+      input.transaction,
+      expression.meaning,
+      `${input.path}.expressions.${index}.meaning`,
+    );
+    const pronunciation = await requirePronunciation(
+      input.transaction,
+      expression.pronunciation,
+      `${input.path}.expressions.${index}.pronunciation`,
+    );
+    if (
+      meaning.vocabularyId !== vocabulary.id ||
+      pronunciation.vocabularyId !== vocabulary.id
+    ) {
+      throw new QuestionAdminError(
+        'QUESTION_REFERENCE_MISMATCH',
+        `${input.path}.expressions.${index}`,
+      );
+    }
     expressionCandidates.push({
       startTokenIndex: expression.startTokenIndex,
       endTokenIndex: expression.endTokenIndex,
       vocabularyId: vocabulary.id,
       vocabularyKind: vocabulary.kind,
+      meaningId: meaning.id,
+      pronunciationId: pronunciation.id,
+      contextMeaningKo: expression.contextMeaningKo,
       adminSelected: expression.representative ?? false,
     });
   }
@@ -640,6 +678,9 @@ const resolveSentence = async (input: {
         endTokenIndex: expression.endTokenIndex,
         vocabularyId: expression.vocabularyId,
         vocabularyKind: expression.vocabularyKind,
+        meaningId: expression.meaningId,
+        pronunciationId: expression.pronunciationId,
+        contextMeaningKo: expression.contextMeaningKo,
         representative: expression.representative,
       }),
     ),

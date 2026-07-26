@@ -66,7 +66,7 @@ const adminQuestionTokenInputSchema = z
     meaning: adminContentReferenceSchema,
     pronunciation: adminContentReferenceSchema,
     contextMeaningKo: z.string().min(1),
-    role: z.enum(['TARGET', 'REQUIRED', 'SUPPORTING']),
+    role: z.enum(['TARGET', 'REQUIRED', 'SUPPORTING', 'INSTRUCTION']),
   })
   .strict();
 
@@ -75,6 +75,9 @@ const adminQuestionExpressionInputSchema = z
     startTokenIndex: z.number().int().safe().nonnegative(),
     endTokenIndex: positiveIntegerSchema,
     vocabulary: adminContentReferenceSchema,
+    meaning: adminContentReferenceSchema,
+    pronunciation: adminContentReferenceSchema,
+    contextMeaningKo: z.string().min(1),
     representative: z.boolean().optional(),
   })
   .strict();

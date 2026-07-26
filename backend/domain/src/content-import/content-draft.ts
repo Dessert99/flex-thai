@@ -418,11 +418,23 @@ const resolveSentence = async (input: {
         `${expressionPath}.vocabulary`,
       );
     }
+    const meaning = await input.resolver.meaning(
+      expression.meaning,
+      `${expressionPath}.meaning`,
+    );
+    const pronunciation = await input.resolver.pronunciation(
+      expression.pronunciation,
+      `${expressionPath}.pronunciation`,
+    );
+    assertSameVocabulary(vocabulary, meaning, pronunciation, expressionPath);
     expressionCandidates.push({
       startTokenIndex: expression.startTokenIndex,
       endTokenIndex: expression.endTokenIndex,
       vocabularyId: vocabulary.record.id,
       vocabularyKind: vocabulary.record.kind,
+      meaningId: meaning.record.id,
+      pronunciationId: pronunciation.record.id,
+      contextMeaningKo: expression.contextMeaningKo,
       adminSelected: expression.representative ?? false,
     });
   }
@@ -451,6 +463,9 @@ const resolveSentence = async (input: {
     endTokenIndex: expression.endTokenIndex,
     vocabularyId: expression.vocabularyId,
     vocabularyKind: expression.vocabularyKind,
+    meaningId: expression.meaningId,
+    pronunciationId: expression.pronunciationId,
+    contextMeaningKo: expression.contextMeaningKo,
     representative: expression.representative,
     id: input.newId(),
     sentenceVersionId,

@@ -43,7 +43,7 @@ const canonicalTokenInputSchema = z
     meaning: refSchema,
     pronunciation: refSchema,
     contextMeaningKo: z.string().min(1),
-    role: z.enum(['TARGET', 'REQUIRED', 'SUPPORTING']),
+    role: z.enum(['TARGET', 'REQUIRED', 'SUPPORTING', 'INSTRUCTION']),
   })
   .strict();
 
@@ -52,6 +52,9 @@ const canonicalExpressionInputSchema = z
     startTokenIndex: nonnegativeIntegerSchema,
     endTokenIndex: positiveIntegerSchema,
     vocabulary: refSchema,
+    meaning: refSchema,
+    pronunciation: refSchema,
+    contextMeaningKo: z.string().min(1),
     representative: z.boolean().optional(),
   })
   .strict();

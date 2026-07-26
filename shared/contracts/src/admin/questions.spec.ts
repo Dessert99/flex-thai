@@ -130,6 +130,38 @@ describe('관리자 문제 path·query·교체 payload 계약', () => {
     ).toThrow();
   });
 
+  it('관리자 표현 입력에 뜻과 발음 및 문맥상 뜻을 보존한다', () => {
+    const expressionSentence = {
+      ...sentenceInput,
+      originalText: 'สวัสดีครับ',
+      tokens: [
+        sentenceInput.tokens[0],
+        {
+          ...sentenceInput.tokens[0],
+          surface: 'ครับ',
+          startOffset: 6,
+          endOffset: 10,
+        },
+      ],
+      expressions: [
+        {
+          startTokenIndex: 0,
+          endTokenIndex: 2,
+          vocabulary: { id: ids.vocabulary },
+          meaning: { id: ids.meaning },
+          pronunciation: { id: ids.pronunciation },
+          contextMeaningKo: '안녕하세요',
+        },
+      ],
+    };
+
+    expect(
+      adminQuestionVersionPayloadSchema.parse(
+        withBlockSentence(expressionSentence),
+      ).blocks[0]?.sentences[0]?.sentence.expressions[0],
+    ).toMatchObject({ contextMeaningKo: '안녕하세요' });
+  });
+
   it.each([
     [
       'token vocabulary',
