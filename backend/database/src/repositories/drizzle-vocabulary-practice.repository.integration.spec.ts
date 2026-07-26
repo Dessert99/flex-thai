@@ -1,35 +1,112 @@
-/** 격리 PostgreSQL에서 단어 연습 snapshot 저장과 답안 재전송 멱등성을 검증한다 */
+/** 격리 PostgreSQL에서 단어 연습 snapshot·동시성·멱등 경계를 검증한다 */
 import { drizzle } from 'drizzle-orm/node-postgres';
+import type { MaterializedPracticeSession } from '@flex-thia/domain';
 import { Pool } from 'pg';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import * as schema from '../schema/index.js';
 import * as practiceSchema from '../schema/learning-practice.schema.js';
 import { DrizzleVocabularyPracticeRepository } from './drizzle-vocabulary-practice.repository.js';
 
 const databaseUrl = process.env.VOCABULARY_PRACTICE_TEST_DATABASE_URL;
 const integration = describe.skipIf(!databaseUrl);
+const uuid = (value: number) =>
+  `00000000-0000-4000-8000-${String(value).padStart(12, '0')}`;
 
 const ids = {
-  user: '00000000-0000-4000-8000-000000000701',
-  vocabulary: '00000000-0000-4000-8000-000000000702',
-  meaning: '00000000-0000-4000-8000-000000000703',
-  media: '00000000-0000-4000-8000-000000000704',
-  pronunciation: '00000000-0000-4000-8000-000000000705',
-  session: '00000000-0000-4000-8000-000000000706',
-  question: '00000000-0000-4000-8000-000000000707',
-  option: '00000000-0000-4000-8000-000000000708',
-  secondOption: '00000000-0000-4000-8000-000000000709',
-  thirdOption: '00000000-0000-4000-8000-000000000710',
-  fourthOption: '00000000-0000-4000-8000-000000000711',
-  clientAnswer: '00000000-0000-4000-8000-000000000712',
-  answer: '00000000-0000-4000-8000-000000000713',
-} as const;
+  user: uuid(701),
+  vocabulary: uuid(702),
+  meaning: uuid(703),
+  media: uuid(704),
+  pronunciation: uuid(705),
+  option: uuid(706),
+  secondOption: uuid(707),
+  thirdOption: uuid(708),
+  fourthOption: uuid(709),
+};
+
+const card = {
+  id: ids.vocabulary,
+  thai: 'เรียน',
+  kind: 'WORD' as const,
+  meanings: [
+    {
+      id: ids.meaning,
+      meaningKo: '배우다',
+      partOfSpeech: '동사',
+      difficulty: 1,
+      contextNote: null,
+    },
+  ],
+  pronunciations: [
+    {
+      id: ids.pronunciation,
+      pronunciationKo: '리안',
+      toneMarks: 'M',
+      mediaAssetId: ids.media,
+      storageKey: `practice/${ids.media}.mp3`,
+    },
+  ],
+  meaningPronunciations: [
+    { meaningId: ids.meaning, pronunciationId: ids.pronunciation },
+  ],
+};
+
+const options = [
+  { id: ids.option, label: '배우다' },
+  { id: ids.secondOption, label: '가르치다' },
+  { id: ids.thirdOption, label: '읽다' },
+  { id: ids.fourthOption, label: '쓰다' },
+];
+
+const createSessionInput = (
+  sessionId: string,
+  questionIds: string[],
+): MaterializedPracticeSession => ({
+  id: sessionId,
+  userId: ids.user,
+  sourceType: 'SEARCH_SELECTION' as const,
+  sourceWordbookId: null,
+  sourceLabel: '공용 검색',
+  modes: ['THAI_TO_MEANING'],
+  requestedQuestionCount: 10,
+  order: 'SOURCE' as const,
+  questionCount: questionIds.length,
+  startedAt: new Date('2026-07-26T00:00:00.000Z'),
+  questions: questionIds.map((questionId, index) => ({
+    id: questionId,
+    sessionId,
+    position: index + 1,
+    vocabularyId: ids.vocabulary,
+    meaningId: ids.meaning,
+    pronunciationId: null,
+    mediaAssetId: null,
+    mode: 'THAI_TO_MEANING' as const,
+    prompt: { type: 'TEXT' as const, text: 'เรียน' },
+    options,
+    correctOptionId: ids.option,
+    card,
+  })),
+});
+
+const answerInput = (
+  sessionId: string,
+  questionId: string,
+  clientAnswerId: string,
+) => ({
+  userId: ids.user,
+  sessionId,
+  questionId,
+  clientAnswerId,
+  selectedOptionId: ids.option,
+  answeredAt: new Date('2026-07-26T00:01:00.000Z'),
+});
 
 integration('DrizzleVocabularyPracticeRepository PostgreSQL', () => {
   const pool = new Pool({ connectionString: databaseUrl });
   const database = drizzle(pool, {
     schema: { ...schema, ...practiceSchema },
   });
+  const repository = new DrizzleVocabularyPracticeRepository(database);
 
   beforeAll(async () => {
     const table = await pool.query<{ name: string | null }>(
@@ -64,18 +141,38 @@ integration('DrizzleVocabularyPracticeRepository PostgreSQL', () => {
     );
   });
 
+  beforeEach(async () => {
+    await pool.query(
+      `delete from vocabulary_practice_answers where user_id = $1`,
+      [ids.user],
+    );
+    await pool.query(
+      `delete from vocabulary_practice_questions where session_id in (
+        select id from vocabulary_practice_sessions where user_id = $1
+      )`,
+      [ids.user],
+    );
+    await pool.query(
+      `delete from vocabulary_practice_sessions where user_id = $1`,
+      [ids.user],
+    );
+  });
+
   afterAll(async () => {
     await pool.query(
       `delete from vocabulary_practice_answers where user_id = $1`,
       [ids.user],
     );
     await pool.query(
-      `delete from vocabulary_practice_questions where session_id = $1`,
-      [ids.session],
+      `delete from vocabulary_practice_questions where session_id in (
+        select id from vocabulary_practice_sessions where user_id = $1
+      )`,
+      [ids.user],
     );
-    await pool.query(`delete from vocabulary_practice_sessions where id = $1`, [
-      ids.session,
-    ]);
+    await pool.query(
+      `delete from vocabulary_practice_sessions where user_id = $1`,
+      [ids.user],
+    );
     await pool.query(
       `delete from vocabulary_meaning_pronunciations where meaning_id = $1`,
       [ids.meaning],
@@ -95,91 +192,141 @@ integration('DrizzleVocabularyPracticeRepository PostgreSQL', () => {
   });
 
   it('같은 clientAnswerId 재전송은 원시 답을 한 행만 저장한다', async () => {
-    const repository = new DrizzleVocabularyPracticeRepository(
-      database as never,
-      undefined,
-      () => ids.answer,
-    );
-    const card = {
-      id: ids.vocabulary,
-      thai: 'เรียน',
-      kind: 'WORD' as const,
-      meanings: [
-        {
-          id: ids.meaning,
-          meaningKo: '배우다',
-          partOfSpeech: '동사',
-          difficulty: 1,
-          contextNote: null,
-        },
-      ],
-      pronunciations: [
-        {
-          id: ids.pronunciation,
-          pronunciationKo: '리안',
-          toneMarks: 'M',
-          mediaAssetId: ids.media,
-          storageKey: `practice/${ids.media}.mp3`,
-        },
-      ],
-      meaningPronunciations: [
-        { meaningId: ids.meaning, pronunciationId: ids.pronunciation },
-      ],
-    };
-    await repository.createSession({
-      id: ids.session,
-      userId: ids.user,
-      sourceType: 'SEARCH_SELECTION',
-      sourceWordbookId: null,
-      sourceLabel: '공용 검색',
-      modes: ['THAI_TO_MEANING'],
-      requestedQuestionCount: 10,
-      order: 'SOURCE',
-      questionCount: 1,
-      startedAt: new Date('2026-07-26T00:00:00.000Z'),
-      questions: [
-        {
-          id: ids.question,
-          sessionId: ids.session,
-          position: 1,
-          vocabularyId: ids.vocabulary,
-          meaningId: ids.meaning,
-          pronunciationId: null,
-          mediaAssetId: null,
-          mode: 'THAI_TO_MEANING',
-          prompt: { type: 'TEXT', text: 'เรียน' },
-          options: [
-            { id: ids.option, label: '배우다' },
-            { id: ids.secondOption, label: '가르치다' },
-            { id: ids.thirdOption, label: '읽다' },
-            { id: ids.fourthOption, label: '쓰다' },
-          ],
-          correctOptionId: ids.option,
-          card,
-        },
-      ],
-    });
-    const answerInput = {
-      userId: ids.user,
-      sessionId: ids.session,
-      questionId: ids.question,
-      clientAnswerId: ids.clientAnswer,
-      selectedOptionId: ids.option,
-      answeredAt: new Date('2026-07-26T00:01:00.000Z'),
-    };
+    const sessionId = uuid(710);
+    const questionId = uuid(711);
+    const clientAnswerId = uuid(712);
+    await repository.createSession(createSessionInput(sessionId, [questionId]));
+    const input = answerInput(sessionId, questionId, clientAnswerId);
 
-    await expect(repository.submitAnswer(answerInput)).resolves.toMatchObject({
+    await expect(repository.submitAnswer(input)).resolves.toMatchObject({
       status: 'ANSWERED',
       sessionCompleted: true,
     });
-    await expect(repository.submitAnswer(answerInput)).resolves.toMatchObject({
+    await expect(repository.submitAnswer(input)).resolves.toMatchObject({
       status: 'ANSWERED',
       sessionCompleted: true,
     });
-    const count = await pool.query<{ count: string }>(
-      `select count(*)::text as count from vocabulary_practice_answers where session_id = $1`,
-      [ids.session],
+    const count = await answerCount(pool, sessionId);
+    expect(count).toBe('1');
+  });
+
+  it('서로 다른 session의 같은 clientAnswerId 동시 제출은 하나만 저장한다', async () => {
+    const firstSessionId = uuid(720);
+    const secondSessionId = uuid(721);
+    const firstQuestionId = uuid(722);
+    const secondQuestionId = uuid(723);
+    const clientAnswerId = uuid(724);
+    await repository.createSession(
+      createSessionInput(firstSessionId, [firstQuestionId]),
     );
-    expect(count.rows[0]?.count).toBe('1');
+    await repository.createSession(
+      createSessionInput(secondSessionId, [secondQuestionId]),
+    );
+
+    const results = await Promise.all([
+      repository.submitAnswer(
+        answerInput(firstSessionId, firstQuestionId, clientAnswerId),
+      ),
+      repository.submitAnswer(
+        answerInput(secondSessionId, secondQuestionId, clientAnswerId),
+      ),
+    ]);
+
+    expect(results.map(({ status }) => status).sort()).toEqual([
+      'ANSWERED',
+      'IDEMPOTENCY_CONFLICT',
+    ]);
+    expect(await answerCount(pool, null)).toBe('1');
+  });
+
+  it('동시 마지막 답은 한 요청만 완료하고 답 한 행만 저장한다', async () => {
+    const sessionId = uuid(730);
+    const firstQuestionId = uuid(731);
+    const lastQuestionId = uuid(732);
+    await repository.createSession(
+      createSessionInput(sessionId, [firstQuestionId, lastQuestionId]),
+    );
+    await repository.submitAnswer(
+      answerInput(sessionId, firstQuestionId, uuid(733)),
+    );
+
+    const results = await Promise.all([
+      repository.submitAnswer(
+        answerInput(sessionId, lastQuestionId, uuid(734)),
+      ),
+      repository.submitAnswer(
+        answerInput(sessionId, lastQuestionId, uuid(735)),
+      ),
+    ]);
+
+    expect(results.map(({ status }) => status).sort()).toEqual([
+      'ANSWERED',
+      'COMPLETED',
+    ]);
+    expect(await answerCount(pool, sessionId)).toBe('2');
+    const status = await pool.query<{ status: string }>(
+      `select status from vocabulary_practice_sessions where id = $1`,
+      [sessionId],
+    );
+    expect(status.rows[0]?.status).toBe('COMPLETED');
+  });
+
+  it('완료 세션의 새 clientAnswerId 제출을 거부한다', async () => {
+    const sessionId = uuid(740);
+    const questionId = uuid(741);
+    await repository.createSession(createSessionInput(sessionId, [questionId]));
+    await repository.submitAnswer(
+      answerInput(sessionId, questionId, uuid(742)),
+    );
+
+    await expect(
+      repository.submitAnswer(answerInput(sessionId, questionId, uuid(743))),
+    ).resolves.toEqual({ status: 'COMPLETED' });
+    expect(await answerCount(pool, sessionId)).toBe('1');
+  });
+
+  it('원본 어휘가 바뀌어도 생성 당시 question snapshot을 보존한다', async () => {
+    const sessionId = uuid(750);
+    const questionId = uuid(751);
+    await repository.createSession(createSessionInput(sessionId, [questionId]));
+    await pool.query(
+      `update vocabularies set thai = 'เปลี่ยน', normalized_thai = 'เปลี่ยน' where id = $1`,
+      [ids.vocabulary],
+    );
+    await pool.query(
+      `update vocabulary_meanings set meaning_ko = '변경됨' where id = $1`,
+      [ids.meaning],
+    );
+    try {
+      const session = await repository.getSession(ids.user, sessionId);
+      expect(session?.questions[0]?.card).toEqual(card);
+      expect(session?.questions[0]?.prompt).toEqual({
+        type: 'TEXT',
+        text: 'เรียน',
+      });
+    } finally {
+      await pool.query(
+        `update vocabularies set thai = 'เรียน', normalized_thai = 'เรียน' where id = $1`,
+        [ids.vocabulary],
+      );
+      await pool.query(
+        `update vocabulary_meanings set meaning_ko = '배우다' where id = $1`,
+        [ids.meaning],
+      );
+    }
   });
 });
+
+async function answerCount(pool: Pool, sessionId: string | null) {
+  const result =
+    sessionId === null
+      ? await pool.query<{ count: string }>(
+          `select count(*)::text as count from vocabulary_practice_answers where user_id = $1`,
+          [ids.user],
+        )
+      : await pool.query<{ count: string }>(
+          `select count(*)::text as count from vocabulary_practice_answers where session_id = $1`,
+          [sessionId],
+        );
+  return result.rows[0]?.count;
+}
