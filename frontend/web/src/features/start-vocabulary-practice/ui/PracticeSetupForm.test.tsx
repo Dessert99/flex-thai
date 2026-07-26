@@ -5,6 +5,15 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '@/shared/test';
 import { PracticeSetupForm } from './PracticeSetupForm';
 
+const vocabulary = {
+  id: '00000000-0000-4000-8000-000000000902',
+  thai: 'ไป',
+  kind: 'WORD' as const,
+  meanings: [],
+  pronunciations: [],
+  saved: false,
+};
+
 const wordbook = {
   id: '00000000-0000-4000-8000-000000000901',
   name: 'FLEX 어휘',
@@ -19,8 +28,10 @@ describe('단어 연습 설정 form', () => {
     renderWithProviders(
       <PracticeSetupForm
         onCreated={vi.fn()}
+        onRetrySearch={vi.fn()}
         onSearch={vi.fn()}
         onStart={vi.fn()}
+        searchState='IDLE'
         searchResults={[]}
         wordbooks={[wordbook]}
       />,
@@ -39,8 +50,10 @@ describe('단어 연습 설정 form', () => {
     renderWithProviders(
       <PracticeSetupForm
         onCreated={onCreated}
+        onRetrySearch={vi.fn()}
         onSearch={vi.fn()}
         onStart={onStart}
+        searchState='IDLE'
         searchResults={[]}
         wordbooks={[wordbook]}
       />,
@@ -60,5 +73,159 @@ describe('단어 연습 설정 form', () => {
       order: 'RANDOM',
     });
     expect(onCreated).toHaveBeenCalledWith('session-1');
+  });
+
+  it('검색 선택 ID만 strict 생성 요청에 담는다', async () => {
+    const user = userEvent.setup();
+    const onStart = vi.fn().mockResolvedValue('session-2');
+    renderWithProviders(
+      <PracticeSetupForm
+        onCreated={vi.fn()}
+        onRetrySearch={vi.fn()}
+        onSearch={vi.fn()}
+        onStart={onStart}
+        searchResults={[vocabulary]}
+        searchState='SUCCESS'
+        wordbooks={[]}
+      />,
+    );
+
+    await user.click(screen.getByLabelText('공용 어휘 검색'));
+    await user.type(screen.getByLabelText('어휘 검색'), 'ไป');
+    await user.click(screen.getByRole('button', { name: 'ไป' }));
+    await user.click(screen.getByRole('button', { name: '음성 → 태국어' }));
+    await user.click(screen.getByRole('button', { name: '연습 시작' }));
+
+    expect(onStart).toHaveBeenCalledWith({
+      source: {
+        type: 'SEARCH_SELECTION',
+        vocabularyIds: [vocabulary.id],
+      },
+      modes: ['AUDIO_TO_THAI'],
+      questionCount: 10,
+      order: 'SOURCE',
+    });
+  });
+
+  it('생성 실패 메시지를 보여주고 같은 선택으로 재시도한다', async () => {
+    const user = userEvent.setup();
+    const onStart = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('network'))
+      .mockResolvedValueOnce('session-3');
+    renderWithProviders(
+      <PracticeSetupForm
+        onCreated={vi.fn()}
+        onRetrySearch={vi.fn()}
+        onSearch={vi.fn()}
+        onStart={onStart}
+        searchResults={[]}
+        searchState='IDLE'
+        wordbooks={[wordbook]}
+      />,
+    );
+    await user.click(screen.getByLabelText('내 단어장'));
+    await user.click(screen.getByLabelText('FLEX 어휘'));
+    await user.click(screen.getByRole('button', { name: '태국어 → 뜻' }));
+
+    await user.click(screen.getByRole('button', { name: '연습 시작' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      '연습을 시작하지 못했습니다.',
+    );
+    await user.click(screen.getByRole('button', { name: '연습 시작' }));
+
+    expect(onStart).toHaveBeenCalledTimes(2);
+    expect(onStart.mock.calls[1]).toEqual(onStart.mock.calls[0]);
+  });
+
+  it('생성 중 설정과 중복 제출을 막는다', async () => {
+    const user = userEvent.setup();
+    const onStart = vi.fn(() => new Promise<string>(() => undefined));
+    renderWithProviders(
+      <PracticeSetupForm
+        onCreated={vi.fn()}
+        onRetrySearch={vi.fn()}
+        onSearch={vi.fn()}
+        onStart={onStart}
+        searchResults={[]}
+        searchState='IDLE'
+        wordbooks={[wordbook]}
+      />,
+    );
+    await user.click(screen.getByLabelText('내 단어장'));
+    await user.click(screen.getByLabelText('FLEX 어휘'));
+    await user.click(screen.getByRole('button', { name: '태국어 → 뜻' }));
+    const start = screen.getByRole('button', { name: '연습 시작' });
+
+    await user.click(start);
+    await user.click(start);
+
+    expect(start).toBeDisabled();
+    expect(screen.getByLabelText('20문항')).toBeDisabled();
+    expect(onStart).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ['LOADING', '어휘를 검색하고 있습니다.'],
+    ['SUCCESS', '검색 결과가 없습니다.'],
+  ] as const)('검색 %s 상태를 안내한다', async (searchState, message) => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <PracticeSetupForm
+        onCreated={vi.fn()}
+        onRetrySearch={vi.fn()}
+        onSearch={vi.fn()}
+        onStart={vi.fn()}
+        searchResults={[]}
+        searchState={searchState}
+        wordbooks={[]}
+      />,
+    );
+    await user.click(screen.getByLabelText('공용 어휘 검색'));
+    await user.type(screen.getByLabelText('어휘 검색'), '없는말');
+
+    expect(screen.getByText(message)).toBeVisible();
+  });
+
+  it('검색 실패를 안내하고 다시 시도한다', async () => {
+    const user = userEvent.setup();
+    const onRetrySearch = vi.fn();
+    renderWithProviders(
+      <PracticeSetupForm
+        onCreated={vi.fn()}
+        onRetrySearch={onRetrySearch}
+        onSearch={vi.fn()}
+        onStart={vi.fn()}
+        searchResults={[]}
+        searchState='ERROR'
+        wordbooks={[]}
+      />,
+    );
+    await user.click(screen.getByLabelText('공용 어휘 검색'));
+    await user.type(screen.getByLabelText('어휘 검색'), 'ไป');
+    await user.click(screen.getByRole('button', { name: '검색 다시 시도' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      '어휘를 검색하지 못했습니다.',
+    );
+    expect(onRetrySearch).toHaveBeenCalledOnce();
+  });
+
+  it('비어 있는 단어장 상태를 안내한다', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <PracticeSetupForm
+        onCreated={vi.fn()}
+        onRetrySearch={vi.fn()}
+        onSearch={vi.fn()}
+        onStart={vi.fn()}
+        searchResults={[]}
+        searchState='IDLE'
+        wordbooks={[]}
+      />,
+    );
+    await user.click(screen.getByLabelText('내 단어장'));
+
+    expect(screen.getByText('저장한 단어장이 없습니다.')).toBeVisible();
   });
 });

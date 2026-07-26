@@ -14,7 +14,9 @@ import { RadioGroup, RadioGroupItem } from '@/shared/ui/radio-group';
 interface PracticeSetupFormProps {
   wordbooks: WordbookSummary[];
   searchResults: VocabularySummary[];
+  searchState: 'IDLE' | 'LOADING' | 'ERROR' | 'SUCCESS';
   onSearch: (query: string) => void;
+  onRetrySearch: () => void;
   onStart: (request: CreateVocabularyPracticeRequest) => Promise<string>;
   onCreated: (sessionId: string) => void;
 }
@@ -30,7 +32,9 @@ const modeLabels: Array<{ mode: PracticeMode; label: string }> = [
 export function PracticeSetupForm({
   wordbooks,
   searchResults,
+  searchState,
   onSearch,
+  onRetrySearch,
   onStart,
   onCreated,
 }: PracticeSetupFormProps) {
@@ -43,6 +47,8 @@ export function PracticeSetupForm({
   const [questionCount, setQuestionCount] = useState<10 | 20 | 'ALL'>(10);
   const [order, setOrder] = useState<'SOURCE' | 'RANDOM'>('SOURCE');
   const [errors, setErrors] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [submitError, setSubmitError] = useState(false);
   const [pending, setPending] = useState(false);
 
   const submit = async (event: FormEvent) => {
@@ -66,8 +72,11 @@ export function PracticeSetupForm({
             vocabularyIds: [...selectedVocabularyIds],
           };
     setPending(true);
+    setSubmitError(false);
     try {
       onCreated(await onStart({ source, modes, questionCount, order }));
+    } catch {
+      setSubmitError(true);
     } finally {
       setPending(false);
     }
@@ -78,7 +87,10 @@ export function PracticeSetupForm({
       className='grid gap-section'
       onSubmit={(event) => void submit(event)}
     >
-      <fieldset className='grid gap-cluster'>
+      <fieldset
+        className='grid gap-cluster'
+        disabled={pending}
+      >
         <legend className='text-heading'>연습 출처</legend>
         <RadioGroup
           onValueChange={(value) =>
@@ -102,32 +114,45 @@ export function PracticeSetupForm({
           </div>
         </RadioGroup>
         {sourceType === 'WORDBOOK' ? (
-          <RadioGroup
-            onValueChange={setWordbookId}
-            value={wordbookId}
-          >
-            {wordbooks.map((wordbook) => (
-              <div
-                className='flex items-center gap-cluster'
-                key={wordbook.id}
-              >
-                <RadioGroupItem
-                  id={`wordbook-${wordbook.id}`}
-                  value={wordbook.id}
-                />
-                <Label htmlFor={`wordbook-${wordbook.id}`}>
-                  {wordbook.name}
-                </Label>
-              </div>
-            ))}
-          </RadioGroup>
+          wordbooks.length === 0 ? (
+            <p>저장한 단어장이 없습니다.</p>
+          ) : (
+            <RadioGroup
+              onValueChange={setWordbookId}
+              value={wordbookId}
+            >
+              {wordbooks.map((wordbook) => (
+                <div
+                  className='flex items-center gap-cluster'
+                  key={wordbook.id}
+                >
+                  <RadioGroupItem
+                    id={`wordbook-${wordbook.id}`}
+                    value={wordbook.id}
+                  />
+                  <Label htmlFor={`wordbook-${wordbook.id}`}>
+                    {wordbook.name}
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
+          )
         ) : null}
         {sourceType === 'SEARCH' ? (
           <div className='grid gap-cluster'>
             <Label htmlFor='practice-search'>어휘 검색</Label>
             <Input
               id='practice-search'
-              onChange={(event) => onSearch(event.target.value)}
+              onChange={(event) => {
+                setSearchQuery(event.target.value);
+                onSearch(event.target.value);
+              }}
+            />
+            <SearchState
+              hasQuery={searchQuery.trim().length > 0}
+              onRetry={onRetrySearch}
+              resultCount={searchResults.length}
+              state={searchState}
             />
             {searchResults.map((vocabulary) => {
               const selected = selectedVocabularyIds.has(vocabulary.id);
@@ -152,7 +177,10 @@ export function PracticeSetupForm({
         ) : null}
       </fieldset>
 
-      <fieldset className='grid gap-cluster'>
+      <fieldset
+        className='grid gap-cluster'
+        disabled={pending}
+      >
         <legend className='text-heading'>기억 확인 방식</legend>
         {modeLabels.map(({ mode, label }) => (
           <Button
@@ -173,7 +201,7 @@ export function PracticeSetupForm({
         ))}
       </fieldset>
 
-      <fieldset>
+      <fieldset disabled={pending}>
         <legend className='text-heading'>문항 수</legend>
         <RadioGroup
           onValueChange={(value) =>
@@ -197,7 +225,7 @@ export function PracticeSetupForm({
         </RadioGroup>
       </fieldset>
 
-      <fieldset>
+      <fieldset disabled={pending}>
         <legend className='text-heading'>출제 순서</legend>
         <RadioGroup
           onValueChange={(value) => setOrder(value as 'SOURCE' | 'RANDOM')}
@@ -228,7 +256,42 @@ export function PracticeSetupForm({
           {error}
         </p>
       ))}
+      {submitError ? (
+        <p role='alert'>연습을 시작하지 못했습니다. 다시 시도해 주세요.</p>
+      ) : null}
       <Button disabled={pending}>연습 시작</Button>
     </form>
   );
+}
+
+function SearchState({
+  hasQuery,
+  onRetry,
+  resultCount,
+  state,
+}: {
+  hasQuery: boolean;
+  onRetry: () => void;
+  resultCount: number;
+  state: PracticeSetupFormProps['searchState'];
+}) {
+  if (!hasQuery || state === 'IDLE') return null;
+  if (state === 'LOADING') {
+    return <p role='status'>어휘를 검색하고 있습니다.</p>;
+  }
+  if (state === 'ERROR') {
+    return (
+      <div>
+        <p role='alert'>어휘를 검색하지 못했습니다.</p>
+        <Button
+          onClick={onRetry}
+          type='button'
+          variant='outline'
+        >
+          검색 다시 시도
+        </Button>
+      </div>
+    );
+  }
+  return resultCount === 0 ? <p>검색 결과가 없습니다.</p> : null;
 }

@@ -41,9 +41,19 @@ export function VocabularyPracticeSetupPageContainer({
       <h1 id='practice-setup-title'>단어 연습</h1>
       <PracticeSetupForm
         onCreated={onCreated}
+        onRetrySearch={() => void vocabularies.refetch()}
         onSearch={setQuery}
         onStart={startVocabularyPractice}
         searchResults={vocabularies.data?.items ?? []}
+        searchState={
+          query.trim().length === 0
+            ? 'IDLE'
+            : vocabularies.isPending
+              ? 'LOADING'
+              : vocabularies.isError
+                ? 'ERROR'
+                : 'SUCCESS'
+        }
         wordbooks={wordbooks.data.items}
       />
     </section>
