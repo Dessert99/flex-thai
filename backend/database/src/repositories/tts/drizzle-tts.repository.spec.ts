@@ -1,5 +1,6 @@
 /** TTS 저장소의 claim·lease·부분 실패 원자성을 고정한다 */
 import { describe, expect, it, vi } from 'vitest';
+import { mediaAssets } from '../../schema/media.schema.js';
 import { ttsAudioCache, ttsItems, ttsJobs } from '../../schema/tts.schema.js';
 import { DrizzleTtsRepository } from './drizzle-tts.repository.js';
 
@@ -8,6 +9,12 @@ const jobId = '00000000-0000-4000-8000-000000000001';
 const itemId = '00000000-0000-4000-8000-000000000002';
 const secondItemId = '00000000-0000-4000-8000-000000000003';
 const mediaAssetId = '00000000-0000-4000-8000-000000000004';
+const generatedMedia = {
+  storageKey: 'private/tts/cache-key.wav',
+  mimeType: 'audio/wav' as const,
+  sizeBytes: 204,
+  sha256: 'a'.repeat(64),
+};
 
 const voice = {
   presetId: '00000000-0000-4000-8000-000000000005',
@@ -227,7 +234,7 @@ describe('DrizzleTtsRepository lease와 완료 transaction', () => {
       repository.succeed({
         kind: 'GENERATED',
         item: toWorkItem(),
-        mediaAssetId,
+        media: generatedMedia,
         claimToken: 'claim-token',
         completedAt: now,
       }),
@@ -237,14 +244,16 @@ describe('DrizzleTtsRepository lease와 완료 transaction', () => {
 
   it('대상 연결이 stale이면 cache·item 완료를 commit하지 않는다', async () => {
     const select = createSelect([processingItem]);
+    const insert = createInsert([{ id: mediaAssetId }]);
     const { update } = createUpdate([{ id: 'cache-id' }], [{ id: itemId }]);
     let committed = false;
     let rolledBack = false;
-    const transactionValue = { select, update };
+    const transactionValue = { select, insert, update };
     const transaction = vi.fn(
       async <T>(
         work: (value: {
           select: typeof select;
+          insert: typeof insert;
           update: typeof update;
         }) => Promise<T>,
       ) => {
@@ -260,7 +269,7 @@ describe('DrizzleTtsRepository lease와 완료 transaction', () => {
     );
     const attach = vi.fn(async () => 'STALE_TARGET' as const);
     const repository = new DrizzleTtsRepository(
-      { select, update, transaction } as never,
+      { select, insert, update, transaction } as never,
       { attach },
     );
 
@@ -268,7 +277,7 @@ describe('DrizzleTtsRepository lease와 완료 transaction', () => {
       repository.succeed({
         kind: 'GENERATED',
         item: toWorkItem(),
-        mediaAssetId,
+        media: generatedMedia,
         claimToken: 'claim-token',
         completedAt: now,
       }),
@@ -279,6 +288,205 @@ describe('DrizzleTtsRepository lease와 완료 transaction', () => {
       transactionValue,
       expect.objectContaining({ mediaAssetId }),
     );
+  });
+
+  it('생성 claim이 stale이면 먼저 만든 media도 같은 transaction에서 rollback한다', async () => {
+    const select = createSelect([processingItem]);
+    const insert = createInsert([{ id: mediaAssetId }]);
+    const { update } = createUpdate([]);
+    let committed = false;
+    let rolledBack = false;
+    const transactionValue = { select, insert, update };
+    const transaction = vi.fn(
+      async <T>(
+        work: (value: typeof transactionValue) => Promise<T>,
+      ): Promise<T> => {
+        try {
+          const value = await work(transactionValue);
+          committed = true;
+          return value;
+        } catch (error) {
+          rolledBack = true;
+          throw error;
+        }
+      },
+    );
+    const attach = vi.fn(async () => 'ATTACHED' as const);
+    const repository = new DrizzleTtsRepository(
+      { select, insert, update, transaction } as never,
+      { attach },
+    );
+
+    await expect(
+      repository.succeed({
+        kind: 'GENERATED',
+        item: toWorkItem(),
+        media: generatedMedia,
+        claimToken: 'stale-claim',
+        completedAt: now,
+      }),
+    ).resolves.toBe(false);
+    expect(rolledBack).toBe(true);
+    expect(committed).toBe(false);
+    expect(insert).toHaveBeenCalledWith(mediaAssets);
+    expect(attach).not.toHaveBeenCalled();
+  });
+
+  it('생성 완료는 READY media를 먼저 만들고 반환된 ID로 cache·item·대상을 연결한다', async () => {
+    const select = createSelect(
+      [processingItem],
+      [job],
+      [{ ...processingItem, status: 'SUCCEEDED' as const, mediaAssetId }],
+    );
+    const insert = createInsert([{ id: mediaAssetId }]);
+    const { update, updates } = createUpdate(
+      [{ id: 'cache-id' }],
+      [{ id: itemId }],
+    );
+    const transactionValue = { select, insert, update };
+    const attach = vi.fn(async () => 'ATTACHED' as const);
+    const repository = new DrizzleTtsRepository(
+      {
+        select,
+        insert,
+        update,
+        transaction: passthroughTransaction(transactionValue),
+      } as never,
+      { attach },
+    );
+
+    await expect(
+      repository.succeed({
+        kind: 'GENERATED',
+        item: toWorkItem(),
+        media: generatedMedia,
+        claimToken: 'claim-token',
+        completedAt: now,
+      }),
+    ).resolves.toBe(true);
+
+    expect(insert).toHaveBeenCalledWith(mediaAssets);
+    expect(
+      insert.mock.results[0]?.value.values.mock.calls[0]?.[0],
+    ).toMatchObject({
+      storageKey: generatedMedia.storageKey,
+      declaredMimeType: generatedMedia.mimeType,
+      declaredSizeBytes: generatedMedia.sizeBytes,
+      declaredSha256: generatedMedia.sha256,
+      mimeType: generatedMedia.mimeType,
+      sizeBytes: generatedMedia.sizeBytes,
+      sha256: generatedMedia.sha256,
+      status: 'READY',
+    });
+    expect(
+      updates.find((entry) => entry.table === ttsAudioCache)?.values,
+    ).toMatchObject({
+      mediaAssetId,
+      audioDigest: generatedMedia.sha256,
+    });
+    expect(
+      updates.find((entry) => entry.table === ttsItems)?.values,
+    ).toMatchObject({ mediaAssetId });
+    expect(attach).toHaveBeenCalledWith(
+      transactionValue,
+      expect.objectContaining({ mediaAssetId }),
+    );
+  });
+
+  it('같은 storage key의 정확한 READY metadata는 기존 media ID로 안전하게 replay한다', async () => {
+    const existingMedia = {
+      id: mediaAssetId,
+      kind: 'AUDIO' as const,
+      storageKey: generatedMedia.storageKey,
+      declaredMimeType: generatedMedia.mimeType,
+      declaredSizeBytes: generatedMedia.sizeBytes,
+      declaredSha256: generatedMedia.sha256,
+      mimeType: generatedMedia.mimeType,
+      sizeBytes: generatedMedia.sizeBytes,
+      sha256: generatedMedia.sha256,
+      status: 'READY' as const,
+      readyAt: now,
+      createdAt: now,
+    };
+    const select = createSelect(
+      [processingItem],
+      [existingMedia],
+      [job],
+      [{ ...processingItem, status: 'SUCCEEDED' as const, mediaAssetId }],
+    );
+    const insert = createInsert([]);
+    const { update } = createUpdate([{ id: 'cache-id' }], [{ id: itemId }]);
+    const attach = vi.fn(async () => 'ATTACHED' as const);
+    const transactionValue = { select, insert, update };
+    const repository = new DrizzleTtsRepository(
+      {
+        select,
+        insert,
+        update,
+        transaction: passthroughTransaction(transactionValue),
+      } as never,
+      { attach },
+    );
+
+    await expect(
+      repository.succeed({
+        kind: 'GENERATED',
+        item: toWorkItem(),
+        media: generatedMedia,
+        claimToken: 'claim-token',
+        completedAt: now,
+      }),
+    ).resolves.toBe(true);
+    expect(attach).toHaveBeenCalledWith(
+      transactionValue,
+      expect.objectContaining({ mediaAssetId }),
+    );
+  });
+
+  it('같은 storage key의 metadata가 다르면 immutable conflict로 모든 DB 완료를 거절한다', async () => {
+    const select = createSelect(
+      [processingItem],
+      [
+        {
+          id: mediaAssetId,
+          kind: 'AUDIO' as const,
+          storageKey: generatedMedia.storageKey,
+          declaredMimeType: generatedMedia.mimeType,
+          declaredSizeBytes: generatedMedia.sizeBytes,
+          declaredSha256: 'b'.repeat(64),
+          mimeType: generatedMedia.mimeType,
+          sizeBytes: generatedMedia.sizeBytes,
+          sha256: 'b'.repeat(64),
+          status: 'READY' as const,
+          readyAt: now,
+          createdAt: now,
+        },
+      ],
+    );
+    const insert = createInsert([]);
+    const { update, updates } = createUpdate();
+    const attach = vi.fn(async () => 'ATTACHED' as const);
+    const repository = new DrizzleTtsRepository(
+      {
+        select,
+        insert,
+        update,
+        transaction: passthroughTransaction({ select, insert, update }),
+      } as never,
+      { attach },
+    );
+
+    await expect(
+      repository.succeed({
+        kind: 'GENERATED',
+        item: toWorkItem(),
+        media: generatedMedia,
+        claimToken: 'claim-token',
+        completedAt: now,
+      }),
+    ).rejects.toThrow('TTS_MEDIA_IMMUTABLE_CONFLICT');
+    expect(updates).toEqual([]);
+    expect(attach).not.toHaveBeenCalled();
   });
 
   it('READY 재사용 완료는 생성 claim 없이 기존 media를 같은 transaction에서 연결한다', async () => {
@@ -344,6 +552,7 @@ describe('DrizzleTtsRepository lease와 완료 transaction', () => {
       [job],
       [{ ...processingItem, status: 'SUCCEEDED' as const, mediaAssetId }],
     );
+    const firstInsert = createInsert([{ id: mediaAssetId }]);
     const firstUpdate = createUpdate(
       [{ id: 'cache-id' }],
       [{ id: itemId }],
@@ -351,9 +560,11 @@ describe('DrizzleTtsRepository lease와 완료 transaction', () => {
     const firstRepository = new DrizzleTtsRepository(
       {
         select: firstSelect,
+        insert: firstInsert,
         update: firstUpdate,
         transaction: passthroughTransaction({
           select: firstSelect,
+          insert: firstInsert,
           update: firstUpdate,
         }),
       } as never,
@@ -363,7 +574,7 @@ describe('DrizzleTtsRepository lease와 완료 transaction', () => {
       firstRepository.succeed({
         kind: 'GENERATED',
         item: toWorkItem(),
-        mediaAssetId,
+        media: generatedMedia,
         claimToken: firstClaim.claimToken,
         completedAt: now,
       }),

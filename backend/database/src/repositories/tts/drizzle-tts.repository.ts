@@ -10,13 +10,13 @@ import {
   type RetryTtsItemsInput,
   type TtsFailureInput,
   type TtsJob,
-  type TtsSuccessInput,
   type TtsTargetSnapshot,
   type TtsWorkItem,
 } from '../../../../domain/src/media/tts-job.js';
 import { and, eq, inArray, lte, or } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
+import { mediaAssets } from '../../schema/media.schema.js';
 import { ttsAudioCache, ttsItems, ttsJobs } from '../../schema/tts.schema.js';
 
 type TtsDatabase = PgDatabase<PgQueryResultHKT>;
@@ -30,7 +30,18 @@ const leaseDurationMs = 5 * 60 * 1000;
 
 /** 생성 완료와 READY 재사용 완료를 cache 소유권 유무로 구분한다 */
 export type CompleteTtsAudioInput =
-  | ({ kind: 'GENERATED' } & TtsSuccessInput)
+  | {
+      kind: 'GENERATED';
+      item: TtsWorkItem;
+      claimToken: string;
+      media: {
+        storageKey: string;
+        mimeType: 'audio/wav';
+        sizeBytes: number;
+        sha256: string;
+      };
+      completedAt: Date;
+    }
   | {
       kind: 'REUSED';
       item: TtsWorkItem;
@@ -67,6 +78,13 @@ export interface TtsRepository {
 }
 
 class StaleTargetAttachmentError extends Error {}
+class TtsCompletionRejectedError extends Error {}
+class TtsMediaImmutableConflictError extends Error {
+  constructor() {
+    super('TTS_MEDIA_IMMUTABLE_CONFLICT');
+    this.name = 'TtsMediaImmutableConflictError';
+  }
+}
 
 const toItem = (row: TtsItemRow) => ({
   id: row.id,
@@ -176,6 +194,52 @@ const refreshJobSummary = async (
       updatedAt: at,
     })
     .where(eq(ttsJobs.id, jobId));
+};
+
+const isExactReadyMedia = (
+  row: typeof mediaAssets.$inferSelect,
+  media: Extract<CompleteTtsAudioInput, { kind: 'GENERATED' }>['media'],
+): boolean =>
+  row.status === 'READY' &&
+  row.declaredMimeType === media.mimeType &&
+  row.declaredSizeBytes === media.sizeBytes &&
+  row.declaredSha256 === media.sha256 &&
+  row.mimeType === media.mimeType &&
+  row.sizeBytes === media.sizeBytes &&
+  row.sha256 === media.sha256;
+
+const persistGeneratedMedia = async (
+  transaction: TtsRepositoryTransaction,
+  input: Extract<CompleteTtsAudioInput, { kind: 'GENERATED' }>,
+): Promise<string> => {
+  const [inserted] = await transaction
+    .insert(mediaAssets)
+    .values({
+      storageKey: input.media.storageKey,
+      declaredMimeType: input.media.mimeType,
+      declaredSizeBytes: input.media.sizeBytes,
+      declaredSha256: input.media.sha256,
+      mimeType: input.media.mimeType,
+      sizeBytes: input.media.sizeBytes,
+      sha256: input.media.sha256,
+      status: 'READY',
+      readyAt: input.completedAt,
+      createdAt: input.completedAt,
+    })
+    .onConflictDoNothing()
+    .returning({ id: mediaAssets.id });
+  if (inserted) return inserted.id;
+
+  const [existing] = await transaction
+    .select()
+    .from(mediaAssets)
+    .where(eq(mediaAssets.storageKey, input.media.storageKey))
+    .for('update')
+    .limit(1);
+  if (!existing || !isExactReadyMedia(existing, input.media)) {
+    throw new TtsMediaImmutableConflictError();
+  }
+  return existing.id;
 };
 
 /** TTS lease와 cache unique claim을 PostgreSQL 조건부 전이로 구현한다 */
@@ -344,8 +408,14 @@ export class DrizzleTtsRepository implements TtsRepository {
         );
         if (!current) return false;
 
+        const mediaAssetId =
+          input.kind === 'GENERATED'
+            ? await persistGeneratedMedia(transaction, input)
+            : input.mediaAssetId;
         const completed = completeTtsItem(toItem(current), {
-          ...input,
+          item: input.item,
+          mediaAssetId,
+          completedAt: input.completedAt,
           // item lease와 cache 생성 claim은 서로 다른 owner token이다.
           claimToken: input.item.leaseToken,
         });
@@ -354,7 +424,8 @@ export class DrizzleTtsRepository implements TtsRepository {
             .update(ttsAudioCache)
             .set({
               status: 'READY',
-              mediaAssetId: input.mediaAssetId,
+              audioDigest: input.media.sha256,
+              mediaAssetId,
               readyMetadataRevision: completed.voice.generationRevision,
               readyAt: input.completedAt,
               updatedAt: input.completedAt,
@@ -367,7 +438,7 @@ export class DrizzleTtsRepository implements TtsRepository {
               ),
             )
             .returning({ id: ttsAudioCache.id });
-          if (!cache) return false;
+          if (!cache) throw new TtsCompletionRejectedError();
         } else {
           const [cache] = await transaction
             .select({ id: ttsAudioCache.id })
@@ -376,12 +447,12 @@ export class DrizzleTtsRepository implements TtsRepository {
               and(
                 eq(ttsAudioCache.cacheKey, completed.cacheKey),
                 eq(ttsAudioCache.status, 'READY'),
-                eq(ttsAudioCache.mediaAssetId, input.mediaAssetId),
+                eq(ttsAudioCache.mediaAssetId, mediaAssetId),
               ),
             )
             .for('update')
             .limit(1);
-          if (!cache) return false;
+          if (!cache) throw new TtsCompletionRejectedError();
         }
 
         const [item] = await transaction
@@ -404,12 +475,12 @@ export class DrizzleTtsRepository implements TtsRepository {
             ),
           )
           .returning({ id: ttsItems.id });
-        if (!item) return false;
+        if (!item) throw new TtsCompletionRejectedError();
 
         if (
           (await this.targetAttachments.attach(transaction, {
             target: completed.target,
-            mediaAssetId: input.mediaAssetId,
+            mediaAssetId,
             expectedRevision: completed.target.revision,
           })) !== 'ATTACHED'
         ) {
@@ -423,7 +494,12 @@ export class DrizzleTtsRepository implements TtsRepository {
         return true;
       });
     } catch (error) {
-      if (error instanceof StaleTargetAttachmentError) return false;
+      if (
+        error instanceof StaleTargetAttachmentError ||
+        error instanceof TtsCompletionRejectedError
+      ) {
+        return false;
+      }
       throw error;
     }
   }
