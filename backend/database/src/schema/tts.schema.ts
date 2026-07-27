@@ -34,8 +34,10 @@ export const ttsItemStatusEnum = pgEnum('tts_item_status', [
 
 /** 같은 음성 입력의 생성 claim과 재사용 가능 상태 */
 export const ttsAudioCacheStatusEnum = pgEnum('tts_audio_cache_status', [
+  'PENDING',
   'GENERATING',
   'READY',
+  'FAILED',
   'OUTCOME_UNKNOWN',
 ]);
 
@@ -166,8 +168,11 @@ export const ttsAudioCache = pgTable(
     cacheKey: text('cache_key').notNull(),
     audioDigest: text('audio_digest'),
     status: ttsAudioCacheStatusEnum('status').default('GENERATING').notNull(),
+    generationAttempt: integer('generation_attempt').default(1).notNull(),
     claimToken: text('claim_token'),
     claimedAt: timestamp('claimed_at', { withTimezone: true }),
+    errorCode: text('error_code'),
+    retryable: boolean('retryable').default(false).notNull(),
     mediaAssetId: uuid('media_asset_id').references(() => mediaAssets.id, {
       onDelete: 'restrict',
     }),

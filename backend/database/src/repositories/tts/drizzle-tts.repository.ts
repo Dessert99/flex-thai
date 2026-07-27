@@ -8,12 +8,13 @@ import {
   retryTtsItems,
   type CreateTtsJobInput,
   type RetryTtsItemsInput,
+  TtsDomainError,
   type TtsFailureInput,
   type TtsJob,
   type TtsTargetSnapshot,
   type TtsWorkItem,
 } from '@flex-thia/domain';
-import { and, eq, inArray, isNull, lte, or } from 'drizzle-orm';
+import { and, eq, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import { mediaAssets } from '../../schema/media.schema.js';
@@ -51,11 +52,18 @@ export type CompleteTtsAudioInput =
       completedAt: Date;
     };
 
-/** cache 생성 claim의 known 실패 해제와 불명확 결과 고정을 구분한다 */
-export type TtsAudioClaimFinalization = {
-  claimToken: string;
-  resolution: 'RELEASE' | 'OUTCOME_UNKNOWN';
-};
+/** cache 생성 claim의 known 실패와 불명확 결과를 재사용 가능하게 구분한다 */
+export type TtsAudioClaimFinalization =
+  | {
+      claimToken: string;
+      resolution: 'FAILED';
+      errorCode: string;
+      retryable: boolean;
+    }
+  | {
+      claimToken: string;
+      resolution: 'OUTCOME_UNKNOWN';
+    };
 
 /** TTS 완료 transaction이 거절된 정확한 소유권·대상 이유 */
 export type CompleteTtsAudioResult =
@@ -91,6 +99,7 @@ export interface TtsRepository {
     | { kind: 'GENERATE'; claimToken: string }
     | { kind: 'REUSE'; mediaAssetId: string }
     | { kind: 'WAIT' }
+    | { kind: 'FAILED'; errorCode: string; retryable: boolean }
     | { kind: 'OUTCOME_UNKNOWN' }
   >;
   succeed(input: CompleteTtsAudioInput): Promise<CompleteTtsAudioResult>;
@@ -292,24 +301,19 @@ const finalizeOwnedAudioClaim = async (
     .limit(1);
   if (!claim) return false;
 
-  if (audioClaim.resolution === 'RELEASE') {
-    await transaction
-      .delete(ttsAudioCache)
-      .where(
-        and(
-          eq(ttsAudioCache.cacheKey, cacheKey),
-          eq(ttsAudioCache.status, 'GENERATING'),
-          eq(ttsAudioCache.claimToken, audioClaim.claimToken),
-        ),
-      );
-    return true;
-  }
-
   const [finalized] = await transaction
     .update(ttsAudioCache)
     .set({
-      status: 'OUTCOME_UNKNOWN',
+      status:
+        audioClaim.resolution === 'FAILED' ? 'FAILED' : 'OUTCOME_UNKNOWN',
       claimToken: null,
+      claimedAt: null,
+      errorCode:
+        audioClaim.resolution === 'FAILED'
+          ? audioClaim.errorCode
+          : 'TTS_PROVIDER_OUTCOME_UNKNOWN',
+      retryable:
+        audioClaim.resolution === 'FAILED' ? audioClaim.retryable : false,
       updatedAt: finalizedAt,
     })
     .where(
@@ -328,14 +332,45 @@ const resolveExistingAudioClaim = async (
   row: typeof ttsAudioCache.$inferSelect,
   now: Date,
 ): Promise<
+  | { kind: 'GENERATE'; claimToken: string }
   | { kind: 'REUSE'; mediaAssetId: string }
   | { kind: 'WAIT' }
+  | { kind: 'FAILED'; errorCode: string; retryable: boolean }
   | { kind: 'OUTCOME_UNKNOWN' }
 > => {
   if (row.status === 'READY' && row.mediaAssetId !== null) {
     return { kind: 'REUSE', mediaAssetId: row.mediaAssetId };
   }
+  if (row.status === 'FAILED') {
+    return {
+      kind: 'FAILED',
+      errorCode: row.errorCode ?? 'TTS_AUDIO_CACHE_FAILED',
+      retryable: row.retryable,
+    };
+  }
   if (row.status === 'OUTCOME_UNKNOWN') return { kind: 'OUTCOME_UNKNOWN' };
+  if (row.status === 'PENDING') {
+    const claimToken = randomUUID();
+    const [claimed] = await transaction
+      .update(ttsAudioCache)
+      .set({
+        status: 'GENERATING',
+        generationAttempt: sql`${ttsAudioCache.generationAttempt} + 1`,
+        claimToken,
+        claimedAt: now,
+        errorCode: null,
+        retryable: false,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(ttsAudioCache.id, row.id),
+          eq(ttsAudioCache.status, 'PENDING'),
+        ),
+      )
+      .returning({ id: ttsAudioCache.id });
+    return claimed ? { kind: 'GENERATE', claimToken } : { kind: 'WAIT' };
+  }
   if (
     row.claimedAt !== null &&
     row.claimedAt.getTime() > now.getTime() - ttsAudioGenerationClaimTtlMs
@@ -348,6 +383,9 @@ const resolveExistingAudioClaim = async (
     .set({
       status: 'OUTCOME_UNKNOWN',
       claimToken: null,
+      claimedAt: null,
+      errorCode: 'TTS_PROVIDER_OUTCOME_UNKNOWN',
+      retryable: false,
       updatedAt: now,
     })
     .where(
@@ -376,6 +414,9 @@ export class DrizzleTtsRepository implements TtsRepository {
 
   /** immutable target·voice snapshot과 초기 pending count를 함께 만든다 */
   async createJob(input: CreateTtsJobInput): Promise<TtsJob> {
+    if (input.targets.length === 0) {
+      throw new TtsDomainError('TTS_JOB_TARGETS_REQUIRED');
+    }
     return this.database.transaction(async (transaction) => {
       const [job] = await transaction
         .insert(ttsJobs)
@@ -478,6 +519,7 @@ export class DrizzleTtsRepository implements TtsRepository {
     | { kind: 'GENERATE'; claimToken: string }
     | { kind: 'REUSE'; mediaAssetId: string }
     | { kind: 'WAIT' }
+    | { kind: 'FAILED'; errorCode: string; retryable: boolean }
     | { kind: 'OUTCOME_UNKNOWN' }
   > {
     const claimedAt = this.now();
@@ -498,6 +540,7 @@ export class DrizzleTtsRepository implements TtsRepository {
         .values({
           cacheKey,
           status: 'GENERATING',
+          generationAttempt: 1,
           claimToken,
           claimedAt,
           createdAt: claimedAt,
@@ -547,6 +590,10 @@ export class DrizzleTtsRepository implements TtsRepository {
             .set({
               status: 'READY',
               audioDigest: input.media.sha256,
+              claimToken: null,
+              claimedAt: null,
+              errorCode: null,
+              retryable: false,
               mediaAssetId,
               readyMetadataRevision: completed.voice.generationRevision,
               readyAt: input.completedAt,
@@ -732,6 +779,26 @@ export class DrizzleTtsRepository implements TtsRepository {
         )
         .for('update');
       const retried = retryTtsItems(rows.map(toItem), input);
+      const cacheKeys = [...new Set(rows.map((row) => row.cacheKey))];
+      if (cacheKeys.length > 0) {
+        await transaction
+          .update(ttsAudioCache)
+          .set({
+            status: 'PENDING',
+            claimToken: null,
+            claimedAt: null,
+            errorCode: null,
+            retryable: false,
+            updatedAt: input.requestedAt,
+          })
+          .where(
+            and(
+              inArray(ttsAudioCache.cacheKey, cacheKeys),
+              eq(ttsAudioCache.status, 'FAILED'),
+              eq(ttsAudioCache.retryable, true),
+            ),
+          );
+      }
       const byId = new Map(retried.map((item) => [item.id, item]));
       for (const itemId of input.itemIds) {
         const item = byId.get(itemId);

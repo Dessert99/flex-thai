@@ -1,8 +1,10 @@
 /** 로컬 TTS WAV를 cache key별 immutable private snapshot으로 보관한다 */
+import { createHash } from 'node:crypto';
 import type { TtsAudioStore } from '@flex-thia/domain';
 
 interface StoredAudio {
   bytes: Uint8Array;
+  mimeType: 'audio/wav';
   sha256: string;
 }
 
@@ -17,25 +19,37 @@ export class FakeTtsAudioStore implements TtsAudioStore {
   /** 같은 cache key의 동일 audio만 재시도 저장으로 허용한다 */
   put(
     input: Parameters<TtsAudioStore['put']>[0],
-  ): Promise<{ storageKey: string }> {
+  ): ReturnType<TtsAudioStore['put']> {
     const stored = this.storedByCacheKey.get(input.cacheKey);
 
     if (stored) {
       if (
-        stored.sha256 !== input.sha256 ||
+        stored.mimeType !== input.mimeType ||
         !sameBytes(stored.bytes, input.bytes)
       ) {
         return Promise.reject(new Error('FAKE_TTS_AUDIO_IMMUTABLE_CONFLICT'));
       }
-      return Promise.resolve({ storageKey: this.toStorageKey(input.cacheKey) });
+      return Promise.resolve({
+        storageKey: this.toStorageKey(input.cacheKey),
+        mimeType: stored.mimeType,
+        sizeBytes: stored.bytes.byteLength,
+        sha256: stored.sha256,
+      });
     }
 
+    const sha256 = createHash('sha256').update(input.bytes).digest('hex');
     this.storedByCacheKey.set(input.cacheKey, {
       // caller가 재사용하는 mutable bytes가 cache snapshot을 훼손하지 않게 복사한다.
       bytes: new Uint8Array(input.bytes),
-      sha256: input.sha256,
+      mimeType: input.mimeType,
+      sha256,
     });
-    return Promise.resolve({ storageKey: this.toStorageKey(input.cacheKey) });
+    return Promise.resolve({
+      storageKey: this.toStorageKey(input.cacheKey),
+      mimeType: input.mimeType,
+      sizeBytes: input.bytes.byteLength,
+      sha256,
+    });
   }
 
   /** 로컬 확인용 read도 복사본만 반환해 저장 snapshot의 불변성을 지킨다 */

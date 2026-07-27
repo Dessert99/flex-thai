@@ -1,4 +1,5 @@
 /** TTS 운영 조회가 stable page·집계·민감하지 않은 projection만 반환하는지 검증한다 */
+import { desc } from 'drizzle-orm';
 import { describe, expect, it, vi } from 'vitest';
 import { ttsItems, ttsJobs } from '../schema/tts.schema.js';
 import { DrizzleTtsOperationsQuery } from './drizzle-tts-operations.query.js';
@@ -118,10 +119,22 @@ describe('DrizzleTtsOperationsQuery 작업 목록', () => {
     });
     expect(fake.calls.map((call) => call.table)).toEqual([ttsJobs, ttsJobs]);
     expect(fake.calls[1]).toMatchObject({ limit: 3, offset: 3 });
-    expect(fake.calls[1]?.orderBy).toHaveLength(2);
-    expect(Object.keys(fake.calls[1]?.fields ?? {})).not.toEqual(
-      expect.arrayContaining(['voiceSnapshot', 'updatedAt']),
-    );
+    expect(fake.calls[1]?.orderBy).toEqual([
+      desc(ttsJobs.createdAt),
+      desc(ttsJobs.id),
+    ]);
+    expect(Object.keys(fake.calls[1]?.fields ?? {})).toEqual([
+      'id',
+      'status',
+      'requestedBy',
+      'pendingCount',
+      'processingCount',
+      'succeededCount',
+      'failedCount',
+      'createdAt',
+      'startedAt',
+      'finishedAt',
+    ]);
   });
 });
 
@@ -187,17 +200,23 @@ describe('DrizzleTtsOperationsQuery 작업 항목', () => {
     });
     expect(fake.calls.map((call) => call.table)).toEqual([ttsItems, ttsItems]);
     expect(fake.calls[1]).toMatchObject({ limit: 10, offset: 0 });
-    expect(fake.calls[1]?.orderBy).toHaveLength(2);
-    expect(Object.keys(fake.calls[1]?.fields ?? {})).not.toEqual(
-      expect.arrayContaining([
-        'voiceSnapshot',
-        'cacheKey',
-        'leaseToken',
-        'leaseUntil',
-        'createdAt',
-        'updatedAt',
-      ]),
-    );
+    expect(fake.calls[1]?.orderBy).toEqual([
+      desc(ttsItems.createdAt),
+      desc(ttsItems.id),
+    ]);
+    expect(Object.keys(fake.calls[1]?.fields ?? {})).toEqual([
+      'id',
+      'targetKind',
+      'targetId',
+      'targetText',
+      'targetRequired',
+      'revision',
+      'status',
+      'attempt',
+      'errorCode',
+      'retryable',
+      'mediaAssetId',
+    ]);
   });
 
   it('성공 항목은 media asset ID만 노출한다', async () => {

@@ -17,11 +17,18 @@ export interface GeneratedTtsMedia {
   sha256: string;
 }
 
-/** 생성 claim의 known 실패 해제와 외부 결과 불명확 고정을 구분한다 */
-export interface TtsAudioClaimFinalization {
-  claimToken: string;
-  resolution: 'RELEASE' | 'OUTCOME_UNKNOWN';
-}
+/** 생성 claim의 known 실패와 외부 결과 불명확 상태를 cache에 고정한다 */
+export type TtsAudioClaimFinalization =
+  | {
+      claimToken: string;
+      resolution: 'FAILED';
+      errorCode: string;
+      retryable: boolean;
+    }
+  | {
+      claimToken: string;
+      resolution: 'OUTCOME_UNKNOWN';
+    };
 
 /** DB transaction이 TTS 완료를 수락하거나 거절한 정확한 이유 */
 export type TtsProcessorCompletionResult =
@@ -44,6 +51,7 @@ export interface TtsProcessorRepository {
     | { kind: 'GENERATE'; claimToken: string }
     | { kind: 'REUSE'; mediaAssetId: string }
     | { kind: 'WAIT' }
+    | { kind: 'FAILED'; errorCode: string; retryable: boolean }
     | { kind: 'OUTCOME_UNKNOWN' }
   >;
   succeed(
@@ -88,6 +96,7 @@ type OwnedAudioClaim = { kind: 'GENERATE'; claimToken: string };
 type UsableAudioClaim =
   | OwnedAudioClaim
   | { kind: 'REUSE'; mediaAssetId: string }
+  | { kind: 'FAILED'; errorCode: string; retryable: boolean }
   | { kind: 'OUTCOME_UNKNOWN' };
 
 const asProviderFailure = (
@@ -216,6 +225,14 @@ export class TtsProcessor {
       return;
     }
 
+    if (claim.kind === 'FAILED') {
+      await this.recordFailure(item, {
+        errorCode: claim.errorCode,
+        retryable: claim.retryable,
+      });
+      return;
+    }
+
     if (claim.kind === 'REUSE') {
       if (signal.aborted) {
         await this.recordFailure(item, {
@@ -246,7 +263,7 @@ export class TtsProcessor {
       await this.failOwnedClaim(item, claim, {
         errorCode: 'TTS_PROCESS_ABORTED',
         retryable: true,
-        resolution: 'RELEASE',
+        resolution: 'FAILED',
       });
       return;
     }
@@ -263,7 +280,7 @@ export class TtsProcessor {
       await this.failOwnedClaim(item, claim, {
         errorCode: failure.errorCode,
         retryable: failure.retryable,
-        resolution: failure.outcomeUnknown ? 'OUTCOME_UNKNOWN' : 'RELEASE',
+        resolution: failure.outcomeUnknown ? 'OUTCOME_UNKNOWN' : 'FAILED',
       });
       return;
     }
@@ -272,7 +289,7 @@ export class TtsProcessor {
       await this.failOwnedClaim(item, claim, {
         errorCode: 'TTS_PROCESS_ABORTED',
         retryable: true,
-        resolution: 'RELEASE',
+        resolution: 'FAILED',
       });
       return;
     }
@@ -280,13 +297,13 @@ export class TtsProcessor {
       await this.failOwnedClaim(item, claim, {
         errorCode: 'TTS_PROVIDER_EMPTY_AUDIO',
         retryable: false,
-        resolution: 'RELEASE',
+        resolution: 'FAILED',
       });
       return;
     }
 
     const sha256 = createHash('sha256').update(result.bytes).digest('hex');
-    let stored: { storageKey: string };
+    let stored: Awaited<ReturnType<TtsAudioStore['put']>>;
     try {
       stored = await this.audioStore.put({
         cacheKey: item.cacheKey,
@@ -298,7 +315,20 @@ export class TtsProcessor {
       await this.failOwnedClaim(item, claim, {
         errorCode: 'TTS_AUDIO_STORE_FAILED',
         retryable: true,
-        resolution: 'RELEASE',
+        resolution: 'FAILED',
+      });
+      return;
+    }
+
+    if (
+      stored.mimeType !== result.mimeType ||
+      stored.sizeBytes !== result.bytes.byteLength ||
+      stored.sha256 !== sha256
+    ) {
+      await this.failOwnedClaim(item, claim, {
+        errorCode: 'TTS_AUDIO_STORE_METADATA_MISMATCH',
+        retryable: true,
+        resolution: 'FAILED',
       });
       return;
     }
@@ -307,7 +337,7 @@ export class TtsProcessor {
       await this.failOwnedClaim(item, claim, {
         errorCode: 'TTS_PROCESS_ABORTED',
         retryable: true,
-        resolution: 'RELEASE',
+        resolution: 'FAILED',
       });
       return;
     }
@@ -318,9 +348,9 @@ export class TtsProcessor {
       claimToken: claim.claimToken,
       media: {
         storageKey: stored.storageKey,
-        mimeType: result.mimeType,
-        sizeBytes: result.bytes.byteLength,
-        sha256,
+        mimeType: stored.mimeType,
+        sizeBytes: stored.sizeBytes,
+        sha256: stored.sha256,
       },
       completedAt: this.now(),
     });
@@ -352,7 +382,12 @@ export class TtsProcessor {
       if (claim) {
         await this.repository.finalizeAudioClaim(
           item.cacheKey,
-          { claimToken: claim.claimToken, resolution: 'RELEASE' },
+          {
+            claimToken: claim.claimToken,
+            resolution: 'FAILED',
+            errorCode: 'TTS_ITEM_STALE_LEASE',
+            retryable: true,
+          },
           this.now(),
         );
       }
@@ -376,7 +411,15 @@ export class TtsProcessor {
         retryable: false,
       },
       claim
-        ? { claimToken: claim.claimToken, resolution: 'RELEASE' }
+        ? {
+            claimToken: claim.claimToken,
+            resolution: 'FAILED',
+            errorCode:
+              completion.kind === 'STALE_TARGET'
+                ? 'TTS_TARGET_STALE'
+                : 'TTS_MEDIA_IMMUTABLE_CONFLICT',
+            retryable: false,
+          }
         : undefined,
     );
   }
@@ -390,10 +433,19 @@ export class TtsProcessor {
       resolution: TtsAudioClaimFinalization['resolution'];
     },
   ): Promise<void> {
-    const result = await this.recordFailure(item, failure, {
-      claimToken: claim.claimToken,
-      resolution: failure.resolution,
-    });
+    const audioClaim: TtsAudioClaimFinalization =
+      failure.resolution === 'OUTCOME_UNKNOWN'
+        ? {
+            claimToken: claim.claimToken,
+            resolution: 'OUTCOME_UNKNOWN',
+          }
+        : {
+            claimToken: claim.claimToken,
+            resolution: 'FAILED',
+            errorCode: failure.errorCode,
+            retryable: failure.retryable,
+          };
+    const result = await this.recordFailure(item, failure, audioClaim);
     if (result.kind === 'STALE_CACHE_CLAIM') {
       await this.recordFailure(item, {
         errorCode: 'TTS_CACHE_CLAIM_STALE',

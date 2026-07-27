@@ -62,6 +62,19 @@ describe('자동 TTS 데이터베이스 schema', () => {
     expect(ttsItems.leaseToken.notNull).toBe(false);
   });
 
+  it('cache 실패 결과와 생성 attempt를 다음 item과 명시적 재시도가 재사용할 수 있게 보존한다', () => {
+    expect(ttsAudioCache.status.enumValues).toEqual([
+      'PENDING',
+      'GENERATING',
+      'READY',
+      'FAILED',
+      'OUTCOME_UNKNOWN',
+    ]);
+    expect(ttsAudioCache.generationAttempt.notNull).toBe(true);
+    expect(ttsAudioCache.errorCode.notNull).toBe(false);
+    expect(ttsAudioCache.retryable.notNull).toBe(true);
+  });
+
   it('READY cache는 완료 음성 자산과 metadata revision 시각을 모두 요구한다', () => {
     const constraint = getTableConfig(ttsAudioCache).checks.find(
       ({ name }) => name === 'tts_audio_cache_ready_metadata_consistent',

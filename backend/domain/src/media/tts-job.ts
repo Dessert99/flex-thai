@@ -206,7 +206,8 @@ export class TtsDomainError extends Error {
       | 'TTS_ITEM_NOT_RETRYABLE'
       | 'TTS_ITEM_STALE_ATTEMPT'
       | 'TTS_ITEM_STALE_LEASE'
-      | 'TTS_ITEM_TERMINAL',
+      | 'TTS_ITEM_TERMINAL'
+      | 'TTS_JOB_TARGETS_REQUIRED',
   ) {
     super(code);
     this.name = 'TtsDomainError';

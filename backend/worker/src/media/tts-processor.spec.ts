@@ -55,12 +55,19 @@ class MemoryTtsRepository implements TtsProcessorRepository {
   readonly attachments: Array<{ itemId: string; mediaAssetId: string }> = [];
   readonly readyByCacheKey = new Map<string, string>();
   readonly generating = new Set<string>();
+  readonly pendingAudio = new Set<string>();
+  readonly failedByCacheKey = new Map<
+    string,
+    { errorCode: string; retryable: boolean }
+  >();
   readonly staleGenerating = new Set<string>();
   readonly outcomeUnknown = new Set<string>();
   readonly processing = new Set<string>();
   readonly finalizedClaims: Array<{
     cacheKey: string;
-    resolution: 'RELEASE' | 'OUTCOME_UNKNOWN';
+    resolution: 'FAILED' | 'OUTCOME_UNKNOWN';
+    errorCode?: string;
+    retryable?: boolean;
   }> = [];
   readonly completionByItemId = new Map<
     string,
@@ -75,6 +82,14 @@ class MemoryTtsRepository implements TtsProcessorRepository {
 
   enqueue(item: TtsWorkItem): void {
     this.pending.push(item);
+  }
+
+  reopenRetryableCache(cacheKey: string): boolean {
+    const failure = this.failedByCacheKey.get(cacheKey);
+    if (!failure?.retryable) return false;
+    this.failedByCacheKey.delete(cacheKey);
+    this.pendingAudio.add(cacheKey);
+    return true;
   }
 
   claimNext(): Promise<TtsWorkItem | null> {
@@ -93,6 +108,8 @@ class MemoryTtsRepository implements TtsProcessorRepository {
     if (this.outcomeUnknown.has(cacheKey)) {
       return Promise.resolve({ kind: 'OUTCOME_UNKNOWN' });
     }
+    const failed = this.failedByCacheKey.get(cacheKey);
+    if (failed) return Promise.resolve({ kind: 'FAILED', ...failed });
     if (this.generating.has(cacheKey)) {
       if (this.staleGenerating.has(cacheKey)) {
         this.generating.delete(cacheKey);
@@ -102,6 +119,7 @@ class MemoryTtsRepository implements TtsProcessorRepository {
       this.waitClaims += 1;
       return Promise.resolve({ kind: 'WAIT' });
     }
+    this.pendingAudio.delete(cacheKey);
     this.generating.add(cacheKey);
     return Promise.resolve({
       kind: 'GENERATE',
@@ -123,6 +141,7 @@ class MemoryTtsRepository implements TtsProcessorRepository {
     if (input.kind === 'GENERATED') {
       this.readyByCacheKey.set(input.item.cacheKey, attachedMediaAssetId);
       this.generating.delete(input.item.cacheKey);
+      this.failedByCacheKey.delete(input.item.cacheKey);
     }
     this.attachments.push({
       itemId: input.item.itemId,
@@ -143,11 +162,14 @@ class MemoryTtsRepository implements TtsProcessorRepository {
       if (!this.generating.has(input.item.cacheKey)) {
         return Promise.resolve({ kind: 'STALE_CACHE_CLAIM' });
       }
-      if (input.audioClaim.resolution === 'RELEASE') {
-        this.generating.delete(input.item.cacheKey);
-      } else {
-        this.generating.delete(input.item.cacheKey);
+      this.generating.delete(input.item.cacheKey);
+      if (input.audioClaim.resolution === 'OUTCOME_UNKNOWN') {
         this.outcomeUnknown.add(input.item.cacheKey);
+      } else {
+        this.failedByCacheKey.set(input.item.cacheKey, {
+          errorCode: input.audioClaim.errorCode,
+          retryable: input.audioClaim.retryable,
+        });
       }
     }
     if (this.completionByItemId.get(input.item.itemId) === 'STALE_LEASE') {
@@ -162,7 +184,9 @@ class MemoryTtsRepository implements TtsProcessorRepository {
     cacheKey: string,
     audioClaim: {
       claimToken: string;
-      resolution: 'RELEASE' | 'OUTCOME_UNKNOWN';
+      resolution: 'FAILED' | 'OUTCOME_UNKNOWN';
+      errorCode?: string;
+      retryable?: boolean;
     },
   ): ReturnType<TtsProcessorRepository['finalizeAudioClaim']> {
     if (!this.generating.has(cacheKey)) {
@@ -171,10 +195,21 @@ class MemoryTtsRepository implements TtsProcessorRepository {
     this.generating.delete(cacheKey);
     if (audioClaim.resolution === 'OUTCOME_UNKNOWN') {
       this.outcomeUnknown.add(cacheKey);
+    } else {
+      this.failedByCacheKey.set(cacheKey, {
+        errorCode: audioClaim.errorCode ?? 'TTS_CACHE_FAILED',
+        retryable: audioClaim.retryable ?? false,
+      });
     }
     this.finalizedClaims.push({
       cacheKey,
       resolution: audioClaim.resolution,
+      ...('errorCode' in audioClaim
+        ? {
+            errorCode: audioClaim.errorCode,
+            retryable: audioClaim.retryable,
+          }
+        : {}),
     });
     return Promise.resolve('FINALIZED');
   }
@@ -204,8 +239,13 @@ const createProvider = (
 ): TtsProvider => ({ synthesize: vi.fn(synthesize) });
 
 const createStore = (): TtsAudioStore => ({
-  put: vi.fn(({ cacheKey }) =>
-    Promise.resolve({ storageKey: `private/tts/${cacheKey}.wav` }),
+  put: vi.fn(({ cacheKey, bytes, mimeType, sha256 }) =>
+    Promise.resolve({
+      storageKey: `private/tts/${cacheKey}.wav`,
+      mimeType,
+      sizeBytes: bytes.byteLength,
+      sha256,
+    }),
   ),
 });
 
@@ -517,7 +557,11 @@ describe('TtsProcessor 실패 격리', () => {
         item: stale,
         errorCode: 'TTS_TARGET_STALE',
         retryable: false,
-        audioClaim: expect.objectContaining({ resolution: 'RELEASE' }),
+        audioClaim: expect.objectContaining({
+          resolution: 'FAILED',
+          errorCode: 'TTS_TARGET_STALE',
+          retryable: false,
+        }),
       }),
     ]);
     expect(repository.attachments).toEqual([
@@ -547,7 +591,7 @@ describe('TtsProcessor 실패 격리', () => {
     expect(repository.failed[0]).not.toHaveProperty('audioClaim');
   });
 
-  it('완료 시 item lease가 stale이면 item 실패를 기록하지 않고 자신의 cache claim만 해제한다', async () => {
+  it('완료 시 item lease가 stale이면 item을 덮지 않고 자신의 cache claim을 retryable 실패로 고정한다', async () => {
     const item = workItem('stale-lease');
     const repository = new MemoryTtsRepository([item]);
     repository.completionByItemId.set(item.itemId, 'STALE_LEASE');
@@ -562,7 +606,12 @@ describe('TtsProcessor 실패 격리', () => {
     ).resolves.toBe('RUNNING');
     expect(repository.failed).toEqual([]);
     expect(repository.finalizedClaims).toEqual([
-      { cacheKey: item.cacheKey, resolution: 'RELEASE' },
+      {
+        cacheKey: item.cacheKey,
+        resolution: 'FAILED',
+        errorCode: 'TTS_ITEM_STALE_LEASE',
+        retryable: true,
+      },
     ]);
   });
 
@@ -624,9 +673,75 @@ describe('TtsProcessor 실패 격리', () => {
     expect(provider.synthesize).toHaveBeenCalledOnce();
   });
 
-  it('known provider 실패는 cache claim을 해제해 명시적 retry가 다시 합성한다', async () => {
+  it('같은 key의 known provider 실패는 provider 한 번으로 cache와 모든 item에 재사용된다', async () => {
     const first = workItem('first', 'retry-key');
     const second = workItem('second', 'retry-key');
+    const repository = new MemoryTtsRepository([first, second]);
+    let rejectProvider!: (error: Error) => void;
+    const providerGate = new Promise<TtsProviderResult>((_resolve, reject) => {
+      rejectProvider = reject;
+    });
+    const provider = createProvider(() => providerGate);
+    const firstProcessor = new TtsProcessor(
+      repository,
+      provider,
+      createStore(),
+      () => now,
+    );
+    const secondProcessor = new TtsProcessor(
+      repository,
+      provider,
+      createStore(),
+      () => now,
+    );
+
+    const firstRun = firstProcessor.process(
+      jobId,
+      new AbortController().signal,
+    );
+    await vi.waitFor(() => expect(provider.synthesize).toHaveBeenCalledOnce());
+    const secondRun = secondProcessor.process(
+      jobId,
+      new AbortController().signal,
+    );
+    await vi.waitFor(() => expect(repository.waitClaims).toBeGreaterThan(0));
+    rejectProvider(
+      Object.assign(new Error('retryable'), {
+        code: 'TTS_PROVIDER_RETRYABLE',
+        retryable: true,
+      }),
+    );
+
+    await expect(Promise.all([firstRun, secondRun])).resolves.toEqual([
+      'RUNNING',
+      'FAILED',
+    ]);
+    expect(provider.synthesize).toHaveBeenCalledOnce();
+    expect(repository.failed).toHaveLength(2);
+    expect(repository.failed[0]).toEqual(
+      expect.objectContaining({
+        audioClaim: {
+          claimToken: `claim-${first.cacheKey}`,
+          resolution: 'FAILED',
+          errorCode: 'TTS_PROVIDER_RETRYABLE',
+          retryable: true,
+        },
+      }),
+    );
+    expect(repository.failed[1]).toEqual(
+      expect.objectContaining({
+        item: second,
+        errorCode: 'TTS_PROVIDER_RETRYABLE',
+        retryable: true,
+      }),
+    );
+    expect(repository.failed[1]).not.toHaveProperty('audioClaim');
+  });
+
+  it('later item은 FAILED cache를 재사용하고 명시적 retry만 한 번 다시 합성한다', async () => {
+    const first = workItem('first', 'retry-key');
+    const later = workItem('later', 'retry-key');
+    const retried = { ...first, attempt: 1, leaseToken: 'lease-retried' };
     const repository = new MemoryTtsRepository([first]);
     let calls = 0;
     const provider = createProvider(() => {
@@ -647,26 +762,46 @@ describe('TtsProcessor 실패 격리', () => {
       () => now,
     );
 
-    await expect(
-      processor.process(jobId, new AbortController().signal),
-    ).resolves.toBe('FAILED');
-    repository.enqueue(second);
-    await expect(
-      processor.process(jobId, new AbortController().signal),
-    ).resolves.toBe('PARTIALLY_FAILED');
+    await processor.process(jobId, new AbortController().signal);
+    repository.enqueue(later);
+    await processor.process(jobId, new AbortController().signal);
+    expect(provider.synthesize).toHaveBeenCalledOnce();
 
+    expect(repository.reopenRetryableCache(first.cacheKey)).toBe(true);
+    repository.enqueue(retried);
+    await processor.process(jobId, new AbortController().signal);
     expect(provider.synthesize).toHaveBeenCalledTimes(2);
-    expect(repository.failed[0]).toEqual(
-      expect.objectContaining({
-        audioClaim: {
-          claimToken: `claim-${first.cacheKey}`,
-          resolution: 'RELEASE',
-        },
-      }),
-    );
+    expect(repository.attachments).toEqual([
+      expect.objectContaining({ itemId: retried.itemId }),
+    ]);
   });
 
-  it('빈 audio와 store 실패는 known claim을 해제해 다음 retry를 막지 않는다', async () => {
+  it('terminal FAILED cache는 명시적 retry로도 다시 열리지 않는다', async () => {
+    const item = workItem('terminal', 'terminal-key');
+    const repository = new MemoryTtsRepository([item]);
+    const provider = createProvider(() =>
+      Promise.reject(
+        Object.assign(new Error('terminal'), {
+          code: 'TTS_PROVIDER_TERMINAL',
+          retryable: false,
+        }),
+      ),
+    );
+    const processor = new TtsProcessor(
+      repository,
+      provider,
+      createStore(),
+      () => now,
+    );
+
+    await processor.process(jobId, new AbortController().signal);
+    expect(repository.reopenRetryableCache(item.cacheKey)).toBe(false);
+    repository.enqueue(workItem('later', item.cacheKey));
+    await processor.process(jobId, new AbortController().signal);
+    expect(provider.synthesize).toHaveBeenCalledOnce();
+  });
+
+  it('빈 audio와 store 실패는 stable cache 실패로 남아 후속 item의 재합성을 막는다', async () => {
     const empty = workItem('empty', 'empty-key', 'empty');
     const storeFailed = workItem('store-failed', 'store-key', 'store');
     const repository = new MemoryTtsRepository([empty, storeFailed]);
@@ -678,10 +813,15 @@ describe('TtsProcessor 실패 격리', () => {
       ),
     );
     const store: TtsAudioStore = {
-      put: vi.fn(({ cacheKey }) =>
+      put: vi.fn(({ cacheKey, bytes, mimeType, sha256 }) =>
         cacheKey === storeFailed.cacheKey
           ? Promise.reject(new Error('store failed'))
-          : Promise.resolve({ storageKey: `private/${cacheKey}.wav` }),
+          : Promise.resolve({
+              storageKey: `private/${cacheKey}.wav`,
+              mimeType,
+              sizeBytes: bytes.byteLength,
+              sha256,
+            }),
       ),
     };
 
@@ -695,15 +835,52 @@ describe('TtsProcessor 실패 격리', () => {
       expect.arrayContaining([
         expect.objectContaining({
           errorCode: 'TTS_PROVIDER_EMPTY_AUDIO',
-          audioClaim: expect.objectContaining({ resolution: 'RELEASE' }),
+          audioClaim: expect.objectContaining({ resolution: 'FAILED' }),
         }),
         expect.objectContaining({
           errorCode: 'TTS_AUDIO_STORE_FAILED',
-          audioClaim: expect.objectContaining({ resolution: 'RELEASE' }),
+          audioClaim: expect.objectContaining({ resolution: 'FAILED' }),
         }),
       ]),
     );
     expect(repository.generating.size).toBe(0);
+    expect(repository.failedByCacheKey.size).toBe(2);
+  });
+
+  it('store가 보고한 실제 object metadata가 bytes와 다르면 READY를 만들지 않는다', async () => {
+    const item = workItem('corrupt-store', 'corrupt-key');
+    const repository = new MemoryTtsRepository([item]);
+    const store: TtsAudioStore = {
+      put: vi.fn(({ cacheKey, bytes, mimeType }) =>
+        Promise.resolve({
+          storageKey: `private/tts/${cacheKey}.wav`,
+          mimeType,
+          sizeBytes: bytes.byteLength + 1,
+          sha256: '0'.repeat(64),
+        }),
+      ),
+    };
+
+    await expect(
+      new TtsProcessor(
+        repository,
+        createProvider(),
+        store,
+        () => now,
+      ).process(jobId, new AbortController().signal),
+    ).resolves.toBe('FAILED');
+    expect(repository.succeeded).toEqual([]);
+    expect(repository.failed).toEqual([
+      expect.objectContaining({
+        errorCode: 'TTS_AUDIO_STORE_METADATA_MISMATCH',
+        retryable: true,
+        audioClaim: expect.objectContaining({
+          resolution: 'FAILED',
+          errorCode: 'TTS_AUDIO_STORE_METADATA_MISMATCH',
+          retryable: true,
+        }),
+      }),
+    ]);
   });
 
   it('provider가 명시한 불명확 결과만 OUTCOME_UNKNOWN으로 고정해 재합성을 금지한다', async () => {
@@ -743,7 +920,7 @@ describe('TtsProcessor 실패 격리', () => {
     expect(provider.synthesize).toHaveBeenCalledOnce();
   });
 
-  it('provider가 abort를 무시하고 결과를 반환해도 store 전에 claim을 해제하고 현재 item만 실패시킨다', async () => {
+  it('provider가 abort를 무시하고 결과를 반환해도 store 전에 cache 실패와 현재 item만 남긴다', async () => {
     const controller = new AbortController();
     const item = workItem('abort-after-provider');
     const repository = new MemoryTtsRepository([item]);
@@ -770,18 +947,20 @@ describe('TtsProcessor 실패 격리', () => {
     expect(repository.failed).toEqual([
       expect.objectContaining({
         errorCode: 'TTS_PROCESS_ABORTED',
-        audioClaim: expect.objectContaining({ resolution: 'RELEASE' }),
+        audioClaim: expect.objectContaining({ resolution: 'FAILED' }),
       }),
     ]);
   });
 
-  it('store 완료 뒤 abort되면 DB 완료 전에 claim을 해제하고 stale lease를 덮어쓰지 않는다', async () => {
+  it('store 완료 뒤 abort되면 DB 완료 전에 cache 실패를 고정하고 stale lease를 덮어쓰지 않는다', async () => {
     const controller = new AbortController();
     const item = workItem('abort-after-store');
     const repository = new MemoryTtsRepository([item]);
     repository.completionByItemId.set(item.itemId, 'STALE_LEASE');
-    let resolveStore!: (value: { storageKey: string }) => void;
-    const storeResult = new Promise<{ storageKey: string }>((resolve) => {
+    let resolveStore!: (value: Awaited<ReturnType<TtsAudioStore['put']>>) => void;
+    const storeResult = new Promise<
+      Awaited<ReturnType<TtsAudioStore['put']>>
+    >((resolve) => {
       resolveStore = resolve;
     });
     const store: TtsAudioStore = { put: vi.fn(() => storeResult) };
@@ -794,14 +973,20 @@ describe('TtsProcessor 실패 격리', () => {
     await vi.waitFor(() => expect(store.put).toHaveBeenCalledOnce());
 
     controller.abort();
-    resolveStore({ storageKey: `private/tts/${item.cacheKey}.wav` });
+    const bytes = providerResult().bytes;
+    resolveStore({
+      storageKey: `private/tts/${item.cacheKey}.wav`,
+      mimeType: 'audio/wav',
+      sizeBytes: bytes.byteLength,
+      sha256: createHash('sha256').update(bytes).digest('hex'),
+    });
 
     await expect(processing).resolves.toBe('RUNNING');
     expect(repository.succeeded).toEqual([]);
     expect(repository.failed).toEqual([
       expect.objectContaining({
         errorCode: 'TTS_PROCESS_ABORTED',
-        audioClaim: expect.objectContaining({ resolution: 'RELEASE' }),
+        audioClaim: expect.objectContaining({ resolution: 'FAILED' }),
       }),
     ]);
     expect(repository.generating.has(item.cacheKey)).toBe(false);

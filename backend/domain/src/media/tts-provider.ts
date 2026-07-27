@@ -26,7 +26,12 @@ export interface TtsAudioStore {
     bytes: Uint8Array;
     mimeType: 'audio/wav';
     sha256: string;
-  }): Promise<{ storageKey: string }>;
+  }): Promise<{
+    storageKey: string;
+    mimeType: 'audio/wav';
+    sizeBytes: number;
+    sha256: string;
+  }>;
 }
 
 /** target revision이 아직 유효할 때만 생성 음성을 원자 연결하는 repository port */
