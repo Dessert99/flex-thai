@@ -234,9 +234,7 @@ describe('학습자 문제 공개 응답 계약', () => {
       items: [listItem],
       page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
       facets: {
-        majorCategories: [
-          { value: 'READING_PASSAGE', label: '지문 독해' },
-        ],
+        majorCategories: [{ value: 'READING_PASSAGE', label: '지문 독해' }],
         questionTypes: [
           {
             ...questionType,

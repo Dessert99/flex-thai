@@ -13,6 +13,4 @@ export const questionMajorCategorySchema = z.enum([
 ]);
 
 /** FLEX 시험의 고정 문제 대분류 type */
-export type QuestionMajorCategory = z.infer<
-  typeof questionMajorCategorySchema
->;
+export type QuestionMajorCategory = z.infer<typeof questionMajorCategorySchema>;
