@@ -1,7 +1,6 @@
 /** 문제 목록의 API 지원 필터를 URL 검색값에 직접 연결한다 */
-import { z } from 'zod';
+import type { QuestionListFacets } from '@flex-thia/contracts';
 import { Button } from '@/shared/ui/button';
-import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
 import {
   Select,
@@ -22,6 +21,7 @@ import {
 import type { QuestionListSearch } from '../model/questionListSearch';
 
 interface QuestionFiltersProps {
+  facets: QuestionListFacets;
   onChange: (patch: Partial<QuestionListSearch>) => void;
   onReset: () => void;
   search: QuestionListSearch;
@@ -29,6 +29,7 @@ interface QuestionFiltersProps {
 
 /** 데스크톱 고정 필터와 모바일 Sheet가 같은 검증 검색값을 사용한다 */
 export function QuestionFilters({
+  facets,
   onChange,
   onReset,
   search,
@@ -37,7 +38,7 @@ export function QuestionFilters({
     <>
       <div className='hidden rounded-panel border border-default bg-surface p-page md:block'>
         <FilterFields
-          idPrefix='desktop'
+          facets={facets}
           onChange={onChange}
           onReset={onReset}
           search={search}
@@ -55,6 +56,7 @@ export function QuestionFilters({
           </SheetTrigger>
           <SheetContent
             className='bg-surface'
+            side='bottom'
             showCloseButton={false}
           >
             <SheetHeader>
@@ -65,7 +67,7 @@ export function QuestionFilters({
             </SheetHeader>
             <div className='grid gap-cluster p-page'>
               <FilterFields
-                idPrefix='mobile'
+                facets={facets}
                 onChange={onChange}
                 onReset={onReset}
                 search={search}
@@ -87,15 +89,49 @@ export function QuestionFilters({
 }
 
 function FilterFields({
-  idPrefix,
+  facets,
   onChange,
   onReset,
   search,
-}: QuestionFiltersProps & { idPrefix: string }) {
-  const questionTypeId = `${idPrefix}-question-type-id`;
+}: QuestionFiltersProps) {
+  const questionTypeOptions = facets.questionTypes.filter(
+    (questionType) =>
+      search.majorCategory === undefined ||
+      questionType.majorCategory === search.majorCategory,
+  );
+  const selectedQuestionType = facets.questionTypes.find(
+    (questionType) => questionType.id === search.questionTypeId,
+  );
 
   return (
     <div className='grid gap-cluster'>
+      <FilterSelect
+        disabled={facets.majorCategories.length === 0}
+        label='대분류'
+        onValueChange={(value) => {
+          const majorCategory =
+            value === 'ALL'
+              ? undefined
+              : (value as NonNullable<QuestionListSearch['majorCategory']>);
+          // 선택 유형이 다음 대분류에 속하지 않으면 URL 조건도 함께 해제한다.
+          const questionTypeId =
+            search.questionTypeId === undefined ||
+            majorCategory === undefined ||
+            selectedQuestionType?.majorCategory === majorCategory
+              ? search.questionTypeId
+              : undefined;
+
+          onChange({ majorCategory, questionTypeId });
+        }}
+        options={[
+          { label: '전체', value: 'ALL' },
+          ...facets.majorCategories.map((category) => ({
+            label: category.label,
+            value: category.value,
+          })),
+        ]}
+        value={search.majorCategory ?? 'ALL'}
+      />
       <FilterSelect
         label='영역'
         onValueChange={(value) => {
@@ -111,10 +147,50 @@ function FilterFields({
         ]}
         value={search.skill ?? 'ALL'}
       />
-      <QuestionTypeIdFilter
-        id={questionTypeId}
-        onChange={onChange}
-        value={search.questionTypeId}
+      <FilterSelect
+        disabled={questionTypeOptions.length === 0}
+        label='문제 유형'
+        onValueChange={(value) => {
+          onChange({ questionTypeId: value === 'ALL' ? undefined : value });
+        }}
+        options={[
+          { label: '전체', value: 'ALL' },
+          ...questionTypeOptions.map((questionType) => ({
+            label: questionType.displayName,
+            value: questionType.id,
+          })),
+        ]}
+        value={search.questionTypeId ?? 'ALL'}
+      />
+      <FilterSelect
+        disabled={facets.topics.length === 0}
+        label='주제'
+        onValueChange={(value) => {
+          onChange({ topicId: value === 'ALL' ? undefined : value });
+        }}
+        options={[
+          { label: '전체', value: 'ALL' },
+          ...facets.topics.map((topic) => ({
+            label: topic.displayName,
+            value: topic.id,
+          })),
+        ]}
+        value={search.topicId ?? 'ALL'}
+      />
+      <FilterSelect
+        disabled={facets.tags.length === 0}
+        label='태그'
+        onValueChange={(value) => {
+          onChange({ tagId: value === 'ALL' ? undefined : value });
+        }}
+        options={[
+          { label: '전체', value: 'ALL' },
+          ...facets.tags.map((tag) => ({
+            label: tag.displayName,
+            value: tag.id,
+          })),
+        ]}
+        value={search.tagId ?? 'ALL'}
       />
       <FilterSelect
         label='난이도'
@@ -191,42 +267,14 @@ function toSavedFilterValue(saved: boolean | undefined) {
   return saved ? 'SAVED' : 'NOT_SAVED';
 }
 
-function QuestionTypeIdFilter({
-  id,
-  onChange,
-  value,
-}: {
-  id: string;
-  onChange: (patch: Partial<QuestionListSearch>) => void;
-  value: string | undefined;
-}) {
-  return (
-    <div className='grid gap-cluster'>
-      <Label htmlFor={id}>문제 유형 ID</Label>
-      <Input
-        defaultValue={value ?? ''}
-        id={id}
-        key={value ?? 'empty'}
-        onBlur={(event) => {
-          const nextValue = event.currentTarget.value.trim();
-          if (nextValue === '' || z.uuid().safeParse(nextValue).success) {
-            onChange({ questionTypeId: nextValue || undefined });
-          } else {
-            event.currentTarget.value = value ?? '';
-          }
-        }}
-        placeholder='UUID를 입력하세요'
-      />
-    </div>
-  );
-}
-
 function FilterSelect({
+  disabled = false,
   label,
   onValueChange,
   options,
   value,
 }: {
+  disabled?: boolean;
   label: string;
   onValueChange: (value: string) => void;
   options: ReadonlyArray<{ label: string; value: string }>;
@@ -236,24 +284,29 @@ function FilterSelect({
     <div className='grid gap-cluster'>
       <Label>{label}</Label>
       <Select
+        disabled={disabled}
         onValueChange={onValueChange}
-        value={value}
+        value={disabled ? 'EMPTY' : value}
       >
         <SelectTrigger
           aria-label={label}
           className='w-full'
         >
-          <SelectValue />
+          {disabled ? '선택할 항목이 없습니다.' : <SelectValue />}
         </SelectTrigger>
         <SelectContent>
-          {options.map((option) => (
-            <SelectItem
-              key={option.value}
-              value={option.value}
-            >
-              {option.label}
-            </SelectItem>
-          ))}
+          {disabled ? (
+            <SelectItem value='EMPTY'>선택할 항목이 없습니다.</SelectItem>
+          ) : (
+            options.map((option) => (
+              <SelectItem
+                key={option.value}
+                value={option.value}
+              >
+                {option.label}
+              </SelectItem>
+            ))
+          )}
         </SelectContent>
       </Select>
     </div>

@@ -1,5 +1,5 @@
 /** 문제 탐색의 URL 소유 필터·페이지 상태·복구 가능한 화면 상태를 검증한다 */
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '@/shared/test';
@@ -19,8 +19,41 @@ vi.mock('@/shared/api', async (importOriginal) => {
   return { ...actual, authenticatedRequest: mocks.authenticatedRequest };
 });
 
-const defaultSearch: QuestionListSearch = { page: 1, pageSize: 20 };
+const defaultSearch: QuestionListSearch = {
+  page: 1,
+  pageSize: 20,
+  sort: 'LATEST',
+};
+const questionTypeId = '01933b6a-8f13-7a19-b7e5-536d70f57aac';
+const listeningQuestionTypeId = '01933b6a-8f13-7a19-b7e5-536d70f57aad';
+const topicId = '01933b6a-8f13-7a19-b7e5-536d70f57aae';
+const tagId = '01933b6a-8f13-7a19-b7e5-536d70f57aaf';
+const facets = {
+  majorCategories: [
+    { label: '읽기 지문', value: 'READING_PASSAGE' },
+    { label: '듣기 대화', value: 'LISTENING_DIALOGUE' },
+  ],
+  questionTypes: [
+    {
+      displayName: '읽기 지문 유형',
+      id: questionTypeId,
+      majorCategory: 'READING_PASSAGE',
+      slug: 'reading-passage',
+    },
+    {
+      displayName: '듣기 대화 유형',
+      id: listeningQuestionTypeId,
+      majorCategory: 'LISTENING_DIALOGUE',
+      slug: 'listening-dialogue',
+    },
+  ],
+  tags: [{ displayName: '여행', id: tagId, slug: 'travel' }],
+  topics: [
+    { displayName: '일상 회화', id: topicId, slug: 'daily-conversation' },
+  ],
+};
 const emptyResponse = {
+  facets,
   items: [],
   page: {
     page: 1,
@@ -31,6 +64,15 @@ const emptyResponse = {
 };
 
 beforeEach(() => {
+  // jsdom에는 Radix Select가 확인하는 pointer capture API가 없어 실제 선택을 보완한다.
+  Object.defineProperty(HTMLElement.prototype, 'hasPointerCapture', {
+    configurable: true,
+    value: () => false,
+  });
+  Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+    configurable: true,
+    value: () => undefined,
+  });
   mocks.authenticatedRequest.mockReset();
   mocks.authenticatedRequest.mockResolvedValue(emptyResponse);
 });
@@ -55,10 +97,17 @@ describe('문제 목록 페이지', () => {
           questionId: '01933b6a-8f13-7a19-b7e5-536d70f57aaa',
           questionVersionId: '01933b6a-8f13-7a19-b7e5-536d70f57aab',
           questionType: {
-            id: '01933b6a-8f13-7a19-b7e5-536d70f57aac',
+            id: questionTypeId,
             slug: 'reading-context',
             displayName: '문맥에 맞는 표현',
           },
+          majorCategory: 'READING_PASSAGE',
+          topic: {
+            displayName: '일상 회화',
+            id: topicId,
+            slug: 'daily-conversation',
+          },
+          tags: [],
           skill: 'READING',
           difficulty: 2,
           saved: false,
@@ -71,6 +120,7 @@ describe('문제 목록 페이지', () => {
         totalItems: 1,
         totalPages: 1,
       },
+      facets,
     });
 
     renderQuestionList();
@@ -174,6 +224,120 @@ describe('문제 목록 모바일 필터', () => {
     await user.click(screen.getByRole('button', { name: '필터 닫기' }));
 
     await waitFor(() => expect(trigger).toHaveFocus());
+  });
+});
+
+describe('문제 목록 taxonomy 필터', () => {
+  it('UUID 입력 없이 대분류·유형·주제·태그를 이름 있는 선택지로 제공한다', async () => {
+    renderQuestionList();
+
+    await screen.findByRole('heading', { name: '게시된 문제가 없습니다.' });
+
+    expect(screen.queryByLabelText('문제 유형 ID')).not.toBeInTheDocument();
+    for (const label of ['대분류', '문제 유형', '주제', '태그']) {
+      expect(screen.getAllByRole('combobox', { name: label })).not.toHaveLength(
+        0,
+      );
+    }
+  });
+
+  it('대분류 변경은 호환되지 않는 유형을 해제하고 1페이지 검색값을 전달한다', async () => {
+    const onSearchChange = vi.fn();
+    const user = userEvent.setup();
+    const { rerender } = renderQuestionList({
+      onSearchChange,
+      search: { ...defaultSearch, page: 3, questionTypeId },
+    });
+
+    await screen.findByRole('heading', {
+      name: '조건에 맞는 문제가 없습니다.',
+    });
+    const desktopCategory = screen.getAllByRole('combobox', {
+      name: '대분류',
+    })[0];
+    if (desktopCategory === undefined) {
+      throw new Error('데스크톱 대분류 선택지가 필요합니다.');
+    }
+    await user.click(desktopCategory);
+    await user.click(await screen.findByRole('option', { name: '듣기 대화' }));
+
+    const [nextSearch] = onSearchChange.mock.lastCall as [QuestionListSearch];
+    expect(nextSearch).toMatchObject({
+      ...defaultSearch,
+      majorCategory: 'LISTENING_DIALOGUE',
+      page: 1,
+    });
+    expect(nextSearch).not.toHaveProperty('questionTypeId');
+
+    rerender(
+      <QuestionListPageContainer
+        onSearchChange={onSearchChange}
+        search={{
+          ...defaultSearch,
+          majorCategory: 'LISTENING_DIALOGUE',
+          page: 1,
+        }}
+      />,
+    );
+    const desktopQuestionType = screen.getAllByRole('combobox', {
+      name: '문제 유형',
+    })[0];
+    if (desktopQuestionType === undefined) {
+      throw new Error('데스크톱 문제 유형 선택지가 필요합니다.');
+    }
+    await user.click(desktopQuestionType);
+
+    expect(
+      await screen.findByRole('option', { name: '듣기 대화 유형' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('option', { name: '읽기 지문 유형' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('mobile bottom Sheet도 같은 이름의 필터로 1페이지 검색값을 전달한다', async () => {
+    const onSearchChange = vi.fn();
+    const user = userEvent.setup();
+    renderQuestionList({
+      onSearchChange,
+      search: { ...defaultSearch, page: 4 },
+    });
+
+    await screen.findByRole('heading', { name: '게시된 문제가 없습니다.' });
+    await user.click(screen.getByRole('button', { name: '필터 열기' }));
+
+    const dialog = screen.getByRole('dialog', { name: '문제 필터' });
+    expect(dialog).toHaveClass('bottom-0');
+    const mobileCategory = within(dialog).getByRole('combobox', {
+      name: '대분류',
+    });
+    await user.click(mobileCategory);
+    await user.click(await screen.findByRole('option', { name: '읽기 지문' }));
+
+    const [nextSearch] = onSearchChange.mock.lastCall as [QuestionListSearch];
+    expect(nextSearch).toMatchObject({
+      ...defaultSearch,
+      majorCategory: 'READING_PASSAGE',
+      page: 1,
+    });
+    expect(nextSearch).not.toHaveProperty('questionTypeId');
+  });
+
+  it('taxonomy facet이 비어 있으면 선택지를 비활성 안내로 표시한다', async () => {
+    mocks.authenticatedRequest.mockResolvedValue({
+      ...emptyResponse,
+      facets: { majorCategories: [], questionTypes: [], tags: [], topics: [] },
+    });
+    renderQuestionList();
+
+    await screen.findByRole('heading', { name: '게시된 문제가 없습니다.' });
+
+    for (const label of ['대분류', '문제 유형', '주제', '태그']) {
+      expect(
+        screen.getAllByRole('combobox', { name: label })[0],
+      ).toBeDisabled();
+    }
+    expect(screen.getAllByText('선택할 항목이 없습니다.')).not.toHaveLength(0);
   });
 });
 

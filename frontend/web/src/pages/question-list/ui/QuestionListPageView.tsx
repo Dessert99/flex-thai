@@ -1,5 +1,8 @@
 /** 문제 목록의 로딩·빈 결과·오류·페이지 상태를 접근 가능한 UI로 표현한다 */
-import type { QuestionListResponse } from '@flex-thia/contracts';
+import type {
+  QuestionListFacets,
+  QuestionListResponse,
+} from '@flex-thia/contracts';
 import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
@@ -20,6 +23,14 @@ interface QuestionListPageViewProps {
   onRetry: () => void;
   search: QuestionListSearch;
 }
+
+// 목록 조회 전에도 동일한 비활성 taxonomy 필터 틀을 유지한다.
+const emptyQuestionListFacets: QuestionListFacets = {
+  majorCategories: [],
+  questionTypes: [],
+  tags: [],
+  topics: [],
+};
 
 /** URL 필터와 서버 페이지 결과를 별도 클라이언트 목록 없이 렌더링한다 */
 export function QuestionListPageView({
@@ -49,6 +60,7 @@ export function QuestionListPageView({
         </p>
       </header>
       <QuestionFilters
+        facets={data?.facets ?? emptyQuestionListFacets}
         onChange={onFilterChange}
         onReset={onResetFilters}
         search={search}
