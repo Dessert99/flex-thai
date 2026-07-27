@@ -1,6 +1,7 @@
 /** AI 문제 제작 후보의 순수 모델·검증 규칙과 외부 port를 정의한다 */
 import type { CanonicalDraftSentenceInput } from '../content-import/content-import.js';
 import type { QuestionTemplate } from '../questions/question-version.js';
+import { normalizeThaiSearchText } from '../vocabulary/normalize-thai-search-text.js';
 import type { ContentProductionPresetSnapshot } from './content-production.service.js';
 
 /** 후보 검토 우선순위를 나타내는 내부 그룹 */
@@ -1184,6 +1185,61 @@ const isCanonicalExpression = (value: unknown): boolean => {
   );
 };
 
+const containsThaiCodePoint = (value: string): boolean =>
+  /\p{Script=Thai}/u.test(value);
+
+const hasValidSentenceOffsets = (
+  sentence: GeneratedQuestionSentenceInput,
+): boolean => {
+  const codePoints = Array.from(sentence.originalText);
+  const covered = Array.from({ length: codePoints.length }, () => false);
+  let previousEnd = 0;
+
+  for (const token of sentence.tokens) {
+    if (
+      token.startOffset < 0 ||
+      token.endOffset <= token.startOffset ||
+      token.endOffset > codePoints.length ||
+      token.startOffset < previousEnd
+    ) {
+      return false;
+    }
+    const rawSurface = codePoints
+      .slice(token.startOffset, token.endOffset)
+      .join('');
+    if (
+      rawSurface !== token.surface ||
+      normalizeThaiSearchText(rawSurface) !==
+        normalizeThaiSearchText(token.surface)
+    ) {
+      return false;
+    }
+    for (let index = token.startOffset; index < token.endOffset; index += 1) {
+      covered[index] = true;
+    }
+    previousEnd = token.endOffset;
+  }
+
+  const expressionRanges = new Set<string>();
+  for (const expression of sentence.expressions) {
+    const range = `${expression.startTokenIndex}:${expression.endTokenIndex}`;
+    if (
+      expression.startTokenIndex < 0 ||
+      expression.endTokenIndex - expression.startTokenIndex < 2 ||
+      expression.endTokenIndex > sentence.tokens.length ||
+      expressionRanges.has(range)
+    ) {
+      return false;
+    }
+    expressionRanges.add(range);
+  }
+
+  return codePoints.every(
+    (codePoint, index) =>
+      !containsThaiCodePoint(codePoint) || covered[index] === true,
+  );
+};
+
 const isGeneratedSentence = (
   value: unknown,
 ): value is GeneratedQuestionSentenceInput => {
@@ -1205,7 +1261,8 @@ const isGeneratedSentence = (
     Array.isArray(value.tokens) &&
     value.tokens.every(isCanonicalToken) &&
     Array.isArray(value.expressions) &&
-    value.expressions.every(isCanonicalExpression)
+    value.expressions.every(isCanonicalExpression) &&
+    hasValidSentenceOffsets(value as GeneratedQuestionSentenceInput)
   );
 };
 
@@ -1281,6 +1338,150 @@ const hasValidInlineSpan = (
   );
 };
 
+type AllowedTaxonomyTerm = { id: string; slug: string };
+
+const readAllowedTaxonomyTerms = (
+  value: unknown,
+): AllowedTaxonomyTerm[] | null => {
+  if (!Array.isArray(value)) return null;
+  const terms = value.filter(
+    (term): term is AllowedTaxonomyTerm =>
+      isRecord(term) &&
+      isNonemptyString(term.id) &&
+      isNonemptyString(term.slug),
+  );
+  return terms.length === value.length ? terms : null;
+};
+
+const hasMatchingTaxonomy = (
+  candidate: GeneratedQuestionCandidate,
+  context: QuestionProductionContext,
+): boolean => {
+  const topics = readAllowedTaxonomyTerms(
+    context.typeVersion.generationRules['allowedTopics'],
+  );
+  const tags = readAllowedTaxonomyTerms(
+    context.typeVersion.generationRules['allowedTags'],
+  );
+  const topic = topics?.find(({ id }) => id === candidate.topicId);
+  if (
+    !topic ||
+    topic.slug !== candidate.payload.topicSlug ||
+    !tags ||
+    candidate.tagIds.length !== candidate.payload.tagSlugs.length
+  ) {
+    return false;
+  }
+  return candidate.tagIds.every((id, index) => {
+    const tag = tags.find((candidateTag) => candidateTag.id === id);
+    return tag?.slug === candidate.payload.tagSlugs[index];
+  });
+};
+
+const hasValidTemplate = (
+  candidate: GeneratedQuestionCandidate,
+  template: QuestionTemplate,
+): boolean => {
+  const blocks = candidate.payload.blocks;
+  const hasExactlyOne = (
+    kind: GeneratedQuestionPayload['blocks'][number]['kind'],
+  ): boolean => blocks.filter((block) => block.kind === kind).length === 1;
+  const hasQuestion = hasExactlyOne('QUESTION');
+  const hasPassage = blocks.some((block) => block.kind === 'PASSAGE');
+  const hasDialogue = blocks.some((block) => block.kind === 'DIALOGUE');
+  const inline = template === 'INLINE_SPAN_CHOICE';
+
+  if (
+    candidate.payload.options.some(
+      (option) => inline !== (option.sentence === null),
+    )
+  ) {
+    return false;
+  }
+  if (template === 'STANDARD_CHOICE') {
+    return hasQuestion && !hasPassage && !hasDialogue;
+  }
+  if (template === 'PASSAGE_CHOICE') {
+    return hasQuestion && hasExactlyOne('PASSAGE') && !hasDialogue;
+  }
+  if (template === 'INLINE_SPAN_CHOICE') {
+    const question = blocks.find((block) => block.kind === 'QUESTION');
+    return (
+      hasQuestion &&
+      !hasPassage &&
+      !hasDialogue &&
+      question?.sentences.length === 1
+    );
+  }
+  const dialogue = blocks.find((block) => block.kind === 'DIALOGUE');
+  return (
+    hasQuestion &&
+    hasExactlyOne('DIALOGUE') &&
+    !hasPassage &&
+    Boolean(
+      dialogue?.sentences.every(({ speaker }) => Boolean(speaker?.trim())),
+    )
+  );
+};
+
+const generatedSentences = (
+  candidate: GeneratedQuestionCandidate,
+): GeneratedQuestionSentenceInput[] => [
+  ...candidate.payload.blocks.flatMap((block) =>
+    block.sentences.map(({ sentence }) => sentence),
+  ),
+  ...candidate.payload.options.flatMap((option) =>
+    option.sentence === null ? [] : [option.sentence],
+  ),
+];
+
+const generatedVocabularySurfaces = (
+  sentence: GeneratedQuestionSentenceInput,
+): string[] => {
+  const codePoints = Array.from(sentence.originalText);
+  return [
+    ...sentence.tokens.map(({ surface }) => surface),
+    ...sentence.expressions.map((expression) => {
+      const first = sentence.tokens[expression.startTokenIndex]!;
+      const last = sentence.tokens[expression.endTokenIndex - 1]!;
+      return codePoints.slice(first.startOffset, last.endOffset).join('');
+    }),
+  ];
+};
+
+const hasValidVocabularyPolicy = (
+  candidate: GeneratedQuestionCandidate,
+  context: QuestionProductionContext,
+): boolean => {
+  const sentences = generatedSentences(candidate);
+  const tokens = sentences.flatMap((sentence) => sentence.tokens);
+  const surfaces = new Set(
+    sentences.flatMap(generatedVocabularySurfaces).map(normalizeThaiSearchText),
+  );
+  const target = new Set(
+    context.targetVocabulary.map(({ thai }) => normalizeThaiSearchText(thai)),
+  );
+  const required = new Set(
+    context.requiredVocabulary.map(({ thai }) => normalizeThaiSearchText(thai)),
+  );
+  const excluded = new Set(
+    context.excludedVocabulary.map(({ thai }) => normalizeThaiSearchText(thai)),
+  );
+  if (
+    [...target, ...required].some((thai) => !surfaces.has(thai)) ||
+    [...excluded].some((thai) => surfaces.has(thai))
+  ) {
+    return false;
+  }
+  const auxiliary = new Set(
+    tokens
+      .filter(({ role }) => role === 'SUPPORTING')
+      .map(({ surface }) => normalizeThaiSearchText(surface))
+      .filter((thai) => !target.has(thai) && !required.has(thai)),
+  );
+  return auxiliary.size <= context.newAuxiliaryVocabularyLimit;
+};
+
 /** provider 경계에서 canonical 문제 후보의 정확한 JSON shape를 확인한다 */
 export const validateGeneratedQuestionSchema = (
   candidate: unknown,
@@ -1334,6 +1535,7 @@ export const validateGeneratedQuestionSchema = (
 /** schema를 통과한 후보가 문제 graph의 최소 결정 규칙을 만족하는지 검증한다 */
 export const validateQuestionDecisionRules = (
   candidate: GeneratedQuestionCandidate,
+  context: QuestionProductionContext,
 ): QuestionValidationResult => {
   const schema = validateGeneratedQuestionSchema(candidate);
   if (schema.status === 'FAILED') {
@@ -1343,11 +1545,17 @@ export const validateQuestionDecisionRules = (
   const optionRefs = candidate.payload.options.map(
     (option) => option.clientRef,
   );
+  const optionCount = context.typeVersion.structureRules['optionCount'];
   const valid =
+    candidate.questionTypeVersionId === context.typeVersion.id &&
+    candidate.payload.questionTypeSlug === context.typeVersion.slug &&
+    candidate.payload.questionTypeVersion === context.typeVersion.version &&
+    hasMatchingTaxonomy(candidate, context) &&
     candidate.difficulty >= 1 &&
     candidate.difficulty <= 5 &&
     candidate.payload.difficulty === candidate.difficulty &&
-    candidate.payload.options.length > 0 &&
+    isSafeInteger(optionCount) &&
+    candidate.payload.options.length === optionCount &&
     optionRefs.length === new Set(optionRefs).size &&
     candidate.payload.options.every(
       (option, index) =>
@@ -1356,6 +1564,8 @@ export const validateQuestionDecisionRules = (
     optionRefs.includes(candidate.payload.correctOptionRef) &&
     candidate.payload.blocks.filter((block) => block.kind === 'QUESTION')
       .length === 1 &&
+    hasValidTemplate(candidate, context.typeVersion.template) &&
+    hasValidVocabularyPolicy(candidate, context) &&
     candidate.tagIds.length === new Set(candidate.tagIds).size &&
     candidate.payload.tagSlugs.length ===
       new Set(candidate.payload.tagSlugs).size;

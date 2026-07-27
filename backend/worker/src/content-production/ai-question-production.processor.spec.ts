@@ -18,7 +18,18 @@ const sentence = {
   translationKo: '어느 것이 맞습니까?',
   pronunciationKo: '커 다이 툭 떵',
   toneMarks: '',
-  tokens: [],
+  tokens: [
+    {
+      surface: 'ข้อใดถูกต้อง',
+      startOffset: 0,
+      endOffset: 12,
+      vocabulary: { clientRef: 'vocabulary-question' },
+      meaning: { clientRef: 'meaning-question' },
+      pronunciation: { clientRef: 'pronunciation-question' },
+      contextMeaningKo: '어느 것이 맞는가',
+      role: 'TARGET' as const,
+    },
+  ],
   expressions: [],
 };
 
@@ -60,7 +71,16 @@ const context = (): QuestionProductionContext => ({
     version: 1,
     template: 'STANDARD_CHOICE',
     structureRules: { optionCount: 1 },
-    generationRules: {},
+    generationRules: {
+      allowedTopics: [
+        { id: 'topic-id', slug: 'daily-life', displayName: '일상' },
+      ],
+      allowedTags: Array.from({ length: 10 }, (_, index) => ({
+        id: `tag-${index}`,
+        slug: `tag-${index}`,
+        displayName: `태그 ${index}`,
+      })),
+    },
   },
   difficultyCriteria: [1, 2, 3, 4, 5].map((difficulty) => ({
     difficulty,
@@ -72,7 +92,14 @@ const context = (): QuestionProductionContext => ({
       payload: candidate().payload,
     },
   ],
-  targetVocabulary: [],
+  targetVocabulary: [
+    {
+      thai: 'ข้อใดถูกต้อง',
+      meaningKo: '어느 것이 맞는가',
+      partOfSpeech: '표현',
+      difficulty: 1,
+    },
+  ],
   requiredVocabulary: [],
   excludedVocabulary: [],
   newAuxiliaryVocabularyLimit: 0,
@@ -286,6 +313,61 @@ describe('AI 문제 제작 processor', () => {
       'cross-validation',
       'artifacts',
     ]);
+  });
+
+  it('생성 문맥과 다른 유형 후보는 결정 규칙 실패로 격리한다', async () => {
+    let persisted:
+      | Parameters<QuestionProductionCandidateRepository['persist']>[0]
+      | undefined;
+    let similarityCalls = 0;
+    let crossValidationCalls = 0;
+    const mismatched = candidate();
+    mismatched.questionTypeVersionId = 'other-type-version-id';
+    const processor = createProcessor({
+      candidates: [mismatched],
+      similarity: {
+        findSimilar: () => {
+          similarityCalls += 1;
+          return Promise.resolve([]);
+        },
+      },
+      crossValidation: {
+        validate: () => {
+          crossValidationCalls += 1;
+          return Promise.resolve({
+            status: 'PASSED',
+            code: null,
+            evidence: {},
+            usage: {},
+            estimatedCostUsd: '0',
+            providerRequestId: null,
+          });
+        },
+      },
+      candidateRepository: {
+        persist: (input) => {
+          persisted = input;
+          return Promise.resolve(true);
+        },
+      },
+    });
+
+    await expect(
+      processor.process(workItem(), new AbortController().signal),
+    ).resolves.toMatchObject({
+      status: 'NEEDS_ATTENTION',
+      result: { total: 1, normal: 0, needsAttention: 0, failed: 1 },
+    });
+    expect(
+      persisted?.artifacts.validations.find(
+        ({ stage }) => stage === 'DECISION_RULE',
+      ),
+    ).toMatchObject({
+      status: 'FAILED',
+      code: 'QUESTION_RULE_INVALID',
+    });
+    expect(similarityCalls).toBe(0);
+    expect(crossValidationCalls).toBe(0);
   });
 
   it('한 후보의 provider 실패를 격리하고 다음 후보를 계속 처리한다', async () => {

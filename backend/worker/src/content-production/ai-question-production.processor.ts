@@ -433,7 +433,7 @@ export class AiQuestionProductionProcessor {
       );
       const rules =
         schema.status === 'PASSED'
-          ? validateQuestionDecisionRules(candidate)
+          ? validateQuestionDecisionRules(candidate, context)
           : {
               status: 'SKIPPED' as const,
               code: 'QUESTION_VALIDATION_SKIPPED' as const,

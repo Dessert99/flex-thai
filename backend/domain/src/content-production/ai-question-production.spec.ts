@@ -64,6 +64,26 @@ const makeValidationFixture = (
   return records;
 };
 
+const singleTokenSentence = {
+  originalText: 'ใช่',
+  translationKo: '예',
+  pronunciationKo: '차이',
+  toneMarks: '',
+  tokens: [
+    {
+      surface: 'ใช่',
+      startOffset: 0,
+      endOffset: 3,
+      vocabulary: { clientRef: 'vocabulary-yes' },
+      meaning: { clientRef: 'meaning-yes' },
+      pronunciation: { clientRef: 'pronunciation-yes' },
+      contextMeaningKo: '예',
+      role: 'TARGET' as const,
+    },
+  ],
+  expressions: [],
+};
+
 const candidate: GeneratedQuestionCandidate = {
   questionTypeVersionId: 'type-version-id',
   topicId: 'topic-id',
@@ -86,14 +106,7 @@ const candidate: GeneratedQuestionCandidate = {
       {
         clientRef: 'option-a',
         position: 0,
-        sentence: {
-          originalText: 'ใช่',
-          translationKo: '예',
-          pronunciationKo: '차이',
-          toneMarks: '',
-          tokens: [],
-          expressions: [],
-        },
+        sentence: singleTokenSentence,
         span: null,
       },
     ],
@@ -301,7 +314,13 @@ const productionContext: QuestionProductionContext = {
     version: 2,
     template: 'STANDARD_CHOICE',
     structureRules: { optionCount: 4, blockOrder: ['QUESTION'] },
-    generationRules: { maxSupportingVocabulary: 3 },
+    generationRules: {
+      allowedTopics: [
+        { id: 'topic-id', slug: 'daily-life', displayName: '일상' },
+      ],
+      allowedTags: [{ id: 'tag-id', slug: 'basic', displayName: '기초' }],
+      maxSupportingVocabulary: 3,
+    },
   },
   difficultyCriteria: [
     { difficulty: 1, criteria: '기초 어휘만 사용한다' },
@@ -348,6 +367,60 @@ const productionContext: QuestionProductionContext = {
   ],
   newAuxiliaryVocabularyLimit: 3,
   additionalInstructionKo: '학습자에게 자연스러운 한국어 해설을 제공하세요.',
+};
+
+const standardDecisionContext: QuestionProductionContext = {
+  ...productionContext,
+  typeVersion: {
+    ...productionContext.typeVersion,
+    version: 1,
+    structureRules: { optionCount: 1, template: 'STANDARD_CHOICE' },
+  },
+  targetVocabulary: [
+    {
+      thai: 'ใช่',
+      meaningKo: '예',
+      partOfSpeech: '부사',
+      difficulty: 1,
+    },
+  ],
+  requiredVocabulary: [],
+};
+
+const inlineDecisionContext: QuestionProductionContext = {
+  ...productionContext,
+  typeVersion: {
+    ...productionContext.typeVersion,
+    version: 1,
+    template: 'INLINE_SPAN_CHOICE',
+    structureRules: { optionCount: 1, template: 'INLINE_SPAN_CHOICE' },
+  },
+};
+
+const supportingVocabularyCandidate: GeneratedQuestionCandidate = {
+  ...candidate,
+  payload: {
+    ...candidate.payload,
+    options: [
+      {
+        clientRef: 'option-a',
+        position: 0,
+        sentence: {
+          ...singleTokenSentence,
+          originalText: 'ใหม่',
+          tokens: [
+            {
+              ...singleTokenSentence.tokens[0]!,
+              surface: 'ใหม่',
+              endOffset: 4,
+              role: 'SUPPORTING',
+            },
+          ],
+        },
+        span: null,
+      },
+    ],
+  },
 };
 
 describe('AI 문제 후보 검증 규칙', () => {
@@ -450,13 +523,247 @@ describe('AI 문제 후보 검증 규칙', () => {
     },
   );
 
-  it('존재하지 않는 정답 선택지는 결정 규칙 실패로 반환한다', () => {
+  it.each([
+    [
+      '음수 token 시작 offset',
+      {
+        ...singleTokenSentence,
+        tokens: [{ ...singleTokenSentence.tokens[0], startOffset: -1 }],
+      },
+    ],
+    [
+      '원문 밖 token 끝 offset',
+      {
+        ...singleTokenSentence,
+        tokens: [{ ...singleTokenSentence.tokens[0], endOffset: 4 }],
+      },
+    ],
+    [
+      '원문과 다른 token surface',
+      {
+        ...singleTokenSentence,
+        tokens: [{ ...singleTokenSentence.tokens[0], surface: 'ไม่' }],
+      },
+    ],
+    [
+      '겹치는 token 범위',
+      {
+        ...tokenizedSentence,
+        tokens: [
+          tokenizedSentence.tokens[0],
+          { ...tokenizedSentence.tokens[1], startOffset: 1 },
+        ],
+      },
+    ],
+    [
+      '역순 expression 범위',
+      {
+        ...tokenizedSentence,
+        expressions: [
+          { ...tokenizedSentence.expressions[0], startTokenIndex: 2 },
+        ],
+      },
+    ],
+    [
+      'token 범위 밖 expression',
+      {
+        ...tokenizedSentence,
+        expressions: [
+          { ...tokenizedSentence.expressions[0], endTokenIndex: 3 },
+        ],
+      },
+    ],
+    ['token이 없는 태국어 원문', { ...singleTokenSentence, tokens: [] }],
+  ])('%s은 schema 실패로 반환한다', (_label, sentence) => {
     expect(
-      validateQuestionDecisionRules({
+      validateGeneratedQuestionSchema({
         ...candidate,
-        payload: { ...candidate.payload, correctOptionRef: 'missing-option' },
+        payload: {
+          ...candidate.payload,
+          options: [
+            {
+              ...candidate.payload.options[0],
+              sentence,
+            },
+          ],
+        },
       }),
     ).toEqual({
+      status: 'FAILED',
+      code: 'QUESTION_SCHEMA_INVALID',
+    });
+  });
+
+  it('존재하지 않는 정답 선택지는 결정 규칙 실패로 반환한다', () => {
+    expect(
+      validateQuestionDecisionRules(
+        {
+          ...candidate,
+          payload: { ...candidate.payload, correctOptionRef: 'missing-option' },
+        },
+        standardDecisionContext,
+      ),
+    ).toEqual({
+      status: 'FAILED',
+      code: 'QUESTION_RULE_INVALID',
+    });
+  });
+
+  it.each([
+    [
+      '유형 버전 ID',
+      { ...candidate, questionTypeVersionId: 'other-version-id' },
+    ],
+    [
+      '유형 slug',
+      {
+        ...candidate,
+        payload: { ...candidate.payload, questionTypeSlug: 'other-type' },
+      },
+    ],
+    [
+      '유형 version',
+      {
+        ...candidate,
+        payload: { ...candidate.payload, questionTypeVersion: 2 },
+      },
+    ],
+    ['주제 ID', { ...candidate, topicId: 'other-topic-id' }],
+    [
+      '주제 slug',
+      {
+        ...candidate,
+        payload: { ...candidate.payload, topicSlug: 'other-topic' },
+      },
+    ],
+    ['태그 ID', { ...candidate, tagIds: ['other-tag-id'] }],
+    [
+      '태그 slug',
+      {
+        ...candidate,
+        payload: { ...candidate.payload, tagSlugs: ['other-tag'] },
+      },
+    ],
+  ])('%s가 생성 문맥과 다르면 결정 규칙 실패로 반환한다', (_label, input) => {
+    expect(
+      validateQuestionDecisionRules(input, standardDecisionContext),
+    ).toEqual({
+      status: 'FAILED',
+      code: 'QUESTION_RULE_INVALID',
+    });
+  });
+
+  it.each([
+    [
+      '유형별 optionCount',
+      {
+        context: {
+          ...standardDecisionContext,
+          typeVersion: {
+            ...standardDecisionContext.typeVersion,
+            structureRules: { optionCount: 2, template: 'STANDARD_CHOICE' },
+          },
+        },
+        input: candidate,
+      },
+    ],
+    [
+      'PASSAGE_CHOICE passage block',
+      {
+        context: {
+          ...standardDecisionContext,
+          typeVersion: {
+            ...standardDecisionContext.typeVersion,
+            template: 'PASSAGE_CHOICE' as const,
+            structureRules: { optionCount: 1, template: 'PASSAGE_CHOICE' },
+          },
+        },
+        input: candidate,
+      },
+    ],
+    [
+      'DIALOGUE_CHOICE dialogue block',
+      {
+        context: {
+          ...standardDecisionContext,
+          typeVersion: {
+            ...standardDecisionContext.typeVersion,
+            template: 'DIALOGUE_CHOICE' as const,
+            structureRules: { optionCount: 1, template: 'DIALOGUE_CHOICE' },
+          },
+        },
+        input: candidate,
+      },
+    ],
+    [
+      'INLINE_SPAN_CHOICE span option',
+      { context: inlineDecisionContext, input: candidate },
+    ],
+  ])(
+    '%s이 맞지 않으면 결정 규칙 실패로 반환한다',
+    (_label, { context, input }) => {
+      expect(validateQuestionDecisionRules(input, context)).toEqual({
+        status: 'FAILED',
+        code: 'QUESTION_RULE_INVALID',
+      });
+    },
+  );
+
+  it.each([
+    [
+      '필수 어휘가 없으면',
+      {
+        ...standardDecisionContext,
+        requiredVocabulary: [
+          {
+            thai: 'ต้อง',
+            meaningKo: '필요하다',
+            partOfSpeech: '동사',
+            difficulty: 1,
+          },
+        ],
+      },
+      candidate,
+    ],
+    [
+      '제외 어휘가 있으면',
+      {
+        ...standardDecisionContext,
+        excludedVocabulary: [
+          {
+            thai: 'ใช่',
+            meaningKo: '예',
+            partOfSpeech: '부사',
+            difficulty: 1,
+          },
+        ],
+      },
+      candidate,
+    ],
+    [
+      '제외 표현이 있으면',
+      {
+        ...inlineDecisionContext,
+        excludedVocabulary: [
+          {
+            thai: 'ไปไหน',
+            meaningKo: '어디에 가다',
+            partOfSpeech: '표현',
+            difficulty: 1,
+          },
+        ],
+      },
+      inlineCandidate,
+    ],
+    [
+      '신규 보조 어휘 한도를 넘으면',
+      { ...standardDecisionContext, newAuxiliaryVocabularyLimit: 0 },
+      supportingVocabularyCandidate,
+    ],
+  ] satisfies Array<
+    [string, QuestionProductionContext, GeneratedQuestionCandidate]
+  >)('%s 결정 규칙 실패로 반환한다', (_label, context, input) => {
+    expect(validateQuestionDecisionRules(input, context)).toEqual({
       status: 'FAILED',
       code: 'QUESTION_RULE_INVALID',
     });
@@ -508,13 +815,16 @@ describe('AI 문제 후보 검증 규칙', () => {
       }
 
       expect(
-        validateQuestionDecisionRules({
-          ...inlineCandidate,
-          payload: {
-            ...inlineCandidate.payload,
-            options: [{ ...option, span }],
+        validateQuestionDecisionRules(
+          {
+            ...inlineCandidate,
+            payload: {
+              ...inlineCandidate.payload,
+              options: [{ ...option, span }],
+            },
           },
-        }),
+          inlineDecisionContext,
+        ),
       ).toEqual({
         status: 'FAILED',
         code: 'QUESTION_RULE_INVALID',
@@ -523,7 +833,9 @@ describe('AI 문제 후보 검증 규칙', () => {
   );
 
   it('유효한 inline span은 결정 규칙을 통과한다', () => {
-    expect(validateQuestionDecisionRules(inlineCandidate)).toEqual({
+    expect(
+      validateQuestionDecisionRules(inlineCandidate, inlineDecisionContext),
+    ).toEqual({
       status: 'PASSED',
       code: null,
     });

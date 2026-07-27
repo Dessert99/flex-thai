@@ -7,6 +7,7 @@ import {
 import type {
   GeneratedQuestionCandidate,
   QuestionGenerationInput,
+  QuestionProductionContext,
 } from '@flex-thia/domain';
 import { FakeQuestionGenerationProvider } from './fake-question-generation.provider.js';
 
@@ -15,7 +16,18 @@ const sentence = {
   translationKo: '어느 것이 맞습니까?',
   pronunciationKo: '커 다이 툭 떵',
   toneMarks: '',
-  tokens: [],
+  tokens: [
+    {
+      surface: 'ข้อใดถูกต้อง',
+      startOffset: 0,
+      endOffset: 12,
+      vocabulary: { clientRef: 'vocabulary-question' },
+      meaning: { clientRef: 'meaning-question' },
+      pronunciation: { clientRef: 'pronunciation-question' },
+      contextMeaningKo: '어느 것이 맞는가',
+      role: 'TARGET' as const,
+    },
+  ],
   expressions: [],
 };
 
@@ -49,6 +61,38 @@ const candidate: GeneratedQuestionCandidate = {
   },
 };
 
+const context: QuestionProductionContext = {
+  commonPrinciples: [],
+  typeVersion: {
+    id: 'type-version-id',
+    slug: 'reading-choice',
+    version: 1,
+    template: 'STANDARD_CHOICE',
+    structureRules: { optionCount: 1, template: 'STANDARD_CHOICE' },
+    generationRules: {
+      allowedTopics: [
+        { id: 'topic-id', slug: 'daily-life', displayName: '일상' },
+      ],
+      allowedTags: [{ id: 'tag-id', slug: 'basic', displayName: '기초' }],
+    },
+  },
+  difficultyCriteria: [],
+  approvedExamples: [],
+  targetVocabulary: [
+    {
+      thai: 'ข้อใดถูกต้อง',
+      meaningKo: '어느 것이 맞는가',
+      partOfSpeech: '표현',
+      difficulty: 1,
+    },
+  ],
+  requiredVocabulary: [],
+  excludedVocabulary: [],
+  newAuxiliaryVocabularyLimit: 0,
+  similarQuestions: [],
+  additionalInstructionKo: null,
+};
+
 const input = (signal: AbortSignal): QuestionGenerationInput => ({
   prompt: {
     promptVersion: 'question-generation-v1',
@@ -79,10 +123,9 @@ describe('결정적 문제 생성 fake', () => {
       status: 'PASSED',
       code: null,
     });
-    expect(validateQuestionDecisionRules(replay.candidates[0]!)).toEqual({
-      status: 'PASSED',
-      code: null,
-    });
+    expect(
+      validateQuestionDecisionRules(replay.candidates[0]!, context),
+    ).toEqual({ status: 'PASSED', code: null });
     expect(replay).toMatchObject({
       usage: { inputTokens: 120, outputTokens: 80 },
       estimatedCostUsd: '0',
