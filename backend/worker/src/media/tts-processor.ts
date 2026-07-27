@@ -127,6 +127,12 @@ const asProviderFailure = (
   };
 };
 
+const isAbortError = (error: unknown): boolean =>
+  typeof error === 'object' &&
+  error !== null &&
+  'name' in error &&
+  error.name === 'AbortError';
+
 const waitForPoll = (signal: AbortSignal): Promise<void> =>
   new Promise((resolve, reject) => {
     if (signal.aborted) {
@@ -190,9 +196,12 @@ export class TtsProcessor {
     let claim: UsableAudioClaim | null;
     try {
       claim = await this.waitForAudioClaim(item, signal);
-    } catch {
+    } catch (error) {
       await this.recordFailure(item, {
-        errorCode: 'TTS_PROCESS_ABORTED',
+        errorCode:
+          signal.aborted || isAbortError(error)
+            ? 'TTS_PROCESS_ABORTED'
+            : 'TTS_CACHE_CLAIM_FAILED',
         retryable: true,
       });
       return;

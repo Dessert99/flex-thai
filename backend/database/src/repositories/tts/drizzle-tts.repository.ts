@@ -13,7 +13,7 @@ import {
   type TtsTargetSnapshot,
   type TtsWorkItem,
 } from '@flex-thia/domain';
-import { and, eq, inArray, lte, or } from 'drizzle-orm';
+import { and, eq, inArray, isNull, lte, or } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import { mediaAssets } from '../../schema/media.schema.js';
@@ -27,6 +27,8 @@ export type TtsRepositoryTransaction = Parameters<
 type TtsItemRow = typeof ttsItems.$inferSelect;
 
 const leaseDurationMs = 5 * 60 * 1000;
+/** GENERATING claim이 무한 WAIT로 남지 않게 불명확 결과로 닫는 상한 */
+export const ttsAudioGenerationClaimTtlMs = 5 * 60 * 1000;
 
 /** 생성 완료와 READY 재사용 완료를 cache 소유권 유무로 구분한다 */
 export type CompleteTtsAudioInput =
@@ -321,6 +323,49 @@ const finalizeOwnedAudioClaim = async (
   return finalized !== undefined;
 };
 
+const resolveExistingAudioClaim = async (
+  transaction: TtsRepositoryTransaction,
+  row: typeof ttsAudioCache.$inferSelect,
+  now: Date,
+): Promise<
+  | { kind: 'REUSE'; mediaAssetId: string }
+  | { kind: 'WAIT' }
+  | { kind: 'OUTCOME_UNKNOWN' }
+> => {
+  if (row.status === 'READY' && row.mediaAssetId !== null) {
+    return { kind: 'REUSE', mediaAssetId: row.mediaAssetId };
+  }
+  if (row.status === 'OUTCOME_UNKNOWN') return { kind: 'OUTCOME_UNKNOWN' };
+  if (
+    row.claimedAt !== null &&
+    row.claimedAt.getTime() > now.getTime() - ttsAudioGenerationClaimTtlMs
+  ) {
+    return { kind: 'WAIT' };
+  }
+
+  const [expired] = await transaction
+    .update(ttsAudioCache)
+    .set({
+      status: 'OUTCOME_UNKNOWN',
+      claimToken: null,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(ttsAudioCache.id, row.id),
+        eq(ttsAudioCache.status, 'GENERATING'),
+        row.claimToken === null
+          ? isNull(ttsAudioCache.claimToken)
+          : eq(ttsAudioCache.claimToken, row.claimToken),
+        row.claimedAt === null
+          ? isNull(ttsAudioCache.claimedAt)
+          : eq(ttsAudioCache.claimedAt, row.claimedAt),
+      ),
+    )
+    .returning({ id: ttsAudioCache.id });
+  return expired ? { kind: 'OUTCOME_UNKNOWN' } : { kind: 'WAIT' };
+};
+
 /** TTS lease와 cache unique claim을 PostgreSQL 조건부 전이로 구현한다 */
 export class DrizzleTtsRepository implements TtsRepository {
   constructor(
@@ -435,6 +480,7 @@ export class DrizzleTtsRepository implements TtsRepository {
     | { kind: 'WAIT' }
     | { kind: 'OUTCOME_UNKNOWN' }
   > {
+    const claimedAt = this.now();
     return this.database.transaction(async (transaction) => {
       const [existing] = await transaction
         .select()
@@ -443,16 +489,10 @@ export class DrizzleTtsRepository implements TtsRepository {
         .for('update')
         .limit(1);
       if (existing) {
-        if (existing.status === 'READY' && existing.mediaAssetId !== null) {
-          return { kind: 'REUSE', mediaAssetId: existing.mediaAssetId };
-        }
-        return existing.status === 'OUTCOME_UNKNOWN'
-          ? { kind: 'OUTCOME_UNKNOWN' }
-          : { kind: 'WAIT' };
+        return resolveExistingAudioClaim(transaction, existing, claimedAt);
       }
 
       const claimToken = randomUUID();
-      const claimedAt = this.now();
       const [inserted] = await transaction
         .insert(ttsAudioCache)
         .values({
@@ -471,12 +511,10 @@ export class DrizzleTtsRepository implements TtsRepository {
         .select()
         .from(ttsAudioCache)
         .where(eq(ttsAudioCache.cacheKey, cacheKey))
+        .for('update')
         .limit(1);
-      if (concurrent?.status === 'READY' && concurrent.mediaAssetId !== null) {
-        return { kind: 'REUSE', mediaAssetId: concurrent.mediaAssetId };
-      }
-      return concurrent?.status === 'OUTCOME_UNKNOWN'
-        ? { kind: 'OUTCOME_UNKNOWN' }
+      return concurrent
+        ? resolveExistingAudioClaim(transaction, concurrent, claimedAt)
         : { kind: 'WAIT' };
     });
   }

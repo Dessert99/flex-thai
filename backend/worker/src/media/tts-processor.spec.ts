@@ -55,6 +55,7 @@ class MemoryTtsRepository implements TtsProcessorRepository {
   readonly attachments: Array<{ itemId: string; mediaAssetId: string }> = [];
   readonly readyByCacheKey = new Map<string, string>();
   readonly generating = new Set<string>();
+  readonly staleGenerating = new Set<string>();
   readonly outcomeUnknown = new Set<string>();
   readonly processing = new Set<string>();
   readonly finalizedClaims: Array<{
@@ -66,6 +67,7 @@ class MemoryTtsRepository implements TtsProcessorRepository {
     'STALE_LEASE' | 'STALE_CACHE_CLAIM' | 'STALE_TARGET' | 'MEDIA_CONFLICT'
   >();
   waitClaims = 0;
+  claimAudioError: Error | null = null;
   afterClaim: (() => void) | null = null;
   private failedCount = 0;
 
@@ -85,12 +87,18 @@ class MemoryTtsRepository implements TtsProcessorRepository {
   claimAudio(
     cacheKey: string,
   ): ReturnType<TtsProcessorRepository['claimAudio']> {
+    if (this.claimAudioError) return Promise.reject(this.claimAudioError);
     const ready = this.readyByCacheKey.get(cacheKey);
     if (ready) return Promise.resolve({ kind: 'REUSE', mediaAssetId: ready });
     if (this.outcomeUnknown.has(cacheKey)) {
       return Promise.resolve({ kind: 'OUTCOME_UNKNOWN' });
     }
     if (this.generating.has(cacheKey)) {
+      if (this.staleGenerating.has(cacheKey)) {
+        this.generating.delete(cacheKey);
+        this.outcomeUnknown.add(cacheKey);
+        return Promise.resolve({ kind: 'OUTCOME_UNKNOWN' });
+      }
       this.waitClaims += 1;
       return Promise.resolve({ kind: 'WAIT' });
     }
@@ -373,6 +381,46 @@ describe('TtsProcessor 음성 생성과 재사용', () => {
     expect(repository.failed).toEqual([]);
   });
 
+  it('item lease 만료 뒤 reclaim되어도 stale cache claim은 OUTCOME_UNKNOWN으로 끝나 무한 WAIT하지 않는다', async () => {
+    const first = workItem('reclaimed', 'stale-cache-key');
+    const repository = new MemoryTtsRepository([first]);
+    repository.generating.add(first.cacheKey);
+    let clock = new Date(now);
+    const provider = createProvider();
+    const processor = new TtsProcessor(
+      repository,
+      provider,
+      createStore(),
+      () => clock,
+      () => {
+        clock = new Date(first.leaseUntil);
+        return Promise.resolve();
+      },
+    );
+
+    await expect(
+      processor.process(jobId, new AbortController().signal),
+    ).resolves.toBe('RUNNING');
+
+    repository.enqueue({
+      ...first,
+      leaseToken: 'reclaimed-lease',
+      leaseUntil: new Date(first.leaseUntil.getTime() + 5 * 60 * 1000),
+    });
+    repository.staleGenerating.add(first.cacheKey);
+    await expect(
+      processor.process(jobId, new AbortController().signal),
+    ).resolves.toBe('FAILED');
+    expect(repository.outcomeUnknown.has(first.cacheKey)).toBe(true);
+    expect(provider.synthesize).not.toHaveBeenCalled();
+    expect(repository.failed).toEqual([
+      expect.objectContaining({
+        errorCode: 'TTS_PROVIDER_OUTCOME_UNKNOWN',
+        retryable: false,
+      }),
+    ]);
+  });
+
   it('GENERATING 대기 중 signal abort는 다른 worker의 claim을 건드리지 않고 현재 item만 실패시킨다', async () => {
     const controller = new AbortController();
     const item = workItem('wait-abort', 'external-key');
@@ -397,6 +445,26 @@ describe('TtsProcessor 음성 생성과 재사용', () => {
     expect(repository.generating.has(item.cacheKey)).toBe(true);
     expect(repository.failed).toEqual([
       expect.objectContaining({ errorCode: 'TTS_PROCESS_ABORTED' }),
+    ]);
+  });
+
+  it('cache claim DB 실패는 abort로 위장하지 않고 안정적인 retryable 실패를 남긴다', async () => {
+    const repository = new MemoryTtsRepository([workItem('db-failure')]);
+    repository.claimAudioError = new Error('database unavailable');
+
+    await expect(
+      new TtsProcessor(
+        repository,
+        createProvider(),
+        createStore(),
+        () => now,
+      ).process(jobId, new AbortController().signal),
+    ).resolves.toBe('FAILED');
+    expect(repository.failed).toEqual([
+      expect.objectContaining({
+        errorCode: 'TTS_CACHE_CLAIM_FAILED',
+        retryable: true,
+      }),
     ]);
   });
 });

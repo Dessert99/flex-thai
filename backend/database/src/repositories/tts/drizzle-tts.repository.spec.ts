@@ -3,7 +3,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { mediaAssets } from '../../schema/media.schema.js';
 import { ttsAudioCache, ttsItems, ttsJobs } from '../../schema/tts.schema.js';
-import { DrizzleTtsRepository } from './drizzle-tts.repository.js';
+import {
+  DrizzleTtsRepository,
+  ttsAudioGenerationClaimTtlMs,
+} from './drizzle-tts.repository.js';
 
 const now = new Date('2026-07-27T05:00:00.000Z');
 const jobId = '00000000-0000-4000-8000-000000000001';
@@ -161,7 +164,7 @@ describe('DrizzleTtsRepository 음성 claim', () => {
     );
     const secondSelect = createSelect(
       [],
-      [{ status: 'GENERATING', mediaAssetId: null }],
+      [{ status: 'GENERATING', mediaAssetId: null, claimedAt: now }],
     );
     const secondInsert = createInsert([]);
     const second = new DrizzleTtsRepository(
@@ -199,6 +202,7 @@ describe('DrizzleTtsRepository 음성 claim', () => {
         transaction: passthroughTransaction({ select, insert }),
       } as never,
       { attach: async () => 'ATTACHED' },
+      () => now,
     );
 
     await expect(repository.claimAudio('ready-key')).resolves.toEqual({
@@ -209,7 +213,9 @@ describe('DrizzleTtsRepository 음성 claim', () => {
   });
 
   it('남은 generating claim은 외부 호출 대신 DB 재확인 대기를 반환한다', async () => {
-    const select = createSelect([{ status: 'GENERATING', mediaAssetId: null }]);
+    const select = createSelect([
+      { status: 'GENERATING', mediaAssetId: null, claimedAt: now },
+    ]);
     const insert = createInsert();
     const repository = new DrizzleTtsRepository(
       {
@@ -218,12 +224,77 @@ describe('DrizzleTtsRepository 음성 claim', () => {
         transaction: passthroughTransaction({ select, insert }),
       } as never,
       { attach: async () => 'ATTACHED' },
+      () => now,
     );
 
     await expect(repository.claimAudio('active-key')).resolves.toEqual({
       kind: 'WAIT',
     });
     expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('TTL이 지난 GENERATING claim은 token 조건으로 OUTCOME_UNKNOWN에 고정한다', async () => {
+    const staleClaimedAt = new Date(
+      now.getTime() - ttsAudioGenerationClaimTtlMs - 1,
+    );
+    const select = createSelect([
+      {
+        id: 'cache-id',
+        cacheKey: 'stale-key',
+        status: 'GENERATING',
+        claimToken: 'stale-token',
+        claimedAt: staleClaimedAt,
+        mediaAssetId: null,
+      },
+    ]);
+    const { update, updates } = createUpdate([{ id: 'cache-id' }]);
+    const repository = new DrizzleTtsRepository(
+      {
+        select,
+        update,
+        transaction: passthroughTransaction({ select, update }),
+      } as never,
+      { attach: async () => 'ATTACHED' },
+      () => now,
+    );
+
+    await expect(repository.claimAudio('stale-key')).resolves.toEqual({
+      kind: 'OUTCOME_UNKNOWN',
+    });
+    expect(
+      updates.find((entry) => entry.table === ttsAudioCache)?.values,
+    ).toMatchObject({
+      status: 'OUTCOME_UNKNOWN',
+      claimToken: null,
+    });
+  });
+
+  it('만료 전이 중 token이 바뀌면 새 소유권을 덮지 않고 WAIT로 재확인한다', async () => {
+    const select = createSelect([
+      {
+        id: 'cache-id',
+        cacheKey: 'raced-key',
+        status: 'GENERATING',
+        claimToken: 'observed-token',
+        claimedAt: new Date(now.getTime() - ttsAudioGenerationClaimTtlMs - 1),
+        mediaAssetId: null,
+      },
+    ]);
+    const { update, updates } = createUpdate([]);
+    const repository = new DrizzleTtsRepository(
+      {
+        select,
+        update,
+        transaction: passthroughTransaction({ select, update }),
+      } as never,
+      { attach: async () => 'ATTACHED' },
+      () => now,
+    );
+
+    await expect(repository.claimAudio('raced-key')).resolves.toEqual({
+      kind: 'WAIT',
+    });
+    expect(updates).toHaveLength(1);
   });
 
   it('명시적으로 고정된 OUTCOME_UNKNOWN cache만 재합성을 금지한다', async () => {
