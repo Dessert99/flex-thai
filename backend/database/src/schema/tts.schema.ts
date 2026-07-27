@@ -1,6 +1,8 @@
 /** 자동 TTS 요청·항목·음성 재사용 claim과 완료 음성 자산을 저장한다 */
+import { sql } from 'drizzle-orm';
 import {
   boolean,
+  check,
   integer,
   jsonb,
   pgEnum,
@@ -180,5 +182,9 @@ export const ttsAudioCache = pgTable(
   },
   (table) => [
     uniqueIndex('tts_audio_cache_cache_key_unique').on(table.cacheKey),
+    check(
+      'tts_audio_cache_ready_metadata_consistent',
+      sql`${table.status} <> 'READY' or (${table.mediaAssetId} is not null and ${table.readyMetadataRevision} is not null and ${table.readyAt} is not null)`,
+    ),
   ],
 );

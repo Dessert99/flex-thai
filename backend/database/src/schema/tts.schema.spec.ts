@@ -1,5 +1,5 @@
 /** 자동 TTS schema의 재사용 key와 항목 snapshot 무결성을 검증한다 */
-import { getTableConfig } from 'drizzle-orm/pg-core';
+import { getTableConfig, PgDialect } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 import {
   ttsAudioCache,
@@ -60,5 +60,20 @@ describe('자동 TTS 데이터베이스 schema', () => {
   it('재시도 attempt는 필수이고 worker lease는 비어 있을 수 있다', () => {
     expect(ttsItems.attempt.notNull).toBe(true);
     expect(ttsItems.leaseToken.notNull).toBe(false);
+  });
+
+  it('READY cache는 완료 음성 자산과 metadata revision 시각을 모두 요구한다', () => {
+    const constraint = getTableConfig(ttsAudioCache).checks.find(
+      ({ name }) => name === 'tts_audio_cache_ready_metadata_consistent',
+    );
+
+    expect(constraint?.name).toBe('tts_audio_cache_ready_metadata_consistent');
+    expect(
+      constraint === undefined
+        ? undefined
+        : new PgDialect().sqlToQuery(constraint.value).sql,
+    ).toBe(
+      `"tts_audio_cache"."status" <> 'READY' or ("tts_audio_cache"."media_asset_id" is not null and "tts_audio_cache"."ready_metadata_revision" is not null and "tts_audio_cache"."ready_at" is not null)`,
+    );
   });
 });
