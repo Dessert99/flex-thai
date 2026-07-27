@@ -4,7 +4,7 @@
 
 **Goal:** Wave 5 세 feature branch를 충돌 없이 조립하고 nullable DRAFT audio, TTS 게시 차단, runtime/API/infra, 단일 migration과 실제 PostgreSQL 검증을 완료해 local main에 통합한다.
 
-**Architecture:** feature branch는 leaf module과 테스트를 제공하고 integration branch가 공용 barrel·DI·dispatcher·OpenAPI·infra route를 한 번만 수정한다. AI 문제 후보 승인으로 nullable-audio DRAFT를 만들고 TTS 성공 transaction이 media를 연결하며 게시 service가 READY 여부를 다시 검증한다. 모든 schema diff는 하나의 Drizzle migration으로 생성하고 실제 PostgreSQL에서 migration·seed·동시성·rollback을 검증한다.
+**Architecture:** feature branch는 leaf module과 테스트를 제공하고 integration branch가 공용 barrel·DI·dispatcher·OpenAPI·infra route를 한 번만 수정한다. AI 문제 후보 승인으로 nullable-audio DRAFT와 TTS job·durable dispatch outbox를 한 transaction에서 만들고, retry도 item 상태 전이와 outbox 기록을 원자화한다. TTS provider run은 사용량·예상 비용·request ID와 outcome을 attempt별로 멱등 저장한다. TTS 성공 transaction이 검증된 media를 연결하며 게시 service가 READY 여부를 다시 검증한다. DB 완료 뒤 남은 immutable object는 참조 확인형 GC queue와 lifecycle policy로 정리한다. 모든 schema diff는 하나의 Drizzle migration으로 생성하고 실제 PostgreSQL에서 migration·seed·동시성·rollback·outbox redelivery를 검증한다.
 
 **Tech Stack:** TypeScript 6, NestJS 11, Drizzle ORM, PostgreSQL 16, AWS CDK, React 19, Vitest, Docker Compose
 
@@ -20,6 +20,13 @@
 - Docker는 PostgreSQL·최종 smoke 구간에서만 실행하고 즉시 내린다.
 - `docker compose down -v`를 실행하지 않는다.
 - E2E runner/spec을 추가하지 않는다.
+- `TtsRetryCoordinator.retryAndDispatch` 성공은 retry 상태 전이와 durable
+  queue/outbox handoff가 함께 commit됐음을 뜻한다. repository retry 뒤
+  best-effort queue send 구현은 금지한다.
+- provider success 전후 crash에서도 TTS usage/cost를 중복 계상하지 않도록
+  item attempt별 provider-run claim/outcome을 멱등 저장한다.
+- object store write 뒤 DB 완료 실패는 참조 확인형 GC record 또는 동등한
+  lifecycle cleanup으로 수렴해야 한다.
 
 ---
 
@@ -209,8 +216,10 @@ interface GeneratedDraftSentenceInput
 
 **Interfaces:**
 
-- Implements: `TtsTargetAttachmentRepository`,
+- Implements: DB-local `TtsTargetAttachmentWriter`,
   `ContentTtsReadinessRepository`
+- `TtsTargetAttachmentWriter.attach(transaction, input)`은
+  `DrizzleTtsRepository.succeed`가 넘긴 동일 transaction을 사용한다.
 - `QuestionPublicationService` consumes readiness before publishing
 
 - [ ] **Step 1: Write failing attachment tests**
@@ -251,6 +260,14 @@ interface GeneratedDraftSentenceInput
 - Modify worker media task/runtime files or create
   `backend/worker/src/media/tts-task.ts`
 - Modify provider/runtime factories used by local and production modes
+- Create/Modify: TTS dispatch outbox schema, repository and relay under
+  `backend/database/src/schema`, `backend/database/src/repositories/tts`,
+  `backend/worker/src/media`
+- Create/Modify: TTS provider-run schema/repository under the same TTS
+  database feature
+- Create/Modify: unreferenced audio GC record/repository and worker cleanup task
+- Modify generated draft approval adapter to create initial TTS job and dispatch
+  outbox in its existing approval transaction
 
 **Interfaces:**
 
@@ -258,6 +275,16 @@ interface GeneratedDraftSentenceInput
 - TTS queue/task dispatches `TtsProcessor`
 - Local/test mode uses deterministic providers
 - Production mode without provider config uses explicit unavailable processors
+- Generated draft approval atomically writes target snapshots, TTS job/items and
+  a durable dispatch outbox record. Request replay creates neither a second job
+  nor a second outbox record.
+- `TtsRetryCoordinator.retryAndDispatch` atomically applies optimistic retry and
+  writes an outbox record. A relay claims outbox rows with lease/redelivery and
+  marks delivery only after queue acceptance.
+- TTS provider-run claim/outcome stores item ID, attempt, cache claim, provider,
+  model, usage, estimated cost and provider request ID exactly once.
+- DB completion failure after object write registers the storage key for
+  reference-checking GC. GC deletes only when no READY media/cache references it.
 
 - [ ] **Step 1: Write failing dispatcher tests**
 
@@ -270,17 +297,32 @@ interface GeneratedDraftSentenceInput
   One event invokes one job, batch partial failures are item results rather than
   Lambda-wide failure, invalid event is terminal.
 
-- [ ] **Step 3: Run Red**
+- [ ] **Step 3: Write failing durable orchestration tests**
+
+  다음을 고정한다.
+
+  - first approval → nullable-audio DRAFT + one TTS job + one outbox row
+  - approval request replay → same job, no duplicate outbox
+  - retry transition + outbox insert rollback together
+  - dispatch failure leaves an undelivered outbox row and relay redelivery
+  - duplicate relay delivery does not duplicate provider calls or usage/cost
+  - provider success/unknown/failure stores one provider run per item attempt
+  - DB completion rejection registers object GC; referenced READY object is not
+    deleted and unreferenced object is eventually removed
+
+- [ ] **Step 4: Run Red**
 
   Run:
   `pnpm exec vitest run backend/worker/src/content-production/content-production-dispatcher.spec.ts backend/worker/src/content-production-task.spec.ts backend/worker/src/media`
 
-- [ ] **Step 4: Assemble runtime**
+- [ ] **Step 5: Assemble runtime and durable relays**
 
   Keep external provider unavailable path explicit. Do not add provider package,
-  model ID or credential.
+  model ID or credential. Use the shared database transaction for initial
+  approval/job/outbox and retry/outbox. Queue send and object delete remain
+  relay side effects after commit.
 
-- [ ] **Step 5: Verify and commit**
+- [ ] **Step 6: Verify and commit**
 
   Run worker tests and typecheck.
 
@@ -344,6 +386,7 @@ interface GeneratedDraftSentenceInput
 **Interfaces:**
 
 - Migration includes AI question tables, TTS tables and nullable sentence media
+- Migration also includes TTS dispatch outbox, provider runs and audio GC records
 - Seed includes deterministic active type examples, voice preset and TTS-ready
   local fixtures
 
@@ -358,7 +401,9 @@ interface GeneratedDraftSentenceInput
 - [ ] **Step 2: Write failing static migration tests**
 
   Journal/snapshot continuity, nullable column, unique candidate/validation/cache
-  keys, FK and check constraints, no destructive published-data rewrite.
+  keys, outbox delivery/idempotency keys, provider-run item-attempt uniqueness,
+  GC storage-key uniqueness, FK and check constraints, no destructive
+  published-data rewrite.
 
 - [ ] **Step 3: Write failing seed tests**
 
@@ -407,7 +452,13 @@ interface GeneratedDraftSentenceInput
 - [ ] **Step 4: Reset and run TTS DB tests sequentially**
 
   Reset/seed again, set `TTS_TEST_DATABASE_URL`, and run cache claim, reuse,
-  partial failure, retry, attachment and readiness specs.
+  partial failure, retry, attachment and readiness specs. Also run:
+
+  - two-connection cache claim and media/cache/item/attachment rollback
+  - initial approval/job/outbox atomicity and request replay
+  - retry/outbox rollback, lease/redelivery and duplicate delivery
+  - provider-run usage/cost exact-once persistence across replay
+  - object GC registration and reference-safe deletion
 
 - [ ] **Step 5: Reset and run learner query DB case**
 
@@ -430,7 +481,9 @@ interface GeneratedDraftSentenceInput
 - [ ] **Step 1: Request code review**
 
   Review security/redaction, transactions, state transitions, schema/migration,
-  API/OpenAPI/infra and UI contract. Fix every Critical/Important finding.
+  API/OpenAPI/infra and UI contract. Explicitly review initial TTS job creation,
+  retry durable dispatch, provider usage/cost exact-once accounting and object
+  GC convergence. Fix every Critical/Important finding.
 
 - [ ] **Step 2: Run full check**
 
