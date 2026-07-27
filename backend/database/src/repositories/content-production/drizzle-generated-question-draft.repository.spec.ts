@@ -118,10 +118,12 @@ type FakeOptions = {
   insertFailureTable?: unknown;
   meaningVocabularyId?: string;
   typeStatus?: 'ACTIVE' | 'DRAFT';
+  vocabularyStatus?: 'HIDDEN' | 'PUBLISHED';
 };
 
 const createFake = (options: FakeOptions = {}) => {
   const inserts: Array<{ table: unknown; values: unknown }> = [];
+  const locks: Array<{ mode: string; table: unknown }> = [];
   const rows = new Map<unknown, unknown[]>([
     [
       questionTypeVersions,
@@ -142,9 +144,21 @@ const createFake = (options: FakeOptions = {}) => {
     [
       vocabularies,
       [
-        { id: IDS.vocabulary, kind: 'WORD', status: 'PUBLISHED' },
-        { id: IDS.vocabularyTwo, kind: 'WORD', status: 'PUBLISHED' },
-        { id: IDS.expression, kind: 'EXPRESSION', status: 'PUBLISHED' },
+        {
+          id: IDS.vocabulary,
+          kind: 'WORD',
+          status: options.vocabularyStatus ?? 'PUBLISHED',
+        },
+        {
+          id: IDS.vocabularyTwo,
+          kind: 'WORD',
+          status: options.vocabularyStatus ?? 'PUBLISHED',
+        },
+        {
+          id: IDS.expression,
+          kind: 'EXPRESSION',
+          status: options.vocabularyStatus ?? 'PUBLISHED',
+        },
       ],
     ],
     [
@@ -177,7 +191,11 @@ const createFake = (options: FakeOptions = {}) => {
       const query: Record<string, unknown> & PromiseLike<unknown[]> = {
         innerJoin: vi.fn(() => query),
         where: vi.fn(() => query),
-        for: vi.fn(() => query),
+        orderBy: vi.fn(() => query),
+        for: vi.fn((mode: string) => {
+          locks.push({ mode, table });
+          return query;
+        }),
         limit: vi.fn(() => Promise.resolve(selectedRows)),
         then: (resolve, reject) =>
           Promise.resolve(selectedRows).then(resolve, reject),
@@ -197,6 +215,7 @@ const createFake = (options: FakeOptions = {}) => {
   }));
   return {
     inserts,
+    locks,
     transaction: { insert, select },
   };
 };
@@ -282,6 +301,21 @@ describe('Drizzle 생성 문제 DRAFT 저장소', () => {
     ]);
   });
 
+  it('활성 상태와 canonical 참조를 비키 상태 전이까지 막는 SHARE로 잠근다', async () => {
+    const fake = createFake();
+
+    await createRepository().createDraft(fake.transaction as never, input());
+
+    expect(fake.locks).toEqual([
+      { mode: 'share', table: questionTypeVersions },
+      { mode: 'share', table: questionTopics },
+      { mode: 'share', table: questionTags },
+      { mode: 'share', table: vocabularies },
+      { mode: 'key share', table: vocabularyMeanings },
+      { mode: 'key share', table: vocabularyPronunciations },
+    ]);
+  });
+
   it('후보 ID와 일치하지 않는 유형·주제 payload는 쓰기 전에 거절한다', async () => {
     const fake = createFake();
 
@@ -328,6 +362,17 @@ describe('Drizzle 생성 문제 DRAFT 저장소', () => {
       code: 'QUESTION_CANDIDATE_NOT_APPROVABLE',
     });
     expect(mismatch.inserts).toEqual([]);
+  });
+
+  it('게시 중이 아닌 canonical 어휘는 graph 쓰기 전에 거절한다', async () => {
+    const fake = createFake({ vocabularyStatus: 'HIDDEN' });
+
+    await expect(
+      createRepository().createDraft(fake.transaction as never, input()),
+    ).rejects.toMatchObject({
+      code: 'QUESTION_CANDIDATE_NOT_APPROVABLE',
+    });
+    expect(fake.inserts).toEqual([]);
   });
 
   it('graph 중간 insert 실패를 삼키지 않아 outer transaction rollback을 유지한다', async () => {

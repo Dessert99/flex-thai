@@ -12,7 +12,7 @@ import {
   type ThaiExpressionOccurrenceInput,
   type ThaiTokenOccurrenceInput,
 } from '@flex-thia/domain';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray } from 'drizzle-orm';
 import {
   expressionOccurrences,
   questionBlocks,
@@ -199,7 +199,8 @@ const loadCanonicalReferences = async (
           })
           .from(vocabularies)
           .where(inArray(vocabularies.id, ids.vocabularyIds))
-          .for('key share');
+          .orderBy(asc(vocabularies.id))
+          .for('share');
   const meaningRows =
     ids.meaningIds.length === 0
       ? []
@@ -210,6 +211,7 @@ const loadCanonicalReferences = async (
           })
           .from(vocabularyMeanings)
           .where(inArray(vocabularyMeanings.id, ids.meaningIds))
+          .orderBy(asc(vocabularyMeanings.id))
           .for('key share');
   const pronunciationRows =
     ids.pronunciationIds.length === 0
@@ -221,6 +223,7 @@ const loadCanonicalReferences = async (
           })
           .from(vocabularyPronunciations)
           .where(inArray(vocabularyPronunciations.id, ids.pronunciationIds))
+          .orderBy(asc(vocabularyPronunciations.id))
           .for('key share');
 
   if (
@@ -242,7 +245,9 @@ const loadCanonicalReferences = async (
       record,
     ]),
   );
-  if ([...vocabularyById.values()].some(({ status }) => status === 'MERGED')) {
+  if (
+    [...vocabularyById.values()].some(({ status }) => status !== 'PUBLISHED')
+  ) {
     notApprovable();
   }
   return { meaningById, pronunciationById, vocabularyById };
@@ -556,7 +561,7 @@ export class DrizzleGeneratedQuestionDraftRepository implements GeneratedQuestio
           ),
         ),
       )
-      .for('key share')
+      .for('share')
       .limit(2);
     if (!typeVersion) return notApprovable();
     if (
@@ -578,7 +583,7 @@ export class DrizzleGeneratedQuestionDraftRepository implements GeneratedQuestio
           eq(questionTopics.status, 'ACTIVE'),
         ),
       )
-      .for('key share')
+      .for('share')
       .limit(2);
     if (!topic) return notApprovable();
     if (
@@ -600,7 +605,8 @@ export class DrizzleGeneratedQuestionDraftRepository implements GeneratedQuestio
                 eq(questionTags.status, 'ACTIVE'),
               ),
             )
-            .for('key share');
+            .orderBy(asc(questionTags.id))
+            .for('share');
     const tagBySlug = new Map(tagRows.map((tag) => [tag.slug, tag.id]));
     if (
       tagRows.length !== input.candidate.payload.tagSlugs.length ||
