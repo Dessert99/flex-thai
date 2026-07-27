@@ -57,5 +57,8 @@ describe('문제 분류 설정 조회 조립', () => {
       1,
     );
     expect(result.topics[0]?.slug).toBe('general');
+    expect(result.questionTypes[0]?.versions[0]).not.toHaveProperty(
+      'questionTypeId',
+    );
   });
 });

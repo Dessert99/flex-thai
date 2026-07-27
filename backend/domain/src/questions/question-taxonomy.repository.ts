@@ -29,7 +29,7 @@ export interface QuestionApprovedExampleSnapshot {
     difficulty: number;
     options: Array<{ clientRef: string }>;
     correctOptionRef: string;
-    blocks?: Array<{ kind: string }>;
+    blocks: Array<{ kind: string }>;
     [key: string]: unknown;
   };
 }

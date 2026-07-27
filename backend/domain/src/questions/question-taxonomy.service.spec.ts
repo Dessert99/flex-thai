@@ -84,6 +84,7 @@ describe('QuestionTaxonomyService', () => {
         payloadHash: 'hash',
         payload: {
           difficulty: 3,
+          blocks: [{ kind: 'QUESTION' }],
           options: [
             { clientRef: 'a' },
             { clientRef: 'b' },
@@ -109,6 +110,7 @@ describe('QuestionTaxonomyService', () => {
           payloadHash: 'hash',
           payload: {
             difficulty: 3,
+            blocks: [{ kind: 'QUESTION' }],
             options: [
               { clientRef: 'a' },
               { clientRef: 'b' },
@@ -126,6 +128,26 @@ describe('QuestionTaxonomyService', () => {
     await service.activateVersion('version-1');
 
     expect(repo.activateVersion).toHaveBeenCalledWith('version-1');
+  });
+
+  it('승인 예시 block 구조가 유형 템플릿과 다르면 거부한다', async () => {
+    const repo = repository(
+      draft({ template: 'PASSAGE_CHOICE', optionCount: 4 }),
+    );
+    const service = new QuestionTaxonomyService(repo);
+
+    await expect(
+      service.addApprovedExample('version-1', {
+        title: '지문이 없는 예시',
+        payloadHash: 'hash',
+        payload: {
+          difficulty: 3,
+          blocks: [{ kind: 'QUESTION' }],
+          options: ['a', 'b', 'c', 'd'].map((clientRef) => ({ clientRef })),
+          correctOptionRef: 'a',
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'APPROVED_EXAMPLE_INVALID' });
   });
 
   it('준비되지 않은 버전과 활성 버전의 내용 변경을 거부한다', async () => {

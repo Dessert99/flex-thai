@@ -52,6 +52,16 @@ const isValidExample = (
   example: QuestionApprovedExampleSnapshot,
 ): boolean => {
   const refs = example.payload.options.map(({ clientRef }) => clientRef);
+  const blockKinds = example.payload.blocks.map(({ kind }) => kind);
+  const count = (kind: string) =>
+    blockKinds.filter((candidate) => candidate === kind).length;
+  const hasCommonStructure =
+    count('QUESTION') === 1 &&
+    (version.template === 'PASSAGE_CHOICE'
+      ? count('PASSAGE') === 1 && count('DIALOGUE') === 0
+      : version.template === 'DIALOGUE_CHOICE'
+        ? count('DIALOGUE') === 1 && count('PASSAGE') === 0
+        : count('PASSAGE') === 0 && count('DIALOGUE') === 0);
   return (
     example.title.trim().length > 0 &&
     example.payloadHash.length > 0 &&
@@ -60,7 +70,8 @@ const isValidExample = (
     example.payload.difficulty <= 5 &&
     refs.length === version.optionCount &&
     new Set(refs).size === refs.length &&
-    refs.includes(example.payload.correctOptionRef)
+    refs.includes(example.payload.correctOptionRef) &&
+    hasCommonStructure
   );
 };
 

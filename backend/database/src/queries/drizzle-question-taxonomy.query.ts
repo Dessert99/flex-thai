@@ -55,8 +55,12 @@ export const assembleQuestionTaxonomySettings = (
         .filter(({ questionTypeId }) => questionTypeId === questionType.id)
         .sort((left, right) => right.version - left.version)
         .map((version) => ({
-          ...version,
+          id: version.id,
+          version: version.version,
+          status: version.status,
+          template: version.template,
           optionCount: version.optionCount as 3 | 4,
+          decisionRules: version.decisionRules,
           difficultyCriteria: criterionRows
             .filter(({ typeVersionId }) => typeVersionId === version.id)
             .sort((left, right) => left.difficulty - right.difficulty)
@@ -88,18 +92,61 @@ export class DrizzleQuestionTaxonomyQuery {
   async findSettings() {
     const [types, versions, criteria, examples, topics, tags] =
       await Promise.all([
-        this.database.select().from(questionTypes).orderBy(asc(questionTypes.slug)),
         this.database
-          .select()
+          .select({
+            id: questionTypes.id,
+            slug: questionTypes.slug,
+            displayName: questionTypes.displayName,
+            majorCategory: questionTypes.majorCategory,
+          })
+          .from(questionTypes)
+          .orderBy(asc(questionTypes.slug)),
+        this.database
+          .select({
+            id: questionTypeVersions.id,
+            questionTypeId: questionTypeVersions.questionTypeId,
+            version: questionTypeVersions.version,
+            status: questionTypeVersions.status,
+            template: questionTypeVersions.template,
+            optionCount: questionTypeVersions.optionCount,
+            decisionRules: questionTypeVersions.decisionRules,
+          })
           .from(questionTypeVersions)
           .orderBy(asc(questionTypeVersions.questionTypeId)),
         this.database
-          .select()
+          .select({
+            typeVersionId: questionTypeDifficultyCriteria.typeVersionId,
+            difficulty: questionTypeDifficultyCriteria.difficulty,
+            criteria: questionTypeDifficultyCriteria.criteria,
+          })
           .from(questionTypeDifficultyCriteria)
           .orderBy(asc(questionTypeDifficultyCriteria.difficulty)),
-        this.database.select().from(questionTypeApprovedExamples),
-        this.database.select().from(questionTopics).orderBy(asc(questionTopics.slug)),
-        this.database.select().from(questionTags).orderBy(asc(questionTags.slug)),
+        this.database
+          .select({
+            id: questionTypeApprovedExamples.id,
+            typeVersionId: questionTypeApprovedExamples.typeVersionId,
+            title: questionTypeApprovedExamples.title,
+            payload: questionTypeApprovedExamples.payload,
+          })
+          .from(questionTypeApprovedExamples),
+        this.database
+          .select({
+            id: questionTopics.id,
+            slug: questionTopics.slug,
+            displayName: questionTopics.displayName,
+            status: questionTopics.status,
+          })
+          .from(questionTopics)
+          .orderBy(asc(questionTopics.slug)),
+        this.database
+          .select({
+            id: questionTags.id,
+            slug: questionTags.slug,
+            displayName: questionTags.displayName,
+            status: questionTags.status,
+          })
+          .from(questionTags)
+          .orderBy(asc(questionTags.slug)),
       ]);
     return assembleQuestionTaxonomySettings(
       types,
