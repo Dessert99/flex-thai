@@ -1,6 +1,9 @@
 /** 외부 호출 없이 text·voice 입력을 재현 가능한 PCM WAV로 합성한다 */
 import { createHash } from 'node:crypto';
-import type { TtsVoiceSnapshot } from '../../../domain/src/media/tts-job.js';
+import {
+  createTtsCacheKey,
+  type TtsVoiceSnapshot,
+} from '../../../domain/src/media/tts-job.js';
 import type {
   TtsProvider,
   TtsProviderResult,
@@ -29,7 +32,7 @@ const writeAscii = (bytes: Uint8Array, offset: number, value: string): void => {
 };
 
 const toSeed = (text: string, voice: TtsVoiceSnapshot): Uint8Array =>
-  createHash('sha256').update(JSON.stringify({ text, voice })).digest();
+  createHash('sha256').update(createTtsCacheKey(text, voice)).digest();
 
 const createWav = (seed: Uint8Array): Uint8Array => {
   const bytes = new Uint8Array(wavHeaderBytes + sampleCount * 2);

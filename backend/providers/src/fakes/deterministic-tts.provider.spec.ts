@@ -1,7 +1,10 @@
 /** 외부 TTS 없이 결정적인 PCM WAV와 오류 fixture를 검증한다 */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import type { TtsVoiceSnapshot } from '../../../domain/src/media/tts-job.js';
+import {
+  createTtsCacheKey,
+  type TtsVoiceSnapshot,
+} from '../../../domain/src/media/tts-job.js';
 import {
   DeterministicTtsProvider,
   DeterministicTtsProviderError,
@@ -24,6 +27,9 @@ const synthesize = (text: string, voiceSnapshot = voice) =>
     signal: new AbortController().signal,
   });
 
+const digest = (bytes: Uint8Array) =>
+  createHash('sha256').update(bytes).digest('hex');
+
 describe('DeterministicTtsProvider PCM WAV 합성', () => {
   it('표준 RIFF/WAVE PCM header와 고정 local metadata를 반환한다', async () => {
     const result = await synthesize('สวัสดี');
@@ -38,9 +44,13 @@ describe('DeterministicTtsProvider PCM WAV 합성', () => {
     expect(new TextDecoder().decode(result.bytes.subarray(12, 16))).toBe(
       'fmt ',
     );
+    expect(header.getUint32(4, true)).toBe(result.bytes.byteLength - 8);
+    expect(header.getUint32(16, true)).toBe(16);
     expect(header.getUint16(20, true)).toBe(1);
     expect(header.getUint16(22, true)).toBe(1);
     expect(header.getUint32(24, true)).toBe(8_000);
+    expect(header.getUint32(28, true)).toBe(16_000);
+    expect(header.getUint16(32, true)).toBe(2);
     expect(header.getUint16(34, true)).toBe(16);
     expect(new TextDecoder().decode(result.bytes.subarray(36, 40))).toBe(
       'data',
@@ -61,11 +71,43 @@ describe('DeterministicTtsProvider PCM WAV 합성', () => {
       ...voice,
       voice: 'th-TH-standard-b',
     });
-    const digest = (bytes: Uint8Array) =>
-      createHash('sha256').update(bytes).digest('hex');
 
     expect(digest(second.bytes)).toBe(digest(first.bytes));
     expect(digest(differentVoice.bytes)).not.toBe(digest(first.bytes));
+  });
+
+  it('같은 cache key의 정규화 text와 재구성 voice는 같은 audio digest를 만든다', async () => {
+    const reconstructedVoice: TtsVoiceSnapshot = {
+      generationRevision: voice.generationRevision,
+      audioFormat: voice.audioFormat,
+      locale: voice.locale,
+      voice: voice.voice,
+      model: voice.model,
+      provider: voice.provider,
+      presetId: voice.presetId,
+    };
+    const originalText = '\uFF21\u00A0\u00A0สวัสดี  ';
+    const normalizedText = 'A สวัสดี';
+
+    expect(createTtsCacheKey(originalText, voice)).toBe(
+      createTtsCacheKey(normalizedText, reconstructedVoice),
+    );
+
+    const original = await synthesize(originalText, voice);
+    const rebuilt = await synthesize(normalizedText, reconstructedVoice);
+
+    expect(digest(rebuilt.bytes)).toBe(digest(original.bytes));
+  });
+
+  it('이미 취소된 signal의 reason으로 합성을 거절한다', async () => {
+    const provider = new DeterministicTtsProvider();
+    const controller = new AbortController();
+    const reason = new Error('lease lost');
+    controller.abort(reason);
+
+    await expect(
+      provider.synthesize({ text: 'สวัสดี', voice, signal: controller.signal }),
+    ).rejects.toBe(reason);
   });
 });
 
@@ -75,7 +117,7 @@ describe('DeterministicTtsProvider 오류 fixture', () => {
     ['[[retryable]]', 'TTS_PROVIDER_RETRYABLE', true],
     ['[[terminal]]', 'TTS_PROVIDER_TERMINAL', false],
   ] as const)(
-    '%s text는 stable 오류를 반환한다',
+    '%s text는 안정적인 오류를 반환한다',
     async (text, code, retryable) => {
       await expect(synthesize(text)).rejects.toMatchObject({
         name: 'DeterministicTtsProviderError',
