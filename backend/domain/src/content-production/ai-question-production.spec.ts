@@ -575,6 +575,99 @@ describe('AI 문제 후보 검증 규칙', () => {
 
   it.each([
     [
+      'token 어휘',
+      {
+        ...singleTokenSentence,
+        tokens: [
+          {
+            ...singleTokenSentence.tokens[0],
+            vocabulary: { id: 'not-a-uuid' },
+          },
+        ],
+      },
+    ],
+    [
+      'expression 어휘',
+      {
+        ...tokenizedSentence,
+        expressions: [
+          {
+            ...tokenizedSentence.expressions[0],
+            vocabulary: { id: 'not-a-uuid' },
+          },
+        ],
+      },
+    ],
+  ])(
+    '%s의 id 참조가 UUID가 아니면 schema 실패로 반환한다',
+    (_label, sentence) => {
+      expect(
+        validateGeneratedQuestionSchema({
+          ...candidate,
+          payload: {
+            ...candidate.payload,
+            options: [
+              {
+                ...candidate.payload.options[0],
+                sentence,
+              },
+            ],
+          },
+        }),
+      ).toEqual({
+        status: 'FAILED',
+        code: 'QUESTION_SCHEMA_INVALID',
+      });
+    },
+  );
+
+  it.each(['', '   '])(
+    '비대화 블록의 speaker %j도 비어 있으면 schema 실패로 반환한다',
+    (speaker) => {
+      expect(
+        validateGeneratedQuestionSchema({
+          ...candidate,
+          payload: {
+            ...candidate.payload,
+            blocks: [
+              {
+                kind: 'QUESTION',
+                displayMode: 'TEXT',
+                sentences: [{ speaker, sentence: singleTokenSentence }],
+              },
+            ],
+          },
+        }),
+      ).toEqual({
+        status: 'FAILED',
+        code: 'QUESTION_SCHEMA_INVALID',
+      });
+    },
+  );
+
+  it.each([null, '진행자'])(
+    '모든 블록의 speaker는 null 또는 비어 있지 않은 문자열 %j을 허용한다',
+    (speaker) => {
+      expect(
+        validateGeneratedQuestionSchema({
+          ...candidate,
+          payload: {
+            ...candidate.payload,
+            blocks: [
+              {
+                kind: 'QUESTION',
+                displayMode: 'TEXT',
+                sentences: [{ speaker, sentence: singleTokenSentence }],
+              },
+            ],
+          },
+        }),
+      ).toEqual({ status: 'PASSED', code: null });
+    },
+  );
+
+  it.each([
+    [
       '음수 token 시작 offset',
       {
         ...singleTokenSentence,
@@ -1539,6 +1632,83 @@ describe('AI 문제 생성 prompt 조립', () => {
                           ],
                         }),
                       ],
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+  });
+
+  it('output schema가 UUID id 참조와 비어 있지 않은 speaker만 생성하게 한다', () => {
+    const prompt = buildQuestionGenerationPrompt(productionContext);
+    const uuidReference = {
+      oneOf: [
+        {
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+          },
+        },
+        {
+          properties: {
+            clientRef: { type: 'string', minLength: 1, pattern: '\\S' },
+          },
+        },
+      ],
+    };
+
+    expect(prompt.outputSchema).toMatchObject({
+      properties: {
+        candidates: {
+          items: {
+            properties: {
+              payload: {
+                properties: {
+                  blocks: {
+                    items: {
+                      properties: {
+                        sentences: {
+                          items: {
+                            properties: {
+                              speaker: {
+                                oneOf: [
+                                  { type: 'null' },
+                                  {
+                                    type: 'string',
+                                    minLength: 1,
+                                    pattern: '\\S',
+                                  },
+                                ],
+                              },
+                              sentence: {
+                                properties: {
+                                  tokens: {
+                                    items: {
+                                      properties: {
+                                        vocabulary: uuidReference,
+                                        meaning: uuidReference,
+                                        pronunciation: uuidReference,
+                                      },
+                                    },
+                                  },
+                                  expressions: {
+                                    items: {
+                                      properties: {
+                                        vocabulary: uuidReference,
+                                        meaning: uuidReference,
+                                        pronunciation: uuidReference,
+                                      },
+                                    },
+                                  },
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
                     },
                   },
                 },

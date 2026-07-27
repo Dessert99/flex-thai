@@ -153,7 +153,13 @@ export const questionCandidatePayloadSchema = z
           sentences: z.array(
             z
               .object({
-                speaker: z.string().min(1).nullable(),
+                speaker: z
+                  .string()
+                  .refine(
+                    (value) => value.trim().length > 0,
+                    'speaker는 비어 있지 않아야 합니다.',
+                  )
+                  .nullable(),
                 sentence: generatedSentenceSchema,
               })
               .strict(),

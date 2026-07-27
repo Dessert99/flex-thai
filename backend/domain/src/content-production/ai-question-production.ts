@@ -523,13 +523,15 @@ const contentReferenceSchema = {
   oneOf: [
     {
       additionalProperties: false,
-      properties: { id: { type: 'string' } },
+      properties: { id: { format: 'uuid', type: 'string' } },
       required: ['id'],
       type: 'object',
     },
     {
       additionalProperties: false,
-      properties: { clientRef: { type: 'string' } },
+      properties: {
+        clientRef: { minLength: 1, pattern: '\\S', type: 'string' },
+      },
       required: ['clientRef'],
       type: 'object',
     },
@@ -625,7 +627,12 @@ const generatedBlockSchema = {
         additionalProperties: false,
         properties: {
           sentence: generatedSentenceSchema,
-          speaker: { type: ['string', 'null'] },
+          speaker: {
+            oneOf: [
+              { type: 'null' },
+              { minLength: 1, pattern: '\\S', type: 'string' },
+            ],
+          },
         },
         required: ['speaker', 'sentence'],
         type: 'object',
@@ -1154,6 +1161,12 @@ const hasExactKeys = (
 const isNonemptyString = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0;
 
+const isUuid = (value: unknown): value is string =>
+  typeof value === 'string' &&
+  /^(?:[\da-f]{8}-[\da-f]{4}-[1-8][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$/iu.test(
+    value,
+  );
+
 const isSafeInteger = (value: unknown): value is number =>
   typeof value === 'number' && Number.isSafeInteger(value);
 
@@ -1163,7 +1176,7 @@ const isContentDraftReference = (value: unknown): boolean => {
   const keys = Object.keys(value);
   return (
     keys.length === 1 &&
-    ((keys[0] === 'id' && isNonemptyString(value.id)) ||
+    ((keys[0] === 'id' && isUuid(value.id)) ||
       (keys[0] === 'clientRef' && isNonemptyString(value.clientRef)))
   );
 };
@@ -1314,7 +1327,7 @@ const isBlock = (value: unknown): boolean => {
       (sentence) =>
         isRecord(sentence) &&
         hasExactKeys(sentence, ['speaker', 'sentence']) &&
-        (sentence.speaker === null || typeof sentence.speaker === 'string') &&
+        (sentence.speaker === null || isNonemptyString(sentence.speaker)) &&
         isGeneratedSentence(sentence.sentence),
     )
   );

@@ -851,6 +851,118 @@ describe('AI 문제 제작 processor', () => {
     );
   });
 
+  it.each([
+    {
+      label: 'UUID가 아닌 token id',
+      invalidCandidate: {
+        ...candidate(),
+        payload: {
+          ...candidate().payload,
+          options: [
+            {
+              ...candidate().payload.options[0]!,
+              sentence: {
+                ...sentence,
+                tokens: [
+                  {
+                    ...sentence.tokens[0]!,
+                    vocabulary: { id: 'not-a-uuid' },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+    },
+    {
+      label: '공백 speaker',
+      invalidCandidate: {
+        ...candidate(),
+        payload: {
+          ...candidate().payload,
+          blocks: [
+            {
+              ...candidate().payload.blocks[0]!,
+              sentences: [{ speaker: '   ', sentence }],
+            },
+          ],
+        },
+      },
+    },
+  ])(
+    'fresh provider의 $label 후보는 원문 없이 SCHEMA 실패로 격리한다',
+    async ({ invalidCandidate }) => {
+      let persisted:
+        | Parameters<QuestionProductionCandidateRepository['persist']>[0]
+        | undefined;
+      const recordedProviderResults: unknown[] = [];
+      const processor = createProcessor({
+        candidates: [invalidCandidate as unknown as GeneratedQuestionCandidate],
+        providerRuns: {
+          claim: () =>
+            Promise.resolve({ kind: 'CLAIMED', runId: 'generation-run' }),
+          succeed: (_runId, result) => {
+            recordedProviderResults.push(result);
+            return Promise.resolve(true);
+          },
+          fail: () => Promise.resolve(true),
+        },
+        candidateRepository: {
+          persist: (input) => {
+            persisted = input;
+            return Promise.resolve(true);
+          },
+        },
+      });
+
+      await expect(
+        processor.process(workItem(), new AbortController().signal),
+      ).resolves.toMatchObject({
+        status: 'NEEDS_ATTENTION',
+        result: { total: 1, normal: 0, needsAttention: 0, failed: 1 },
+      });
+      expect(persisted?.artifacts.candidates[0]?.candidate).toEqual({
+        payloadState: 'REDACTED_INVALID',
+        questionTypeVersionId: 'type-version-id',
+        topicId: null,
+        tagIds: [],
+        difficulty: null,
+        payload: null,
+      });
+      expect(
+        persisted?.artifacts.validations.map(({ stage, status, code }) => ({
+          stage,
+          status,
+          code,
+        })),
+      ).toEqual([
+        { stage: 'SCHEMA', status: 'FAILED', code: 'QUESTION_SCHEMA_INVALID' },
+        {
+          stage: 'DECISION_RULE',
+          status: 'SKIPPED',
+          code: 'QUESTION_VALIDATION_SKIPPED',
+        },
+        {
+          stage: 'SIMILARITY',
+          status: 'SKIPPED',
+          code: 'QUESTION_VALIDATION_SKIPPED',
+        },
+        {
+          stage: 'AI_CROSS_VALIDATION',
+          status: 'SKIPPED',
+          code: 'QUESTION_VALIDATION_SKIPPED',
+        },
+      ]);
+      expect(JSON.stringify(recordedProviderResults)).not.toContain(
+        'not-a-uuid',
+      );
+      expect(JSON.stringify(recordedProviderResults)).not.toContain(
+        '"speaker":"   "',
+      );
+    },
+  );
+
   it('fresh provider가 내부 redacted wrapper를 흉내 내면 schema 실패로 격리한다', async () => {
     let persisted:
       | Parameters<QuestionProductionCandidateRepository['persist']>[0]

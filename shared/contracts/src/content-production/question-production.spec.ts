@@ -167,6 +167,46 @@ const expectSchemaRejects = (
 };
 
 describe('AI 문제 후보 관리자 검수 계약', () => {
+  it.each([
+    {
+      label: 'UUID가 아닌 token id',
+      payload: {
+        ...payload,
+        blocks: payload.blocks.map((block) => ({
+          ...block,
+          sentences: block.sentences.map((entry) => ({
+            ...entry,
+            sentence: {
+              ...entry.sentence,
+              tokens: entry.sentence.tokens.map((token) => ({
+                ...token,
+                vocabulary: { id: 'not-a-uuid' },
+              })),
+            },
+          })),
+        })),
+      },
+    },
+    {
+      label: '공백 speaker',
+      payload: {
+        ...payload,
+        blocks: payload.blocks.map((block) => ({
+          ...block,
+          sentences: block.sentences.map((entry) => ({
+            ...entry,
+            speaker: '   ',
+          })),
+        })),
+      },
+    },
+  ])('공개 canonical payload는 $label를 거절한다', ({ payload: invalid }) => {
+    expectSchemaRejects(questionCandidateDetailResponseSchema, {
+      ...detail,
+      candidate: { ...detail.candidate, payload: invalid },
+    });
+  });
+
   it('redacted 후보의 목록과 상세를 null·빈 배열 공개 형태로만 허용한다', () => {
     expect(
       questionCandidateListResponseSchema.parse({
