@@ -108,6 +108,12 @@ export interface QuestionSimilaritySummary {
   summary: string;
 }
 
+/** 승인 예시에서 prompt로 전달할 canonical 문제 graph와 제목 */
+export interface QuestionPromptApprovedExample {
+  title: string;
+  payload: GeneratedQuestionPayload;
+}
+
 /** processor가 prompt 조립에 사용할 공개 가능한 문제 생성 문맥 */
 export interface QuestionProductionContext {
   commonPrinciples: string[];
@@ -120,7 +126,7 @@ export interface QuestionProductionContext {
     generationRules: Record<string, unknown>;
   };
   difficultyCriteria: Array<{ difficulty: number; criteria: string }>;
-  approvedExamples: Array<{ title: string; payload: unknown }>;
+  approvedExamples: QuestionPromptApprovedExample[];
   targetVocabulary: QuestionPromptVocabulary[];
   requiredVocabulary: QuestionPromptVocabulary[];
   excludedVocabulary: QuestionPromptVocabulary[];
@@ -137,21 +143,12 @@ export interface QuestionGenerationPrompt {
 
 const questionGenerationPromptVersion = 'question-generation-v1';
 
-const privatePromptFieldNames = new Set([
-  'inputStorageKey',
-  'privateInputKey',
-  'privateStorageKey',
-  'sourceText',
-  'storageKey',
-]);
-
 const sortPromptValue = (value: unknown): unknown => {
   if (Array.isArray(value)) return value.map(sortPromptValue);
   if (!isRecord(value)) return value;
 
   return Object.fromEntries(
     Object.entries(value)
-      .filter(([key]) => !privatePromptFieldNames.has(key))
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([key, item]) => [key, sortPromptValue(item)]),
   );
@@ -160,14 +157,287 @@ const sortPromptValue = (value: unknown): unknown => {
 const stablePromptJson = (value: unknown): string =>
   JSON.stringify(sortPromptValue(value));
 
+const compareStablePromptValue = (left: unknown, right: unknown): number =>
+  stablePromptJson(left).localeCompare(stablePromptJson(right));
+
+const projectContentReference = (
+  reference: GeneratedQuestionSentenceInput['tokens'][number]['vocabulary'],
+): { id: string } | { clientRef: string } =>
+  reference.id === undefined
+    ? { clientRef: reference.clientRef }
+    : { id: reference.id };
+
+const projectGeneratedSentence = (
+  sentence: GeneratedQuestionSentenceInput,
+): GeneratedQuestionSentenceInput => ({
+  originalText: sentence.originalText,
+  translationKo: sentence.translationKo,
+  pronunciationKo: sentence.pronunciationKo,
+  toneMarks: sentence.toneMarks,
+  tokens: sentence.tokens.map((token) => ({
+    surface: token.surface,
+    startOffset: token.startOffset,
+    endOffset: token.endOffset,
+    vocabulary: projectContentReference(token.vocabulary),
+    meaning: projectContentReference(token.meaning),
+    pronunciation: projectContentReference(token.pronunciation),
+    contextMeaningKo: token.contextMeaningKo,
+    role: token.role,
+  })),
+  expressions: sentence.expressions.map((expression) => ({
+    startTokenIndex: expression.startTokenIndex,
+    endTokenIndex: expression.endTokenIndex,
+    vocabulary: projectContentReference(expression.vocabulary),
+    meaning: projectContentReference(expression.meaning),
+    pronunciation: projectContentReference(expression.pronunciation),
+    contextMeaningKo: expression.contextMeaningKo,
+    ...(expression.representative === undefined
+      ? {}
+      : { representative: expression.representative }),
+  })),
+});
+
+const projectGeneratedOption = (
+  option: GeneratedQuestionOptionInput,
+): GeneratedQuestionOptionInput =>
+  option.sentence === null
+    ? {
+        clientRef: option.clientRef,
+        position: option.position,
+        sentence: null,
+        span: {
+          blockPosition: option.span.blockPosition,
+          sentencePosition: option.span.sentencePosition,
+          startTokenIndex: option.span.startTokenIndex,
+          endTokenIndex: option.span.endTokenIndex,
+        },
+      }
+    : {
+        clientRef: option.clientRef,
+        position: option.position,
+        sentence: projectGeneratedSentence(option.sentence),
+        span: null,
+      };
+
+const projectApprovedExample = (
+  example: QuestionPromptApprovedExample,
+): QuestionPromptApprovedExample => ({
+  title: example.title,
+  payload: {
+    questionTypeSlug: example.payload.questionTypeSlug,
+    questionTypeVersion: example.payload.questionTypeVersion,
+    difficulty: example.payload.difficulty,
+    topicSlug: example.payload.topicSlug,
+    tagSlugs: [...example.payload.tagSlugs],
+    blocks: example.payload.blocks.map((block) => ({
+      kind: block.kind,
+      displayMode: block.displayMode,
+      sentences: block.sentences.map(({ speaker, sentence }) => ({
+        speaker,
+        sentence: projectGeneratedSentence(sentence),
+      })),
+    })),
+    options: example.payload.options.map(projectGeneratedOption),
+    correctOptionRef: example.payload.correctOptionRef,
+  },
+});
+
 const sortVocabulary = (
   vocabulary: readonly QuestionPromptVocabulary[],
 ): QuestionPromptVocabulary[] =>
-  [...vocabulary].sort(
-    (left, right) =>
-      left.thai.localeCompare(right.thai) ||
-      left.meaningKo.localeCompare(right.meaningKo),
-  );
+  vocabulary
+    .map((item) => ({
+      thai: item.thai,
+      meaningKo: item.meaningKo,
+      partOfSpeech: item.partOfSpeech,
+      difficulty: item.difficulty,
+    }))
+    .sort(compareStablePromptValue);
+
+const contentReferenceSchema = {
+  oneOf: [
+    {
+      additionalProperties: false,
+      properties: { id: { type: 'string' } },
+      required: ['id'],
+      type: 'object',
+    },
+    {
+      additionalProperties: false,
+      properties: { clientRef: { type: 'string' } },
+      required: ['clientRef'],
+      type: 'object',
+    },
+  ],
+};
+
+const generatedSentenceSchema = {
+  additionalProperties: false,
+  properties: {
+    expressions: {
+      items: {
+        additionalProperties: false,
+        properties: {
+          contextMeaningKo: { type: 'string' },
+          endTokenIndex: { type: 'integer' },
+          meaning: contentReferenceSchema,
+          pronunciation: contentReferenceSchema,
+          representative: { type: 'boolean' },
+          startTokenIndex: { type: 'integer' },
+          vocabulary: contentReferenceSchema,
+        },
+        required: [
+          'startTokenIndex',
+          'endTokenIndex',
+          'vocabulary',
+          'meaning',
+          'pronunciation',
+          'contextMeaningKo',
+        ],
+        type: 'object',
+      },
+      type: 'array',
+    },
+    originalText: { type: 'string' },
+    pronunciationKo: { type: 'string' },
+    tokens: {
+      items: {
+        additionalProperties: false,
+        properties: {
+          contextMeaningKo: { type: 'string' },
+          endOffset: { type: 'integer' },
+          meaning: contentReferenceSchema,
+          pronunciation: contentReferenceSchema,
+          role: {
+            enum: ['TARGET', 'REQUIRED', 'SUPPORTING', 'INSTRUCTION'],
+            type: 'string',
+          },
+          startOffset: { type: 'integer' },
+          surface: { type: 'string' },
+          vocabulary: contentReferenceSchema,
+        },
+        required: [
+          'surface',
+          'startOffset',
+          'endOffset',
+          'vocabulary',
+          'meaning',
+          'pronunciation',
+          'contextMeaningKo',
+          'role',
+        ],
+        type: 'object',
+      },
+      type: 'array',
+    },
+    toneMarks: { type: 'string' },
+    translationKo: { type: 'string' },
+  },
+  required: [
+    'originalText',
+    'translationKo',
+    'pronunciationKo',
+    'toneMarks',
+    'tokens',
+    'expressions',
+  ],
+  type: 'object',
+};
+
+const generatedBlockSchema = {
+  additionalProperties: false,
+  properties: {
+    displayMode: {
+      enum: ['TEXT', 'AUDIO', 'TEXT_AND_AUDIO', 'AUDIO_THEN_REVEAL'],
+      type: 'string',
+    },
+    kind: {
+      enum: ['INSTRUCTION', 'PASSAGE', 'DIALOGUE', 'QUESTION', 'EXPLANATION'],
+      type: 'string',
+    },
+    sentences: {
+      items: {
+        additionalProperties: false,
+        properties: {
+          sentence: generatedSentenceSchema,
+          speaker: { type: ['string', 'null'] },
+        },
+        required: ['speaker', 'sentence'],
+        type: 'object',
+      },
+      type: 'array',
+    },
+  },
+  required: ['kind', 'displayMode', 'sentences'],
+  type: 'object',
+};
+
+const generatedOptionSchema = {
+  oneOf: [
+    {
+      additionalProperties: false,
+      properties: {
+        clientRef: { type: 'string' },
+        position: { type: 'integer' },
+        sentence: generatedSentenceSchema,
+        span: { type: 'null' },
+      },
+      required: ['clientRef', 'position', 'sentence', 'span'],
+      type: 'object',
+    },
+    {
+      additionalProperties: false,
+      properties: {
+        clientRef: { type: 'string' },
+        position: { type: 'integer' },
+        sentence: { type: 'null' },
+        span: {
+          additionalProperties: false,
+          properties: {
+            blockPosition: { type: 'integer' },
+            endTokenIndex: { type: 'integer' },
+            sentencePosition: { type: 'integer' },
+            startTokenIndex: { type: 'integer' },
+          },
+          required: [
+            'blockPosition',
+            'sentencePosition',
+            'startTokenIndex',
+            'endTokenIndex',
+          ],
+          type: 'object',
+        },
+      },
+      required: ['clientRef', 'position', 'sentence', 'span'],
+      type: 'object',
+    },
+  ],
+};
+
+const generatedPayloadSchema = {
+  additionalProperties: false,
+  properties: {
+    blocks: { items: generatedBlockSchema, type: 'array' },
+    correctOptionRef: { type: 'string' },
+    difficulty: { minimum: 1, maximum: 5, type: 'integer' },
+    options: { items: generatedOptionSchema, type: 'array' },
+    questionTypeSlug: { type: 'string' },
+    questionTypeVersion: { type: 'integer' },
+    tagSlugs: { items: { type: 'string' }, type: 'array' },
+    topicSlug: { type: 'string' },
+  },
+  required: [
+    'questionTypeSlug',
+    'questionTypeVersion',
+    'difficulty',
+    'topicSlug',
+    'tagSlugs',
+    'blocks',
+    'options',
+    'correctOptionRef',
+  ],
+  type: 'object',
+};
 
 const questionGenerationOutputSchema: Record<string, unknown> = {
   additionalProperties: false,
@@ -176,24 +446,18 @@ const questionGenerationOutputSchema: Record<string, unknown> = {
       items: {
         additionalProperties: false,
         properties: {
-          blocks: { type: 'array' },
-          correctOptionRef: { type: 'string' },
           difficulty: { minimum: 1, maximum: 5, type: 'integer' },
-          options: { type: 'array' },
-          questionTypeSlug: { type: 'string' },
-          questionTypeVersion: { type: 'integer' },
-          tagSlugs: { items: { type: 'string' }, type: 'array' },
-          topicSlug: { type: 'string' },
+          payload: generatedPayloadSchema,
+          questionTypeVersionId: { type: 'string' },
+          tagIds: { items: { type: 'string' }, type: 'array' },
+          topicId: { type: 'string' },
         },
         required: [
-          'questionTypeSlug',
-          'questionTypeVersion',
+          'questionTypeVersionId',
+          'topicId',
+          'tagIds',
           'difficulty',
-          'topicSlug',
-          'tagSlugs',
-          'blocks',
-          'options',
-          'correctOptionRef',
+          'payload',
         ],
         type: 'object',
       },
@@ -209,12 +473,12 @@ const questionGenerationOutputSchema: Record<string, unknown> = {
 export const assertQuestionTaxonomyComplete = (
   context: QuestionProductionContext,
 ): void => {
-  const difficulties = new Set(
-    context.difficultyCriteria.map((criterion) => criterion.difficulty),
-  );
-
   if (
-    [1, 2, 3, 4, 5].some((difficulty) => !difficulties.has(difficulty)) ||
+    context.difficultyCriteria.length !== 5 ||
+    context.difficultyCriteria.some(
+      (criterion, index) =>
+        criterion.difficulty !== index + 1 || criterion.criteria.trim() === '',
+    ) ||
     context.approvedExamples.length === 0
   ) {
     throw new Error('QUESTION_TAXONOMY_INCOMPLETE');
@@ -236,9 +500,9 @@ export const buildQuestionGenerationPrompt = (
       },
       {
         name: 'question-type',
-        // 내부 version ID는 생성 모델에 필요한 규칙이 아니므로 전달하지 않는다.
         content: stablePromptJson({
           generationRules: context.typeVersion.generationRules,
+          id: context.typeVersion.id,
           slug: context.typeVersion.slug,
           structureRules: context.typeVersion.structureRules,
           template: context.typeVersion.template,
@@ -256,9 +520,9 @@ export const buildQuestionGenerationPrompt = (
       {
         name: 'approved-examples',
         content: stablePromptJson(
-          [...context.approvedExamples].sort((left, right) =>
-            left.title.localeCompare(right.title),
-          ),
+          context.approvedExamples
+            .map(projectApprovedExample)
+            .sort(compareStablePromptValue),
         ),
       },
       {

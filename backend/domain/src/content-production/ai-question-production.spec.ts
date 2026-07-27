@@ -161,13 +161,20 @@ const inlineCandidate: GeneratedQuestionCandidate = {
   },
 };
 
+const approvedExamplePayload = Object.assign({}, candidate.payload, {
+  privatePayloadAlias: '절대 노출하면 안 되는 별칭',
+  rawProviderPayload: '절대 노출하면 안 되는 원본 응답',
+  sourceText: '입력 원문 전체는 절대 전달하지 않는다',
+  storageKey: 'private/example.json',
+}) as GeneratedQuestionCandidate['payload'];
+
 const productionContext: QuestionProductionContext = {
   commonPrinciples: [
     '정답은 하나만 둔다',
     '태국어 문장을 그대로 복제하지 않는다',
   ],
   typeVersion: {
-    id: 'type-version-private-id',
+    id: 'type-version-id',
     slug: 'reading-choice',
     version: 2,
     template: 'STANDARD_CHOICE',
@@ -184,11 +191,7 @@ const productionContext: QuestionProductionContext = {
   approvedExamples: [
     {
       title: '기본 선택형 예시',
-      payload: {
-        questionTypeSlug: 'reading-choice',
-        sourceText: '입력 원문 전체는 절대 전달하지 않는다',
-        storageKey: 'private/example.json',
-      },
+      payload: approvedExamplePayload,
     },
   ],
   targetVocabulary: [
@@ -448,6 +451,78 @@ describe('AI 문제 생성 prompt 조립', () => {
     });
   });
 
+  it('output schema가 canonical block과 두 option 변형의 중첩 구조를 고정한다', () => {
+    const prompt = buildQuestionGenerationPrompt(productionContext);
+
+    expect(prompt.outputSchema).toMatchObject({
+      properties: {
+        candidates: {
+          items: {
+            required: [
+              'questionTypeVersionId',
+              'topicId',
+              'tagIds',
+              'difficulty',
+              'payload',
+            ],
+            properties: {
+              payload: {
+                properties: {
+                  blocks: {
+                    items: {
+                      required: ['kind', 'displayMode', 'sentences'],
+                      properties: {
+                        sentences: {
+                          items: {
+                            required: ['speaker', 'sentence'],
+                            properties: {
+                              sentence: {
+                                required: [
+                                  'originalText',
+                                  'translationKo',
+                                  'pronunciationKo',
+                                  'toneMarks',
+                                  'tokens',
+                                  'expressions',
+                                ],
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                  options: {
+                    items: {
+                      oneOf: [
+                        expect.objectContaining({
+                          required: [
+                            'clientRef',
+                            'position',
+                            'sentence',
+                            'span',
+                          ],
+                        }),
+                        expect.objectContaining({
+                          required: [
+                            'clientRef',
+                            'position',
+                            'sentence',
+                            'span',
+                          ],
+                        }),
+                      ],
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+  });
+
   it('JSON section은 key 순서와 무관하게 같은 문자열로 직렬화한다', () => {
     const reversedRules: QuestionProductionContext = {
       ...productionContext,
@@ -462,20 +537,61 @@ describe('AI 문제 생성 prompt 조립', () => {
     );
   });
 
-  it('private storage key와 입력 원문 전체를 prompt에 포함하지 않는다', () => {
+  it('동일 주요 값의 예시와 어휘 순서를 바꿔도 prompt가 같다', () => {
+    const secondExample = {
+      title: productionContext.approvedExamples[0]?.title ?? '',
+      payload: { ...candidate.payload, topicSlug: 'travel' },
+    };
+    const secondVocabulary = {
+      thai: 'ไป',
+      meaningKo: '가다',
+      partOfSpeech: '보조동사',
+      difficulty: 2,
+    };
+    const ordered: QuestionProductionContext = {
+      ...productionContext,
+      approvedExamples: [productionContext.approvedExamples[0]!, secondExample],
+      targetVocabulary: [
+        productionContext.targetVocabulary[0]!,
+        secondVocabulary,
+      ],
+    };
+    const swapped: QuestionProductionContext = {
+      ...ordered,
+      approvedExamples: [...ordered.approvedExamples].reverse(),
+      targetVocabulary: [...ordered.targetVocabulary].reverse(),
+    };
+
+    expect(buildQuestionGenerationPrompt(swapped)).toEqual(
+      buildQuestionGenerationPrompt(ordered),
+    );
+  });
+
+  it('승인 예시는 canonical allow-list만 투영해 임의 private alias를 차단한다', () => {
     const prompt = buildQuestionGenerationPrompt(productionContext);
     const serializedPrompt = JSON.stringify(prompt);
+    const approvedExamples = prompt.sections.find(
+      (section) => section.name === 'approved-examples',
+    )?.content;
 
+    expect(approvedExamples).toEqual(
+      expect.stringContaining('"originalText":"ใช่"'),
+    );
+    expect(approvedExamples).toEqual(
+      expect.stringContaining('"correctOptionRef":"option-a"'),
+    );
     expect(serializedPrompt).not.toContain('private/example.json');
     expect(serializedPrompt).not.toContain(
       '입력 원문 전체는 절대 전달하지 않는다',
     );
-    expect(serializedPrompt).not.toContain('type-version-private-id');
+    expect(serializedPrompt).not.toContain('절대 노출하면 안 되는 별칭');
+    expect(serializedPrompt).not.toContain('절대 노출하면 안 되는 원본 응답');
+    expect(serializedPrompt).toContain('type-version-id');
   });
 
   it.each([
     {
-      label: '선택 난이도 기준이 없을 때',
+      label: '1~5 중 난이도 기준 하나가 누락되면',
       context: {
         ...productionContext,
         difficultyCriteria: productionContext.difficultyCriteria.filter(
@@ -484,20 +600,53 @@ describe('AI 문제 생성 prompt 조립', () => {
       },
     },
     {
+      label: '난이도 기준 순서가 1~5가 아니면',
+      context: {
+        ...productionContext,
+        difficultyCriteria: [
+          productionContext.difficultyCriteria[1]!,
+          productionContext.difficultyCriteria[0]!,
+          ...productionContext.difficultyCriteria.slice(2),
+        ],
+      },
+    },
+    {
+      label: '난이도 값이 중복되면',
+      context: {
+        ...productionContext,
+        difficultyCriteria: productionContext.difficultyCriteria.map(
+          (criterion, index) =>
+            index === 2 ? { ...criterion, difficulty: 2 } : criterion,
+        ),
+      },
+    },
+    {
+      label: '난이도 기준이 다섯 개보다 많으면',
+      context: {
+        ...productionContext,
+        difficultyCriteria: [
+          ...productionContext.difficultyCriteria,
+          { difficulty: 6, criteria: '범위 밖 기준' },
+        ],
+      },
+    },
+    {
+      label: '난이도 기준 문장이 공백이면',
+      context: {
+        ...productionContext,
+        difficultyCriteria: productionContext.difficultyCriteria.map(
+          (criterion, index) =>
+            index === 2 ? { ...criterion, criteria: '   ' } : criterion,
+        ),
+      },
+    },
+    {
       label: '승인 예시가 없을 때',
       context: { ...productionContext, approvedExamples: [] },
     },
-  ])('$label provider 호출 전에 taxonomy 오류를 반환한다', ({ context }) => {
-    let providerCalls = 0;
-    const callProvider = (): void => {
-      providerCalls += 1;
-    };
-
-    expect(() => {
-      const prompt = buildQuestionGenerationPrompt(context);
-      callProvider();
-      return prompt;
-    }).toThrowError('QUESTION_TAXONOMY_INCOMPLETE');
-    expect(providerCalls).toBe(0);
+  ])('$label taxonomy 오류로 prompt 조립을 거절한다', ({ context }) => {
+    expect(() => buildQuestionGenerationPrompt(context)).toThrowError(
+      'QUESTION_TAXONOMY_INCOMPLETE',
+    );
   });
 });
