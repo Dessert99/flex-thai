@@ -260,9 +260,10 @@ interface GeneratedDraftSentenceInput
 - Modify worker media task/runtime files or create
   `backend/worker/src/media/tts-task.ts`
 - Modify provider/runtime factories used by local and production modes
-- Create/Modify: TTS dispatch outbox schema, repository and relay under
-  `backend/database/src/schema`, `backend/database/src/repositories/tts`,
-  `backend/worker/src/media`
+- Create/Modify: shared async dispatch outbox schema, repository and relay under
+  `backend/database/src/schema`, `backend/database/src/repositories/content-production`,
+  `backend/worker/src/content-production`; payload kinds are
+  `CONTENT_PRODUCTION` and `TTS`
 - Create/Modify: TTS provider-run schema/repository under the same TTS
   database feature
 - Create/Modify: unreferenced audio GC record/repository and worker cleanup task
@@ -278,6 +279,9 @@ interface GeneratedDraftSentenceInput
 - Generated draft approval atomically writes target snapshots, TTS job/items and
   a durable dispatch outbox record. Request replay creates neither a second job
   nor a second outbox record.
+- Question candidate regeneration atomically applies candidate/item/job state,
+  audit and a `CONTENT_PRODUCTION` outbox row before returning 202. Request
+  replay creates neither a second attempt nor a second outbox row.
 - `TtsRetryCoordinator.retryAndDispatch` atomically applies optimistic retry and
   writes an outbox record. A relay claims outbox rows with lease/redelivery and
   marks delivery only after queue acceptance.
@@ -303,6 +307,10 @@ interface GeneratedDraftSentenceInput
 
   - first approval → nullable-audio DRAFT + one TTS job + one outbox row
   - approval request replay → same job, no duplicate outbox
+  - question regeneration → candidate/item/job/audit + one content-production
+    outbox row in one transaction
+  - question regeneration replay → same attempt, no duplicate outbox
+  - question regeneration outbox-writer failure rolls back every state change
   - retry transition + outbox insert rollback together
   - dispatch failure leaves an undelivered outbox row and relay redelivery
   - duplicate relay delivery does not duplicate provider calls or usage/cost
@@ -319,8 +327,9 @@ interface GeneratedDraftSentenceInput
 
   Keep external provider unavailable path explicit. Do not add provider package,
   model ID or credential. Use the shared database transaction for initial
-  approval/job/outbox and retry/outbox. Queue send and object delete remain
-  relay side effects after commit.
+  approval/job/outbox, question regeneration/outbox and retry/outbox. A shared
+  leased relay dispatches both payload kinds after commit. Queue send and object
+  delete remain relay side effects after commit.
 
 - [ ] **Step 6: Verify and commit**
 
@@ -386,7 +395,8 @@ interface GeneratedDraftSentenceInput
 **Interfaces:**
 
 - Migration includes AI question tables, TTS tables and nullable sentence media
-- Migration also includes TTS dispatch outbox, provider runs and audio GC records
+- Migration also includes shared async dispatch outbox, TTS provider runs,
+  audio GC records, and nullable/check-constrained redacted AI candidate columns
 - Seed includes deterministic active type examples, voice preset and TTS-ready
   local fixtures
 
@@ -456,6 +466,8 @@ interface GeneratedDraftSentenceInput
 
   - two-connection cache claim and media/cache/item/attachment rollback
   - initial approval/job/outbox atomicity and request replay
+  - question regeneration state/audit/outbox atomicity, request replay,
+    writer-failure rollback and relay redelivery
   - retry/outbox rollback, lease/redelivery and duplicate delivery
   - provider-run usage/cost exact-once persistence across replay
   - object GC registration and reference-safe deletion
