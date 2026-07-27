@@ -351,6 +351,7 @@ export class DrizzleLearnerQuestionQuery {
           .with(publicCurrentQuestionVersions)
           .selectDistinct({
             majorCategory: publicCurrentQuestionVersions.majorCategory,
+            sortRank: categoryOrder,
           })
           .from(publicCurrentQuestionVersions)
           .orderBy(categoryOrder),

@@ -301,6 +301,13 @@ describe('DrizzleLearnerQuestionQuery 문제 목록', () => {
     expect(fake.selectCalls[3]?.from).toBe(questionTopics);
     expect(fake.selectCalls[4]?.from).toBe(questionVersionTags);
     expect(fake.selectCalls[4]?.joins[1]?.table).toBe(questionTags);
+    expect(Object.keys(fake.selectCalls[1]?.fields ?? {})).toEqual([
+      'majorCategory',
+      'sortRank',
+    ]);
+    expect(toSql(fake.selectCalls[1]?.fields.sortRank).sql).toBe(
+      toSql(fake.selectCalls[1]?.orderBy[0]).sql,
+    );
     expect(toSql(fake.selectCalls[1]?.orderBy[0]).sql).toContain('case');
     expect(toSql(fake.selectCalls[2]?.orderBy[0]).sql).toContain(
       'display_name',
