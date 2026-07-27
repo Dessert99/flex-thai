@@ -406,6 +406,226 @@ describe('AI 문제 제작 processor', () => {
     expect(generationCalls).toBe(0);
   });
 
+  it('provider 성공 뒤 결과 기록 예외는 결과 불명으로 닫고 재시도 호출을 막는다', async () => {
+    let generationCalls = 0;
+    let runStatus: 'NEW' | 'OUTCOME_UNKNOWN' = 'NEW';
+    const failures: Array<{ status: string; errorCode: string }> = [];
+    const processor = createProcessor({
+      generation: {
+        generate: () => {
+          generationCalls += 1;
+          return Promise.resolve({
+            candidates: [candidate()],
+            usage: {},
+            estimatedCostUsd: '0',
+            providerRequestId: null,
+          });
+        },
+      },
+      providerRuns: {
+        claim: ({ operation }) =>
+          Promise.resolve(
+            operation === 'QUESTION_GENERATION' &&
+              runStatus === 'OUTCOME_UNKNOWN'
+              ? { kind: 'OUTCOME_UNKNOWN' }
+              : { kind: 'CLAIMED', runId: operation },
+          ),
+        succeed: (runId) =>
+          runId === 'QUESTION_GENERATION'
+            ? Promise.reject(new Error('result storage unavailable'))
+            : Promise.resolve(true),
+        fail: (_runId, failure) => {
+          failures.push(failure);
+          runStatus = 'OUTCOME_UNKNOWN';
+          return Promise.resolve(true);
+        },
+      },
+    });
+
+    await expect(
+      processor.process(workItem(), new AbortController().signal),
+    ).resolves.toMatchObject({
+      status: 'NEEDS_ATTENTION',
+      retryable: true,
+      errorCode: 'PROVIDER_OUTCOME_UNKNOWN',
+    });
+    await expect(
+      processor.process(workItem(), new AbortController().signal),
+    ).resolves.toMatchObject({
+      status: 'NEEDS_ATTENTION',
+      retryable: true,
+      errorCode: 'PROVIDER_OUTCOME_UNKNOWN',
+    });
+
+    expect(generationCalls).toBe(1);
+    expect(failures).toContainEqual({
+      status: 'OUTCOME_UNKNOWN',
+      errorCode: 'PROVIDER_OUTCOME_UNKNOWN',
+      retryable: true,
+    });
+  });
+
+  it('malformed 후보를 redacted schema 실패로 격리하고 뒤의 정상 후보를 처리한다', async () => {
+    let persisted:
+      | Parameters<QuestionProductionCandidateRepository['persist']>[0]
+      | undefined;
+    const recordedProviderResults: unknown[] = [];
+    const malformed = {
+      providerPayload: 'private-provider-payload',
+      payload: { raw: 'private-provider-payload' },
+    };
+    const processor = createProcessor({
+      candidates: [
+        null,
+        malformed,
+        candidate(2),
+      ] as unknown as GeneratedQuestionCandidate[],
+      providerRuns: {
+        claim: ({ operation, sequence }) =>
+          Promise.resolve({
+            kind: 'CLAIMED',
+            runId: `${operation}-${sequence}`,
+          }),
+        succeed: (_runId, result) => {
+          recordedProviderResults.push(result);
+          return Promise.resolve(true);
+        },
+        fail: () => Promise.resolve(true),
+      },
+      candidateRepository: {
+        persist: (input) => {
+          persisted = input;
+          return Promise.resolve(true);
+        },
+      },
+    });
+
+    await expect(
+      processor.process(workItem(), new AbortController().signal),
+    ).resolves.toMatchObject({
+      status: 'NEEDS_ATTENTION',
+      result: { total: 3, normal: 1, needsAttention: 0, failed: 2 },
+    });
+
+    expect(
+      persisted?.artifacts.validations.filter(
+        ({ stage }) => stage === 'SCHEMA',
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        candidateOrdinal: 0,
+        status: 'FAILED',
+        code: 'QUESTION_SCHEMA_INVALID',
+      }),
+      expect.objectContaining({
+        candidateOrdinal: 1,
+        status: 'FAILED',
+        code: 'QUESTION_SCHEMA_INVALID',
+      }),
+      expect.objectContaining({
+        candidateOrdinal: 2,
+        status: 'PASSED',
+      }),
+    ]);
+    expect(
+      persisted?.artifacts.candidates.map(({ resultGroup }) => resultGroup),
+    ).toEqual(['FAILED', 'FAILED', 'NORMAL']);
+    expect(JSON.stringify(persisted?.artifacts.candidates)).not.toContain(
+      'private-provider-payload',
+    );
+    expect(JSON.stringify(recordedProviderResults)).not.toContain(
+      'private-provider-payload',
+    );
+  });
+
+  it('malformed replay도 provider 재호출 없이 격리하고 정상 후보를 처리한다', async () => {
+    let generationCalls = 0;
+    let persistedGroups: string[] = [];
+    const processor = createProcessor({
+      generation: {
+        generate: () => {
+          generationCalls += 1;
+          return Promise.reject(new Error('호출되면 안 됨'));
+        },
+      },
+      providerRuns: {
+        claim: ({ operation }) =>
+          Promise.resolve(
+            operation === 'QUESTION_GENERATION'
+              ? {
+                  kind: 'REPLAY',
+                  result: {
+                    kind: 'QUESTION_CANDIDATES',
+                    candidates: [
+                      {},
+                      candidate(1),
+                    ] as unknown as GeneratedQuestionCandidate[],
+                  },
+                }
+              : { kind: 'CLAIMED', runId: 'validation-run' },
+          ),
+        succeed: () => Promise.resolve(true),
+        fail: () => Promise.resolve(true),
+      },
+      candidateRepository: {
+        persist: (input) => {
+          persistedGroups = input.artifacts.candidates.map(
+            ({ resultGroup }) => resultGroup,
+          );
+          return Promise.resolve(true);
+        },
+      },
+    });
+
+    await expect(
+      processor.process(workItem(), new AbortController().signal),
+    ).resolves.toMatchObject({
+      status: 'NEEDS_ATTENTION',
+      result: { total: 2, normal: 1, needsAttention: 0, failed: 1 },
+    });
+    expect(generationCalls).toBe(0);
+    expect(persistedGroups).toEqual(['FAILED', 'NORMAL']);
+  });
+
+  it('교차 검증 provider의 계약 밖 raw field를 실행 결과에 저장하지 않는다', async () => {
+    const recordedProviderResults: unknown[] = [];
+    const processor = createProcessor({
+      crossValidation: {
+        validate: () =>
+          Promise.resolve({
+            status: 'PASSED',
+            code: null,
+            evidence: {},
+            usage: {},
+            estimatedCostUsd: '0',
+            providerRequestId: null,
+            providerPayload: 'raw-cross-payload',
+          } as Awaited<
+            ReturnType<QuestionCrossValidationProvider['validate']>
+          >),
+      },
+      providerRuns: {
+        claim: ({ operation, sequence }) =>
+          Promise.resolve({
+            kind: 'CLAIMED',
+            runId: `${operation}-${sequence}`,
+          }),
+        succeed: (_runId, result) => {
+          recordedProviderResults.push(result);
+          return Promise.resolve(true);
+        },
+        fail: () => Promise.resolve(true),
+      },
+    });
+
+    await expect(
+      processor.process(workItem(), new AbortController().signal),
+    ).resolves.toMatchObject({ status: 'SUCCEEDED' });
+    expect(JSON.stringify(recordedProviderResults)).not.toContain(
+      'raw-cross-payload',
+    );
+  });
+
   it('불완전 taxonomy는 generation provider 호출 없이 실패한다', async () => {
     let generationCalls = 0;
     const incomplete = context();

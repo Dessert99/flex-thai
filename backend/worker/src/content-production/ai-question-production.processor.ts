@@ -15,6 +15,7 @@ import type {
   QuestionProductionArtifacts,
   QuestionProductionCandidateRecord,
   QuestionProductionCandidateRepository,
+  QuestionProductionContext,
   QuestionProductionContextRepository,
   QuestionProductionProviderExecution,
   QuestionProductionProviderFailure,
@@ -84,6 +85,67 @@ const payloadHash = (candidate: GeneratedQuestionCandidate): string =>
     .update(JSON.stringify(canonicalJson(candidate.payload)))
     .digest('hex');
 
+const firstAllowedTopicId = (
+  context: QuestionProductionContext,
+): string | null => {
+  const rules: Record<string, unknown> = context.typeVersion.generationRules;
+  const allowedTopics: unknown = rules['allowedTopics'];
+  if (!Array.isArray(allowedTopics)) return null;
+  const topics: unknown[] = allowedTopics;
+  const topic = topics.find(
+    (value): value is { id: string } =>
+      value !== null &&
+      typeof value === 'object' &&
+      'id' in value &&
+      typeof value.id === 'string',
+  );
+  return topic?.id ?? null;
+};
+
+const invalidCandidateMarker = (
+  context: QuestionProductionContext,
+  item: QuestionWorkItem,
+  ordinal: number,
+  fallback: GeneratedQuestionCandidate | undefined,
+): GeneratedQuestionCandidate => ({
+  questionTypeVersionId: context.typeVersion.id,
+  topicId:
+    fallback?.topicId ??
+    firstAllowedTopicId(context) ??
+    '00000000-0000-0000-0000-000000000000',
+  tagIds: [],
+  difficulty: 1,
+  payload: {
+    questionTypeSlug: context.typeVersion.slug,
+    questionTypeVersion: context.typeVersion.version,
+    difficulty: 1,
+    topicSlug: `invalid-${item.item.id}-${item.jobAttempt}-${ordinal}`,
+    tagSlugs: [],
+    blocks: [],
+    options: [],
+    correctOptionRef: '',
+  },
+});
+
+const normalizeGeneratedCandidates = (
+  value: unknown,
+  context: QuestionProductionContext,
+  item: QuestionWorkItem,
+): GeneratedQuestionCandidate[] => {
+  if (!Array.isArray(value)) {
+    return [invalidCandidateMarker(context, item, 0, undefined)];
+  }
+  const fallback = value.find(
+    (candidate) =>
+      validateGeneratedQuestionSchema(candidate).status === 'PASSED',
+  ) as GeneratedQuestionCandidate | undefined;
+  return value.map((candidate, ordinal) =>
+    validateGeneratedQuestionSchema(candidate).status === 'PASSED'
+      ? (candidate as GeneratedQuestionCandidate)
+      : invalidCandidateMarker(context, item, ordinal, fallback),
+  );
+};
+
 const countsFor = (
   candidates: QuestionProductionCandidateRecord[],
 ): QuestionProductionCounts => ({
@@ -127,31 +189,46 @@ const runProviderOperation = async (
     };
   }
 
+  let result: QuestionProductionProviderResult;
   try {
-    const result = await call();
-    if (!(await repository.succeed(claim.runId, result))) {
-      return {
-        status: 'OUTCOME_UNKNOWN',
-        errorCode: 'PROVIDER_OUTCOME_UNKNOWN',
-        retryable: true,
-      };
-    }
-    return { status: 'SUCCEEDED', result };
+    result = await call();
   } catch {
     const failure: QuestionProductionProviderFailure = {
       status: 'FAILED',
       errorCode: 'QUESTION_PROVIDER_CALL_FAILED',
       retryable: true,
     };
-    const failed = await repository.fail(claim.runId, failure);
-    return failed
-      ? failure
-      : {
-          status: 'OUTCOME_UNKNOWN',
-          errorCode: 'PROVIDER_OUTCOME_UNKNOWN',
-          retryable: true,
-        };
+    try {
+      if (await repository.fail(claim.runId, failure)) return failure;
+    } catch {
+      // 실행 결과 기록도 불확실하면 같은 attempt에서 외부 호출을 반복하지 않는다.
+    }
+    return {
+      status: 'OUTCOME_UNKNOWN',
+      errorCode: 'PROVIDER_OUTCOME_UNKNOWN',
+      retryable: true,
+    };
   }
+
+  try {
+    if (await repository.succeed(claim.runId, result)) {
+      return { status: 'SUCCEEDED', result };
+    }
+  } catch {
+    // provider 성공 뒤 저장 실패는 호출 실패가 아니라 결과 불명이다.
+  }
+
+  const unknown: QuestionProductionProviderFailure = {
+    status: 'OUTCOME_UNKNOWN',
+    errorCode: 'PROVIDER_OUTCOME_UNKNOWN',
+    retryable: true,
+  };
+  try {
+    await repository.fail(claim.runId, unknown);
+  } catch {
+    // 저장소 장애가 이어져도 보수적으로 결과 불명을 반환한다.
+  }
+  return unknown;
 };
 
 const abortedResult = (): AiQuestionProductionProcessResult => ({
@@ -238,9 +315,10 @@ export class AiQuestionProductionProcessor {
       });
     }
 
+    let context: QuestionProductionContext;
     let prompt;
     try {
-      const context = await this.contextRepository.load({
+      context = await this.contextRepository.load({
         preset: item.presetSnapshot,
         operation: 'QUESTION_GENERATION',
       });
@@ -271,14 +349,24 @@ export class AiQuestionProductionProcessor {
         promptVersion: prompt.promptVersion,
       }),
       this.providerRuns,
-      async () => ({
-        kind: 'QUESTION_CANDIDATES',
-        ...(await this.generationProvider.generate({
+      async () => {
+        const result = await this.generationProvider.generate({
           prompt,
           preset: item.presetSnapshot,
           signal,
-        })),
-      }),
+        });
+        return {
+          kind: 'QUESTION_CANDIDATES',
+          candidates: normalizeGeneratedCandidates(
+            result.candidates,
+            context,
+            item,
+          ),
+          usage: result.usage,
+          estimatedCostUsd: result.estimatedCostUsd,
+          providerRequestId: result.providerRequestId,
+        };
+      },
     );
     if (signal.aborted) return abortedResult();
     if (generation.status !== 'SUCCEEDED') {
@@ -294,7 +382,11 @@ export class AiQuestionProductionProcessor {
 
     const generated =
       generation.result.kind === 'QUESTION_CANDIDATES'
-        ? generation.result.candidates
+        ? normalizeGeneratedCandidates(
+            generation.result.candidates,
+            context,
+            item,
+          )
         : null;
     if (!generated) {
       return this.persistEmpty(item, {
@@ -332,7 +424,13 @@ export class AiQuestionProductionProcessor {
         code: schema.code,
         details: {},
       });
-      const rules = validateQuestionDecisionRules(candidate);
+      const rules =
+        schema.status === 'PASSED'
+          ? validateQuestionDecisionRules(candidate)
+          : {
+              status: 'FAILED' as const,
+              code: 'QUESTION_RULE_INVALID' as const,
+            };
       candidateValidations.push({
         candidateOrdinal: ordinal,
         stage: 'DECISION_RULE',
@@ -381,14 +479,22 @@ export class AiQuestionProductionProcessor {
             promptVersion: prompt.promptVersion,
           }),
           this.providerRuns,
-          async () => ({
-            kind: 'QUESTION_VALIDATION',
-            ...(await this.crossValidationProvider.validate({
+          async () => {
+            const result = await this.crossValidationProvider.validate({
               candidate,
               promptVersion: prompt.promptVersion,
               signal,
-            })),
-          }),
+            });
+            return {
+              kind: 'QUESTION_VALIDATION',
+              status: result.status,
+              code: result.code,
+              evidence: result.evidence,
+              usage: result.usage,
+              estimatedCostUsd: result.estimatedCostUsd,
+              providerRequestId: result.providerRequestId,
+            };
+          },
         );
         if (signal.aborted) return abortedResult();
 
