@@ -29,3 +29,6 @@ export * from './concepts/index.js';
 export * from './recommendations/recommendations.js';
 /** AI 문제 후보 운영 계약을 패키지 공개 경계에 노출한다 */
 export * from './content-production/question-production.js';
+
+/** TTS 운영 조회·재시도 계약을 패키지 경계에 노출한다 */
+export * from './media/tts-operations.js';
