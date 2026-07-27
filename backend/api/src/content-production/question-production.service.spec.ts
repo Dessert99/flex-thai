@@ -271,4 +271,36 @@ describe('QuestionCandidateApplicationService 공개 경계', () => {
     expect(review.discard).toHaveBeenCalledWith(command);
     expect(review.regenerate).toHaveBeenCalledWith(command);
   });
+
+  it('동일 requestId 승인 replay를 최초 승인과 같은 공개 응답으로 매핑한다', async () => {
+    const { review, service } = createService();
+    const request = { expectedRevision: 3, requestId: bodyRequestId };
+    review.approve
+      .mockResolvedValueOnce({
+        questionId,
+        questionVersionId,
+        replayed: false,
+      })
+      .mockResolvedValueOnce({
+        questionId,
+        questionVersionId,
+        replayed: true,
+      });
+
+    const first = await service.approve(actor, candidateId, request);
+    const replay = await service.approve(actor, candidateId, request);
+
+    expect(replay).toEqual(first);
+    expect(review.approve).toHaveBeenCalledTimes(2);
+    const command = {
+      candidateId,
+      expectedRevision: 3,
+      actorUserId: actor.userId,
+      actorSub: actor.sub,
+      requestId: bodyRequestId,
+      occurredAt,
+    };
+    expect(review.approve).toHaveBeenNthCalledWith(1, command);
+    expect(review.approve).toHaveBeenNthCalledWith(2, command);
+  });
 });

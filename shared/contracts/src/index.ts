@@ -27,4 +27,5 @@ export * from './concepts/index.js';
 
 /** 개인 추천 공개 계약을 패키지 경계에 노출한다 */
 export * from './recommendations/recommendations.js';
+/** AI 문제 후보 운영 계약을 패키지 공개 경계에 노출한다 */
 export * from './content-production/question-production.js';
