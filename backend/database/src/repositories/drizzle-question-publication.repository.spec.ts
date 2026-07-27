@@ -431,6 +431,65 @@ describe('DrizzleQuestionPublicationRepository가 문제 게시 생명주기를 
     });
   });
 
+  it('생성 DRAFT 문장 음성이 null이면 게시 검증 후보에 누락 상태를 보존한다', async () => {
+    const fake = createFake({
+      selectResults: [
+        [
+          {
+            id: 'version-id',
+            questionId: 'question-id',
+            difficulty: 3,
+            typeVersionId: 'type-version-id',
+            template: 'STANDARD_CHOICE',
+            optionCount: 1,
+          },
+        ],
+        [],
+        [],
+        [
+          {
+            id: 'option-id',
+            sentenceVersionId: 'sentence-id',
+            position: 0,
+            isCorrect: true,
+          },
+        ],
+        [
+          {
+            sentenceVersionId: 'sentence-id',
+            originalText: 'ก',
+            translationKo: '정답',
+            pronunciationKo: '꼬',
+            toneMarks: '-',
+            sentenceMediaAssetId: null,
+            mediaId: null,
+            mediaKind: null,
+            mediaStorageKey: null,
+            mediaDeclaredMimeType: null,
+            mediaDeclaredSizeBytes: null,
+            mediaDeclaredSha256: null,
+            mediaMimeType: null,
+            mediaSizeBytes: null,
+            mediaSha256: null,
+            mediaStatus: null,
+            mediaReadyAt: null,
+          },
+        ],
+        [],
+        [],
+      ],
+    });
+
+    await withTransaction(fake.database, async (transaction) => {
+      const candidate = await transaction.loadValidationCandidate('version-id');
+
+      expect(candidate?.options[0]?.sentence).toMatchObject({
+        input: { mediaAssetId: null },
+        mediaAsset: null,
+      });
+    });
+  });
+
   it('선택된 발음 media의 non-null READY runtime metadata가 누락되면 invariant 오류를 던진다', async () => {
     const fake = createPronunciationMediaCandidateFake({
       pronunciationMediaAssetId: 'pronunciation-media-id',

@@ -957,6 +957,24 @@ describe('ContentDraftService 문제 초안', () => {
     expect(transaction.saveQuestionDraft).not.toHaveBeenCalled();
   });
 
+  it('import 문장에서 mediaAssetId를 생략하면 저장 전에 거절한다', async () => {
+    const transaction = createTransaction();
+    const service = new ContentDraftService(
+      createRepository(transaction),
+      createIdGenerator(),
+    );
+    const sentence = sentenceInput();
+    delete (sentence as unknown as Partial<CanonicalDraftSentenceInput>)
+      .mediaAssetId;
+
+    await expect(
+      service.createQuestionItem(questionCommand(sentence)),
+    ).rejects.toMatchObject({
+      path: 'blocks.0.sentences.0.sentence.mediaAssetId',
+    });
+    expect(transaction.saveQuestionDraft).not.toHaveBeenCalled();
+  });
+
   it('sentence media가 없으면 stable reference 오류로 거절한다', async () => {
     const transaction = createTransaction({ mediaAssets: [] });
     const service = new ContentDraftService(

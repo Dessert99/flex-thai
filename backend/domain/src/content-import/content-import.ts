@@ -64,6 +64,14 @@ export interface CanonicalDraftSentenceInput {
   expressions: CanonicalDraftExpressionInput[];
 }
 
+/** TTS 연결 전 생성 문제 DRAFT만 사용하는 nullable 음성 문장 입력 */
+export interface GeneratedDraftSentenceInput extends Omit<
+  CanonicalDraftSentenceInput,
+  'mediaAssetId'
+> {
+  mediaAssetId: null;
+}
+
 /** 문제 화면을 순서대로 구성할 block 입력 */
 export interface CanonicalDraftQuestionBlockInput {
   kind: 'INSTRUCTION' | 'PASSAGE' | 'DIALOGUE' | 'QUESTION' | 'EXPLANATION';

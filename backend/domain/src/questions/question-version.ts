@@ -36,7 +36,7 @@ export interface ReferencedVocabularyState {
 export interface QuestionSentenceCandidate {
   id: string;
   input: ThaiSentenceVersionInput;
-  mediaAsset: MediaAsset;
+  mediaAsset: MediaAsset | null;
   referencedVocabularies: ReferencedVocabularyState[];
   pronunciationMediaAssets: Array<MediaAsset | null>;
 }
@@ -154,10 +154,17 @@ const validateSentence = (
     code: 'THAI_CONTENT_INVALID',
   }));
 
-  try {
-    assertMediaAssetReady(sentence.mediaAsset);
-  } catch {
+  if (sentence.mediaAsset === null) {
     issues.push({ path: `${path}.mediaAsset`, code: 'MEDIA_ASSET_NOT_READY' });
+  } else {
+    try {
+      assertMediaAssetReady(sentence.mediaAsset);
+    } catch {
+      issues.push({
+        path: `${path}.mediaAsset`,
+        code: 'MEDIA_ASSET_NOT_READY',
+      });
+    }
   }
 
   sentence.pronunciationMediaAssets.forEach((mediaAsset, index) => {

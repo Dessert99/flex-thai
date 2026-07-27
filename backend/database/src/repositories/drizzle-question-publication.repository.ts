@@ -47,6 +47,20 @@ interface MediaProjection {
   mediaReadyAt: Date | null;
 }
 
+interface NullableMediaProjection {
+  mediaId: string | null;
+  mediaKind: 'AUDIO' | null;
+  mediaStorageKey: string | null;
+  mediaDeclaredMimeType: string | null;
+  mediaDeclaredSizeBytes: number | null;
+  mediaDeclaredSha256: string | null;
+  mediaMimeType: string | null;
+  mediaSizeBytes: number | null;
+  mediaSha256: string | null;
+  mediaStatus: 'UPLOADING' | 'READY' | 'REJECTED' | null;
+  mediaReadyAt: Date | null;
+}
+
 /** 게시 상태의 동시 변경이나 예상하지 못한 저장 결과를 안정적인 code로 전달한다 */
 export class QuestionPublicationPersistenceError extends Error {
   readonly code = 'QUESTION_PUBLICATION_PERSISTENCE_CONFLICT';
@@ -130,6 +144,32 @@ const toMediaAsset = (row: MediaProjection): MediaAsset => {
     status: row.mediaStatus,
     readyAt: null,
   };
+};
+
+const toOptionalMediaAsset = (
+  row: NullableMediaProjection,
+): MediaAsset | null => {
+  if (
+    row.mediaId === null ||
+    row.mediaKind === null ||
+    row.mediaStorageKey === null ||
+    row.mediaDeclaredMimeType === null ||
+    row.mediaDeclaredSizeBytes === null ||
+    row.mediaDeclaredSha256 === null ||
+    row.mediaStatus === null
+  ) {
+    return null;
+  }
+  return toMediaAsset({
+    ...row,
+    mediaId: row.mediaId,
+    mediaKind: row.mediaKind,
+    mediaStorageKey: row.mediaStorageKey,
+    mediaDeclaredMimeType: row.mediaDeclaredMimeType,
+    mediaDeclaredSizeBytes: row.mediaDeclaredSizeBytes,
+    mediaDeclaredSha256: row.mediaDeclaredSha256,
+    mediaStatus: row.mediaStatus,
+  });
 };
 
 const createQuestionPublicationTransaction = (
@@ -280,7 +320,7 @@ const createQuestionPublicationTransaction = (
           mediaReadyAt: mediaAssets.readyAt,
         })
         .from(thaiSentenceVersions)
-        .innerJoin(
+        .leftJoin(
           mediaAssets,
           eq(thaiSentenceVersions.mediaAssetId, mediaAssets.id),
         )
@@ -438,7 +478,7 @@ const createQuestionPublicationTransaction = (
               adminSelected: expression.representative,
             })),
           },
-          mediaAsset: toMediaAsset(row),
+          mediaAsset: toOptionalMediaAsset(row),
           referencedVocabularies: [
             ...sentenceTokens.map((token) => ({
               id: token.vocabularyId,

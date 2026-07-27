@@ -454,7 +454,9 @@ export const lockConceptReferencedContent = async (
           .orderBy(asc(vocabularyPronunciations.id))
           .for('update');
   const mediaIds = uniqueSorted([
-    ...sentenceRows.map(({ mediaAssetId }) => mediaAssetId),
+    ...sentenceRows.flatMap(({ mediaAssetId }) =>
+      mediaAssetId ? [mediaAssetId] : [],
+    ),
     ...pronunciationRows.flatMap(({ mediaAssetId }) =>
       mediaAssetId ? [mediaAssetId] : [],
     ),

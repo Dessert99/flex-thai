@@ -4,6 +4,7 @@ import type {
   CanonicalDraftQuestionInput,
   CanonicalDraftSentenceInput,
   ContentDraftReference,
+  GeneratedDraftSentenceInput,
 } from '../content-import/content-import.js';
 import type {
   ResolvedQuestionSentenceGraph,
@@ -218,7 +219,11 @@ const assertReference = (value: unknown, path: string): void => {
   failInvalidContent(path);
 };
 
-const assertSentenceInput = (value: unknown, path: string): void => {
+const assertSentenceInput = (
+  value: unknown,
+  path: string,
+  mediaRequirement: 'READY_REFERENCE' | 'PENDING_TTS' = 'READY_REFERENCE',
+): void => {
   const sentence = requireRecord(value, path);
   requireExactKeys(
     sentence,
@@ -243,7 +248,13 @@ const assertSentenceInput = (value: unknown, path: string): void => {
   if (typeof sentence.toneMarks !== 'string') {
     failInvalidContent(`${path}.toneMarks`);
   }
-  requireUuid(sentence.mediaAssetId, `${path}.mediaAssetId`);
+  if (mediaRequirement === 'PENDING_TTS') {
+    if (sentence.mediaAssetId !== null) {
+      failInvalidContent(`${path}.mediaAssetId`);
+    }
+  } else {
+    requireUuid(sentence.mediaAssetId, `${path}.mediaAssetId`);
+  }
 
   const codePoints = Array.from(originalText);
   let previousEnd = 0;
@@ -356,6 +367,14 @@ const assertSentenceInput = (value: unknown, path: string): void => {
       failInvalidContent(expressionPath);
     }
   });
+};
+
+/** 생성 승인 adapter가 null 음성 DRAFT 문장만 통과시키도록 내부 shape를 검증한다 */
+export const assertGeneratedDraftSentenceInput: (
+  value: unknown,
+  path: string,
+) => asserts value is GeneratedDraftSentenceInput = (value, path) => {
+  assertSentenceInput(value, path, 'PENDING_TTS');
 };
 
 const assertQuestionInput = (value: unknown): void => {
