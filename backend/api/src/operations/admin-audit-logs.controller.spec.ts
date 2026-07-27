@@ -68,7 +68,15 @@ describe('AdminAuditLogsController', () => {
     const service = {
       get: vi.fn().mockResolvedValue({
         ...item,
-        summary: { before: 'ACTIVE', after: 'DISABLED' },
+        summary: {
+          before: 'ACTIVE',
+          nested: {
+            token: 'secret-token',
+            values: [{ totpCode: '123456' }, { safe: 'visible' }],
+          },
+          privateKey: 'secret-private-key',
+          after: 'DISABLED',
+        },
         requestId: 'request-1',
       }),
     };
@@ -79,7 +87,15 @@ describe('AdminAuditLogsController', () => {
     ).resolves.toEqual({
       ...item,
       createdAt: item.createdAt.toISOString(),
-      summary: { before: 'ACTIVE', after: 'DISABLED' },
+      summary: {
+        before: 'ACTIVE',
+        nested: {
+          token: '[REDACTED]',
+          values: [{ totpCode: '[REDACTED]' }, { safe: 'visible' }],
+        },
+        privateKey: '[REDACTED]',
+        after: 'DISABLED',
+      },
       requestId: 'request-1',
     });
   });

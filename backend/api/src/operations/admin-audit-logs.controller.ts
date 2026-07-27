@@ -92,11 +92,54 @@ export class AdminAuditLogsController {
     );
     return auditLogDetailResponseSchema.parse({
       ...toListResponse(detail),
-      summary: detail.summary,
+      summary: redactAuditSummary(detail.summary),
       requestId: detail.requestId,
     });
   }
 }
+
+const SENSITIVE_SUMMARY_KEYS = new Set([
+  'apikey',
+  'authorization',
+  'challengetoken',
+  'cookie',
+  'idtoken',
+  'otp',
+  'otpcode',
+  'password',
+  'privatekey',
+  'refreshtoken',
+  'secret',
+  'secretcode',
+  'setcookie',
+  'token',
+  'totpcode',
+]);
+
+const normalizeSummaryKey = (key: string) =>
+  key.toLowerCase().replace(/[^a-z0-9]/gu, '');
+
+const redactAuditSummaryValue = (value: unknown): unknown => {
+  if (Array.isArray(value)) {
+    return value.map(redactAuditSummaryValue);
+  }
+  if (value === null || typeof value !== 'object') {
+    return value;
+  }
+  return Object.fromEntries(
+    Object.entries(value).map(([key, nested]) => [
+      key,
+      SENSITIVE_SUMMARY_KEYS.has(normalizeSummaryKey(key))
+        ? '[REDACTED]'
+        : redactAuditSummaryValue(nested),
+    ]),
+  );
+};
+
+const redactAuditSummary = (
+  summary: Record<string, unknown>,
+): Record<string, unknown> =>
+  redactAuditSummaryValue(summary) as Record<string, unknown>;
 
 const toListResponse = (item: AuditLogListItem | AuditLogDetail) => ({
   ...item,

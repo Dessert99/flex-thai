@@ -121,6 +121,7 @@ describe('UserManagementService', () => {
 
   it.each([
     ['NOT_FOUND', 'USER_NOT_FOUND'],
+    ['ACTOR_FORBIDDEN', 'ADMIN_REQUIRED'],
     ['SELF_LOCKOUT', 'SELF_LOCKOUT_FORBIDDEN'],
     ['LAST_ACTIVE_ADMIN', 'LAST_ACTIVE_ADMIN_REQUIRED'],
   ] as const)(

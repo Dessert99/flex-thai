@@ -55,7 +55,7 @@ describe.runIf(databaseUrl !== undefined)(
       ]);
 
       expect(results.map(({ kind }) => kind).sort()).toEqual([
-        'LAST_ACTIVE_ADMIN',
+        'ACTOR_FORBIDDEN',
         'UPDATED',
       ]);
       const activeAdmins = await pool.query<{ count: string }>(
@@ -141,8 +141,8 @@ const insertUser = async (
   role: 'LEARNER' | 'ADMIN',
 ) => {
   await pool.query(
-    `insert into users (id, cognito_sub, email, role)
-     values ($1, $2, $3, $4)`,
+    `insert into users (id, cognito_sub, email, role, mfa_enrolled_at)
+     values ($1, $2, $3, $4, case when $4 = 'ADMIN' then now() end)`,
     [id, `sub-${id}`, `${id}@hufs.ac.kr`, role],
   );
 };

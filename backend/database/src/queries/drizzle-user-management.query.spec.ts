@@ -15,6 +15,13 @@ const row = {
   createdAt: now,
   updatedAt: now,
 } as const;
+const activeActor = {
+  ...row,
+  id: actorUserId,
+  cognitoSub: 'admin-sub',
+  email: 'admin@hufs.ac.kr',
+  role: 'ADMIN',
+} as const;
 
 const createDatabase = (
   results: unknown[][],
@@ -142,7 +149,12 @@ describe('DrizzleUserManagementQuery', () => {
   });
 
   it('상태 변경을 lock·조회·수정·audit 순서로 한 transaction에 저장한다', async () => {
-    const fake = createDatabase([[row], [{ ...row, status: 'DISABLED' }], []]);
+    const fake = createDatabase([
+      [activeActor],
+      [row],
+      [{ ...row, status: 'DISABLED' }],
+      [],
+    ]);
     const query = new DrizzleUserManagementQuery(fake.database as never);
 
     await expect(query.changeStatusWithAudit(statusChange)).resolves.toEqual({
@@ -152,6 +164,7 @@ describe('DrizzleUserManagementQuery', () => {
 
     expect(fake.calls.map(({ operation }) => operation)).toEqual([
       'lock',
+      'select',
       'select',
       'update',
       'insert',
@@ -164,7 +177,7 @@ describe('DrizzleUserManagementQuery', () => {
 
   it('동일 상태는 updatedAt과 audit을 건드리지 않는 성공 no-op이다', async () => {
     const disabled = { ...row, status: 'DISABLED' } as const;
-    const fake = createDatabase([[disabled]]);
+    const fake = createDatabase([[activeActor], [disabled]]);
     const query = new DrizzleUserManagementQuery(fake.database as never);
 
     await expect(query.changeStatusWithAudit(statusChange)).resolves.toEqual({
@@ -174,12 +187,18 @@ describe('DrizzleUserManagementQuery', () => {
     expect(fake.calls.map(({ operation }) => operation)).toEqual([
       'lock',
       'select',
+      'select',
     ]);
   });
 
   it('자기 disable과 자기 demote를 차단한다', async () => {
     const admin = { ...row, id: actorUserId, role: 'ADMIN' } as const;
-    const fake = createDatabase([[admin], [admin]]);
+    const fake = createDatabase([
+      [activeActor],
+      [admin],
+      [activeActor],
+      [admin],
+    ]);
     const query = new DrizzleUserManagementQuery(fake.database as never);
 
     await expect(
@@ -194,11 +213,33 @@ describe('DrizzleUserManagementQuery', () => {
     ).resolves.toEqual({ kind: 'SELF_LOCKOUT' });
   });
 
+  it.each([
+    { ...activeActor, status: 'DISABLED' },
+    { ...activeActor, role: 'LEARNER' },
+    { ...activeActor, mfaEnrolledAt: null },
+  ] as const)(
+    'lock 뒤 최신 actor가 권한 조건을 잃은 경우 %# 변경을 차단한다',
+    async (unauthorizedActor) => {
+      const fake = createDatabase([[unauthorizedActor]]);
+      const query = new DrizzleUserManagementQuery(fake.database as never);
+
+      await expect(query.changeStatusWithAudit(statusChange)).resolves.toEqual({
+        kind: 'ACTOR_FORBIDDEN',
+      });
+      expect(fake.calls.map(({ operation }) => operation)).toEqual([
+        'lock',
+        'select',
+      ]);
+    },
+  );
+
   it('마지막 active admin의 제거를 차단한다', async () => {
     const admin = { ...row, role: 'ADMIN' } as const;
     const fake = createDatabase([
+      [activeActor],
       [admin],
       [{ total: 0 }],
+      [activeActor],
       [admin],
       [{ total: 0 }],
     ]);
@@ -213,7 +254,12 @@ describe('DrizzleUserManagementQuery', () => {
   });
 
   it('역할 변경은 MFA 등록 시각을 보존하고 before/after audit을 남긴다', async () => {
-    const fake = createDatabase([[row], [{ ...row, role: 'ADMIN' }], []]);
+    const fake = createDatabase([
+      [activeActor],
+      [row],
+      [{ ...row, role: 'ADMIN' }],
+      [],
+    ]);
     const query = new DrizzleUserManagementQuery(fake.database as never);
 
     await expect(
@@ -235,7 +281,7 @@ describe('DrizzleUserManagementQuery', () => {
   });
 
   it('대상이 없으면 변경 없이 NOT_FOUND를 반환한다', async () => {
-    const fake = createDatabase([[]]);
+    const fake = createDatabase([[activeActor], []]);
     const query = new DrizzleUserManagementQuery(fake.database as never);
 
     await expect(query.changeStatusWithAudit(statusChange)).resolves.toEqual({
@@ -244,9 +290,12 @@ describe('DrizzleUserManagementQuery', () => {
   });
 
   it('audit insert 실패 시 사용자 변경 transaction을 commit하지 않는다', async () => {
-    const fake = createDatabase([[row], [{ ...row, status: 'DISABLED' }]], {
-      failAuditAction: 'IDENTITY_USER_DISABLED',
-    });
+    const fake = createDatabase(
+      [[activeActor], [row], [{ ...row, status: 'DISABLED' }]],
+      {
+        failAuditAction: 'IDENTITY_USER_DISABLED',
+      },
+    );
     const query = new DrizzleUserManagementQuery(fake.database as never);
 
     await expect(query.changeStatusWithAudit(statusChange)).rejects.toThrow(

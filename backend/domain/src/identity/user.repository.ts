@@ -42,6 +42,7 @@ export type ManagedIdentityUserChangeResult =
   | { kind: 'UPDATED'; user: ManagedIdentityUser }
   | { kind: 'UNCHANGED'; user: ManagedIdentityUser }
   | { kind: 'NOT_FOUND' }
+  | { kind: 'ACTOR_FORBIDDEN' }
   | { kind: 'SELF_LOCKOUT' }
   | { kind: 'LAST_ACTIVE_ADMIN' };
 

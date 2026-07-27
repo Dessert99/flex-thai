@@ -130,6 +130,9 @@ const resolveChangeResult = (
   if (result.kind === 'NOT_FOUND') {
     throw new UserManagementError('USER_NOT_FOUND');
   }
+  if (result.kind === 'ACTOR_FORBIDDEN') {
+    throw new UserManagementError('ADMIN_REQUIRED');
+  }
   if (result.kind === 'SELF_LOCKOUT') {
     throw new UserManagementError('SELF_LOCKOUT_FORBIDDEN');
   }

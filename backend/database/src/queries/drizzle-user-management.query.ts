@@ -86,6 +86,18 @@ export class DrizzleUserManagementQuery
       await transaction.execute(
         sql`select pg_advisory_xact_lock(hashtext(${ADMIN_MUTATION_LOCK_KEY}))`,
       );
+      const [actor] = await transaction
+        .select()
+        .from(users)
+        .where(eq(users.id, input.actorUserId));
+      if (
+        !actor ||
+        actor.status !== 'ACTIVE' ||
+        actor.role !== 'ADMIN' ||
+        actor.mfaEnrolledAt === null
+      ) {
+        return { kind: 'ACTOR_FORBIDDEN' };
+      }
       const [current] = await transaction
         .select()
         .from(users)
@@ -152,6 +164,18 @@ export class DrizzleUserManagementQuery
       await transaction.execute(
         sql`select pg_advisory_xact_lock(hashtext(${ADMIN_MUTATION_LOCK_KEY}))`,
       );
+      const [actor] = await transaction
+        .select()
+        .from(users)
+        .where(eq(users.id, input.actorUserId));
+      if (
+        !actor ||
+        actor.status !== 'ACTIVE' ||
+        actor.role !== 'ADMIN' ||
+        actor.mfaEnrolledAt === null
+      ) {
+        return { kind: 'ACTOR_FORBIDDEN' };
+      }
       const [current] = await transaction
         .select()
         .from(users)

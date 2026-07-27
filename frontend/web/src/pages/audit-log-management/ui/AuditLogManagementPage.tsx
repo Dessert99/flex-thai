@@ -17,7 +17,11 @@ import {
   auditLogDetailQueryOptions,
   auditLogListQueryOptions,
 } from '../api/auditLogQueries';
-import type { AuditLogSearch } from '../model/auditLogSearch';
+import {
+  fromAuditDatetimeLocal,
+  toAuditDatetimeLocal,
+  type AuditLogSearch,
+} from '../model/auditLogSearch';
 
 interface AuditLogManagementPageProps {
   onSearchChange: (search: AuditLogSearch) => void;
@@ -77,15 +81,19 @@ export function AuditLogManagementPage({
         />
         <AuditFilter
           label='시작 시각'
-          onChange={(from) => changeFilter({ from })}
+          onChange={(from) =>
+            changeFilter({ from: fromAuditDatetimeLocal(from ?? '') })
+          }
           type='datetime-local'
-          value={search.from}
+          value={toAuditDatetimeLocal(search.from)}
         />
         <AuditFilter
           label='종료 시각'
-          onChange={(to) => changeFilter({ to })}
+          onChange={(to) =>
+            changeFilter({ to: fromAuditDatetimeLocal(to ?? '') })
+          }
           type='datetime-local'
-          value={search.to}
+          value={toAuditDatetimeLocal(search.to)}
         />
       </div>
       {list.data.items.length === 0 ? (
