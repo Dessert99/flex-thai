@@ -23,6 +23,17 @@ type QuestionProductionTransaction = Parameters<
   Parameters<QuestionProductionDatabase['transaction']>[0]
 >[0];
 
+const canonicalJsonValue = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(canonicalJsonValue);
+  if (value === null || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([, item]) => item !== undefined)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => [key, canonicalJsonValue(item)]),
+  );
+};
+
 const candidateWhere = (input: {
   itemId: string;
   attempt: number;
@@ -67,6 +78,7 @@ const existingCandidateIds = async (
         typeVersionId: questionProductionCandidates.typeVersionId,
         topicId: questionProductionCandidates.topicId,
         difficulty: questionProductionCandidates.difficulty,
+        payload: questionProductionCandidates.payload,
         payloadHash: questionProductionCandidates.payloadHash,
         resultGroup: questionProductionCandidates.resultGroup,
         reviewStatus: questionProductionCandidates.reviewStatus,
@@ -95,6 +107,7 @@ const existingCandidateIds = async (
       typeVersionId: record.candidate.questionTypeVersionId,
       topicId: record.candidate.topicId,
       difficulty: record.candidate.difficulty,
+      payload: record.candidate.payload as unknown as Record<string, unknown>,
       payloadHash: record.payloadHash,
       resultGroup: record.resultGroup,
       reviewStatus: record.reviewStatus,
@@ -103,8 +116,15 @@ const existingCandidateIds = async (
       approvedQuestionId: record.approvedQuestionId,
       approvedQuestionVersionId: record.approvedQuestionVersionId,
     };
-    const { id, ordinal, ...actual } = existing;
-    if (!isDeepStrictEqual(actual, expected)) {
+    const { id, ordinal, payload, ...actual } = existing;
+    const { payload: expectedPayload, ...expectedFields } = expected;
+    if (
+      !isDeepStrictEqual(actual, expectedFields) ||
+      !isDeepStrictEqual(
+        canonicalJsonValue(payload),
+        canonicalJsonValue(expectedPayload),
+      )
+    ) {
       throw new Error('QUESTION_CANDIDATE_REPLAY_CONFLICT');
     }
     ids.set(ordinal, id);

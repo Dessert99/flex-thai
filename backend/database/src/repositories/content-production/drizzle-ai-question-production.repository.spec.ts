@@ -23,7 +23,10 @@ const input = {
           topicId: 'topic-id',
           tagIds: ['tag-id'],
           difficulty: 3,
-          payload: { questionTypeSlug: 'reading-choice' } as never,
+          payload: {
+            questionTypeSlug: 'reading-choice',
+            metadata: { second: 2, first: 1 },
+          } as never,
         },
         payloadHash: 'a'.repeat(64),
         resultGroup: 'NEEDS_ATTENTION' as const,
@@ -244,6 +247,10 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
           typeVersionId: 'type-version-id',
           topicId: 'topic-id',
           difficulty: 3,
+          payload: {
+            metadata: { first: 1, second: 2 },
+            questionTypeSlug: 'reading-choice',
+          },
           payloadHash: 'a'.repeat(64),
           resultGroup: 'NEEDS_ATTENTION',
           reviewStatus: 'PENDING',
@@ -293,6 +300,7 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
         typeVersionId: 'type-version-id',
         topicId: 'topic-id',
         difficulty: 3,
+        payload: { questionTypeSlug: 'reading-choice' },
         payloadHash: 'b'.repeat(64),
         resultGroup: 'NEEDS_ATTENTION',
         reviewStatus: 'PENDING',
@@ -319,6 +327,51 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
 
     await expect(repository.persist(input)).rejects.toThrow(
       'QUESTION_CANDIDATE_REPLAY_CONFLICT',
+    );
+  });
+
+  it('같은 payload hash라도 canonical payload가 다르면 replay 충돌로 실패한다', async () => {
+    const returning = vi.fn().mockResolvedValue([]);
+    const onConflictDoNothing = vi.fn(() => ({ returning }));
+    const values = vi.fn(() => ({ onConflictDoNothing }));
+    const insert = vi.fn(() => ({ values }));
+    const limit = vi.fn().mockResolvedValue([
+      {
+        id: 'candidate-id',
+        ordinal: 0,
+        typeVersionId: 'type-version-id',
+        topicId: 'topic-id',
+        difficulty: 3,
+        payload: { questionTypeSlug: 'different-question' },
+        payloadHash: 'a'.repeat(64),
+        resultGroup: 'NEEDS_ATTENTION',
+        reviewStatus: 'PENDING',
+        reviewCode: 'QUESTION_SIMILARITY_REVIEW',
+        regeneratedFromCandidateId: null,
+        approvedQuestionId: null,
+        approvedQuestionVersionId: null,
+      },
+    ]);
+    const where = vi.fn(() => ({ limit }));
+    const from = vi.fn(() => ({ where }));
+    const select = vi.fn(() => ({ from }));
+    const terminalReturning = vi.fn().mockResolvedValue([{ id: input.itemId }]);
+    const terminalWhere = vi.fn(() => ({ returning: terminalReturning }));
+    const terminalSet = vi.fn(() => ({ where: terminalWhere }));
+    const update = vi.fn(() => ({ set: terminalSet }));
+    const transaction = vi.fn(
+      (callback: (executor: unknown) => Promise<unknown>) =>
+        callback({ insert, select, update }),
+    );
+    const repository = new DrizzleAiQuestionProductionRepository({
+      transaction,
+    } as never);
+
+    await expect(repository.persist(input)).rejects.toThrow(
+      'QUESTION_CANDIDATE_REPLAY_CONFLICT',
+    );
+    expect(select).toHaveBeenCalledWith(
+      expect.objectContaining({ payload: expect.anything() }),
     );
   });
 
