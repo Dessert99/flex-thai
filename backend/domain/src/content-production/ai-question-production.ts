@@ -1004,6 +1004,22 @@ export type DiscardQuestionCandidateInput = QuestionCandidateReviewCommand;
 /** 후보 재생성 명령 */
 export type RegenerateQuestionCandidateInput = QuestionCandidateReviewCommand;
 
+/** 문제 재생성 실행을 durable outbox에 남기는 typed dispatch 입력 */
+export interface QuestionRegenerationDispatchInput {
+  destination: 'CONTENT_PRODUCTION';
+  jobId: string;
+  attempt: number;
+  requestedAt: Date;
+}
+
+/** 저장 adapter의 transaction 경계를 공유하는 문제 재생성 dispatch writer port */
+export interface QuestionRegenerationDispatchWriter<Transaction = unknown> {
+  enqueue(
+    transaction: Transaction,
+    input: QuestionRegenerationDispatchInput,
+  ): Promise<void>;
+}
+
 /** 후보 승인 명령 */
 export type ApproveQuestionCandidateInput = QuestionCandidateReviewCommand;
 

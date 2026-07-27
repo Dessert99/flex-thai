@@ -1,8 +1,9 @@
 /** 실제 PostgreSQL에서 AI 문제 artifact replay와 transaction rollback을 검증한다 */
 import { randomUUID } from 'node:crypto';
+import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DrizzleAiQuestionProductionRepository } from './drizzle-ai-question-production.repository.js';
 
 const databaseUrl = process.env.AI_QUESTION_TEST_DATABASE_URL;
@@ -85,6 +86,38 @@ describe.runIf(databaseUrl !== undefined)(
         );
       }
       return { itemId, jobId, typeVersionId, topicId, userId };
+    };
+
+    const createRegenerationFixture = async () => {
+      const fixture = await createFixture();
+      const candidateId = randomUUID();
+      await pool.query(
+        `update jobs
+         set status = 'COMPLETED', attempt = 0, completed_at = now()
+         where id = $1`,
+        [fixture.jobId],
+      );
+      await pool.query(
+        `update job_items
+         set status = 'SUCCEEDED', attempt = 0, lease_token = null, lease_until = null
+         where id = $1`,
+        [fixture.itemId],
+      );
+      await pool.query(
+        `insert into question_production_candidates (
+         id, job_item_id, job_attempt, ordinal, type_version_id, payload_state,
+         topic_id, difficulty, payload, payload_hash, result_group, review_status
+       ) values ($1, $2, 0, 0, $3, 'CANONICAL', $4, 3, $5, $6, 'NORMAL', 'PENDING')`,
+        [
+          candidateId,
+          fixture.itemId,
+          fixture.typeVersionId,
+          fixture.topicId,
+          { questionTypeSlug: 'reading-choice' },
+          'e'.repeat(64),
+        ],
+      );
+      return { ...fixture, candidateId };
     };
 
     const persistenceInput = (
@@ -367,6 +400,100 @@ describe.runIf(databaseUrl !== undefined)(
         { reviewStatus: 'DISCARDED', revision: 1 },
         { reviewStatus: 'PENDING', revision: 0 },
       ]);
+      const audit = await pool.query<{ count: string }>(
+        `select count(*)::text count
+         from audit_logs
+         where target_type = 'QUESTION_CANDIDATE' and request_id = $1`,
+        [requestId],
+      );
+      expect(audit.rows[0]?.count).toBe('1');
+    });
+
+    it('재생성 dispatch writer 실패는 item·job·candidate·감사를 모두 rollback한다', async () => {
+      const fixture = await createRegenerationFixture();
+      const requestId = randomUUID();
+      const repository = new DrizzleAiQuestionProductionRepository(
+        drizzle({ client: pool }) as never,
+        () => new Date('2026-07-27T05:00:00.000Z'),
+        undefined,
+        {
+          enqueue: async (transaction) => {
+            await transaction.execute(sql`select 1`);
+            throw new Error('OUTBOX_INSERT_FAILED');
+          },
+        },
+      );
+
+      await expect(
+        repository.requestRegeneration({
+          candidateId: fixture.candidateId,
+          expectedRevision: 0,
+          actorUserId: fixture.userId,
+          actorSub: `ai-question-${fixture.userId}`,
+          requestId,
+          occurredAt: new Date('2026-07-27T05:00:00.000Z'),
+        }),
+      ).rejects.toThrow('OUTBOX_INSERT_FAILED');
+      const state = await pool.query<{
+        itemStatus: string;
+        itemAttempt: number;
+        jobStatus: string;
+        jobAttempt: number;
+        candidateRevision: number;
+        auditCount: string;
+      }>(
+        `select
+           i.status "itemStatus",
+           i.attempt "itemAttempt",
+           j.status "jobStatus",
+           j.attempt "jobAttempt",
+           c.revision "candidateRevision",
+           (
+             select count(*)::text
+             from audit_logs
+             where request_id = $2
+           ) "auditCount"
+         from job_items i
+         join jobs j on j.id = i.job_id
+         join question_production_candidates c on c.job_item_id = i.id
+         where i.id = $1`,
+        [fixture.itemId, requestId],
+      );
+      expect(state.rows[0]).toEqual({
+        itemStatus: 'SUCCEEDED',
+        itemAttempt: 0,
+        jobStatus: 'COMPLETED',
+        jobAttempt: 0,
+        candidateRevision: 0,
+        auditCount: '0',
+      });
+    });
+
+    it('같은 재생성 request replay는 dispatch intent를 추가하지 않는다', async () => {
+      const fixture = await createRegenerationFixture();
+      const requestId = randomUUID();
+      const enqueue = vi.fn().mockResolvedValue(undefined);
+      const repository = new DrizzleAiQuestionProductionRepository(
+        drizzle({ client: pool }) as never,
+        () => new Date('2026-07-27T05:10:00.000Z'),
+        undefined,
+        { enqueue },
+      );
+      const command = {
+        candidateId: fixture.candidateId,
+        expectedRevision: 0,
+        actorUserId: fixture.userId,
+        actorSub: `ai-question-${fixture.userId}`,
+        requestId,
+        occurredAt: new Date('2026-07-27T05:10:00.000Z'),
+      };
+
+      const first = await repository.requestRegeneration(command);
+      const replay = await repository.requestRegeneration(command);
+
+      expect(first).toEqual({ jobId: fixture.jobId, attempt: 1 });
+      expect(replay).toEqual(first);
+      expect(enqueue).toHaveBeenCalledOnce();
       const audit = await pool.query<{ count: string }>(
         `select count(*)::text count
          from audit_logs

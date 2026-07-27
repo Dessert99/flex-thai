@@ -338,6 +338,19 @@ describe('QuestionCandidateApplicationService 공개 경계', () => {
     expect(review.regenerate).toHaveBeenCalledWith(command);
   });
 
+  it('재생성 transaction이 실패하면 202 응답 body를 만들지 않고 실패를 전달한다', async () => {
+    const { review, service } = createService();
+    const failure = new Error('OUTBOX_INSERT_FAILED');
+    review.regenerate.mockRejectedValue(failure);
+
+    await expect(
+      service.regenerate(actor, candidateId, {
+        expectedRevision: 3,
+        requestId: bodyRequestId,
+      }),
+    ).rejects.toBe(failure);
+  });
+
   it('동일 requestId 승인 replay를 최초 승인과 같은 공개 응답으로 매핑한다', async () => {
     const { review, service } = createService();
     const request = { expectedRevision: 3, requestId: bodyRequestId };

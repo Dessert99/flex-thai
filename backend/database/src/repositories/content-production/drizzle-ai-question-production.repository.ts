@@ -14,6 +14,7 @@ import type {
   QuestionProductionProviderResult,
   QuestionProductionProviderRunRepository,
   QuestionProductionValidationRecord,
+  QuestionRegenerationDispatchWriter,
   RegenerateQuestionCandidateInput,
 } from '@flex-thia/domain';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
@@ -451,6 +452,7 @@ export class DrizzleAiQuestionProductionRepository
     private readonly database: QuestionProductionDatabase,
     private readonly now: () => Date = () => new Date(),
     private readonly draftWriter?: GeneratedQuestionDraftWriter,
+    private readonly regenerationDispatchWriter?: QuestionRegenerationDispatchWriter<QuestionProductionTransaction>,
   ) {}
 
   /** 검증 완료 후보를 잠근 채 nullable-audio DRAFT·연결·감사를 한 commit으로 만든다 */
@@ -642,6 +644,10 @@ export class DrizzleAiQuestionProductionRepository
   async requestRegeneration(
     input: RegenerateQuestionCandidateInput,
   ): Promise<{ jobId: string; attempt: number }> {
+    const dispatchWriter = this.regenerationDispatchWriter;
+    if (!dispatchWriter) {
+      throw new Error('QUESTION_REGENERATION_DISPATCH_WRITER_NOT_CONFIGURED');
+    }
     return this.database.transaction(async (transaction) => {
       await lockReviewRequest(transaction, input.requestId);
       const candidate = await readReviewCandidate(
@@ -805,6 +811,12 @@ export class DrizzleAiQuestionProductionRepository
       if (updatedCandidate.length !== 1) {
         throwReviewConflict();
       }
+      await dispatchWriter.enqueue(transaction, {
+        destination: 'CONTENT_PRODUCTION',
+        jobId: item.jobId,
+        attempt: nextAttempt,
+        requestedAt: input.occurredAt,
+      });
       await appendReviewAudit(transaction, {
         command: input,
         action: 'QUESTION_CANDIDATE_REGENERATION_REQUESTED',

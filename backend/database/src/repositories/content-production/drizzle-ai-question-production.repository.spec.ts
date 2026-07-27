@@ -184,6 +184,18 @@ const reviewReplayCases = [
 ] as const;
 
 describe('AI 문제 제작 Drizzle 저장소', () => {
+  it('재생성 dispatch writer가 없으면 transaction 시작 전에 실패한다', async () => {
+    const transaction = vi.fn();
+    const repository = new DrizzleAiQuestionProductionRepository({
+      transaction,
+    } as never);
+
+    await expect(repository.requestRegeneration(reviewCommand)).rejects.toThrow(
+      'QUESTION_REGENERATION_DISPATCH_WRITER_NOT_CONFIGURED',
+    );
+    expect(transaction).not.toHaveBeenCalled();
+  });
+
   it('request advisory lock을 parameter binding으로 candidate row lock보다 먼저 획득한다', async () => {
     const events: string[] = [];
     let advisoryQuery: unknown;
@@ -441,9 +453,13 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
 
   it.each(reviewReplayCases)(
     '$name command는 같은 semantic request만 replay한다',
-    async ({ audit, candidate, expected, invoke }) => {
+    async ({ audit, candidate, expected, invoke, name }) => {
+      const enqueue = vi.fn().mockResolvedValue(undefined);
       const repository = new DrizzleAiQuestionProductionRepository(
         replayDatabase(candidate, audit) as never,
+        undefined,
+        undefined,
+        { enqueue },
       );
 
       await expect(
@@ -452,6 +468,7 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
           occurredAt: new Date('2026-07-27T02:05:00.000Z'),
         }),
       ).resolves.toEqual(expected);
+      if (name === '재생성') expect(enqueue).not.toHaveBeenCalled();
     },
   );
 
@@ -465,12 +482,17 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
         { ...reviewCommand, expectedRevision: 1 },
       ];
       for (const command of changedCommands) {
+        const enqueue = vi.fn().mockResolvedValue(undefined);
         const repository = new DrizzleAiQuestionProductionRepository(
           replayDatabase(candidate, audit) as never,
+          undefined,
+          undefined,
+          { enqueue },
         );
         await expect(invoke(repository, command)).rejects.toThrow(
           'QUESTION_CANDIDATE_IDEMPOTENCY_CONFLICT',
         );
+        expect(enqueue).not.toHaveBeenCalled();
       }
     },
   );
@@ -598,14 +620,16 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
     const update = vi.fn(() => ({ set }));
     const auditValues = vi.fn().mockResolvedValue(undefined);
     const insert = vi.fn(() => ({ values: auditValues }));
+    const executor = withReviewRequestLock({ insert, select, update });
     const transaction = vi.fn(
-      (callback: (executor: unknown) => Promise<unknown>) =>
-        callback(withReviewRequestLock({ insert, select, update })),
+      (callback: (executor: unknown) => Promise<unknown>) => callback(executor),
     );
+    const enqueue = vi.fn().mockResolvedValue(undefined);
     const repository = new DrizzleAiQuestionProductionRepository(
       { transaction } as never,
       () => reviewCommand.occurredAt,
       { createDraft: vi.fn() },
+      { enqueue },
     );
 
     await expect(
@@ -632,6 +656,77 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
         },
       }),
     );
+    expect(enqueue).toHaveBeenCalledOnce();
+    expect(enqueue).toHaveBeenCalledWith(executor, {
+      destination: 'CONTENT_PRODUCTION',
+      jobId: input.jobId,
+      attempt: input.attempt + 1,
+      requestedAt: reviewCommand.occurredAt,
+    });
+  });
+
+  it('재생성 dispatch 기록 실패는 성공 결과와 감사를 확정하지 않는다', async () => {
+    const lockedRow = (row: Record<string, unknown>) => {
+      const limit = vi.fn().mockResolvedValue([row]);
+      const forUpdate = vi.fn(() => ({ limit }));
+      const where = vi.fn(() => ({ for: forUpdate }));
+      return vi.fn(() => ({ where }));
+    };
+    const auditLimit = vi.fn().mockResolvedValue([]);
+    const auditWhere = vi.fn(() => ({ limit: auditLimit }));
+    const auditFrom = vi.fn(() => ({ where: auditWhere }));
+    const select = vi
+      .fn()
+      .mockReturnValueOnce({ from: lockedRow(pendingCandidate) })
+      .mockReturnValueOnce({ from: auditFrom })
+      .mockReturnValueOnce({
+        from: lockedRow({
+          id: input.itemId,
+          jobId: input.jobId,
+          attempt: input.attempt,
+          status: 'SUCCEEDED',
+          leaseToken: null,
+          leaseUntil: null,
+        }),
+      })
+      .mockReturnValueOnce({
+        from: lockedRow({
+          id: input.jobId,
+          attempt: input.attempt,
+          status: 'COMPLETED',
+        }),
+      });
+    const returning = vi.fn().mockResolvedValue([{ id: input.itemId }]);
+    const update = vi.fn(() => ({
+      set: vi.fn(() => ({
+        where: vi.fn(() => ({ returning })),
+      })),
+    }));
+    const auditValues = vi.fn().mockResolvedValue(undefined);
+    const executor = withReviewRequestLock({
+      insert: vi.fn(() => ({ values: auditValues })),
+      select,
+      update,
+    });
+    const transaction = vi.fn(
+      async (callback: (executor: unknown) => Promise<unknown>) =>
+        callback(executor),
+    );
+    const enqueue = vi
+      .fn()
+      .mockRejectedValue(new Error('OUTBOX_INSERT_FAILED'));
+    const repository = new DrizzleAiQuestionProductionRepository(
+      { transaction } as never,
+      () => reviewCommand.occurredAt,
+      undefined,
+      { enqueue },
+    );
+
+    await expect(repository.requestRegeneration(reviewCommand)).rejects.toThrow(
+      'OUTBOX_INSERT_FAILED',
+    );
+    expect(enqueue).toHaveBeenCalledOnce();
+    expect(auditValues).not.toHaveBeenCalled();
   });
 
   it('PROCESSING item과 활성 lease는 재생성으로 덮어쓰지 않는다', async () => {
@@ -666,16 +761,24 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
     const update = vi.fn(() => ({ set }));
     const values = vi.fn().mockResolvedValue(undefined);
     const insert = vi.fn(() => ({ values }));
-    const repository = new DrizzleAiQuestionProductionRepository({
-      transaction: vi.fn((callback: (executor: unknown) => Promise<unknown>) =>
-        callback(withReviewRequestLock({ insert, select, update })),
-      ),
-    } as never);
+    const enqueue = vi.fn().mockResolvedValue(undefined);
+    const repository = new DrizzleAiQuestionProductionRepository(
+      {
+        transaction: vi.fn(
+          (callback: (executor: unknown) => Promise<unknown>) =>
+            callback(withReviewRequestLock({ insert, select, update })),
+        ),
+      } as never,
+      undefined,
+      undefined,
+      { enqueue },
+    );
 
     await expect(repository.requestRegeneration(reviewCommand)).rejects.toThrow(
       'QUESTION_CANDIDATE_REVIEW_CONFLICT',
     );
     expect(update).not.toHaveBeenCalled();
+    expect(enqueue).not.toHaveBeenCalled();
   });
 
   it('item lifecycle CAS가 0건이면 job을 재개하지 않는다', async () => {
@@ -720,17 +823,25 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
     const update = vi.fn().mockReturnValueOnce({
       set: vi.fn(() => ({ where: itemWhereUpdate })),
     });
-    const repository = new DrizzleAiQuestionProductionRepository({
-      transaction: vi.fn((callback: (executor: unknown) => Promise<unknown>) =>
-        callback(withReviewRequestLock({ select, update })),
-      ),
-    } as never);
+    const enqueue = vi.fn().mockResolvedValue(undefined);
+    const repository = new DrizzleAiQuestionProductionRepository(
+      {
+        transaction: vi.fn(
+          (callback: (executor: unknown) => Promise<unknown>) =>
+            callback(withReviewRequestLock({ select, update })),
+        ),
+      } as never,
+      undefined,
+      undefined,
+      { enqueue },
+    );
 
     await expect(repository.requestRegeneration(reviewCommand)).rejects.toThrow(
       'QUESTION_CANDIDATE_REVIEW_CONFLICT',
     );
     expect(itemReturning).toHaveBeenCalledOnce();
     expect(update).toHaveBeenCalledOnce();
+    expect(enqueue).not.toHaveBeenCalled();
   });
 
   it('job lifecycle CAS가 0건이면 item 재개를 transaction conflict로 되돌린다', async () => {
@@ -785,17 +896,25 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
       .mockReturnValueOnce({
         set: vi.fn(() => ({ where: candidateWhereUpdate })),
       });
-    const repository = new DrizzleAiQuestionProductionRepository({
-      transaction: vi.fn((callback: (executor: unknown) => Promise<unknown>) =>
-        callback(withReviewRequestLock({ select, update })),
-      ),
-    } as never);
+    const enqueue = vi.fn().mockResolvedValue(undefined);
+    const repository = new DrizzleAiQuestionProductionRepository(
+      {
+        transaction: vi.fn(
+          (callback: (executor: unknown) => Promise<unknown>) =>
+            callback(withReviewRequestLock({ select, update })),
+        ),
+      } as never,
+      undefined,
+      undefined,
+      { enqueue },
+    );
 
     await expect(repository.requestRegeneration(reviewCommand)).rejects.toThrow(
       'QUESTION_CANDIDATE_REVIEW_CONFLICT',
     );
     expect(jobReturning).toHaveBeenCalledOnce();
     expect(candidateReturning).not.toHaveBeenCalled();
+    expect(enqueue).not.toHaveBeenCalled();
   });
 
   it('candidate revision CAS가 0건이면 두 번째 재생성을 conflict로 되돌린다', async () => {
@@ -852,16 +971,24 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
           where: vi.fn(() => ({ returning: candidateReturning })),
         })),
       });
-    const repository = new DrizzleAiQuestionProductionRepository({
-      transaction: vi.fn((callback: (executor: unknown) => Promise<unknown>) =>
-        callback(withReviewRequestLock({ select, update })),
-      ),
-    } as never);
+    const enqueue = vi.fn().mockResolvedValue(undefined);
+    const repository = new DrizzleAiQuestionProductionRepository(
+      {
+        transaction: vi.fn(
+          (callback: (executor: unknown) => Promise<unknown>) =>
+            callback(withReviewRequestLock({ select, update })),
+        ),
+      } as never,
+      undefined,
+      undefined,
+      { enqueue },
+    );
 
     await expect(repository.requestRegeneration(reviewCommand)).rejects.toThrow(
       'QUESTION_CANDIDATE_REVIEW_CONFLICT',
     );
     expect(candidateReturning).toHaveBeenCalledOnce();
+    expect(enqueue).not.toHaveBeenCalled();
   });
 
   it('성공한 문제 provider 실행은 문제 후보 결과로 replay한다', async () => {
