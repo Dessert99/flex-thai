@@ -1460,12 +1460,20 @@ const hasValidTemplate = (
 
 const generatedSentences = (
   candidate: GeneratedQuestionCandidate,
-): GeneratedQuestionSentenceInput[] => [
+): Array<{
+  blockKind: GeneratedQuestionPayload['blocks'][number]['kind'] | 'OPTION';
+  sentence: GeneratedQuestionSentenceInput;
+}> => [
   ...candidate.payload.blocks.flatMap((block) =>
-    block.sentences.map(({ sentence }) => sentence),
+    block.sentences.map(({ sentence }) => ({
+      blockKind: block.kind,
+      sentence,
+    })),
   ),
   ...candidate.payload.options.flatMap((option) =>
-    option.sentence === null ? [] : [option.sentence],
+    option.sentence === null
+      ? []
+      : [{ blockKind: 'OPTION' as const, sentence: option.sentence }],
   ),
 ];
 
@@ -1508,54 +1516,74 @@ const hasValidVocabularyPolicy = (
   const foundRequired = new Set<string>();
   const auxiliary = new Set<string>();
 
-  for (const sentence of sentences) {
-    const targetTokenIndexes = new Set<number>();
-    const requiredTokenIndexes = new Set<number>();
-    for (const range of generatedVocabularyRanges(sentence)) {
-      if (excluded.has(range.normalizedSurface)) return false;
-      const matchingRoles: Array<{
+  for (const { blockKind, sentence } of sentences) {
+    const ranges = generatedVocabularyRanges(sentence);
+    if (ranges.some((range) => excluded.has(range.normalizedSurface))) {
+      return false;
+    }
+    if (blockKind === 'INSTRUCTION') {
+      if (sentence.tokens.some(({ role }) => role !== 'INSTRUCTION')) {
+        return false;
+      }
+      continue;
+    }
+
+    const policyMatches: Array<
+      GeneratedVocabularyRange & { role: 'TARGET' | 'REQUIRED' }
+    > = [];
+    for (const range of ranges) {
+      const matchingPolicies: Array<{
         policy: Set<string>;
         found: Set<string>;
-        tokenIndexes: Set<number>;
+        role: 'TARGET' | 'REQUIRED';
       }> = [
         {
           policy: target,
           found: foundTarget,
-          tokenIndexes: targetTokenIndexes,
+          role: 'TARGET',
         },
         {
           policy: required,
           found: foundRequired,
-          tokenIndexes: requiredTokenIndexes,
+          role: 'REQUIRED',
         },
       ];
-      for (const { policy, found, tokenIndexes } of matchingRoles) {
+      for (const { policy, found, role } of matchingPolicies) {
         if (!policy.has(range.normalizedSurface)) continue;
         found.add(range.normalizedSurface);
-        for (
-          let index = range.startTokenIndex;
-          index < range.endTokenIndex;
-          index += 1
-        ) {
-          tokenIndexes.add(index);
-        }
+        policyMatches.push({ ...range, role });
       }
     }
 
     for (const [index, token] of sentence.tokens.entries()) {
-      const isTarget = targetTokenIndexes.has(index);
-      const isRequired = requiredTokenIndexes.has(index);
-      if (
-        (isTarget && isRequired) ||
-        (isTarget && token.role !== 'TARGET') ||
-        (isRequired && token.role !== 'REQUIRED') ||
-        (!isTarget &&
-          !isRequired &&
-          (token.role === 'TARGET' || token.role === 'REQUIRED'))
-      ) {
+      const memberships = policyMatches.filter(
+        (match) =>
+          match.startTokenIndex <= index && index < match.endTokenIndex,
+      );
+      // 겹친 정책은 더 구체적인 하위 표현이 token의 canonical 학습 역할을 결정한다.
+      const shortestLength = Math.min(
+        ...memberships.map(
+          (match) => match.endTokenIndex - match.startTokenIndex,
+        ),
+      );
+      const canonicalRoles = new Set(
+        memberships
+          .filter(
+            (match) =>
+              match.endTokenIndex - match.startTokenIndex === shortestLength,
+          )
+          .map(({ role }) => role),
+      );
+      const expectedRole =
+        canonicalRoles.size === 0
+          ? 'SUPPORTING'
+          : canonicalRoles.size === 1
+            ? canonicalRoles.values().next().value
+            : undefined;
+      if (expectedRole === undefined || token.role !== expectedRole) {
         return false;
       }
-      if (!isTarget && !isRequired) {
+      if (expectedRole === 'SUPPORTING') {
         auxiliary.add(normalizeThaiSearchText(token.surface));
       }
     }

@@ -423,6 +423,21 @@ const supportingVocabularyCandidate: GeneratedQuestionCandidate = {
   },
 };
 
+const instructionSentence = {
+  ...singleTokenSentence,
+  originalText: 'จง',
+  translationKo: '다음 지시에 따르세요.',
+  pronunciationKo: '쫑',
+  tokens: [
+    {
+      ...singleTokenSentence.tokens[0]!,
+      surface: 'จง',
+      endOffset: 2,
+      role: 'INSTRUCTION' as const,
+    },
+  ],
+};
+
 describe('AI 문제 후보 검증 규칙', () => {
   it.each([
     ['schema 실패', 'FAILED', 'QUESTION_SCHEMA_INVALID'],
@@ -1011,6 +1026,273 @@ describe('AI 문제 후보 검증 규칙', () => {
           },
         },
         { ...inlineDecisionContext, newAuxiliaryVocabularyLimit: 0 },
+      ),
+    ).toEqual({
+      status: 'FAILED',
+      code: 'QUESTION_RULE_INVALID',
+    });
+  });
+
+  it('지시문 어휘는 신규 보조 어휘 한도에서 제외한다', () => {
+    expect(
+      validateQuestionDecisionRules(
+        {
+          ...candidate,
+          payload: {
+            ...candidate.payload,
+            blocks: [
+              {
+                kind: 'INSTRUCTION',
+                displayMode: 'TEXT',
+                sentences: [{ speaker: null, sentence: instructionSentence }],
+              },
+              ...candidate.payload.blocks,
+            ],
+          },
+        },
+        { ...standardDecisionContext, newAuxiliaryVocabularyLimit: 0 },
+      ),
+    ).toEqual({
+      status: 'PASSED',
+      code: null,
+    });
+  });
+
+  it('지시문 안에 숨긴 제외 어휘도 결정 규칙 실패로 반환한다', () => {
+    expect(
+      validateQuestionDecisionRules(
+        {
+          ...candidate,
+          payload: {
+            ...candidate.payload,
+            blocks: [
+              {
+                kind: 'INSTRUCTION',
+                displayMode: 'TEXT',
+                sentences: [{ speaker: null, sentence: instructionSentence }],
+              },
+              ...candidate.payload.blocks,
+            ],
+          },
+        },
+        {
+          ...standardDecisionContext,
+          excludedVocabulary: [
+            {
+              thai: 'จง',
+              meaningKo: '명령하다',
+              partOfSpeech: '동사',
+              difficulty: 1,
+            },
+          ],
+        },
+      ),
+    ).toEqual({
+      status: 'FAILED',
+      code: 'QUESTION_RULE_INVALID',
+    });
+  });
+
+  it('지시문 밖에서 INSTRUCTION으로 잘못 표시한 신규 어휘를 거절한다', () => {
+    const option = supportingVocabularyCandidate.payload.options[0];
+    if (!option || option.sentence === null) {
+      throw new Error('일반 선택지 fixture가 아닙니다');
+    }
+
+    expect(
+      validateQuestionDecisionRules(
+        {
+          ...supportingVocabularyCandidate,
+          payload: {
+            ...supportingVocabularyCandidate.payload,
+            options: [
+              {
+                ...option,
+                sentence: {
+                  ...option.sentence,
+                  tokens: [
+                    {
+                      ...option.sentence.tokens[0]!,
+                      role: 'INSTRUCTION',
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        },
+        { ...standardDecisionContext, newAuxiliaryVocabularyLimit: 1 },
+      ),
+    ).toEqual({
+      status: 'FAILED',
+      code: 'QUESTION_RULE_INVALID',
+    });
+  });
+
+  it('지시문 token을 SUPPORTING으로 잘못 표시하면 거절한다', () => {
+    expect(
+      validateQuestionDecisionRules(
+        {
+          ...candidate,
+          payload: {
+            ...candidate.payload,
+            blocks: [
+              {
+                kind: 'INSTRUCTION',
+                displayMode: 'TEXT',
+                sentences: [
+                  {
+                    speaker: null,
+                    sentence: {
+                      ...instructionSentence,
+                      tokens: [
+                        {
+                          ...instructionSentence.tokens[0]!,
+                          role: 'SUPPORTING',
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+              ...candidate.payload.blocks,
+            ],
+          },
+        },
+        standardDecisionContext,
+      ),
+    ).toEqual({
+      status: 'FAILED',
+      code: 'QUESTION_RULE_INVALID',
+    });
+  });
+
+  it('지시문에 TARGET을 붙여 목표 어휘를 충족한 것처럼 숨기면 거절한다', () => {
+    const option = candidate.payload.options[0];
+    if (!option || option.sentence === null) {
+      throw new Error('일반 선택지 fixture가 아닙니다');
+    }
+
+    expect(
+      validateQuestionDecisionRules(
+        {
+          ...candidate,
+          payload: {
+            ...candidate.payload,
+            blocks: [
+              {
+                kind: 'INSTRUCTION',
+                displayMode: 'TEXT',
+                sentences: [
+                  {
+                    speaker: null,
+                    sentence: {
+                      ...instructionSentence,
+                      tokens: [
+                        {
+                          ...instructionSentence.tokens[0]!,
+                          role: 'TARGET',
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+              ...candidate.payload.blocks,
+            ],
+            options: [
+              {
+                ...option,
+                sentence: {
+                  ...singleTokenSentence,
+                  tokens: [
+                    {
+                      ...singleTokenSentence.tokens[0]!,
+                      role: 'SUPPORTING',
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        },
+        {
+          ...standardDecisionContext,
+          targetVocabulary: [
+            {
+              thai: 'จง',
+              meaningKo: '명령하다',
+              partOfSpeech: '동사',
+              difficulty: 1,
+            },
+          ],
+          newAuxiliaryVocabularyLimit: 1,
+        },
+      ),
+    ).toEqual({
+      status: 'FAILED',
+      code: 'QUESTION_RULE_INVALID',
+    });
+  });
+
+  it('목표 표현이 필수 하위 어휘를 포함하면 구체적인 token role로 통과한다', () => {
+    expect(
+      validateQuestionDecisionRules(inlineCandidate, {
+        ...inlineDecisionContext,
+        targetVocabulary: [
+          {
+            thai: 'ไปไหน',
+            meaningKo: '어디에 가다',
+            partOfSpeech: '표현',
+            difficulty: 1,
+          },
+        ],
+      }),
+    ).toEqual({
+      status: 'PASSED',
+      code: null,
+    });
+  });
+
+  it('겹친 목표 표현과 필수 하위 어휘의 token role을 바꾸면 거절한다', () => {
+    const sentence = inlineCandidate.payload.blocks[0]!.sentences[0]!.sentence;
+
+    expect(
+      validateQuestionDecisionRules(
+        {
+          ...inlineCandidate,
+          payload: {
+            ...inlineCandidate.payload,
+            blocks: [
+              {
+                ...inlineCandidate.payload.blocks[0]!,
+                sentences: [
+                  {
+                    speaker: null,
+                    sentence: {
+                      ...sentence,
+                      tokens: [
+                        { ...sentence.tokens[0]!, role: 'REQUIRED' },
+                        { ...sentence.tokens[1]!, role: 'TARGET' },
+                      ],
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        },
+        {
+          ...inlineDecisionContext,
+          targetVocabulary: [
+            {
+              thai: 'ไปไหน',
+              meaningKo: '어디에 가다',
+              partOfSpeech: '표현',
+              difficulty: 1,
+            },
+          ],
+        },
       ),
     ).toEqual({
       status: 'FAILED',
