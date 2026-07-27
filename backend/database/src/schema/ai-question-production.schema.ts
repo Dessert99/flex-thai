@@ -44,7 +44,7 @@ export const questionValidationStageEnum = pgEnum('question_validation_stage', [
 /** AI 문제 후보의 검증 결과 */
 export const questionProductionValidationStatusEnum = pgEnum(
   'question_production_validation_status',
-  ['PASSED', 'FAILED'],
+  ['PASSED', 'FAILED', 'SKIPPED'],
 );
 
 /** job item attempt에서 생성한 관리자 검토 대상 문제 후보 */

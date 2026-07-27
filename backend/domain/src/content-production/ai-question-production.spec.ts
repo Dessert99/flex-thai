@@ -382,6 +382,24 @@ describe('AI 문제 후보 검증 규칙', () => {
     });
   });
 
+  it('실행하지 않은 검증 record를 SKIPPED stable code로 정규화한다', () => {
+    expect(
+      normalizeQuestionProductionValidationRecord({
+        candidateOrdinal: 0,
+        stage: 'SIMILARITY',
+        status: 'SKIPPED',
+        code: null,
+        details: {},
+      }),
+    ).toEqual({
+      candidateOrdinal: 0,
+      stage: 'SIMILARITY',
+      status: 'SKIPPED',
+      code: 'QUESTION_VALIDATION_SKIPPED',
+      details: {},
+    });
+  });
+
   it('필수 출력 field가 빠진 후보를 schema 실패로 반환한다', () => {
     expect(validateGeneratedQuestionSchema({})).toEqual({
       status: 'FAILED',

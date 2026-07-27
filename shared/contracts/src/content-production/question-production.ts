@@ -44,6 +44,7 @@ export const questionCandidateValidationStageSchema = z.enum([
 export const questionCandidateValidationStatusSchema = z.enum([
   'PASSED',
   'FAILED',
+  'SKIPPED',
 ]);
 
 /** 검수 명령이 노출할 수 있는 안정적인 상태 전이 오류 code */
@@ -312,7 +313,9 @@ export const questionCandidateValidationSchema = z
 
     if (
       (validation.status === 'PASSED' && validation.code !== null) ||
-      (validation.status === 'FAILED' && validation.code === null)
+      (validation.status === 'FAILED' && validation.code === null) ||
+      (validation.status === 'SKIPPED' &&
+        validation.code !== 'QUESTION_VALIDATION_SKIPPED')
     ) {
       context.addIssue({
         code: 'custom',
@@ -326,6 +329,13 @@ export const questionCandidateValidationSchema = z
       validation.evidence.kind !== 'NONE'
     ) {
       addIssue('schema·결정 규칙 검증은 원문 없는 NONE evidence만 사용합니다.');
+      return;
+    }
+
+    if (validation.status === 'SKIPPED') {
+      if (validation.evidence.kind !== 'NONE') {
+        addIssue('실행하지 않은 검증은 원문 없는 NONE evidence만 사용합니다.');
+      }
       return;
     }
 

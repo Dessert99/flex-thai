@@ -83,12 +83,19 @@ export type QuestionProductionValidationRecord =
       status: 'FAILED';
       code: string;
       details: Record<string, unknown>;
+    }
+  | {
+      candidateOrdinal: number;
+      stage: QuestionValidationStage;
+      status: 'SKIPPED';
+      code: 'QUESTION_VALIDATION_SKIPPED';
+      details: Record<string, unknown>;
     };
 
 type UnnormalizedQuestionProductionValidationRecord = {
   candidateOrdinal: number;
   stage: QuestionValidationStage;
-  status: 'PASSED' | 'FAILED';
+  status: 'PASSED' | 'FAILED' | 'SKIPPED';
   code: string | null;
   details: Record<string, unknown>;
 };
@@ -155,6 +162,16 @@ export const normalizeQuestionProductionValidationRecord = (
       stage: input.stage,
       status: 'PASSED',
       code: null,
+      details: input.details,
+    };
+  }
+
+  if (input.status === 'SKIPPED') {
+    return {
+      candidateOrdinal: input.candidateOrdinal,
+      stage: input.stage,
+      status: 'SKIPPED',
+      code: 'QUESTION_VALIDATION_SKIPPED',
       details: input.details,
     };
   }
@@ -814,14 +831,23 @@ export interface QuestionCrossValidationInput {
 }
 
 /** 독립 교차 검증 provider의 정규화 응답 */
-export interface QuestionCrossValidationResult {
-  status: 'PASSED' | 'FAILED';
-  code: string | null;
-  evidence: Record<string, unknown>;
-  usage: Record<string, number>;
-  estimatedCostUsd: string;
-  providerRequestId: string | null;
-}
+export type QuestionCrossValidationResult =
+  | {
+      status: 'PASSED';
+      code: null;
+      evidence: Record<string, unknown>;
+      usage: Record<string, number>;
+      estimatedCostUsd: string;
+      providerRequestId: string | null;
+    }
+  | {
+      status: 'FAILED';
+      code: string;
+      evidence: Record<string, unknown>;
+      usage: Record<string, number>;
+      estimatedCostUsd: string;
+      providerRequestId: string | null;
+    };
 
 /** 문제 생성 provider 실행을 attempt 안에서 유일하게 식별한다 */
 export interface QuestionProductionProviderExecution {
@@ -835,21 +861,78 @@ export interface QuestionProductionProviderExecution {
   itemLeaseToken: string;
 }
 
-/** 문제 생성·교차 검증 provider의 replay 가능한 정규화 결과 */
-export type QuestionProductionProviderResult = (
-  | { kind: 'QUESTION_CANDIDATES'; candidates: GeneratedQuestionCandidate[] }
-  | {
+type ProviderRunMetadata = Partial<{
+  usage: Record<string, number>;
+  estimatedCostUsd: string;
+  providerRequestId: string | null;
+}>;
+
+type UnnormalizedQuestionProductionProviderResult =
+  | ({
+      kind: 'QUESTION_CANDIDATES';
+      candidates: GeneratedQuestionCandidate[];
+    } & ProviderRunMetadata)
+  | ({
       kind: 'QUESTION_VALIDATION';
       status: 'PASSED' | 'FAILED';
       code: string | null;
       evidence: Record<string, unknown>;
-    }
-) &
-  Partial<{
-    usage: Record<string, number>;
-    estimatedCostUsd: string;
-    providerRequestId: string | null;
-  }>;
+    } & ProviderRunMetadata);
+
+/** 문제 생성·교차 검증 provider의 replay 가능한 정규화 결과 */
+export type QuestionProductionProviderResult =
+  | ({
+      kind: 'QUESTION_CANDIDATES';
+      candidates: GeneratedQuestionCandidate[];
+    } & ProviderRunMetadata)
+  | ({
+      kind: 'QUESTION_VALIDATION';
+      status: 'PASSED';
+      code: null;
+      evidence: Record<string, unknown>;
+    } & ProviderRunMetadata)
+  | ({
+      kind: 'QUESTION_VALIDATION';
+      status: 'FAILED';
+      code: string;
+      evidence: Record<string, unknown>;
+    } & ProviderRunMetadata);
+
+/** provider validation 실패 code 누락을 저장·replay 전 안정 code로 보정한다 */
+export const normalizeQuestionProductionProviderResult = (
+  input: UnnormalizedQuestionProductionProviderResult,
+): QuestionProductionProviderResult => {
+  if (input.kind === 'QUESTION_CANDIDATES') return input;
+
+  const metadata: ProviderRunMetadata = {
+    ...(input.usage === undefined ? {} : { usage: input.usage }),
+    ...(input.estimatedCostUsd === undefined
+      ? {}
+      : { estimatedCostUsd: input.estimatedCostUsd }),
+    ...(input.providerRequestId === undefined
+      ? {}
+      : { providerRequestId: input.providerRequestId }),
+  };
+  if (input.status === 'PASSED') {
+    return {
+      kind: 'QUESTION_VALIDATION',
+      status: 'PASSED',
+      code: null,
+      evidence: input.evidence,
+      ...metadata,
+    };
+  }
+  return {
+    kind: 'QUESTION_VALIDATION',
+    status: 'FAILED',
+    code:
+      typeof input.code === 'string' && input.code.trim().length > 0
+        ? input.code
+        : 'QUESTION_CROSS_VALIDATION_FAILED',
+    evidence: input.evidence,
+    ...metadata,
+  };
+};
 
 /** 문제 provider 실행의 확정 실패 또는 결과 불명 상태 */
 export interface QuestionProductionProviderFailure {

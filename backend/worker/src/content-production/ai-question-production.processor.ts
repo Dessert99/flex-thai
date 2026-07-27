@@ -5,6 +5,7 @@ import {
   buildQuestionGenerationPrompt,
   classifyQuestionCandidate,
   normalizeQuestionProductionValidationRecord,
+  normalizeQuestionProductionProviderResult,
   validateGeneratedQuestionSchema,
   validateQuestionDecisionRules,
 } from '@flex-thia/domain';
@@ -180,7 +181,10 @@ const runProviderOperation = async (
 ): Promise<ProviderOperationResult> => {
   const claim = await repository.claim(execution);
   if (claim.kind === 'REPLAY') {
-    return { status: 'SUCCEEDED', result: claim.result };
+    return {
+      status: 'SUCCEEDED',
+      result: normalizeQuestionProductionProviderResult(claim.result),
+    };
   }
   if (claim.kind === 'OUTCOME_UNKNOWN') {
     return {
@@ -192,7 +196,7 @@ const runProviderOperation = async (
 
   let result: QuestionProductionProviderResult;
   try {
-    result = await call();
+    result = normalizeQuestionProductionProviderResult(await call());
   } catch {
     const failure: QuestionProductionProviderFailure = {
       status: 'FAILED',
@@ -431,8 +435,8 @@ export class AiQuestionProductionProcessor {
         schema.status === 'PASSED'
           ? validateQuestionDecisionRules(candidate)
           : {
-              status: 'FAILED' as const,
-              code: 'QUESTION_RULE_INVALID' as const,
+              status: 'SKIPPED' as const,
+              code: 'QUESTION_VALIDATION_SKIPPED' as const,
             };
       candidateValidations.push(
         normalizeQuestionProductionValidationRecord({
@@ -494,15 +498,25 @@ export class AiQuestionProductionProcessor {
               promptVersion: prompt.promptVersion,
               signal,
             });
-            return {
-              kind: 'QUESTION_VALIDATION',
-              status: result.status,
-              code: result.code,
-              evidence: result.evidence,
-              usage: result.usage,
-              estimatedCostUsd: result.estimatedCostUsd,
-              providerRequestId: result.providerRequestId,
-            };
+            return result.status === 'PASSED'
+              ? {
+                  kind: 'QUESTION_VALIDATION',
+                  status: 'PASSED',
+                  code: null,
+                  evidence: result.evidence,
+                  usage: result.usage,
+                  estimatedCostUsd: result.estimatedCostUsd,
+                  providerRequestId: result.providerRequestId,
+                }
+              : {
+                  kind: 'QUESTION_VALIDATION',
+                  status: 'FAILED',
+                  code: result.code,
+                  evidence: result.evidence,
+                  usage: result.usage,
+                  estimatedCostUsd: result.estimatedCostUsd,
+                  providerRequestId: result.providerRequestId,
+                };
           },
         );
         if (signal.aborted) return abortedResult();
@@ -544,6 +558,25 @@ export class AiQuestionProductionProcessor {
             }),
           );
         }
+      } else {
+        candidateValidations.push(
+          normalizeQuestionProductionValidationRecord({
+            candidateOrdinal: ordinal,
+            stage: 'SIMILARITY',
+            status: 'SKIPPED',
+            code: 'QUESTION_VALIDATION_SKIPPED',
+            details: {},
+          }),
+        );
+        candidateValidations.push(
+          normalizeQuestionProductionValidationRecord({
+            candidateOrdinal: ordinal,
+            stage: 'AI_CROSS_VALIDATION',
+            status: 'SKIPPED',
+            code: 'QUESTION_VALIDATION_SKIPPED',
+            details: {},
+          }),
+        );
       }
 
       const classification = classifyQuestionCandidate(candidateValidations);

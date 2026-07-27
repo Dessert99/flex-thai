@@ -342,17 +342,32 @@ describe('AI 문제 제작 processor', () => {
 
   it('null code로 실패한 교차 검증 결과를 stable code로 저장한다', async () => {
     let crossValidationCode: string | null | undefined;
+    const storedResults: unknown[] = [];
     const processor = createProcessor({
       crossValidation: {
         validate: () =>
           Promise.resolve({
             status: 'FAILED',
             code: null,
-            evidence: {},
-            usage: {},
-            estimatedCostUsd: '0',
-            providerRequestId: null,
+            evidence: { reason: 'independent-check' },
+            usage: { inputTokens: 12 },
+            estimatedCostUsd: '0.01',
+            providerRequestId: 'cross-fresh-request',
+          } as unknown as Awaited<
+            ReturnType<QuestionCrossValidationProvider['validate']>
+          >),
+      },
+      providerRuns: {
+        claim: ({ operation, sequence }) =>
+          Promise.resolve({
+            kind: 'CLAIMED',
+            runId: `${operation}-${sequence}`,
           }),
+        succeed: (_runId, result) => {
+          storedResults.push(result);
+          return Promise.resolve(true);
+        },
+        fail: () => Promise.resolve(true),
       },
       candidateRepository: {
         persist: (input) => {
@@ -371,6 +386,87 @@ describe('AI 문제 제작 processor', () => {
       errorCode: null,
     });
     expect(crossValidationCode).toBe('QUESTION_CROSS_VALIDATION_FAILED');
+    expect(
+      storedResults.find(
+        (
+          result,
+        ): result is {
+          kind: 'QUESTION_VALIDATION';
+          status: 'FAILED';
+          code: string;
+          evidence: Record<string, unknown>;
+          usage?: Record<string, number>;
+          estimatedCostUsd?: string;
+          providerRequestId?: string | null;
+        } =>
+          typeof result === 'object' &&
+          result !== null &&
+          'kind' in result &&
+          result.kind === 'QUESTION_VALIDATION',
+      ),
+    ).toEqual({
+      kind: 'QUESTION_VALIDATION',
+      status: 'FAILED',
+      code: 'QUESTION_CROSS_VALIDATION_FAILED',
+      evidence: { reason: 'independent-check' },
+      usage: { inputTokens: 12 },
+      estimatedCostUsd: '0.01',
+      providerRequestId: 'cross-fresh-request',
+    });
+  });
+
+  it('replay된 null code 교차 검증 결과를 사용 전에 stable code로 정규화한다', async () => {
+    let crossValidationCalls = 0;
+    let replayedValidation: unknown;
+    const processor = createProcessor({
+      crossValidation: {
+        validate: () => {
+          crossValidationCalls += 1;
+          return Promise.reject(new Error('replay에서는 호출되면 안 됨'));
+        },
+      },
+      providerRuns: {
+        claim: ({ operation }) =>
+          Promise.resolve(
+            operation === 'QUESTION_CROSS_VALIDATION'
+              ? {
+                  kind: 'REPLAY',
+                  result: {
+                    kind: 'QUESTION_VALIDATION',
+                    status: 'FAILED',
+                    code: null,
+                    evidence: { reason: 'replayed-check' },
+                    usage: { outputTokens: 4 },
+                    estimatedCostUsd: '0.02',
+                    providerRequestId: 'cross-replay-request',
+                  } as unknown as Parameters<
+                    QuestionProductionProviderRunRepository['succeed']
+                  >[1],
+                }
+              : { kind: 'CLAIMED', runId: operation },
+          ),
+        succeed: () => Promise.resolve(true),
+        fail: () => Promise.resolve(true),
+      },
+      candidateRepository: {
+        persist: (input) => {
+          replayedValidation = input.artifacts.validations.find(
+            ({ stage }) => stage === 'AI_CROSS_VALIDATION',
+          );
+          return Promise.resolve(true);
+        },
+      },
+    });
+
+    await expect(
+      processor.process(workItem(), new AbortController().signal),
+    ).resolves.toMatchObject({ status: 'NEEDS_ATTENTION' });
+    expect(crossValidationCalls).toBe(0);
+    expect(replayedValidation).toMatchObject({
+      status: 'FAILED',
+      code: 'QUESTION_CROSS_VALIDATION_FAILED',
+      details: { evidence: { reason: 'replayed-check' } },
+    });
   });
 
   it('유사도 lookup 실패를 stable code로 저장한다', async () => {
@@ -594,6 +690,28 @@ describe('AI 문제 제작 processor', () => {
     expect(
       persisted?.artifacts.candidates.map(({ resultGroup }) => resultGroup),
     ).toEqual(['FAILED', 'FAILED', 'NORMAL']);
+    expect(
+      persisted?.artifacts.validations
+        .filter(({ candidateOrdinal }) => candidateOrdinal === 0)
+        .map(({ stage, status, code }) => ({ stage, status, code })),
+    ).toEqual([
+      { stage: 'SCHEMA', status: 'FAILED', code: 'QUESTION_SCHEMA_INVALID' },
+      {
+        stage: 'DECISION_RULE',
+        status: 'SKIPPED',
+        code: 'QUESTION_VALIDATION_SKIPPED',
+      },
+      {
+        stage: 'SIMILARITY',
+        status: 'SKIPPED',
+        code: 'QUESTION_VALIDATION_SKIPPED',
+      },
+      {
+        stage: 'AI_CROSS_VALIDATION',
+        status: 'SKIPPED',
+        code: 'QUESTION_VALIDATION_SKIPPED',
+      },
+    ]);
     expect(JSON.stringify(persisted?.artifacts.candidates)).not.toContain(
       'private-provider-payload',
     );
@@ -605,6 +723,9 @@ describe('AI 문제 제작 processor', () => {
   it('malformed replay도 provider 재호출 없이 격리하고 정상 후보를 처리한다', async () => {
     let generationCalls = 0;
     let persistedGroups: string[] = [];
+    let persisted:
+      | Parameters<QuestionProductionCandidateRepository['persist']>[0]
+      | undefined;
     const processor = createProcessor({
       generation: {
         generate: () => {
@@ -633,6 +754,7 @@ describe('AI 문제 제작 processor', () => {
       },
       candidateRepository: {
         persist: (input) => {
+          persisted = input;
           persistedGroups = input.artifacts.candidates.map(
             ({ resultGroup }) => resultGroup,
           );
@@ -649,6 +771,79 @@ describe('AI 문제 제작 processor', () => {
     });
     expect(generationCalls).toBe(0);
     expect(persistedGroups).toEqual(['FAILED', 'NORMAL']);
+    expect(
+      persisted?.artifacts.validations
+        .filter(({ candidateOrdinal }) => candidateOrdinal === 0)
+        .map(({ stage, status, code }) => ({ stage, status, code })),
+    ).toEqual([
+      { stage: 'SCHEMA', status: 'FAILED', code: 'QUESTION_SCHEMA_INVALID' },
+      {
+        stage: 'DECISION_RULE',
+        status: 'SKIPPED',
+        code: 'QUESTION_VALIDATION_SKIPPED',
+      },
+      {
+        stage: 'SIMILARITY',
+        status: 'SKIPPED',
+        code: 'QUESTION_VALIDATION_SKIPPED',
+      },
+      {
+        stage: 'AI_CROSS_VALIDATION',
+        status: 'SKIPPED',
+        code: 'QUESTION_VALIDATION_SKIPPED',
+      },
+    ]);
+  });
+
+  it('결정 규칙 실패 뒤의 유사도·교차 검증을 SKIPPED로 저장한다', async () => {
+    let persisted:
+      | Parameters<QuestionProductionCandidateRepository['persist']>[0]
+      | undefined;
+    const processor = createProcessor({
+      candidates: [
+        {
+          ...candidate(),
+          payload: { ...candidate().payload, correctOptionRef: 'missing' },
+        },
+      ],
+      candidateRepository: {
+        persist: (input) => {
+          persisted = input;
+          return Promise.resolve(true);
+        },
+      },
+    });
+
+    await expect(
+      processor.process(workItem(), new AbortController().signal),
+    ).resolves.toMatchObject({
+      status: 'NEEDS_ATTENTION',
+      result: { total: 1, normal: 0, needsAttention: 0, failed: 1 },
+    });
+    expect(
+      persisted?.artifacts.validations.map(({ stage, status, code }) => ({
+        stage,
+        status,
+        code,
+      })),
+    ).toEqual([
+      { stage: 'SCHEMA', status: 'PASSED', code: null },
+      {
+        stage: 'DECISION_RULE',
+        status: 'FAILED',
+        code: 'QUESTION_RULE_INVALID',
+      },
+      {
+        stage: 'SIMILARITY',
+        status: 'SKIPPED',
+        code: 'QUESTION_VALIDATION_SKIPPED',
+      },
+      {
+        stage: 'AI_CROSS_VALIDATION',
+        status: 'SKIPPED',
+        code: 'QUESTION_VALIDATION_SKIPPED',
+      },
+    ]);
   });
 
   it('교차 검증 provider의 계약 밖 raw field를 실행 결과에 저장하지 않는다', async () => {

@@ -394,6 +394,34 @@ describe('AI 문제 후보 관리자 검수 계약', () => {
     ).toHaveLength(4);
   });
 
+  it('선행 검증 실패로 실행하지 않은 단계를 SKIPPED 이력으로 보존한다', () => {
+    expect(
+      questionCandidateDetailResponseSchema
+        .parse({
+          ...detail,
+          validations: [
+            {
+              ...detail.validations[0],
+              status: 'FAILED',
+              code: 'QUESTION_SCHEMA_INVALID',
+            },
+            ...detail.validations.slice(1).map((validation) => ({
+              ...validation,
+              status: 'SKIPPED',
+              code: 'QUESTION_VALIDATION_SKIPPED',
+              evidence: { kind: 'NONE' },
+            })),
+          ],
+        })
+        .validations.map(({ status, code }) => ({ status, code })),
+    ).toEqual([
+      { status: 'FAILED', code: 'QUESTION_SCHEMA_INVALID' },
+      { status: 'SKIPPED', code: 'QUESTION_VALIDATION_SKIPPED' },
+      { status: 'SKIPPED', code: 'QUESTION_VALIDATION_SKIPPED' },
+      { status: 'SKIPPED', code: 'QUESTION_VALIDATION_SKIPPED' },
+    ]);
+  });
+
   it('상세와 모든 중첩 경계에서 provider 원문·prompt·비밀 key를 거절한다', () => {
     expect(
       questionCandidateDetailResponseSchema.safeParse({

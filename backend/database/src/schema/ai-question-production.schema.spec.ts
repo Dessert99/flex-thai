@@ -32,6 +32,7 @@ describe('AI 문제 제작 schema', () => {
     expect(questionProductionValidationStatusEnum.enumValues).toEqual([
       'PASSED',
       'FAILED',
+      'SKIPPED',
     ]);
   });
 
