@@ -82,7 +82,7 @@ describe.runIf(databaseUrl !== undefined)(
        values ($1, $2, '일반', 'ACTIVE')`,
         [topicId, `general-${topicId}`],
       );
-      return { itemId, jobId, typeVersionId, topicId };
+      return { itemId, jobId, typeVersionId, topicId, userId };
     };
 
     const persistenceInput = (
@@ -207,6 +207,80 @@ describe.runIf(databaseUrl !== undefined)(
         status: 'PROCESSING',
         leaseToken: 'active-token',
       });
+    });
+
+    it('서로 다른 후보의 같은 request ID 동시 command는 한 건만 반영한다', async () => {
+      const fixture = await createFixture();
+      const candidateIds = [randomUUID(), randomUUID()];
+      await pool.query(
+        `insert into question_production_candidates (
+         id, job_item_id, job_attempt, ordinal, type_version_id, topic_id,
+         difficulty, payload, payload_hash, result_group, review_status
+       ) values
+         ($1, $3, 0, 0, $4, $5, 3, $6, $7, 'NORMAL', 'PENDING'),
+         ($2, $3, 0, 1, $4, $5, 3, $6, $8, 'NORMAL', 'PENDING')`,
+        [
+          candidateIds[0],
+          candidateIds[1],
+          fixture.itemId,
+          fixture.typeVersionId,
+          fixture.topicId,
+          { questionTypeSlug: 'reading-choice' },
+          'c'.repeat(64),
+          'd'.repeat(64),
+        ],
+      );
+      const repository = new DrizzleAiQuestionProductionRepository(
+        drizzle({ client: pool }) as never,
+      );
+      const requestId = randomUUID();
+      const command = (candidateId: string) => ({
+        candidateId,
+        expectedRevision: 0,
+        actorUserId: fixture.userId,
+        actorSub: `ai-question-${fixture.userId}`,
+        requestId,
+        occurredAt: new Date('2026-07-27T04:00:00.000Z'),
+      });
+
+      const results = await Promise.allSettled(
+        candidateIds.map((candidateId) =>
+          repository.discard(command(candidateId)),
+        ),
+      );
+      expect(
+        results.filter(({ status }) => status === 'fulfilled'),
+      ).toHaveLength(1);
+      const success = results.find(({ status }) => status === 'fulfilled');
+      expect(success?.status === 'fulfilled' ? success.value : null).toBe(true);
+      const rejection = results.find(({ status }) => status === 'rejected');
+      const reason: unknown =
+        rejection?.status === 'rejected' ? rejection.reason : null;
+      expect(reason).toMatchObject({
+        code: 'QUESTION_CANDIDATE_IDEMPOTENCY_CONFLICT',
+      });
+
+      const candidates = await pool.query<{
+        reviewStatus: string;
+        revision: number;
+      }>(
+        `select review_status "reviewStatus", revision
+         from question_production_candidates
+         where id = any($1::uuid[])
+         order by revision desc`,
+        [candidateIds],
+      );
+      expect(candidates.rows).toEqual([
+        { reviewStatus: 'DISCARDED', revision: 1 },
+        { reviewStatus: 'PENDING', revision: 0 },
+      ]);
+      const audit = await pool.query<{ count: string }>(
+        `select count(*)::text count
+         from audit_logs
+         where target_type = 'QUESTION_CANDIDATE' and request_id = $1`,
+        [requestId],
+      );
+      expect(audit.rows[0]?.count).toBe('1');
     });
   },
 );

@@ -85,6 +85,14 @@ const requiredValidationStages = new Set([
   'AI_CROSS_VALIDATION',
 ]);
 
+const lockReviewRequest = (
+  transaction: QuestionProductionTransaction,
+  requestId: string,
+): Promise<unknown> =>
+  transaction.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${requestId}, 0))`,
+  );
+
 const readReviewCandidate = async (
   transaction: QuestionProductionTransaction,
   candidateId: string,
@@ -445,6 +453,7 @@ export class DrizzleAiQuestionProductionRepository
     input: ApproveQuestionCandidateInput,
   ): ReturnType<GeneratedQuestionDraftRepository['approve']> {
     return this.database.transaction(async (transaction) => {
+      await lockReviewRequest(transaction, input.requestId);
       const candidate = await readReviewCandidate(
         transaction,
         input.candidateId,
@@ -561,6 +570,7 @@ export class DrizzleAiQuestionProductionRepository
   /** PENDING 후보만 terminal 폐기하고 같은 request replay만 성공으로 인정한다 */
   async discard(input: DiscardQuestionCandidateInput): Promise<boolean> {
     return this.database.transaction(async (transaction) => {
+      await lockReviewRequest(transaction, input.requestId);
       const candidate = await readReviewCandidate(
         transaction,
         input.candidateId,
@@ -624,6 +634,7 @@ export class DrizzleAiQuestionProductionRepository
     input: RegenerateQuestionCandidateInput,
   ): Promise<{ jobId: string; attempt: number }> {
     return this.database.transaction(async (transaction) => {
+      await lockReviewRequest(transaction, input.requestId);
       const candidate = await readReviewCandidate(
         transaction,
         input.candidateId,

@@ -1,4 +1,5 @@
 /** AI 문제 후보 artifact가 활성 lease에서만 원자 저장되는지 검증한다 */
+import { PgDialect } from 'drizzle-orm/pg-core';
 import { describe, expect, it, vi } from 'vitest';
 import { DrizzleAiQuestionProductionRepository } from './drizzle-ai-question-production.repository.js';
 
@@ -73,6 +74,14 @@ const pendingCandidate = {
   approvedQuestionVersionId: null,
 };
 
+const withReviewRequestLock = <T extends object>(executor: T) => ({
+  execute: vi.fn((query: unknown) => {
+    void query;
+    return Promise.resolve([]);
+  }),
+  ...executor,
+});
+
 const replayDatabase = (
   candidate: Record<string, unknown>,
   audit: Record<string, unknown>,
@@ -89,7 +98,8 @@ const replayDatabase = (
     .mockReturnValueOnce({ from: candidateFrom })
     .mockReturnValueOnce({ from: auditFrom });
   const transaction = vi.fn(
-    (callback: (executor: unknown) => Promise<unknown>) => callback({ select }),
+    (callback: (executor: unknown) => Promise<unknown>) =>
+      callback(withReviewRequestLock({ select })),
   );
   return { transaction };
 };
@@ -172,6 +182,48 @@ const reviewReplayCases = [
 ] as const;
 
 describe('AI 문제 제작 Drizzle 저장소', () => {
+  it('request advisory lock을 parameter binding으로 candidate row lock보다 먼저 획득한다', async () => {
+    const events: string[] = [];
+    let advisoryQuery: unknown;
+    const execute = vi.fn((query: unknown) => {
+      events.push('request-lock');
+      advisoryQuery = query;
+      return Promise.resolve([]);
+    });
+    const candidateLimit = vi
+      .fn()
+      .mockResolvedValue([
+        { ...pendingCandidate, reviewStatus: 'DISCARDED', revision: 1 },
+      ]);
+    const candidateFor = vi.fn(() => ({ limit: candidateLimit }));
+    const candidateWhere = vi.fn(() => ({ for: candidateFor }));
+    const candidateFrom = vi.fn(() => ({ where: candidateWhere }));
+    const auditLimit = vi.fn().mockResolvedValue([]);
+    const auditWhere = vi.fn(() => ({ limit: auditLimit }));
+    const auditFrom = vi.fn(() => ({ where: auditWhere }));
+    const select = vi.fn(() => {
+      events.push('select');
+      return select.mock.calls.length === 1
+        ? { from: candidateFrom }
+        : { from: auditFrom };
+    });
+    const repository = new DrizzleAiQuestionProductionRepository({
+      transaction: vi.fn((callback: (executor: unknown) => Promise<unknown>) =>
+        callback({ execute, select }),
+      ),
+    } as never);
+
+    await expect(repository.approve(reviewCommand)).resolves.toEqual({
+      kind: 'CONFLICT',
+    });
+    const compiled = new PgDialect().sqlToQuery(advisoryQuery as never);
+    expect(compiled.sql).toContain(
+      'pg_advisory_xact_lock(hashtextextended($1, 0))',
+    );
+    expect(compiled.params).toEqual([reviewCommand.requestId]);
+    expect(events.slice(0, 2)).toEqual(['request-lock', 'select']);
+  });
+
   it('NORMAL과 네 필수 검증 PASSED 후보만 row lock 뒤 DRAFT로 승인한다', async () => {
     const candidateLimit = vi.fn().mockResolvedValue([pendingCandidate]);
     const candidateFor = vi.fn(() => ({ limit: candidateLimit }));
@@ -204,7 +256,7 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
     const insert = vi.fn(() => ({ values: auditValues }));
     const transaction = vi.fn(
       (callback: (executor: unknown) => Promise<unknown>) =>
-        callback({ insert, select, update }),
+        callback(withReviewRequestLock({ insert, select, update })),
     );
     const createDraft = vi.fn().mockResolvedValue({
       questionId: 'question-id',
@@ -279,7 +331,7 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
       .mockReturnValueOnce({ from: validationFrom });
     const transaction = vi.fn(
       (callback: (executor: unknown) => Promise<unknown>) =>
-        callback({ select }),
+        callback(withReviewRequestLock({ select })),
     );
     const createDraft = vi.fn();
     const repository = new DrizzleAiQuestionProductionRepository(
@@ -316,7 +368,7 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
     const insert = vi.fn(() => ({ values }));
     const repository = new DrizzleAiQuestionProductionRepository({
       transaction: vi.fn((callback: (executor: unknown) => Promise<unknown>) =>
-        callback({ insert, select, update }),
+        callback(withReviewRequestLock({ insert, select, update })),
       ),
     } as never);
 
@@ -439,7 +491,7 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
           .fn()
           .mockReturnValueOnce({ from: candidateFrom })
           .mockReturnValueOnce({ from: auditFrom });
-        return callback({ select });
+        return callback(withReviewRequestLock({ select }));
       },
     );
     const repository = new DrizzleAiQuestionProductionRepository(
@@ -499,7 +551,7 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
     const insert = vi.fn(() => ({ values: auditValues }));
     const transaction = vi.fn(
       (callback: (executor: unknown) => Promise<unknown>) =>
-        callback({ insert, select, update }),
+        callback(withReviewRequestLock({ insert, select, update })),
     );
     const repository = new DrizzleAiQuestionProductionRepository(
       { transaction } as never,
@@ -567,7 +619,7 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
     const insert = vi.fn(() => ({ values }));
     const repository = new DrizzleAiQuestionProductionRepository({
       transaction: vi.fn((callback: (executor: unknown) => Promise<unknown>) =>
-        callback({ insert, select, update }),
+        callback(withReviewRequestLock({ insert, select, update })),
       ),
     } as never);
 
@@ -621,7 +673,7 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
     });
     const repository = new DrizzleAiQuestionProductionRepository({
       transaction: vi.fn((callback: (executor: unknown) => Promise<unknown>) =>
-        callback({ select, update }),
+        callback(withReviewRequestLock({ select, update })),
       ),
     } as never);
 
@@ -686,7 +738,7 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
       });
     const repository = new DrizzleAiQuestionProductionRepository({
       transaction: vi.fn((callback: (executor: unknown) => Promise<unknown>) =>
-        callback({ select, update }),
+        callback(withReviewRequestLock({ select, update })),
       ),
     } as never);
 
@@ -753,7 +805,7 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
       });
     const repository = new DrizzleAiQuestionProductionRepository({
       transaction: vi.fn((callback: (executor: unknown) => Promise<unknown>) =>
-        callback({ select, update }),
+        callback(withReviewRequestLock({ select, update })),
       ),
     } as never);
 
