@@ -2,10 +2,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   assertDistinctValidationModels,
+  buildQuestionGenerationPrompt,
   classifyQuestionCandidate,
   validateGeneratedQuestionSchema,
   validateQuestionDecisionRules,
   type GeneratedQuestionCandidate,
+  type QuestionProductionContext,
   type QuestionProductionValidationRecord,
 } from './ai-question-production.js';
 
@@ -157,6 +159,69 @@ const inlineCandidate: GeneratedQuestionCandidate = {
       },
     ],
   },
+};
+
+const productionContext: QuestionProductionContext = {
+  commonPrinciples: [
+    '정답은 하나만 둔다',
+    '태국어 문장을 그대로 복제하지 않는다',
+  ],
+  typeVersion: {
+    id: 'type-version-private-id',
+    slug: 'reading-choice',
+    version: 2,
+    template: 'STANDARD_CHOICE',
+    structureRules: { optionCount: 4, blockOrder: ['QUESTION'] },
+    generationRules: { maxSupportingVocabulary: 3 },
+  },
+  difficultyCriteria: [
+    { difficulty: 1, criteria: '기초 어휘만 사용한다' },
+    { difficulty: 2, criteria: '기초 표현을 포함한다' },
+    { difficulty: 3, criteria: '일상 주제의 짧은 문장을 사용한다' },
+    { difficulty: 4, criteria: '연결 표현을 사용한다' },
+    { difficulty: 5, criteria: '복합 표현을 포함한다' },
+  ],
+  approvedExamples: [
+    {
+      title: '기본 선택형 예시',
+      payload: {
+        questionTypeSlug: 'reading-choice',
+        sourceText: '입력 원문 전체는 절대 전달하지 않는다',
+        storageKey: 'private/example.json',
+      },
+    },
+  ],
+  targetVocabulary: [
+    {
+      thai: 'ไป',
+      meaningKo: '가다',
+      partOfSpeech: '동사',
+      difficulty: 1,
+    },
+  ],
+  requiredVocabulary: [
+    {
+      thai: 'ไหน',
+      meaningKo: '어디',
+      partOfSpeech: '의문사',
+      difficulty: 1,
+    },
+  ],
+  excludedVocabulary: [
+    {
+      thai: 'อย่างไรก็ตาม',
+      meaningKo: '그러나',
+      partOfSpeech: '접속사',
+      difficulty: 5,
+    },
+  ],
+  similarQuestions: [
+    {
+      difficulty: 3,
+      summary: '일상 이동을 묻는 선택형 문제',
+    },
+  ],
+  additionalInstructionKo: '학습자에게 자연스러운 한국어 해설을 제공하세요.',
 };
 
 describe('AI 문제 후보 검증 규칙', () => {
@@ -332,5 +397,107 @@ describe('AI 문제 후보 검증 규칙', () => {
     expect(() =>
       assertDistinctValidationModels('generation-model', 'generation-model'),
     ).toThrowError('QUESTION_VALIDATION_MODEL_DUPLICATE');
+  });
+});
+
+describe('AI 문제 생성 prompt 조립', () => {
+  it('활성 유형 자료를 안정적인 section 순서의 prompt로 조립한다', () => {
+    const prompt = buildQuestionGenerationPrompt(productionContext);
+
+    expect(prompt).toMatchObject({ promptVersion: 'question-generation-v1' });
+    expect(prompt.sections.map((section) => section.name)).toEqual([
+      'common-principles',
+      'question-type',
+      'difficulty-criteria',
+      'approved-examples',
+      'vocabulary-policy',
+      'similar-question-summaries',
+      'additional-instruction-ko',
+    ]);
+    expect(prompt.sections).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'question-type',
+          content: expect.stringContaining('"slug":"reading-choice"'),
+        }),
+        expect.objectContaining({
+          name: 'difficulty-criteria',
+          content: expect.stringContaining('"difficulty":3'),
+        }),
+        expect.objectContaining({
+          name: 'approved-examples',
+          content: expect.stringContaining('기본 선택형 예시'),
+        }),
+        expect.objectContaining({
+          name: 'vocabulary-policy',
+          content: expect.stringContaining('"targetVocabulary"'),
+        }),
+        expect.objectContaining({
+          name: 'similar-question-summaries',
+          content: expect.stringContaining('일상 이동을 묻는 선택형 문제'),
+        }),
+        expect.objectContaining({
+          name: 'additional-instruction-ko',
+          content: '학습자에게 자연스러운 한국어 해설을 제공하세요.',
+        }),
+      ]),
+    );
+    expect(prompt.outputSchema).toMatchObject({
+      type: 'object',
+      required: ['candidates'],
+    });
+  });
+
+  it('JSON section은 key 순서와 무관하게 같은 문자열로 직렬화한다', () => {
+    const reversedRules: QuestionProductionContext = {
+      ...productionContext,
+      typeVersion: {
+        ...productionContext.typeVersion,
+        structureRules: { blockOrder: ['QUESTION'], optionCount: 4 },
+      },
+    };
+
+    expect(buildQuestionGenerationPrompt(reversedRules)).toEqual(
+      buildQuestionGenerationPrompt(productionContext),
+    );
+  });
+
+  it('private storage key와 입력 원문 전체를 prompt에 포함하지 않는다', () => {
+    const prompt = buildQuestionGenerationPrompt(productionContext);
+    const serializedPrompt = JSON.stringify(prompt);
+
+    expect(serializedPrompt).not.toContain('private/example.json');
+    expect(serializedPrompt).not.toContain(
+      '입력 원문 전체는 절대 전달하지 않는다',
+    );
+    expect(serializedPrompt).not.toContain('type-version-private-id');
+  });
+
+  it.each([
+    {
+      label: '선택 난이도 기준이 없을 때',
+      context: {
+        ...productionContext,
+        difficultyCriteria: productionContext.difficultyCriteria.filter(
+          (criterion) => criterion.difficulty !== 3,
+        ),
+      },
+    },
+    {
+      label: '승인 예시가 없을 때',
+      context: { ...productionContext, approvedExamples: [] },
+    },
+  ])('$label provider 호출 전에 taxonomy 오류를 반환한다', ({ context }) => {
+    let providerCalls = 0;
+    const callProvider = (): void => {
+      providerCalls += 1;
+    };
+
+    expect(() => {
+      const prompt = buildQuestionGenerationPrompt(context);
+      callProvider();
+      return prompt;
+    }).toThrowError('QUESTION_TAXONOMY_INCOMPLETE');
+    expect(providerCalls).toBe(0);
   });
 });

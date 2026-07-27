@@ -1,5 +1,6 @@
 /** AI 문제 제작 후보의 순수 모델·검증 규칙과 외부 port를 정의한다 */
 import type { CanonicalDraftSentenceInput } from '../content-import/content-import.js';
+import type { QuestionTemplate } from '../questions/question-version.js';
 import type { ContentProductionPresetSnapshot } from './content-production.service.js';
 
 /** 후보 검토 우선순위를 나타내는 내부 그룹 */
@@ -93,8 +94,39 @@ export interface QuestionCandidateClassification {
     | null;
 }
 
-/** processor가 prompt 조립에 사용할 문제 생성 문맥의 확장 지점 */
-export interface QuestionProductionContext {}
+/** prompt에 필요한 어휘의 공개 가능한 최소 요약 */
+export interface QuestionPromptVocabulary {
+  thai: string;
+  meaningKo: string;
+  partOfSpeech: string;
+  difficulty: number;
+}
+
+/** 기존 게시 문제를 재생성 없이 구분할 제한된 요약 */
+export interface QuestionSimilaritySummary {
+  difficulty: number;
+  summary: string;
+}
+
+/** processor가 prompt 조립에 사용할 공개 가능한 문제 생성 문맥 */
+export interface QuestionProductionContext {
+  commonPrinciples: string[];
+  typeVersion: {
+    id: string;
+    slug: string;
+    version: number;
+    template: QuestionTemplate;
+    structureRules: Record<string, unknown>;
+    generationRules: Record<string, unknown>;
+  };
+  difficultyCriteria: Array<{ difficulty: number; criteria: string }>;
+  approvedExamples: Array<{ title: string; payload: unknown }>;
+  targetVocabulary: QuestionPromptVocabulary[];
+  requiredVocabulary: QuestionPromptVocabulary[];
+  excludedVocabulary: QuestionPromptVocabulary[];
+  similarQuestions: QuestionSimilaritySummary[];
+  additionalInstructionKo: string | null;
+}
 
 /** provider에 전달할 결정적인 문제 생성 prompt */
 export interface QuestionGenerationPrompt {
@@ -102,6 +134,159 @@ export interface QuestionGenerationPrompt {
   sections: Array<{ name: string; content: unknown }>;
   outputSchema: Record<string, unknown>;
 }
+
+const questionGenerationPromptVersion = 'question-generation-v1';
+
+const privatePromptFieldNames = new Set([
+  'inputStorageKey',
+  'privateInputKey',
+  'privateStorageKey',
+  'sourceText',
+  'storageKey',
+]);
+
+const sortPromptValue = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(sortPromptValue);
+  if (!isRecord(value)) return value;
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => !privatePromptFieldNames.has(key))
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => [key, sortPromptValue(item)]),
+  );
+};
+
+const stablePromptJson = (value: unknown): string =>
+  JSON.stringify(sortPromptValue(value));
+
+const sortVocabulary = (
+  vocabulary: readonly QuestionPromptVocabulary[],
+): QuestionPromptVocabulary[] =>
+  [...vocabulary].sort(
+    (left, right) =>
+      left.thai.localeCompare(right.thai) ||
+      left.meaningKo.localeCompare(right.meaningKo),
+  );
+
+const questionGenerationOutputSchema: Record<string, unknown> = {
+  additionalProperties: false,
+  properties: {
+    candidates: {
+      items: {
+        additionalProperties: false,
+        properties: {
+          blocks: { type: 'array' },
+          correctOptionRef: { type: 'string' },
+          difficulty: { minimum: 1, maximum: 5, type: 'integer' },
+          options: { type: 'array' },
+          questionTypeSlug: { type: 'string' },
+          questionTypeVersion: { type: 'integer' },
+          tagSlugs: { items: { type: 'string' }, type: 'array' },
+          topicSlug: { type: 'string' },
+        },
+        required: [
+          'questionTypeSlug',
+          'questionTypeVersion',
+          'difficulty',
+          'topicSlug',
+          'tagSlugs',
+          'blocks',
+          'options',
+          'correctOptionRef',
+        ],
+        type: 'object',
+      },
+      minItems: 1,
+      type: 'array',
+    },
+  },
+  required: ['candidates'],
+  type: 'object',
+};
+
+/** 활성 유형의 1~5 난이도와 승인 예시가 외부 생성 전 준비됐는지 확인한다 */
+export const assertQuestionTaxonomyComplete = (
+  context: QuestionProductionContext,
+): void => {
+  const difficulties = new Set(
+    context.difficultyCriteria.map((criterion) => criterion.difficulty),
+  );
+
+  if (
+    [1, 2, 3, 4, 5].some((difficulty) => !difficulties.has(difficulty)) ||
+    context.approvedExamples.length === 0
+  ) {
+    throw new Error('QUESTION_TAXONOMY_INCOMPLETE');
+  }
+};
+
+/** 공개 taxonomy 자료를 결정적인 JSON section의 문제 생성 prompt로 조립한다 */
+export const buildQuestionGenerationPrompt = (
+  context: QuestionProductionContext,
+): QuestionGenerationPrompt => {
+  assertQuestionTaxonomyComplete(context);
+
+  return {
+    promptVersion: questionGenerationPromptVersion,
+    sections: [
+      {
+        name: 'common-principles',
+        content: stablePromptJson([...context.commonPrinciples].sort()),
+      },
+      {
+        name: 'question-type',
+        // 내부 version ID는 생성 모델에 필요한 규칙이 아니므로 전달하지 않는다.
+        content: stablePromptJson({
+          generationRules: context.typeVersion.generationRules,
+          slug: context.typeVersion.slug,
+          structureRules: context.typeVersion.structureRules,
+          template: context.typeVersion.template,
+          version: context.typeVersion.version,
+        }),
+      },
+      {
+        name: 'difficulty-criteria',
+        content: stablePromptJson(
+          [...context.difficultyCriteria].sort(
+            (left, right) => left.difficulty - right.difficulty,
+          ),
+        ),
+      },
+      {
+        name: 'approved-examples',
+        content: stablePromptJson(
+          [...context.approvedExamples].sort((left, right) =>
+            left.title.localeCompare(right.title),
+          ),
+        ),
+      },
+      {
+        name: 'vocabulary-policy',
+        content: stablePromptJson({
+          excludedVocabulary: sortVocabulary(context.excludedVocabulary),
+          requiredVocabulary: sortVocabulary(context.requiredVocabulary),
+          targetVocabulary: sortVocabulary(context.targetVocabulary),
+        }),
+      },
+      {
+        name: 'similar-question-summaries',
+        content: stablePromptJson(
+          [...context.similarQuestions].sort(
+            (left, right) =>
+              left.difficulty - right.difficulty ||
+              left.summary.localeCompare(right.summary),
+          ),
+        ),
+      },
+      {
+        name: 'additional-instruction-ko',
+        content: context.additionalInstructionKo ?? '',
+      },
+    ],
+    outputSchema: questionGenerationOutputSchema,
+  };
+};
 
 /** 문제 생성 provider의 입력 */
 export interface QuestionGenerationInput {
