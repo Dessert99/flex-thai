@@ -5,16 +5,34 @@ import {
   createContentProductionDispatcher,
   type ContentProductionWorkerRepository,
 } from './content-production-dispatcher.js';
+import type {
+  ContentProductionInput,
+  ContentProductionItemSeed,
+  ContentProductionPresetSnapshot,
+  ContentProductionWorkItem,
+  ContentProductionWorkerJob,
+} from '@flex-thia/domain';
 
-const createRepository = (
-  startAttemptResult: Awaited<
-    ReturnType<ContentProductionWorkerRepository['startAttempt']>
-  >,
-) => {
+type WorkerJobFixture = Omit<
+  ContentProductionWorkerJob,
+  'inputs' | 'presetSnapshot' | 'requestedBy'
+> & {
+  inputs: Array<
+    ContentProductionInput & {
+      jobInputId?: string;
+      ordinal?: number;
+    }
+  >;
+  presetSnapshot?: ContentProductionPresetSnapshot;
+  requestedBy?: string;
+  status: 'RUNNING';
+};
+
+const createRepository = (startAttemptResult: WorkerJobFixture | null) => {
   const items = [
     {
       id: 'item-1',
-      sourceRef: 'input:0',
+      sourceRef: 'input:0:question',
       status: 'PENDING' as const,
       attempt: 0,
       retryable: false,
@@ -24,7 +42,7 @@ const createRepository = (
     },
     {
       id: 'item-2',
-      sourceRef: 'input:1:fail',
+      sourceRef: 'input:1:question',
       status: 'PENDING' as const,
       attempt: 0,
       retryable: false,
@@ -34,11 +52,31 @@ const createRepository = (
     },
   ];
   const finished: Array<{ itemId: string; status: string }> = [];
-  const ensured: string[][] = [];
+  const ensured: ContentProductionItemSeed[][] = [];
+  const normalizedJob = startAttemptResult
+    ? {
+        ...startAttemptResult,
+        requestedBy: startAttemptResult.requestedBy ?? 'admin-id',
+        presetSnapshot:
+          startAttemptResult.presetSnapshot ??
+          ({
+            id: 'preset-id',
+            name: '테스트 preset',
+            purpose: startAttemptResult.purpose,
+            version: 1,
+            parameters: {},
+          } satisfies ContentProductionPresetSnapshot),
+        inputs: startAttemptResult.inputs.map((input, ordinal) => ({
+          ...input,
+          jobInputId: input.jobInputId ?? `job-input-${ordinal}`,
+          ordinal: input.ordinal ?? ordinal,
+        })),
+      }
+    : null;
   const repository: ContentProductionWorkerRepository = {
-    startAttempt: () => Promise.resolve(startAttemptResult),
-    ensureItems: (_jobId, sourceRefs) => {
-      ensured.push(sourceRefs);
+    startAttempt: () => Promise.resolve(normalizedJob),
+    ensureItems: (_jobId, seeds) => {
+      ensured.push(seeds);
       return Promise.resolve();
     },
     listAttemptItems: () => Promise.resolve(items),
@@ -96,9 +134,9 @@ describe('콘텐츠 제작 dispatcher', () => {
       ],
     });
     const dispatch = createContentProductionDispatcher(repository, {
-      process(item) {
+      process(workItem) {
         return Promise.resolve(
-          item.sourceRef.endsWith(':fail')
+          workItem.input.ordinal === 1
             ? {
                 status: 'FAILED',
                 retryable: true,
@@ -127,6 +165,8 @@ describe('콘텐츠 제작 dispatcher', () => {
       purpose: 'VOCABULARY_THEN_QUESTION_GENERATION',
       inputs: [
         {
+          jobInputId: 'job-input-1',
+          ordinal: 0,
           uploadId: 'upload-1',
           inputType: 'TEXT',
           inputKey: 'a',
@@ -145,7 +185,84 @@ describe('콘텐츠 제작 dispatcher', () => {
 
     await dispatch({ jobId: 'job-id', attempt: 0 });
 
-    expect(ensured).toEqual([['input:0:vocabulary', 'input:0:question']]);
+    expect(ensured).toEqual([
+      [
+        {
+          jobInputId: 'job-input-1',
+          operation: 'VOCABULARY_EXTRACTION',
+          sourceRef: 'input:0:vocabulary',
+        },
+        {
+          jobInputId: 'job-input-1',
+          operation: 'QUESTION_GENERATION',
+          sourceRef: 'input:0:question',
+        },
+      ],
+    ]);
+  });
+
+  it('processor에 exact input과 작업 snapshot을 구조화해 전달한다', async () => {
+    const { repository, items } = createRepository({
+      id: 'job-id',
+      attempt: 0,
+      status: 'RUNNING',
+      requestedBy: 'admin-id',
+      purpose: 'VOCABULARY_EXTRACTION',
+      presetSnapshot: {
+        id: 'preset-id',
+        name: '어휘 추출',
+        purpose: 'VOCABULARY_EXTRACTION',
+        version: 1,
+        parameters: {},
+      },
+      inputs: [
+        {
+          jobInputId: 'job-input-1',
+          ordinal: 0,
+          uploadId: 'upload-1',
+          inputType: 'TEXT',
+          inputKey: 'private/input.txt',
+          sizeBytes: 1,
+        },
+      ],
+    });
+    repository.listAttemptItems = () =>
+      Promise.resolve([
+        {
+          ...items[0]!,
+          sourceRef: 'input:0:vocabulary',
+          jobInputId: 'job-input-1',
+          operation: 'VOCABULARY_EXTRACTION',
+        },
+      ]);
+    const startItem = repository.startItem.bind(repository);
+    repository.startItem = async (...args) => ({
+      ...(await startItem(...args))!,
+      sourceRef: 'input:0:vocabulary',
+      jobInputId: 'job-input-1',
+      operation: 'VOCABULARY_EXTRACTION',
+    });
+    const workItems: ContentProductionWorkItem[] = [];
+    const dispatch = createContentProductionDispatcher(repository, {
+      process(workItem) {
+        workItems.push(workItem);
+        return Promise.resolve({
+          status: 'SUCCEEDED',
+          retryable: false,
+          errorCode: null,
+        });
+      },
+    });
+
+    await dispatch({ jobId: 'job-id', attempt: 0 });
+
+    expect(workItems[0]?.jobId).toBe('job-id');
+    expect(workItems[0]?.requestedBy).toBe('admin-id');
+    expect(workItems[0]?.input).toMatchObject({
+      jobInputId: 'job-input-1',
+      inputKey: 'private/input.txt',
+    });
+    expect(workItems[0]?.item.operation).toBe('VOCABULARY_EXTRACTION');
   });
 
   it('stale attempt와 terminal 재전달은 항목을 다시 처리하지 않는다', async () => {
@@ -240,7 +357,14 @@ describe('콘텐츠 제작 dispatcher', () => {
       attempt: 0,
       status: 'RUNNING',
       purpose: 'QUESTION_GENERATION',
-      inputs: [],
+      inputs: [
+        {
+          uploadId: 'upload-1',
+          inputType: 'TEXT',
+          inputKey: 'a',
+          sizeBytes: 1,
+        },
+      ],
     });
     repository.listAttemptItems = () => Promise.resolve(items.slice(0, 1));
     const claimItem = repository.startItem.bind(repository);
@@ -321,7 +445,14 @@ describe('콘텐츠 제작 dispatcher', () => {
       attempt: 0,
       status: 'RUNNING',
       purpose: 'QUESTION_GENERATION',
-      inputs: [],
+      inputs: [
+        {
+          uploadId: 'upload-1',
+          inputType: 'TEXT',
+          inputKey: 'a',
+          sizeBytes: 1,
+        },
+      ],
     });
     const [item] = await repository.listAttemptItems('job-id', 0);
     repository.listAttemptItems = () => Promise.resolve([item!]);
@@ -358,7 +489,14 @@ describe('콘텐츠 제작 dispatcher', () => {
       attempt: 0,
       status: 'RUNNING',
       purpose: 'QUESTION_GENERATION',
-      inputs: [],
+      inputs: [
+        {
+          uploadId: 'upload-1',
+          inputType: 'TEXT',
+          inputKey: 'a',
+          sizeBytes: 1,
+        },
+      ],
     });
     const [item] = await repository.listAttemptItems('job-id', 0);
     repository.listAttemptItems = () => Promise.resolve([item!]);

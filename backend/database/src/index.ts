@@ -111,3 +111,9 @@ export * from './queries/drizzle-recommendation.query.js';
 
 /** 콘텐츠 제작 작업과 preset의 PostgreSQL adapter를 공개한다 */
 export * from './repositories/content-production/drizzle-content-production.repository.js';
+
+/** AI 어휘 후보와 provider 실행 adapter를 공개한다 */
+export * from './repositories/content-production/drizzle-ai-vocabulary-production.repository.js';
+
+/** AI 어휘 제작용 exact·의심 중복 조회 adapter를 공개한다 */
+export * from './queries/drizzle-vocabulary-production.lookup.js';

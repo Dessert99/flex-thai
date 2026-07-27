@@ -1,4 +1,5 @@
 /** 콘텐츠 제작 작업 생성·조회·재시도를 조율하는 도메인 경계 */
+import type { VocabularyProductionArtifacts } from './ai-vocabulary-production.js';
 
 /** 콘텐츠 제작 작업 목적 */
 export type ContentProductionPurpose =
@@ -31,6 +32,8 @@ export interface ContentProductionPresetSnapshot {
 
 /** 콘텐츠 제작 입력 snapshot */
 export interface ContentProductionInput {
+  jobInputId?: string;
+  ordinal?: number;
   uploadId: string;
   inputType: ContentProductionInputType;
   inputKey: string;
@@ -41,6 +44,8 @@ export interface ContentProductionInput {
 export interface ContentProductionItem {
   id: string;
   sourceRef: string;
+  jobInputId?: string;
+  operation?: 'VOCABULARY_EXTRACTION' | 'QUESTION_GENERATION';
   status: ContentProductionItemStatus;
   attempt: number;
   retryable: boolean;
@@ -131,6 +136,7 @@ export interface ContentProductionRepository {
       retryable: boolean;
       errorCode: string | null;
       result?: Record<string, unknown>;
+      artifacts?: VocabularyProductionArtifacts;
     },
   ): Promise<boolean>;
   finalizeAttempt(
@@ -286,7 +292,11 @@ export class ContentProductionService {
     }
 
     const hasRetryableItem = current.items.some(
-      (item) => item.status === 'FAILED' && item.retryable,
+      (item) =>
+        item.retryable &&
+        (item.status === 'FAILED' ||
+          (item.status === 'NEEDS_ATTENTION' &&
+            item.errorCode === 'PROVIDER_OUTCOME_UNKNOWN')),
     );
     const hasWorkflowFailure =
       current.status === 'FAILED' &&

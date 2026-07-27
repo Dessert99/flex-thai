@@ -55,6 +55,9 @@ export * from './vocabulary/normalize-thai-search-text.js';
 /** 공용 어휘의 생성·게시·숨김·복구 규칙을 공개한다 */
 export * from './vocabulary/vocabulary.js';
 
+/** AI 제작의 exact·의심 중복 조회 port를 공개한다 */
+export * from './vocabulary/vocabulary-production-lookup.js';
+
 /** 관리자 어휘 transaction port를 공개한다 */
 export * from './vocabulary/vocabulary-admin.repository.js';
 
