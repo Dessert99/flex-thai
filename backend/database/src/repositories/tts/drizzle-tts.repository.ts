@@ -11,19 +11,44 @@ import {
   type TtsFailureInput,
   type TtsJob,
   type TtsSuccessInput,
+  type TtsTargetSnapshot,
   type TtsWorkItem,
 } from '../../../../domain/src/media/tts-job.js';
-import type { TtsTargetAttachmentRepository } from '../../../../domain/src/media/tts-provider.js';
 import { and, eq, inArray, lte, or } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import { ttsAudioCache, ttsItems, ttsJobs } from '../../schema/tts.schema.js';
 
 type TtsDatabase = PgDatabase<PgQueryResultHKT>;
-type TtsTransaction = Parameters<Parameters<TtsDatabase['transaction']>[0]>[0];
+/** TTS target 연결 구현이 같은 DB transaction을 사용하도록 전달하는 session */
+export type TtsRepositoryTransaction = Parameters<
+  Parameters<TtsDatabase['transaction']>[0]
+>[0];
 type TtsItemRow = typeof ttsItems.$inferSelect;
 
 const leaseDurationMs = 5 * 60 * 1000;
+
+/** 생성 완료와 READY 재사용 완료를 cache 소유권 유무로 구분한다 */
+export type CompleteTtsAudioInput =
+  | ({ kind: 'GENERATED' } & TtsSuccessInput)
+  | {
+      kind: 'REUSED';
+      item: TtsWorkItem;
+      mediaAssetId: string;
+      completedAt: Date;
+    };
+
+/** target 연결 SQL을 repository transaction 안에서 실행하는 DB-local writer */
+export interface TtsTargetAttachmentWriter {
+  attach(
+    transaction: TtsRepositoryTransaction,
+    input: {
+      target: TtsTargetSnapshot;
+      mediaAssetId: string;
+      expectedRevision: string;
+    },
+  ): Promise<'ATTACHED' | 'STALE_TARGET'>;
+}
 
 /** TTS worker가 필요로 하는 작업·음성 재사용 저장 경계 */
 export interface TtsRepository {
@@ -36,7 +61,7 @@ export interface TtsRepository {
     | { kind: 'REUSE'; mediaAssetId: string }
     | { kind: 'OUTCOME_UNKNOWN' }
   >;
-  succeed(input: TtsSuccessInput): Promise<boolean>;
+  succeed(input: CompleteTtsAudioInput): Promise<boolean>;
   fail(input: TtsFailureInput): Promise<boolean>;
   retry(input: RetryTtsItemsInput): Promise<number>;
 }
@@ -95,7 +120,7 @@ const toJob = (
 });
 
 const findActiveItem = async (
-  transaction: TtsTransaction,
+  transaction: TtsRepositoryTransaction,
   item: TtsWorkItem,
   now: Date,
 ) => {
@@ -119,15 +144,10 @@ const findActiveItem = async (
 };
 
 const refreshJobSummary = async (
-  transaction: TtsTransaction,
+  transaction: TtsRepositoryTransaction,
   jobId: string,
   at: Date,
 ): Promise<void> => {
-  const rows = await transaction
-    .select()
-    .from(ttsItems)
-    .where(eq(ttsItems.jobId, jobId));
-  const { counts, status } = aggregateTtsJobStatus(rows.map(toItem));
   const [job] = await transaction
     .select({ id: ttsJobs.id, startedAt: ttsJobs.startedAt })
     .from(ttsJobs)
@@ -135,6 +155,13 @@ const refreshJobSummary = async (
     .for('update')
     .limit(1);
   if (!job) return;
+
+  // job lock 뒤의 새 statement snapshot으로 모든 item terminal 전이를 포함한다.
+  const rows = await transaction
+    .select()
+    .from(ttsItems)
+    .where(eq(ttsItems.jobId, jobId));
+  const { counts, status } = aggregateTtsJobStatus(rows.map(toItem));
 
   await transaction
     .update(ttsJobs)
@@ -155,7 +182,7 @@ const refreshJobSummary = async (
 export class DrizzleTtsRepository implements TtsRepository {
   constructor(
     private readonly database: TtsDatabase,
-    private readonly targetAttachments: TtsTargetAttachmentRepository,
+    private readonly targetAttachments: TtsTargetAttachmentWriter,
     private readonly now: () => Date = () => new Date(),
   ) {}
 
@@ -307,7 +334,7 @@ export class DrizzleTtsRepository implements TtsRepository {
   }
 
   /** active lease의 cache READY·item 완료·target 연결을 하나의 transaction으로 닫는다 */
-  async succeed(input: TtsSuccessInput): Promise<boolean> {
+  async succeed(input: CompleteTtsAudioInput): Promise<boolean> {
     try {
       return await this.database.transaction(async (transaction) => {
         const current = await findActiveItem(
@@ -322,24 +349,40 @@ export class DrizzleTtsRepository implements TtsRepository {
           // item lease와 cache 생성 claim은 서로 다른 owner token이다.
           claimToken: input.item.leaseToken,
         });
-        const [cache] = await transaction
-          .update(ttsAudioCache)
-          .set({
-            status: 'READY',
-            mediaAssetId: input.mediaAssetId,
-            readyMetadataRevision: completed.voice.generationRevision,
-            readyAt: input.completedAt,
-            updatedAt: input.completedAt,
-          })
-          .where(
-            and(
-              eq(ttsAudioCache.cacheKey, completed.cacheKey),
-              eq(ttsAudioCache.status, 'GENERATING'),
-              eq(ttsAudioCache.claimToken, input.claimToken),
-            ),
-          )
-          .returning({ id: ttsAudioCache.id });
-        if (!cache) return false;
+        if (input.kind === 'GENERATED') {
+          const [cache] = await transaction
+            .update(ttsAudioCache)
+            .set({
+              status: 'READY',
+              mediaAssetId: input.mediaAssetId,
+              readyMetadataRevision: completed.voice.generationRevision,
+              readyAt: input.completedAt,
+              updatedAt: input.completedAt,
+            })
+            .where(
+              and(
+                eq(ttsAudioCache.cacheKey, completed.cacheKey),
+                eq(ttsAudioCache.status, 'GENERATING'),
+                eq(ttsAudioCache.claimToken, input.claimToken),
+              ),
+            )
+            .returning({ id: ttsAudioCache.id });
+          if (!cache) return false;
+        } else {
+          const [cache] = await transaction
+            .select({ id: ttsAudioCache.id })
+            .from(ttsAudioCache)
+            .where(
+              and(
+                eq(ttsAudioCache.cacheKey, completed.cacheKey),
+                eq(ttsAudioCache.status, 'READY'),
+                eq(ttsAudioCache.mediaAssetId, input.mediaAssetId),
+              ),
+            )
+            .for('update')
+            .limit(1);
+          if (!cache) return false;
+        }
 
         const [item] = await transaction
           .update(ttsItems)
@@ -364,7 +407,7 @@ export class DrizzleTtsRepository implements TtsRepository {
         if (!item) return false;
 
         if (
-          (await this.targetAttachments.attach({
+          (await this.targetAttachments.attach(transaction, {
             target: completed.target,
             mediaAssetId: input.mediaAssetId,
             expectedRevision: completed.target.revision,
