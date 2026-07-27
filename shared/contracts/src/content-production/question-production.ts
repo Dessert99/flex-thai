@@ -171,14 +171,16 @@ export const questionCandidateValidationEvidenceSchema = z.union([
   z
     .object({
       kind: z.literal('SIMILARITY_MATCHES'),
-      matches: z.array(
-        z
-          .object({
-            questionVersionId: uuidSchema,
-            score: z.number().finite().min(0).max(1),
-          })
-          .strict(),
-      ),
+      matches: z
+        .array(
+          z
+            .object({
+              questionVersionId: uuidSchema,
+              score: z.number().finite().min(0).max(1),
+            })
+            .strict(),
+        )
+        .min(1),
     })
     .strict(),
   z
@@ -299,7 +301,61 @@ export const questionCandidateValidationSchema = z
     evidence: questionCandidateValidationEvidenceSchema,
     createdAt: utcDateTimeSchema,
   })
-  .strict();
+  .strict()
+  .superRefine((validation, context) => {
+    const addIssue = (message: string) =>
+      context.addIssue({
+        code: 'custom',
+        message,
+        path: ['evidence'],
+      });
+
+    if (
+      (validation.status === 'PASSED' && validation.code !== null) ||
+      (validation.status === 'FAILED' && validation.code === null)
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message: '검증 결과와 stable code 존재 여부가 일치해야 합니다.',
+        path: ['code'],
+      });
+    }
+
+    if (
+      (validation.stage === 'SCHEMA' || validation.stage === 'DECISION_RULE') &&
+      validation.evidence.kind !== 'NONE'
+    ) {
+      addIssue('schema·결정 규칙 검증은 원문 없는 NONE evidence만 사용합니다.');
+      return;
+    }
+
+    if (validation.stage === 'SIMILARITY') {
+      if (
+        (validation.status === 'PASSED' &&
+          validation.evidence.kind !== 'NONE') ||
+        (validation.status === 'FAILED' &&
+          !['NONE', 'SIMILARITY_MATCHES'].includes(validation.evidence.kind))
+      ) {
+        addIssue(
+          '유사도 검증은 NONE 또는 SIMILARITY_MATCHES evidence만 사용합니다.',
+        );
+      }
+      return;
+    }
+
+    if (
+      (validation.status === 'PASSED' &&
+        !['NONE', 'CROSS_VALIDATION'].includes(validation.evidence.kind)) ||
+      (validation.status === 'FAILED' &&
+        !['NONE', 'CROSS_VALIDATION', 'RETRYABLE_PROVIDER_FAILURE'].includes(
+          validation.evidence.kind,
+        ))
+    ) {
+      addIssue(
+        'AI 교차 검증은 상태에 맞는 NONE·CROSS_VALIDATION·RETRYABLE_PROVIDER_FAILURE evidence만 사용합니다.',
+      );
+    }
+  });
 
 const allValidationStages = new Set([
   'SCHEMA',

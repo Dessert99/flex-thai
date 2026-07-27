@@ -109,20 +109,24 @@ const readTextList = (value: unknown): string[] =>
         .sort(compareText)
     : [];
 
+/** provider 정책의 유사 문제 요약을 unknown 경계에서 안전하게 좁힌다 */
+const isSimilarQuestion = (
+  value: unknown,
+): value is { difficulty: number; summary: string } => {
+  if (value === null || typeof value !== 'object') return false;
+  const candidate = value as { difficulty?: unknown; summary?: unknown };
+  return (
+    typeof candidate.difficulty === 'number' &&
+    typeof candidate.summary === 'string'
+  );
+};
+
 const readSimilarQuestions = (
   value: unknown,
 ): Array<{ difficulty: number; summary: string }> =>
   Array.isArray(value)
     ? value
-        .filter(
-          (item): item is { difficulty: number; summary: string } =>
-            item !== null &&
-            typeof item === 'object' &&
-            'difficulty' in item &&
-            'summary' in item &&
-            typeof item.difficulty === 'number' &&
-            typeof item.summary === 'string',
-        )
+        .filter(isSimilarQuestion)
         .sort(
           (left, right) =>
             left.difficulty - right.difficulty ||
@@ -304,8 +308,7 @@ export class DrizzleQuestionProductionContextQuery implements QuestionProduction
         typeVersion: typeVersion
           ? {
               ...typeVersion,
-              template:
-                typeVersion.template as ContextTypeVersionRow['template'],
+              template: typeVersion.template,
             }
           : null,
         difficultyCriteria,
