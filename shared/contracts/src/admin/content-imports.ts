@@ -225,6 +225,8 @@ const canonicalQuestionVersionShape = {
   questionTypeSlug: z.string().min(1),
   questionTypeVersion: positiveIntegerSchema,
   difficulty: difficultySchema,
+  topicSlug: z.string().trim().min(1).default('general'),
+  tagSlugs: z.array(z.string().trim().min(1)).default([]),
   blocks: z.array(questionBlockInputSchema).min(1),
   options: z.array(questionOptionInputSchema).min(1),
   correctOptionRef: clientRefSchema,

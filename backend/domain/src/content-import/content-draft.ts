@@ -164,6 +164,14 @@ const assertQuestionInput = (input: CanonicalDraftQuestionInput): void => {
     throw new ContentDraftError('IMPORT_CONTENT_INVALID', 'question');
   }
   const optionRefs = input.options.map(({ clientRef }) => clientRef);
+  const tagSlugs = input.tagSlugs ?? [];
+  if (
+    !(input.topicSlug ?? 'general').trim() ||
+    new Set(tagSlugs).size !== tagSlugs.length ||
+    tagSlugs.some((slug) => !slug.trim())
+  ) {
+    throw new ContentDraftError('IMPORT_CONTENT_INVALID', 'taxonomy');
+  }
   assertUniqueNonemptyRefs([input.clientRef, ...optionRefs], 'options');
   input.options.forEach((option, index) => {
     if (option.position !== index) {
@@ -626,6 +634,16 @@ export class ContentDraftService {
           'questionTypeSlug',
         );
       }
+      const topicSlug = command.input.topicSlug ?? 'general';
+      const tagSlugs = command.input.tagSlugs ?? [];
+      const topic = await transaction.findActiveQuestionTopic(topicSlug);
+      const tags = await transaction.findActiveQuestionTags(tagSlugs);
+      if (!topic || tags.length !== tagSlugs.length) {
+        throw new ContentDraftError(
+          'IMPORT_QUESTION_TYPE_NOT_FOUND',
+          'taxonomy',
+        );
+      }
 
       const resolver = new CurrentReferenceResolver(
         transaction,
@@ -746,6 +764,7 @@ export class ContentDraftService {
           questionId,
           version: 1,
           typeVersionId: typeVersion.id,
+          topicId: topic.id,
           difficulty: command.input.difficulty,
           status: 'DRAFT',
           validationStatus: 'PENDING',
@@ -753,6 +772,7 @@ export class ContentDraftService {
           validatedAt: null,
           publishedAt: null,
         },
+        tagIds: tags.map(({ id }) => id),
         sentences,
         blocks,
         options,

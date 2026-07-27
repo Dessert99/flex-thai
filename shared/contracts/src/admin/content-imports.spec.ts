@@ -92,7 +92,14 @@ const request = {
 
 describe('관리자 콘텐츠 가져오기 canonical 요청 계약', () => {
   it('schemaVersion 1의 strict 최소 어휘와 문제 payload를 허용한다', () => {
-    expect(contentImportRequestSchema.parse(request)).toEqual(request);
+    expect(contentImportRequestSchema.parse(request)).toEqual({
+      ...request,
+      questions: request.questions.map((question) => ({
+        ...question,
+        topicSlug: 'general',
+        tagSlugs: [],
+      })),
+    });
     expect(() =>
       contentImportRequestSchema.parse({ ...request, schemaVersion: 2 }),
     ).toThrow();

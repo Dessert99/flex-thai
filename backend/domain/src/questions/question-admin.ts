@@ -39,6 +39,7 @@ export type QuestionAdminErrorCode =
   | 'QUESTION_VERSION_NOT_FOUND'
   | 'QUESTION_VERSION_MISMATCH'
   | 'QUESTION_TYPE_NOT_FOUND'
+  | 'QUESTION_TAXONOMY_NOT_FOUND'
   | 'QUESTION_REFERENCE_NOT_FOUND'
   | 'QUESTION_REFERENCE_MISMATCH'
   | 'QUESTION_MEDIA_NOT_READY'
@@ -106,6 +107,7 @@ const createDraftVersion = (input: {
   questionId: string;
   version: number;
   typeVersionId: string;
+  topicId: string;
   difficulty: number;
 }): QuestionAdminVersionGraph['version'] => ({
   ...input,
@@ -768,8 +770,10 @@ export class QuestionAdminService {
           questionId: question.id,
           version: latest.version + 1,
           typeVersionId: source.typeVersionId,
+          topicId: source.topicId,
           difficulty: source.difficulty,
         }),
+        tagIds: source.tagIds,
         sentences: [],
         blocks: source.blocks.map((block) => {
           const blockId = assertGeneratedId(this.generateId);
@@ -840,6 +844,14 @@ export class QuestionAdminService {
           'QUESTION_TYPE_NOT_FOUND',
           'questionTypeSlug',
         );
+      }
+      const topic = await transaction.findActiveQuestionTopic(
+        command.input.topicSlug ?? 'general',
+      );
+      const tagSlugs = command.input.tagSlugs ?? [];
+      const tags = await transaction.findActiveQuestionTags(tagSlugs);
+      if (!topic || tags.length !== tagSlugs.length) {
+        throw new QuestionAdminError('QUESTION_TAXONOMY_NOT_FOUND');
       }
 
       const sentences: ResolvedQuestionSentenceGraph[] = [];
@@ -941,8 +953,10 @@ export class QuestionAdminService {
           questionId: current.questionId,
           version: current.version,
           typeVersionId: typeVersion.id,
+          topicId: topic.id,
           difficulty: command.input.difficulty,
         }),
+        tagIds: tags.map(({ id }) => id),
         sentences,
         blocks,
         options,

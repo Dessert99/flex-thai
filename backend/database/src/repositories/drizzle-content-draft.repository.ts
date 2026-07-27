@@ -8,7 +8,7 @@ import {
   type ResolvedQuestionDraftGraph,
   type ResolvedVocabularyDraftGraph,
 } from '@flex-thia/domain';
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import {
@@ -19,10 +19,13 @@ import {
   questionBlocks,
   questionBlockSentences,
   questionOptions,
+  questionTags,
+  questionTopics,
   questions,
   questionTypes,
   questionTypeVersions,
   questionVersions,
+  questionVersionTags,
   thaiSentences,
   thaiSentenceVersions,
   tokenOccurrences,
@@ -438,6 +441,14 @@ const saveQuestionDraft = async (
   try {
     await transaction.insert(questions).values(input.graph.question);
     await transaction.insert(questionVersions).values(input.graph.version);
+    if (input.graph.tagIds.length > 0) {
+      await transaction.insert(questionVersionTags).values(
+        input.graph.tagIds.map((tagId) => ({
+          questionVersionId: input.graph.version.id,
+          tagId,
+        })),
+      );
+    }
     await transaction
       .insert(thaiSentences)
       .values(input.graph.sentences.map(({ sentence }) => sentence));
@@ -608,6 +619,7 @@ const createContentDraftTransaction = (
         and(
           eq(questionTypes.slug, slug),
           eq(questionTypeVersions.version, version),
+          eq(questionTypeVersions.status, 'ACTIVE'),
         ),
       )
       .for('key share')
@@ -619,6 +631,32 @@ const createContentDraftTransaction = (
       );
     }
     return rows[0] ?? null;
+  },
+
+  async findActiveQuestionTopic(slug) {
+    const rows = await transaction
+      .select({ id: questionTopics.id, slug: questionTopics.slug })
+      .from(questionTopics)
+      .where(
+        and(eq(questionTopics.slug, slug), eq(questionTopics.status, 'ACTIVE')),
+      )
+      .for('key share')
+      .limit(2);
+    return rows.length === 1 ? rows[0]! : null;
+  },
+
+  async findActiveQuestionTags(slugs) {
+    if (slugs.length === 0) return [];
+    return transaction
+      .select({ id: questionTags.id, slug: questionTags.slug })
+      .from(questionTags)
+      .where(
+        and(
+          inArray(questionTags.slug, slugs),
+          eq(questionTags.status, 'ACTIVE'),
+        ),
+      )
+      .for('key share');
   },
 
   async saveVocabularyDraft(input) {

@@ -7,9 +7,12 @@ import {
   questionBlocks,
   questionBlockSentences,
   questionOptions,
+  questionTags,
+  questionTopics,
   questions,
   questionTypes,
   questionTypeVersions,
+  questionVersionTags,
   questionVersions,
 } from '../schema/index.js';
 import * as schema from '../schema/index.js';
@@ -123,11 +126,20 @@ export interface AdminQuestionVersionDetailProjection {
   validation: AdminQuestionValidationProjection;
   questionType: AdminQuestionTypeVersionProjection;
   difficulty: number;
+  topic: AdminQuestionTaxonomyTermProjection;
+  tags: AdminQuestionTaxonomyTermProjection[];
   blocks: AdminQuestionBlockProjection[];
   options: AdminQuestionOptionProjection[];
   correctOptionId: string;
   createdAt: Date;
   publishedAt: Date | null;
+}
+
+/** 관리자 상세에서 과거 참조까지 보존하는 주제·태그 projection */
+export interface AdminQuestionTaxonomyTermProjection {
+  id: string;
+  slug: string;
+  displayName: string;
 }
 
 /** 모든 버전을 포함한 관리자 문제 상세 projection */
@@ -346,6 +358,9 @@ export class DrizzleAdminQuestionQuery {
         skill: questionTypes.skill,
         template: questionTypeVersions.template,
         difficulty: questionVersions.difficulty,
+        topicId: questionTopics.id,
+        topicSlug: questionTopics.slug,
+        topicDisplayName: questionTopics.displayName,
         createdAt: questionVersions.createdAt,
         publishedAt: questionVersions.publishedAt,
       })
@@ -358,6 +373,7 @@ export class DrizzleAdminQuestionQuery {
         questionTypes,
         eq(questionTypeVersions.questionTypeId, questionTypes.id),
       )
+      .innerJoin(questionTopics, eq(questionVersions.topicId, questionTopics.id))
       .where(eq(questionVersions.questionId, questionId))
       .orderBy(desc(questionVersions.version), desc(questionVersions.id));
     if (versionRows.length === 0) {
@@ -415,6 +431,21 @@ export class DrizzleAdminQuestionQuery {
         asc(questionOptions.position),
         asc(questionOptions.id),
       );
+    const tagRows = await this.database
+      .select({
+        questionVersionId: questionVersionTags.questionVersionId,
+        tagId: questionTags.id,
+        tagSlug: questionTags.slug,
+        tagDisplayName: questionTags.displayName,
+      })
+      .from(questionVersionTags)
+      .innerJoin(questionTags, eq(questionVersionTags.tagId, questionTags.id))
+      .where(inArray(questionVersionTags.questionVersionId, versionIds))
+      .orderBy(
+        asc(questionVersionTags.questionVersionId),
+        asc(questionTags.slug),
+        asc(questionTags.id),
+      );
 
     return {
       ...question,
@@ -458,6 +489,20 @@ export class DrizzleAdminQuestionQuery {
             template: version.template,
           },
           difficulty: version.difficulty,
+          topic: {
+            id: version.topicId,
+            slug: version.topicSlug,
+            displayName: version.topicDisplayName,
+          },
+          tags: tagRows
+            .filter(
+              ({ questionVersionId }) => questionVersionId === version.id,
+            )
+            .map(({ tagId, tagSlug, tagDisplayName }) => ({
+              id: tagId,
+              slug: tagSlug,
+              displayName: tagDisplayName,
+            })),
           blocks,
           options: storedOptions.map(
             (option): AdminQuestionOptionProjection => {

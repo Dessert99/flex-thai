@@ -37,6 +37,9 @@ export * from './repositories/drizzle-content-import.repository.js';
 /** 관리자 문제 초안 복제·전체 교체 transaction repository를 공개한다 */
 export * from './repositories/drizzle-question-admin.repository.js';
 
+/** 문제 분류 설정 lifecycle adapter를 공개한다 */
+export * from './repositories/drizzle-question-taxonomy.repository.js';
+
 /** 관리자 어휘 전체 교체·상태 전이 transaction repository를 공개한다 */
 export * from './repositories/drizzle-vocabulary-admin.repository.js';
 
@@ -69,6 +72,9 @@ export * from './queries/drizzle-content-import.query.js';
 
 /** 관리자 문제 모든 상태·버전 read model을 공개한다 */
 export * from './queries/drizzle-admin-question.query.js';
+
+/** 관리자 문제 분류 설정 read model을 공개한다 */
+export * from './queries/drizzle-question-taxonomy.query.js';
 
 /** 관리자 어휘 모든 상태·뜻·발음·사용처 read model을 공개한다 */
 export * from './queries/drizzle-admin-vocabulary.query.js';
