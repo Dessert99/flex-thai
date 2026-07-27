@@ -33,6 +33,12 @@ export const questionCandidateReviewStatusEnum = pgEnum(
   ['PENDING', 'APPROVED', 'DISCARDED'],
 );
 
+/** 후보 payload가 canonical graph인지 원문 제거 실패 snapshot인지 구분한다 */
+export const questionCandidatePayloadStateEnum = pgEnum(
+  'question_candidate_payload_state',
+  ['CANONICAL', 'REDACTED_INVALID'],
+);
+
 /** AI 문제 후보의 검증 단계 */
 export const questionValidationStageEnum = pgEnum('question_validation_stage', [
   'SCHEMA',
@@ -60,11 +66,12 @@ export const questionProductionCandidates = pgTable(
     typeVersionId: uuid('type_version_id')
       .references(() => questionTypeVersions.id, { onDelete: 'restrict' })
       .notNull(),
-    topicId: uuid('topic_id')
-      .references(() => questionTopics.id, { onDelete: 'restrict' })
-      .notNull(),
-    difficulty: integer('difficulty').notNull(),
-    payload: jsonb('payload').$type<Record<string, unknown>>().notNull(),
+    payloadState: questionCandidatePayloadStateEnum('payload_state').notNull(),
+    topicId: uuid('topic_id').references(() => questionTopics.id, {
+      onDelete: 'restrict',
+    }),
+    difficulty: integer('difficulty'),
+    payload: jsonb('payload').$type<Record<string, unknown>>(),
     payloadHash: text('payload_hash').notNull(),
     resultGroup: questionCandidateGroupEnum('result_group').notNull(),
     reviewStatus: questionCandidateReviewStatusEnum('review_status')
@@ -110,6 +117,10 @@ export const questionProductionCandidates = pgTable(
     check(
       'question_production_candidates_payload_hash_sha256',
       sql`${table.payloadHash} ~ '^[0-9A-Fa-f]{64}$'`,
+    ),
+    check(
+      'question_production_candidates_payload_representation_consistency',
+      sql`(${table.payloadState} = 'CANONICAL' and ${table.topicId} is not null and ${table.difficulty} is not null and ${table.payload} is not null) or (${table.payloadState} = 'REDACTED_INVALID' and ${table.topicId} is null and ${table.difficulty} is null and ${table.payload} is null and ${table.resultGroup} = 'FAILED' and ${table.reviewStatus} <> 'APPROVED' and ${table.approvedQuestionId} is null and ${table.approvedQuestionVersionId} is null)`,
     ),
     check(
       'question_production_candidates_revision_nonnegative',

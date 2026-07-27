@@ -59,9 +59,10 @@ type ReviewCandidate = {
   jobItemId: string;
   jobAttempt: number;
   typeVersionId: string;
-  topicId: string;
-  difficulty: number;
-  payload: Record<string, unknown>;
+  payloadState: 'CANONICAL' | 'REDACTED_INVALID';
+  topicId: string | null;
+  difficulty: number | null;
+  payload: Record<string, unknown> | null;
   resultGroup: 'NORMAL' | 'NEEDS_ATTENTION' | 'FAILED';
   reviewStatus: 'PENDING' | 'APPROVED' | 'DISCARDED';
   revision: number;
@@ -103,6 +104,7 @@ const readReviewCandidate = async (
       jobItemId: questionProductionCandidates.jobItemId,
       jobAttempt: questionProductionCandidates.jobAttempt,
       typeVersionId: questionProductionCandidates.typeVersionId,
+      payloadState: questionProductionCandidates.payloadState,
       topicId: questionProductionCandidates.topicId,
       difficulty: questionProductionCandidates.difficulty,
       payload: questionProductionCandidates.payload,
@@ -248,6 +250,7 @@ const candidateValues = (
     jobAttempt: input.attempt,
     ordinal: record.ordinal,
     typeVersionId: record.candidate.questionTypeVersionId,
+    payloadState: record.candidate.payloadState,
     topicId: record.candidate.topicId,
     difficulty: record.candidate.difficulty,
     payload: record.candidate.payload as unknown as Record<string, unknown>,
@@ -272,6 +275,7 @@ const existingCandidateIds = async (
         id: questionProductionCandidates.id,
         ordinal: questionProductionCandidates.ordinal,
         typeVersionId: questionProductionCandidates.typeVersionId,
+        payloadState: questionProductionCandidates.payloadState,
         topicId: questionProductionCandidates.topicId,
         difficulty: questionProductionCandidates.difficulty,
         payload: questionProductionCandidates.payload,
@@ -301,6 +305,7 @@ const existingCandidateIds = async (
     }
     const expected = {
       typeVersionId: record.candidate.questionTypeVersionId,
+      payloadState: record.candidate.payloadState,
       topicId: record.candidate.topicId,
       difficulty: record.candidate.difficulty,
       payload: record.candidate.payload as unknown as Record<string, unknown>,
@@ -498,6 +503,10 @@ export class DrizzleAiQuestionProductionRepository
           eq(questionProductionValidations.candidateId, input.candidateId),
         );
       if (
+        candidate.payloadState !== 'CANONICAL' ||
+        candidate.topicId === null ||
+        candidate.difficulty === null ||
+        candidate.payload === null ||
         candidate.resultGroup !== 'NORMAL' ||
         !hasAllPassedValidations(validations)
       ) {

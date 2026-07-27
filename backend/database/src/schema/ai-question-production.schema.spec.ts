@@ -4,6 +4,7 @@ import { getTableConfig } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 import {
   questionCandidateGroupEnum,
+  questionCandidatePayloadStateEnum,
   questionCandidateReviewStatusEnum,
   questionProductionCandidates,
   questionProductionValidations,
@@ -57,5 +58,24 @@ describe('AI 문제 제작 schema', () => {
     expect(columns.revision.notNull).toBe(true);
     expect(columns.approvedQuestionId.notNull).toBe(false);
     expect(columns.approvedQuestionVersionId.notNull).toBe(false);
+  });
+
+  it('redacted 후보는 FK 없는 nullable snapshot으로 저장할 수 있다', () => {
+    const columns = getTableColumns(questionProductionCandidates);
+    const checks = getTableConfig(questionProductionCandidates).checks.map(
+      ({ name }) => name,
+    );
+
+    expect(questionCandidatePayloadStateEnum.enumValues).toEqual([
+      'CANONICAL',
+      'REDACTED_INVALID',
+    ]);
+    expect(columns.payloadState.notNull).toBe(true);
+    expect(columns.topicId.notNull).toBe(false);
+    expect(columns.difficulty.notNull).toBe(false);
+    expect(columns.payload.notNull).toBe(false);
+    expect(checks).toContain(
+      'question_production_candidates_payload_representation_consistency',
+    );
   });
 });

@@ -235,21 +235,45 @@ export const questionCandidateReviewStateSchema = z.discriminatedUnion(
   ],
 );
 
-const questionCandidateSummarySchema = z
+const questionCandidateSummaryBaseShape = {
+  id: uuidSchema,
+  jobItemId: uuidSchema,
+  jobAttempt: nonnegativeIntegerSchema,
+  ordinal: nonnegativeIntegerSchema,
+  questionTypeVersionId: uuidSchema,
+  resultGroup: questionCandidateGroupSchema,
+  review: questionCandidateReviewStateSchema,
+  createdAt: utcDateTimeSchema,
+  updatedAt: utcDateTimeSchema,
+};
+
+const canonicalQuestionCandidateSummarySchema = z
   .object({
-    id: uuidSchema,
-    jobItemId: uuidSchema,
-    jobAttempt: nonnegativeIntegerSchema,
-    ordinal: nonnegativeIntegerSchema,
-    questionTypeVersionId: uuidSchema,
+    ...questionCandidateSummaryBaseShape,
+    payloadState: z.literal('CANONICAL'),
     topicId: uuidSchema,
     difficulty: difficultySchema,
-    resultGroup: questionCandidateGroupSchema,
-    review: questionCandidateReviewStateSchema,
-    createdAt: utcDateTimeSchema,
-    updatedAt: utcDateTimeSchema,
   })
   .strict();
+
+const redactedQuestionCandidateSummarySchema = z
+  .object({
+    ...questionCandidateSummaryBaseShape,
+    payloadState: z.literal('REDACTED_INVALID'),
+    topicId: z.null(),
+    difficulty: z.null(),
+    resultGroup: z.literal('FAILED'),
+    review: questionCandidateReviewStateSchema.refine(
+      ({ status }) => status !== 'APPROVED',
+      'redacted 후보는 승인 상태일 수 없습니다.',
+    ),
+  })
+  .strict();
+
+const questionCandidateSummarySchema = z.discriminatedUnion('payloadState', [
+  canonicalQuestionCandidateSummarySchema,
+  redactedQuestionCandidateSummarySchema,
+]);
 
 /** 후보 목록에 사용하는 page query와 안정적인 필터 */
 export const questionCandidateListQuerySchema = z
@@ -286,12 +310,23 @@ export const questionCandidateListResponseSchema = z
   .strict();
 
 /** 한 후보의 canonical graph와 검수 상태를 반환하는 공개 상세 */
-export const questionCandidateDetailSchema = questionCandidateSummarySchema
-  .extend({
-    tagIds: z.array(uuidSchema),
-    payload: questionCandidatePayloadSchema,
-  })
-  .strict();
+export const questionCandidateDetailSchema = z.discriminatedUnion(
+  'payloadState',
+  [
+    canonicalQuestionCandidateSummarySchema
+      .extend({
+        tagIds: z.array(uuidSchema),
+        payload: questionCandidatePayloadSchema,
+      })
+      .strict(),
+    redactedQuestionCandidateSummarySchema
+      .extend({
+        tagIds: z.tuple([]),
+        payload: z.null(),
+      })
+      .strict(),
+  ],
+);
 
 /** 후보의 단계별 안전한 검증 evidence */
 export const questionCandidateValidationSchema = z

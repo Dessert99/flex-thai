@@ -20,6 +20,7 @@ const input = {
       {
         ordinal: 0,
         candidate: {
+          payloadState: 'CANONICAL' as const,
           questionTypeVersionId: 'type-version-id',
           topicId: 'topic-id',
           tagIds: ['tag-id'],
@@ -64,6 +65,7 @@ const pendingCandidate = {
   jobItemId: input.itemId,
   jobAttempt: input.attempt,
   typeVersionId: 'type-version-id',
+  payloadState: 'CANONICAL',
   topicId: 'topic-id',
   difficulty: 3,
   payload: input.artifacts.candidates[0]!.candidate.payload,
@@ -336,6 +338,53 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
     const createDraft = vi.fn();
     const repository = new DrizzleAiQuestionProductionRepository(
       { transaction } as never,
+      () => reviewCommand.occurredAt,
+      { createDraft },
+    );
+
+    await expect(repository.approve(reviewCommand)).rejects.toThrow(
+      'QUESTION_CANDIDATE_NOT_APPROVABLE',
+    );
+    expect(createDraft).not.toHaveBeenCalled();
+  });
+
+  it('REDACTED_INVALID 후보는 검증 row와 무관하게 DRAFT 승인을 거절한다', async () => {
+    const candidateLimit = vi.fn().mockResolvedValue([
+      {
+        ...pendingCandidate,
+        payloadState: 'REDACTED_INVALID',
+        topicId: null,
+        difficulty: null,
+        payload: null,
+        resultGroup: 'FAILED',
+      },
+    ]);
+    const candidateFor = vi.fn(() => ({ limit: candidateLimit }));
+    const candidateWhere = vi.fn(() => ({ for: candidateFor }));
+    const candidateFrom = vi.fn(() => ({ where: candidateWhere }));
+    const auditLimit = vi.fn().mockResolvedValue([]);
+    const auditWhere = vi.fn(() => ({ limit: auditLimit }));
+    const auditFrom = vi.fn(() => ({ where: auditWhere }));
+    const validationWhere = vi.fn().mockResolvedValue([
+      { stage: 'SCHEMA', status: 'PASSED' },
+      { stage: 'DECISION_RULE', status: 'PASSED' },
+      { stage: 'SIMILARITY', status: 'PASSED' },
+      { stage: 'AI_CROSS_VALIDATION', status: 'PASSED' },
+    ]);
+    const validationFrom = vi.fn(() => ({ where: validationWhere }));
+    const select = vi
+      .fn()
+      .mockReturnValueOnce({ from: candidateFrom })
+      .mockReturnValueOnce({ from: auditFrom })
+      .mockReturnValueOnce({ from: validationFrom });
+    const createDraft = vi.fn();
+    const repository = new DrizzleAiQuestionProductionRepository(
+      {
+        transaction: vi.fn(
+          (callback: (executor: unknown) => Promise<unknown>) =>
+            callback(withReviewRequestLock({ select })),
+        ),
+      } as never,
       () => reviewCommand.occurredAt,
       { createDraft },
     );
@@ -986,6 +1035,69 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
     );
   });
 
+  it('redacted 후보는 신뢰한 type만 유지하고 FK·payload를 null로 저장한다', async () => {
+    const values = vi.fn(() => ({
+      onConflictDoNothing: vi.fn(() => ({
+        returning: vi
+          .fn()
+          .mockResolvedValue([{ id: 'candidate-id', ordinal: 0 }]),
+      })),
+    }));
+    const validationValues = vi.fn(() => ({
+      onConflictDoNothing: vi.fn(() => ({
+        returning: vi.fn().mockResolvedValue([{ id: 'validation-id' }]),
+      })),
+    }));
+    const insert = vi
+      .fn()
+      .mockReturnValueOnce({ values })
+      .mockReturnValueOnce({ values: validationValues });
+    const terminalReturning = vi.fn().mockResolvedValue([{ id: input.itemId }]);
+    const terminalWhere = vi.fn(() => ({ returning: terminalReturning }));
+    const update = vi.fn(() => ({
+      set: vi.fn(() => ({ where: terminalWhere })),
+    }));
+    const repository = new DrizzleAiQuestionProductionRepository({
+      transaction: vi.fn((callback: (executor: unknown) => Promise<unknown>) =>
+        callback({ insert, update }),
+      ),
+    } as never);
+    const redactedInput = {
+      ...input,
+      artifacts: {
+        ...input.artifacts,
+        candidates: [
+          {
+            ...input.artifacts.candidates[0]!,
+            candidate: {
+              payloadState: 'REDACTED_INVALID' as const,
+              questionTypeVersionId: 'type-version-id',
+              topicId: null,
+              tagIds: [] as [],
+              difficulty: null,
+              payload: null,
+            },
+            payloadHash:
+              '79732325ba08de315b7ed66b263eacf3222cb949fc1d2063d536cf7312775eb8',
+            resultGroup: 'FAILED' as const,
+            reviewCode: 'QUESTION_SCHEMA_INVALID',
+          },
+        ],
+      },
+    };
+
+    await expect(repository.persist(redactedInput)).resolves.toBe(true);
+    expect(values).toHaveBeenCalledWith([
+      expect.objectContaining({
+        payloadState: 'REDACTED_INVALID',
+        typeVersionId: 'type-version-id',
+        topicId: null,
+        difficulty: null,
+        payload: null,
+      }),
+    ]);
+  });
+
   it('재생성 item 결과의 원본 후보를 새 attempt 후보 lineage로 옮긴다', async () => {
     const candidateReturning = vi
       .fn()
@@ -1056,6 +1168,7 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
           id: 'candidate-id',
           ordinal: 0,
           typeVersionId: 'type-version-id',
+          payloadState: 'CANONICAL',
           topicId: 'topic-id',
           difficulty: 3,
           payload: {
@@ -1102,6 +1215,88 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
     expect(limit).toHaveBeenCalledTimes(2);
   });
 
+  it('같은 redacted snapshot replay는 null 조합과 payload state까지 비교한다', async () => {
+    const redactedInput = {
+      ...input,
+      artifacts: {
+        ...input.artifacts,
+        candidates: [
+          {
+            ...input.artifacts.candidates[0]!,
+            candidate: {
+              payloadState: 'REDACTED_INVALID' as const,
+              questionTypeVersionId: 'type-version-id',
+              topicId: null,
+              tagIds: [] as [],
+              difficulty: null,
+              payload: null,
+            },
+            payloadHash:
+              '79732325ba08de315b7ed66b263eacf3222cb949fc1d2063d536cf7312775eb8',
+            resultGroup: 'FAILED' as const,
+            reviewCode: 'QUESTION_SCHEMA_INVALID',
+          },
+        ],
+      },
+    };
+    const candidateReturning = vi.fn().mockResolvedValue([]);
+    const validationReturning = vi
+      .fn()
+      .mockResolvedValue([{ id: 'validation-id' }]);
+    const insert = vi
+      .fn()
+      .mockReturnValueOnce({
+        values: vi.fn(() => ({
+          onConflictDoNothing: vi.fn(() => ({
+            returning: candidateReturning,
+          })),
+        })),
+      })
+      .mockReturnValueOnce({
+        values: vi.fn(() => ({
+          onConflictDoNothing: vi.fn(() => ({
+            returning: validationReturning,
+          })),
+        })),
+      });
+    const limit = vi.fn().mockResolvedValue([
+      {
+        id: 'candidate-id',
+        ordinal: 0,
+        typeVersionId: 'type-version-id',
+        payloadState: 'REDACTED_INVALID',
+        topicId: null,
+        difficulty: null,
+        payload: null,
+        payloadHash:
+          '79732325ba08de315b7ed66b263eacf3222cb949fc1d2063d536cf7312775eb8',
+        resultGroup: 'FAILED',
+        reviewStatus: 'PENDING',
+        reviewCode: 'QUESTION_SCHEMA_INVALID',
+        regeneratedFromCandidateId: null,
+        approvedQuestionId: null,
+        approvedQuestionVersionId: null,
+      },
+    ]);
+    const select = vi.fn(() => ({
+      from: vi.fn(() => ({ where: vi.fn(() => ({ limit })) })),
+    }));
+    const terminalReturning = vi.fn().mockResolvedValue([{ id: input.itemId }]);
+    const update = vi.fn(() => ({
+      set: vi.fn(() => ({
+        where: vi.fn(() => ({ returning: terminalReturning })),
+      })),
+    }));
+    const repository = new DrizzleAiQuestionProductionRepository({
+      transaction: vi.fn((callback: (executor: unknown) => Promise<unknown>) =>
+        callback({ insert, select, update }),
+      ),
+    } as never);
+
+    await expect(repository.persist(redactedInput)).resolves.toBe(true);
+    expect(limit).toHaveBeenCalledOnce();
+  });
+
   it('같은 ordinal의 payload hash가 다르면 replay 충돌로 transaction을 실패시킨다', async () => {
     const returning = vi.fn().mockResolvedValue([]);
     const onConflictDoNothing = vi.fn(() => ({ returning }));
@@ -1112,6 +1307,7 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
         id: 'candidate-id',
         ordinal: 0,
         typeVersionId: 'type-version-id',
+        payloadState: 'CANONICAL',
         topicId: 'topic-id',
         difficulty: 3,
         payload: { questionTypeSlug: 'reading-choice' },
@@ -1157,6 +1353,7 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
         id: 'candidate-id',
         ordinal: 0,
         typeVersionId: 'type-version-id',
+        payloadState: 'CANONICAL',
         topicId: 'topic-id',
         difficulty: 3,
         payload: { questionTypeSlug: 'different-question' },

@@ -20,16 +20,12 @@ type ValidationStage =
 type ValidationStatus = 'PASSED' | 'FAILED' | 'SKIPPED';
 
 /** DB candidate row에서 API projection에 필요한 필드만 나타낸다 */
-export interface QuestionCandidateReadRecord {
+interface QuestionCandidateReadRecordBase {
   id: string;
   jobItemId: string;
   jobAttempt: number;
   ordinal: number;
   questionTypeVersionId: string;
-  topicId: string;
-  tagIds: string[];
-  difficulty: number;
-  payload: unknown;
   resultGroup: CandidateGroup;
   reviewStatus: CandidateReviewStatus;
   reviewCode: string | null;
@@ -40,6 +36,25 @@ export interface QuestionCandidateReadRecord {
   createdAt: Date;
   updatedAt: Date;
 }
+
+/** DB read adapter가 canonical과 원문 제거 실패 row를 null 조합으로 구분한다 */
+export type QuestionCandidateReadRecord = QuestionCandidateReadRecordBase &
+  (
+    | {
+        payloadState: 'CANONICAL';
+        topicId: string;
+        tagIds: string[];
+        difficulty: number;
+        payload: unknown;
+      }
+    | {
+        payloadState: 'REDACTED_INVALID';
+        topicId: null;
+        tagIds: [];
+        difficulty: null;
+        payload: null;
+      }
+  );
 
 /** 저장된 validation details를 공개하기 전 service가 받는 내부 row */
 export interface QuestionCandidateValidationReadRecord {
@@ -134,6 +149,7 @@ const toSummary = (candidate: QuestionCandidateReadRecord) => ({
   jobAttempt: candidate.jobAttempt,
   ordinal: candidate.ordinal,
   questionTypeVersionId: candidate.questionTypeVersionId,
+  payloadState: candidate.payloadState,
   topicId: candidate.topicId,
   difficulty: candidate.difficulty,
   resultGroup: candidate.resultGroup,

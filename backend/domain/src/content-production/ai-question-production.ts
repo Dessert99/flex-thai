@@ -69,6 +69,26 @@ export interface GeneratedQuestionCandidate {
   payload: GeneratedQuestionPayload;
 }
 
+/** 저장·replay에서 canonical graph와 원문 제거 실패 후보를 명시적으로 구분한다 */
+export type StoredQuestionCandidateSnapshot =
+  | ({
+      payloadState: 'CANONICAL';
+    } & GeneratedQuestionCandidate)
+  | {
+      payloadState: 'REDACTED_INVALID';
+      questionTypeVersionId: string;
+      topicId: null;
+      tagIds: [];
+      difficulty: null;
+      payload: null;
+    };
+
+/** provider replay가 redacted 원인을 raw payload 없이 재현하게 한다 */
+export interface QuestionProductionProviderCandidate {
+  candidate: StoredQuestionCandidateSnapshot;
+  validationCode: 'QUESTION_SCHEMA_INVALID' | 'QUESTION_RULE_INVALID' | null;
+}
+
 /** 저장되는 후보별 검증 결과 — FAILED에는 반드시 stable code를 기록한다 */
 export type QuestionProductionValidationRecord =
   | {
@@ -104,7 +124,7 @@ type UnnormalizedQuestionProductionValidationRecord = {
 /** item attempt에 고정해 저장할 문제 후보 snapshot */
 export interface QuestionProductionCandidateRecord {
   ordinal: number;
-  candidate: GeneratedQuestionCandidate;
+  candidate: StoredQuestionCandidateSnapshot;
   payloadHash: string;
   resultGroup: QuestionCandidateGroup;
   reviewStatus: QuestionCandidateReviewStatus;
@@ -871,7 +891,7 @@ type ProviderRunMetadata = Partial<{
 type UnnormalizedQuestionProductionProviderResult =
   | ({
       kind: 'QUESTION_CANDIDATES';
-      candidates: GeneratedQuestionCandidate[];
+      candidates: QuestionProductionProviderCandidate[];
     } & ProviderRunMetadata)
   | ({
       kind: 'QUESTION_VALIDATION';
@@ -884,7 +904,7 @@ type UnnormalizedQuestionProductionProviderResult =
 export type QuestionProductionProviderResult =
   | ({
       kind: 'QUESTION_CANDIDATES';
-      candidates: GeneratedQuestionCandidate[];
+      candidates: QuestionProductionProviderCandidate[];
     } & ProviderRunMetadata)
   | ({
       kind: 'QUESTION_VALIDATION';
@@ -1353,10 +1373,12 @@ const readAllowedTaxonomyTerms = (
   return terms.length === value.length ? terms : null;
 };
 
-const hasMatchingTaxonomy = (
+/** provider 후보의 type/topic/tag 참조가 context의 신뢰 가능한 row와 일치하는지 확인한다 */
+export const hasTrustedQuestionCandidateReferences = (
   candidate: GeneratedQuestionCandidate,
   context: QuestionProductionContext,
 ): boolean => {
+  if (candidate.questionTypeVersionId !== context.typeVersion.id) return false;
   const topics = readAllowedTaxonomyTerms(
     context.typeVersion.generationRules['allowedTopics'],
   );
@@ -1550,7 +1572,7 @@ export const validateQuestionDecisionRules = (
     candidate.questionTypeVersionId === context.typeVersion.id &&
     candidate.payload.questionTypeSlug === context.typeVersion.slug &&
     candidate.payload.questionTypeVersion === context.typeVersion.version &&
-    hasMatchingTaxonomy(candidate, context) &&
+    hasTrustedQuestionCandidateReferences(candidate, context) &&
     candidate.difficulty >= 1 &&
     candidate.difficulty <= 5 &&
     candidate.payload.difficulty === candidate.difficulty &&

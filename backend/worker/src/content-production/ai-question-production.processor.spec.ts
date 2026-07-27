@@ -366,6 +366,14 @@ describe('AI 문제 제작 processor', () => {
       status: 'FAILED',
       code: 'QUESTION_RULE_INVALID',
     });
+    expect(persisted?.artifacts.candidates[0]?.candidate).toEqual({
+      payloadState: 'REDACTED_INVALID',
+      questionTypeVersionId: 'type-version-id',
+      topicId: null,
+      tagIds: [],
+      difficulty: null,
+      payload: null,
+    });
     expect(similarityCalls).toBe(0);
     expect(crossValidationCalls).toBe(0);
   });
@@ -606,7 +614,15 @@ describe('AI 문제 제작 processor', () => {
                   kind: 'REPLAY',
                   result: {
                     kind: 'QUESTION_CANDIDATES',
-                    candidates: [candidate()],
+                    candidates: [
+                      {
+                        candidate: {
+                          payloadState: 'CANONICAL',
+                          ...candidate(),
+                        },
+                        validationCode: null,
+                      },
+                    ],
                   },
                 }
               : { kind: 'CLAIMED', runId: 'validation-run' },
@@ -773,6 +789,36 @@ describe('AI 문제 제작 processor', () => {
       persisted?.artifacts.candidates.map(({ resultGroup }) => resultGroup),
     ).toEqual(['FAILED', 'FAILED', 'NORMAL']);
     expect(
+      persisted?.artifacts.candidates
+        .slice(0, 2)
+        .map(({ candidate: stored, payloadHash }) => ({ stored, payloadHash })),
+    ).toEqual([
+      {
+        stored: {
+          payloadState: 'REDACTED_INVALID',
+          questionTypeVersionId: 'type-version-id',
+          topicId: null,
+          tagIds: [],
+          difficulty: null,
+          payload: null,
+        },
+        payloadHash:
+          '79732325ba08de315b7ed66b263eacf3222cb949fc1d2063d536cf7312775eb8',
+      },
+      {
+        stored: {
+          payloadState: 'REDACTED_INVALID',
+          questionTypeVersionId: 'type-version-id',
+          topicId: null,
+          tagIds: [],
+          difficulty: null,
+          payload: null,
+        },
+        payloadHash:
+          '79732325ba08de315b7ed66b263eacf3222cb949fc1d2063d536cf7312775eb8',
+      },
+    ]);
+    expect(
       persisted?.artifacts.validations
         .filter(({ candidateOrdinal }) => candidateOrdinal === 0)
         .map(({ stage, status, code }) => ({ stage, status, code })),
@@ -800,6 +846,9 @@ describe('AI 문제 제작 processor', () => {
     expect(JSON.stringify(recordedProviderResults)).not.toContain(
       'private-provider-payload',
     );
+    expect(JSON.stringify(persisted)).not.toContain(
+      '00000000-0000-0000-0000-000000000000',
+    );
   });
 
   it('malformed replay도 provider 재호출 없이 격리하고 정상 후보를 처리한다', async () => {
@@ -823,11 +872,8 @@ describe('AI 문제 제작 processor', () => {
                   kind: 'REPLAY',
                   result: {
                     kind: 'QUESTION_CANDIDATES',
-                    candidates: [
-                      {},
-                      candidate(1),
-                    ] as unknown as GeneratedQuestionCandidate[],
-                  },
+                    candidates: [{}, candidate(1)],
+                  } as never,
                 }
               : { kind: 'CLAIMED', runId: 'validation-run' },
           ),

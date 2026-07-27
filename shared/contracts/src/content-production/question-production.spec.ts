@@ -81,6 +81,7 @@ const detail = {
     jobAttempt: 1,
     ordinal: 0,
     questionTypeVersionId: typeVersionId,
+    payloadState: 'CANONICAL',
     topicId,
     tagIds: [],
     difficulty: 2,
@@ -135,12 +136,25 @@ const summary = {
   jobAttempt: 1,
   ordinal: 0,
   questionTypeVersionId: typeVersionId,
+  payloadState: 'CANONICAL',
   topicId,
   difficulty: 2,
   resultGroup: 'NORMAL',
   review: detail.candidate.review,
   createdAt: '2026-07-27T00:00:00.000Z',
   updatedAt: '2026-07-27T00:01:00.000Z',
+};
+
+const redactedSummary = {
+  ...summary,
+  payloadState: 'REDACTED_INVALID',
+  topicId: null,
+  difficulty: null,
+  resultGroup: 'FAILED',
+  review: {
+    ...summary.review,
+    code: 'QUESTION_SCHEMA_INVALID',
+  },
 };
 
 const requestId = 'd9886994-5b49-46ac-bcd5-3f2024b9c1c6';
@@ -153,6 +167,62 @@ const expectSchemaRejects = (
 };
 
 describe('AI 문제 후보 관리자 검수 계약', () => {
+  it('redacted 후보의 목록과 상세를 null·빈 배열 공개 형태로만 허용한다', () => {
+    expect(
+      questionCandidateListResponseSchema.parse({
+        items: [redactedSummary],
+        page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
+      }).items[0],
+    ).toMatchObject(redactedSummary);
+    expect(
+      questionCandidateDetailResponseSchema.parse({
+        candidate: { ...redactedSummary, tagIds: [], payload: null },
+        validations: detail.validations.map((validation, index) => ({
+          ...validation,
+          status: index === 0 ? 'FAILED' : 'SKIPPED',
+          code:
+            index === 0
+              ? 'QUESTION_SCHEMA_INVALID'
+              : 'QUESTION_VALIDATION_SKIPPED',
+          evidence: { kind: 'NONE' },
+        })),
+      }).candidate,
+    ).toMatchObject({
+      payloadState: 'REDACTED_INVALID',
+      topicId: null,
+      difficulty: null,
+      tagIds: [],
+      payload: null,
+    });
+    expect(
+      questionCandidateDetailResponseSchema.safeParse({
+        candidate: {
+          ...redactedSummary,
+          tagIds: [],
+          payload: { providerRaw: 'secret' },
+        },
+        validations: detail.validations,
+      }).success,
+    ).toBe(false);
+    expect(
+      questionCandidateListResponseSchema.safeParse({
+        items: [{ ...redactedSummary, topicId }],
+        page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
+      }).success,
+    ).toBe(false);
+    expect(
+      questionCandidateDetailResponseSchema.safeParse({
+        candidate: {
+          ...detail.candidate,
+          payloadState: 'CANONICAL',
+          topicId: null,
+          difficulty: null,
+          payload: null,
+        },
+        validations: detail.validations,
+      }).success,
+    ).toBe(false);
+  });
   it('후보 검수 명령은 UUID와 음수가 아닌 revision만 받는다', () => {
     expect(
       approveQuestionCandidateRequestSchema.parse({

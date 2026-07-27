@@ -30,7 +30,7 @@ describe.runIf(databaseUrl !== undefined)(
       await pool.end();
     });
 
-    const createFixture = async () => {
+    const createFixture = async (options?: { createTopic?: boolean }) => {
       const userId = randomUUID();
       const jobId = randomUUID();
       const uploadId = randomUUID();
@@ -77,11 +77,13 @@ describe.runIf(databaseUrl !== undefined)(
        ) values ($1, $2, 1, 'STANDARD_CHOICE', 4, 'ACTIVE', '{}')`,
         [typeVersionId, questionTypeId],
       );
-      await pool.query(
-        `insert into question_topics (id, slug, display_name, status)
+      if (options?.createTopic !== false) {
+        await pool.query(
+          `insert into question_topics (id, slug, display_name, status)
        values ($1, $2, '일반', 'ACTIVE')`,
-        [topicId, `general-${topicId}`],
-      );
+          [topicId, `general-${topicId}`],
+        );
+      }
       return { itemId, jobId, typeVersionId, topicId, userId };
     };
 
@@ -105,6 +107,7 @@ describe.runIf(databaseUrl !== undefined)(
           {
             ordinal: 0,
             candidate: {
+              payloadState: 'CANONICAL' as const,
               questionTypeVersionId: fixture.typeVersionId,
               topicId: fixture.topicId,
               tagIds: [],
@@ -138,9 +141,9 @@ describe.runIf(databaseUrl !== undefined)(
       const payloadHash = 'a'.repeat(64);
       await pool.query(
         `insert into question_production_candidates (
-         id, job_item_id, job_attempt, ordinal, type_version_id, topic_id,
-         difficulty, payload, payload_hash, result_group, review_status
-       ) values ($1, $2, 0, 0, $3, $4, 3, $5, $6, 'NORMAL', 'PENDING')`,
+         id, job_item_id, job_attempt, ordinal, type_version_id, payload_state,
+         topic_id, difficulty, payload, payload_hash, result_group, review_status
+       ) values ($1, $2, 0, 0, $3, 'CANONICAL', $4, 3, $5, $6, 'NORMAL', 'PENDING')`,
         [
           candidateId,
           fixture.itemId,
@@ -174,13 +177,103 @@ describe.runIf(databaseUrl !== undefined)(
       expect(counts.rows[0]).toEqual({ candidates: '1', validations: '1' });
     });
 
+    it('topic row 없이 redacted 후보와 네 검증·terminal 전이를 함께 commit한다', async () => {
+      const fixture = await createFixture({ createTopic: false });
+      const repository = new DrizzleAiQuestionProductionRepository(
+        drizzle({ client: pool }) as never,
+      );
+      const redacted: Parameters<
+        DrizzleAiQuestionProductionRepository['persist']
+      >[0] = {
+        jobId: fixture.jobId,
+        itemId: fixture.itemId,
+        attempt: 0,
+        leaseToken: 'active-token',
+        outcome: {
+          status: 'NEEDS_ATTENTION',
+          retryable: false,
+          errorCode: null,
+          result: { total: 1 },
+        },
+        artifacts: {
+          kind: 'QUESTION_CANDIDATES',
+          candidates: [
+            {
+              ordinal: 0,
+              candidate: {
+                payloadState: 'REDACTED_INVALID',
+                questionTypeVersionId: fixture.typeVersionId,
+                topicId: null,
+                tagIds: [],
+                difficulty: null,
+                payload: null,
+              },
+              payloadHash:
+                '79732325ba08de315b7ed66b263eacf3222cb949fc1d2063d536cf7312775eb8',
+              resultGroup: 'FAILED',
+              reviewStatus: 'PENDING',
+              reviewCode: 'QUESTION_SCHEMA_INVALID',
+              regeneratedFromCandidateId: null,
+              approvedQuestionId: null,
+              approvedQuestionVersionId: null,
+            },
+          ],
+          validations: [
+            {
+              candidateOrdinal: 0,
+              stage: 'SCHEMA',
+              status: 'FAILED',
+              code: 'QUESTION_SCHEMA_INVALID',
+              details: {},
+            },
+            ...(
+              ['DECISION_RULE', 'SIMILARITY', 'AI_CROSS_VALIDATION'] as const
+            ).map((stage) => ({
+              candidateOrdinal: 0,
+              stage,
+              status: 'SKIPPED' as const,
+              code: 'QUESTION_VALIDATION_SKIPPED' as const,
+              details: {},
+            })),
+          ],
+        },
+      };
+
+      await expect(repository.persist(redacted)).resolves.toBe(true);
+      const stored = await pool.query<{
+        candidateCount: string;
+        validationCount: string;
+        topicId: string | null;
+        payload: unknown;
+        status: string;
+      }>(
+        `select
+           count(*) over ()::text "candidateCount",
+           (select count(*)::text from question_production_validations where candidate_id = c.id) "validationCount",
+           c.topic_id "topicId",
+           c.payload,
+           i.status
+         from question_production_candidates c
+         join job_items i on i.id = c.job_item_id
+         where c.job_item_id = $1`,
+        [fixture.itemId],
+      );
+      expect(stored.rows[0]).toEqual({
+        candidateCount: '1',
+        validationCount: '4',
+        topicId: null,
+        payload: null,
+        status: 'NEEDS_ATTENTION',
+      });
+    });
+
     it('candidate replay가 다르면 terminal update까지 rollback한다', async () => {
       const fixture = await createFixture();
       await pool.query(
         `insert into question_production_candidates (
-         job_item_id, job_attempt, ordinal, type_version_id, topic_id,
-         difficulty, payload, payload_hash, result_group, review_status
-       ) values ($1, 0, 0, $2, $3, 3, $4, $5, 'NORMAL', 'PENDING')`,
+         job_item_id, job_attempt, ordinal, type_version_id, payload_state,
+         topic_id, difficulty, payload, payload_hash, result_group, review_status
+       ) values ($1, 0, 0, $2, 'CANONICAL', $3, 3, $4, $5, 'NORMAL', 'PENDING')`,
         [
           fixture.itemId,
           fixture.typeVersionId,
@@ -214,11 +307,11 @@ describe.runIf(databaseUrl !== undefined)(
       const candidateIds = [randomUUID(), randomUUID()];
       await pool.query(
         `insert into question_production_candidates (
-         id, job_item_id, job_attempt, ordinal, type_version_id, topic_id,
-         difficulty, payload, payload_hash, result_group, review_status
+         id, job_item_id, job_attempt, ordinal, type_version_id, payload_state,
+         topic_id, difficulty, payload, payload_hash, result_group, review_status
        ) values
-         ($1, $3, 0, 0, $4, $5, 3, $6, $7, 'NORMAL', 'PENDING'),
-         ($2, $3, 0, 1, $4, $5, 3, $6, $8, 'NORMAL', 'PENDING')`,
+         ($1, $3, 0, 0, $4, 'CANONICAL', $5, 3, $6, $7, 'NORMAL', 'PENDING'),
+         ($2, $3, 0, 1, $4, 'CANONICAL', $5, 3, $6, $8, 'NORMAL', 'PENDING')`,
         [
           candidateIds[0],
           candidateIds[1],

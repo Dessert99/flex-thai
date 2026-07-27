@@ -4,6 +4,7 @@ import {
   assertDistinctValidationModels,
   buildQuestionGenerationPrompt,
   classifyQuestionCandidate,
+  hasTrustedQuestionCandidateReferences,
   normalizeQuestionProductionValidationRecord,
   normalizeQuestionProductionProviderResult,
   validateGeneratedQuestionSchema,
@@ -22,6 +23,7 @@ import type {
   QuestionProductionProviderExecution,
   QuestionProductionProviderFailure,
   QuestionProductionProviderResult,
+  QuestionProductionProviderCandidate,
   QuestionProductionProviderRunRepository,
   QuestionProductionValidationRecord,
   QuestionSimilarityLookup,
@@ -82,69 +84,97 @@ const canonicalJson = (value: unknown): unknown => {
   );
 };
 
-const payloadHash = (candidate: GeneratedQuestionCandidate): string =>
-  createHash('sha256')
-    .update(JSON.stringify(canonicalJson(candidate.payload)))
-    .digest('hex');
+const redactedPayloadHash = createHash('sha256')
+  .update(JSON.stringify({ payloadState: 'REDACTED_INVALID' }))
+  .digest('hex');
 
-const firstAllowedTopicId = (
-  context: QuestionProductionContext,
-): string | null => {
-  const rules: Record<string, unknown> = context.typeVersion.generationRules;
-  const allowedTopics: unknown = rules['allowedTopics'];
-  if (!Array.isArray(allowedTopics)) return null;
-  const topics: unknown[] = allowedTopics;
-  const topic = topics.find(
-    (value): value is { id: string } =>
-      value !== null &&
-      typeof value === 'object' &&
-      'id' in value &&
-      typeof value.id === 'string',
-  );
-  return topic?.id ?? null;
-};
+const payloadHash = (
+  candidate: QuestionProductionCandidateRecord['candidate'],
+): string =>
+  candidate.payloadState === 'REDACTED_INVALID'
+    ? redactedPayloadHash
+    : createHash('sha256')
+        .update(JSON.stringify(canonicalJson(candidate.payload)))
+        .digest('hex');
 
-const invalidCandidateMarker = (
+const redactedCandidate = (
   context: QuestionProductionContext,
-  item: QuestionWorkItem,
-  ordinal: number,
-  fallback: GeneratedQuestionCandidate | undefined,
-): GeneratedQuestionCandidate => ({
-  questionTypeVersionId: context.typeVersion.id,
-  topicId:
-    fallback?.topicId ??
-    firstAllowedTopicId(context) ??
-    '00000000-0000-0000-0000-000000000000',
-  tagIds: [],
-  difficulty: 1,
-  payload: {
-    questionTypeSlug: context.typeVersion.slug,
-    questionTypeVersion: context.typeVersion.version,
-    difficulty: 1,
-    topicSlug: `invalid-${item.item.id}-${item.jobAttempt}-${ordinal}`,
-    tagSlugs: [],
-    blocks: [],
-    options: [],
-    correctOptionRef: '',
+): QuestionProductionProviderCandidate => ({
+  candidate: {
+    payloadState: 'REDACTED_INVALID',
+    questionTypeVersionId: context.typeVersion.id,
+    topicId: null,
+    tagIds: [],
+    difficulty: null,
+    payload: null,
   },
+  validationCode: 'QUESTION_SCHEMA_INVALID',
 });
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object' && !Array.isArray(value);
+
+const normalizeGeneratedCandidate = (
+  value: unknown,
+  context: QuestionProductionContext,
+): QuestionProductionProviderCandidate => {
+  const replayCandidate =
+    isRecord(value) && 'candidate' in value ? value.candidate : value;
+  const replayCode =
+    isRecord(value) &&
+    (value.validationCode === 'QUESTION_SCHEMA_INVALID' ||
+      value.validationCode === 'QUESTION_RULE_INVALID')
+      ? value.validationCode
+      : null;
+  if (
+    isRecord(replayCandidate) &&
+    replayCandidate.payloadState === 'REDACTED_INVALID' &&
+    replayCandidate.questionTypeVersionId === context.typeVersion.id &&
+    replayCandidate.topicId === null &&
+    Array.isArray(replayCandidate.tagIds) &&
+    replayCandidate.tagIds.length === 0 &&
+    replayCandidate.difficulty === null &&
+    replayCandidate.payload === null
+  ) {
+    return {
+      ...redactedCandidate(context),
+      validationCode: replayCode ?? 'QUESTION_SCHEMA_INVALID',
+    };
+  }
+  const canonical =
+    isRecord(replayCandidate) && replayCandidate.payloadState === 'CANONICAL'
+      ? Object.fromEntries(
+          Object.entries(replayCandidate).filter(
+            ([key]) => key !== 'payloadState',
+          ),
+        )
+      : replayCandidate;
+  if (validateGeneratedQuestionSchema(canonical).status === 'FAILED') {
+    return redactedCandidate(context);
+  }
+  const candidate = canonical as GeneratedQuestionCandidate;
+  if (
+    replayCode === 'QUESTION_RULE_INVALID' ||
+    !hasTrustedQuestionCandidateReferences(candidate, context)
+  ) {
+    return {
+      ...redactedCandidate(context),
+      validationCode: 'QUESTION_RULE_INVALID',
+    };
+  }
+  return {
+    candidate: { payloadState: 'CANONICAL', ...candidate },
+    validationCode: null,
+  };
+};
 
 const normalizeGeneratedCandidates = (
   value: unknown,
   context: QuestionProductionContext,
-  item: QuestionWorkItem,
-): GeneratedQuestionCandidate[] => {
-  if (!Array.isArray(value)) {
-    return [invalidCandidateMarker(context, item, 0, undefined)];
-  }
-  const fallback = value.find(
-    (candidate) =>
-      validateGeneratedQuestionSchema(candidate).status === 'PASSED',
-  ) as GeneratedQuestionCandidate | undefined;
-  return value.map((candidate, ordinal) =>
-    validateGeneratedQuestionSchema(candidate).status === 'PASSED'
-      ? (candidate as GeneratedQuestionCandidate)
-      : invalidCandidateMarker(context, item, ordinal, fallback),
+): QuestionProductionProviderCandidate[] => {
+  if (!Array.isArray(value)) return [redactedCandidate(context)];
+  return value.map((candidate) =>
+    normalizeGeneratedCandidate(candidate, context),
   );
 };
 
@@ -362,11 +392,7 @@ export class AiQuestionProductionProcessor {
         });
         return {
           kind: 'QUESTION_CANDIDATES',
-          candidates: normalizeGeneratedCandidates(
-            result.candidates,
-            context,
-            item,
-          ),
+          candidates: normalizeGeneratedCandidates(result.candidates, context),
           usage: result.usage,
           estimatedCostUsd: result.estimatedCostUsd,
           providerRequestId: result.providerRequestId,
@@ -387,11 +413,7 @@ export class AiQuestionProductionProcessor {
 
     const generated =
       generation.result.kind === 'QUESTION_CANDIDATES'
-        ? normalizeGeneratedCandidates(
-            generation.result.candidates,
-            context,
-            item,
-          )
+        ? normalizeGeneratedCandidates(generation.result.candidates, context)
         : null;
     if (!generated) {
       return this.persistEmpty(item, {
@@ -417,11 +439,30 @@ export class AiQuestionProductionProcessor {
       retryable: boolean;
     }> = [];
 
-    for (const [ordinal, candidate] of generated.entries()) {
+    for (const [ordinal, generatedCandidate] of generated.entries()) {
       if (signal.aborted) return abortedResult();
 
       const candidateValidations: QuestionProductionValidationRecord[] = [];
-      const schema = validateGeneratedQuestionSchema(candidate);
+      const candidate = generatedCandidate.candidate;
+      const canonicalCandidate =
+        candidate.payloadState === 'CANONICAL'
+          ? {
+              questionTypeVersionId: candidate.questionTypeVersionId,
+              topicId: candidate.topicId,
+              tagIds: candidate.tagIds,
+              difficulty: candidate.difficulty,
+              payload: candidate.payload,
+            }
+          : null;
+      const schema =
+        canonicalCandidate === null
+          ? generatedCandidate.validationCode === 'QUESTION_RULE_INVALID'
+            ? ({ status: 'PASSED', code: null } as const)
+            : ({
+                status: 'FAILED',
+                code: 'QUESTION_SCHEMA_INVALID',
+              } as const)
+          : validateGeneratedQuestionSchema(canonicalCandidate);
       candidateValidations.push(
         normalizeQuestionProductionValidationRecord({
           candidateOrdinal: ordinal,
@@ -432,12 +473,22 @@ export class AiQuestionProductionProcessor {
         }),
       );
       const rules =
-        schema.status === 'PASSED'
-          ? validateQuestionDecisionRules(candidate, context)
-          : {
-              status: 'SKIPPED' as const,
-              code: 'QUESTION_VALIDATION_SKIPPED' as const,
-            };
+        candidate.payloadState === 'REDACTED_INVALID'
+          ? generatedCandidate.validationCode === 'QUESTION_RULE_INVALID'
+            ? ({
+                status: 'FAILED',
+                code: 'QUESTION_RULE_INVALID',
+              } as const)
+            : ({
+                status: 'SKIPPED',
+                code: 'QUESTION_VALIDATION_SKIPPED',
+              } as const)
+          : schema.status === 'PASSED'
+            ? validateQuestionDecisionRules(canonicalCandidate!, context)
+            : {
+                status: 'SKIPPED' as const,
+                code: 'QUESTION_VALIDATION_SKIPPED' as const,
+              };
       candidateValidations.push(
         normalizeQuestionProductionValidationRecord({
           candidateOrdinal: ordinal,
@@ -448,9 +499,16 @@ export class AiQuestionProductionProcessor {
         }),
       );
 
-      if (schema.status === 'PASSED' && rules.status === 'PASSED') {
+      if (
+        canonicalCandidate !== null &&
+        schema.status === 'PASSED' &&
+        rules.status === 'PASSED'
+      ) {
         try {
-          const matches = await this.similarityLookup.findSimilar(candidate, 5);
+          const matches = await this.similarityLookup.findSimilar(
+            canonicalCandidate,
+            5,
+          );
           candidateValidations.push(
             normalizeQuestionProductionValidationRecord({
               candidateOrdinal: ordinal,
@@ -494,7 +552,7 @@ export class AiQuestionProductionProcessor {
           this.providerRuns,
           async () => {
             const result = await this.crossValidationProvider.validate({
-              candidate,
+              candidate: canonicalCandidate,
               promptVersion: prompt.promptVersion,
               signal,
             });

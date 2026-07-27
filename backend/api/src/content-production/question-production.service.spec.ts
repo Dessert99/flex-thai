@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   QuestionCandidateApplicationError,
   QuestionCandidateApplicationService,
+  QuestionCandidatePublicResponseError,
   type QuestionCandidateReadDetail,
   type QuestionCandidateReadRecord,
 } from './question-production.service.js';
@@ -33,6 +34,7 @@ const candidate: QuestionCandidateReadRecord = {
   jobAttempt: 1,
   ordinal: 0,
   questionTypeVersionId: typeVersionId,
+  payloadState: 'CANONICAL',
   topicId,
   tagIds: [],
   difficulty: 2,
@@ -104,10 +106,11 @@ const actor = {
 
 const createService = (options?: {
   found?: QuestionCandidateReadDetail | null;
+  items?: QuestionCandidateReadRecord[];
 }) => {
   const query = {
     list: vi.fn().mockResolvedValue({
-      items: [
+      items: options?.items ?? [
         {
           ...candidate,
           prompt: 'private prompt',
@@ -140,6 +143,53 @@ const createService = (options?: {
 };
 
 describe('QuestionCandidateApplicationService 공개 경계', () => {
+  it('redacted 후보를 raw 없이 목록과 상세의 정상 응답으로 직렬화한다', async () => {
+    const redacted: QuestionCandidateReadRecord = {
+      ...candidate,
+      payloadState: 'REDACTED_INVALID',
+      topicId: null,
+      tagIds: [],
+      difficulty: null,
+      payload: null,
+      resultGroup: 'FAILED',
+      reviewCode: 'QUESTION_SCHEMA_INVALID',
+    };
+    const { service } = createService({
+      items: [redacted],
+      found: {
+        candidate: redacted,
+        validations: detail.validations.map((validation, index) => ({
+          ...validation,
+          status: index === 0 ? 'FAILED' : 'SKIPPED',
+          code:
+            index === 0
+              ? 'QUESTION_SCHEMA_INVALID'
+              : 'QUESTION_VALIDATION_SKIPPED',
+        })),
+      },
+    });
+
+    await expect(
+      service.list({ page: 1, pageSize: 20 }),
+    ).resolves.toMatchObject({
+      items: [
+        {
+          payloadState: 'REDACTED_INVALID',
+          topicId: null,
+          difficulty: null,
+        },
+      ],
+    });
+    await expect(service.get(candidateId)).resolves.toMatchObject({
+      candidate: {
+        payloadState: 'REDACTED_INVALID',
+        topicId: null,
+        difficulty: null,
+        tagIds: [],
+        payload: null,
+      },
+    });
+  });
   it('후보 목록을 strict summary와 안정적인 page로 제한한다', async () => {
     const { query, service } = createService();
 
@@ -160,9 +210,25 @@ describe('QuestionCandidateApplicationService 공개 경계', () => {
       totalItems: 1,
       totalPages: 1,
     });
-    expect(JSON.stringify(response)).not.toContain('payload');
+    expect(JSON.stringify(response)).not.toContain('"payload":');
     expect(JSON.stringify(response)).not.toContain('providerRaw');
     expect(JSON.stringify(response)).not.toContain('prompt');
+  });
+
+  it('CANONICAL row의 payload 손상은 redacted로 낮추지 않고 fail closed 한다', async () => {
+    const { service } = createService({
+      found: {
+        ...detail,
+        candidate: {
+          ...candidate,
+          payload: null,
+        },
+      },
+    });
+
+    await expect(service.get(candidateId)).rejects.toBeInstanceOf(
+      QuestionCandidatePublicResponseError,
+    );
   });
 
   it('상세 검증 details를 단계별 allow-list evidence로만 투영한다', async () => {
