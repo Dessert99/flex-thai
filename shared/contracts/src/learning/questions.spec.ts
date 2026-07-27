@@ -24,6 +24,8 @@ const ids = {
   pronunciation: '00000000-0000-4000-8000-000000000009',
   attempt: '00000000-0000-4000-8000-000000000010',
   clientAttempt: '00000000-0000-4000-8000-000000000011',
+  topic: '00000000-0000-4000-8000-000000000012',
+  tag: '00000000-0000-4000-8000-000000000013',
 } as const;
 
 const sentence = {
@@ -59,10 +61,25 @@ const questionType = {
   displayName: '독해 기본 선택',
 } as const;
 
+const topic = {
+  id: ids.topic,
+  slug: 'daily-life',
+  displayName: '일상생활',
+} as const;
+
+const tag = {
+  id: ids.tag,
+  slug: 'greeting',
+  displayName: '인사',
+} as const;
+
 const listItem = {
   questionId: ids.question,
   questionVersionId: ids.version,
   questionType,
+  majorCategory: 'READING_PASSAGE',
+  topic,
+  tags: [tag],
   skill: 'READING',
   difficulty: 3,
   saved: false,
@@ -109,11 +126,39 @@ describe('학습자 문제 query와 path 계약', () => {
       firstResult: 'UNANSWERED',
       page: 2,
       pageSize: 50,
+      sort: 'LATEST',
     });
     expect(questionListQuerySchema.parse({})).toEqual({
       page: 1,
       pageSize: 20,
+      sort: 'LATEST',
     });
+  });
+
+  it('대분류·주제·태그와 최신순 query를 검증한다', () => {
+    expect(
+      questionListQuerySchema.parse({
+        majorCategory: 'READING_PASSAGE',
+        topicId: ids.topic,
+        tagId: ids.tag,
+        sort: 'LATEST',
+      }),
+    ).toMatchObject({
+      majorCategory: 'READING_PASSAGE',
+      topicId: ids.topic,
+      tagId: ids.tag,
+      sort: 'LATEST',
+    });
+    expect(() =>
+      questionListQuerySchema.parse({ majorCategory: 'UNCLASSIFIED' }),
+    ).toThrow();
+    expect(() => questionListQuerySchema.parse({ sort: 'POPULAR' })).toThrow();
+    expect(() =>
+      questionListQuerySchema.parse({ topicId: 'not-a-uuid' }),
+    ).toThrow();
+    expect(() =>
+      questionListQuerySchema.parse({ tagId: 'not-a-uuid' }),
+    ).toThrow();
   });
 
   it('false 외의 임의 문자열을 boolean true로 변환하지 않는다', () => {
@@ -152,14 +197,27 @@ describe('학습자 문제 query와 path 계약', () => {
 
 describe('학습자 문제 공개 응답 계약', () => {
   it('문제 목록과 공통 페이지 metadata를 검증한다', () => {
+    const facets = {
+      majorCategories: [{ value: 'READING_PASSAGE', label: '지문 독해' }],
+      questionTypes: [
+        {
+          ...questionType,
+          majorCategory: 'READING_PASSAGE',
+        },
+      ],
+      topics: [topic],
+      tags: [tag],
+    };
     expect(
       questionListResponseSchema.parse({
         items: [listItem],
         page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
+        facets,
       }),
     ).toEqual({
       items: [listItem],
       page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
+      facets,
     });
     expect(() =>
       pageMetadataSchema.parse({
@@ -167,6 +225,53 @@ describe('학습자 문제 공개 응답 계약', () => {
         pageSize: 20,
         totalItems: -1,
         totalPages: 0,
+      }),
+    ).toThrow();
+  });
+
+  it('목록 taxonomy와 facets에 정의되지 않은 필드를 허용하지 않는다', () => {
+    const response = {
+      items: [listItem],
+      page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
+      facets: {
+        majorCategories: [
+          { value: 'READING_PASSAGE', label: '지문 독해' },
+        ],
+        questionTypes: [
+          {
+            ...questionType,
+            majorCategory: 'READING_PASSAGE',
+          },
+        ],
+        topics: [topic],
+        tags: [tag],
+      },
+    };
+
+    expect(() =>
+      questionListResponseSchema.parse({
+        ...response,
+        items: [
+          {
+            ...listItem,
+            tags: [{ ...tag, status: 'ACTIVE' }],
+          },
+        ],
+      }),
+    ).toThrow();
+    expect(() =>
+      questionListResponseSchema.parse({
+        ...response,
+        facets: {
+          ...response.facets,
+          tags: [{ ...tag, status: 'ACTIVE' }],
+        },
+      }),
+    ).toThrow();
+    expect(() =>
+      questionListResponseSchema.parse({
+        ...response,
+        facets: { ...response.facets, statuses: ['ACTIVE'] },
       }),
     ).toThrow();
   });
