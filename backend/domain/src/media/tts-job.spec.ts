@@ -2,11 +2,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   aggregateTtsJobStatus,
+  assertContentTtsReady,
   claimTtsItem,
   completeTtsItem,
+  ContentTtsReadinessError,
   createTtsCacheKey,
   failTtsItem,
   retryTtsItems,
+  type ContentTtsReadinessRepository,
   type TtsItem,
   type TtsVoiceSnapshot,
 } from './tts-job.js';
@@ -235,5 +238,82 @@ describe('TTS audio cache key', () => {
     expect(createTtsCacheKey('สวัสดี', voice)).not.toBe(
       createTtsCacheKey('สวัสดี', { ...voice, ...change }),
     );
+  });
+});
+
+describe('게시 전 TTS 준비 상태', () => {
+  it('읽기 문제의 MISSING·FAILED·UPLOADING target을 ID 오름차순으로 차단한다', () => {
+    const repository: ContentTtsReadinessRepository = {
+      listRequiredTargets: (content) => {
+        expect(content).toEqual({
+          questionId: 'reading-question-1',
+          versionId: 'reading-version-1',
+        });
+        return Promise.resolve([
+          { targetId: 'sentence-3', mediaStatus: 'FAILED' },
+          { targetId: 'vocabulary-1', mediaStatus: 'READY' },
+          { targetId: 'sentence-1', mediaStatus: 'UPLOADING' },
+          { targetId: 'expression-2', mediaStatus: 'MISSING' },
+        ]);
+      },
+    };
+
+    return repository
+      .listRequiredTargets({
+        questionId: 'reading-question-1',
+        versionId: 'reading-version-1',
+      })
+      .then((targets) => {
+        expect(() => assertContentTtsReady(targets)).toThrowError(
+          expect.objectContaining({
+            code: 'CONTENT_TTS_NOT_READY',
+            targetIds: ['expression-2', 'sentence-1', 'sentence-3'],
+          }),
+        );
+      });
+  });
+
+  it('듣기 문제의 MISSING·FAILED·UPLOADING target을 차단한다', () => {
+    expect(() =>
+      assertContentTtsReady([
+        { targetId: 'listening-sentence-1', mediaStatus: 'MISSING' },
+        { targetId: 'listening-expression-1', mediaStatus: 'FAILED' },
+        { targetId: 'listening-sentence-2', mediaStatus: 'UPLOADING' },
+      ]),
+    ).toThrowError(
+      expect.objectContaining({
+        code: 'CONTENT_TTS_NOT_READY',
+        targetIds: [
+          'listening-expression-1',
+          'listening-sentence-1',
+          'listening-sentence-2',
+        ],
+      }),
+    );
+  });
+
+  it('모든 필수 target이 READY면 게시를 허용한다', () => {
+    expect(() =>
+      assertContentTtsReady([
+        { targetId: 'expression-1', mediaStatus: 'READY' },
+        { targetId: 'sentence-1', mediaStatus: 'READY' },
+      ]),
+    ).not.toThrow();
+  });
+
+  it('동일 target은 한 번만 오류에 포함한다', () => {
+    try {
+      assertContentTtsReady([
+        { targetId: 'sentence-1', mediaStatus: 'FAILED' },
+        { targetId: 'sentence-1', mediaStatus: 'MISSING' },
+      ]);
+      throw new Error('expected readiness error');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ContentTtsReadinessError);
+      expect(error).toMatchObject({
+        code: 'CONTENT_TTS_NOT_READY',
+        targetIds: ['sentence-1'],
+      });
+    }
   });
 });

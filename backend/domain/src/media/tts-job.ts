@@ -15,6 +15,39 @@ export type TtsItemStatus = 'PENDING' | 'PROCESSING' | 'SUCCEEDED' | 'FAILED';
 export type TtsJobStatus =
   'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'PARTIALLY_FAILED' | 'FAILED';
 
+/** 문제 게시 전 필수 음성 상태를 조회할 읽기·듣기 문제 버전 식별자 */
+export interface TtsPublishableContent {
+  questionId: string;
+  versionId: string;
+}
+
+/** 게시에 필요한 TTS target의 외부 노출 없는 준비 상태 */
+export type ContentTtsMediaStatus =
+  'MISSING' | 'UPLOADING' | 'READY' | 'FAILED';
+
+/** 게시 전 확인할 필수 TTS target의 식별자와 준비 상태 */
+export interface ContentTtsReadinessTarget {
+  targetId: string;
+  mediaStatus: ContentTtsMediaStatus;
+}
+
+/** 게시할 문제 버전에 필요한 TTS target 준비 상태를 읽는 port */
+export interface ContentTtsReadinessRepository {
+  listRequiredTargets(
+    content: TtsPublishableContent,
+  ): Promise<ContentTtsReadinessTarget[]>;
+}
+
+/** 필수 TTS target이 준비되지 않은 게시 요청을 안정적으로 구분한다 */
+export class ContentTtsReadinessError extends Error {
+  readonly code = 'CONTENT_TTS_NOT_READY';
+
+  constructor(readonly targetIds: string[]) {
+    super('CONTENT_TTS_NOT_READY');
+    this.name = 'ContentTtsReadinessError';
+  }
+}
+
 /** 대상 내용 변경과 분리해 TTS 입력을 고정하는 snapshot */
 export interface TtsTargetSnapshot {
   kind: TtsTargetKind;
@@ -189,6 +222,25 @@ export interface ClaimTtsItemInput {
 
 const isTerminal = (item: TtsItem): boolean =>
   item.status === 'SUCCEEDED' || item.status === 'FAILED';
+
+/** 필수 target이 모두 READY일 때만 게시 수명을 진행하게 한다 */
+export const assertContentTtsReady = (
+  targets: Awaited<
+    ReturnType<ContentTtsReadinessRepository['listRequiredTargets']>
+  >,
+): void => {
+  const targetIds = [
+    ...new Set(
+      targets
+        .filter((target) => target.mediaStatus !== 'READY')
+        .map((target) => target.targetId),
+    ),
+  ].sort((left, right) => (left < right ? -1 : left > right ? 1 : 0));
+
+  if (targetIds.length > 0) {
+    throw new ContentTtsReadinessError(targetIds);
+  }
+};
 
 const assertActiveLease = (
   current: TtsItem,
