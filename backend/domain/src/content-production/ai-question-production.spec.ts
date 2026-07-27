@@ -4,11 +4,14 @@ import {
   assertDistinctValidationModels,
   buildQuestionGenerationPrompt,
   classifyQuestionCandidate,
+  projectQuestionPromptApprovedExample,
   validateGeneratedQuestionSchema,
   validateQuestionDecisionRules,
   type GeneratedQuestionCandidate,
+  type QuestionProductionCandidateRecord,
   type QuestionProductionCandidateRepository,
   type QuestionProductionContext,
+  type QuestionProductionProviderRunRepository,
   type QuestionProductionValidationRecord,
 } from './ai-question-production.js';
 
@@ -112,6 +115,27 @@ describe('AI 문제 후보 저장 port', () => {
         artifacts: { kind: 'QUESTION_CANDIDATES' };
       }): Promise<boolean>;
     }>();
+  });
+
+  it('후보 검토와 승인 연결 상태를 attempt snapshot에 보존한다', () => {
+    expectTypeOf<QuestionProductionCandidateRecord>().toMatchTypeOf<{
+      reviewStatus: 'PENDING' | 'APPROVED' | 'DISCARDED';
+      regeneratedFromCandidateId: string | null;
+      approvedQuestionId: string | null;
+      approvedQuestionVersionId: string | null;
+    }>();
+  });
+
+  it('문제 생성 결과에 맞는 provider 실행 replay 계약을 제공한다', () => {
+    expectTypeOf<
+      QuestionProductionProviderRunRepository['claim']
+    >().toBeFunction();
+    expectTypeOf<
+      QuestionProductionProviderRunRepository['succeed']
+    >().toBeFunction();
+    expectTypeOf<
+      QuestionProductionProviderRunRepository['fail']
+    >().toBeFunction();
   });
 });
 
@@ -245,6 +269,7 @@ const productionContext: QuestionProductionContext = {
       summary: '일상 이동을 묻는 선택형 문제',
     },
   ],
+  newAuxiliaryVocabularyLimit: 3,
   additionalInstructionKo: '학습자에게 자연스러운 한국어 해설을 제공하세요.',
 };
 
@@ -435,6 +460,7 @@ describe('AI 문제 생성 prompt 조립', () => {
       'difficulty-criteria',
       'approved-examples',
       'vocabulary-policy',
+      'new-auxiliary-vocabulary-limit',
       'similar-question-summaries',
       'additional-instruction-ko',
     ]);
@@ -456,6 +482,7 @@ describe('AI 문제 생성 prompt 조립', () => {
           name: 'vocabulary-policy',
           content: expect.stringContaining('"targetVocabulary"'),
         }),
+        { name: 'new-auxiliary-vocabulary-limit', content: 3 },
         expect.objectContaining({
           name: 'similar-question-summaries',
           content: expect.stringContaining('일상 이동을 묻는 선택형 문제'),
@@ -691,6 +718,40 @@ describe('AI 문제 생성 prompt 조립', () => {
     expect(serializedPrompt).not.toContain('절대 노출하면 안 되는 원본 응답');
     expect(serializedPrompt).toContain('type-version-id');
   });
+
+  it('canonical 승인 예시 projector가 알 수 없는 별칭을 입력 단계에서 제거한다', () => {
+    const projected = projectQuestionPromptApprovedExample({
+      title: '공개 예시',
+      privateTitleAlias: '비공개',
+      payload: {
+        ...candidate.payload,
+        arbitraryPrivateAlias: '비공개',
+        blocks: candidate.payload.blocks.map((block) => ({
+          ...block,
+          arbitraryBlockAlias: '비공개',
+        })),
+      },
+    });
+
+    expect(projected).toEqual({
+      title: '공개 예시',
+      payload: candidate.payload,
+    });
+    expect(JSON.stringify(projected)).not.toContain('arbitraryPrivateAlias');
+    expect(JSON.stringify(projected)).not.toContain('arbitraryBlockAlias');
+  });
+
+  it.each([-1, 1.5, Number.MAX_SAFE_INTEGER + 1])(
+    '신규 보조 어휘 한도 %s는 안전한 음이 아닌 정수가 아니므로 거절한다',
+    (newAuxiliaryVocabularyLimit) => {
+      expect(() =>
+        buildQuestionGenerationPrompt({
+          ...productionContext,
+          newAuxiliaryVocabularyLimit,
+        }),
+      ).toThrowError('QUESTION_AUXILIARY_VOCABULARY_LIMIT_INVALID');
+    },
+  );
 
   it.each([
     {

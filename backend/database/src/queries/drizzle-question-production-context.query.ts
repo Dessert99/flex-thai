@@ -1,5 +1,6 @@
 /** 활성 문제 taxonomy와 preset의 공개 정책만 AI 생성 prompt 문맥으로 조회한다 */
 import { and, asc, eq } from 'drizzle-orm';
+import { projectQuestionPromptApprovedExample } from '@flex-thia/domain';
 import type {
   ContentProductionPresetSnapshot,
   QuestionProductionContext,
@@ -27,6 +28,7 @@ type ContextTypeVersionRow = {
     | 'PASSAGE_CHOICE'
     | 'DIALOGUE_CHOICE'
     | 'INLINE_SPAN_CHOICE';
+  optionCount: number;
   decisionRules: Record<string, unknown>;
 };
 
@@ -48,6 +50,7 @@ type QuestionProductionPresetPolicy = {
   targetVocabulary: QuestionPromptVocabulary[];
   requiredVocabulary: QuestionPromptVocabulary[];
   excludedVocabulary: QuestionPromptVocabulary[];
+  newAuxiliaryVocabularyLimit: number;
   similarQuestions: Array<{ difficulty: number; summary: string }>;
   additionalInstructionKo: string | null;
 };
@@ -90,7 +93,13 @@ const readVocabulary = (
   Array.isArray(parameters[key])
     ? parameters[key]
         .filter(isVocabulary)
-        .sort((left, right) => compareText(left.thai, right.thai))
+        .sort(
+          (left, right) =>
+            compareText(left.thai, right.thai) ||
+            compareText(left.meaningKo, right.meaningKo) ||
+            compareText(left.partOfSpeech, right.partOfSpeech) ||
+            left.difficulty - right.difficulty,
+        )
     : [];
 
 const readTextList = (value: unknown): string[] =>
@@ -121,39 +130,31 @@ const readSimilarQuestions = (
         )
     : [];
 
-const privatePromptKeys = new Set([
-  'inputKey',
-  'mediaAssetId',
-  'providerPayload',
-  'rawPrompt',
-  'storageKey',
-]);
-
-const projectPublicPromptValue = (value: unknown): unknown => {
-  if (Array.isArray(value)) return value.map(projectPublicPromptValue);
-  if (value === null || typeof value !== 'object') return value;
-
-  return Object.fromEntries(
-    Object.entries(value)
-      .filter(([key]) => !privatePromptKeys.has(key))
-      .map(([key, item]) => [key, projectPublicPromptValue(item)]),
-  );
-};
-
 /** preset snapshot에서 prompt에 안전한 정책만 선택한다 */
 export const readQuestionProductionPresetPolicy = (
   parameters: Record<string, unknown>,
-): QuestionProductionPresetPolicy => ({
-  commonPrinciples: readTextList(parameters.commonPrinciples),
-  targetVocabulary: readVocabulary(parameters, 'targetVocabulary'),
-  requiredVocabulary: readVocabulary(parameters, 'requiredVocabulary'),
-  excludedVocabulary: readVocabulary(parameters, 'excludedVocabulary'),
-  similarQuestions: readSimilarQuestions(parameters.similarQuestions),
-  additionalInstructionKo:
-    typeof parameters.additionalInstructionKo === 'string'
-      ? parameters.additionalInstructionKo
-      : null,
-});
+): QuestionProductionPresetPolicy => {
+  const newAuxiliaryVocabularyLimit = parameters.newAuxiliaryVocabularyLimit;
+  if (
+    !Number.isSafeInteger(newAuxiliaryVocabularyLimit) ||
+    typeof newAuxiliaryVocabularyLimit !== 'number' ||
+    newAuxiliaryVocabularyLimit < 0
+  ) {
+    throw new Error('QUESTION_AUXILIARY_VOCABULARY_LIMIT_INVALID');
+  }
+  return {
+    commonPrinciples: readTextList(parameters.commonPrinciples),
+    targetVocabulary: readVocabulary(parameters, 'targetVocabulary'),
+    requiredVocabulary: readVocabulary(parameters, 'requiredVocabulary'),
+    excludedVocabulary: readVocabulary(parameters, 'excludedVocabulary'),
+    newAuxiliaryVocabularyLimit,
+    similarQuestions: readSimilarQuestions(parameters.similarQuestions),
+    additionalInstructionKo:
+      typeof parameters.additionalInstructionKo === 'string'
+        ? parameters.additionalInstructionKo
+        : null,
+  };
+};
 
 /** flat taxonomy와 preset 정책을 provider용 public context로 안정 조립한다 */
 export const assembleQuestionProductionContext = (
@@ -172,7 +173,7 @@ export const assembleQuestionProductionContext = (
       version: rows.typeVersion.version,
       template: rows.typeVersion.template,
       structureRules: {
-        optionCount: rows.typeVersion.decisionRules.optionCount,
+        optionCount: rows.typeVersion.optionCount,
         template: rows.typeVersion.template,
       },
       generationRules: {
@@ -190,15 +191,31 @@ export const assembleQuestionProductionContext = (
           compareText(left.title, right.title) ||
           compareText(left.id, right.id),
       )
-      .map(({ title, payload }) => ({
-        title,
-        payload: projectPublicPromptValue(
-          payload,
-        ) as QuestionProductionContext['approvedExamples'][number]['payload'],
-      })),
-    targetVocabulary: policy.targetVocabulary ?? [],
-    requiredVocabulary: policy.requiredVocabulary ?? [],
-    excludedVocabulary: policy.excludedVocabulary ?? [],
+      .map(({ title, payload }) =>
+        projectQuestionPromptApprovedExample({ title, payload }),
+      ),
+    targetVocabulary: [...(policy.targetVocabulary ?? [])].sort(
+      (left, right) =>
+        compareText(left.thai, right.thai) ||
+        compareText(left.meaningKo, right.meaningKo) ||
+        compareText(left.partOfSpeech, right.partOfSpeech) ||
+        left.difficulty - right.difficulty,
+    ),
+    requiredVocabulary: [...(policy.requiredVocabulary ?? [])].sort(
+      (left, right) =>
+        compareText(left.thai, right.thai) ||
+        compareText(left.meaningKo, right.meaningKo) ||
+        compareText(left.partOfSpeech, right.partOfSpeech) ||
+        left.difficulty - right.difficulty,
+    ),
+    excludedVocabulary: [...(policy.excludedVocabulary ?? [])].sort(
+      (left, right) =>
+        compareText(left.thai, right.thai) ||
+        compareText(left.meaningKo, right.meaningKo) ||
+        compareText(left.partOfSpeech, right.partOfSpeech) ||
+        left.difficulty - right.difficulty,
+    ),
+    newAuxiliaryVocabularyLimit: policy.newAuxiliaryVocabularyLimit ?? 0,
     similarQuestions: policy.similarQuestions ?? [],
     additionalInstructionKo: policy.additionalInstructionKo ?? null,
   };
@@ -224,6 +241,7 @@ export class DrizzleQuestionProductionContextQuery implements QuestionProduction
         slug: questionTypes.slug,
         version: questionTypeVersions.version,
         template: questionTypeVersions.template,
+        optionCount: questionTypeVersions.optionCount,
         decisionRules: questionTypeVersions.decisionRules,
       })
       .from(questionTypeVersions)

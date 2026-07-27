@@ -1,7 +1,10 @@
 /** AI 문제 생성 prompt 문맥이 공개 가능한 값만 안정적으로 조립되는지 검증한다 */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import {
   assembleQuestionProductionContext,
+  DrizzleQuestionProductionContextQuery,
+  readQuestionProductionPresetPolicy,
   type QuestionProductionContextRows,
 } from './drizzle-question-production-context.query.js';
 
@@ -12,15 +15,29 @@ const rows: QuestionProductionContextRows = {
       title: 'B 예시',
       payload: {
         questionTypeSlug: 'reading-choice',
+        questionTypeVersion: 2,
         difficulty: 2,
-        storageKey: 'private/approved-example.json',
-        blocks: [{ mediaAssetId: 'private-media-id' }],
+        topicSlug: 'general',
+        tagSlugs: [],
+        blocks: [],
+        options: [],
+        correctOptionRef: 'option-a',
+        arbitraryPrivateAlias: 'private/approved-example.json',
       },
     },
     {
       id: 'example-a',
       title: 'A 예시',
-      payload: { questionTypeSlug: 'reading-choice', difficulty: 1 },
+      payload: {
+        questionTypeSlug: 'reading-choice',
+        questionTypeVersion: 2,
+        difficulty: 1,
+        topicSlug: 'general',
+        tagSlugs: [],
+        blocks: [],
+        options: [],
+        correctOptionRef: 'option-a',
+      },
     },
   ],
   difficultyCriteria: [
@@ -40,7 +57,8 @@ const rows: QuestionProductionContextRows = {
     slug: 'reading-choice',
     version: 2,
     template: 'STANDARD_CHOICE',
-    decisionRules: { optionCount: 4 },
+    optionCount: 4,
+    decisionRules: { mode: 'single-choice' },
   },
 };
 
@@ -72,7 +90,14 @@ describe('AI 문제 생성 문맥 조립', () => {
           partOfSpeech: '명사',
           difficulty: 1,
         },
+        {
+          thai: '가나다',
+          meaningKo: '앞선 목표',
+          partOfSpeech: '명사',
+          difficulty: 1,
+        },
       ],
+      newAuxiliaryVocabularyLimit: 2,
     });
 
     expect(
@@ -92,21 +117,87 @@ describe('AI 문제 생성 문맥 조립', () => {
         { id: 'topic-z', slug: 'zeta', displayName: '제타' },
       ],
     });
-    expect(context).not.toHaveProperty('storageKey');
+    expect(context?.typeVersion.structureRules).toEqual({
+      optionCount: 4,
+      template: 'STANDARD_CHOICE',
+    });
     expect(context?.approvedExamples[1]?.payload).not.toHaveProperty(
-      'storageKey',
-    );
-    expect(context?.approvedExamples[1]?.payload.blocks[0]).not.toHaveProperty(
-      'mediaAssetId',
+      'arbitraryPrivateAlias',
     );
     expect(context?.targetVocabulary).toEqual([
+      {
+        thai: '가나다',
+        meaningKo: '앞선 목표',
+        partOfSpeech: '명사',
+        difficulty: 1,
+      },
       { thai: '목표', meaningKo: '목표', partOfSpeech: '명사', difficulty: 1 },
     ]);
+    expect(context?.newAuxiliaryVocabularyLimit).toBe(2);
   });
 
   it('DRAFT와 RETIRED 유형은 생성 문맥으로 조립하지 않는다', () => {
     expect(
       assembleQuestionProductionContext({ ...rows, typeVersion: null }, {}),
     ).toBeNull();
+  });
+
+  it.each([-1, 1.5, Number.MAX_SAFE_INTEGER + 1])(
+    'preset 신규 보조 어휘 한도 %s를 거절한다',
+    (newAuxiliaryVocabularyLimit) => {
+      expect(() =>
+        readQuestionProductionPresetPolicy({ newAuxiliaryVocabularyLimit }),
+      ).toThrowError('QUESTION_AUXILIARY_VOCABULARY_LIMIT_INVALID');
+    },
+  );
+
+  it('실제 조회 조건에서 ACTIVE 유형 버전만 선택한다', async () => {
+    const where = vi.fn();
+    const versionLimit = vi.fn().mockResolvedValue([
+      {
+        id: 'type-version-id',
+        slug: 'reading-choice',
+        version: 2,
+        template: 'STANDARD_CHOICE',
+        optionCount: 4,
+        decisionRules: {},
+      },
+    ]);
+    const versionWhere = vi.fn((condition: unknown) => {
+      where(condition);
+      return { limit: versionLimit };
+    });
+    const versionJoin = vi.fn(() => ({ where: versionWhere }));
+    const versionFrom = vi.fn(() => ({ innerJoin: versionJoin }));
+    const emptyOrder = vi.fn().mockResolvedValue([]);
+    const emptyWhere = vi.fn(() => ({ orderBy: emptyOrder }));
+    const emptyFrom = vi.fn(() => ({ where: emptyWhere, orderBy: emptyOrder }));
+    const select = vi
+      .fn()
+      .mockReturnValueOnce({ from: versionFrom })
+      .mockReturnValue({ from: emptyFrom });
+    const query = new DrizzleQuestionProductionContextQuery({
+      select,
+    } as never);
+
+    await query.load({
+      operation: 'QUESTION_GENERATION',
+      preset: {
+        id: 'preset-id',
+        name: '문제 생성',
+        purpose: 'QUESTION_GENERATION',
+        version: 1,
+        parameters: {
+          questionTypeVersionId: 'type-version-id',
+          newAuxiliaryVocabularyLimit: 0,
+        },
+      },
+    });
+
+    const compiled = new PgDialect().sqlToQuery(
+      where.mock.calls[0]?.[0] as never,
+    );
+    expect(compiled.sql).toContain('"question_type_versions"."status" =');
+    expect(compiled.params).toContain('ACTIVE');
   });
 });

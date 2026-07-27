@@ -83,7 +83,11 @@ export interface QuestionProductionCandidateRecord {
   candidate: GeneratedQuestionCandidate;
   payloadHash: string;
   resultGroup: QuestionCandidateGroup;
+  reviewStatus: QuestionCandidateReviewStatus;
   reviewCode: string | null;
+  regeneratedFromCandidateId: string | null;
+  approvedQuestionId: string | null;
+  approvedQuestionVersionId: string | null;
 }
 
 /** 문제 생성 item의 terminal 전이와 함께 보존할 후보 artifact */
@@ -146,6 +150,7 @@ export interface QuestionProductionContext {
   targetVocabulary: QuestionPromptVocabulary[];
   requiredVocabulary: QuestionPromptVocabulary[];
   excludedVocabulary: QuestionPromptVocabulary[];
+  newAuxiliaryVocabularyLimit: number;
   similarQuestions: QuestionSimilaritySummary[];
   additionalInstructionKo: string | null;
 }
@@ -265,6 +270,144 @@ const projectApprovedExample = (
     correctOptionRef: example.payload.correctOptionRef,
   },
 });
+
+const projectUnknownReference = (value: unknown): unknown => {
+  if (!isRecord(value)) return value;
+  if (isNonemptyString(value.id)) return { id: value.id };
+  if (isNonemptyString(value.clientRef)) return { clientRef: value.clientRef };
+  return value;
+};
+
+const projectUnknownSentence = (value: unknown): unknown => {
+  if (!isRecord(value)) return value;
+  return {
+    originalText: value.originalText,
+    translationKo: value.translationKo,
+    pronunciationKo: value.pronunciationKo,
+    toneMarks: value.toneMarks,
+    tokens: Array.isArray(value.tokens)
+      ? value.tokens.map((token) =>
+          isRecord(token)
+            ? {
+                surface: token.surface,
+                startOffset: token.startOffset,
+                endOffset: token.endOffset,
+                vocabulary: projectUnknownReference(token.vocabulary),
+                meaning: projectUnknownReference(token.meaning),
+                pronunciation: projectUnknownReference(token.pronunciation),
+                contextMeaningKo: token.contextMeaningKo,
+                role: token.role,
+              }
+            : token,
+        )
+      : value.tokens,
+    expressions: Array.isArray(value.expressions)
+      ? value.expressions.map((expression) =>
+          isRecord(expression)
+            ? {
+                startTokenIndex: expression.startTokenIndex,
+                endTokenIndex: expression.endTokenIndex,
+                vocabulary: projectUnknownReference(expression.vocabulary),
+                meaning: projectUnknownReference(expression.meaning),
+                pronunciation: projectUnknownReference(
+                  expression.pronunciation,
+                ),
+                contextMeaningKo: expression.contextMeaningKo,
+                ...(typeof expression.representative === 'boolean'
+                  ? { representative: expression.representative }
+                  : {}),
+              }
+            : expression,
+        )
+      : value.expressions,
+  };
+};
+
+const projectUnknownOption = (value: unknown): unknown => {
+  if (!isRecord(value)) return value;
+  return {
+    clientRef: value.clientRef,
+    position: value.position,
+    sentence:
+      value.sentence === null ? null : projectUnknownSentence(value.sentence),
+    span:
+      value.span === null
+        ? null
+        : isRecord(value.span)
+          ? {
+              blockPosition: value.span.blockPosition,
+              sentencePosition: value.span.sentencePosition,
+              startTokenIndex: value.span.startTokenIndex,
+              endTokenIndex: value.span.endTokenIndex,
+            }
+          : value.span,
+  };
+};
+
+/** 승인 예시 unknown 입력을 canonical public allow-list로 검증·투영한다 */
+export const projectQuestionPromptApprovedExample = (
+  value: unknown,
+): QuestionPromptApprovedExample => {
+  if (
+    !isRecord(value) ||
+    !isNonemptyString(value.title) ||
+    !isRecord(value.payload)
+  ) {
+    throw new Error('QUESTION_APPROVED_EXAMPLE_INVALID');
+  }
+  const payload = value.payload;
+  const projected = {
+    questionTypeVersionId: 'approved-example-projection',
+    topicId: 'approved-example-projection',
+    tagIds: Array.isArray(payload.tagSlugs) ? payload.tagSlugs : [],
+    difficulty: payload.difficulty,
+    payload: {
+      questionTypeSlug: payload.questionTypeSlug,
+      questionTypeVersion: payload.questionTypeVersion,
+      difficulty: payload.difficulty,
+      topicSlug: payload.topicSlug,
+      tagSlugs: Array.isArray(payload.tagSlugs)
+        ? [...payload.tagSlugs]
+        : payload.tagSlugs,
+      blocks: Array.isArray(payload.blocks)
+        ? payload.blocks.map((block) =>
+            isRecord(block)
+              ? {
+                  kind: block.kind,
+                  displayMode: block.displayMode,
+                  sentences: Array.isArray(block.sentences)
+                    ? block.sentences.map((sentence) =>
+                        isRecord(sentence)
+                          ? {
+                              speaker:
+                                typeof sentence.speaker === 'string'
+                                  ? sentence.speaker
+                                  : null,
+                              sentence: projectUnknownSentence(
+                                sentence.sentence,
+                              ),
+                            }
+                          : sentence,
+                      )
+                    : block.sentences,
+                }
+              : block,
+          )
+        : payload.blocks,
+      options: Array.isArray(payload.options)
+        ? payload.options.map(projectUnknownOption)
+        : payload.options,
+      correctOptionRef: payload.correctOptionRef,
+    },
+  };
+  if (validateGeneratedQuestionSchema(projected).status === 'FAILED') {
+    throw new Error('QUESTION_APPROVED_EXAMPLE_INVALID');
+  }
+  return projectApprovedExample({
+    title: value.title,
+    payload: projected.payload as GeneratedQuestionPayload,
+  });
+};
 
 const sortVocabulary = (
   vocabulary: readonly QuestionPromptVocabulary[],
@@ -498,6 +641,12 @@ export const assertQuestionTaxonomyComplete = (
   context: QuestionProductionContext,
 ): void => {
   if (
+    !Number.isSafeInteger(context.newAuxiliaryVocabularyLimit) ||
+    context.newAuxiliaryVocabularyLimit < 0
+  ) {
+    throw new Error('QUESTION_AUXILIARY_VOCABULARY_LIMIT_INVALID');
+  }
+  if (
     context.difficultyCriteria.length !== 5 ||
     context.difficultyCriteria.some(
       (criterion, index) =>
@@ -547,7 +696,7 @@ export const buildQuestionGenerationPrompt = (
         name: 'approved-examples',
         content: stablePromptJson(
           context.approvedExamples
-            .map(projectApprovedExample)
+            .map(projectQuestionPromptApprovedExample)
             .sort(compareStablePromptValue),
         ),
       },
@@ -558,6 +707,10 @@ export const buildQuestionGenerationPrompt = (
           requiredVocabulary: sortVocabulary(context.requiredVocabulary),
           targetVocabulary: sortVocabulary(context.targetVocabulary),
         }),
+      },
+      {
+        name: 'new-auxiliary-vocabulary-limit',
+        content: context.newAuxiliaryVocabularyLimit,
       },
       {
         name: 'similar-question-summaries',
@@ -608,6 +761,60 @@ export interface QuestionCrossValidationResult {
   usage: Record<string, number>;
   estimatedCostUsd: string;
   providerRequestId: string | null;
+}
+
+/** 문제 생성 provider 실행을 attempt 안에서 유일하게 식별한다 */
+export interface QuestionProductionProviderExecution {
+  jobItemId: string;
+  jobAttempt: number;
+  operation: string;
+  sequence: number;
+  provider: string;
+  model: string;
+  promptVersion: string;
+  itemLeaseToken: string;
+}
+
+/** 문제 생성·교차 검증 provider의 replay 가능한 정규화 결과 */
+export type QuestionProductionProviderResult = (
+  | { kind: 'QUESTION_CANDIDATES'; candidates: GeneratedQuestionCandidate[] }
+  | {
+      kind: 'QUESTION_VALIDATION';
+      status: 'PASSED' | 'FAILED';
+      code: string | null;
+      evidence: Record<string, unknown>;
+    }
+) &
+  Partial<{
+    usage: Record<string, number>;
+    estimatedCostUsd: string;
+    providerRequestId: string | null;
+  }>;
+
+/** 문제 provider 실행의 확정 실패 또는 결과 불명 상태 */
+export interface QuestionProductionProviderFailure {
+  status: 'FAILED' | 'OUTCOME_UNKNOWN';
+  errorCode: string;
+  retryable: boolean;
+}
+
+/** 공유 provider_runs table 위 문제 결과 전용 replay 저장 port */
+export interface QuestionProductionProviderRunRepository {
+  claim(
+    execution: QuestionProductionProviderExecution,
+  ): Promise<
+    | { kind: 'CLAIMED'; runId: string }
+    | { kind: 'REPLAY'; result: QuestionProductionProviderResult }
+    | { kind: 'OUTCOME_UNKNOWN' }
+  >;
+  succeed(
+    runId: string,
+    result: QuestionProductionProviderResult,
+  ): Promise<boolean>;
+  fail(
+    runId: string,
+    failure: QuestionProductionProviderFailure,
+  ): Promise<boolean>;
 }
 
 /** 기존 문제와의 유사도 조회 결과 */
