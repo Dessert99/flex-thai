@@ -1,5 +1,5 @@
 /** AI 문제 후보의 검증 결과가 안정적인 검토 그룹으로 분류되는지 확인한다 */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import {
   assertDistinctValidationModels,
   buildQuestionGenerationPrompt,
@@ -7,6 +7,7 @@ import {
   validateGeneratedQuestionSchema,
   validateQuestionDecisionRules,
   type GeneratedQuestionCandidate,
+  type QuestionProductionCandidateRepository,
   type QuestionProductionContext,
   type QuestionProductionValidationRecord,
 } from './ai-question-production.js';
@@ -93,6 +94,26 @@ const candidate: GeneratedQuestionCandidate = {
     correctOptionRef: 'option-a',
   },
 };
+
+describe('AI 문제 후보 저장 port', () => {
+  it('item lease 아래 terminal 결과와 후보 artifact를 함께 저장한다', () => {
+    expectTypeOf<QuestionProductionCandidateRepository>().toMatchTypeOf<{
+      persist(input: {
+        jobId: string;
+        itemId: string;
+        attempt: number;
+        leaseToken: string;
+        outcome: {
+          status: 'SUCCEEDED' | 'NEEDS_ATTENTION' | 'FAILED';
+          retryable: boolean;
+          errorCode: string | null;
+          result?: Record<string, unknown>;
+        };
+        artifacts: { kind: 'QUESTION_CANDIDATES' };
+      }): Promise<boolean>;
+    }>();
+  });
+});
 
 const tokenizedSentence = {
   originalText: 'ไปไหน',

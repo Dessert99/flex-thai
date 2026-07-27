@@ -77,6 +77,22 @@ export interface QuestionProductionValidationRecord {
   details: Record<string, unknown>;
 }
 
+/** item attempt에 고정해 저장할 문제 후보 snapshot */
+export interface QuestionProductionCandidateRecord {
+  ordinal: number;
+  candidate: GeneratedQuestionCandidate;
+  payloadHash: string;
+  resultGroup: QuestionCandidateGroup;
+  reviewCode: string | null;
+}
+
+/** 문제 생성 item의 terminal 전이와 함께 보존할 후보 artifact */
+export interface QuestionProductionArtifacts {
+  kind: 'QUESTION_CANDIDATES';
+  candidates: QuestionProductionCandidateRecord[];
+  validations: QuestionProductionValidationRecord[];
+}
+
 /** 후보 규칙이 반환하는 단일 검증 결과 */
 export interface QuestionValidationResult {
   status: 'PASSED' | 'FAILED';
@@ -626,6 +642,23 @@ export interface QuestionProductionContextRepository {
     preset: ContentProductionPresetSnapshot;
     operation: 'QUESTION_GENERATION';
   }): Promise<QuestionProductionContext>;
+}
+
+/** 활성 lease 아래 문제 후보 artifact와 item terminal 결과를 원자 저장한다 */
+export interface QuestionProductionCandidateRepository {
+  persist(input: {
+    jobId: string;
+    itemId: string;
+    attempt: number;
+    leaseToken: string;
+    outcome: {
+      status: 'SUCCEEDED' | 'NEEDS_ATTENTION' | 'FAILED';
+      retryable: boolean;
+      errorCode: string | null;
+      result?: Record<string, unknown>;
+    };
+    artifacts: QuestionProductionArtifacts;
+  }): Promise<boolean>;
 }
 
 /** 구조화된 문제 후보를 생성하는 AI provider port */

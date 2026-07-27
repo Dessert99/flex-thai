@@ -1,0 +1,303 @@
+/** 활성 문제 taxonomy와 preset의 공개 정책만 AI 생성 prompt 문맥으로 조회한다 */
+import { and, asc, eq } from 'drizzle-orm';
+import type {
+  ContentProductionPresetSnapshot,
+  QuestionProductionContext,
+  QuestionProductionContextRepository,
+  QuestionPromptVocabulary,
+} from '@flex-thia/domain';
+import type { PgDatabase } from 'drizzle-orm/pg-core';
+import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
+import {
+  questionTags,
+  questionTopics,
+  questionTypeApprovedExamples,
+  questionTypeDifficultyCriteria,
+  questionTypes,
+  questionTypeVersions,
+} from '../schema/questions.schema.js';
+
+type ContextTermRow = { id: string; slug: string; displayName: string };
+type ContextTypeVersionRow = {
+  id: string;
+  slug: string;
+  version: number;
+  template:
+    | 'STANDARD_CHOICE'
+    | 'PASSAGE_CHOICE'
+    | 'DIALOGUE_CHOICE'
+    | 'INLINE_SPAN_CHOICE';
+  decisionRules: Record<string, unknown>;
+};
+
+/** 활성 문제 유형에서 prompt로 노출해도 되는 taxonomy row 묶음 */
+export interface QuestionProductionContextRows {
+  typeVersion: ContextTypeVersionRow | null;
+  difficultyCriteria: Array<{ difficulty: number; criteria: string }>;
+  approvedExamples: Array<{
+    id: string;
+    title: string;
+    payload: Record<string, unknown>;
+  }>;
+  topics: ContextTermRow[];
+  tags: ContextTermRow[];
+}
+
+type QuestionProductionPresetPolicy = {
+  commonPrinciples: string[];
+  targetVocabulary: QuestionPromptVocabulary[];
+  requiredVocabulary: QuestionPromptVocabulary[];
+  excludedVocabulary: QuestionPromptVocabulary[];
+  similarQuestions: Array<{ difficulty: number; summary: string }>;
+  additionalInstructionKo: string | null;
+};
+
+type QuerySchema = {
+  questionTags: typeof questionTags;
+  questionTopics: typeof questionTopics;
+  questionTypeApprovedExamples: typeof questionTypeApprovedExamples;
+  questionTypeDifficultyCriteria: typeof questionTypeDifficultyCriteria;
+  questionTypes: typeof questionTypes;
+  questionTypeVersions: typeof questionTypeVersions;
+};
+type QueryDatabase = PgDatabase<PgQueryResultHKT, QuerySchema>;
+
+const compareText = (left: string, right: string): number =>
+  left === right ? 0 : left < right ? -1 : 1;
+
+const sortTerms = (terms: ContextTermRow[]): ContextTermRow[] =>
+  [...terms].sort(
+    (left, right) =>
+      compareText(left.slug, right.slug) || compareText(left.id, right.id),
+  );
+
+const isVocabulary = (value: unknown): value is QuestionPromptVocabulary =>
+  value !== null &&
+  typeof value === 'object' &&
+  'thai' in value &&
+  'meaningKo' in value &&
+  'partOfSpeech' in value &&
+  'difficulty' in value &&
+  typeof value.thai === 'string' &&
+  typeof value.meaningKo === 'string' &&
+  typeof value.partOfSpeech === 'string' &&
+  typeof value.difficulty === 'number';
+
+const readVocabulary = (
+  parameters: Record<string, unknown>,
+  key: 'targetVocabulary' | 'requiredVocabulary' | 'excludedVocabulary',
+): QuestionPromptVocabulary[] =>
+  Array.isArray(parameters[key])
+    ? parameters[key]
+        .filter(isVocabulary)
+        .sort((left, right) => compareText(left.thai, right.thai))
+    : [];
+
+const readTextList = (value: unknown): string[] =>
+  Array.isArray(value)
+    ? value
+        .filter((item): item is string => typeof item === 'string')
+        .sort(compareText)
+    : [];
+
+const readSimilarQuestions = (
+  value: unknown,
+): Array<{ difficulty: number; summary: string }> =>
+  Array.isArray(value)
+    ? value
+        .filter(
+          (item): item is { difficulty: number; summary: string } =>
+            item !== null &&
+            typeof item === 'object' &&
+            'difficulty' in item &&
+            'summary' in item &&
+            typeof item.difficulty === 'number' &&
+            typeof item.summary === 'string',
+        )
+        .sort(
+          (left, right) =>
+            left.difficulty - right.difficulty ||
+            compareText(left.summary, right.summary),
+        )
+    : [];
+
+const privatePromptKeys = new Set([
+  'inputKey',
+  'mediaAssetId',
+  'providerPayload',
+  'rawPrompt',
+  'storageKey',
+]);
+
+const projectPublicPromptValue = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(projectPublicPromptValue);
+  if (value === null || typeof value !== 'object') return value;
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => !privatePromptKeys.has(key))
+      .map(([key, item]) => [key, projectPublicPromptValue(item)]),
+  );
+};
+
+/** preset snapshot에서 prompt에 안전한 정책만 선택한다 */
+export const readQuestionProductionPresetPolicy = (
+  parameters: Record<string, unknown>,
+): QuestionProductionPresetPolicy => ({
+  commonPrinciples: readTextList(parameters.commonPrinciples),
+  targetVocabulary: readVocabulary(parameters, 'targetVocabulary'),
+  requiredVocabulary: readVocabulary(parameters, 'requiredVocabulary'),
+  excludedVocabulary: readVocabulary(parameters, 'excludedVocabulary'),
+  similarQuestions: readSimilarQuestions(parameters.similarQuestions),
+  additionalInstructionKo:
+    typeof parameters.additionalInstructionKo === 'string'
+      ? parameters.additionalInstructionKo
+      : null,
+});
+
+/** flat taxonomy와 preset 정책을 provider용 public context로 안정 조립한다 */
+export const assembleQuestionProductionContext = (
+  rows: QuestionProductionContextRows,
+  policy: Partial<QuestionProductionPresetPolicy>,
+): QuestionProductionContext | null => {
+  if (!rows.typeVersion) return null;
+
+  const allowedTopics = sortTerms(rows.topics);
+  const allowedTags = sortTerms(rows.tags);
+  return {
+    commonPrinciples: [...(policy.commonPrinciples ?? [])].sort(compareText),
+    typeVersion: {
+      id: rows.typeVersion.id,
+      slug: rows.typeVersion.slug,
+      version: rows.typeVersion.version,
+      template: rows.typeVersion.template,
+      structureRules: {
+        optionCount: rows.typeVersion.decisionRules.optionCount,
+        template: rows.typeVersion.template,
+      },
+      generationRules: {
+        ...rows.typeVersion.decisionRules,
+        allowedTopics,
+        allowedTags,
+      },
+    },
+    difficultyCriteria: [...rows.difficultyCriteria].sort(
+      (left, right) => left.difficulty - right.difficulty,
+    ),
+    approvedExamples: [...rows.approvedExamples]
+      .sort(
+        (left, right) =>
+          compareText(left.title, right.title) ||
+          compareText(left.id, right.id),
+      )
+      .map(({ title, payload }) => ({
+        title,
+        payload: projectPublicPromptValue(
+          payload,
+        ) as QuestionProductionContext['approvedExamples'][number]['payload'],
+      })),
+    targetVocabulary: policy.targetVocabulary ?? [],
+    requiredVocabulary: policy.requiredVocabulary ?? [],
+    excludedVocabulary: policy.excludedVocabulary ?? [],
+    similarQuestions: policy.similarQuestions ?? [],
+    additionalInstructionKo: policy.additionalInstructionKo ?? null,
+  };
+};
+
+/** 활성 유형 버전과 공개 taxonomy를 읽어 문제 생성 문맥을 제공한다 */
+export class DrizzleQuestionProductionContextQuery implements QuestionProductionContextRepository {
+  constructor(private readonly database: QueryDatabase) {}
+
+  /** preset이 가리키는 ACTIVE 유형만 provider 문맥으로 반환한다 */
+  async load(input: {
+    preset: ContentProductionPresetSnapshot;
+    operation: 'QUESTION_GENERATION';
+  }): Promise<QuestionProductionContext> {
+    const typeVersionId = input.preset.parameters.questionTypeVersionId;
+    if (typeof typeVersionId !== 'string') {
+      throw new Error('QUESTION_TYPE_VERSION_REQUIRED');
+    }
+
+    const [typeVersion] = await this.database
+      .select({
+        id: questionTypeVersions.id,
+        slug: questionTypes.slug,
+        version: questionTypeVersions.version,
+        template: questionTypeVersions.template,
+        decisionRules: questionTypeVersions.decisionRules,
+      })
+      .from(questionTypeVersions)
+      .innerJoin(
+        questionTypes,
+        eq(questionTypeVersions.questionTypeId, questionTypes.id),
+      )
+      .where(
+        and(
+          eq(questionTypeVersions.id, typeVersionId),
+          eq(questionTypeVersions.status, 'ACTIVE'),
+        ),
+      )
+      .limit(1);
+    const [difficultyCriteria, approvedExamples, topics, tags] =
+      await Promise.all([
+        this.database
+          .select({
+            difficulty: questionTypeDifficultyCriteria.difficulty,
+            criteria: questionTypeDifficultyCriteria.criteria,
+          })
+          .from(questionTypeDifficultyCriteria)
+          .where(
+            eq(questionTypeDifficultyCriteria.typeVersionId, typeVersionId),
+          )
+          .orderBy(asc(questionTypeDifficultyCriteria.difficulty)),
+        this.database
+          .select({
+            id: questionTypeApprovedExamples.id,
+            title: questionTypeApprovedExamples.title,
+            payload: questionTypeApprovedExamples.payload,
+          })
+          .from(questionTypeApprovedExamples)
+          .where(eq(questionTypeApprovedExamples.typeVersionId, typeVersionId))
+          .orderBy(
+            asc(questionTypeApprovedExamples.title),
+            asc(questionTypeApprovedExamples.id),
+          ),
+        this.database
+          .select({
+            id: questionTopics.id,
+            slug: questionTopics.slug,
+            displayName: questionTopics.displayName,
+          })
+          .from(questionTopics)
+          .where(eq(questionTopics.status, 'ACTIVE'))
+          .orderBy(asc(questionTopics.slug), asc(questionTopics.id)),
+        this.database
+          .select({
+            id: questionTags.id,
+            slug: questionTags.slug,
+            displayName: questionTags.displayName,
+          })
+          .from(questionTags)
+          .where(eq(questionTags.status, 'ACTIVE'))
+          .orderBy(asc(questionTags.slug), asc(questionTags.id)),
+      ]);
+    const context = assembleQuestionProductionContext(
+      {
+        typeVersion: typeVersion
+          ? {
+              ...typeVersion,
+              template:
+                typeVersion.template as ContextTypeVersionRow['template'],
+            }
+          : null,
+        difficultyCriteria,
+        approvedExamples,
+        topics,
+        tags,
+      },
+      readQuestionProductionPresetPolicy(input.preset.parameters),
+    );
+    if (!context) throw new Error('QUESTION_TYPE_VERSION_UNAVAILABLE');
+    return context;
+  }
+}
