@@ -116,8 +116,29 @@ const SENSITIVE_SUMMARY_KEYS = new Set([
   'totpcode',
 ]);
 
+const SENSITIVE_SUMMARY_KEY_PATTERNS = [
+  /token(?:value|hash)?$/u,
+  /secret/u,
+  /password/u,
+  /credential/u,
+  /private.*key/u,
+  /otp/u,
+  /authorization/u,
+  /cookie/u,
+  /(?:api|access|session|signing|encryption)key(?:id|value|hash)?$/u,
+  /(?:auth|challenge|mfa|recovery|verification)code$/u,
+];
+
 const normalizeSummaryKey = (key: string) =>
   key.toLowerCase().replace(/[^a-z0-9]/gu, '');
+
+const isSensitiveSummaryKey = (key: string) => {
+  const normalized = normalizeSummaryKey(key);
+  return (
+    SENSITIVE_SUMMARY_KEYS.has(normalized) ||
+    SENSITIVE_SUMMARY_KEY_PATTERNS.some((pattern) => pattern.test(normalized))
+  );
+};
 
 const redactAuditSummaryValue = (value: unknown): unknown => {
   if (Array.isArray(value)) {
@@ -129,7 +150,7 @@ const redactAuditSummaryValue = (value: unknown): unknown => {
   return Object.fromEntries(
     Object.entries(value).map(([key, nested]) => [
       key,
-      SENSITIVE_SUMMARY_KEYS.has(normalizeSummaryKey(key))
+      isSensitiveSummaryKey(key)
         ? '[REDACTED]'
         : redactAuditSummaryValue(nested),
     ]),
