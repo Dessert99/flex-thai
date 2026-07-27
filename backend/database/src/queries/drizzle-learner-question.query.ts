@@ -1,4 +1,5 @@
-/** 현재 게시 문제와 append-only 풀이 기록을 정답 노출 없이 읽는다 */
+/** 현재 게시 문제와 append-only 풀이 기록을 정답 노출 없이 탐색한다 */
+import type { QuestionMajorCategory } from '@flex-thia/domain';
 import {
   and,
   asc,
@@ -21,9 +22,12 @@ import {
   questionBlocks,
   questionBlockSentences,
   questionOptions,
+  questionTags,
+  questionTopics,
   questions,
   questionTypes,
   questionTypeVersions,
+  questionVersionTags,
   questionVersions,
   savedQuestions,
   thaiSentenceVersions,
@@ -43,10 +47,14 @@ export type LearnerQuestionFirstResult = 'CORRECT' | 'INCORRECT' | 'UNANSWERED';
 /** database query가 소비하는 검증 완료 문제 목록 조건 */
 export interface LearnerQuestionListQuery {
   skill?: LearnerQuestionSkill;
+  majorCategory?: QuestionMajorCategory;
   questionTypeId?: string;
+  topicId?: string;
+  tagId?: string;
   difficulty?: number;
   saved?: boolean;
   firstResult?: LearnerQuestionFirstResult;
+  sort: 'LATEST';
   page: number;
   pageSize: number;
 }
@@ -72,11 +80,21 @@ export interface LearnerQuestionTypeProjection {
   displayName: string;
 }
 
+/** 현재 게시 문제에 고정된 주제·태그의 내부 projection */
+export interface LearnerQuestionTaxonomyTermProjection {
+  id: string;
+  slug: string;
+  displayName: string;
+}
+
 /** 현재 게시 문제 목록 한 건의 내부 projection */
 export interface LearnerQuestionListItemProjection {
   questionId: string;
   questionVersionId: string;
   questionType: LearnerQuestionTypeProjection;
+  majorCategory: QuestionMajorCategory;
+  topic: LearnerQuestionTaxonomyTermProjection;
+  tags: LearnerQuestionTaxonomyTermProjection[];
   skill: LearnerQuestionSkill;
   difficulty: number;
   saved: boolean;
@@ -283,8 +301,22 @@ export class DrizzleLearnerQuestionQuery {
     if (query.skill !== undefined) {
       conditions.push(eq(questionTypes.skill, query.skill));
     }
+    if (query.majorCategory !== undefined) {
+      conditions.push(eq(questionTypes.majorCategory, query.majorCategory));
+    }
     if (query.questionTypeId !== undefined) {
       conditions.push(eq(questionTypes.id, query.questionTypeId));
+    }
+    if (query.topicId !== undefined) {
+      conditions.push(eq(questionVersions.topicId, query.topicId));
+    }
+    if (query.tagId !== undefined) {
+      // 태그 다대다 join이 목록 row와 count를 늘리지 않도록 상관 EXISTS를 사용
+      conditions.push(sql`exists (
+        select 1 from ${questionVersionTags}
+        where ${questionVersionTags.questionVersionId} = ${questionVersions.id}
+          and ${questionVersionTags.tagId} = ${query.tagId}
+      )`);
     }
     if (query.difficulty !== undefined) {
       conditions.push(eq(questionVersions.difficulty, query.difficulty));
@@ -318,6 +350,10 @@ export class DrizzleLearnerQuestionQuery {
         questionTypes,
         eq(questionTypeVersions.questionTypeId, questionTypes.id),
       )
+      .innerJoin(
+        questionTopics,
+        eq(questionVersions.topicId, questionTopics.id),
+      )
       .leftJoin(
         savedQuestions,
         and(
@@ -349,6 +385,10 @@ export class DrizzleLearnerQuestionQuery {
         questionTypeId: questionTypes.id,
         questionTypeSlug: questionTypes.slug,
         questionTypeDisplayName: questionTypes.displayName,
+        majorCategory: questionTypes.majorCategory,
+        topicId: questionTopics.id,
+        topicSlug: questionTopics.slug,
+        topicDisplayName: questionTopics.displayName,
         skill: questionTypes.skill,
         difficulty: questionVersions.difficulty,
         saved,
@@ -369,6 +409,10 @@ export class DrizzleLearnerQuestionQuery {
       .innerJoin(
         questionTypes,
         eq(questionTypeVersions.questionTypeId, questionTypes.id),
+      )
+      .innerJoin(
+        questionTopics,
+        eq(questionVersions.topicId, questionTopics.id),
       )
       .leftJoin(
         savedQuestions,
@@ -393,9 +437,50 @@ export class DrizzleLearnerQuestionQuery {
         ),
       )
       .where(and(...conditions))
-      .orderBy(asc(questions.id))
+      .orderBy(desc(questionVersions.publishedAt), desc(questions.id))
       .limit(query.pageSize)
       .offset((query.page - 1) * query.pageSize);
+
+    const questionVersionIds = rows.map((row) => row.questionVersionId);
+    const tagRows =
+      questionVersionIds.length === 0
+        ? []
+        : await this.database
+            .select({
+              questionVersionId: questionVersionTags.questionVersionId,
+              tagId: questionTags.id,
+              tagSlug: questionTags.slug,
+              tagDisplayName: questionTags.displayName,
+            })
+            .from(questionVersionTags)
+            .innerJoin(
+              questionTags,
+              eq(questionVersionTags.tagId, questionTags.id),
+            )
+            .where(
+              inArray(
+                questionVersionTags.questionVersionId,
+                questionVersionIds,
+              ),
+            )
+            .orderBy(
+              asc(questionVersionTags.questionVersionId),
+              asc(questionTags.slug),
+              asc(questionTags.id),
+            );
+    const tagsByQuestionVersionId = new Map<
+      string,
+      LearnerQuestionTaxonomyTermProjection[]
+    >();
+    for (const tag of tagRows) {
+      const tags = tagsByQuestionVersionId.get(tag.questionVersionId) ?? [];
+      tags.push({
+        id: tag.tagId,
+        slug: tag.tagSlug,
+        displayName: tag.tagDisplayName,
+      });
+      tagsByQuestionVersionId.set(tag.questionVersionId, tags);
+    }
 
     return {
       items: rows.map((row) => ({
@@ -406,6 +491,13 @@ export class DrizzleLearnerQuestionQuery {
           slug: row.questionTypeSlug,
           displayName: row.questionTypeDisplayName,
         },
+        majorCategory: row.majorCategory,
+        topic: {
+          id: row.topicId,
+          slug: row.topicSlug,
+          displayName: row.topicDisplayName,
+        },
+        tags: tagsByQuestionVersionId.get(row.questionVersionId) ?? [],
         skill: row.skill,
         difficulty: row.difficulty,
         saved: row.saved,

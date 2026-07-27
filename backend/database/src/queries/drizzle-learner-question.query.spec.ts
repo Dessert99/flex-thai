@@ -7,6 +7,7 @@ import * as schema from '../schema/index.js';
 import {
   questionAttempts,
   questionBlocks,
+  questionVersionTags,
   questions,
 } from '../schema/index.js';
 import { DrizzleLearnerQuestionQuery } from './drizzle-learner-question.query.js';
@@ -81,10 +82,28 @@ describe('DrizzleLearnerQuestionQuery 문제 목록', () => {
           questionTypeId: 'type-id',
           questionTypeSlug: 'reading-choice',
           questionTypeDisplayName: '독해 선택',
+          majorCategory: 'READING_PASSAGE',
+          topicId: 'topic-id',
+          topicSlug: 'travel',
+          topicDisplayName: '여행',
           skill: 'READING',
           difficulty: 3,
           saved: true,
           firstResult: 'CORRECT',
+        },
+      ],
+      [
+        {
+          questionVersionId: 'version-id',
+          tagId: 'tag-1',
+          tagSlug: 'grammar',
+          tagDisplayName: '문법',
+        },
+        {
+          questionVersionId: 'version-id',
+          tagId: 'tag-2',
+          tagSlug: 'vocabulary',
+          tagDisplayName: '어휘',
         },
       ],
     ]);
@@ -93,10 +112,14 @@ describe('DrizzleLearnerQuestionQuery 문제 목록', () => {
     await expect(
       query.listQuestions('user-id', {
         skill: 'READING',
+        majorCategory: 'READING_PASSAGE',
         questionTypeId: 'type-id',
+        topicId: 'topic-id',
+        tagId: 'tag-id',
         difficulty: 3,
         saved: true,
         firstResult: 'CORRECT',
+        sort: 'LATEST',
         page: 2,
         pageSize: 10,
       }),
@@ -110,6 +133,16 @@ describe('DrizzleLearnerQuestionQuery 문제 목록', () => {
             slug: 'reading-choice',
             displayName: '독해 선택',
           },
+          majorCategory: 'READING_PASSAGE',
+          topic: {
+            id: 'topic-id',
+            slug: 'travel',
+            displayName: '여행',
+          },
+          tags: [
+            { id: 'tag-1', slug: 'grammar', displayName: '문법' },
+            { id: 'tag-2', slug: 'vocabulary', displayName: '어휘' },
+          ],
           skill: 'READING',
           difficulty: 3,
           saved: true,
@@ -119,10 +152,11 @@ describe('DrizzleLearnerQuestionQuery 문제 목록', () => {
       page: { page: 2, pageSize: 10, totalItems: 1, totalPages: 1 },
     });
 
-    expect(fake.selectCalls).toHaveLength(2);
-    for (const call of fake.selectCalls) {
+    expect(fake.selectCalls).toHaveLength(3);
+    for (const call of fake.selectCalls.slice(0, 2)) {
       expect(call.from).toBe(questions);
       expect(call.joins.map((join) => join.kind)).toEqual([
+        'inner',
         'inner',
         'inner',
         'inner',
@@ -141,7 +175,10 @@ describe('DrizzleLearnerQuestionQuery 문제 목록', () => {
           1,
           'INVALIDATED',
           'READING',
+          'READING_PASSAGE',
           'type-id',
+          'topic-id',
+          'tag-id',
           3,
           'CORRECT',
         ]),
@@ -158,8 +195,17 @@ describe('DrizzleLearnerQuestionQuery 문제 목록', () => {
     );
     expect(fake.selectCalls[1]).toMatchObject({ limit: 10, offset: 10 });
     expect(toSql(fake.selectCalls[1]?.orderBy[0]).sql).toContain(
-      '"questions"."id" asc',
+      '"question_versions"."published_at" desc',
     );
+    expect(toSql(fake.selectCalls[1]?.orderBy[1]).sql).toContain(
+      '"questions"."id" desc',
+    );
+    expect(fake.selectCalls[2]?.orderBy).toHaveLength(3);
+    expect(fake.selectCalls[2]?.from).toBe(questionVersionTags);
+    expect(toSql(fake.selectCalls[2]?.orderBy[1]).sql).toContain(
+      '"question_tags"."slug" asc',
+    );
+    expect(toSql(fake.selectCalls[0]?.condition).sql).toContain('exists');
   });
 
   it('invalidated 첫 답은 미응답이고 retired 첫 답은 결과에 유지한다', async () => {
@@ -168,6 +214,7 @@ describe('DrizzleLearnerQuestionQuery 문제 목록', () => {
 
     await query.listQuestions('user-id', {
       firstResult: 'UNANSWERED',
+      sort: 'LATEST',
       page: 1,
       pageSize: 20,
     });
@@ -539,6 +586,11 @@ const ids = {
   listeningType: '50000000-0000-4000-8000-000000000002',
   readingTypeVersion: '50000000-0000-4000-8000-000000000003',
   listeningTypeVersion: '50000000-0000-4000-8000-000000000004',
+  topic: '50000000-0000-4000-8000-000000000005',
+  tags: [
+    '50000000-0000-4000-8000-000000000006',
+    '50000000-0000-4000-8000-000000000007',
+  ],
   questions: [
     '60000000-0000-4000-8000-000000000001',
     '60000000-0000-4000-8000-000000000002',
@@ -635,9 +687,19 @@ const createQuestionQueryFixture = async (pool: Pool): Promise<void> => {
     [ids.sentenceVersion, ids.expression],
   );
   await pool.query(
-    `insert into question_types (id, slug, display_name, skill)
-     values ($1, 'reading-choice-query', '독해 선택', 'READING'),
-            ($2, 'listening-choice-query', '듣기 선택', 'LISTENING')`,
+    `insert into question_topics (id, slug, display_name)
+     values ($1, 'query-topic', '조회 주제')`,
+    [ids.topic],
+  );
+  await pool.query(
+    `insert into question_tags (id, slug, display_name)
+     values ($1, 'grammar', '문법'), ($2, 'vocabulary', '어휘')`,
+    [...ids.tags],
+  );
+  await pool.query(
+    `insert into question_types (id, slug, display_name, skill, major_category)
+     values ($1, 'reading-choice-query', '독해 선택', 'READING', 'READING_PASSAGE'),
+            ($2, 'listening-choice-query', '듣기 선택', 'LISTENING', 'LISTENING_DIALOGUE')`,
     [ids.readingType, ids.listeningType],
   );
   await pool.query(
@@ -660,23 +722,29 @@ const createQuestionQueryFixture = async (pool: Pool): Promise<void> => {
   );
   await pool.query(
     `insert into question_versions (
-       id, question_id, version, type_version_id, difficulty,
+       id, question_id, version, type_version_id, topic_id, difficulty,
        status, validation_status, validation_issues, published_at
      ) values
-       ($1, $9, 1, $15, 3, 'RETIRED', 'PASSED', '[]', now()),
-       ($2, $9, 2, $15, 3, 'PUBLISHED', 'PASSED', '[]', now()),
-       ($3, $10, 1, $16, 2, 'PUBLISHED', 'PASSED', '[]', now()),
-       ($4, $11, 1, $15, 4, 'INVALIDATED', 'PASSED', '[]', now()),
-       ($5, $11, 2, $15, 4, 'PUBLISHED', 'PASSED', '[]', now()),
-       ($6, $12, 1, $15, 3, 'PUBLISHED', 'PASSED', '[]', now()),
-       ($7, $13, 1, $15, 3, 'PUBLISHED', 'PASSED', '[]', now()),
-       ($8, $14, 1, $15, 3, 'DRAFT', 'PENDING', '[]', null)`,
+       ($1, $9, 1, $15, $17, 3, 'RETIRED', 'PASSED', '[]', '2026-07-20T00:00:00Z'),
+       ($2, $9, 2, $15, $17, 3, 'PUBLISHED', 'PASSED', '[]', '2026-07-21T00:00:00Z'),
+       ($3, $10, 1, $16, $17, 2, 'PUBLISHED', 'PASSED', '[]', '2026-07-22T00:00:00Z'),
+       ($4, $11, 1, $15, $17, 4, 'INVALIDATED', 'PASSED', '[]', '2026-07-22T12:00:00Z'),
+       ($5, $11, 2, $15, $17, 4, 'PUBLISHED', 'PASSED', '[]', '2026-07-23T00:00:00Z'),
+       ($6, $12, 1, $15, $17, 3, 'PUBLISHED', 'PASSED', '[]', '2026-07-24T00:00:00Z'),
+       ($7, $13, 1, $15, $17, 3, 'PUBLISHED', 'PASSED', '[]', '2026-07-25T00:00:00Z'),
+       ($8, $14, 1, $15, $17, 3, 'DRAFT', 'PENDING', '[]', null)`,
     [
       ...ids.versions,
       ...ids.questions,
       ids.readingTypeVersion,
       ids.listeningTypeVersion,
+      ids.topic,
     ],
+  );
+  await pool.query(
+    `insert into question_version_tags (question_version_id, tag_id)
+     values ($1, $3), ($1, $4), ($2, $3), ($3, $4)`,
+    [ids.versions[1], ids.versions[2], ...ids.tags],
   );
   await pool.query(
     `update questions set current_published_version_id = case id
@@ -785,6 +853,7 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
 
     it('게시·저장·skill·type·difficulty와 first result를 중복 없이 필터한다', async () => {
       const all = await query.listQuestions(ids.user, {
+        sort: 'LATEST',
         page: 1,
         pageSize: 2,
       });
@@ -794,13 +863,19 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
         totalItems: 4,
         totalPages: 2,
       });
-      expect(all.items.map((item) => item.questionId)).toEqual(
-        ids.questions.slice(0, 2),
-      );
-      expect(all.items.map((item) => item.firstResult)).toEqual([
-        'CORRECT',
-        'INCORRECT',
+      expect(all.items.map((item) => item.questionId)).toEqual([
+        ids.questions[3],
+        ids.questions[2],
       ]);
+      expect(all.items.map((item) => item.firstResult)).toEqual([
+        'UNANSWERED',
+        'UNANSWERED',
+      ]);
+      expect(all.items[1]).toMatchObject({
+        majorCategory: 'READING_PASSAGE',
+        topic: { id: ids.topic, slug: 'query-topic' },
+        tags: [{ id: ids.tags[1], slug: 'vocabulary' }],
+      });
 
       await expect(
         query.listQuestions(ids.user, {
@@ -809,6 +884,7 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
           questionTypeId: ids.readingType,
           difficulty: 3,
           firstResult: 'CORRECT',
+          sort: 'LATEST',
           page: 1,
           pageSize: 20,
         }),
@@ -826,12 +902,13 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       const unanswered = await query.listQuestions(ids.user, {
         firstResult: 'UNANSWERED',
         saved: false,
+        sort: 'LATEST',
         page: 1,
         pageSize: 20,
       });
       expect(unanswered.items.map((item) => item.questionId)).toEqual([
-        ids.questions[2],
         ids.questions[3],
+        ids.questions[2],
       ]);
     });
 
