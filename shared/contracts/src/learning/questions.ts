@@ -1,6 +1,6 @@
 /** 학습자 문제 조회·답안 제출의 정답 비노출 공개 JSON 계약을 정의한다 */
 import { z } from 'zod';
-import { questionMajorCategorySchema } from '../questions/question-taxonomy-settings.js';
+import { questionMajorCategorySchema } from '../questions/question-major-category.js';
 import { publicThaiSentenceSchema } from '../thai-content/sentences.js';
 
 const uuidSchema = z.uuid();
@@ -187,9 +187,6 @@ export const questionListItemSchema = z
     questionId: uuidSchema,
     questionVersionId: uuidSchema,
     questionType: questionTypeSchema,
-    majorCategory: questionMajorCategorySchema,
-    topic: questionTaxonomyTermSchema,
-    tags: z.array(questionTaxonomyTermSchema),
     skill: questionSkillSchema,
     difficulty: difficultySchema,
     saved: z.boolean(),
@@ -197,10 +194,19 @@ export const questionListItemSchema = z
   })
   .strict();
 
+/** 문제 탐색 목록에 대분류·주제·태그를 더한 정답 없는 문제 요약 */
+export const questionDiscoveryListItemSchema = questionListItemSchema
+  .extend({
+    majorCategory: questionMajorCategorySchema,
+    topic: questionTaxonomyTermSchema,
+    tags: z.array(questionTaxonomyTermSchema),
+  })
+  .strict();
+
 /** 현재 게시 문제의 정답 없는 페이지 응답 */
 export const questionListResponseSchema = z
   .object({
-    items: z.array(questionListItemSchema),
+    items: z.array(questionDiscoveryListItemSchema),
     page: pageMetadataSchema,
     facets: questionListFacetsSchema,
   })
@@ -316,6 +322,11 @@ export type PageMetadata = z.infer<typeof pageMetadataSchema>;
 
 /** 직렬화 가능한 정답 없는 문제 요약 type */
 export type QuestionListItem = z.infer<typeof questionListItemSchema>;
+
+/** 직렬화 가능한 문제 탐색 전용 문제 요약 type */
+export type QuestionDiscoveryListItem = z.infer<
+  typeof questionDiscoveryListItemSchema
+>;
 
 /** 직렬화 가능한 문제 목록 응답 type */
 export type QuestionListResponse = z.infer<typeof questionListResponseSchema>;

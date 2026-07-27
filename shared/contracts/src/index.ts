@@ -8,6 +8,8 @@ export * from './identity/user-management.js';
 
 export * from './operations/audit-logs.js';
 export * from './learning/questions.js';
+/** 문제 대분류 공용 계약을 패키지 경계에 노출한다 */
+export * from './questions/question-major-category.js';
 /** 문제 분류 설정 계약을 패키지 경계에 노출한다 */
 export * from './questions/question-taxonomy-settings.js';
 export * from './learning/vocabularies.js';

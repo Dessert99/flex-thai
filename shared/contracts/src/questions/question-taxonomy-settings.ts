@@ -1,6 +1,10 @@
 /** FLEX 문제 분류·유형 버전·주제·태그 관리자 계약을 정의한다 */
 import { z } from 'zod';
 import { adminQuestionVersionPayloadSchema } from '../admin/questions.js';
+import {
+  questionMajorCategorySchema,
+  type QuestionMajorCategory,
+} from './question-major-category.js';
 
 const uuidSchema = z.uuid();
 const slugSchema = z
@@ -9,17 +13,6 @@ const slugSchema = z
   .min(1)
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u);
 const displayNameSchema = z.string().trim().min(1).max(100);
-
-/** FLEX 시험의 고정 7대 문제 분류 */
-export const questionMajorCategorySchema = z.enum([
-  'LISTENING_RESPONSE',
-  'LISTENING_DIALOGUE',
-  'LISTENING_PASSAGE',
-  'READING_VOCABULARY_GRAMMAR',
-  'READING_SYNONYM_RELATION',
-  'READING_ERROR_IDENTIFICATION',
-  'READING_PASSAGE',
-]);
 
 /** 대분류에서 파생되는 영역과 기본 출제 형식 */
 export const questionMajorCategoryMetadata = {
@@ -66,7 +59,7 @@ export const questionMajorCategoryMetadata = {
     optionCount: 4,
   },
 } as const satisfies Record<
-  z.infer<typeof questionMajorCategorySchema>,
+  QuestionMajorCategory,
   {
     label: string;
     skill: 'READING' | 'LISTENING';
@@ -210,7 +203,6 @@ export const questionTaxonomySettingsResponseSchema = z
   })
   .strict();
 
-export type QuestionMajorCategory = z.infer<typeof questionMajorCategorySchema>;
 export type QuestionTypeVersionStatus = z.infer<
   typeof questionTypeVersionStatusSchema
 >;
