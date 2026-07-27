@@ -91,6 +91,24 @@ describe('문제 목록 검색 검증', () => {
 });
 
 describe('문제 목록 페이지', () => {
+  it('데스크톱에서는 필터 aside와 문제 결과를 두 열로 배치한다', async () => {
+    renderQuestionList();
+
+    await screen.findByRole('heading', { name: '게시된 문제가 없습니다.' });
+    const filterAside = screen.getByRole('complementary', {
+      name: '문제 필터',
+    });
+    const results = screen.getByRole('region', { name: '문제 목록 결과' });
+    const layout = filterAside.parentElement;
+
+    expect(layout).toBe(results.parentElement);
+    expect(layout).toHaveClass('grid', 'md:grid-cols-[18rem_minmax(0,1fr)]');
+    expect(
+      filterAside.compareDocumentPosition(results) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it('계약이 제공한 문제 요약을 상세 링크로 표시한다', async () => {
     mocks.authenticatedRequest.mockResolvedValue({
       items: [

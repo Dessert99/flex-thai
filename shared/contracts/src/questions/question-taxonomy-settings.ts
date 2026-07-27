@@ -6,6 +6,9 @@ import {
   type QuestionMajorCategory,
 } from './question-major-category.js';
 
+/** 대분류 leaf 계약을 기존 문제 분류 설정 공개 경계로 전달한다 */
+export { questionMajorCategorySchema, type QuestionMajorCategory };
+
 const uuidSchema = z.uuid();
 const slugSchema = z
   .string()

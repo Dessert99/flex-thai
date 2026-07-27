@@ -9,7 +9,7 @@ const questionTypeId = '11111111-1111-4111-8111-111111111111';
 const topicId = '22222222-2222-4222-8222-222222222222';
 const tagId = '33333333-3333-4333-8333-333333333333';
 
-describe('questionListSearch', () => {
+describe('문제 목록 검색값', () => {
   it('URL 입력의 모든 문제 탐색 조건을 보존한다', () => {
     const search = parseQuestionListSearch({
       difficulty: '4',

@@ -59,21 +59,33 @@ export function QuestionListPageView({
           영역과 난이도, 풀이 상태로 문제를 찾아보세요.
         </p>
       </header>
-      <QuestionFilters
-        facets={data?.facets ?? emptyQuestionListFacets}
-        onChange={onFilterChange}
-        onReset={onResetFilters}
-        search={search}
-      />
-      {renderQuestionState({
-        data,
-        error,
-        loading,
-        onPageChange,
-        onResetFilters,
-        onRetry,
-        search,
-      })}
+      <div className='grid gap-section md:grid-cols-[18rem_minmax(0,1fr)] md:items-start'>
+        <aside
+          aria-label='문제 필터'
+          className='min-w-0'
+        >
+          <QuestionFilters
+            facets={data?.facets ?? emptyQuestionListFacets}
+            onChange={onFilterChange}
+            onReset={onResetFilters}
+            search={search}
+          />
+        </aside>
+        <section
+          aria-label='문제 목록 결과'
+          className='min-w-0'
+        >
+          {renderQuestionState({
+            data,
+            error,
+            loading,
+            onPageChange,
+            onResetFilters,
+            onRetry,
+            search,
+          })}
+        </section>
+      </div>
     </section>
   );
 }

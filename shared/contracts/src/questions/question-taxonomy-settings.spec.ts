@@ -3,11 +3,11 @@ import { describe, expect, it } from 'vitest';
 import {
   createQuestionTypeRequestSchema,
   createQuestionTypeVersionRequestSchema,
+  questionMajorCategorySchema,
   questionTypeApprovedExampleRequestSchema,
   questionTypeVersionStatusSchema,
   replaceDifficultyCriteriaRequestSchema,
 } from './question-taxonomy-settings.js';
-import { questionMajorCategorySchema } from './question-major-category.js';
 
 const id = '00000000-0000-4000-8000-000000000001';
 const sentence = {
