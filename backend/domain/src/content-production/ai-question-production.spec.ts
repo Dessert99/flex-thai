@@ -567,6 +567,59 @@ describe('AI 문제 생성 prompt 조립', () => {
     );
   });
 
+  it('Unicode 정규화 표현이 다른 예시와 어휘도 입력 순서와 무관하다', () => {
+    const composed = 'é';
+    const decomposed = 'e\u0301';
+    const ordered: QuestionProductionContext = {
+      ...productionContext,
+      approvedExamples: [
+        { title: composed, payload: candidate.payload },
+        { title: decomposed, payload: candidate.payload },
+      ],
+      targetVocabulary: [
+        {
+          thai: 'คำ',
+          meaningKo: composed,
+          partOfSpeech: '명사',
+          difficulty: 1,
+        },
+        {
+          thai: 'คำ',
+          meaningKo: decomposed,
+          partOfSpeech: '명사',
+          difficulty: 1,
+        },
+      ],
+    };
+    const swapped: QuestionProductionContext = {
+      ...ordered,
+      approvedExamples: [...ordered.approvedExamples].reverse(),
+      targetVocabulary: [...ordered.targetVocabulary].reverse(),
+    };
+
+    expect(buildQuestionGenerationPrompt(swapped)).toEqual(
+      buildQuestionGenerationPrompt(ordered),
+    );
+  });
+
+  it('Unicode 정규화 표현이 다른 유사 문제도 입력 순서와 무관하다', () => {
+    const ordered: QuestionProductionContext = {
+      ...productionContext,
+      similarQuestions: [
+        { difficulty: 3, summary: 'café' },
+        { difficulty: 3, summary: 'cafe\u0301' },
+      ],
+    };
+    const swapped: QuestionProductionContext = {
+      ...ordered,
+      similarQuestions: [...ordered.similarQuestions].reverse(),
+    };
+
+    expect(buildQuestionGenerationPrompt(swapped)).toEqual(
+      buildQuestionGenerationPrompt(ordered),
+    );
+  });
+
   it('승인 예시는 canonical allow-list만 투영해 임의 private alias를 차단한다', () => {
     const prompt = buildQuestionGenerationPrompt(productionContext);
     const serializedPrompt = JSON.stringify(prompt);

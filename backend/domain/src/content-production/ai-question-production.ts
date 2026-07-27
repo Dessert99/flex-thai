@@ -157,8 +157,12 @@ const sortPromptValue = (value: unknown): unknown => {
 const stablePromptJson = (value: unknown): string =>
   JSON.stringify(sortPromptValue(value));
 
-const compareStablePromptValue = (left: unknown, right: unknown): number =>
-  stablePromptJson(left).localeCompare(stablePromptJson(right));
+const compareStablePromptValue = (left: unknown, right: unknown): number => {
+  const leftJson = stablePromptJson(left);
+  const rightJson = stablePromptJson(right);
+  if (leftJson === rightJson) return 0;
+  return leftJson < rightJson ? -1 : 1;
+};
 
 const projectContentReference = (
   reference: GeneratedQuestionSentenceInput['tokens'][number]['vocabulary'],
@@ -539,7 +543,7 @@ export const buildQuestionGenerationPrompt = (
           [...context.similarQuestions].sort(
             (left, right) =>
               left.difficulty - right.difficulty ||
-              left.summary.localeCompare(right.summary),
+              compareStablePromptValue(left, right),
           ),
         ),
       },
