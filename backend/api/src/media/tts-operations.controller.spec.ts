@@ -43,6 +43,9 @@ describe('TtsOperationsController 공개 경계', () => {
     expect(
       Reflect.getMetadata(REQUIRED_ROLE_KEY, TtsOperationsController),
     ).toBe('ADMIN');
+    expect(
+      Reflect.getMetadata('swagger/apiSecurity', TtsOperationsController),
+    ).toEqual([{ accessToken: [] }]);
   });
 
   it('목록·상세·일괄·개별 재시도 route와 202 상태를 고정한다', () => {
@@ -157,5 +160,19 @@ describe('TtsOperationsController 공개 경계', () => {
       jobId: ids.job,
       expectedAttempt: 2,
     });
+  });
+
+  it('durable dispatch 실패를 202 응답으로 숨기지 않는다', async () => {
+    const dispatchFailure = new Error('TTS_RETRY_DISPATCH_FAILED');
+    const controller = new TtsOperationsController({
+      retryJob: vi.fn().mockRejectedValue(dispatchFailure),
+    } as never);
+
+    await expect(
+      controller.retryJob(
+        { jobId: ids.job },
+        { items: [{ itemId: ids.item, expectedAttempt: 2 }] },
+      ),
+    ).rejects.toBe(dispatchFailure);
   });
 });

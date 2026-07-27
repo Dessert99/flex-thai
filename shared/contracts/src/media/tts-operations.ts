@@ -132,17 +132,46 @@ const ttsJobCountsSchema = z
   })
   .strict();
 
+const ttsJobSummaryShape = {
+  id: z.uuid(),
+  status: ttsJobStatusSchema,
+  requestedBy: z.uuid(),
+  counts: ttsJobCountsSchema,
+  createdAt: z.iso.datetime(),
+  startedAt: z.iso.datetime().nullable(),
+  finishedAt: z.iso.datetime().nullable(),
+};
+
+const expectedTtsJobStatus = (
+  counts: z.infer<typeof ttsJobCountsSchema>,
+): z.infer<typeof ttsJobStatusSchema> => {
+  if (counts.processing > 0) return 'RUNNING';
+  if (counts.pending > 0) return 'QUEUED';
+  if (counts.failed === 0) return 'SUCCEEDED';
+  if (counts.succeeded === 0) return 'FAILED';
+  return 'PARTIALLY_FAILED';
+};
+
+const validateTtsJobAggregate = (
+  job: {
+    status: z.infer<typeof ttsJobStatusSchema>;
+    counts: z.infer<typeof ttsJobCountsSchema>;
+  },
+  context: z.RefinementCtx,
+) => {
+  if (job.status !== expectedTtsJobStatus(job.counts)) {
+    context.addIssue({
+      code: 'custom',
+      message: '작업 상태와 항목 집계가 일치해야 합니다',
+      path: ['status'],
+    });
+  }
+};
+
 const ttsJobSummarySchema = z
-  .object({
-    id: z.uuid(),
-    status: ttsJobStatusSchema,
-    requestedBy: z.uuid(),
-    counts: ttsJobCountsSchema,
-    createdAt: z.iso.datetime(),
-    startedAt: z.iso.datetime().nullable(),
-    finishedAt: z.iso.datetime().nullable(),
-  })
-  .strict();
+  .object(ttsJobSummaryShape)
+  .strict()
+  .superRefine(validateTtsJobAggregate);
 
 /** TTS 작업 목록 응답 */
 export const ttsJobListResponseSchema = z
@@ -185,13 +214,15 @@ const ttsItemResponseSchema = z
   .strict();
 
 /** TTS 작업 상세 응답 */
-export const ttsJobDetailResponseSchema = ttsJobSummarySchema
-  .extend({
+export const ttsJobDetailResponseSchema = z
+  .object({
+    ...ttsJobSummaryShape,
     voice: ttsVoiceSnapshotSchema,
     items: z.array(ttsItemResponseSchema),
     itemPage: pageMetadataSchema,
   })
-  .strict();
+  .strict()
+  .superRefine(validateTtsJobAggregate);
 
 /** TTS 재시도 접수 응답 */
 export const ttsRetryResponseSchema = z
@@ -202,6 +233,13 @@ export const ttsRetryResponseSchema = z
   })
   .strict()
   .superRefine((response, context) => {
+    if (new Set(response.itemIds).size !== response.itemIds.length) {
+      context.addIssue({
+        code: 'custom',
+        message: '응답 항목 ID는 중복될 수 없습니다',
+        path: ['itemIds'],
+      });
+    }
     if (response.retriedCount !== response.itemIds.length) {
       context.addIssue({
         code: 'custom',

@@ -33,7 +33,7 @@ import {
   type TtsJobDetailResponse,
   type TtsJobListResponse,
   type TtsRetryResponse,
-} from '../../../../shared/contracts/src/media/tts-operations.js';
+} from '@flex-thia/contracts';
 import { AdminMfaGuard } from '../identity/admin-mfa.guard.js';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
 import { CognitoAuthorizerGuard } from '../identity/cognito-authorizer.guard.js';

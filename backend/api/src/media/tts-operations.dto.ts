@@ -7,7 +7,7 @@ import {
   ttsJobListQuerySchema,
   ttsJobListResponseSchema,
   ttsRetryResponseSchema,
-} from '../../../../shared/contracts/src/media/tts-operations.js';
+} from '@flex-thia/contracts';
 import { createZodDto } from 'nestjs-zod';
 
 /** TTS 작업 목록 query DTO */

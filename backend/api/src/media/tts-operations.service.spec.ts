@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   TtsOperationsService,
   type TtsOperationsQueryPort,
-  type TtsRetryRepositoryPort,
+  type TtsRetryCoordinator,
 } from './tts-operations.service.js';
 
 const ids = {
@@ -56,7 +56,7 @@ const item = {
 
 const createService = (overrides?: {
   findJob?: TtsOperationsQueryPort['findJob'];
-  retry?: TtsRetryRepositoryPort['retry'];
+  retryAndDispatch?: TtsRetryCoordinator['retryAndDispatch'];
 }) => {
   const query = {
     listJobs: vi.fn().mockResolvedValue({
@@ -76,15 +76,16 @@ const createService = (overrides?: {
       page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
     }),
   };
-  const repository = {
-    retry: overrides?.retry ?? vi.fn().mockResolvedValue(1),
+  const retryCoordinator = {
+    retryAndDispatch:
+      overrides?.retryAndDispatch ?? vi.fn().mockResolvedValue(1),
   };
   return {
     query,
-    repository,
+    retryCoordinator,
     service: new TtsOperationsService({
       query,
-      repository,
+      retryCoordinator,
       now: () => new Date('2026-07-27T03:00:00.000Z'),
     }),
   };
@@ -156,8 +157,8 @@ describe('TtsOperationsService 조회', () => {
 });
 
 describe('TtsOperationsService 재시도', () => {
-  it('일괄 재시도를 attempt map과 고정 시각으로 저장하고 접수 ID를 반환한다', async () => {
-    const { repository, service } = createService();
+  it('일괄 재시도를 attempt map과 고정 시각의 durable coordinator에 맡긴다', async () => {
+    const { retryCoordinator, service } = createService();
 
     await expect(
       service.retryJob(ids.job, [{ itemId: ids.item, expectedAttempt: 2 }]),
@@ -166,7 +167,8 @@ describe('TtsOperationsService 재시도', () => {
       itemIds: [ids.item],
       retriedCount: 1,
     });
-    expect(repository.retry).toHaveBeenCalledWith({
+    expect(retryCoordinator.retryAndDispatch).toHaveBeenCalledOnce();
+    expect(retryCoordinator.retryAndDispatch).toHaveBeenCalledWith({
       jobId: ids.job,
       itemIds: [ids.item],
       expectedAttempts: { [ids.item]: 2 },
@@ -174,8 +176,8 @@ describe('TtsOperationsService 재시도', () => {
     });
   });
 
-  it('개별 재시도를 같은 repository 의미로 연결한다', async () => {
-    const { repository, service } = createService();
+  it('개별 재시도를 같은 durable coordinator 의미로 연결한다', async () => {
+    const { retryCoordinator, service } = createService();
 
     await expect(
       service.retryItem(ids.item, { jobId: ids.job, expectedAttempt: 2 }),
@@ -184,7 +186,8 @@ describe('TtsOperationsService 재시도', () => {
       itemIds: [ids.item],
       retriedCount: 1,
     });
-    expect(repository.retry).toHaveBeenCalledWith(
+    expect(retryCoordinator.retryAndDispatch).toHaveBeenCalledOnce();
+    expect(retryCoordinator.retryAndDispatch).toHaveBeenCalledWith(
       expect.objectContaining({
         jobId: ids.job,
         itemIds: [ids.item],
@@ -197,7 +200,7 @@ describe('TtsOperationsService 재시도', () => {
     '%s 오류를 stable 409로 변환한다',
     async (code) => {
       const { service } = createService({
-        retry: vi.fn().mockRejectedValue(new TtsDomainError(code)),
+        retryAndDispatch: vi.fn().mockRejectedValue(new TtsDomainError(code)),
       });
 
       await expect(
@@ -211,7 +214,7 @@ describe('TtsOperationsService 재시도', () => {
 
   it('없는 항목을 stable 404 오류로 변환한다', async () => {
     const { service } = createService({
-      retry: vi
+      retryAndDispatch: vi
         .fn()
         .mockRejectedValue(new TtsDomainError('TTS_ITEM_NOT_FOUND')),
     });
@@ -222,5 +225,16 @@ describe('TtsOperationsService 재시도', () => {
       status: 404,
       response: { code: 'TTS_ITEM_NOT_FOUND' },
     });
+  });
+
+  it('durable dispatch 실패를 성공 접수로 바꾸지 않고 그대로 전파한다', async () => {
+    const dispatchFailure = new Error('TTS_RETRY_DISPATCH_FAILED');
+    const retryAndDispatch = vi.fn().mockRejectedValue(dispatchFailure);
+    const { service } = createService({ retryAndDispatch });
+
+    await expect(
+      service.retryJob(ids.job, [{ itemId: ids.item, expectedAttempt: 2 }]),
+    ).rejects.toBe(dispatchFailure);
+    expect(retryAndDispatch).toHaveBeenCalledOnce();
   });
 });

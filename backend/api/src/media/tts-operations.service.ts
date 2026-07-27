@@ -19,7 +19,7 @@ import {
   type TtsJobListQuery,
   type TtsJobListResponse,
   type TtsRetryResponse,
-} from '../../../../shared/contracts/src/media/tts-operations.js';
+} from '@flex-thia/contracts';
 
 /** TTS 운영 query가 제공하는 기능 branch-local 읽기 경계 */
 export interface TtsOperationsQueryPort {
@@ -40,15 +40,15 @@ export interface TtsOperationsQueryPort {
   }): Promise<TtsItemPage>;
 }
 
-/** TTS 재시도 저장소가 제공하는 optimistic command 경계 */
-export interface TtsRetryRepositoryPort {
-  retry(input: RetryTtsItemsInput): Promise<number>;
+/** 상태 전이와 durable worker 재전송을 하나의 신뢰 가능한 command로 묶는다 */
+export interface TtsRetryCoordinator {
+  retryAndDispatch(input: RetryTtsItemsInput): Promise<number>;
 }
 
 /** TTS 운영 HTTP 서비스 조립 의존성 */
 export interface TtsOperationsServiceDependencies {
   query: TtsOperationsQueryPort;
-  repository: TtsRetryRepositoryPort;
+  retryCoordinator: TtsRetryCoordinator;
   now?: () => Date;
 }
 
@@ -179,7 +179,7 @@ export class TtsOperationsService {
       items.map(({ itemId, expectedAttempt }) => [itemId, expectedAttempt]),
     );
     const retriedCount = await withRetryHttpErrors(() =>
-      this.dependencies.repository.retry({
+      this.dependencies.retryCoordinator.retryAndDispatch({
         jobId,
         itemIds,
         expectedAttempts,

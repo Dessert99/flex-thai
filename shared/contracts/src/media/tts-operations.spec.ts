@@ -1,5 +1,6 @@
 /** 관리자 TTS 작업 조회·재시도 공개 계약을 검증한다 */
 import { describe, expect, it } from 'vitest';
+import { ttsJobPathSchema as publicTtsJobPathSchema } from '../index.js';
 import {
   retryTtsItemRequestSchema,
   retryTtsJobRequestSchema,
@@ -31,13 +32,19 @@ const summary = {
   id: ids.job,
   status: 'PARTIALLY_FAILED',
   requestedBy: ids.requester,
-  counts: { pending: 1, processing: 2, succeeded: 3, failed: 4 },
+  counts: { pending: 0, processing: 0, succeeded: 3, failed: 4 },
   createdAt: '2026-07-27T00:00:00.000Z',
   startedAt: '2026-07-27T00:01:00.000Z',
   finishedAt: null,
 };
 
 describe('TTS 작업 조회 계약', () => {
+  it('workspace package root에서 TTS 계약을 사용할 수 있다', () => {
+    expect(publicTtsJobPathSchema.parse({ jobId: ids.job })).toEqual({
+      jobId: ids.job,
+    });
+  });
+
   it('상태·기간·페이지 query를 정규화하고 역전 기간을 거부한다', () => {
     expect(
       ttsJobListQuerySchema.parse({
@@ -124,8 +131,8 @@ describe('TTS 작업 조회 계약', () => {
     });
 
     expect(detail.counts).toEqual({
-      pending: 1,
-      processing: 2,
+      pending: 0,
+      processing: 0,
       succeeded: 3,
       failed: 4,
     });
@@ -140,6 +147,39 @@ describe('TTS 작업 조회 계약', () => {
       ttsJobDetailResponseSchema.parse({
         ...detail,
         storageKey: 'private/audio.wav',
+      }),
+    ).toThrow();
+  });
+
+  it.each([
+    ['RUNNING', { pending: 1, processing: 1, succeeded: 1, failed: 1 }],
+    ['QUEUED', { pending: 1, processing: 0, succeeded: 1, failed: 1 }],
+    ['SUCCEEDED', { pending: 0, processing: 0, succeeded: 1, failed: 0 }],
+    ['FAILED', { pending: 0, processing: 0, succeeded: 0, failed: 1 }],
+    [
+      'PARTIALLY_FAILED',
+      { pending: 0, processing: 0, succeeded: 1, failed: 1 },
+    ],
+  ] as const)('%s 상태와 집계 우선순위가 일치해야 한다', (status, counts) => {
+    expect(
+      ttsJobListResponseSchema.parse({
+        items: [{ ...summary, status, counts }],
+        page,
+      }).items[0],
+    ).toMatchObject({ status, counts });
+  });
+
+  it('도메인 집계로 만들 수 없는 작업 상태를 거부한다', () => {
+    expect(() =>
+      ttsJobListResponseSchema.parse({
+        items: [
+          {
+            ...summary,
+            status: 'RUNNING',
+            counts: { pending: 0, processing: 0, succeeded: 1, failed: 0 },
+          },
+        ],
+        page,
       }),
     ).toThrow();
   });
@@ -165,6 +205,14 @@ describe('TTS 재시도 계약', () => {
     expect(() =>
       retryTtsJobRequestSchema.parse({
         items: [{ itemId: ids.item, expectedAttempt: 2, unknown: true }],
+      }),
+    ).toThrow();
+    expect(() =>
+      retryTtsJobRequestSchema.parse({
+        items: [
+          { itemId: ids.item, expectedAttempt: 1 },
+          { itemId: ids.item, expectedAttempt: 2 },
+        ],
       }),
     ).toThrow();
   });
@@ -197,6 +245,13 @@ describe('TTS 재시도 계약', () => {
       ttsRetryResponseSchema.parse({
         jobId: ids.job,
         itemIds: [ids.item],
+        retriedCount: 2,
+      }),
+    ).toThrow();
+    expect(() =>
+      ttsRetryResponseSchema.parse({
+        jobId: ids.job,
+        itemIds: [ids.item, ids.item],
         retriedCount: 2,
       }),
     ).toThrow();

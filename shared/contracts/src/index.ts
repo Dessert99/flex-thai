@@ -27,3 +27,6 @@ export * from './concepts/index.js';
 
 /** 개인 추천 공개 계약을 패키지 경계에 노출한다 */
 export * from './recommendations/recommendations.js';
+
+/** TTS 운영 조회·재시도 계약을 패키지 경계에 노출한다 */
+export * from './media/tts-operations.js';
