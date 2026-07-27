@@ -5,8 +5,11 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import * as schema from '../schema/index.js';
 import {
+  questionTags,
+  questionTopics,
   questionAttempts,
   questionBlocks,
+  questionTypes,
   questionVersionTags,
   questions,
 } from '../schema/index.js';
@@ -29,7 +32,7 @@ const toSql = (value: unknown) => new PgDialect().sqlToQuery(value as never);
 const createSelectFake = (selectResults: QueryResult[]) => {
   const results = [...selectResults];
   const selectCalls: SelectCall[] = [];
-  const select = vi.fn((fields: Record<string, unknown>) => {
+  const createSelect = (fields: Record<string, unknown>) => {
     const call: SelectCall = { fields, joins: [], orderBy: [] };
     selectCalls.push(call);
     const chain = {
@@ -67,8 +70,23 @@ const createSelectFake = (selectResults: QueryResult[]) => {
       ) => Promise.resolve(results.shift() ?? []).then(resolve, reject),
     };
     return chain;
-  });
-  return { database: { select }, selectCalls };
+  };
+  const select = vi.fn(createSelect);
+  const selectDistinct = vi.fn(createSelect);
+  const database = {
+    select,
+    selectDistinct,
+    $with: vi.fn((name: string) => ({
+      as: vi.fn(() => ({
+        questionVersionId: schema.questionVersions.id,
+        questionTypeId: schema.questionTypeVersions.questionTypeId,
+        majorCategory: schema.questionTypes.majorCategory,
+        topicId: schema.questionVersions.topicId,
+      })),
+    })),
+    with: vi.fn(() => ({ selectDistinct })),
+  };
+  return { database, selectCalls };
 };
 
 describe('DrizzleLearnerQuestionQuery 문제 목록', () => {
@@ -206,6 +224,94 @@ describe('DrizzleLearnerQuestionQuery 문제 목록', () => {
       '"question_tags"."slug" asc',
     );
     expect(toSql(fake.selectCalls[0]?.condition).sql).toContain('exists');
+  });
+
+  it('현재 공개 문제에서만 중복 없는 안정적 facet을 만든다', async () => {
+    const fake = createSelectFake([
+      [
+        { majorCategory: 'LISTENING_DIALOGUE' },
+        { majorCategory: 'READING_PASSAGE' },
+      ],
+      [
+        {
+          id: 'type-2',
+          slug: 'listening-choice',
+          displayName: '듣기 선택',
+          majorCategory: 'LISTENING_DIALOGUE',
+        },
+        {
+          id: 'type-1',
+          slug: 'reading-choice',
+          displayName: '독해 선택',
+          majorCategory: 'READING_PASSAGE',
+        },
+      ],
+      [{ id: 'topic-1', slug: 'daily-life', displayName: '일상생활' }],
+      [
+        { id: 'tag-1', slug: 'grammar', displayName: '문법' },
+        { id: 'tag-2', slug: 'vocabulary', displayName: '어휘' },
+      ],
+    ]);
+    const query = new DrizzleLearnerQuestionQuery(fake.database as never);
+
+    await expect(query.listQuestionFacets()).resolves.toEqual({
+      majorCategories: [
+        { value: 'LISTENING_DIALOGUE', label: '대화문' },
+        { value: 'READING_PASSAGE', label: '지문 독해' },
+      ],
+      questionTypes: [
+        {
+          id: 'type-2',
+          slug: 'listening-choice',
+          displayName: '듣기 선택',
+          majorCategory: 'LISTENING_DIALOGUE',
+        },
+        {
+          id: 'type-1',
+          slug: 'reading-choice',
+          displayName: '독해 선택',
+          majorCategory: 'READING_PASSAGE',
+        },
+      ],
+      topics: [{ id: 'topic-1', slug: 'daily-life', displayName: '일상생활' }],
+      tags: [
+        { id: 'tag-1', slug: 'grammar', displayName: '문법' },
+        { id: 'tag-2', slug: 'vocabulary', displayName: '어휘' },
+      ],
+    });
+
+    expect(fake.database.$with).toHaveBeenCalledWith(
+      'public_current_question_versions',
+    );
+    expect(fake.database.with).toHaveBeenCalledTimes(4);
+    expect(fake.selectCalls).toHaveLength(5);
+    expect(fake.selectCalls[0]?.from).toBe(questions);
+    expect(fake.selectCalls[0]?.joins.map((join) => join.kind)).toEqual([
+      'inner',
+      'inner',
+      'inner',
+    ]);
+    expect([
+      ...fake.selectCalls[0]!.joins.flatMap(
+        (join) => toSql(join.condition).params,
+      ),
+      ...toSql(fake.selectCalls[0]?.condition).params,
+    ]).toEqual(expect.arrayContaining(['PUBLISHED']));
+    expect(fake.selectCalls[2]?.from).toBe(questionTypes);
+    expect(fake.selectCalls[3]?.from).toBe(questionTopics);
+    expect(fake.selectCalls[4]?.from).toBe(questionVersionTags);
+    expect(fake.selectCalls[4]?.joins[1]?.table).toBe(questionTags);
+    expect(toSql(fake.selectCalls[1]?.orderBy[0]).sql).toContain('case');
+    expect(toSql(fake.selectCalls[2]?.orderBy[0]).sql).toContain(
+      'display_name',
+    );
+    expect(toSql(fake.selectCalls[2]?.orderBy[1]).sql).toContain('"id" asc');
+    expect(toSql(fake.selectCalls[3]?.orderBy[0]).sql).toContain(
+      'display_name',
+    );
+    expect(toSql(fake.selectCalls[4]?.orderBy[0]).sql).toContain(
+      'display_name',
+    );
   });
 
   it('invalidated 첫 답은 미응답이고 retired 첫 답은 결과에 유지한다', async () => {
@@ -587,9 +693,21 @@ const ids = {
   readingTypeVersion: '50000000-0000-4000-8000-000000000003',
   listeningTypeVersion: '50000000-0000-4000-8000-000000000004',
   topic: '50000000-0000-4000-8000-000000000005',
+  unavailableTopics: [
+    '50000000-0000-4000-8000-000000000008',
+    '50000000-0000-4000-8000-000000000009',
+    '50000000-0000-4000-8000-000000000010',
+  ],
+  unavailableType: '50000000-0000-4000-8000-000000000011',
+  unavailableTypeVersion: '50000000-0000-4000-8000-000000000012',
   tags: [
     '50000000-0000-4000-8000-000000000006',
     '50000000-0000-4000-8000-000000000007',
+  ],
+  unavailableTags: [
+    '50000000-0000-4000-8000-000000000013',
+    '50000000-0000-4000-8000-000000000014',
+    '50000000-0000-4000-8000-000000000015',
   ],
   questions: [
     '60000000-0000-4000-8000-000000000001',
@@ -688,30 +806,40 @@ const createQuestionQueryFixture = async (pool: Pool): Promise<void> => {
   );
   await pool.query(
     `insert into question_topics (id, slug, display_name)
-     values ($1, 'query-topic', '조회 주제')`,
-    [ids.topic],
+     values ($1, 'query-topic', '조회 주제'),
+            ($2, 'invalidated-topic', '무효화 주제'),
+            ($3, 'hidden-topic', '숨김 주제'),
+            ($4, 'draft-topic', '초안 주제')`,
+    [ids.topic, ...ids.unavailableTopics],
   );
   await pool.query(
     `insert into question_tags (id, slug, display_name)
-     values ($1, 'grammar', '문법'), ($2, 'vocabulary', '어휘')`,
-    [...ids.tags],
+     values ($1, 'grammar', '문법'), ($2, 'vocabulary', '어휘'),
+            ($3, 'invalidated', '무효화 태그'),
+            ($4, 'hidden', '숨김 태그'),
+            ($5, 'draft', '초안 태그')`,
+    [...ids.tags, ...ids.unavailableTags],
   );
   await pool.query(
     `insert into question_types (id, slug, display_name, skill, major_category)
      values ($1, 'reading-choice-query', '독해 선택', 'READING', 'READING_PASSAGE'),
-            ($2, 'listening-choice-query', '듣기 선택', 'LISTENING', 'LISTENING_DIALOGUE')`,
-    [ids.readingType, ids.listeningType],
+            ($2, 'listening-choice-query', '듣기 선택', 'LISTENING', 'LISTENING_DIALOGUE'),
+            ($3, 'unavailable-choice-query', '비공개 선택', 'READING', 'READING_ERROR_IDENTIFICATION')`,
+    [ids.readingType, ids.listeningType, ids.unavailableType],
   );
   await pool.query(
     `insert into question_type_versions (
        id, question_type_id, version, template, option_count, decision_rules
      ) values ($1, $2, 1, 'STANDARD_CHOICE', 2, '{}'),
-              ($3, $4, 1, 'DIALOGUE_CHOICE', 2, '{}')`,
+              ($3, $4, 1, 'DIALOGUE_CHOICE', 2, '{}'),
+              ($5, $6, 1, 'INLINE_SPAN_CHOICE', 2, '{}')`,
     [
       ids.readingTypeVersion,
       ids.readingType,
       ids.listeningTypeVersion,
       ids.listeningType,
+      ids.unavailableTypeVersion,
+      ids.unavailableType,
     ],
   );
   await pool.query(
@@ -725,26 +853,37 @@ const createQuestionQueryFixture = async (pool: Pool): Promise<void> => {
        id, question_id, version, type_version_id, topic_id, difficulty,
        status, validation_status, validation_issues, published_at
      ) values
-       ($1, $9, 1, $15, $17, 3, 'RETIRED', 'PASSED', '[]', '2026-07-20T00:00:00Z'),
-       ($2, $9, 2, $15, $17, 3, 'PUBLISHED', 'PASSED', '[]', '2026-07-21T00:00:00Z'),
-       ($3, $10, 1, $16, $17, 2, 'PUBLISHED', 'PASSED', '[]', '2026-07-22T00:00:00Z'),
-       ($4, $11, 1, $15, $17, 4, 'INVALIDATED', 'PASSED', '[]', '2026-07-22T12:00:00Z'),
-       ($5, $11, 2, $15, $17, 4, 'PUBLISHED', 'PASSED', '[]', '2026-07-23T00:00:00Z'),
-       ($6, $12, 1, $15, $17, 3, 'PUBLISHED', 'PASSED', '[]', '2026-07-24T00:00:00Z'),
-       ($7, $13, 1, $15, $17, 3, 'PUBLISHED', 'PASSED', '[]', '2026-07-25T00:00:00Z'),
-       ($8, $14, 1, $15, $17, 3, 'DRAFT', 'PENDING', '[]', null)`,
+       ($1, $9, 1, $15, $18, 3, 'RETIRED', 'PASSED', '[]', '2026-07-20T00:00:00Z'),
+       ($2, $9, 2, $15, $18, 3, 'PUBLISHED', 'PASSED', '[]', '2026-07-21T00:00:00Z'),
+       ($3, $10, 1, $16, $18, 2, 'PUBLISHED', 'PASSED', '[]', '2026-07-22T00:00:00Z'),
+       ($4, $11, 1, $17, $19, 4, 'INVALIDATED', 'PASSED', '[]', '2026-07-22T12:00:00Z'),
+       ($5, $11, 2, $15, $18, 4, 'PUBLISHED', 'PASSED', '[]', '2026-07-23T00:00:00Z'),
+       ($6, $12, 1, $15, $18, 3, 'PUBLISHED', 'PASSED', '[]', '2026-07-23T00:00:00Z'),
+       ($7, $13, 1, $17, $20, 3, 'PUBLISHED', 'PASSED', '[]', '2026-07-25T00:00:00Z'),
+       ($8, $14, 1, $17, $21, 3, 'DRAFT', 'PENDING', '[]', null)`,
     [
       ...ids.versions,
       ...ids.questions,
       ids.readingTypeVersion,
       ids.listeningTypeVersion,
+      ids.unavailableTypeVersion,
       ids.topic,
+      ...ids.unavailableTopics,
     ],
   );
   await pool.query(
     `insert into question_version_tags (question_version_id, tag_id)
-     values ($1, $3), ($1, $4), ($2, $3), ($3, $4)`,
-    [ids.versions[1], ids.versions[2], ...ids.tags],
+     values ($1, $4), ($1, $5), ($2, $5),
+            ($3, $6), ($9, $7), ($10, $8)`,
+    [
+      ids.versions[1],
+      ids.versions[2],
+      ids.versions[3],
+      ...ids.tags,
+      ...ids.unavailableTags,
+      ids.versions[6],
+      ids.versions[7],
+    ],
   );
   await pool.query(
     `update questions set current_published_version_id = case id
@@ -908,6 +1047,63 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       });
       expect(unanswered.items.map((item) => item.questionId)).toEqual([
         ids.questions[3],
+        ids.questions[2],
+      ]);
+    });
+
+    it('현재 공개 taxonomy facet만 중복 없이 안정 순서로 반환한다', async () => {
+      const facets = await query.listQuestionFacets();
+
+      expect(facets.majorCategories).toEqual([
+        { value: 'LISTENING_DIALOGUE', label: '대화문' },
+        { value: 'READING_PASSAGE', label: '지문 독해' },
+      ]);
+      expect(facets.questionTypes).toEqual([
+        {
+          id: ids.readingType,
+          slug: 'reading-choice-query',
+          displayName: '독해 선택',
+          majorCategory: 'READING_PASSAGE',
+        },
+        {
+          id: ids.listeningType,
+          slug: 'listening-choice-query',
+          displayName: '듣기 선택',
+          majorCategory: 'LISTENING_DIALOGUE',
+        },
+      ]);
+      expect(facets.topics).toEqual([
+        { id: ids.topic, slug: 'query-topic', displayName: '조회 주제' },
+      ]);
+      expect(facets.tags).toEqual([
+        { id: ids.tags[0], slug: 'grammar', displayName: '문법' },
+        { id: ids.tags[1], slug: 'vocabulary', displayName: '어휘' },
+      ]);
+      expect(JSON.stringify(facets)).not.toContain(ids.unavailableType);
+      for (const topicId of ids.unavailableTopics) {
+        expect(JSON.stringify(facets)).not.toContain(topicId);
+      }
+      for (const tagId of ids.unavailableTags) {
+        expect(JSON.stringify(facets)).not.toContain(tagId);
+      }
+    });
+
+    it('동일 publishedAt 문제도 question ID 내림차순으로 페이지 경계를 고정한다', async () => {
+      const first = await query.listQuestions(ids.user, {
+        sort: 'LATEST',
+        page: 1,
+        pageSize: 1,
+      });
+      const second = await query.listQuestions(ids.user, {
+        sort: 'LATEST',
+        page: 2,
+        pageSize: 1,
+      });
+
+      expect(first.items.map((item) => item.questionId)).toEqual([
+        ids.questions[3],
+      ]);
+      expect(second.items.map((item) => item.questionId)).toEqual([
         ids.questions[2],
       ]);
     });
