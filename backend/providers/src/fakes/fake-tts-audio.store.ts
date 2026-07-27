@@ -1,5 +1,5 @@
 /** 로컬 TTS WAV를 cache key별 immutable private snapshot으로 보관한다 */
-import type { TtsAudioStore } from '../../../domain/src/media/tts-provider.js';
+import type { TtsAudioStore } from '@flex-thia/domain';
 
 interface StoredAudio {
   bytes: Uint8Array;

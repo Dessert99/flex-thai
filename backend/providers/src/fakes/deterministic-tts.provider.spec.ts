@@ -1,10 +1,7 @@
 /** 외부 TTS 없이 결정적인 PCM WAV와 오류 fixture를 검증한다 */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import {
-  createTtsCacheKey,
-  type TtsVoiceSnapshot,
-} from '../../../domain/src/media/tts-job.js';
+import { createTtsCacheKey, type TtsVoiceSnapshot } from '@flex-thia/domain';
 import {
   DeterministicTtsProvider,
   DeterministicTtsProviderError,

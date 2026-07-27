@@ -12,7 +12,7 @@ import {
   type TtsJob,
   type TtsTargetSnapshot,
   type TtsWorkItem,
-} from '../../../../domain/src/media/tts-job.js';
+} from '@flex-thia/domain';
 import { and, eq, inArray, lte, or } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
@@ -49,6 +49,24 @@ export type CompleteTtsAudioInput =
       completedAt: Date;
     };
 
+/** cache 생성 claim의 known 실패 해제와 불명확 결과 고정을 구분한다 */
+export type TtsAudioClaimFinalization = {
+  claimToken: string;
+  resolution: 'RELEASE' | 'OUTCOME_UNKNOWN';
+};
+
+/** TTS 완료 transaction이 거절된 정확한 소유권·대상 이유 */
+export type CompleteTtsAudioResult =
+  | { kind: 'COMPLETED'; mediaAssetId: string }
+  | {
+      kind:
+        'STALE_LEASE' | 'STALE_CACHE_CLAIM' | 'STALE_TARGET' | 'MEDIA_CONFLICT';
+    };
+
+/** TTS 실패 transaction이 실제 item을 닫았는지 구분한다 */
+export type FailTtsAudioResult =
+  { kind: 'FAILED' } | { kind: 'STALE_LEASE' | 'STALE_CACHE_CLAIM' };
+
 /** target 연결 SQL을 repository transaction 안에서 실행하는 DB-local writer */
 export interface TtsTargetAttachmentWriter {
   attach(
@@ -70,15 +88,25 @@ export interface TtsRepository {
   ): Promise<
     | { kind: 'GENERATE'; claimToken: string }
     | { kind: 'REUSE'; mediaAssetId: string }
+    | { kind: 'WAIT' }
     | { kind: 'OUTCOME_UNKNOWN' }
   >;
-  succeed(input: CompleteTtsAudioInput): Promise<boolean>;
-  fail(input: TtsFailureInput): Promise<boolean>;
+  succeed(input: CompleteTtsAudioInput): Promise<CompleteTtsAudioResult>;
+  fail(
+    input: TtsFailureInput & { audioClaim?: TtsAudioClaimFinalization },
+  ): Promise<FailTtsAudioResult>;
+  finalizeAudioClaim(
+    cacheKey: string,
+    audioClaim: TtsAudioClaimFinalization,
+    finalizedAt: Date,
+  ): Promise<'FINALIZED' | 'STALE_CACHE_CLAIM'>;
+  getJobStatus(jobId: string): Promise<TtsJob['status'] | null>;
   retry(input: RetryTtsItemsInput): Promise<number>;
 }
 
 class StaleTargetAttachmentError extends Error {}
-class TtsCompletionRejectedError extends Error {}
+class StaleTtsLeaseError extends Error {}
+class StaleTtsCacheClaimError extends Error {}
 class TtsMediaImmutableConflictError extends Error {
   constructor() {
     super('TTS_MEDIA_IMMUTABLE_CONFLICT');
@@ -242,6 +270,57 @@ const persistGeneratedMedia = async (
   return existing.id;
 };
 
+const finalizeOwnedAudioClaim = async (
+  transaction: TtsRepositoryTransaction,
+  cacheKey: string,
+  audioClaim: TtsAudioClaimFinalization,
+  finalizedAt: Date,
+): Promise<boolean> => {
+  const [claim] = await transaction
+    .select()
+    .from(ttsAudioCache)
+    .where(
+      and(
+        eq(ttsAudioCache.cacheKey, cacheKey),
+        eq(ttsAudioCache.status, 'GENERATING'),
+        eq(ttsAudioCache.claimToken, audioClaim.claimToken),
+      ),
+    )
+    .for('update')
+    .limit(1);
+  if (!claim) return false;
+
+  if (audioClaim.resolution === 'RELEASE') {
+    await transaction
+      .delete(ttsAudioCache)
+      .where(
+        and(
+          eq(ttsAudioCache.cacheKey, cacheKey),
+          eq(ttsAudioCache.status, 'GENERATING'),
+          eq(ttsAudioCache.claimToken, audioClaim.claimToken),
+        ),
+      );
+    return true;
+  }
+
+  const [finalized] = await transaction
+    .update(ttsAudioCache)
+    .set({
+      status: 'OUTCOME_UNKNOWN',
+      claimToken: null,
+      updatedAt: finalizedAt,
+    })
+    .where(
+      and(
+        eq(ttsAudioCache.cacheKey, cacheKey),
+        eq(ttsAudioCache.status, 'GENERATING'),
+        eq(ttsAudioCache.claimToken, audioClaim.claimToken),
+      ),
+    )
+    .returning({ id: ttsAudioCache.id });
+  return finalized !== undefined;
+};
+
 /** TTS lease와 cache unique claim을 PostgreSQL 조건부 전이로 구현한다 */
 export class DrizzleTtsRepository implements TtsRepository {
   constructor(
@@ -353,6 +432,7 @@ export class DrizzleTtsRepository implements TtsRepository {
   ): Promise<
     | { kind: 'GENERATE'; claimToken: string }
     | { kind: 'REUSE'; mediaAssetId: string }
+    | { kind: 'WAIT' }
     | { kind: 'OUTCOME_UNKNOWN' }
   > {
     return this.database.transaction(async (transaction) => {
@@ -366,7 +446,9 @@ export class DrizzleTtsRepository implements TtsRepository {
         if (existing.status === 'READY' && existing.mediaAssetId !== null) {
           return { kind: 'REUSE', mediaAssetId: existing.mediaAssetId };
         }
-        return { kind: 'OUTCOME_UNKNOWN' };
+        return existing.status === 'OUTCOME_UNKNOWN'
+          ? { kind: 'OUTCOME_UNKNOWN' }
+          : { kind: 'WAIT' };
       }
 
       const claimToken = randomUUID();
@@ -393,12 +475,14 @@ export class DrizzleTtsRepository implements TtsRepository {
       if (concurrent?.status === 'READY' && concurrent.mediaAssetId !== null) {
         return { kind: 'REUSE', mediaAssetId: concurrent.mediaAssetId };
       }
-      return { kind: 'OUTCOME_UNKNOWN' };
+      return concurrent?.status === 'OUTCOME_UNKNOWN'
+        ? { kind: 'OUTCOME_UNKNOWN' }
+        : { kind: 'WAIT' };
     });
   }
 
   /** active lease의 cache READY·item 완료·target 연결을 하나의 transaction으로 닫는다 */
-  async succeed(input: CompleteTtsAudioInput): Promise<boolean> {
+  async succeed(input: CompleteTtsAudioInput): Promise<CompleteTtsAudioResult> {
     try {
       return await this.database.transaction(async (transaction) => {
         const current = await findActiveItem(
@@ -406,7 +490,7 @@ export class DrizzleTtsRepository implements TtsRepository {
           input.item,
           input.completedAt,
         );
-        if (!current) return false;
+        if (!current) return { kind: 'STALE_LEASE' };
 
         const mediaAssetId =
           input.kind === 'GENERATED'
@@ -438,7 +522,7 @@ export class DrizzleTtsRepository implements TtsRepository {
               ),
             )
             .returning({ id: ttsAudioCache.id });
-          if (!cache) throw new TtsCompletionRejectedError();
+          if (!cache) throw new StaleTtsCacheClaimError();
         } else {
           const [cache] = await transaction
             .select({ id: ttsAudioCache.id })
@@ -452,7 +536,7 @@ export class DrizzleTtsRepository implements TtsRepository {
             )
             .for('update')
             .limit(1);
-          if (!cache) throw new TtsCompletionRejectedError();
+          if (!cache) throw new StaleTtsCacheClaimError();
         }
 
         const [item] = await transaction
@@ -475,7 +559,7 @@ export class DrizzleTtsRepository implements TtsRepository {
             ),
           )
           .returning({ id: ttsItems.id });
-        if (!item) throw new TtsCompletionRejectedError();
+        if (!item) throw new StaleTtsLeaseError();
 
         if (
           (await this.targetAttachments.attach(transaction, {
@@ -491,53 +575,108 @@ export class DrizzleTtsRepository implements TtsRepository {
           completed.jobId,
           input.completedAt,
         );
-        return true;
+        return { kind: 'COMPLETED', mediaAssetId };
       });
     } catch (error) {
-      if (
-        error instanceof StaleTargetAttachmentError ||
-        error instanceof TtsCompletionRejectedError
-      ) {
-        return false;
+      if (error instanceof StaleTargetAttachmentError) {
+        return { kind: 'STALE_TARGET' };
+      }
+      if (error instanceof StaleTtsLeaseError) return { kind: 'STALE_LEASE' };
+      if (error instanceof StaleTtsCacheClaimError) {
+        return { kind: 'STALE_CACHE_CLAIM' };
+      }
+      if (error instanceof TtsMediaImmutableConflictError) {
+        return { kind: 'MEDIA_CONFLICT' };
       }
       throw error;
     }
   }
 
-  /** active lease의 공급자 실패만 terminal 실패로 전이한다 */
-  async fail(input: TtsFailureInput): Promise<boolean> {
-    return this.database.transaction(async (transaction) => {
-      const current = await findActiveItem(
+  /** cache claim을 먼저 안전하게 닫고 active item만 terminal 실패로 전이한다 */
+  async fail(
+    input: TtsFailureInput & { audioClaim?: TtsAudioClaimFinalization },
+  ): Promise<FailTtsAudioResult> {
+    try {
+      return await this.database.transaction(async (transaction) => {
+        const current = await findActiveItem(
+          transaction,
+          input.item,
+          input.failedAt,
+        );
+        if (input.audioClaim) {
+          if (
+            !(await finalizeOwnedAudioClaim(
+              transaction,
+              input.item.cacheKey,
+              input.audioClaim,
+              input.failedAt,
+            ))
+          ) {
+            return { kind: 'STALE_CACHE_CLAIM' };
+          }
+        }
+        if (!current) return { kind: 'STALE_LEASE' };
+
+        const failed = failTtsItem(toItem(current), input);
+        const [item] = await transaction
+          .update(ttsItems)
+          .set({
+            status: failed.status,
+            leaseToken: null,
+            leaseUntil: null,
+            errorCode: failed.errorCode,
+            retryable: failed.retryable,
+            mediaAssetId: null,
+            updatedAt: input.failedAt,
+          })
+          .where(
+            and(
+              eq(ttsItems.id, failed.id),
+              eq(ttsItems.status, 'PROCESSING'),
+              eq(ttsItems.attempt, failed.attempt),
+              eq(ttsItems.leaseToken, input.item.leaseToken),
+            ),
+          )
+          .returning({ id: ttsItems.id });
+        if (!item) throw new StaleTtsLeaseError();
+        await refreshJobSummary(transaction, failed.jobId, input.failedAt);
+        return { kind: 'FAILED' };
+      });
+    } catch (error) {
+      if (error instanceof StaleTtsLeaseError) return { kind: 'STALE_LEASE' };
+      if (error instanceof StaleTtsCacheClaimError) {
+        return { kind: 'STALE_CACHE_CLAIM' };
+      }
+      throw error;
+    }
+  }
+
+  /** stale item을 건드리지 않고 token 소유자의 cache claim만 종료한다 */
+  async finalizeAudioClaim(
+    cacheKey: string,
+    audioClaim: TtsAudioClaimFinalization,
+    finalizedAt: Date,
+  ): Promise<'FINALIZED' | 'STALE_CACHE_CLAIM'> {
+    return this.database.transaction(async (transaction) =>
+      (await finalizeOwnedAudioClaim(
         transaction,
-        input.item,
-        input.failedAt,
-      );
-      if (!current) return false;
-      const failed = failTtsItem(toItem(current), input);
-      const [item] = await transaction
-        .update(ttsItems)
-        .set({
-          status: failed.status,
-          leaseToken: null,
-          leaseUntil: null,
-          errorCode: failed.errorCode,
-          retryable: failed.retryable,
-          mediaAssetId: null,
-          updatedAt: input.failedAt,
-        })
-        .where(
-          and(
-            eq(ttsItems.id, failed.id),
-            eq(ttsItems.status, 'PROCESSING'),
-            eq(ttsItems.attempt, failed.attempt),
-            eq(ttsItems.leaseToken, input.item.leaseToken),
-          ),
-        )
-        .returning({ id: ttsItems.id });
-      if (!item) return false;
-      await refreshJobSummary(transaction, failed.jobId, input.failedAt);
-      return true;
-    });
+        cacheKey,
+        audioClaim,
+        finalizedAt,
+      ))
+        ? 'FINALIZED'
+        : 'STALE_CACHE_CLAIM',
+    );
+  }
+
+  /** worker가 local 추정 대신 transaction이 저장한 canonical job 상태를 읽는다 */
+  async getJobStatus(jobId: string): Promise<TtsJob['status'] | null> {
+    const [job] = await this.database
+      .select({ status: ttsJobs.status })
+      .from(ttsJobs)
+      .where(eq(ttsJobs.id, jobId))
+      .limit(1);
+    return job?.status ?? null;
   }
 
   /** optimistic attempt가 맞는 retryable failed 항목만 새 pending attempt로 연다 */

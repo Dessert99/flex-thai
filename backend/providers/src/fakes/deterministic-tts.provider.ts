@@ -2,12 +2,10 @@
 import { createHash } from 'node:crypto';
 import {
   createTtsCacheKey,
+  type TtsProvider,
+  type TtsProviderResult,
   type TtsVoiceSnapshot,
-} from '../../../domain/src/media/tts-job.js';
-import type {
-  TtsProvider,
-  TtsProviderResult,
-} from '../../../domain/src/media/tts-provider.js';
+} from '@flex-thia/domain';
 
 /** deterministic local TTS fixture가 worker에 전달하는 안정적인 오류 형태 */
 export class DeterministicTtsProviderError extends Error {

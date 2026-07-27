@@ -1,4 +1,5 @@
 /** TTS 저장소의 claim·lease·부분 실패 원자성을 고정한다 */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/require-await -- Drizzle chain doubles expose any-typed mock metadata and async port fakes. */
 import { describe, expect, it, vi } from 'vitest';
 import { mediaAssets } from '../../schema/media.schema.js';
 import { ttsAudioCache, ttsItems, ttsJobs } from '../../schema/tts.schema.js';
@@ -128,6 +129,15 @@ const createInsert = (...returningRows: unknown[][]) =>
     })),
   }));
 
+const createDelete = () => {
+  const deletes: unknown[] = [];
+  const remove = vi.fn((table: unknown) => {
+    deletes.push(table);
+    return { where: vi.fn().mockResolvedValue(undefined) };
+  });
+  return { delete: remove, deletes };
+};
+
 const passthroughTransaction = (transaction: Record<string, unknown>) =>
   vi.fn(<T>(work: (value: typeof transaction) => Promise<T>) =>
     work(transaction),
@@ -171,7 +181,7 @@ describe('DrizzleTtsRepository 음성 claim', () => {
       expect.objectContaining({ kind: 'GENERATE' }),
     );
     await expect(second.claimAudio('same-key')).resolves.toEqual({
-      kind: 'OUTCOME_UNKNOWN',
+      kind: 'WAIT',
     });
     const conflict =
       secondInsert.mock.results[0]?.value.values.mock.results[0]?.value
@@ -198,7 +208,7 @@ describe('DrizzleTtsRepository 음성 claim', () => {
     expect(insert).not.toHaveBeenCalled();
   });
 
-  it('남은 generating claim은 외부 호출을 다시 하지 않도록 outcome unknown을 반환한다', async () => {
+  it('남은 generating claim은 외부 호출 대신 DB 재확인 대기를 반환한다', async () => {
     const select = createSelect([{ status: 'GENERATING', mediaAssetId: null }]);
     const insert = createInsert();
     const repository = new DrizzleTtsRepository(
@@ -211,9 +221,35 @@ describe('DrizzleTtsRepository 음성 claim', () => {
     );
 
     await expect(repository.claimAudio('active-key')).resolves.toEqual({
-      kind: 'OUTCOME_UNKNOWN',
+      kind: 'WAIT',
     });
     expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('명시적으로 고정된 OUTCOME_UNKNOWN cache만 재합성을 금지한다', async () => {
+    const select = createSelect([
+      { status: 'OUTCOME_UNKNOWN', mediaAssetId: null },
+    ]);
+    const repository = new DrizzleTtsRepository(
+      {
+        select,
+        transaction: passthroughTransaction({ select }),
+      } as never,
+      { attach: async () => 'ATTACHED' },
+    );
+
+    await expect(repository.claimAudio('unknown-key')).resolves.toEqual({
+      kind: 'OUTCOME_UNKNOWN',
+    });
+  });
+
+  it('worker 추정 대신 저장된 canonical job 상태를 반환한다', async () => {
+    const select = createSelect([{ status: 'RUNNING' as const }]);
+    const repository = new DrizzleTtsRepository({ select } as never, {
+      attach: async () => 'ATTACHED',
+    });
+
+    await expect(repository.getJobStatus(jobId)).resolves.toBe('RUNNING');
   });
 });
 
@@ -238,7 +274,7 @@ describe('DrizzleTtsRepository lease와 완료 transaction', () => {
         claimToken: 'claim-token',
         completedAt: now,
       }),
-    ).resolves.toBe(false);
+    ).resolves.toEqual({ kind: 'STALE_LEASE' });
     expect(updates).toEqual([]);
   });
 
@@ -281,7 +317,7 @@ describe('DrizzleTtsRepository lease와 완료 transaction', () => {
         claimToken: 'claim-token',
         completedAt: now,
       }),
-    ).resolves.toBe(false);
+    ).resolves.toEqual({ kind: 'STALE_TARGET' });
     expect(rolledBack).toBe(true);
     expect(committed).toBe(false);
     expect(attach).toHaveBeenCalledWith(
@@ -325,7 +361,7 @@ describe('DrizzleTtsRepository lease와 완료 transaction', () => {
         claimToken: 'stale-claim',
         completedAt: now,
       }),
-    ).resolves.toBe(false);
+    ).resolves.toEqual({ kind: 'STALE_CACHE_CLAIM' });
     expect(rolledBack).toBe(true);
     expect(committed).toBe(false);
     expect(insert).toHaveBeenCalledWith(mediaAssets);
@@ -363,7 +399,7 @@ describe('DrizzleTtsRepository lease와 완료 transaction', () => {
         claimToken: 'claim-token',
         completedAt: now,
       }),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ kind: 'COMPLETED', mediaAssetId });
 
     expect(insert).toHaveBeenCalledWith(mediaAssets);
     expect(
@@ -436,7 +472,7 @@ describe('DrizzleTtsRepository lease와 완료 transaction', () => {
         claimToken: 'claim-token',
         completedAt: now,
       }),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ kind: 'COMPLETED', mediaAssetId });
     expect(attach).toHaveBeenCalledWith(
       transactionValue,
       expect.objectContaining({ mediaAssetId }),
@@ -484,7 +520,7 @@ describe('DrizzleTtsRepository lease와 완료 transaction', () => {
         claimToken: 'claim-token',
         completedAt: now,
       }),
-    ).rejects.toThrow('TTS_MEDIA_IMMUTABLE_CONFLICT');
+    ).resolves.toEqual({ kind: 'MEDIA_CONFLICT' });
     expect(updates).toEqual([]);
     expect(attach).not.toHaveBeenCalled();
   });
@@ -520,7 +556,7 @@ describe('DrizzleTtsRepository lease와 완료 transaction', () => {
         mediaAssetId,
         completedAt: now,
       }),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ kind: 'COMPLETED', mediaAssetId });
     expect(updates.some((entry) => entry.table === ttsAudioCache)).toBe(false);
     expect(attach).toHaveBeenCalledWith(
       transactionValue,
@@ -578,7 +614,7 @@ describe('DrizzleTtsRepository lease와 완료 transaction', () => {
         claimToken: firstClaim.claimToken,
         completedAt: now,
       }),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ kind: 'COMPLETED', mediaAssetId });
 
     const reuseClaimSelect = createSelect([{ status: 'READY', mediaAssetId }]);
     const reuseClaimRepository = new DrizzleTtsRepository(
@@ -625,7 +661,182 @@ describe('DrizzleTtsRepository lease와 완료 transaction', () => {
         mediaAssetId,
         completedAt: now,
       }),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ kind: 'COMPLETED', mediaAssetId });
+  });
+});
+
+describe('DrizzleTtsRepository 생성 claim 실패 종료', () => {
+  it('stale item과 분리해 token 소유자의 cache claim만 종료한다', async () => {
+    const select = createSelect([
+      { id: 'cache-id', status: 'GENERATING', claimToken: 'claim-token' },
+    ]);
+    const { delete: remove, deletes } = createDelete();
+    const repository = new DrizzleTtsRepository(
+      {
+        select,
+        delete: remove,
+        transaction: passthroughTransaction({ select, delete: remove }),
+      } as never,
+      { attach: async () => 'ATTACHED' },
+    );
+
+    await expect(
+      repository.finalizeAudioClaim(
+        'cache-key',
+        { claimToken: 'claim-token', resolution: 'RELEASE' },
+        now,
+      ),
+    ).resolves.toBe('FINALIZED');
+    expect(deletes).toEqual([ttsAudioCache]);
+  });
+
+  it('known provider 실패는 token 소유자의 GENERATING claim을 해제하고 item을 실패시킨다', async () => {
+    const select = createSelect(
+      [processingItem],
+      [{ id: 'cache-id', status: 'GENERATING', claimToken: 'claim-token' }],
+      [job],
+      [{ ...processingItem, status: 'FAILED' as const, retryable: true }],
+    );
+    const { update } = createUpdate([{ id: itemId }]);
+    const { delete: remove, deletes } = createDelete();
+    const repository = new DrizzleTtsRepository(
+      {
+        select,
+        update,
+        delete: remove,
+        transaction: passthroughTransaction({
+          select,
+          update,
+          delete: remove,
+        }),
+      } as never,
+      { attach: async () => 'ATTACHED' },
+    );
+
+    await expect(
+      repository.fail({
+        item: toWorkItem(),
+        errorCode: 'TTS_PROVIDER_RETRYABLE',
+        retryable: true,
+        failedAt: now,
+        audioClaim: {
+          claimToken: 'claim-token',
+          resolution: 'RELEASE',
+        },
+      }),
+    ).resolves.toEqual({ kind: 'FAILED' });
+    expect(deletes).toEqual([ttsAudioCache]);
+  });
+
+  it('외부 결과가 불명확하면 token 소유자의 cache만 OUTCOME_UNKNOWN으로 고정한다', async () => {
+    const select = createSelect(
+      [processingItem],
+      [{ id: 'cache-id', status: 'GENERATING', claimToken: 'claim-token' }],
+      [job],
+      [{ ...processingItem, status: 'FAILED' as const }],
+    );
+    const { update, updates } = createUpdate(
+      [{ id: 'cache-id' }],
+      [{ id: itemId }],
+    );
+    const repository = new DrizzleTtsRepository(
+      {
+        select,
+        update,
+        transaction: passthroughTransaction({ select, update }),
+      } as never,
+      { attach: async () => 'ATTACHED' },
+    );
+
+    await expect(
+      repository.fail({
+        item: toWorkItem(),
+        errorCode: 'TTS_PROVIDER_OUTCOME_UNKNOWN',
+        retryable: false,
+        failedAt: now,
+        audioClaim: {
+          claimToken: 'claim-token',
+          resolution: 'OUTCOME_UNKNOWN',
+        },
+      }),
+    ).resolves.toEqual({ kind: 'FAILED' });
+    expect(
+      updates.find((entry) => entry.table === ttsAudioCache)?.values,
+    ).toMatchObject({
+      status: 'OUTCOME_UNKNOWN',
+      claimToken: null,
+    });
+  });
+
+  it('item lease가 stale이어도 자신이 소유한 known cache claim만 해제하고 item은 덮어쓰지 않는다', async () => {
+    const select = createSelect(
+      [],
+      [{ id: 'cache-id', status: 'GENERATING', claimToken: 'claim-token' }],
+    );
+    const update = vi.fn();
+    const { delete: remove, deletes } = createDelete();
+    const repository = new DrizzleTtsRepository(
+      {
+        select,
+        update,
+        delete: remove,
+        transaction: passthroughTransaction({
+          select,
+          update,
+          delete: remove,
+        }),
+      } as never,
+      { attach: async () => 'ATTACHED' },
+    );
+
+    await expect(
+      repository.fail({
+        item: toWorkItem(),
+        errorCode: 'TTS_PROCESS_ABORTED',
+        retryable: true,
+        failedAt: now,
+        audioClaim: {
+          claimToken: 'claim-token',
+          resolution: 'RELEASE',
+        },
+      }),
+    ).resolves.toEqual({ kind: 'STALE_LEASE' });
+    expect(deletes).toEqual([ttsAudioCache]);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('cache claim token이 stale이면 cache와 active item을 모두 변경하지 않는다', async () => {
+    const select = createSelect([processingItem], []);
+    const { update, updates } = createUpdate();
+    const { delete: remove, deletes } = createDelete();
+    const repository = new DrizzleTtsRepository(
+      {
+        select,
+        update,
+        delete: remove,
+        transaction: passthroughTransaction({
+          select,
+          update,
+          delete: remove,
+        }),
+      } as never,
+      { attach: async () => 'ATTACHED' },
+    );
+
+    await expect(
+      repository.fail({
+        item: toWorkItem(),
+        errorCode: 'TTS_PROVIDER_RETRYABLE',
+        retryable: true,
+        failedAt: now,
+        audioClaim: {
+          claimToken: 'stale-token',
+          resolution: 'RELEASE',
+        },
+      }),
+    ).resolves.toEqual({ kind: 'STALE_CACHE_CLAIM' });
+    expect(deletes).toEqual([]);
+    expect(updates).toEqual([]);
   });
 });
 
@@ -665,7 +876,7 @@ describe('DrizzleTtsRepository 부분 실패와 재시도', () => {
         retryable: true,
         failedAt: now,
       }),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ kind: 'FAILED' });
     expect(
       updates.find((entry) => entry.table === ttsJobs)?.values,
     ).toMatchObject({
