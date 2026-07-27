@@ -72,7 +72,7 @@ const createSelectFake = (selectResults: QueryResult[]) => {
 };
 
 describe('DrizzleLearnerQuestionQuery 문제 목록', () => {
-  it('현재 게시 문제를 모든 필터와 stable pagination으로 조회한다', async () => {
+  it('현재 게시 문제를 모든 필터와 안정적인 페이지 순서로 조회한다', async () => {
     const fake = createSelectFake([
       [{ totalItems: 1 }],
       [
