@@ -19,9 +19,19 @@ export class FakeQuestionCrossValidationProvider implements QuestionCrossValidat
 
     const ref = input.candidate.payload.correctOptionRef;
     const code = this.failures.get(ref) ?? null;
+    if (code) {
+      return Promise.resolve({
+        status: 'FAILED',
+        code,
+        evidence: { source: 'deterministic-fake' },
+        usage: { inputTokens: 40, outputTokens: 10 },
+        estimatedCostUsd: '0',
+        providerRequestId: `fake-question-cross-validation-${ref}`,
+      });
+    }
     return Promise.resolve({
-      status: code ? 'FAILED' : 'PASSED',
-      code,
+      status: 'PASSED',
+      code: null,
       evidence: { source: 'deterministic-fake' },
       usage: { inputTokens: 40, outputTokens: 10 },
       estimatedCostUsd: '0',
