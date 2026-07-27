@@ -537,6 +537,35 @@ describe('AI 문제 생성 prompt 조립', () => {
     );
   });
 
+  it('Unicode 정규화 표현이 다른 규칙 key도 삽입 순서와 무관하다', () => {
+    const composedKey = 'é';
+    const decomposedKey = 'e\u0301';
+    const ordered: QuestionProductionContext = {
+      ...productionContext,
+      typeVersion: {
+        ...productionContext.typeVersion,
+        structureRules: Object.fromEntries([
+          [composedKey, '조합형'],
+          [decomposedKey, '분해형'],
+        ]),
+      },
+    };
+    const reversed: QuestionProductionContext = {
+      ...productionContext,
+      typeVersion: {
+        ...productionContext.typeVersion,
+        structureRules: Object.fromEntries([
+          [decomposedKey, '분해형'],
+          [composedKey, '조합형'],
+        ]),
+      },
+    };
+
+    expect(buildQuestionGenerationPrompt(reversed)).toEqual(
+      buildQuestionGenerationPrompt(ordered),
+    );
+  });
+
   it('동일 주요 값의 예시와 어휘 순서를 바꿔도 prompt가 같다', () => {
     const secondExample = {
       title: productionContext.approvedExamples[0]?.title ?? '',

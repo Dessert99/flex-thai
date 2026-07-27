@@ -143,13 +143,18 @@ export interface QuestionGenerationPrompt {
 
 const questionGenerationPromptVersion = 'question-generation-v1';
 
+const compareCodeUnitText = (left: string, right: string): number => {
+  if (left === right) return 0;
+  return left < right ? -1 : 1;
+};
+
 const sortPromptValue = (value: unknown): unknown => {
   if (Array.isArray(value)) return value.map(sortPromptValue);
   if (!isRecord(value)) return value;
 
   return Object.fromEntries(
     Object.entries(value)
-      .sort(([left], [right]) => left.localeCompare(right))
+      .sort(([left], [right]) => compareCodeUnitText(left, right))
       .map(([key, item]) => [key, sortPromptValue(item)]),
   );
 };
@@ -160,8 +165,7 @@ const stablePromptJson = (value: unknown): string =>
 const compareStablePromptValue = (left: unknown, right: unknown): number => {
   const leftJson = stablePromptJson(left);
   const rightJson = stablePromptJson(right);
-  if (leftJson === rightJson) return 0;
-  return leftJson < rightJson ? -1 : 1;
+  return compareCodeUnitText(leftJson, rightJson);
 };
 
 const projectContentReference = (
@@ -500,7 +504,9 @@ export const buildQuestionGenerationPrompt = (
     sections: [
       {
         name: 'common-principles',
-        content: stablePromptJson([...context.commonPrinciples].sort()),
+        content: stablePromptJson(
+          [...context.commonPrinciples].sort(compareCodeUnitText),
+        ),
       },
       {
         name: 'question-type',
