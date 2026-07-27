@@ -8,7 +8,7 @@ import {
   questionProductionCandidates,
   questionProductionValidations,
   questionValidationStageEnum,
-  questionValidationStatusEnum,
+  questionProductionValidationStatusEnum,
 } from './ai-question-production.schema.js';
 
 describe('AI 문제 제작 schema', () => {
@@ -29,7 +29,7 @@ describe('AI 문제 제작 schema', () => {
       'SIMILARITY',
       'AI_CROSS_VALIDATION',
     ]);
-    expect(questionValidationStatusEnum.enumValues).toEqual([
+    expect(questionProductionValidationStatusEnum.enumValues).toEqual([
       'PASSED',
       'FAILED',
     ]);

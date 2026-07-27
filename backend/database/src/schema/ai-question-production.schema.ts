@@ -42,8 +42,8 @@ export const questionValidationStageEnum = pgEnum('question_validation_stage', [
 ]);
 
 /** AI 문제 후보의 검증 결과 */
-export const questionValidationStatusEnum = pgEnum(
-  'question_validation_status',
+export const questionProductionValidationStatusEnum = pgEnum(
+  'question_production_validation_status',
   ['PASSED', 'FAILED'],
 );
 
@@ -133,7 +133,7 @@ export const questionProductionValidations = pgTable(
       })
       .notNull(),
     stage: questionValidationStageEnum('stage').notNull(),
-    status: questionValidationStatusEnum('status').notNull(),
+    status: questionProductionValidationStatusEnum('status').notNull(),
     code: text('code'),
     details: jsonb('details').$type<Record<string, unknown>>().notNull(),
     createdAt: timestamp('created_at', { withTimezone: true })
