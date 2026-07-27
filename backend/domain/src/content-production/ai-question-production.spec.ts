@@ -841,6 +841,215 @@ describe('AI 문제 후보 검증 규칙', () => {
     });
   });
 
+  it('동일 token 범위의 서로 다른 표현은 canonical 대표 선택을 위해 허용한다', () => {
+    const sentence = inlineCandidate.payload.blocks[0]!.sentences[0]!.sentence;
+    const expression = sentence.expressions[0]!;
+    const input = {
+      ...inlineCandidate,
+      payload: {
+        ...inlineCandidate.payload,
+        blocks: [
+          {
+            ...inlineCandidate.payload.blocks[0]!,
+            sentences: [
+              {
+                speaker: null,
+                sentence: {
+                  ...sentence,
+                  expressions: [
+                    expression,
+                    {
+                      ...expression,
+                      vocabulary: {
+                        clientRef: 'vocabulary-expression-alternative',
+                      },
+                      meaning: {
+                        clientRef: 'meaning-expression-alternative',
+                      },
+                      pronunciation: {
+                        clientRef: 'pronunciation-expression-alternative',
+                      },
+                      representative: false,
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        ],
+      },
+    } satisfies GeneratedQuestionCandidate;
+
+    expect(validateGeneratedQuestionSchema(input)).toEqual({
+      status: 'PASSED',
+      code: null,
+    });
+    expect(validateQuestionDecisionRules(input, inlineDecisionContext)).toEqual(
+      {
+        status: 'PASSED',
+        code: null,
+      },
+    );
+  });
+
+  it('표현 annotation을 생략해도 token 범위의 제외 표현을 거절한다', () => {
+    const sentence = inlineCandidate.payload.blocks[0]!.sentences[0]!.sentence;
+
+    expect(
+      validateQuestionDecisionRules(
+        {
+          ...inlineCandidate,
+          payload: {
+            ...inlineCandidate.payload,
+            blocks: [
+              {
+                ...inlineCandidate.payload.blocks[0]!,
+                sentences: [
+                  {
+                    speaker: null,
+                    sentence: { ...sentence, expressions: [] },
+                  },
+                ],
+              },
+            ],
+          },
+        },
+        {
+          ...inlineDecisionContext,
+          excludedVocabulary: [
+            {
+              thai: 'ไปไหน',
+              meaningKo: '어디에 가다',
+              partOfSpeech: '표현',
+              difficulty: 1,
+            },
+          ],
+        },
+      ),
+    ).toEqual({
+      status: 'FAILED',
+      code: 'QUESTION_RULE_INVALID',
+    });
+  });
+
+  it('목표와 필수 어휘의 token role을 서로 바꾸면 거절한다', () => {
+    const sentence = inlineCandidate.payload.blocks[0]!.sentences[0]!.sentence;
+
+    expect(
+      validateQuestionDecisionRules(
+        {
+          ...inlineCandidate,
+          payload: {
+            ...inlineCandidate.payload,
+            blocks: [
+              {
+                ...inlineCandidate.payload.blocks[0]!,
+                sentences: [
+                  {
+                    speaker: null,
+                    sentence: {
+                      ...sentence,
+                      tokens: [
+                        { ...sentence.tokens[0]!, role: 'REQUIRED' },
+                        { ...sentence.tokens[1]!, role: 'TARGET' },
+                      ],
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        },
+        inlineDecisionContext,
+      ),
+    ).toEqual({
+      status: 'FAILED',
+      code: 'QUESTION_RULE_INVALID',
+    });
+  });
+
+  it('신규 어휘를 TARGET으로 잘못 표시해도 보조 어휘 한도를 적용한다', () => {
+    const sentence = inlineCandidate.payload.blocks[0]!.sentences[0]!.sentence;
+
+    expect(
+      validateQuestionDecisionRules(
+        {
+          ...inlineCandidate,
+          payload: {
+            ...inlineCandidate.payload,
+            blocks: [
+              {
+                ...inlineCandidate.payload.blocks[0]!,
+                sentences: [
+                  {
+                    speaker: null,
+                    sentence: {
+                      ...sentence,
+                      originalText: 'ไปไหนใหม่',
+                      tokens: [
+                        ...sentence.tokens,
+                        {
+                          surface: 'ใหม่',
+                          startOffset: 5,
+                          endOffset: 9,
+                          vocabulary: {
+                            clientRef: 'vocabulary-new',
+                          },
+                          meaning: { clientRef: 'meaning-new' },
+                          pronunciation: {
+                            clientRef: 'pronunciation-new',
+                          },
+                          contextMeaningKo: '새롭다',
+                          role: 'TARGET',
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        },
+        { ...inlineDecisionContext, newAuxiliaryVocabularyLimit: 0 },
+      ),
+    ).toEqual({
+      status: 'FAILED',
+      code: 'QUESTION_RULE_INVALID',
+    });
+  });
+
+  it('서로 다른 선택지가 동일한 inline span을 중복 참조하면 거절한다', () => {
+    const option = inlineCandidate.payload.options[0]!;
+
+    expect(
+      validateQuestionDecisionRules(
+        {
+          ...inlineCandidate,
+          payload: {
+            ...inlineCandidate.payload,
+            options: [
+              option,
+              { ...option, clientRef: 'option-b', position: 1 },
+            ],
+          },
+        },
+        {
+          ...inlineDecisionContext,
+          typeVersion: {
+            ...inlineDecisionContext.typeVersion,
+            structureRules: {
+              optionCount: 2,
+              template: 'INLINE_SPAN_CHOICE',
+            },
+          },
+        },
+      ),
+    ).toEqual({
+      status: 'FAILED',
+      code: 'QUESTION_RULE_INVALID',
+    });
+  });
+
   it('schema와 유사도가 함께 실패하면 schema 실패를 우선한다', () => {
     const validations = makeValidationFixture('QUESTION_SCHEMA_INVALID');
     const similarity = validations.find(

@@ -851,6 +851,64 @@ describe('AI 문제 제작 processor', () => {
     );
   });
 
+  it('fresh provider가 내부 redacted wrapper를 흉내 내면 schema 실패로 격리한다', async () => {
+    let persisted:
+      | Parameters<QuestionProductionCandidateRepository['persist']>[0]
+      | undefined;
+    const processor = createProcessor({
+      candidates: [
+        {
+          candidate: {
+            payloadState: 'REDACTED_INVALID',
+            questionTypeVersionId: 'type-version-id',
+            topicId: null,
+            tagIds: [],
+            difficulty: null,
+            payload: null,
+          },
+          validationCode: 'QUESTION_RULE_INVALID',
+        },
+      ] as unknown as GeneratedQuestionCandidate[],
+      candidateRepository: {
+        persist: (input) => {
+          persisted = input;
+          return Promise.resolve(true);
+        },
+      },
+    });
+
+    await expect(
+      processor.process(workItem(), new AbortController().signal),
+    ).resolves.toMatchObject({
+      status: 'NEEDS_ATTENTION',
+      result: { total: 1, normal: 0, needsAttention: 0, failed: 1 },
+    });
+    expect(
+      persisted?.artifacts.validations.map(({ stage, status, code }) => ({
+        stage,
+        status,
+        code,
+      })),
+    ).toEqual([
+      { stage: 'SCHEMA', status: 'FAILED', code: 'QUESTION_SCHEMA_INVALID' },
+      {
+        stage: 'DECISION_RULE',
+        status: 'SKIPPED',
+        code: 'QUESTION_VALIDATION_SKIPPED',
+      },
+      {
+        stage: 'SIMILARITY',
+        status: 'SKIPPED',
+        code: 'QUESTION_VALIDATION_SKIPPED',
+      },
+      {
+        stage: 'AI_CROSS_VALIDATION',
+        status: 'SKIPPED',
+        code: 'QUESTION_VALIDATION_SKIPPED',
+      },
+    ]);
+  });
+
   it('malformed replay도 provider 재호출 없이 격리하고 정상 후보를 처리한다', async () => {
     let generationCalls = 0;
     let persistedGroups: string[] = [];

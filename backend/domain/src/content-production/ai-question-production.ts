@@ -1240,18 +1240,14 @@ const hasValidSentenceOffsets = (
     previousEnd = token.endOffset;
   }
 
-  const expressionRanges = new Set<string>();
   for (const expression of sentence.expressions) {
-    const range = `${expression.startTokenIndex}:${expression.endTokenIndex}`;
     if (
       expression.startTokenIndex < 0 ||
       expression.endTokenIndex - expression.startTokenIndex < 2 ||
-      expression.endTokenIndex > sentence.tokens.length ||
-      expressionRanges.has(range)
+      expression.endTokenIndex > sentence.tokens.length
     ) {
       return false;
     }
-    expressionRanges.add(range);
   }
 
   return codePoints.every(
@@ -1457,18 +1453,25 @@ const generatedSentences = (
   ),
 ];
 
-const generatedVocabularySurfaces = (
+type GeneratedVocabularyRange = {
+  normalizedSurface: string;
+  startTokenIndex: number;
+  endTokenIndex: number;
+};
+
+const generatedVocabularyRanges = (
   sentence: GeneratedQuestionSentenceInput,
-): string[] => {
+): GeneratedVocabularyRange[] => {
   const codePoints = Array.from(sentence.originalText);
-  return [
-    ...sentence.tokens.map(({ surface }) => surface),
-    ...sentence.expressions.map((expression) => {
-      const first = sentence.tokens[expression.startTokenIndex]!;
-      const last = sentence.tokens[expression.endTokenIndex - 1]!;
-      return codePoints.slice(first.startOffset, last.endOffset).join('');
-    }),
-  ];
+  return sentence.tokens.flatMap((first, startTokenIndex) =>
+    sentence.tokens.slice(startTokenIndex).map((last, relativeEndIndex) => ({
+      normalizedSurface: normalizeThaiSearchText(
+        codePoints.slice(first.startOffset, last.endOffset).join(''),
+      ),
+      startTokenIndex,
+      endTokenIndex: startTokenIndex + relativeEndIndex + 1,
+    })),
+  );
 };
 
 const hasValidVocabularyPolicy = (
@@ -1476,10 +1479,6 @@ const hasValidVocabularyPolicy = (
   context: QuestionProductionContext,
 ): boolean => {
   const sentences = generatedSentences(candidate);
-  const tokens = sentences.flatMap((sentence) => sentence.tokens);
-  const surfaces = new Set(
-    sentences.flatMap(generatedVocabularySurfaces).map(normalizeThaiSearchText),
-  );
   const target = new Set(
     context.targetVocabulary.map(({ thai }) => normalizeThaiSearchText(thai)),
   );
@@ -1489,18 +1488,69 @@ const hasValidVocabularyPolicy = (
   const excluded = new Set(
     context.excludedVocabulary.map(({ thai }) => normalizeThaiSearchText(thai)),
   );
+  const foundTarget = new Set<string>();
+  const foundRequired = new Set<string>();
+  const auxiliary = new Set<string>();
+
+  for (const sentence of sentences) {
+    const targetTokenIndexes = new Set<number>();
+    const requiredTokenIndexes = new Set<number>();
+    for (const range of generatedVocabularyRanges(sentence)) {
+      if (excluded.has(range.normalizedSurface)) return false;
+      const matchingRoles: Array<{
+        policy: Set<string>;
+        found: Set<string>;
+        tokenIndexes: Set<number>;
+      }> = [
+        {
+          policy: target,
+          found: foundTarget,
+          tokenIndexes: targetTokenIndexes,
+        },
+        {
+          policy: required,
+          found: foundRequired,
+          tokenIndexes: requiredTokenIndexes,
+        },
+      ];
+      for (const { policy, found, tokenIndexes } of matchingRoles) {
+        if (!policy.has(range.normalizedSurface)) continue;
+        found.add(range.normalizedSurface);
+        for (
+          let index = range.startTokenIndex;
+          index < range.endTokenIndex;
+          index += 1
+        ) {
+          tokenIndexes.add(index);
+        }
+      }
+    }
+
+    for (const [index, token] of sentence.tokens.entries()) {
+      const isTarget = targetTokenIndexes.has(index);
+      const isRequired = requiredTokenIndexes.has(index);
+      if (
+        (isTarget && isRequired) ||
+        (isTarget && token.role !== 'TARGET') ||
+        (isRequired && token.role !== 'REQUIRED') ||
+        (!isTarget &&
+          !isRequired &&
+          (token.role === 'TARGET' || token.role === 'REQUIRED'))
+      ) {
+        return false;
+      }
+      if (!isTarget && !isRequired) {
+        auxiliary.add(normalizeThaiSearchText(token.surface));
+      }
+    }
+  }
+
   if (
-    [...target, ...required].some((thai) => !surfaces.has(thai)) ||
-    [...excluded].some((thai) => surfaces.has(thai))
+    [...target].some((thai) => !foundTarget.has(thai)) ||
+    [...required].some((thai) => !foundRequired.has(thai))
   ) {
     return false;
   }
-  const auxiliary = new Set(
-    tokens
-      .filter(({ role }) => role === 'SUPPORTING')
-      .map(({ surface }) => normalizeThaiSearchText(surface))
-      .filter((thai) => !target.has(thai) && !required.has(thai)),
-  );
   return auxiliary.size <= context.newAuxiliaryVocabularyLimit;
 };
 
@@ -1567,6 +1617,13 @@ export const validateQuestionDecisionRules = (
   const optionRefs = candidate.payload.options.map(
     (option) => option.clientRef,
   );
+  const inlineSpanRefs = candidate.payload.options.flatMap((option) =>
+    option.sentence === null
+      ? [
+          `${option.span.blockPosition}:${option.span.sentencePosition}:${option.span.startTokenIndex}:${option.span.endTokenIndex}`,
+        ]
+      : [],
+  );
   const optionCount = context.typeVersion.structureRules['optionCount'];
   const valid =
     candidate.questionTypeVersionId === context.typeVersion.id &&
@@ -1579,6 +1636,7 @@ export const validateQuestionDecisionRules = (
     isSafeInteger(optionCount) &&
     candidate.payload.options.length === optionCount &&
     optionRefs.length === new Set(optionRefs).size &&
+    inlineSpanRefs.length === new Set(inlineSpanRefs).size &&
     candidate.payload.options.every(
       (option, index) =>
         option.position === index && hasValidInlineSpan(candidate, option),

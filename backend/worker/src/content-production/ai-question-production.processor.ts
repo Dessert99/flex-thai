@@ -114,6 +114,36 @@ const redactedCandidate = (
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value);
 
+const normalizeFreshGeneratedCandidate = (
+  value: unknown,
+  context: QuestionProductionContext,
+): QuestionProductionProviderCandidate => {
+  if (validateGeneratedQuestionSchema(value).status === 'FAILED') {
+    return redactedCandidate(context);
+  }
+  const candidate = value as GeneratedQuestionCandidate;
+  if (!hasTrustedQuestionCandidateReferences(candidate, context)) {
+    return {
+      ...redactedCandidate(context),
+      validationCode: 'QUESTION_RULE_INVALID',
+    };
+  }
+  return {
+    candidate: { payloadState: 'CANONICAL', ...candidate },
+    validationCode: null,
+  };
+};
+
+const normalizeFreshGeneratedCandidates = (
+  value: unknown,
+  context: QuestionProductionContext,
+): QuestionProductionProviderCandidate[] => {
+  if (!Array.isArray(value)) return [redactedCandidate(context)];
+  return value.map((candidate) =>
+    normalizeFreshGeneratedCandidate(candidate, context),
+  );
+};
+
 const normalizeGeneratedCandidate = (
   value: unknown,
   context: QuestionProductionContext,
@@ -392,7 +422,10 @@ export class AiQuestionProductionProcessor {
         });
         return {
           kind: 'QUESTION_CANDIDATES',
-          candidates: normalizeGeneratedCandidates(result.candidates, context),
+          candidates: normalizeFreshGeneratedCandidates(
+            result.candidates,
+            context,
+          ),
           usage: result.usage,
           estimatedCostUsd: result.estimatedCostUsd,
           providerRequestId: result.providerRequestId,
