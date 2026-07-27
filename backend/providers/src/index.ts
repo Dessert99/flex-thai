@@ -51,3 +51,15 @@ export * from './fakes/fake-vocabulary-extraction.provider.js';
 
 /** AI 어휘 제작의 local 교차 검증 provider를 공개한다 */
 export * from './fakes/fake-vocabulary-cross-validation.provider.js';
+
+/** AI 문제 제작의 local 생성 provider를 공개한다 */
+export * from './fakes/fake-question-generation.provider.js';
+
+/** AI 문제 제작의 local 교차 검증 provider를 공개한다 */
+export * from './fakes/fake-question-cross-validation.provider.js';
+
+/** 외부 호출 없이 결정적인 WAV를 만드는 TTS provider를 공개한다 */
+export * from './fakes/deterministic-tts.provider.js';
+
+/** 자동 TTS object 저장소를 메모리에서 검증하는 fake를 공개한다 */
+export * from './fakes/fake-tts-audio.store.js';

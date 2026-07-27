@@ -7,8 +7,14 @@ export * from './jobs.schema.js';
 /** AI 어휘 후보·검증 artifact schema를 공개한다 */
 export * from './ai-vocabulary-production.schema.js';
 
+/** AI 문제 후보·단계별 검증 artifact schema를 공개한다 */
+export * from './ai-question-production.schema.js';
+
 /** 변경 불가능한 음성 자산 schema를 공개한다 */
 export * from './media.schema.js';
+
+/** 자동 TTS 작업·항목·음성 preset·cache schema를 공개한다 */
+export * from './tts.schema.js';
 
 /** 공용 어휘·뜻·발음 schema를 공개한다 */
 export * from './vocabulary.schema.js';
