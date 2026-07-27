@@ -66,6 +66,44 @@ const questionType = {
   displayName: '독해 기본 선택',
 } as const;
 
+const topic = {
+  id: '00000000-0000-4000-8000-000000000014',
+  slug: 'thai-greetings',
+  displayName: '태국어 인사',
+} as const;
+
+const tag = {
+  id: '00000000-0000-4000-8000-000000000015',
+  slug: 'daily-life',
+  displayName: '일상',
+} as const;
+
+const questionListItem = {
+  questionId: ids.question,
+  questionVersionId: ids.version,
+  questionType,
+  majorCategory: 'READING_PASSAGE',
+  topic,
+  tags: [tag],
+  skill: 'READING',
+  difficulty: 2,
+  saved: false,
+  firstResult: 'UNANSWERED',
+  internalFlag: 'DB_ONLY',
+} as const;
+
+const questionListFacets = {
+  majorCategories: [{ value: 'READING_PASSAGE', label: '독해 지문' }],
+  questionTypes: [
+    {
+      ...questionType,
+      majorCategory: 'READING_PASSAGE',
+    },
+  ],
+  topics: [topic],
+  tags: [tag],
+} as const;
+
 const page = {
   page: 1,
   pageSize: 20,
@@ -76,19 +114,10 @@ const page = {
 const dependencies = () => ({
   questionQuery: {
     listQuestions: vi.fn().mockResolvedValue({
-      items: [
-        {
-          questionId: ids.question,
-          questionVersionId: ids.version,
-          questionType,
-          skill: 'READING',
-          difficulty: 2,
-          saved: false,
-          firstResult: 'UNANSWERED',
-        },
-      ],
+      items: [questionListItem],
       page,
     }),
+    listQuestionFacets: vi.fn().mockResolvedValue(questionListFacets),
     getQuestionDetail: vi.fn().mockResolvedValue({
       questionId: ids.question,
       questionVersionId: ids.version,
@@ -259,6 +288,58 @@ const dependencies = () => ({
 });
 
 describe('LearnerContentService 문제 응답', () => {
+  it('문제 탐색 query와 DB projection을 공개 목록 계약으로 명시적으로 조립한다', async () => {
+    const fakes = dependencies();
+    const service = new LearnerContentService({ ...fakes });
+
+    await expect(
+      service.listQuestions('user-1', {
+        skill: 'READING',
+        majorCategory: 'READING_PASSAGE',
+        questionTypeId: ids.type,
+        topicId: topic.id,
+        tagId: tag.id,
+        difficulty: 2,
+        saved: false,
+        firstResult: 'UNANSWERED',
+        sort: 'LATEST',
+        page: 2,
+        pageSize: 50,
+      }),
+    ).resolves.toEqual({
+      items: [
+        {
+          questionId: ids.question,
+          questionVersionId: ids.version,
+          questionType,
+          majorCategory: 'READING_PASSAGE',
+          topic,
+          tags: [tag],
+          skill: 'READING',
+          difficulty: 2,
+          saved: false,
+          firstResult: 'UNANSWERED',
+        },
+      ],
+      page,
+      facets: questionListFacets,
+    });
+    expect(fakes.questionQuery.listQuestions).toHaveBeenCalledWith('user-1', {
+      skill: 'READING',
+      majorCategory: 'READING_PASSAGE',
+      questionTypeId: ids.type,
+      topicId: topic.id,
+      tagId: tag.id,
+      difficulty: 2,
+      saved: false,
+      firstResult: 'UNANSWERED',
+      sort: 'LATEST',
+      page: 2,
+      pageSize: 50,
+    });
+    expect(fakes.questionQuery.listQuestionFacets).toHaveBeenCalledWith();
+  });
+
   it('한 응답에서 같은 storage key를 한 번만 5분 URL로 서명한다', async () => {
     const fakes = dependencies();
     const service = new LearnerContentService({
@@ -334,17 +415,20 @@ describe('LearnerContentService 문제 응답', () => {
     });
   });
 
-  it('공개 응답 계약 실패를 request ZodError와 다른 generic 오류로 바꾼다', async () => {
+  it('공개 필드가 contract를 어기면 request ZodError와 다른 generic 오류로 바꾼다', async () => {
     const fakes = dependencies();
     fakes.questionQuery.listQuestions.mockResolvedValueOnce({
-      items: [],
-      page: { ...page, totalItems: 0, totalPages: 0 },
-      storageKey: 'private/leak.mp3',
+      items: [{ ...questionListItem, difficulty: 0 }],
+      page,
     });
     const service = new LearnerContentService({ ...fakes });
 
     await expect(
-      service.listQuestions('user-1', { page: 1, pageSize: 20 }),
+      service.listQuestions('user-1', {
+        page: 1,
+        pageSize: 20,
+        sort: 'LATEST',
+      }),
     ).rejects.toEqual(new LearnerPublicResponseError());
   });
 });
@@ -407,6 +491,7 @@ describe('LearnerContentService 어휘 응답', () => {
     const questions = await service.listQuestions('user-1', {
       page: 1,
       pageSize: 20,
+      sort: 'LATEST',
     });
     const attempts = await service.listAttempts('user-1', {
       page: 1,

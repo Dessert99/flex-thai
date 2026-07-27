@@ -25,6 +25,8 @@ import {
   type DrizzleLearnerQuestionQuery,
   type DrizzleLearnerVocabularyQuery,
   type LearnerQuestionListQuery,
+  type LearnerQuestionListFacetsProjection,
+  type LearnerQuestionListItemProjection,
   type LearnerQuestionBlockProjection,
   type LearnerQuestionSentenceProjection,
   type LearnerVocabularyListQuery,
@@ -41,7 +43,11 @@ const MEDIA_URL_TTL_MS = 5 * 60 * 1_000;
 
 type QuestionQuery = Pick<
   DrizzleLearnerQuestionQuery,
-  'getExplanation' | 'getQuestionDetail' | 'listAttempts' | 'listQuestions'
+  | 'getExplanation'
+  | 'getQuestionDetail'
+  | 'listAttempts'
+  | 'listQuestionFacets'
+  | 'listQuestions'
 >;
 
 type VocabularyQuery = Pick<
@@ -92,14 +98,72 @@ const toQuestionListQuery = (
   page: query.page,
   pageSize: query.pageSize,
   ...(query.skill === undefined ? {} : { skill: query.skill }),
+  ...(query.majorCategory === undefined
+    ? {}
+    : { majorCategory: query.majorCategory }),
   ...(query.questionTypeId === undefined
     ? {}
     : { questionTypeId: query.questionTypeId }),
+  ...(query.topicId === undefined ? {} : { topicId: query.topicId }),
+  ...(query.tagId === undefined ? {} : { tagId: query.tagId }),
   ...(query.difficulty === undefined ? {} : { difficulty: query.difficulty }),
   ...(query.saved === undefined ? {} : { saved: query.saved }),
   ...(query.firstResult === undefined
     ? {}
     : { firstResult: query.firstResult }),
+  sort: query.sort,
+});
+
+/** DB 탐색 projection을 공개 계약 필드만 남겨 직렬화한다 */
+const mapQuestionListItem = (item: LearnerQuestionListItemProjection) => ({
+  questionId: item.questionId,
+  questionVersionId: item.questionVersionId,
+  questionType: {
+    id: item.questionType.id,
+    slug: item.questionType.slug,
+    displayName: item.questionType.displayName,
+  },
+  majorCategory: item.majorCategory,
+  topic: {
+    id: item.topic.id,
+    slug: item.topic.slug,
+    displayName: item.topic.displayName,
+  },
+  tags: item.tags.map((tag) => ({
+    id: tag.id,
+    slug: tag.slug,
+    displayName: tag.displayName,
+  })),
+  skill: item.skill,
+  difficulty: item.difficulty,
+  saved: item.saved,
+  firstResult: item.firstResult,
+});
+
+/** 실제 공개 필터 선택지 projection만 contract 모양으로 직렬화한다 */
+const mapQuestionListFacets = (
+  facets: LearnerQuestionListFacetsProjection,
+) => ({
+  majorCategories: facets.majorCategories.map((category) => ({
+    value: category.value,
+    label: category.label,
+  })),
+  questionTypes: facets.questionTypes.map((questionType) => ({
+    id: questionType.id,
+    slug: questionType.slug,
+    displayName: questionType.displayName,
+    majorCategory: questionType.majorCategory,
+  })),
+  topics: facets.topics.map((topic) => ({
+    id: topic.id,
+    slug: topic.slug,
+    displayName: topic.displayName,
+  })),
+  tags: facets.tags.map((tag) => ({
+    id: tag.id,
+    slug: tag.slug,
+    displayName: tag.displayName,
+  })),
 });
 
 const toVocabularyListQuery = (
@@ -198,13 +262,23 @@ export class LearnerContentService {
     userId: string,
     query: QuestionListQuery,
   ): Promise<QuestionListResponse> {
-    return parseLearnerPublicResponse(
-      questionListResponseSchema,
-      await this.dependencies.questionQuery.listQuestions(
+    const [result, facets] = await Promise.all([
+      this.dependencies.questionQuery.listQuestions(
         userId,
         toQuestionListQuery(query),
       ),
-    );
+      this.dependencies.questionQuery.listQuestionFacets(),
+    ]);
+    return parseLearnerPublicResponse(questionListResponseSchema, {
+      items: result.items.map(mapQuestionListItem),
+      page: {
+        page: result.page.page,
+        pageSize: result.page.pageSize,
+        totalItems: result.page.totalItems,
+        totalPages: result.page.totalPages,
+      },
+      facets: mapQuestionListFacets(facets),
+    });
   }
 
   /** 현재 공개 문제의 private media만 5분 URL로 바꿔 반환한다 */

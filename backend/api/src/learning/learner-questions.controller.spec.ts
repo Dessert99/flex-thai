@@ -33,7 +33,17 @@ const page = {
   totalPages: 0,
 } as const;
 
-const emptyPage = { items: [], page } as const;
+const emptyPage = {
+  items: [],
+  page,
+  facets: {
+    majorCategories: [],
+    questionTypes: [],
+    topics: [],
+    tags: [],
+  },
+} as const;
+const emptyAttemptPage = { items: [], page } as const;
 const detail = {
   questionId: ids.question,
   questionVersionId: ids.version,
@@ -78,7 +88,7 @@ const service = () => ({
   listQuestions: vi.fn().mockResolvedValue(emptyPage),
   getQuestionDetail: vi.fn().mockResolvedValue(detail),
   submitQuestionAttempt: vi.fn().mockResolvedValue(attempt),
-  listAttempts: vi.fn().mockResolvedValue(emptyPage),
+  listAttempts: vi.fn().mockResolvedValue(emptyAttemptPage),
   saveQuestion: vi.fn().mockResolvedValue(undefined),
   removeQuestion: vi.fn().mockResolvedValue(undefined),
 });
@@ -101,7 +111,7 @@ describe('LearnerQuestionsController 보호 경계', () => {
 });
 
 describe('LearnerQuestionsController 공개 계약', () => {
-  it('query를 parse하고 현재 userId로 목록과 풀이 기록을 조회한다', async () => {
+  it('기본 LATEST 정렬을 포함해 query를 parse하고 현재 userId로 목록과 풀이 기록을 조회한다', async () => {
     const fake = service();
     const controller = new LearnerQuestionsController(fake as never);
 
@@ -112,11 +122,25 @@ describe('LearnerQuestionsController 공개 계약', () => {
       page: 2,
       pageSize: 20,
       saved: false,
+      sort: 'LATEST',
     });
     expect(fake.listAttempts).toHaveBeenCalledWith('user-1', {
       page: 1,
       pageSize: 50,
     });
+  });
+
+  it('유효하지 않은 대분류와 문제 유형 UUID query를 400 경계에서 거부한다', async () => {
+    const fake = service();
+    const controller = new LearnerQuestionsController(fake as never);
+
+    await expect(
+      controller.listQuestions(user, { majorCategory: 'NOT_A_CATEGORY' }),
+    ).rejects.toThrow();
+    await expect(
+      controller.listQuestions(user, { questionTypeId: 'not-a-uuid' }),
+    ).rejects.toThrow();
+    expect(fake.listQuestions).not.toHaveBeenCalled();
   });
 
   it('문제 상세 path를 검증하고 현재 userId로 조회한다', async () => {
