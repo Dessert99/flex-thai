@@ -5,8 +5,10 @@ import {
   buildQuestionGenerationPrompt,
   classifyQuestionCandidate,
   projectQuestionPromptApprovedExample,
+  QuestionCandidateReviewService,
   validateGeneratedQuestionSchema,
   validateQuestionDecisionRules,
+  type GeneratedQuestionDraftRepository,
   type GeneratedQuestionCandidate,
   type QuestionProductionCandidateRecord,
   type QuestionProductionCandidateRepository,
@@ -136,6 +138,80 @@ describe('AI 문제 후보 저장 port', () => {
     expectTypeOf<
       QuestionProductionProviderRunRepository['fail']
     >().toBeFunction();
+  });
+});
+
+describe('AI 문제 후보 검토 서비스', () => {
+  const command = {
+    candidateId: 'candidate-id',
+    expectedRevision: 0,
+    actorUserId: 'actor-user-id',
+    actorSub: 'actor-sub',
+    requestId: 'request-id',
+    occurredAt: new Date('2026-07-27T02:00:00.000Z'),
+  };
+
+  it('첫 승인과 같은 request replay를 같은 DRAFT 결과로 반환한다', async () => {
+    const results = [
+      {
+        kind: 'APPROVED' as const,
+        questionId: 'question-id',
+        questionVersionId: 'version-id',
+      },
+      {
+        kind: 'ALREADY_APPROVED' as const,
+        questionId: 'question-id',
+        questionVersionId: 'version-id',
+      },
+    ];
+    const repository: GeneratedQuestionDraftRepository = {
+      approve: () => Promise.resolve(results.shift()!),
+      discard: () => Promise.resolve(true),
+      requestRegeneration: () =>
+        Promise.resolve({ jobId: 'job-id', attempt: 1 }),
+    };
+    const service = new QuestionCandidateReviewService(repository);
+
+    await expect(service.approve(command)).resolves.toEqual({
+      questionId: 'question-id',
+      questionVersionId: 'version-id',
+    });
+    await expect(service.approve(command)).resolves.toEqual({
+      questionId: 'question-id',
+      questionVersionId: 'version-id',
+    });
+  });
+
+  it('stale revision이나 다른 request의 중복 승인을 stable conflict로 거절한다', async () => {
+    const repository: GeneratedQuestionDraftRepository = {
+      approve: () => Promise.resolve({ kind: 'CONFLICT' }),
+      discard: () => Promise.resolve(false),
+      requestRegeneration: () =>
+        Promise.resolve({ jobId: 'job-id', attempt: 1 }),
+    };
+    const service = new QuestionCandidateReviewService(repository);
+
+    await expect(service.approve(command)).rejects.toThrow(
+      'QUESTION_CANDIDATE_REVIEW_CONFLICT',
+    );
+    await expect(service.discard(command)).rejects.toThrow(
+      'QUESTION_CANDIDATE_REVIEW_CONFLICT',
+    );
+  });
+
+  it('재생성 결과의 job과 증가한 attempt를 그대로 반환한다', async () => {
+    const repository: GeneratedQuestionDraftRepository = {
+      approve: () => Promise.resolve({ kind: 'CONFLICT' }),
+      discard: () => Promise.resolve(true),
+      requestRegeneration: () =>
+        Promise.resolve({ jobId: 'job-id', attempt: 3 }),
+    };
+    const service = new QuestionCandidateReviewService(repository);
+
+    await expect(service.regenerate(command)).resolves.toEqual({
+      jobId: 'job-id',
+      attempt: 3,
+    });
   });
 });
 
@@ -464,34 +540,26 @@ describe('AI 문제 생성 prompt 조립', () => {
       'similar-question-summaries',
       'additional-instruction-ko',
     ]);
-    expect(prompt.sections).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          name: 'question-type',
-          content: expect.stringContaining('"slug":"reading-choice"'),
-        }),
-        expect.objectContaining({
-          name: 'difficulty-criteria',
-          content: expect.stringContaining('"difficulty":3'),
-        }),
-        expect.objectContaining({
-          name: 'approved-examples',
-          content: expect.stringContaining('기본 선택형 예시'),
-        }),
-        expect.objectContaining({
-          name: 'vocabulary-policy',
-          content: expect.stringContaining('"targetVocabulary"'),
-        }),
-        { name: 'new-auxiliary-vocabulary-limit', content: 3 },
-        expect.objectContaining({
-          name: 'similar-question-summaries',
-          content: expect.stringContaining('일상 이동을 묻는 선택형 문제'),
-        }),
-        expect.objectContaining({
-          name: 'additional-instruction-ko',
-          content: '학습자에게 자연스러운 한국어 해설을 제공하세요.',
-        }),
-      ]),
+    const section = (name: string): unknown =>
+      prompt.sections.find((item) => item.name === name)?.content;
+    expect(section('question-type')).toEqual(
+      expect.stringContaining('"slug":"reading-choice"'),
+    );
+    expect(section('difficulty-criteria')).toEqual(
+      expect.stringContaining('"difficulty":3'),
+    );
+    expect(section('approved-examples')).toEqual(
+      expect.stringContaining('기본 선택형 예시'),
+    );
+    expect(section('vocabulary-policy')).toEqual(
+      expect.stringContaining('"targetVocabulary"'),
+    );
+    expect(section('new-auxiliary-vocabulary-limit')).toBe(3);
+    expect(section('similar-question-summaries')).toEqual(
+      expect.stringContaining('일상 이동을 묻는 선택형 문제'),
+    );
+    expect(section('additional-instruction-ko')).toBe(
+      '학습자에게 자연스러운 한국어 해설을 제공하세요.',
     );
     expect(prompt.outputSchema).toMatchObject({
       type: 'object',

@@ -1,13 +1,20 @@
 /** AI 문제 후보 artifact와 item terminal 전이를 같은 PostgreSQL transaction으로 저장한다 */
 import { isDeepStrictEqual } from 'node:util';
-import { and, eq, gt } from 'drizzle-orm';
+import { QuestionCandidateReviewError } from '@flex-thia/domain';
+import { and, eq, gt, sql } from 'drizzle-orm';
 import type {
+  ApprovedQuestionDraft,
+  ApproveQuestionCandidateInput,
+  DiscardQuestionCandidateInput,
+  GeneratedQuestionDraftRepository,
+  GeneratedQuestionPayload,
   QuestionProductionCandidateRepository,
   QuestionProductionProviderExecution,
   QuestionProductionProviderFailure,
   QuestionProductionProviderResult,
   QuestionProductionProviderRunRepository,
   QuestionProductionValidationRecord,
+  RegenerateQuestionCandidateInput,
 } from '@flex-thia/domain';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
@@ -15,13 +22,155 @@ import {
   questionProductionCandidates,
   questionProductionValidations,
 } from '../../schema/ai-question-production.schema.js';
-import { jobItems, providerRuns } from '../../schema/jobs.schema.js';
+import { auditLogs } from '../../schema/identity.schema.js';
+import { jobItems, jobs, providerRuns } from '../../schema/jobs.schema.js';
 import * as schema from '../../schema/index.js';
 
 type QuestionProductionDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
-type QuestionProductionTransaction = Parameters<
+/** 생성 DRAFT adapter가 후보 갱신과 같은 commit 경계를 공유할 Drizzle session */
+export type QuestionProductionTransaction = Parameters<
   Parameters<QuestionProductionDatabase['transaction']>[0]
 >[0];
+
+/** nullable-audio 문제 graph 생성을 후보 승인 transaction 안에 주입하는 port */
+export interface GeneratedQuestionDraftWriter {
+  createDraft(
+    transaction: QuestionProductionTransaction,
+    input: {
+      candidate: {
+        id: string;
+        typeVersionId: string;
+        topicId: string;
+        difficulty: number;
+        payload: GeneratedQuestionPayload;
+      };
+      actor: {
+        actorUserId: string;
+        actorSub: string;
+        requestId: string;
+        occurredAt: Date;
+      };
+    },
+  ): Promise<ApprovedQuestionDraft>;
+}
+
+type ReviewCandidate = {
+  id: string;
+  jobItemId: string;
+  jobAttempt: number;
+  typeVersionId: string;
+  topicId: string;
+  difficulty: number;
+  payload: Record<string, unknown>;
+  resultGroup: 'NORMAL' | 'NEEDS_ATTENTION' | 'FAILED';
+  reviewStatus: 'PENDING' | 'APPROVED' | 'DISCARDED';
+  revision: number;
+  approvedQuestionId: string | null;
+  approvedQuestionVersionId: string | null;
+};
+
+const requiredValidationStages = new Set([
+  'SCHEMA',
+  'DECISION_RULE',
+  'SIMILARITY',
+  'AI_CROSS_VALIDATION',
+]);
+
+const readReviewCandidate = async (
+  transaction: QuestionProductionTransaction,
+  candidateId: string,
+): Promise<ReviewCandidate | null> => {
+  const [candidate] = await transaction
+    .select({
+      id: questionProductionCandidates.id,
+      jobItemId: questionProductionCandidates.jobItemId,
+      jobAttempt: questionProductionCandidates.jobAttempt,
+      typeVersionId: questionProductionCandidates.typeVersionId,
+      topicId: questionProductionCandidates.topicId,
+      difficulty: questionProductionCandidates.difficulty,
+      payload: questionProductionCandidates.payload,
+      resultGroup: questionProductionCandidates.resultGroup,
+      reviewStatus: questionProductionCandidates.reviewStatus,
+      revision: questionProductionCandidates.revision,
+      approvedQuestionId: questionProductionCandidates.approvedQuestionId,
+      approvedQuestionVersionId:
+        questionProductionCandidates.approvedQuestionVersionId,
+    })
+    .from(questionProductionCandidates)
+    .where(eq(questionProductionCandidates.id, candidateId))
+    .for('update')
+    .limit(1);
+  return (candidate as ReviewCandidate | undefined) ?? null;
+};
+
+const readReviewReplay = async (
+  transaction: QuestionProductionTransaction,
+  input: {
+    candidateId: string;
+    requestId: string;
+    action: string;
+  },
+): Promise<Record<string, unknown> | null> => {
+  const [audit] = await transaction
+    .select({ summary: auditLogs.summary })
+    .from(auditLogs)
+    .where(
+      and(
+        eq(auditLogs.action, input.action),
+        eq(auditLogs.targetId, input.candidateId),
+        eq(auditLogs.requestId, input.requestId),
+      ),
+    )
+    .limit(1);
+  return audit?.summary ?? null;
+};
+
+const appendReviewAudit = (
+  transaction: QuestionProductionTransaction,
+  input: {
+    command: ApproveQuestionCandidateInput;
+    action: string;
+    summary: Record<string, unknown>;
+  },
+): Promise<unknown> =>
+  transaction.insert(auditLogs).values({
+    actorSub: input.command.actorSub,
+    actorUserId: input.command.actorUserId,
+    action: input.action,
+    target: input.command.candidateId,
+    targetType: 'QUESTION_CANDIDATE',
+    targetId: input.command.candidateId,
+    summary: input.summary,
+    requestId: input.command.requestId,
+    createdAt: input.command.occurredAt,
+  });
+
+const isApprovedReplay = (
+  candidate: ReviewCandidate,
+  summary: Record<string, unknown> | null,
+): candidate is ReviewCandidate & {
+  approvedQuestionId: string;
+  approvedQuestionVersionId: string;
+} =>
+  candidate.reviewStatus === 'APPROVED' &&
+  candidate.approvedQuestionId !== null &&
+  candidate.approvedQuestionVersionId !== null &&
+  summary?.['questionId'] === candidate.approvedQuestionId &&
+  summary['questionVersionId'] === candidate.approvedQuestionVersionId;
+
+const hasAllPassedValidations = (
+  validations: Array<{ stage: string; status: string }>,
+): boolean => {
+  const passedStages = new Set(
+    validations
+      .filter(({ status }) => status === 'PASSED')
+      .map(({ stage }) => stage),
+  );
+  return (
+    validations.every(({ status }) => status === 'PASSED') &&
+    [...requiredValidationStages].every((stage) => passedStages.has(stage))
+  );
+};
 
 const canonicalJsonValue = (value: unknown): unknown => {
   if (Array.isArray(value)) return value.map(canonicalJsonValue);
@@ -47,6 +196,7 @@ const candidateWhere = (input: {
 
 const candidateValues = (
   input: Parameters<QuestionProductionCandidateRepository['persist']>[0],
+  regeneratedFromCandidateId: string | null,
 ) =>
   input.artifacts.candidates.map((record) => ({
     jobItemId: input.itemId,
@@ -60,7 +210,8 @@ const candidateValues = (
     resultGroup: record.resultGroup,
     reviewStatus: record.reviewStatus,
     reviewCode: record.reviewCode,
-    regeneratedFromCandidateId: record.regeneratedFromCandidateId,
+    regeneratedFromCandidateId:
+      record.regeneratedFromCandidateId ?? regeneratedFromCandidateId,
     approvedQuestionId: record.approvedQuestionId,
     approvedQuestionVersionId: record.approvedQuestionVersionId,
   }));
@@ -243,12 +394,290 @@ const replayProviderResult = (
 export class DrizzleAiQuestionProductionRepository
   implements
     QuestionProductionCandidateRepository,
-    QuestionProductionProviderRunRepository
+    QuestionProductionProviderRunRepository,
+    GeneratedQuestionDraftRepository
 {
   constructor(
     private readonly database: QuestionProductionDatabase,
     private readonly now: () => Date = () => new Date(),
+    private readonly draftWriter?: GeneratedQuestionDraftWriter,
   ) {}
+
+  /** 검증 완료 후보를 잠근 채 nullable-audio DRAFT·연결·감사를 한 commit으로 만든다 */
+  async approve(
+    input: ApproveQuestionCandidateInput,
+  ): ReturnType<GeneratedQuestionDraftRepository['approve']> {
+    return this.database.transaction(async (transaction) => {
+      const candidate = await readReviewCandidate(
+        transaction,
+        input.candidateId,
+      );
+      if (!candidate) return { kind: 'CONFLICT' };
+
+      if (candidate.reviewStatus === 'APPROVED') {
+        const replay = await readReviewReplay(transaction, {
+          candidateId: input.candidateId,
+          requestId: input.requestId,
+          action: 'QUESTION_CANDIDATE_APPROVED',
+        });
+        return isApprovedReplay(candidate, replay)
+          ? {
+              kind: 'ALREADY_APPROVED',
+              questionId: candidate.approvedQuestionId,
+              questionVersionId: candidate.approvedQuestionVersionId,
+            }
+          : { kind: 'CONFLICT' };
+      }
+      if (
+        candidate.reviewStatus !== 'PENDING' ||
+        candidate.revision !== input.expectedRevision
+      ) {
+        return { kind: 'CONFLICT' };
+      }
+
+      const validations = await transaction
+        .select({
+          stage: questionProductionValidations.stage,
+          status: questionProductionValidations.status,
+        })
+        .from(questionProductionValidations)
+        .where(
+          eq(questionProductionValidations.candidateId, input.candidateId),
+        );
+      if (
+        candidate.resultGroup !== 'NORMAL' ||
+        !hasAllPassedValidations(validations)
+      ) {
+        throw new QuestionCandidateReviewError(
+          'QUESTION_CANDIDATE_NOT_APPROVABLE',
+        );
+      }
+      if (!this.draftWriter) {
+        throw new Error('QUESTION_DRAFT_WRITER_NOT_CONFIGURED');
+      }
+
+      const draft = await this.draftWriter.createDraft(transaction, {
+        candidate: {
+          id: candidate.id,
+          typeVersionId: candidate.typeVersionId,
+          topicId: candidate.topicId,
+          difficulty: candidate.difficulty,
+          payload: candidate.payload as unknown as GeneratedQuestionPayload,
+        },
+        actor: {
+          actorUserId: input.actorUserId,
+          actorSub: input.actorSub,
+          requestId: input.requestId,
+          occurredAt: input.occurredAt,
+        },
+      });
+      const nextRevision = candidate.revision + 1;
+      const updated = await transaction
+        .update(questionProductionCandidates)
+        .set({
+          reviewStatus: 'APPROVED',
+          approvedQuestionId: draft.questionId,
+          approvedQuestionVersionId: draft.questionVersionId,
+          revision: nextRevision,
+          updatedAt: this.now(),
+        })
+        .where(
+          and(
+            eq(questionProductionCandidates.id, input.candidateId),
+            eq(questionProductionCandidates.reviewStatus, 'PENDING'),
+            eq(questionProductionCandidates.revision, input.expectedRevision),
+          ),
+        )
+        .returning({ id: questionProductionCandidates.id });
+      if (updated.length !== 1) {
+        throw new QuestionCandidateReviewError(
+          'QUESTION_CANDIDATE_REVIEW_CONFLICT',
+        );
+      }
+
+      await appendReviewAudit(transaction, {
+        command: input,
+        action: 'QUESTION_CANDIDATE_APPROVED',
+        summary: {
+          previousRevision: candidate.revision,
+          revision: nextRevision,
+          questionId: draft.questionId,
+          questionVersionId: draft.questionVersionId,
+        },
+      });
+      return {
+        kind: 'APPROVED',
+        questionId: draft.questionId,
+        questionVersionId: draft.questionVersionId,
+      };
+    });
+  }
+
+  /** PENDING 후보만 terminal 폐기하고 같은 request replay만 성공으로 인정한다 */
+  async discard(input: DiscardQuestionCandidateInput): Promise<boolean> {
+    return this.database.transaction(async (transaction) => {
+      const candidate = await readReviewCandidate(
+        transaction,
+        input.candidateId,
+      );
+      if (!candidate) return false;
+      if (candidate.reviewStatus === 'DISCARDED') {
+        return (
+          (await readReviewReplay(transaction, {
+            candidateId: input.candidateId,
+            requestId: input.requestId,
+            action: 'QUESTION_CANDIDATE_DISCARDED',
+          })) !== null
+        );
+      }
+      if (
+        candidate.reviewStatus !== 'PENDING' ||
+        candidate.revision !== input.expectedRevision
+      ) {
+        return false;
+      }
+
+      const nextRevision = candidate.revision + 1;
+      const updated = await transaction
+        .update(questionProductionCandidates)
+        .set({
+          reviewStatus: 'DISCARDED',
+          revision: nextRevision,
+          updatedAt: this.now(),
+        })
+        .where(
+          and(
+            eq(questionProductionCandidates.id, input.candidateId),
+            eq(questionProductionCandidates.reviewStatus, 'PENDING'),
+            eq(questionProductionCandidates.revision, input.expectedRevision),
+          ),
+        )
+        .returning({ id: questionProductionCandidates.id });
+      if (updated.length !== 1) return false;
+
+      await appendReviewAudit(transaction, {
+        command: input,
+        action: 'QUESTION_CANDIDATE_DISCARDED',
+        summary: {
+          previousRevision: candidate.revision,
+          revision: nextRevision,
+        },
+      });
+      return true;
+    });
+  }
+
+  /** 원본 후보를 유지하고 같은 job item을 새 attempt로 다시 queue한다 */
+  async requestRegeneration(
+    input: RegenerateQuestionCandidateInput,
+  ): Promise<{ jobId: string; attempt: number }> {
+    return this.database.transaction(async (transaction) => {
+      const candidate = await readReviewCandidate(
+        transaction,
+        input.candidateId,
+      );
+      if (!candidate) {
+        throw new QuestionCandidateReviewError(
+          'QUESTION_CANDIDATE_REVIEW_CONFLICT',
+        );
+      }
+
+      const replay = await readReviewReplay(transaction, {
+        candidateId: input.candidateId,
+        requestId: input.requestId,
+        action: 'QUESTION_CANDIDATE_REGENERATION_REQUESTED',
+      });
+      if (
+        replay &&
+        typeof replay['jobId'] === 'string' &&
+        typeof replay['attempt'] === 'number'
+      ) {
+        return { jobId: replay['jobId'], attempt: replay['attempt'] };
+      }
+      if (
+        candidate.reviewStatus !== 'PENDING' ||
+        candidate.revision !== input.expectedRevision
+      ) {
+        throw new QuestionCandidateReviewError(
+          'QUESTION_CANDIDATE_REVIEW_CONFLICT',
+        );
+      }
+
+      const [item] = await transaction
+        .select({
+          id: jobItems.id,
+          jobId: jobItems.jobId,
+          attempt: jobItems.attempt,
+        })
+        .from(jobItems)
+        .where(eq(jobItems.id, candidate.jobItemId))
+        .for('update')
+        .limit(1);
+      if (!item) {
+        throw new QuestionCandidateReviewError(
+          'QUESTION_CANDIDATE_REVIEW_CONFLICT',
+        );
+      }
+
+      const nextAttempt = item.attempt + 1;
+      const updatedItem = await transaction
+        .update(jobItems)
+        .set({
+          status: 'PENDING',
+          attempt: nextAttempt,
+          retryable: false,
+          errorCode: null,
+          leaseUntil: null,
+          leaseToken: null,
+          result: { regeneratedFromCandidateId: candidate.id },
+          updatedAt: this.now(),
+        })
+        .where(
+          and(eq(jobItems.id, item.id), eq(jobItems.attempt, item.attempt)),
+        )
+        .returning({ id: jobItems.id });
+      if (updatedItem.length !== 1) {
+        throw new QuestionCandidateReviewError(
+          'QUESTION_CANDIDATE_REVIEW_CONFLICT',
+        );
+      }
+
+      await transaction
+        .update(jobs)
+        .set({
+          status: 'QUEUED',
+          attempt: nextAttempt,
+          enqueuedAt: null,
+          completedAt: null,
+          failureCode: null,
+          updatedAt: this.now(),
+        })
+        .where(eq(jobs.id, item.jobId));
+      await transaction
+        .update(questionProductionCandidates)
+        .set({
+          revision: candidate.revision + 1,
+          updatedAt: this.now(),
+        })
+        .where(
+          and(
+            eq(questionProductionCandidates.id, candidate.id),
+            eq(questionProductionCandidates.revision, candidate.revision),
+            eq(questionProductionCandidates.reviewStatus, 'PENDING'),
+          ),
+        );
+      await appendReviewAudit(transaction, {
+        command: input,
+        action: 'QUESTION_CANDIDATE_REGENERATION_REQUESTED',
+        summary: {
+          jobId: item.jobId,
+          attempt: nextAttempt,
+          regeneratedFromCandidateId: candidate.id,
+        },
+      });
+      return { jobId: item.jobId, attempt: nextAttempt };
+    });
+  }
 
   /** 동일 artifact replay는 unique key로 흡수하고 stage별 검증도 한 번만 기록한다 */
   async persist(
@@ -256,10 +685,13 @@ export class DrizzleAiQuestionProductionRepository
   ): Promise<boolean> {
     return this.database.transaction(async (transaction) => {
       const finishedAt = this.now();
+      const { result = {}, ...terminalOutcome } = input.outcome;
       const terminal = await transaction
         .update(jobItems)
         .set({
-          ...input.outcome,
+          ...terminalOutcome,
+          // 재생성 lineage는 terminal 집계와 합쳐 새 후보 artifact까지 전달한다.
+          result: sql`coalesce(${jobItems.result}, '{}'::jsonb) || ${JSON.stringify(result)}::jsonb`,
           leaseUntil: null,
           leaseToken: null,
           updatedAt: finishedAt,
@@ -274,14 +706,18 @@ export class DrizzleAiQuestionProductionRepository
             gt(jobItems.leaseUntil, finishedAt),
           ),
         )
-        .returning({ id: jobItems.id });
+        .returning({ id: jobItems.id, result: jobItems.result });
       if (terminal.length === 0) return false;
 
       if (input.artifacts.candidates.length === 0) return true;
 
+      const regeneratedFromCandidateId =
+        typeof terminal[0]?.result?.['regeneratedFromCandidateId'] === 'string'
+          ? terminal[0].result['regeneratedFromCandidateId']
+          : null;
       const inserted = await transaction
         .insert(questionProductionCandidates)
-        .values(candidateValues(input))
+        .values(candidateValues(input, regeneratedFromCandidateId))
         .onConflictDoNothing()
         .returning({
           id: questionProductionCandidates.id,

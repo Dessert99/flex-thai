@@ -278,6 +278,9 @@ const projectUnknownReference = (value: unknown): unknown => {
   return value;
 };
 
+const isUnknownArray = (value: unknown): value is unknown[] =>
+  Array.isArray(value);
+
 const projectUnknownSentence = (value: unknown): unknown => {
   if (!isRecord(value)) return value;
   return {
@@ -285,7 +288,7 @@ const projectUnknownSentence = (value: unknown): unknown => {
     translationKo: value.translationKo,
     pronunciationKo: value.pronunciationKo,
     toneMarks: value.toneMarks,
-    tokens: Array.isArray(value.tokens)
+    tokens: isUnknownArray(value.tokens)
       ? value.tokens.map((token) =>
           isRecord(token)
             ? {
@@ -301,7 +304,7 @@ const projectUnknownSentence = (value: unknown): unknown => {
             : token,
         )
       : value.tokens,
-    expressions: Array.isArray(value.expressions)
+    expressions: isUnknownArray(value.expressions)
       ? value.expressions.map((expression) =>
           isRecord(expression)
             ? {
@@ -359,23 +362,23 @@ export const projectQuestionPromptApprovedExample = (
   const projected = {
     questionTypeVersionId: 'approved-example-projection',
     topicId: 'approved-example-projection',
-    tagIds: Array.isArray(payload.tagSlugs) ? payload.tagSlugs : [],
+    tagIds: isUnknownArray(payload.tagSlugs) ? payload.tagSlugs : [],
     difficulty: payload.difficulty,
     payload: {
       questionTypeSlug: payload.questionTypeSlug,
       questionTypeVersion: payload.questionTypeVersion,
       difficulty: payload.difficulty,
       topicSlug: payload.topicSlug,
-      tagSlugs: Array.isArray(payload.tagSlugs)
+      tagSlugs: isUnknownArray(payload.tagSlugs)
         ? [...payload.tagSlugs]
         : payload.tagSlugs,
-      blocks: Array.isArray(payload.blocks)
+      blocks: isUnknownArray(payload.blocks)
         ? payload.blocks.map((block) =>
             isRecord(block)
               ? {
                   kind: block.kind,
                   displayMode: block.displayMode,
-                  sentences: Array.isArray(block.sentences)
+                  sentences: isUnknownArray(block.sentences)
                     ? block.sentences.map((sentence) =>
                         isRecord(sentence)
                           ? {
@@ -394,7 +397,7 @@ export const projectQuestionPromptApprovedExample = (
               : block,
           )
         : payload.blocks,
-      options: Array.isArray(payload.options)
+      options: isUnknownArray(payload.options)
         ? payload.options.map(projectUnknownOption)
         : payload.options,
       correctOptionRef: payload.correctOptionRef,
@@ -843,6 +846,24 @@ export type RegenerateQuestionCandidateInput = QuestionCandidateReviewCommand;
 /** 후보 승인 명령 */
 export type ApproveQuestionCandidateInput = QuestionCandidateReviewCommand;
 
+/** 후보 승인으로 만든 게시 전 문제 DRAFT 식별자 */
+export interface ApprovedQuestionDraft {
+  questionId: string;
+  questionVersionId: string;
+}
+
+/** 후보 검토 실패를 HTTP 계층이 안정적인 상태 code로 변환하게 한다 */
+export class QuestionCandidateReviewError extends Error {
+  constructor(
+    readonly code:
+      | 'QUESTION_CANDIDATE_NOT_APPROVABLE'
+      | 'QUESTION_CANDIDATE_REVIEW_CONFLICT',
+  ) {
+    super(code);
+    this.name = 'QuestionCandidateReviewError';
+  }
+}
+
 /** 활성 preset으로 문제 생성 문맥을 조회하는 port */
 export interface QuestionProductionContextRepository {
   load(input: {
@@ -903,6 +924,43 @@ export interface GeneratedQuestionDraftRepository {
   requestRegeneration(
     input: RegenerateQuestionCandidateInput,
   ): Promise<{ jobId: string; attempt: number }>;
+}
+
+/** 후보 승인·폐기·재생성 결과를 stable domain 오류와 DRAFT 응답으로 정규화한다 */
+export class QuestionCandidateReviewService {
+  constructor(private readonly repository: GeneratedQuestionDraftRepository) {}
+
+  /** 첫 승인과 동일 request replay를 같은 DRAFT 결과로 반환한다 */
+  async approve(
+    input: ApproveQuestionCandidateInput,
+  ): Promise<ApprovedQuestionDraft> {
+    const result = await this.repository.approve(input);
+    if (result.kind === 'CONFLICT') {
+      throw new QuestionCandidateReviewError(
+        'QUESTION_CANDIDATE_REVIEW_CONFLICT',
+      );
+    }
+    return {
+      questionId: result.questionId,
+      questionVersionId: result.questionVersionId,
+    };
+  }
+
+  /** PENDING 후보 폐기만 허용하고 terminal·stale 전이는 conflict로 통일한다 */
+  async discard(input: DiscardQuestionCandidateInput): Promise<void> {
+    if (!(await this.repository.discard(input))) {
+      throw new QuestionCandidateReviewError(
+        'QUESTION_CANDIDATE_REVIEW_CONFLICT',
+      );
+    }
+  }
+
+  /** 원본 후보를 보존한 새 item attempt 생성 결과를 전달한다 */
+  regenerate(
+    input: RegenerateQuestionCandidateInput,
+  ): Promise<{ jobId: string; attempt: number }> {
+    return this.repository.requestRegeneration(input);
+  }
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
