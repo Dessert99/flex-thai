@@ -64,7 +64,7 @@ export const replaceDifficultyCriteria = (command: {
     body: replaceDifficultyCriteriaRequestSchema.parse(command.input),
     method: 'PUT',
     path: `/admin/question-type-versions/${uuidSchema.parse(command.versionId)}/difficulty-criteria`,
-    response: unknownResponse,
+    response: { kind: 'empty' },
   });
 
 /** DRAFT에 canonical 승인 예시를 추가한다 */
@@ -76,7 +76,7 @@ export const addApprovedExample = (command: {
     body: questionTypeApprovedExampleRequestSchema.parse(command.input),
     method: 'POST',
     path: `/admin/question-type-versions/${uuidSchema.parse(command.versionId)}/examples`,
-    response: unknownResponse,
+    response: { kind: 'empty' },
   });
 
 /** 유형 버전 lifecycle을 전환한다 */

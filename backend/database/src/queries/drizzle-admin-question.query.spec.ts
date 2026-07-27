@@ -8,6 +8,7 @@ import {
   questionBlockSentences,
   questionBlocks,
   questionOptions,
+  questionVersionTags,
   questions,
   questionVersions,
 } from '../schema/index.js';
@@ -185,6 +186,9 @@ describe('DrizzleAdminQuestionQuery 상세', () => {
           skill: 'READING',
           template: 'STANDARD_CHOICE',
           difficulty: 2,
+          topicId: 'topic-id',
+          topicSlug: 'general',
+          topicDisplayName: '일반',
           createdAt,
           publishedAt: updatedAt,
         },
@@ -201,6 +205,9 @@ describe('DrizzleAdminQuestionQuery 상세', () => {
           skill: 'READING',
           template: 'STANDARD_CHOICE',
           difficulty: 2,
+          topicId: 'topic-id',
+          topicSlug: 'general',
+          topicDisplayName: '일반',
           createdAt,
           publishedAt: createdAt,
         },
@@ -245,6 +252,14 @@ describe('DrizzleAdminQuestionQuery 상세', () => {
           isCorrect: true,
         },
       ],
+      [
+        {
+          questionVersionId: 'version-2',
+          tagId: 'tag-id',
+          tagSlug: 'grammar',
+          tagDisplayName: '문법',
+        },
+      ],
     ]);
     const query = new DrizzleAdminQuestionQuery(fake.database as never);
 
@@ -262,6 +277,8 @@ describe('DrizzleAdminQuestionQuery 상세', () => {
             issues: [],
             validatedAt: updatedAt,
           },
+          topic: { id: 'topic-id', slug: 'general', displayName: '일반' },
+          tags: [{ id: 'tag-id', slug: 'grammar', displayName: '문법' }],
           blocks: [
             {
               id: 'block-2',
@@ -295,6 +312,8 @@ describe('DrizzleAdminQuestionQuery 상세', () => {
             issues: [{ path: 'options', code: 'OPTION_COUNT_INVALID' }],
             validatedAt: createdAt,
           },
+          topic: { id: 'topic-id', slug: 'general', displayName: '일반' },
+          tags: [],
           blocks: [],
           options: [
             {
@@ -313,6 +332,7 @@ describe('DrizzleAdminQuestionQuery 상세', () => {
       questionBlocks,
       questionBlockSentences,
       questionOptions,
+      questionVersionTags,
     ]);
     for (const call of fake.calls) {
       expect(Object.keys(call.fields)).not.toEqual(

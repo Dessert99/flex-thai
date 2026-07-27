@@ -24,16 +24,55 @@ const draft = (
   ...overrides,
 });
 
+const canonicalSentence = {
+  originalText: 'ก',
+  translationKo: '뜻',
+  pronunciationKo: '꺼',
+  toneMarks: '-',
+  mediaAssetId: '00000000-0000-4000-8000-000000000010',
+  tokens: [
+    {
+      surface: 'ก',
+      startOffset: 0,
+      endOffset: 1,
+      vocabulary: { id: '00000000-0000-4000-8000-000000000011' },
+      meaning: { id: '00000000-0000-4000-8000-000000000012' },
+      pronunciation: { id: '00000000-0000-4000-8000-000000000013' },
+      contextMeaningKo: '뜻',
+      role: 'TARGET' as const,
+    },
+  ],
+  expressions: [],
+};
+
+const standardPayload = () => ({
+  difficulty: 3,
+  blocks: [
+    {
+      kind: 'QUESTION' as const,
+      displayMode: 'TEXT' as const,
+      sentences: [{ speaker: null, sentence: canonicalSentence }],
+    },
+  ],
+  options: ['a', 'b', 'c', 'd'].map((clientRef, position) => ({
+    clientRef,
+    position,
+    sentence: canonicalSentence,
+    span: null,
+  })),
+  correctOptionRef: 'a',
+});
+
 const repository = (
   version: QuestionTypeVersionRecord | null = draft(),
 ): QuestionTaxonomyRepository => ({
   createQuestionTypeWithDraft: vi.fn(),
   createNextDraft: vi.fn(),
   findVersion: vi.fn().mockResolvedValue(version),
-  replaceDifficultyCriteria: vi.fn(),
-  addApprovedExample: vi.fn(),
-  removeApprovedExample: vi.fn(),
-  activateVersion: vi.fn(),
+  replaceDifficultyCriteria: vi.fn().mockResolvedValue('UPDATED'),
+  addApprovedExample: vi.fn().mockResolvedValue('UPDATED'),
+  removeApprovedExample: vi.fn().mockResolvedValue('UPDATED'),
+  activateVersion: vi.fn().mockResolvedValue('ACTIVATED'),
   retireVersion: vi.fn(),
   createTerm: vi.fn(),
   archiveTerm: vi.fn(),
@@ -83,13 +122,8 @@ describe('QuestionTaxonomyService', () => {
         title: '잘못된 예시',
         payloadHash: 'hash',
         payload: {
-          difficulty: 3,
-          blocks: [{ kind: 'QUESTION' }],
-          options: [
-            { clientRef: 'a' },
-            { clientRef: 'b' },
-            { clientRef: 'c' },
-          ],
+          ...standardPayload(),
+          options: standardPayload().options.slice(0, 3),
           correctOptionRef: 'missing',
         },
       }),
@@ -108,17 +142,7 @@ describe('QuestionTaxonomyService', () => {
           id: 'example-1',
           title: '기본 예시',
           payloadHash: 'hash',
-          payload: {
-            difficulty: 3,
-            blocks: [{ kind: 'QUESTION' }],
-            options: [
-              { clientRef: 'a' },
-              { clientRef: 'b' },
-              { clientRef: 'c' },
-              { clientRef: 'd' },
-            ],
-            correctOptionRef: 'a',
-          },
+          payload: standardPayload(),
         },
       ],
     });
@@ -140,14 +164,79 @@ describe('QuestionTaxonomyService', () => {
       service.addApprovedExample('version-1', {
         title: '지문이 없는 예시',
         payloadHash: 'hash',
+        payload: standardPayload(),
+      }),
+    ).rejects.toMatchObject({ code: 'APPROVED_EXAMPLE_INVALID' });
+  });
+
+  it('대화 승인 예시는 모든 대화 문장에 speaker를 요구한다', async () => {
+    const repo = repository(draft({ template: 'DIALOGUE_CHOICE' }));
+    const service = new QuestionTaxonomyService(repo);
+
+    await expect(
+      service.addApprovedExample('version-1', {
+        title: 'speaker가 없는 대화',
+        payloadHash: 'hash',
         payload: {
           difficulty: 3,
-          blocks: [{ kind: 'QUESTION' }],
-          options: ['a', 'b', 'c', 'd'].map((clientRef) => ({ clientRef })),
+          blocks: [
+            {
+              kind: 'DIALOGUE',
+              displayMode: 'TEXT',
+              sentences: [{ speaker: null, sentence: canonicalSentence }],
+            },
+            {
+              kind: 'QUESTION',
+              displayMode: 'TEXT',
+              sentences: [{ speaker: null, sentence: canonicalSentence }],
+            },
+          ],
+          options: ['a', 'b', 'c', 'd'].map((clientRef, position) => ({
+            clientRef,
+            position,
+            sentence: canonicalSentence,
+            span: null,
+          })),
           correctOptionRef: 'a',
         },
       }),
     ).rejects.toMatchObject({ code: 'APPROVED_EXAMPLE_INVALID' });
+    expect(repo.addApprovedExample).not.toHaveBeenCalled();
+  });
+
+  it('inline 승인 예시는 QUESTION token 안의 중복 없는 범위만 허용한다', async () => {
+    const repo = repository(draft({ template: 'INLINE_SPAN_CHOICE' }));
+    const service = new QuestionTaxonomyService(repo);
+
+    await expect(
+      service.addApprovedExample('version-1', {
+        title: '범위를 벗어난 inline 예시',
+        payloadHash: 'hash',
+        payload: {
+          difficulty: 3,
+          blocks: [
+            {
+              kind: 'QUESTION',
+              displayMode: 'TEXT',
+              sentences: [{ speaker: null, sentence: canonicalSentence }],
+            },
+          ],
+          options: ['a', 'b', 'c', 'd'].map((clientRef, position) => ({
+            clientRef,
+            position,
+            sentence: null,
+            span: {
+              blockPosition: 0,
+              sentencePosition: 0,
+              startTokenIndex: 0,
+              endTokenIndex: position === 0 ? 2 : 1,
+            },
+          })),
+          correctOptionRef: 'a',
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'APPROVED_EXAMPLE_INVALID' });
+    expect(repo.addApprovedExample).not.toHaveBeenCalled();
   });
 
   it('준비되지 않은 버전과 활성 버전의 내용 변경을 거부한다', async () => {
@@ -163,6 +252,59 @@ describe('QuestionTaxonomyService', () => {
         { difficulty: 1, criteria: '기준' },
       ]),
     ).rejects.toMatchObject({ code: 'TYPE_VERSION_IMMUTABLE' });
+  });
+
+  it('난이도 기준 저장 직전 DRAFT가 아니게 되면 변경을 거부한다', async () => {
+    const repo = repository();
+    vi.mocked(repo.replaceDifficultyCriteria).mockResolvedValue('IMMUTABLE');
+    const service = new QuestionTaxonomyService(repo);
+
+    await expect(
+      service.replaceDifficultyCriteria(
+        'version-1',
+        [1, 2, 3, 4, 5].map((difficulty) => ({
+          difficulty,
+          criteria: `${difficulty}단계`,
+        })),
+      ),
+    ).rejects.toMatchObject({ code: 'TYPE_VERSION_IMMUTABLE' });
+  });
+
+  it('승인 예시 저장 직전 DRAFT가 아니게 되면 변경을 거부한다', async () => {
+    const repo = repository();
+    vi.mocked(repo.addApprovedExample).mockResolvedValue('IMMUTABLE');
+    const service = new QuestionTaxonomyService(repo);
+
+    await expect(
+      service.addApprovedExample('version-1', {
+        title: '기본 예시',
+        payloadHash: 'hash',
+        payload: standardPayload(),
+      }),
+    ).rejects.toMatchObject({ code: 'TYPE_VERSION_IMMUTABLE' });
+  });
+
+  it('활성화 transaction에서 준비 조건이 사라지면 활성화를 거부한다', async () => {
+    const ready = draft({
+      difficultyCriteria: [1, 2, 3, 4, 5].map((difficulty) => ({
+        difficulty,
+        criteria: `${difficulty}단계`,
+      })),
+      approvedExamples: [
+        {
+          title: '기본 예시',
+          payloadHash: 'hash',
+          payload: standardPayload(),
+        },
+      ],
+    });
+    const repo = repository(ready);
+    vi.mocked(repo.activateVersion).mockResolvedValue('NOT_READY');
+    const service = new QuestionTaxonomyService(repo);
+
+    await expect(service.activateVersion('version-1')).rejects.toMatchObject({
+      code: 'TYPE_VERSION_NOT_READY',
+    });
   });
 
   it('ACTIVE 버전만 RETIRED로 전환한다', async () => {

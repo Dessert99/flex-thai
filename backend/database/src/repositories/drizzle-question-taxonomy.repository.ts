@@ -7,7 +7,7 @@ import type {
   QuestionTaxonomyRepository,
   QuestionTypeVersionRecord,
 } from '@flex-thia/domain';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, count, eq, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import {
@@ -164,8 +164,10 @@ export class DrizzleQuestionTaxonomyRepository
     criteria: Parameters<
       QuestionTaxonomyRepository['replaceDifficultyCriteria']
     >[1],
-  ): Promise<void> {
+  ): ReturnType<QuestionTaxonomyRepository['replaceDifficultyCriteria']> {
     return this.database.transaction(async (transaction) => {
+      const locked = await lockDraftVersion(transaction, versionId);
+      if (locked !== 'DRAFT') return locked;
       await transaction
         .delete(questionTypeDifficultyCriteria)
         .where(eq(questionTypeDifficultyCriteria.typeVersionId, versionId));
@@ -175,39 +177,52 @@ export class DrizzleQuestionTaxonomyRepository
           ...criterion,
         })),
       );
+      return 'UPDATED';
     });
   }
 
   /** 검증된 canonical 예시 snapshot을 추가한다 */
-  async addApprovedExample(
+  addApprovedExample(
     versionId: string,
     example: QuestionApprovedExampleSnapshot,
-  ): Promise<void> {
-    await this.database.insert(questionTypeApprovedExamples).values({
-      typeVersionId: versionId,
-      title: example.title,
-      payloadHash: example.payloadHash,
-      payload: example.payload,
+  ): ReturnType<QuestionTaxonomyRepository['addApprovedExample']> {
+    return this.database.transaction(async (transaction) => {
+      const locked = await lockDraftVersion(transaction, versionId);
+      if (locked !== 'DRAFT') return locked;
+      await transaction.insert(questionTypeApprovedExamples).values({
+        typeVersionId: versionId,
+        title: example.title,
+        payloadHash: example.payloadHash,
+        payload: example.payload,
+      });
+      return 'UPDATED';
     });
   }
 
   /** DRAFT의 예시 snapshot을 제거한다 */
-  async removeApprovedExample(
+  removeApprovedExample(
     versionId: string,
     exampleId: string,
-  ): Promise<void> {
-    await this.database
-      .delete(questionTypeApprovedExamples)
-      .where(
-        and(
-          eq(questionTypeApprovedExamples.id, exampleId),
-          eq(questionTypeApprovedExamples.typeVersionId, versionId),
-        ),
-      );
+  ): ReturnType<QuestionTaxonomyRepository['removeApprovedExample']> {
+    return this.database.transaction(async (transaction) => {
+      const locked = await lockDraftVersion(transaction, versionId);
+      if (locked !== 'DRAFT') return locked;
+      await transaction
+        .delete(questionTypeApprovedExamples)
+        .where(
+          and(
+            eq(questionTypeApprovedExamples.id, exampleId),
+            eq(questionTypeApprovedExamples.typeVersionId, versionId),
+          ),
+        );
+      return 'UPDATED';
+    });
   }
 
   /** 이전 ACTIVE retire와 새 ACTIVE 전환을 한 transaction에서 수행한다 */
-  activateVersion(versionId: string): Promise<void> {
+  activateVersion(
+    versionId: string,
+  ): ReturnType<QuestionTaxonomyRepository['activateVersion']> {
     return this.database.transaction(async (transaction) => {
       const [target] = await transaction
         .select({
@@ -218,9 +233,22 @@ export class DrizzleQuestionTaxonomyRepository
         .where(eq(questionTypeVersions.id, versionId))
         .for('update')
         .limit(1);
-      if (!target || target.status !== 'DRAFT') {
-        throw new Error('QUESTION_TYPE_VERSION_TRANSITION_CONFLICT');
-      }
+      if (!target) return 'NOT_FOUND';
+      if (target.status !== 'DRAFT') return 'IMMUTABLE';
+      const [{ total: criteriaCount = 0 } = {}] = await transaction
+        .select({ total: count(questionTypeDifficultyCriteria.difficulty) })
+        .from(questionTypeDifficultyCriteria)
+        .where(
+          and(
+            eq(questionTypeDifficultyCriteria.typeVersionId, versionId),
+            sql`length(trim(${questionTypeDifficultyCriteria.criteria})) > 0`,
+          ),
+        );
+      const [{ total: exampleCount = 0 } = {}] = await transaction
+        .select({ total: count(questionTypeApprovedExamples.id) })
+        .from(questionTypeApprovedExamples)
+        .where(eq(questionTypeApprovedExamples.typeVersionId, versionId));
+      if (criteriaCount !== 5 || exampleCount < 1) return 'NOT_READY';
       await transaction
         .update(questionTypeVersions)
         .set({ status: 'RETIRED' })
@@ -243,6 +271,7 @@ export class DrizzleQuestionTaxonomyRepository
       if (updated.length !== 1) {
         throw new Error('QUESTION_TYPE_VERSION_TRANSITION_CONFLICT');
       }
+      return 'ACTIVATED';
     });
   }
 
@@ -293,3 +322,17 @@ export class DrizzleQuestionTaxonomyRepository
       .where(eq(questionTags.id, termId));
   }
 }
+
+const lockDraftVersion = async (
+  transaction: TaxonomySession,
+  versionId: string,
+): Promise<'DRAFT' | 'NOT_FOUND' | 'IMMUTABLE'> => {
+  const [version] = await transaction
+    .select({ status: questionTypeVersions.status })
+    .from(questionTypeVersions)
+    .where(eq(questionTypeVersions.id, versionId))
+    .for('update')
+    .limit(1);
+  if (!version) return 'NOT_FOUND';
+  return version.status === 'DRAFT' ? 'DRAFT' : 'IMMUTABLE';
+};

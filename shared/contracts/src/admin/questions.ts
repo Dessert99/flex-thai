@@ -347,6 +347,14 @@ const adminQuestionValidationStateSchema = z.discriminatedUnion('status', [
     .strict(),
 ]);
 
+const adminQuestionTaxonomyTermSchema = z
+  .object({
+    id: uuidSchema,
+    slug: z.string().min(1),
+    displayName: z.string().min(1),
+  })
+  .strict();
+
 const adminQuestionVersionDetailSchema = z
   .object({
     id: uuidSchema,
@@ -355,6 +363,8 @@ const adminQuestionVersionDetailSchema = z
     validation: adminQuestionValidationStateSchema,
     questionType: adminQuestionTypeVersionSchema,
     difficulty: difficultySchema,
+    topic: adminQuestionTaxonomyTermSchema,
+    tags: z.array(adminQuestionTaxonomyTermSchema),
     blocks: z.array(adminQuestionBlockSchema),
     options: z.array(adminQuestionOptionSchema),
     correctOptionId: uuidSchema,

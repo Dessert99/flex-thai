@@ -27,6 +27,8 @@ const ids = {
   sentence: '00000000-0000-4000-8000-000000000008',
   block: '00000000-0000-4000-8000-000000000009',
   option: '00000000-0000-4000-8000-000000000010',
+  topic: '00000000-0000-4000-8000-000000000011',
+  tag: '00000000-0000-4000-8000-000000000012',
 } as const;
 
 const sentenceInput = {
@@ -323,6 +325,18 @@ describe('관리자 문제 공개 응답 계약', () => {
             template: 'STANDARD_CHOICE',
           },
           difficulty: 2,
+          topic: {
+            id: ids.topic,
+            slug: 'general',
+            displayName: '일반',
+          },
+          tags: [
+            {
+              id: ids.tag,
+              slug: 'grammar',
+              displayName: '문법',
+            },
+          ],
           blocks: [
             {
               id: ids.block,
@@ -437,6 +451,12 @@ describe('관리자 문제 공개 응답 계약', () => {
             template: 'STANDARD_CHOICE',
           },
           difficulty: 2,
+          topic: {
+            id: ids.topic,
+            slug: 'general',
+            displayName: '일반',
+          },
+          tags: [],
           blocks: [],
           options: [
             {

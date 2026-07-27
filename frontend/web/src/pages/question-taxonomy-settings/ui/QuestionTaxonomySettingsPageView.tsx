@@ -1,5 +1,6 @@
 /** FLEX 7대 분류와 세부 유형 설정을 한 관리자 화면에 표현한다 */
 import {
+  createQuestionTypeVersionRequestSchema,
   questionMajorCategoryMetadata,
   type CreateQuestionTaxonomyTermRequest,
   type CreateQuestionTypeRequest,
@@ -13,6 +14,13 @@ import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
 import { PageError, PageLoading } from '@/shared/ui/page-state';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/ui/select';
 import { Textarea } from '@/shared/ui/textarea';
 import {
   approvedExampleFormSchema,
@@ -119,27 +127,18 @@ export function QuestionTaxonomySettingsPageView(props: Props) {
                     className='grid gap-cluster'
                     key={questionType.id}
                   >
-                    <div className='flex items-center justify-between gap-cluster'>
-                      <h3 className='font-semibold'>
-                        {questionType.displayName}
-                      </h3>
-                      <Button
-                        onClick={() => {
-                          const latest = questionType.versions[0];
-                          if (latest) {
-                            props.onCreateVersion(questionType.id, {
-                              template: latest.template,
-                              optionCount: latest.optionCount,
-                              decisionRules: latest.decisionRules,
-                            });
-                          }
-                        }}
-                        type='button'
-                        variant='outline'
-                      >
-                        다음 DRAFT
-                      </Button>
-                    </div>
+                    <h3 className='font-semibold'>
+                      {questionType.displayName}
+                    </h3>
+                    {questionType.versions[0] ? (
+                      <CreateVersionForm
+                        initial={questionType.versions[0]}
+                        key={questionType.versions[0].id}
+                        onCreate={(input) =>
+                          props.onCreateVersion(questionType.id, input)
+                        }
+                      />
+                    ) : null}
                     {questionType.versions.map((version) => (
                       <VersionEditor
                         key={version.id}
@@ -169,6 +168,82 @@ export function QuestionTaxonomySettingsPageView(props: Props) {
         terms={props.data.tags}
       />
     </section>
+  );
+}
+
+function CreateVersionForm({
+  initial,
+  onCreate,
+}: {
+  initial: SettingsData['questionTypes'][number]['versions'][number];
+  onCreate: (input: CreateQuestionTypeVersionRequest) => void;
+}) {
+  const [template, setTemplate] = useState(initial.template);
+  const [optionCount, setOptionCount] = useState<3 | 4>(initial.optionCount);
+  const [decisionRulesJson, setDecisionRulesJson] = useState(
+    JSON.stringify(initial.decisionRules, null, 2),
+  );
+  return (
+    <form
+      className='grid gap-cluster rounded-panel border border-default p-cluster md:grid-cols-4'
+      onSubmit={(event) => {
+        event.preventDefault();
+        try {
+          const parsed = createQuestionTypeVersionRequestSchema.safeParse({
+            template,
+            optionCount,
+            decisionRules: JSON.parse(decisionRulesJson),
+          });
+          if (parsed.success) onCreate(parsed.data);
+        } catch {
+          return;
+        }
+      }}
+    >
+      <Select
+        onValueChange={(value) =>
+          setTemplate(value as CreateQuestionTypeVersionRequest['template'])
+        }
+        value={template}
+      >
+        <SelectTrigger aria-label='vNext 템플릿'>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {[
+            'STANDARD_CHOICE',
+            'PASSAGE_CHOICE',
+            'DIALOGUE_CHOICE',
+            'INLINE_SPAN_CHOICE',
+          ].map((value) => (
+            <SelectItem
+              key={value}
+              value={value}
+            >
+              {value}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select
+        onValueChange={(value) => setOptionCount(value === '3' ? 3 : 4)}
+        value={String(optionCount)}
+      >
+        <SelectTrigger aria-label='vNext 선택지 수'>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value='3'>3</SelectItem>
+          <SelectItem value='4'>4</SelectItem>
+        </SelectContent>
+      </Select>
+      <Textarea
+        aria-label='vNext 판정 규칙 JSON'
+        onChange={(event) => setDecisionRulesJson(event.target.value)}
+        value={decisionRulesJson}
+      />
+      <Button type='submit'>vNext DRAFT 만들기</Button>
+    </form>
   );
 }
 

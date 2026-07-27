@@ -1,8 +1,12 @@
 /** 관리자 문제 분류 설정 화면 동작을 검증한다 */
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { QuestionTaxonomySettingsPageView } from './QuestionTaxonomySettingsPageView';
+
+beforeAll(() => {
+  Element.prototype.scrollIntoView = vi.fn();
+});
 
 const data = {
   questionTypes: [
@@ -108,6 +112,49 @@ describe('QuestionTaxonomySettingsPageView', () => {
 
     expect(onActivate).toHaveBeenCalledWith(
       '00000000-0000-4000-8000-000000000002',
+    );
+  });
+
+  it('vNext의 템플릿·선택지 수·판정 규칙을 편집해 생성한다', async () => {
+    const onCreateVersion = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <QuestionTaxonomySettingsPageView
+        data={data}
+        error={false}
+        loading={false}
+        onActivate={vi.fn()}
+        onArchiveTerm={vi.fn()}
+        onCreateTerm={vi.fn()}
+        onCreateType={vi.fn()}
+        onCreateVersion={onCreateVersion}
+        onRetry={vi.fn()}
+        onRetire={vi.fn()}
+        onSaveCriteria={vi.fn()}
+      />,
+    );
+
+    screen.getByRole('combobox', { name: 'vNext 템플릿' }).focus();
+    await user.keyboard('{Enter}');
+    await user.click(
+      await screen.findByRole('option', { name: 'DIALOGUE_CHOICE' }),
+    );
+    screen.getByRole('combobox', { name: 'vNext 선택지 수' }).focus();
+    await user.keyboard('{Enter}');
+    await user.click(await screen.findByRole('option', { name: '3' }));
+    const rules = screen.getByRole('textbox', { name: 'vNext 판정 규칙 JSON' });
+    fireEvent.change(rules, { target: { value: '{"mode":"dialogue"}' } });
+    await user.click(
+      screen.getByRole('button', { name: 'vNext DRAFT 만들기' }),
+    );
+
+    expect(onCreateVersion).toHaveBeenCalledWith(
+      '00000000-0000-4000-8000-000000000001',
+      {
+        template: 'DIALOGUE_CHOICE',
+        optionCount: 3,
+        decisionRules: { mode: 'dialogue' },
+      },
     );
   });
 });
