@@ -40,8 +40,14 @@ export * from './validation/unavailable-concept-content.validator.js';
 /** AWS를 호출하지 않는 로컬·테스트 adapter를 공개한다 */
 export * from './fakes/index.js';
 
-/** AI 어휘 제작의 local input·OCR·추출·검증 provider를 공개한다 */
+/** AI 어휘 제작의 local input reader를 공개한다 */
 export * from './fakes/fake-content-input.provider.js';
+
+/** AI 어휘 제작의 local OCR provider를 공개한다 */
 export * from './fakes/fake-content-ocr.provider.js';
+
+/** AI 어휘 제작의 local 추출 provider를 공개한다 */
 export * from './fakes/fake-vocabulary-extraction.provider.js';
+
+/** AI 어휘 제작의 local 교차 검증 provider를 공개한다 */
 export * from './fakes/fake-vocabulary-cross-validation.provider.js';
