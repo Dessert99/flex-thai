@@ -1534,56 +1534,102 @@ const hasValidVocabularyPolicy = (
     for (const range of ranges) {
       const matchingPolicies: Array<{
         policy: Set<string>;
-        found: Set<string>;
         role: 'TARGET' | 'REQUIRED';
       }> = [
         {
           policy: target,
-          found: foundTarget,
           role: 'TARGET',
         },
         {
           policy: required,
-          found: foundRequired,
           role: 'REQUIRED',
         },
       ];
-      for (const { policy, found, role } of matchingPolicies) {
+      for (const { policy, role } of matchingPolicies) {
         if (!policy.has(range.normalizedSurface)) continue;
-        found.add(range.normalizedSurface);
         policyMatches.push({ ...range, role });
       }
     }
 
-    for (const [index, token] of sentence.tokens.entries()) {
-      const memberships = policyMatches.filter(
-        (match) =>
-          match.startTokenIndex <= index && index < match.endTokenIndex,
+    const sortedMatches = [...policyMatches].sort(
+      (left, right) =>
+        left.startTokenIndex - right.startTokenIndex ||
+        left.endTokenIndex - right.endTokenIndex,
+    );
+    const occurrenceGroups: Array<typeof policyMatches> = [];
+    for (const match of sortedMatches) {
+      const group = occurrenceGroups.at(-1);
+      const groupEnd = Math.max(
+        ...(group ?? []).map(({ endTokenIndex }) => endTokenIndex),
       );
-      // 겹친 정책은 더 구체적인 하위 표현이 token의 canonical 학습 역할을 결정한다.
-      const shortestLength = Math.min(
-        ...memberships.map(
-          (match) => match.endTokenIndex - match.startTokenIndex,
-        ),
+      if (group && match.startTokenIndex < groupEnd) {
+        group.push(match);
+      } else {
+        occurrenceGroups.push([match]);
+      }
+    }
+
+    const knownTokenIndexes = new Set<number>();
+    for (const group of occurrenceGroups) {
+      const startTokenIndex = Math.min(
+        ...group.map((match) => match.startTokenIndex),
       );
-      const canonicalRoles = new Set(
-        memberships
-          .filter(
-            (match) =>
-              match.endTokenIndex - match.startTokenIndex === shortestLength,
-          )
-          .map(({ role }) => role),
+      const endTokenIndex = Math.max(
+        ...group.map((match) => match.endTokenIndex),
       );
-      const expectedRole =
-        canonicalRoles.size === 0
-          ? 'SUPPORTING'
-          : canonicalRoles.size === 1
+      const expectedRoles: Array<'TARGET' | 'REQUIRED' | undefined> = [];
+      for (let index = startTokenIndex; index < endTokenIndex; index += 1) {
+        knownTokenIndexes.add(index);
+        const memberships = group.filter(
+          (match) =>
+            match.startTokenIndex <= index && index < match.endTokenIndex,
+        );
+        // 겹친 정책은 더 구체적인 하위 표현이 token의 canonical 학습 역할을 결정한다.
+        const shortestLength = Math.min(
+          ...memberships.map(
+            (match) => match.endTokenIndex - match.startTokenIndex,
+          ),
+        );
+        const canonicalRoles = new Set(
+          memberships
+            .filter(
+              (match) =>
+                match.endTokenIndex - match.startTokenIndex === shortestLength,
+            )
+            .map(({ role }) => role),
+        );
+        expectedRoles.push(
+          canonicalRoles.size === 1
             ? canonicalRoles.values().next().value
-            : undefined;
-      if (expectedRole === undefined || token.role !== expectedRole) {
+            : undefined,
+        );
+      }
+
+      const occurrenceTokens = sentence.tokens.slice(
+        startTokenIndex,
+        endTokenIndex,
+      );
+      const isSupportingOccurrence = occurrenceTokens.every(
+        ({ role }) => role === 'SUPPORTING',
+      );
+      const isCanonicalOccurrence = expectedRoles.every(
+        (role, index) =>
+          role !== undefined && occurrenceTokens[index]?.role === role,
+      );
+      if (!isSupportingOccurrence && !isCanonicalOccurrence) {
         return false;
       }
-      if (expectedRole === 'SUPPORTING') {
+      if (isCanonicalOccurrence) {
+        for (const match of group) {
+          const found = match.role === 'TARGET' ? foundTarget : foundRequired;
+          found.add(match.normalizedSurface);
+        }
+      }
+    }
+
+    for (const [index, token] of sentence.tokens.entries()) {
+      if (!knownTokenIndexes.has(index)) {
+        if (token.role !== 'SUPPORTING') return false;
         auxiliary.add(normalizeThaiSearchText(token.surface));
       }
     }

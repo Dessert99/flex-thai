@@ -438,6 +438,41 @@ const instructionSentence = {
   ],
 };
 
+const makeRepeatedTargetCandidate = (
+  firstRole: 'TARGET' | 'REQUIRED' | 'SUPPORTING' | 'INSTRUCTION',
+  secondRole: 'TARGET' | 'REQUIRED' | 'SUPPORTING' | 'INSTRUCTION',
+): GeneratedQuestionCandidate => ({
+  ...candidate,
+  payload: {
+    ...candidate.payload,
+    blocks: [
+      {
+        ...candidate.payload.blocks[0]!,
+        sentences: [
+          {
+            speaker: null,
+            sentence: {
+              ...singleTokenSentence,
+              tokens: [{ ...singleTokenSentence.tokens[0]!, role: firstRole }],
+            },
+          },
+        ],
+      },
+    ],
+    options: [
+      {
+        clientRef: 'option-a',
+        position: 0,
+        sentence: {
+          ...singleTokenSentence,
+          tokens: [{ ...singleTokenSentence.tokens[0]!, role: secondRole }],
+        },
+        span: null,
+      },
+    ],
+  },
+});
+
 describe('AI 문제 후보 검증 규칙', () => {
   it.each([
     ['schema 실패', 'FAILED', 'QUESTION_SCHEMA_INVALID'],
@@ -976,6 +1011,42 @@ describe('AI 문제 후보 검증 규칙', () => {
           },
         },
         inlineDecisionContext,
+      ),
+    ).toEqual({
+      status: 'FAILED',
+      code: 'QUESTION_RULE_INVALID',
+    });
+  });
+
+  it('목표 어휘가 다시 등장하면 올바른 TARGET 하나와 SUPPORTING 등장을 함께 허용한다', () => {
+    expect(
+      validateQuestionDecisionRules(
+        makeRepeatedTargetCandidate('TARGET', 'SUPPORTING'),
+        { ...standardDecisionContext, newAuxiliaryVocabularyLimit: 0 },
+      ),
+    ).toEqual({
+      status: 'PASSED',
+      code: null,
+    });
+  });
+
+  it('목표 어휘의 모든 등장을 SUPPORTING으로 표시하면 필수 TARGET 부재로 거절한다', () => {
+    expect(
+      validateQuestionDecisionRules(
+        makeRepeatedTargetCandidate('SUPPORTING', 'SUPPORTING'),
+        { ...standardDecisionContext, newAuxiliaryVocabularyLimit: 0 },
+      ),
+    ).toEqual({
+      status: 'FAILED',
+      code: 'QUESTION_RULE_INVALID',
+    });
+  });
+
+  it('목표 어휘의 모든 등장을 REQUIRED로 잘못 표시하면 거절한다', () => {
+    expect(
+      validateQuestionDecisionRules(
+        makeRepeatedTargetCandidate('REQUIRED', 'REQUIRED'),
+        standardDecisionContext,
       ),
     ).toEqual({
       status: 'FAILED',
