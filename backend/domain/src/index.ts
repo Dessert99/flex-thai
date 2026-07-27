@@ -37,6 +37,10 @@ export * from './identity/user.repository.js';
 /** 관리자 사용자 상태와 beta 안내 추적 use case를 공개한다 */
 export * from './identity/user-management.js';
 
+/** 관리자 감사 기록 read model과 use case를 공개한다 */
+export * from './operations/audit-log.js';
+export * from './operations/audit-log.service.js';
+
 /** idempotent Job 생성 use case를 패키지 공개 경계에 노출한다 */
 export * from './jobs/create-job.service.js';
 

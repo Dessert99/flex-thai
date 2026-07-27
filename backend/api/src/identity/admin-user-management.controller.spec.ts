@@ -39,22 +39,35 @@ describe('AdminUserManagementController 보호 경계', () => {
 describe('AdminUserManagementController 공개 계약', () => {
   it('목록과 상태 변경을 공개 JSON으로 직렬화한다', async () => {
     const service = {
-      listUsers: vi.fn().mockResolvedValue([target]),
+      listUsers: vi.fn().mockResolvedValue({
+        items: [target],
+        page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
+      }),
       changeStatus: vi
         .fn()
         .mockResolvedValue({ ...target, status: 'DISABLED' }),
+      changeRole: vi.fn().mockResolvedValue({ ...target, role: 'ADMIN' }),
     };
     const controller = new AdminUserManagementController(service as never);
 
-    await expect(controller.listUsers(user, 'request-1')).resolves.toEqual({
+    await expect(
+      controller.listUsers(user, 'request-1', {
+        query: ' LEARNER ',
+        role: 'LEARNER',
+        page: '1',
+        pageSize: '20',
+      } as never),
+    ).resolves.toEqual({
       items: [
         expect.objectContaining({
           id: target.id,
           mfaEnrolled: false,
+          mfaEnrolledAt: null,
           status: 'ACTIVE',
           createdAt: target.createdAt.toISOString(),
         }),
       ],
+      page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
     });
     await controller.changeStatus(
       user,
@@ -73,6 +86,22 @@ describe('AdminUserManagementController 공개 계약', () => {
       target.id,
       'DISABLED',
       expect.any(Date),
+    );
+    await controller.changeRole(
+      user,
+      'request-1',
+      { userId: target.id },
+      { role: 'ADMIN' },
+    );
+    expect(service.changeRole).toHaveBeenCalledWith(
+      expect.objectContaining({ actorUserId: user.userId }),
+      target.id,
+      'ADMIN',
+      expect.any(Date),
+    );
+    expect(service.listUsers).toHaveBeenCalledWith(
+      expect.objectContaining({ requestId: 'request-1' }),
+      expect.objectContaining({ query: 'learner', page: 1, pageSize: 20 }),
     );
   });
 

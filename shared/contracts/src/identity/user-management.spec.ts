@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   betaInvitationRequestSchema,
   betaInvitationResponseSchema,
+  userManagementListQuerySchema,
   userManagementListResponseSchema,
+  userRoleUpdateRequestSchema,
   userStatusPathSchema,
   userStatusUpdateRequestSchema,
 } from './user-management.js';
@@ -21,10 +23,17 @@ describe('관리자 사용자 관리 계약', () => {
             role: 'LEARNER',
             status: 'ACTIVE',
             mfaEnrolled: false,
+            mfaEnrolledAt: null,
             createdAt: '2026-07-26T00:00:00.000Z',
             updatedAt: '2026-07-26T00:00:00.000Z',
           },
         ],
+        page: {
+          page: 1,
+          pageSize: 20,
+          totalItems: 1,
+          totalPages: 1,
+        },
       }),
     ).toMatchObject({ items: [{ status: 'ACTIVE' }] });
     expect(userStatusPathSchema.parse({ userId })).toEqual({ userId });
@@ -36,6 +45,49 @@ describe('관리자 사용자 관리 계약', () => {
         status: 'ACTIVE',
         password: 'forbidden',
       }),
+    ).toThrow();
+  });
+
+  it('검색·역할·상태·TOTP 등록 여부와 페이지 query를 정규화한다', () => {
+    expect(
+      userManagementListQuerySchema.parse({
+        query: ' Admin@HUFS.ac.kr ',
+        role: 'ADMIN',
+        status: 'ACTIVE',
+        mfaEnrolled: 'true',
+        page: '2',
+        pageSize: '50',
+      }),
+    ).toEqual({
+      query: 'admin@hufs.ac.kr',
+      role: 'ADMIN',
+      status: 'ACTIVE',
+      mfaEnrolled: true,
+      page: 2,
+      pageSize: 50,
+    });
+    expect(userManagementListQuerySchema.parse({})).toEqual({
+      page: 1,
+      pageSize: 20,
+    });
+    expect(() => userManagementListQuerySchema.parse({ page: '0' })).toThrow();
+    expect(() =>
+      userManagementListQuerySchema.parse({ pageSize: '101' }),
+    ).toThrow();
+    expect(() =>
+      userManagementListQuerySchema.parse({ mfaEnrolled: '1' }),
+    ).toThrow();
+  });
+
+  it('역할 변경 요청은 두 역할 외의 값을 거부한다', () => {
+    expect(userRoleUpdateRequestSchema.parse({ role: 'ADMIN' })).toEqual({
+      role: 'ADMIN',
+    });
+    expect(() =>
+      userRoleUpdateRequestSchema.parse({ role: 'OWNER' }),
+    ).toThrow();
+    expect(() =>
+      userRoleUpdateRequestSchema.parse({ role: 'ADMIN', force: true }),
     ).toThrow();
   });
 

@@ -10,6 +10,7 @@ import type { ProblemDetailsResponse } from '@flex-thia/contracts';
 import { WordbookPersistenceError } from '@flex-thia/database';
 import {
   AuthDomainError,
+  AuditLogError,
   ContentImportError,
   EmailChallengeError,
   IdentityDomainError,
@@ -72,6 +73,13 @@ const USER_MANAGEMENT_STATUS: Record<UserManagementError['code'], number> = {
   ADMIN_REQUIRED: HttpStatus.FORBIDDEN,
   INVALID_SCHOOL_EMAIL: HttpStatus.BAD_REQUEST,
   USER_NOT_FOUND: HttpStatus.NOT_FOUND,
+  SELF_LOCKOUT_FORBIDDEN: HttpStatus.CONFLICT,
+  LAST_ACTIVE_ADMIN_REQUIRED: HttpStatus.CONFLICT,
+};
+
+const AUDIT_LOG_STATUS: Record<AuditLogError['code'], number> = {
+  ADMIN_REQUIRED: HttpStatus.FORBIDDEN,
+  AUDIT_LOG_NOT_FOUND: HttpStatus.NOT_FOUND,
 };
 
 const EMAIL_CHALLENGE_STATUS: Record<EmailChallengeError['code'], number> = {
@@ -237,6 +245,14 @@ export const buildErrorResponse = (
 
   if (error instanceof UserManagementError) {
     const status = USER_MANAGEMENT_STATUS[error.code];
+    return {
+      status,
+      body: createProblem(error.code, status, requestId),
+    };
+  }
+
+  if (error instanceof AuditLogError) {
+    const status = AUDIT_LOG_STATUS[error.code];
     return {
       status,
       body: createProblem(error.code, status, requestId),

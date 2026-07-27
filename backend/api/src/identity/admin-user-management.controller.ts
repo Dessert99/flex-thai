@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -22,6 +23,8 @@ import {
   betaInvitationResponseSchema,
   managedIdentityUserResponseSchema,
   userManagementListResponseSchema,
+  userManagementListQuerySchema,
+  userRoleUpdateRequestSchema,
   userStatusPathSchema,
   userStatusUpdateRequestSchema,
   type BetaInvitationInput,
@@ -44,9 +47,11 @@ import {
   BetaInvitationRequestDto,
   BetaInvitationResponseDto,
   ManagedIdentityUserResponseDto,
+  UserManagementListQueryDto,
   UserManagementListResponseDto,
+  UserRoleUpdateRequestDto,
   UserStatusUpdateRequestDto,
-} from '../openapi/openapi.dto.js';
+} from './user-management.dto.js';
 import { AdminMfaGuard } from './admin-mfa.guard.js';
 import { ApplicationRoleGuard } from './application-role.guard.js';
 import { CognitoAuthorizerGuard } from './cognito-authorizer.guard.js';
@@ -69,10 +74,22 @@ export class AdminUserManagementController {
   async listUsers(
     @CurrentUser() user: AuthenticatedUser,
     @AdminRequestId() requestId: string,
+    @Query() rawQuery: UserManagementListQueryDto,
   ): Promise<UserManagementListResponse> {
-    const items = await this.users.listUsers(toActor(user, requestId));
+    const query = userManagementListQuerySchema.parse(rawQuery);
+    const result = await this.users.listUsers(toActor(user, requestId), {
+      page: query.page,
+      pageSize: query.pageSize,
+      ...(query.query ? { query: query.query } : {}),
+      ...(query.role ? { role: query.role } : {}),
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.mfaEnrolled !== undefined
+        ? { mfaEnrolled: query.mfaEnrolled }
+        : {}),
+    });
     return userManagementListResponseSchema.parse({
-      items: items.map(toResponse),
+      items: result.items.map(toResponse),
+      page: result.page,
     });
   }
 
@@ -95,6 +112,30 @@ export class AdminUserManagementController {
       toActor(user, requestId),
       path.userId,
       body.status,
+      new Date(),
+    );
+    return managedIdentityUserResponseSchema.parse(toResponse(result));
+  }
+
+  /** 대상 사용자를 LEARNER 또는 ADMIN으로 변경한다 */
+  @ApiOperation({ summary: '사용자 역할을 변경한다' })
+  @ApiParam({ name: 'userId', type: 'string', format: 'uuid' })
+  @ApiBody({ type: UserRoleUpdateRequestDto })
+  @ApiOkResponse({ type: ManagedIdentityUserResponseDto })
+  @ApiProblemResponses(400, 401, 403, 404, 409, 500)
+  @Patch(':userId/role')
+  async changeRole(
+    @CurrentUser() user: AuthenticatedUser,
+    @AdminRequestId() requestId: string,
+    @Param() rawPath: unknown,
+    @Body() rawBody: unknown,
+  ): Promise<ManagedIdentityUserResponse> {
+    const path = userStatusPathSchema.parse(rawPath);
+    const body = userRoleUpdateRequestSchema.parse(rawBody);
+    const result = await this.users.changeRole(
+      toActor(user, requestId),
+      path.userId,
+      body.role,
       new Date(),
     );
     return managedIdentityUserResponseSchema.parse(toResponse(result));
@@ -142,6 +183,7 @@ const toResponse = (
   role: user.role,
   status: user.status,
   mfaEnrolled: user.mfaEnrolledAt !== null,
+  mfaEnrolledAt: user.mfaEnrolledAt?.toISOString() ?? null,
   createdAt: user.createdAt.toISOString(),
   updatedAt: user.updatedAt.toISOString(),
 });

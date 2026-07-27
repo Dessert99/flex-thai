@@ -3,6 +3,9 @@ import type {
   IdentityUser,
   IdentityUserManagementRepository,
   ManagedIdentityUser,
+  ManagedIdentityUserChangeResult,
+  ManagedIdentityUserListQuery,
+  ManagedIdentityUserPage,
 } from './user.repository.js';
 
 /** 사용자 관리 use case가 허용하는 관리자 요청 문맥 */
@@ -35,7 +38,12 @@ export interface BetaInvitationRepository {
 /** 사용자 관리 실패를 stable code로 전달한다 */
 export class UserManagementError extends Error {
   constructor(
-    readonly code: 'ADMIN_REQUIRED' | 'INVALID_SCHOOL_EMAIL' | 'USER_NOT_FOUND',
+    readonly code:
+      | 'ADMIN_REQUIRED'
+      | 'INVALID_SCHOOL_EMAIL'
+      | 'USER_NOT_FOUND'
+      | 'SELF_LOCKOUT_FORBIDDEN'
+      | 'LAST_ACTIVE_ADMIN_REQUIRED',
   ) {
     super(code);
     this.name = 'UserManagementError';
@@ -50,9 +58,12 @@ export class UserManagementService {
   ) {}
 
   /** ADMIN에게만 공개 사용자 목록을 반환한다 */
-  async listUsers(actor: UserManagementActor): Promise<ManagedIdentityUser[]> {
+  async listUsers(
+    actor: UserManagementActor,
+    query: ManagedIdentityUserListQuery,
+  ): Promise<ManagedIdentityUserPage> {
     assertAdmin(actor);
-    return this.users.listManagedUsers();
+    return this.users.listManagedUsers(query);
   }
 
   /** 대상 상태를 바꾼 뒤 같은 use case에서 audit을 남긴다 */
@@ -63,11 +74,7 @@ export class UserManagementService {
     now: Date,
   ): Promise<ManagedIdentityUser> {
     assertAdmin(actor);
-    const user = await this.users.changeStatusWithAudit({
-      action:
-        status === 'DISABLED'
-          ? 'IDENTITY_USER_DISABLED'
-          : 'IDENTITY_USER_ENABLED',
+    const result = await this.users.changeStatusWithAudit({
       actorSub: actor.actorSub,
       actorUserId: actor.actorUserId,
       occurredAt: now,
@@ -75,10 +82,26 @@ export class UserManagementService {
       status,
       userId,
     });
-    if (!user) {
-      throw new UserManagementError('USER_NOT_FOUND');
-    }
-    return user;
+    return resolveChangeResult(result);
+  }
+
+  /** 대상 역할을 바꾸고 원자적 audit 결과를 반환한다 */
+  async changeRole(
+    actor: UserManagementActor,
+    userId: string,
+    role: IdentityUser['role'],
+    now: Date,
+  ): Promise<ManagedIdentityUser> {
+    assertAdmin(actor);
+    const result = await this.users.changeRoleWithAudit({
+      actorSub: actor.actorSub,
+      actorUserId: actor.actorUserId,
+      occurredAt: now,
+      requestId: actor.requestId,
+      role,
+      userId,
+    });
+    return resolveChangeResult(result);
   }
 
   /** 학교 이메일 안내 발송을 가입 제한과 무관한 기록으로만 저장한다 */
@@ -97,6 +120,24 @@ export class UserManagementService {
     });
   }
 }
+
+const resolveChangeResult = (
+  result: ManagedIdentityUserChangeResult,
+): ManagedIdentityUser => {
+  if (result.kind === 'UPDATED' || result.kind === 'UNCHANGED') {
+    return result.user;
+  }
+  if (result.kind === 'NOT_FOUND') {
+    throw new UserManagementError('USER_NOT_FOUND');
+  }
+  if (result.kind === 'ACTOR_FORBIDDEN') {
+    throw new UserManagementError('ADMIN_REQUIRED');
+  }
+  if (result.kind === 'SELF_LOCKOUT') {
+    throw new UserManagementError('SELF_LOCKOUT_FORBIDDEN');
+  }
+  throw new UserManagementError('LAST_ACTIVE_ADMIN_REQUIRED');
+};
 
 const assertAdmin = (actor: UserManagementActor): void => {
   if (actor.role !== 'ADMIN') {
