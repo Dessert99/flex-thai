@@ -1,3 +1,4 @@
+/** Wave 5 계약 공개 진입점이 학습 탐색·AI 문제·TTS 계약을 노출하는지 검증한다 */
 import {
   approveQuestionCandidateRequestSchema,
   approveQuestionCandidateResponseSchema,

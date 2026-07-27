@@ -1,3 +1,4 @@
+/** Wave 5 provider 공개 진입점이 신규 AI 문제·TTS fake adapter를 노출하는지 검증한다 */
 import {
   DeterministicTtsProvider,
   DeterministicTtsProviderError,

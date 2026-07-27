@@ -1,3 +1,4 @@
+/** Wave 5 데이터베이스 공개 진입점이 신규 schema·query·repository를 노출하는지 검증한다 */
 import {
   DrizzleAiQuestionProductionRepository,
   DrizzleQuestionProductionContextQuery,
