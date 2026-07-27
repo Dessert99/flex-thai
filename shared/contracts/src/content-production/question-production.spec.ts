@@ -171,7 +171,7 @@ describe('AI 문제 후보 관리자 검수 계약', () => {
     ).toBe(false);
   });
 
-  it('후보 경로는 UUID만 받고 명령 body에는 actor와 private field를 받지 않는다', () => {
+  it('후보 경로는 UUID만 받고 명령 body의 각 private actor field를 거절한다', () => {
     expect(questionCandidatePathSchema.parse({ candidateId })).toEqual({
       candidateId,
     });
@@ -200,6 +200,20 @@ describe('AI 문제 후보 관리자 검수 계약', () => {
         schema.safeParse({
           expectedRevision: 0,
           requestId,
+          actorSub: 'cognito-sub',
+        }).success,
+      ).toBe(false);
+      expect(
+        schema.safeParse({
+          expectedRevision: 0,
+          requestId,
+          occurredAt: '2026-07-27T00:00:00.000Z',
+        }).success,
+      ).toBe(false);
+      expect(
+        schema.safeParse({
+          expectedRevision: 0,
+          requestId,
           privateKey: 'private',
         }).success,
       ).toBe(false);
@@ -211,8 +225,11 @@ describe('AI 문제 후보 관리자 검수 계약', () => {
         }).success,
       ).toBe(false);
       expect(
-        schema.safeParse({ expectedRevision: -1, requestId: 'not-a-uuid' })
+        schema.safeParse({ expectedRevision: 0, requestId: 'not-a-uuid' })
           .success,
+      ).toBe(false);
+      expect(
+        schema.safeParse({ expectedRevision: -1, requestId }).success,
       ).toBe(false);
     }
   });
@@ -260,7 +277,7 @@ describe('AI 문제 후보 관리자 검수 계약', () => {
           detail.validations[0],
           detail.validations[1],
           detail.validations[2],
-          { ...detail.validations[2], status: 'FAILED' },
+          { ...detail.validations[2] },
         ],
       }).success,
     ).toBe(false);
@@ -580,6 +597,111 @@ describe('AI 문제 후보 관리자 검수 계약', () => {
     for (const [schema, value] of rejectedResponseCases) {
       expectSchemaRejects(schema, value);
     }
+  });
+
+  it('각 action response의 UUID·revision·attempt·count 경계를 한 field씩 검증한다', () => {
+    const approved = {
+      candidateId,
+      review: {
+        status: 'APPROVED' as const,
+        revision: 1,
+        questionId,
+        questionVersionId,
+      },
+    };
+    const discarded = {
+      candidateId,
+      review: { status: 'DISCARDED' as const, revision: 1 },
+    };
+    const regenerated = {
+      candidateId,
+      jobId: '8b73c1e2-3f17-4c88-afee-7e3a9fc34bf1',
+      attempt: 1,
+      revision: 1,
+    };
+    const list = {
+      items: [summary],
+      page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
+    };
+
+    const isolatedInvalidFields: Array<
+      [{ safeParse: (value: unknown) => { success: boolean } }, unknown]
+    > = [
+      [
+        questionCandidateListResponseSchema,
+        { ...list, items: [{ ...summary, id: 'not-a-uuid' }] },
+      ],
+      [
+        questionCandidateDetailResponseSchema,
+        { ...detail, candidate: { ...detail.candidate, id: 'not-a-uuid' } },
+      ],
+      [
+        questionCandidateListResponseSchema,
+        { ...list, page: { ...list.page, page: 0 } },
+      ],
+      [
+        questionCandidateListResponseSchema,
+        { ...list, page: { ...list.page, pageSize: 101 } },
+      ],
+      [
+        questionCandidateListResponseSchema,
+        { ...list, page: { ...list.page, totalItems: -1 } },
+      ],
+      [
+        questionCandidateListResponseSchema,
+        { ...list, page: { ...list.page, totalPages: -1 } },
+      ],
+      [
+        approveQuestionCandidateResponseSchema,
+        { ...approved, candidateId: 'not-a-uuid' },
+      ],
+      [
+        approveQuestionCandidateResponseSchema,
+        {
+          ...approved,
+          review: { ...approved.review, questionId: 'not-a-uuid' },
+        },
+      ],
+      [
+        approveQuestionCandidateResponseSchema,
+        {
+          ...approved,
+          review: { ...approved.review, questionVersionId: 'not-a-uuid' },
+        },
+      ],
+      [
+        approveQuestionCandidateResponseSchema,
+        { ...approved, review: { ...approved.review, revision: -1 } },
+      ],
+      [
+        discardQuestionCandidateResponseSchema,
+        { ...discarded, candidateId: 'not-a-uuid' },
+      ],
+      [
+        discardQuestionCandidateResponseSchema,
+        { ...discarded, review: { ...discarded.review, revision: -1 } },
+      ],
+      [
+        regenerateQuestionCandidateResponseSchema,
+        { ...regenerated, candidateId: 'not-a-uuid' },
+      ],
+      [
+        regenerateQuestionCandidateResponseSchema,
+        { ...regenerated, jobId: 'not-a-uuid' },
+      ],
+      [
+        regenerateQuestionCandidateResponseSchema,
+        { ...regenerated, attempt: 0 },
+      ],
+      [
+        regenerateQuestionCandidateResponseSchema,
+        { ...regenerated, revision: -1 },
+      ],
+    ];
+
+    isolatedInvalidFields.forEach(([schema, value]) =>
+      expectSchemaRejects(schema, value),
+    );
   });
 
   it('모든 목록·상세·검수 응답의 알 수 없는 key를 거절한다', () => {

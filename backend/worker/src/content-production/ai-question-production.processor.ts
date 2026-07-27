@@ -4,6 +4,7 @@ import {
   assertDistinctValidationModels,
   buildQuestionGenerationPrompt,
   classifyQuestionCandidate,
+  normalizeQuestionProductionValidationRecord,
   validateGeneratedQuestionSchema,
   validateQuestionDecisionRules,
 } from '@flex-thia/domain';
@@ -417,13 +418,15 @@ export class AiQuestionProductionProcessor {
 
       const candidateValidations: QuestionProductionValidationRecord[] = [];
       const schema = validateGeneratedQuestionSchema(candidate);
-      candidateValidations.push({
-        candidateOrdinal: ordinal,
-        stage: 'SCHEMA',
-        status: schema.status,
-        code: schema.code,
-        details: {},
-      });
+      candidateValidations.push(
+        normalizeQuestionProductionValidationRecord({
+          candidateOrdinal: ordinal,
+          stage: 'SCHEMA',
+          status: schema.status,
+          code: schema.code,
+          details: {},
+        }),
+      );
       const rules =
         schema.status === 'PASSED'
           ? validateQuestionDecisionRules(candidate)
@@ -431,37 +434,43 @@ export class AiQuestionProductionProcessor {
               status: 'FAILED' as const,
               code: 'QUESTION_RULE_INVALID' as const,
             };
-      candidateValidations.push({
-        candidateOrdinal: ordinal,
-        stage: 'DECISION_RULE',
-        status: rules.status,
-        code: rules.code,
-        details: {},
-      });
+      candidateValidations.push(
+        normalizeQuestionProductionValidationRecord({
+          candidateOrdinal: ordinal,
+          stage: 'DECISION_RULE',
+          status: rules.status,
+          code: rules.code,
+          details: {},
+        }),
+      );
 
       if (schema.status === 'PASSED' && rules.status === 'PASSED') {
         try {
           const matches = await this.similarityLookup.findSimilar(candidate, 5);
-          candidateValidations.push({
-            candidateOrdinal: ordinal,
-            stage: 'SIMILARITY',
-            status: matches.length === 0 ? 'PASSED' : 'FAILED',
-            code: matches.length === 0 ? null : 'QUESTION_SIMILARITY_REVIEW',
-            details: {
-              matches: matches.map(({ questionVersionId, score }) => ({
-                questionVersionId,
-                score,
-              })),
-            },
-          });
+          candidateValidations.push(
+            normalizeQuestionProductionValidationRecord({
+              candidateOrdinal: ordinal,
+              stage: 'SIMILARITY',
+              status: matches.length === 0 ? 'PASSED' : 'FAILED',
+              code: matches.length === 0 ? null : 'QUESTION_SIMILARITY_REVIEW',
+              details: {
+                matches: matches.map(({ questionVersionId, score }) => ({
+                  questionVersionId,
+                  score,
+                })),
+              },
+            }),
+          );
         } catch {
-          candidateValidations.push({
-            candidateOrdinal: ordinal,
-            stage: 'SIMILARITY',
-            status: 'FAILED',
-            code: 'QUESTION_SIMILARITY_LOOKUP_FAILED',
-            details: {},
-          });
+          candidateValidations.push(
+            normalizeQuestionProductionValidationRecord({
+              candidateOrdinal: ordinal,
+              stage: 'SIMILARITY',
+              status: 'FAILED',
+              code: 'QUESTION_SIMILARITY_LOOKUP_FAILED',
+              details: {},
+            }),
+          );
           providerFailures.push({
             status: 'FAILED',
             errorCode: 'QUESTION_SIMILARITY_LOOKUP_FAILED',
@@ -500,34 +509,40 @@ export class AiQuestionProductionProcessor {
 
         if (crossValidation.status !== 'SUCCEEDED') {
           providerFailures.push(crossValidation);
-          candidateValidations.push({
-            candidateOrdinal: ordinal,
-            stage: 'AI_CROSS_VALIDATION',
-            status: 'FAILED',
-            code: crossValidation.errorCode,
-            details: { retryable: crossValidation.retryable },
-          });
+          candidateValidations.push(
+            normalizeQuestionProductionValidationRecord({
+              candidateOrdinal: ordinal,
+              stage: 'AI_CROSS_VALIDATION',
+              status: 'FAILED',
+              code: crossValidation.errorCode,
+              details: { retryable: crossValidation.retryable },
+            }),
+          );
         } else if (crossValidation.result.kind !== 'QUESTION_VALIDATION') {
           providerFailures.push({
             status: 'FAILED',
             errorCode: 'QUESTION_PROVIDER_RESULT_INVALID',
             retryable: false,
           });
-          candidateValidations.push({
-            candidateOrdinal: ordinal,
-            stage: 'AI_CROSS_VALIDATION',
-            status: 'FAILED',
-            code: 'QUESTION_PROVIDER_RESULT_INVALID',
-            details: {},
-          });
+          candidateValidations.push(
+            normalizeQuestionProductionValidationRecord({
+              candidateOrdinal: ordinal,
+              stage: 'AI_CROSS_VALIDATION',
+              status: 'FAILED',
+              code: 'QUESTION_PROVIDER_RESULT_INVALID',
+              details: {},
+            }),
+          );
         } else {
-          candidateValidations.push({
-            candidateOrdinal: ordinal,
-            stage: 'AI_CROSS_VALIDATION',
-            status: crossValidation.result.status,
-            code: crossValidation.result.code,
-            details: { evidence: crossValidation.result.evidence },
-          });
+          candidateValidations.push(
+            normalizeQuestionProductionValidationRecord({
+              candidateOrdinal: ordinal,
+              stage: 'AI_CROSS_VALIDATION',
+              status: crossValidation.result.status,
+              code: crossValidation.result.code,
+              details: { evidence: crossValidation.result.evidence },
+            }),
+          );
         }
       }
 

@@ -291,6 +291,7 @@ describe('AI 문제 제작 processor', () => {
   it('한 후보의 provider 실패를 격리하고 다음 후보를 계속 처리한다', async () => {
     let validationCalls = 0;
     let persistedGroups: string[] = [];
+    let failedCrossValidationCode: string | null | undefined;
     const processor = createProcessor({
       candidates: [candidate(0), candidate(1)],
       crossValidation: {
@@ -314,6 +315,10 @@ describe('AI 문제 제작 processor', () => {
           persistedGroups = input.artifacts.candidates.map(
             ({ resultGroup }) => resultGroup,
           );
+          failedCrossValidationCode = input.artifacts.validations.find(
+            ({ candidateOrdinal, stage }) =>
+              candidateOrdinal === 0 && stage === 'AI_CROSS_VALIDATION',
+          )?.code;
           return Promise.resolve(true);
         },
       },
@@ -326,12 +331,71 @@ describe('AI 문제 제작 processor', () => {
 
     expect(validationCalls).toBe(2);
     expect(persistedGroups).toEqual(['NEEDS_ATTENTION', 'NORMAL']);
+    expect(failedCrossValidationCode).toBe('QUESTION_PROVIDER_CALL_FAILED');
     expect(result).toMatchObject({
       status: 'FAILED',
       retryable: true,
       errorCode: 'QUESTION_PROVIDER_CALL_FAILED',
       result: { total: 2, normal: 1, needsAttention: 1, failed: 0 },
     });
+  });
+
+  it('null code로 실패한 교차 검증 결과를 stable code로 저장한다', async () => {
+    let crossValidationCode: string | null | undefined;
+    const processor = createProcessor({
+      crossValidation: {
+        validate: () =>
+          Promise.resolve({
+            status: 'FAILED',
+            code: null,
+            evidence: {},
+            usage: {},
+            estimatedCostUsd: '0',
+            providerRequestId: null,
+          }),
+      },
+      candidateRepository: {
+        persist: (input) => {
+          crossValidationCode = input.artifacts.validations.find(
+            ({ stage }) => stage === 'AI_CROSS_VALIDATION',
+          )?.code;
+          return Promise.resolve(true);
+        },
+      },
+    });
+
+    await expect(
+      processor.process(workItem(), new AbortController().signal),
+    ).resolves.toMatchObject({
+      status: 'NEEDS_ATTENTION',
+      errorCode: null,
+    });
+    expect(crossValidationCode).toBe('QUESTION_CROSS_VALIDATION_FAILED');
+  });
+
+  it('유사도 lookup 실패를 stable code로 저장한다', async () => {
+    let similarityCode: string | null | undefined;
+    const processor = createProcessor({
+      similarity: {
+        findSimilar: () => Promise.reject(new Error('lookup failed')),
+      },
+      candidateRepository: {
+        persist: (input) => {
+          similarityCode = input.artifacts.validations.find(
+            ({ stage }) => stage === 'SIMILARITY',
+          )?.code;
+          return Promise.resolve(true);
+        },
+      },
+    });
+
+    await expect(
+      processor.process(workItem(), new AbortController().signal),
+    ).resolves.toMatchObject({
+      status: 'FAILED',
+      errorCode: 'QUESTION_SIMILARITY_LOOKUP_FAILED',
+    });
+    expect(similarityCode).toBe('QUESTION_SIMILARITY_LOOKUP_FAILED');
   });
 
   it('생성 후보가 없으면 성공으로 숨기지 않는다', async () => {

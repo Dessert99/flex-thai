@@ -68,14 +68,30 @@ export interface GeneratedQuestionCandidate {
   payload: GeneratedQuestionPayload;
 }
 
-/** 저장되는 후보별 검증 결과 */
-export interface QuestionProductionValidationRecord {
+/** 저장되는 후보별 검증 결과 — FAILED에는 반드시 stable code를 기록한다 */
+export type QuestionProductionValidationRecord =
+  | {
+      candidateOrdinal: number;
+      stage: QuestionValidationStage;
+      status: 'PASSED';
+      code: null;
+      details: Record<string, unknown>;
+    }
+  | {
+      candidateOrdinal: number;
+      stage: QuestionValidationStage;
+      status: 'FAILED';
+      code: string;
+      details: Record<string, unknown>;
+    };
+
+type UnnormalizedQuestionProductionValidationRecord = {
   candidateOrdinal: number;
   stage: QuestionValidationStage;
   status: 'PASSED' | 'FAILED';
   code: string | null;
   details: Record<string, unknown>;
-}
+};
 
 /** item attempt에 고정해 저장할 문제 후보 snapshot */
 export interface QuestionProductionCandidateRecord {
@@ -98,10 +114,12 @@ export interface QuestionProductionArtifacts {
 }
 
 /** 후보 규칙이 반환하는 단일 검증 결과 */
-export interface QuestionValidationResult {
-  status: 'PASSED' | 'FAILED';
-  code: 'QUESTION_SCHEMA_INVALID' | 'QUESTION_RULE_INVALID' | null;
-}
+export type QuestionValidationResult =
+  | { status: 'PASSED'; code: null }
+  | {
+      status: 'FAILED';
+      code: 'QUESTION_SCHEMA_INVALID' | 'QUESTION_RULE_INVALID';
+    };
 
 /** 후보의 검토 그룹과 표시할 대표 code */
 export interface QuestionCandidateClassification {
@@ -113,6 +131,45 @@ export interface QuestionCandidateClassification {
     | 'QUESTION_CROSS_VALIDATION_FAILED'
     | null;
 }
+
+const validationFailureCode = (stage: QuestionValidationStage): string => {
+  switch (stage) {
+    case 'SCHEMA':
+      return 'QUESTION_SCHEMA_INVALID';
+    case 'DECISION_RULE':
+      return 'QUESTION_RULE_INVALID';
+    case 'SIMILARITY':
+      return 'QUESTION_SIMILARITY_REVIEW';
+    case 'AI_CROSS_VALIDATION':
+      return 'QUESTION_CROSS_VALIDATION_FAILED';
+  }
+};
+
+/** 실패 code 누락을 stage별 stable code로 보정해 공개 계약 불변식을 지킨다 */
+export const normalizeQuestionProductionValidationRecord = (
+  input: UnnormalizedQuestionProductionValidationRecord,
+): QuestionProductionValidationRecord => {
+  if (input.status === 'PASSED') {
+    return {
+      candidateOrdinal: input.candidateOrdinal,
+      stage: input.stage,
+      status: 'PASSED',
+      code: null,
+      details: input.details,
+    };
+  }
+
+  return {
+    candidateOrdinal: input.candidateOrdinal,
+    stage: input.stage,
+    status: 'FAILED',
+    code:
+      typeof input.code === 'string' && input.code.trim().length > 0
+        ? input.code
+        : validationFailureCode(input.stage),
+    details: input.details,
+  };
+};
 
 /** prompt에 필요한 어휘의 공개 가능한 최소 요약 */
 export interface QuestionPromptVocabulary {

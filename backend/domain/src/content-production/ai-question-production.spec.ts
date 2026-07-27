@@ -4,6 +4,7 @@ import {
   assertDistinctValidationModels,
   buildQuestionGenerationPrompt,
   classifyQuestionCandidate,
+  normalizeQuestionProductionValidationRecord,
   projectQuestionPromptApprovedExample,
   QuestionCandidateReviewService,
   validateGeneratedQuestionSchema,
@@ -26,28 +27,28 @@ const makeValidationFixture = (
     | null,
 ): QuestionProductionValidationRecord[] => {
   const records: QuestionProductionValidationRecord[] = [
-    {
+    normalizeQuestionProductionValidationRecord({
       candidateOrdinal: 0,
       stage: 'SCHEMA',
       status: failedCode === 'QUESTION_SCHEMA_INVALID' ? 'FAILED' : 'PASSED',
       code: failedCode === 'QUESTION_SCHEMA_INVALID' ? 'INVALID' : null,
       details: {},
-    },
-    {
+    }),
+    normalizeQuestionProductionValidationRecord({
       candidateOrdinal: 0,
       stage: 'DECISION_RULE',
       status: failedCode === 'QUESTION_RULE_INVALID' ? 'FAILED' : 'PASSED',
       code: failedCode === 'QUESTION_RULE_INVALID' ? 'INVALID' : null,
       details: {},
-    },
-    {
+    }),
+    normalizeQuestionProductionValidationRecord({
       candidateOrdinal: 0,
       stage: 'SIMILARITY',
       status: failedCode === 'QUESTION_SIMILARITY_REVIEW' ? 'FAILED' : 'PASSED',
       code: failedCode === 'QUESTION_SIMILARITY_REVIEW' ? 'TOO_SIMILAR' : null,
       details: {},
-    },
-    {
+    }),
+    normalizeQuestionProductionValidationRecord({
       candidateOrdinal: 0,
       stage: 'AI_CROSS_VALIDATION',
       status:
@@ -57,7 +58,7 @@ const makeValidationFixture = (
           ? 'ANSWER_MISMATCH'
           : null,
       details: {},
-    },
+    }),
   ];
 
   return records;
@@ -360,6 +361,24 @@ describe('AI 문제 후보 검증 규칙', () => {
     expect(classifyQuestionCandidate(makeValidationFixture(code))).toEqual({
       group,
       code,
+    });
+  });
+
+  it('FAILED 검증 record의 null code를 단계별 stable code로 정규화한다', () => {
+    expect(
+      normalizeQuestionProductionValidationRecord({
+        candidateOrdinal: 0,
+        stage: 'AI_CROSS_VALIDATION',
+        status: 'FAILED',
+        code: null,
+        details: {},
+      }),
+    ).toEqual({
+      candidateOrdinal: 0,
+      stage: 'AI_CROSS_VALIDATION',
+      status: 'FAILED',
+      code: 'QUESTION_CROSS_VALIDATION_FAILED',
+      details: {},
     });
   });
 
