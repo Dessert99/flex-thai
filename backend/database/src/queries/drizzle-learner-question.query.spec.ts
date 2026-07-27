@@ -76,7 +76,7 @@ const createSelectFake = (selectResults: QueryResult[]) => {
   const database = {
     select,
     selectDistinct,
-    $with: vi.fn((name: string) => ({
+    $with: vi.fn(() => ({
       as: vi.fn(() => ({
         questionVersionId: schema.questionVersions.id,
         questionTypeId: schema.questionTypeVersions.questionTypeId,

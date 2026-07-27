@@ -62,7 +62,7 @@ export function QuestionListPageView({
       <div className='grid gap-section md:grid-cols-[18rem_minmax(0,1fr)] md:items-start'>
         <aside
           aria-label='문제 필터'
-          className='min-w-0'
+          className='min-w-collapsible'
         >
           <QuestionFilters
             facets={data?.facets ?? emptyQuestionListFacets}
@@ -73,7 +73,7 @@ export function QuestionListPageView({
         </aside>
         <section
           aria-label='문제 목록 결과'
-          className='min-w-0'
+          className='min-w-collapsible'
         >
           {renderQuestionState({
             data,
@@ -114,6 +114,20 @@ function renderQuestionState({
     return renderEmptyState(search, onResetFilters);
   }
 
+  return (
+    <QuestionResults
+      data={data}
+      onPageChange={onPageChange}
+    />
+  );
+}
+
+function QuestionResults({
+  data,
+  onPageChange,
+}: Pick<QuestionListPageViewProps, 'data' | 'onPageChange'> & {
+  data: QuestionListResponse;
+}) {
   return (
     <>
       <ul className='grid gap-cluster'>
