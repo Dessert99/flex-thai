@@ -21,6 +21,8 @@ import type {
 /** 복제 원본의 sentence version 참조와 정답을 포함한 문제 버전 */
 export interface QuestionAdminVersionSource extends QuestionVersionRecord {
   typeVersionId: string;
+  topicId: string;
+  tagIds: string[];
   difficulty: number;
   blocks: Array<{
     kind: QuestionBlockKind;
@@ -58,6 +60,7 @@ export interface QuestionAdminVersionGraph {
     questionId: string;
     version: number;
     typeVersionId: string;
+    topicId: string;
     difficulty: number;
     status: 'DRAFT';
     validationStatus: 'PENDING';
@@ -65,6 +68,7 @@ export interface QuestionAdminVersionGraph {
     validatedAt: null;
     publishedAt: null;
   };
+  tagIds: string[];
   sentences: ResolvedQuestionSentenceGraph[];
   blocks: ResolvedQuestionBlock[];
   options: ResolvedQuestionOption[];
@@ -95,6 +99,8 @@ export interface QuestionAdminTransaction {
     slug: string,
     version: number,
   ): Promise<QuestionAdminTypeVersion | null>;
+  findActiveQuestionTopic(slug: string): Promise<{ id: string } | null>;
+  findActiveQuestionTags(slugs: string[]): Promise<Array<{ id: string }>>;
   findMediaAssetById(mediaAssetId: string): Promise<MediaAsset | null>;
   findVocabularyById(
     vocabularyId: string,

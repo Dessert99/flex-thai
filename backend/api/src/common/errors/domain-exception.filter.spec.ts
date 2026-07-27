@@ -13,6 +13,7 @@ import {
 import { WordbookPersistenceError } from '@flex-thia/database';
 import {
   AuthDomainError,
+  AuditLogError,
   ContentImportError,
   EmailChallengeError,
   IdentityDomainError,
@@ -20,6 +21,7 @@ import {
   MediaAssetDomainError,
   QuestionAdminError,
   QuestionPublicationError,
+  QuestionTaxonomyError,
   UserManagementError,
   VocabularyAdminError,
   VocabularyRelationsMergeAdminError,
@@ -78,6 +80,24 @@ describe('공개 오류 응답 변환', () => {
       },
     });
     expect(JSON.stringify(result)).not.toContain('sensitive stack');
+  });
+
+  it('번역되지 않은 PostgreSQL unique 오류는 500으로 유지한다', () => {
+    const result = buildErrorResponse(
+      {
+        code: '23505',
+        constraint: 'question_type_versions_type_version_unique',
+      },
+      'request-taxonomy',
+    );
+
+    expect(result).toMatchObject({
+      status: 500,
+      body: {
+        code: 'INTERNAL_SERVER_ERROR',
+        requestId: 'request-taxonomy',
+      },
+    });
   });
 
   it('준비 상태의 공개 code를 일반 HTTP 이름으로 덮어쓰지 않는다', () => {
@@ -269,9 +289,13 @@ describe('공개 오류 응답 변환', () => {
     [new QuestionPublicationError('QUESTION_VERSION_NOT_FOUND'), 404],
     [new QuestionPublicationError('QUESTION_VERSION_NOT_PUBLISHABLE'), 409],
     [new QuestionPublicationError('QUESTION_STATE_CONFLICT'), 409],
+    [new QuestionTaxonomyError('TAXONOMY_CONFLICT'), 409],
     [new UserManagementError('ADMIN_REQUIRED'), 403],
     [new UserManagementError('INVALID_SCHOOL_EMAIL'), 400],
     [new UserManagementError('USER_NOT_FOUND'), 404],
+    [new UserManagementError('SELF_LOCKOUT_FORBIDDEN'), 409],
+    [new UserManagementError('LAST_ACTIVE_ADMIN_REQUIRED'), 409],
+    [new AuditLogError('AUDIT_LOG_NOT_FOUND'), 404],
     [new VocabularyAdminError('VOCABULARY_NOT_FOUND'), 404],
     [new VocabularyAdminError('VOCABULARY_MEDIA_NOT_FOUND'), 404],
     [new VocabularyAdminError('VOCABULARY_CONTENT_INVALID'), 400],

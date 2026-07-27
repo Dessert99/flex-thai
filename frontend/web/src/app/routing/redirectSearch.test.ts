@@ -11,6 +11,8 @@ describe('안전한 로그인 redirect', () => {
       '/wordbooks/00000000-0000-4000-8000-000000000101?page=2&pageSize=20',
     ],
     ['/admin/users', '/admin/users'],
+    ['/admin/audit-logs', '/admin/audit-logs'],
+    ['/admin/question-settings', '/admin/question-settings'],
     [
       '/questions?difficulty=3&page=2&pageSize=20',
       '/questions?difficulty=3&page=2&pageSize=20',

@@ -49,6 +49,12 @@ export interface QuestionTypeVersionReferenceRecord {
   optionCount: number;
 }
 
+/** 문제 버전에 연결할 선택 가능한 주제·태그 참조 */
+export interface QuestionTaxonomyReferenceRecord {
+  id: string;
+  slug: string;
+}
+
 /** vocabulary graph에 저장할 한국어 뜻 */
 export interface ResolvedVocabularyMeaning {
   id: string;
@@ -154,6 +160,7 @@ export interface ResolvedQuestionDraftGraph {
     questionId: string;
     version: 1;
     typeVersionId: string;
+    topicId: string;
     difficulty: number;
     status: 'DRAFT';
     validationStatus: 'PENDING';
@@ -161,6 +168,7 @@ export interface ResolvedQuestionDraftGraph {
     validatedAt: null;
     publishedAt: null;
   };
+  tagIds: string[];
   sentences: ResolvedQuestionSentenceGraph[];
   blocks: ResolvedQuestionBlock[];
   options: ResolvedQuestionOption[];
@@ -223,6 +231,14 @@ export interface ContentDraftTransaction {
     slug: string,
     version: number,
   ): Promise<QuestionTypeVersionReferenceRecord | null>;
+  findActiveQuestionTopic(
+    this: void,
+    slug: string,
+  ): Promise<QuestionTaxonomyReferenceRecord | null>;
+  findActiveQuestionTags(
+    this: void,
+    slugs: string[],
+  ): Promise<QuestionTaxonomyReferenceRecord[]>;
   saveVocabularyDraft(
     this: void,
     input: {

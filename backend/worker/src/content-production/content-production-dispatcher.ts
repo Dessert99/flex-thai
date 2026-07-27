@@ -1,26 +1,41 @@
 /** 콘텐츠 제작 worker dispatcher의 외부 계약을 정의한다 */
 import type {
   ContentProductionItem,
-  ContentProductionJob,
   ContentProductionJobStatus,
+  ContentProductionJob,
+  ContentProductionItemSeed,
+  ContentProductionWorkerJob,
+  ContentProductionWorkItem,
+  VocabularyProductionArtifacts,
 } from '@flex-thia/domain';
-import { CONTENT_PRODUCTION_ITEM_LEASE_MS } from '@flex-thia/domain';
+import {
+  CONTENT_PRODUCTION_ITEM_LEASE_MS,
+  createContentProductionWorkItem,
+} from '@flex-thia/domain';
 
 const CONTENT_PRODUCTION_ITEM_HEARTBEAT_MS = Math.floor(
   CONTENT_PRODUCTION_ITEM_LEASE_MS / 3,
 );
 const CONTENT_PRODUCTION_ITEM_HEARTBEAT_RETRY_MS = 5 * 1000;
 
+type ContentProductionWorkerJobSnapshot = Pick<
+  ContentProductionJob,
+  | 'id'
+  | 'attempt'
+  | 'status'
+  | 'requestedBy'
+  | 'purpose'
+  | 'presetSnapshot'
+  | 'inputs'
+>;
+
 /** worker가 요구하는 조건부 콘텐츠 제작 저장소 */
 export interface ContentProductionWorkerRepository {
   startAttempt(
     jobId: string,
     attempt: number,
-  ): Promise<Pick<
-    ContentProductionJob,
-    'id' | 'attempt' | 'status' | 'purpose' | 'inputs'
-  > | null>;
-  ensureItems(jobId: string, sourceRefs: string[]): Promise<void>;
+  ): Promise<ContentProductionWorkerJobSnapshot | null>;
+  ensureItems(jobId: string, seeds: ContentProductionItemSeed[]): Promise<void>;
   listAttemptItems(
     jobId: string,
     attempt: number,
@@ -55,12 +70,13 @@ export interface ContentProductionItemOutcome {
   retryable: boolean;
   errorCode: string | null;
   result?: Record<string, unknown>;
+  artifacts?: VocabularyProductionArtifacts;
 }
 
 /** 입력 항목을 local fake 또는 실제 provider로 처리하는 port */
 export interface ContentProductionItemProcessor {
   process(
-    item: ContentProductionItem,
+    workItem: ContentProductionWorkItem,
     signal: AbortSignal,
   ): Promise<ContentProductionItemOutcome>;
 }
@@ -173,19 +189,45 @@ const startLeaseHeartbeat = (
   };
 };
 
-const buildSourceRefs = (
-  job: Pick<ContentProductionJob, 'purpose' | 'inputs'>,
-): string[] =>
-  job.inputs.flatMap((_input, index) => {
+const buildItemSeeds = (
+  job: ContentProductionWorkerJobSnapshot,
+): ContentProductionItemSeed[] =>
+  job.inputs.flatMap((input, index) => {
+    if (!input.jobInputId || input.ordinal === undefined) {
+      throw new Error(`job input ID가 없는 콘텐츠 제작 작업입니다: ${job.id}`);
+    }
     if (job.purpose === 'VOCABULARY_EXTRACTION') {
-      return [`input:${index}:vocabulary`];
+      return [
+        {
+          sourceRef: `input:${index}:vocabulary`,
+          jobInputId: input.jobInputId,
+          operation: 'VOCABULARY_EXTRACTION' as const,
+        },
+      ];
     }
 
     if (job.purpose === 'QUESTION_GENERATION') {
-      return [`input:${index}:question`];
+      return [
+        {
+          sourceRef: `input:${index}:question`,
+          jobInputId: input.jobInputId,
+          operation: 'QUESTION_GENERATION' as const,
+        },
+      ];
     }
 
-    return [`input:${index}:vocabulary`, `input:${index}:question`];
+    return [
+      {
+        sourceRef: `input:${index}:vocabulary`,
+        jobInputId: input.jobInputId,
+        operation: 'VOCABULARY_EXTRACTION' as const,
+      },
+      {
+        sourceRef: `input:${index}:question`,
+        jobInputId: input.jobInputId,
+        operation: 'QUESTION_GENERATION' as const,
+      },
+    ];
   });
 
 /** stale·terminal 전달을 무시하고 항목 실패를 격리해 한 attempt를 집계한다 */
@@ -207,7 +249,11 @@ export const createContentProductionDispatcher =
       return { jobId: input.jobId, status: 'IGNORED' };
     }
 
-    await repository.ensureItems(job.id, buildSourceRefs(job));
+    const itemSeeds = buildItemSeeds(job);
+    await repository.ensureItems(job.id, itemSeeds);
+    const seedsBySourceRef = new Map(
+      itemSeeds.map((seed) => [seed.sourceRef, seed]),
+    );
     const items = await repository.listAttemptItems(job.id, input.attempt);
 
     for (const item of items) {
@@ -245,7 +291,22 @@ export const createContentProductionDispatcher =
       let outcome: ContentProductionItemOutcome;
 
       try {
-        outcome = await processor.process(claimed, controller.signal);
+        const seed = seedsBySourceRef.get(claimed.sourceRef);
+        if (!seed || !claimed.leaseUntil || !claimed.leaseToken) {
+          throw new Error(
+            `구조화되지 않은 콘텐츠 제작 claim입니다: ${claimed.id}`,
+          );
+        }
+        outcome = await processor.process(
+          createContentProductionWorkItem(job as ContentProductionWorkerJob, {
+            ...claimed,
+            jobInputId: seed.jobInputId,
+            operation: seed.operation,
+            leaseUntil: claimed.leaseUntil,
+            leaseToken: claimed.leaseToken,
+          }),
+          controller.signal,
+        );
       } catch {
         outcome = {
           status: 'FAILED',

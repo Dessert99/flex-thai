@@ -16,10 +16,13 @@ import {
   questionBlocks,
   questionBlockSentences,
   questionOptions,
+  questionTags,
+  questionTopics,
   questions,
   questionTypes,
   questionTypeVersions,
   questionVersions,
+  questionVersionTags,
   thaiSentences,
   thaiSentenceVersions,
   tokenOccurrences,
@@ -107,7 +110,7 @@ const toMediaAsset = (row: MediaAssetRow): MediaAsset => {
 
 const loadSourceChildren = async (
   transaction: QuestionAdminSession,
-  version: Omit<QuestionAdminVersionSource, 'blocks' | 'options'>,
+  version: Omit<QuestionAdminVersionSource, 'blocks' | 'options' | 'tagIds'>,
 ): Promise<QuestionAdminVersionSource> => {
   const blockRows = await transaction
     .select({
@@ -148,8 +151,13 @@ const loadSourceChildren = async (
     .from(questionOptions)
     .where(eq(questionOptions.questionVersionId, version.id))
     .orderBy(asc(questionOptions.position));
+  const tagRows = await transaction
+    .select({ tagId: questionVersionTags.tagId })
+    .from(questionVersionTags)
+    .where(eq(questionVersionTags.questionVersionId, version.id));
   return {
     ...version,
+    tagIds: tagRows.map(({ tagId }) => tagId),
     blocks: [...blockRows].sort(comparePosition).map((block) => ({
       kind: block.kind,
       displayMode: block.displayMode,
@@ -174,6 +182,14 @@ const insertVersionGraph = async (
 ): Promise<void> => {
   if (includeVersion) {
     await transaction.insert(questionVersions).values(graph.version);
+  }
+  if (graph.tagIds.length > 0) {
+    await transaction.insert(questionVersionTags).values(
+      graph.tagIds.map((tagId) => ({
+        questionVersionId: graph.version.id,
+        tagId,
+      })),
+    );
   }
   if (graph.sentences.length > 0) {
     await transaction
@@ -235,6 +251,7 @@ const createQuestionAdminTransaction = (
         questionId: questionVersions.questionId,
         version: questionVersions.version,
         typeVersionId: questionVersions.typeVersionId,
+        topicId: questionVersions.topicId,
         difficulty: questionVersions.difficulty,
         status: questionVersions.status,
         validationStatus: questionVersions.validationStatus,
@@ -255,6 +272,7 @@ const createQuestionAdminTransaction = (
         questionId: questionVersions.questionId,
         version: questionVersions.version,
         typeVersionId: questionVersions.typeVersionId,
+        topicId: questionVersions.topicId,
         difficulty: questionVersions.difficulty,
         status: questionVersions.status,
         validationStatus: questionVersions.validationStatus,
@@ -285,11 +303,38 @@ const createQuestionAdminTransaction = (
         and(
           eq(questionTypes.slug, slug),
           eq(questionTypeVersions.version, version),
+          eq(questionTypeVersions.status, 'ACTIVE'),
         ),
       )
       .for('key share')
       .limit(1);
     return row ?? null;
+  },
+
+  async findActiveQuestionTopic(slug) {
+    const [row] = await transaction
+      .select({ id: questionTopics.id })
+      .from(questionTopics)
+      .where(
+        and(eq(questionTopics.slug, slug), eq(questionTopics.status, 'ACTIVE')),
+      )
+      .for('key share')
+      .limit(1);
+    return row ?? null;
+  },
+
+  async findActiveQuestionTags(slugs) {
+    if (slugs.length === 0) return [];
+    return transaction
+      .select({ id: questionTags.id })
+      .from(questionTags)
+      .where(
+        and(
+          inArray(questionTags.slug, slugs),
+          eq(questionTags.status, 'ACTIVE'),
+        ),
+      )
+      .for('key share');
   },
 
   async findMediaAssetById(mediaAssetId) {
@@ -352,6 +397,7 @@ const createQuestionAdminTransaction = (
       .update(questionVersions)
       .set({
         typeVersionId: graph.version.typeVersionId,
+        topicId: graph.version.topicId,
         difficulty: graph.version.difficulty,
         validationStatus: 'PENDING',
         validationIssues: [],
@@ -389,6 +435,9 @@ const createQuestionAdminTransaction = (
     await transaction
       .delete(questionOptions)
       .where(eq(questionOptions.questionVersionId, graph.version.id));
+    await transaction
+      .delete(questionVersionTags)
+      .where(eq(questionVersionTags.questionVersionId, graph.version.id));
     // 문장 snapshot은 clone과 게시 버전에서 공유될 수 있어 연결 교체가 삭제 권한을 확장하지 않는다.
     await insertVersionGraph(transaction, graph, false);
   },

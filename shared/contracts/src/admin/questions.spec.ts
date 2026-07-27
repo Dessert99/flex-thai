@@ -27,6 +27,8 @@ const ids = {
   sentence: '00000000-0000-4000-8000-000000000008',
   block: '00000000-0000-4000-8000-000000000009',
   option: '00000000-0000-4000-8000-000000000010',
+  topic: '00000000-0000-4000-8000-000000000011',
+  tag: '00000000-0000-4000-8000-000000000012',
 } as const;
 
 const sentenceInput = {
@@ -131,7 +133,11 @@ describe('관리자 문제 path·query·교체 payload 계약', () => {
   });
 
   it('초안 전체 교체는 기존 콘텐츠 UUID와 payload 내부 option 참조를 허용한다', () => {
-    expect(adminQuestionVersionPayloadSchema.parse(payload)).toEqual(payload);
+    expect(adminQuestionVersionPayloadSchema.parse(payload)).toEqual({
+      ...payload,
+      topicSlug: 'general',
+      tagSlugs: [],
+    });
     expect(() =>
       adminQuestionVersionPayloadSchema.parse({
         ...payload,
@@ -319,6 +325,18 @@ describe('관리자 문제 공개 응답 계약', () => {
             template: 'STANDARD_CHOICE',
           },
           difficulty: 2,
+          topic: {
+            id: ids.topic,
+            slug: 'general',
+            displayName: '일반',
+          },
+          tags: [
+            {
+              id: ids.tag,
+              slug: 'grammar',
+              displayName: '문법',
+            },
+          ],
           blocks: [
             {
               id: ids.block,
@@ -433,6 +451,12 @@ describe('관리자 문제 공개 응답 계약', () => {
             template: 'STANDARD_CHOICE',
           },
           difficulty: 2,
+          topic: {
+            id: ids.topic,
+            slug: 'general',
+            displayName: '일반',
+          },
+          tags: [],
           blocks: [],
           options: [
             {

@@ -32,6 +32,29 @@ export const questionTemplateEnum = pgEnum('question_template', [
   'INLINE_SPAN_CHOICE',
 ]);
 
+/** FLEX 시험의 고정 7대 문제 분류 */
+export const questionMajorCategoryEnum = pgEnum('question_major_category', [
+  'LISTENING_RESPONSE',
+  'LISTENING_DIALOGUE',
+  'LISTENING_PASSAGE',
+  'READING_VOCABULARY_GRAMMAR',
+  'READING_SYNONYM_RELATION',
+  'READING_ERROR_IDENTIFICATION',
+  'READING_PASSAGE',
+]);
+
+/** 세부 문제 유형 버전의 설정 수명 상태 */
+export const questionTypeVersionStatusEnum = pgEnum(
+  'question_type_version_status',
+  ['DRAFT', 'ACTIVE', 'RETIRED'],
+);
+
+/** 주제와 태그의 신규 선택 가능 상태 */
+export const questionTaxonomyStatusEnum = pgEnum('question_taxonomy_status', [
+  'ACTIVE',
+  'ARCHIVED',
+]);
+
 /** 논리 문제의 학습자 노출 상태 */
 export const questionStatusEnum = pgEnum('question_status', [
   'DRAFT',
@@ -70,6 +93,42 @@ export const questionDisplayModeEnum = pgEnum('question_display_mode', [
   'AUDIO_THEN_REVEAL',
 ]);
 
+/** 문제 버전이 하나씩 참조하는 불변 주제 사전 */
+export const questionTopics = pgTable(
+  'question_topics',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    slug: text('slug').notNull(),
+    displayName: text('display_name').notNull(),
+    status: questionTaxonomyStatusEnum('status').default('ACTIVE').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [uniqueIndex('question_topics_slug_unique').on(table.slug)],
+);
+
+/** 문제 버전에 여러 개 연결할 수 있는 불변 태그 사전 */
+export const questionTags = pgTable(
+  'question_tags',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    slug: text('slug').notNull(),
+    displayName: text('display_name').notNull(),
+    status: questionTaxonomyStatusEnum('status').default('ACTIVE').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [uniqueIndex('question_tags_slug_unique').on(table.slug)],
+);
+
 /** 세부 출제 유형의 논리적 정체성과 시험 영역 */
 export const questionTypes = pgTable(
   'question_types',
@@ -78,6 +137,7 @@ export const questionTypes = pgTable(
     slug: text('slug').notNull(),
     displayName: text('display_name').notNull(),
     skill: questionSkillEnum('skill').notNull(),
+    majorCategory: questionMajorCategoryEnum('major_category').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -99,6 +159,7 @@ export const questionTypeVersions = pgTable(
     version: integer('version').notNull(),
     template: questionTemplateEnum('template').notNull(),
     optionCount: integer('option_count').notNull(),
+    status: questionTypeVersionStatusEnum('status').default('DRAFT').notNull(),
     decisionRules: jsonb('decision_rules')
       .$type<Record<string, unknown>>()
       .notNull(),
@@ -112,6 +173,55 @@ export const questionTypeVersions = pgTable(
     check(
       'question_type_versions_option_count_positive',
       sql`${table.optionCount} > 0`,
+    ),
+    uniqueIndex('question_type_versions_one_active_per_type')
+      .on(table.questionTypeId)
+      .where(sql`${table.status} = 'ACTIVE'`),
+  ],
+);
+
+/** 문제 유형 버전의 1~5 난이도 판정 기준 */
+export const questionTypeDifficultyCriteria = pgTable(
+  'question_type_difficulty_criteria',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    typeVersionId: uuid('type_version_id')
+      .references(() => questionTypeVersions.id, { onDelete: 'restrict' })
+      .notNull(),
+    difficulty: integer('difficulty').notNull(),
+    criteria: text('criteria').notNull(),
+  },
+  (table) => [
+    uniqueIndex('question_type_difficulty_criteria_version_level_unique').on(
+      table.typeVersionId,
+      table.difficulty,
+    ),
+    check(
+      'question_type_difficulty_criteria_level_range',
+      sql`${table.difficulty} between 1 and 5`,
+    ),
+  ],
+);
+
+/** 활성화 전에 검증한 canonical 문제 예시 snapshot */
+export const questionTypeApprovedExamples = pgTable(
+  'question_type_approved_examples',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    typeVersionId: uuid('type_version_id')
+      .references(() => questionTypeVersions.id, { onDelete: 'restrict' })
+      .notNull(),
+    title: text('title').notNull(),
+    payload: jsonb('payload').$type<Record<string, unknown>>().notNull(),
+    payloadHash: text('payload_hash').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex('question_type_approved_examples_payload_unique').on(
+      table.typeVersionId,
+      table.payloadHash,
     ),
   ],
 );
@@ -151,6 +261,9 @@ export const questionVersions = pgTable(
     typeVersionId: uuid('type_version_id')
       .references(() => questionTypeVersions.id, { onDelete: 'restrict' })
       .notNull(),
+    topicId: uuid('topic_id')
+      .references(() => questionTopics.id, { onDelete: 'restrict' })
+      .notNull(),
     difficulty: integer('difficulty').notNull(),
     status: questionVersionStatusEnum('status').default('DRAFT').notNull(),
     validationStatus: questionValidationStatusEnum('validation_status')
@@ -182,6 +295,25 @@ export const questionVersions = pgTable(
     check(
       'question_versions_difficulty_range',
       sql`${table.difficulty} between 1 and 5`,
+    ),
+  ],
+);
+
+/** 문제 버전과 불변 태그 사전의 다대다 연결 */
+export const questionVersionTags = pgTable(
+  'question_version_tags',
+  {
+    questionVersionId: uuid('question_version_id')
+      .references(() => questionVersions.id, { onDelete: 'restrict' })
+      .notNull(),
+    tagId: uuid('tag_id')
+      .references(() => questionTags.id, { onDelete: 'restrict' })
+      .notNull(),
+  },
+  (table) => [
+    unique('question_version_tags_version_tag_unique').on(
+      table.questionVersionId,
+      table.tagId,
     ),
   ],
 );

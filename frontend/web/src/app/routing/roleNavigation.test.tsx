@@ -52,6 +52,13 @@ describe('역할별 내비게이션', () => {
       'href',
       '/admin/users',
     );
+    expect(
+      screen.getByRole('link', { name: '문제 유형 설정' }),
+    ).toHaveAttribute('href', '/admin/question-settings');
+    expect(screen.getByRole('link', { name: '감사 기록' })).toHaveAttribute(
+      'href',
+      '/admin/audit-logs',
+    );
     expect(screen.getByRole('link', { name: '개념 관리' })).toHaveAttribute(
       'href',
       '/admin/concepts',

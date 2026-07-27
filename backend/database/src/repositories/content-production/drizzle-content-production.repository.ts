@@ -18,6 +18,7 @@ import {
 } from '@flex-thia/domain';
 import type {
   ContentProductionItem,
+  ContentProductionItemSeed,
   ContentProductionJob,
   ContentProductionJobStatus,
   ContentProductionPresetCatalog,
@@ -34,6 +35,10 @@ import {
   jobs,
   uploads,
 } from '../../schema/index.js';
+import {
+  vocabularyProductionCandidates,
+  vocabularyProductionValidations,
+} from '../../schema/ai-vocabulary-production.schema.js';
 import * as schema from '../../schema/index.js';
 
 type ContentProductionDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
@@ -48,6 +53,8 @@ const toItem = (row: typeof jobItems.$inferSelect): ContentProductionItem => {
   return {
     id: row.id,
     sourceRef: row.sourceRef,
+    ...(row.jobInputId ? { jobInputId: row.jobInputId } : {}),
+    ...(row.operation ? { operation: row.operation } : {}),
     status: row.status,
     attempt: row.attempt,
     retryable: row.retryable,
@@ -85,6 +92,8 @@ const loadJob = async (
 
   const inputRows = await executor
     .select({
+      jobInputId: jobInputs.id,
+      ordinal: jobInputs.ordinal,
       uploadId: uploads.id,
       inputType: uploads.inputType,
       inputKey: uploads.objectKey,
@@ -291,12 +300,18 @@ export class DrizzleContentProductionRepository implements ContentProductionRepo
   }
 
   /** 같은 sourceRef 항목은 중복 전달에도 한 번만 생성한다 */
-  async ensureItems(jobId: string, sourceRefs: string[]): Promise<void> {
-    if (sourceRefs.length === 0) {
+  async ensureItems(
+    jobId: string,
+    inputs: ContentProductionItemSeed[],
+  ): Promise<void> {
+    if (inputs.length === 0) {
       return;
     }
-
-    const job = await this.findById(jobId);
+    const [job] = await this.database
+      .select({ attempt: jobs.attempt })
+      .from(jobs)
+      .where(eq(jobs.id, jobId))
+      .limit(1);
 
     if (!job) {
       throw new Error(`콘텐츠 제작 Job을 찾을 수 없습니다: ${jobId}`);
@@ -305,9 +320,11 @@ export class DrizzleContentProductionRepository implements ContentProductionRepo
     await this.database
       .insert(jobItems)
       .values(
-        sourceRefs.map((sourceRef) => ({
+        inputs.map((input) => ({
           jobId,
-          sourceRef,
+          sourceRef: input.sourceRef,
+          jobInputId: input.jobInputId,
+          operation: input.operation,
           attempt: job.attempt,
         })),
       )
@@ -422,27 +439,93 @@ export class DrizzleContentProductionRepository implements ContentProductionRepo
       retryable: boolean;
       errorCode: string | null;
       result?: Record<string, unknown>;
+      artifacts?: import('@flex-thia/domain').VocabularyProductionArtifacts;
     },
   ): Promise<boolean> {
-    const updated = await this.database
-      .update(jobItems)
-      .set({
-        ...outcome,
-        leaseUntil: null,
-        leaseToken: null,
-        updatedAt: this.now(),
-      })
-      .where(
-        and(
-          eq(jobItems.jobId, jobId),
-          eq(jobItems.id, itemId),
-          eq(jobItems.attempt, attempt),
-          eq(jobItems.status, 'PROCESSING'),
-          eq(jobItems.leaseToken, leaseToken),
-        ),
-      )
-      .returning({ id: jobItems.id });
-    return updated.length > 0;
+    return this.database.transaction(async (transaction) => {
+      const { artifacts, ...terminal } = outcome;
+      const finishedAt = this.now();
+      const updated = await transaction
+        .update(jobItems)
+        .set({
+          ...terminal,
+          leaseUntil: null,
+          leaseToken: null,
+          updatedAt: finishedAt,
+        })
+        .where(
+          and(
+            eq(jobItems.jobId, jobId),
+            eq(jobItems.id, itemId),
+            eq(jobItems.attempt, attempt),
+            eq(jobItems.status, 'PROCESSING'),
+            eq(jobItems.leaseToken, leaseToken),
+            gt(jobItems.leaseUntil, finishedAt),
+          ),
+        )
+        .returning({ id: jobItems.id });
+
+      if (updated.length === 0) {
+        return false;
+      }
+
+      if (!artifacts || artifacts.candidates.length === 0) {
+        return true;
+      }
+
+      const insertedCandidates = await transaction
+        .insert(vocabularyProductionCandidates)
+        .values(
+          artifacts.candidates.map((candidate) => ({
+            jobItemId: itemId,
+            jobAttempt: attempt,
+            ordinal: candidate.ordinal,
+            thai: candidate.thai,
+            normalizedThai: candidate.normalizedThai,
+            kind: candidate.kind,
+            meanings: candidate.meanings,
+            classification: candidate.classification,
+            resultGroup: candidate.resultGroup,
+            matchedVocabularyId: candidate.matchedVocabularyId,
+            suspectedMatches: candidate.suspectedMatches,
+            reviewCode: candidate.reviewCode,
+          })),
+        )
+        .returning({
+          id: vocabularyProductionCandidates.id,
+          ordinal: vocabularyProductionCandidates.ordinal,
+        });
+      const candidateIds = new Map(
+        insertedCandidates.map((candidate) => [
+          candidate.ordinal,
+          candidate.id,
+        ]),
+      );
+
+      if (artifacts.validations.length > 0) {
+        await transaction.insert(vocabularyProductionValidations).values(
+          artifacts.validations.map((validation) => {
+            const candidateId = candidateIds.get(validation.candidateOrdinal);
+
+            if (!candidateId) {
+              throw new Error(
+                `검증 대상 AI 어휘 후보를 찾을 수 없습니다: ${validation.candidateOrdinal}`,
+              );
+            }
+
+            return {
+              candidateId,
+              stage: validation.stage,
+              status: validation.status,
+              code: validation.code,
+              details: validation.details,
+            };
+          }),
+        );
+      }
+
+      return true;
+    });
   }
 
   /** 모든 현재 항목이 끝난 RUNNING attempt만 최종 상태로 집계한다 */
@@ -566,8 +649,14 @@ export class DrizzleContentProductionRepository implements ContentProductionRepo
         .where(
           and(
             eq(jobItems.jobId, jobId),
-            eq(jobItems.status, 'FAILED'),
             eq(jobItems.retryable, true),
+            or(
+              eq(jobItems.status, 'FAILED'),
+              and(
+                eq(jobItems.status, 'NEEDS_ATTENTION'),
+                eq(jobItems.errorCode, 'PROVIDER_OUTCOME_UNKNOWN'),
+              ),
+            ),
           ),
         );
 

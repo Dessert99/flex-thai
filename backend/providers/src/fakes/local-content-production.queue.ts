@@ -1,26 +1,85 @@
 /** 로컬 콘텐츠 제작 queue 실행 경계를 제공한다 */
 import type {
-  ContentProductionItem,
+  ContentProductionItemSeed,
   ContentProductionJob,
   ContentProductionQueue,
   ContentProductionRepository,
+  ContentProductionWorkItem,
+  ContentProductionWorkerJob,
 } from '@flex-thia/domain';
-import type { DeterministicContentProductionProcessor } from './deterministic-content-production.processor.js';
+import { createContentProductionWorkItem } from '@flex-thia/domain';
 
-const buildSourceRefs = (
-  job: Pick<ContentProductionJob, 'purpose' | 'inputs'>,
-): string[] =>
-  job.inputs.flatMap((_input, index) => {
+interface LocalContentProductionProcessor {
+  process(
+    workItem: ContentProductionWorkItem,
+    signal: AbortSignal,
+  ): Promise<{
+    status: 'SUCCEEDED' | 'NEEDS_ATTENTION' | 'FAILED';
+    retryable: boolean;
+    errorCode: string | null;
+    result?: Record<string, unknown>;
+  }>;
+}
+
+const buildItemSeeds = (
+  job: Pick<ContentProductionWorkerJob, 'purpose' | 'inputs'>,
+): ContentProductionItemSeed[] =>
+  job.inputs.flatMap((input) => {
+    const index = input.ordinal;
     if (job.purpose === 'VOCABULARY_EXTRACTION') {
-      return [`input:${index}:vocabulary`];
+      return [
+        {
+          sourceRef: `input:${index}:vocabulary`,
+          jobInputId: input.jobInputId,
+          operation: 'VOCABULARY_EXTRACTION',
+        },
+      ];
     }
 
     if (job.purpose === 'QUESTION_GENERATION') {
-      return [`input:${index}:question`];
+      return [
+        {
+          sourceRef: `input:${index}:question`,
+          jobInputId: input.jobInputId,
+          operation: 'QUESTION_GENERATION',
+        },
+      ];
     }
 
-    return [`input:${index}:vocabulary`, `input:${index}:question`];
+    return [
+      {
+        sourceRef: `input:${index}:vocabulary`,
+        jobInputId: input.jobInputId,
+        operation: 'VOCABULARY_EXTRACTION',
+      },
+      {
+        sourceRef: `input:${index}:question`,
+        jobInputId: input.jobInputId,
+        operation: 'QUESTION_GENERATION',
+      },
+    ];
   });
+
+const requireWorkerJob = (
+  job: ContentProductionJob,
+): ContentProductionWorkerJob => ({
+  id: job.id,
+  attempt: job.attempt,
+  requestedBy: job.requestedBy,
+  purpose: job.purpose,
+  presetSnapshot: job.presetSnapshot,
+  inputs: job.inputs.map((input) => {
+    if (!input.jobInputId || input.ordinal === undefined) {
+      throw new Error('로컬 콘텐츠 제작 입력 metadata가 없습니다');
+    }
+
+    return {
+      ...input,
+      jobInputId: input.jobInputId,
+      ordinal: input.ordinal,
+    };
+  }),
+});
 
 /** 로컬 event loop에서 실제 repository 상태 전이를 끝내는 개발 전용 queue */
 export class LocalContentProductionQueue implements ContentProductionQueue {
@@ -30,7 +89,7 @@ export class LocalContentProductionQueue implements ContentProductionQueue {
 
   constructor(
     private readonly repository: ContentProductionRepository,
-    private readonly processor: DeterministicContentProductionProcessor,
+    private readonly processor: LocalContentProductionProcessor,
   ) {}
 
   /** API 응답 상태 저장 뒤 실행되도록 message 처리를 다음 event loop에 예약한다 */
@@ -74,37 +133,49 @@ export class LocalContentProductionQueue implements ContentProductionQueue {
       return;
     }
 
-    await this.repository.ensureItems(job.id, buildSourceRefs(job));
+    const workerJob = requireWorkerJob(job);
+    await this.repository.ensureItems(job.id, buildItemSeeds(workerJob));
     const items = await this.repository.listAttemptItems(
       job.id,
       message.attempt,
     );
 
     for (const item of items) {
-      await this.processItem(job.id, message.attempt, item);
+      await this.processItem(workerJob, message.attempt, item.id);
     }
 
     await this.repository.finalizeAttempt(job.id, message.attempt);
   }
 
   private async processItem(
-    jobId: string,
+    job: ContentProductionWorkerJob,
     attempt: number,
-    item: ContentProductionItem,
+    itemId: string,
   ): Promise<void> {
-    const claimed = await this.repository.startItem(jobId, item.id, attempt);
+    const claimed = await this.repository.startItem(job.id, itemId, attempt);
 
-    if (!claimed?.leaseToken) {
+    if (
+      !claimed?.leaseToken ||
+      !claimed.leaseUntil ||
+      !claimed.jobInputId ||
+      !claimed.operation
+    ) {
       return;
     }
 
     let outcome: Awaited<
-      ReturnType<DeterministicContentProductionProcessor['process']>
+      ReturnType<LocalContentProductionProcessor['process']>
     >;
 
     try {
       outcome = await this.processor.process(
-        claimed,
+        createContentProductionWorkItem(job, {
+          ...claimed,
+          jobInputId: claimed.jobInputId,
+          operation: claimed.operation,
+          leaseUntil: claimed.leaseUntil,
+          leaseToken: claimed.leaseToken,
+        }),
         new AbortController().signal,
       );
     } catch {
@@ -116,7 +187,7 @@ export class LocalContentProductionQueue implements ContentProductionQueue {
     }
 
     await this.repository.finishItem(
-      jobId,
+      job.id,
       claimed.id,
       attempt,
       claimed.leaseToken,

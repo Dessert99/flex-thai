@@ -37,6 +37,10 @@ export * from './identity/user.repository.js';
 /** 관리자 사용자 상태와 beta 안내 추적 use case를 공개한다 */
 export * from './identity/user-management.js';
 
+/** 관리자 감사 기록 read model과 use case를 공개한다 */
+export * from './operations/audit-log.js';
+export * from './operations/audit-log.service.js';
+
 /** idempotent Job 생성 use case를 패키지 공개 경계에 노출한다 */
 export * from './jobs/create-job.service.js';
 
@@ -54,6 +58,9 @@ export * from './vocabulary/normalize-thai-search-text.js';
 
 /** 공용 어휘의 생성·게시·숨김·복구 규칙을 공개한다 */
 export * from './vocabulary/vocabulary.js';
+
+/** AI 제작의 exact·의심 중복 조회 port를 공개한다 */
+export * from './vocabulary/vocabulary-production-lookup.js';
 
 /** 관리자 어휘 transaction port를 공개한다 */
 export * from './vocabulary/vocabulary-admin.repository.js';
@@ -93,6 +100,10 @@ export * from './questions/question-admin.repository.js';
 
 /** 관리자 문제 버전 복제·전체 교체 use case를 공개한다 */
 export * from './questions/question-admin.js';
+
+/** 문제 분류 설정 저장 port와 불변 lifecycle을 공개한다 */
+export * from './questions/question-taxonomy.repository.js';
+export * from './questions/question-taxonomy.service.js';
 
 /** 답안 transaction 저장소 port를 공개한다 */
 export * from './learning/question-attempt.repository.js';

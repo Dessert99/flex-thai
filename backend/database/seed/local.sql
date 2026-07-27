@@ -635,21 +635,134 @@ insert into token_occurrences (
     'TARGET'
   );
 
+insert into question_topics (
+  id,
+  slug,
+  display_name,
+  status,
+  created_at,
+  updated_at
+) values (
+  '00000000-0000-4000-8000-000000000320',
+  'general',
+  '일반',
+  'ACTIVE',
+  '2026-07-01T00:00:00Z',
+  '2026-07-01T00:00:00Z'
+)
+on conflict (slug) do update set
+  display_name = excluded.display_name,
+  status = excluded.status,
+  updated_at = excluded.updated_at;
+
+insert into content_production_presets (
+  id,
+  name,
+  purpose,
+  version,
+  parameters,
+  enabled
+) values
+  (
+    '00000000-0000-4000-8000-000000000901',
+    '기본 어휘 추출',
+    'VOCABULARY_EXTRACTION',
+    1,
+    '{"suspectedDuplicateMaxCodePointDistance":1}'::jsonb,
+    true
+  ),
+  (
+    '00000000-0000-4000-8000-000000000902',
+    '기본 문제 생성',
+    'QUESTION_GENERATION',
+    1,
+    '{}'::jsonb,
+    true
+  ),
+  (
+    '00000000-0000-4000-8000-000000000903',
+    '기본 어휘·문제 생성',
+    'VOCABULARY_THEN_QUESTION_GENERATION',
+    1,
+    '{"suspectedDuplicateMaxCodePointDistance":1}'::jsonb,
+    true
+  )
+on conflict (name, version) do update set
+  parameters = excluded.parameters,
+  enabled = excluded.enabled;
+
 insert into question_types (
   id,
   slug,
   display_name,
   skill,
+  major_category,
   created_at,
   updated_at
-) values (
-  '00000000-0000-4000-8000-000000000301',
-  'reading-vocabulary',
-  '어휘 의미 선택',
-  'READING',
-  '2026-07-01T00:00:00Z',
-  '2026-07-01T00:00:00Z'
-);
+) values
+  (
+    '00000000-0000-4000-8000-000000000301',
+    'reading-vocabulary',
+    '어휘 의미 선택',
+    'READING',
+    'READING_VOCABULARY_GRAMMAR',
+    '2026-07-01T00:00:00Z',
+    '2026-07-01T00:00:00Z'
+  ),
+  (
+    '00000000-0000-4000-8000-000000000302',
+    'listening-response',
+    '반응 선택',
+    'LISTENING',
+    'LISTENING_RESPONSE',
+    '2026-07-01T00:00:00Z',
+    '2026-07-01T00:00:00Z'
+  ),
+  (
+    '00000000-0000-4000-8000-000000000303',
+    'listening-dialogue',
+    '대화문 듣기',
+    'LISTENING',
+    'LISTENING_DIALOGUE',
+    '2026-07-01T00:00:00Z',
+    '2026-07-01T00:00:00Z'
+  ),
+  (
+    '00000000-0000-4000-8000-000000000304',
+    'listening-passage',
+    '설명문 듣기',
+    'LISTENING',
+    'LISTENING_PASSAGE',
+    '2026-07-01T00:00:00Z',
+    '2026-07-01T00:00:00Z'
+  ),
+  (
+    '00000000-0000-4000-8000-000000000305',
+    'reading-synonym-relation',
+    '동의·유의 관계',
+    'READING',
+    'READING_SYNONYM_RELATION',
+    '2026-07-01T00:00:00Z',
+    '2026-07-01T00:00:00Z'
+  ),
+  (
+    '00000000-0000-4000-8000-000000000306',
+    'reading-error-identification',
+    '비문 찾기',
+    'READING',
+    'READING_ERROR_IDENTIFICATION',
+    '2026-07-01T00:00:00Z',
+    '2026-07-01T00:00:00Z'
+  ),
+  (
+    '00000000-0000-4000-8000-000000000307',
+    'reading-passage',
+    '지문 독해',
+    'READING',
+    'READING_PASSAGE',
+    '2026-07-01T00:00:00Z',
+    '2026-07-01T00:00:00Z'
+  );
 
 insert into question_type_versions (
   id,
@@ -657,15 +770,72 @@ insert into question_type_versions (
   version,
   template,
   option_count,
+  status,
   decision_rules
-) values (
-  '00000000-0000-4000-8000-000000000311',
-  '00000000-0000-4000-8000-000000000301',
-  1,
-  'STANDARD_CHOICE',
-  4,
-  '{"mode":"single-choice"}'
-);
+) values
+  (
+    '00000000-0000-4000-8000-000000000311',
+    '00000000-0000-4000-8000-000000000301',
+    1,
+    'STANDARD_CHOICE',
+    4,
+    'ACTIVE',
+    '{"mode":"single-choice"}'
+  ),
+  (
+    '00000000-0000-4000-8000-000000000312',
+    '00000000-0000-4000-8000-000000000302',
+    1,
+    'STANDARD_CHOICE',
+    3,
+    'DRAFT',
+    '{"mode":"single-choice"}'
+  ),
+  (
+    '00000000-0000-4000-8000-000000000313',
+    '00000000-0000-4000-8000-000000000303',
+    1,
+    'DIALOGUE_CHOICE',
+    4,
+    'DRAFT',
+    '{"mode":"single-choice"}'
+  ),
+  (
+    '00000000-0000-4000-8000-000000000314',
+    '00000000-0000-4000-8000-000000000304',
+    1,
+    'PASSAGE_CHOICE',
+    4,
+    'DRAFT',
+    '{"mode":"single-choice"}'
+  ),
+  (
+    '00000000-0000-4000-8000-000000000315',
+    '00000000-0000-4000-8000-000000000305',
+    1,
+    'STANDARD_CHOICE',
+    4,
+    'DRAFT',
+    '{"mode":"single-choice"}'
+  ),
+  (
+    '00000000-0000-4000-8000-000000000316',
+    '00000000-0000-4000-8000-000000000306',
+    1,
+    'INLINE_SPAN_CHOICE',
+    4,
+    'DRAFT',
+    '{"mode":"single-choice"}'
+  ),
+  (
+    '00000000-0000-4000-8000-000000000317',
+    '00000000-0000-4000-8000-000000000307',
+    1,
+    'PASSAGE_CHOICE',
+    4,
+    'DRAFT',
+    '{"mode":"single-choice"}'
+  );
 
 insert into questions (
   id,
@@ -708,6 +878,7 @@ insert into question_versions (
   question_id,
   version,
   type_version_id,
+  topic_id,
   difficulty,
   status,
   validation_status,
@@ -722,6 +893,7 @@ insert into question_versions (
     '00000000-0000-4000-8000-000000000401',
     1,
     '00000000-0000-4000-8000-000000000311',
+    '00000000-0000-4000-8000-000000000320',
     1,
     'PUBLISHED',
     'PASSED',
@@ -736,6 +908,7 @@ insert into question_versions (
     '00000000-0000-4000-8000-000000000402',
     1,
     '00000000-0000-4000-8000-000000000311',
+    '00000000-0000-4000-8000-000000000320',
     2,
     'PUBLISHED',
     'PASSED',
@@ -750,6 +923,7 @@ insert into question_versions (
     '00000000-0000-4000-8000-000000000403',
     1,
     '00000000-0000-4000-8000-000000000311',
+    '00000000-0000-4000-8000-000000000320',
     3,
     'DRAFT',
     'PENDING',
@@ -764,6 +938,7 @@ insert into question_versions (
     '00000000-0000-4000-8000-000000000404',
     1,
     '00000000-0000-4000-8000-000000000311',
+    '00000000-0000-4000-8000-000000000320',
     2,
     'PUBLISHED',
     'PASSED',
@@ -833,6 +1008,147 @@ insert into question_options (
   ('00000000-0000-4000-8000-000000000444', '00000000-0000-4000-8000-000000000414', '00000000-0000-4000-8000-000000000212', 1, false),
   ('00000000-0000-4000-8000-000000000445', '00000000-0000-4000-8000-000000000414', '00000000-0000-4000-8000-000000000214', 2, false),
   ('00000000-0000-4000-8000-000000000446', '00000000-0000-4000-8000-000000000414', '00000000-0000-4000-8000-000000000215', 3, false);
+
+insert into question_type_difficulty_criteria (
+  type_version_id,
+  difficulty,
+  criteria
+) values
+  ('00000000-0000-4000-8000-000000000311', 1, '기본 어휘의 뜻을 단일 문장에서 구별한다.'),
+  ('00000000-0000-4000-8000-000000000311', 2, '자주 쓰는 표현의 뜻을 유사 선택지와 구별한다.'),
+  ('00000000-0000-4000-8000-000000000311', 3, '문맥 속 어휘와 문법 단서를 함께 판단한다.'),
+  ('00000000-0000-4000-8000-000000000311', 4, '낯선 어휘를 문장 구조와 의미 관계로 추론한다.'),
+  ('00000000-0000-4000-8000-000000000311', 5, '복합 문맥의 미세한 어휘·문법 차이를 판단한다.');
+
+insert into question_type_approved_examples (
+  id,
+  type_version_id,
+  title,
+  payload,
+  payload_hash,
+  created_at
+) values (
+  '00000000-0000-4000-8000-000000000318',
+  '00000000-0000-4000-8000-000000000311',
+  'canonical-reading-vocabulary-v1',
+  $readingVocabularyExample$
+{
+  "questionTypeSlug": "reading-vocabulary",
+  "questionTypeVersion": 1,
+  "difficulty": 1,
+  "topicSlug": "general",
+  "tagSlugs": [],
+  "blocks": [
+    {
+      "kind": "QUESTION",
+      "displayMode": "TEXT",
+      "sentences": [
+        {
+          "sentence": {
+            "originalText": "สวัสดี",
+            "translationKo": "다음 태국어의 뜻을 고르세요.",
+            "pronunciationKo": "싸왓디",
+            "toneMarks": "L-H-M",
+            "mediaAssetId": "00000000-0000-4000-8000-000000000011",
+            "tokens": [
+              {
+                "surface": "สวัสดี",
+                "startOffset": 0,
+                "endOffset": 6,
+                "vocabulary": { "id": "00000000-0000-4000-8000-000000000101" },
+                "meaning": { "id": "00000000-0000-4000-8000-000000000111" },
+                "pronunciation": { "id": "00000000-0000-4000-8000-000000000121" },
+                "contextMeaningKo": "안녕하세요",
+                "role": "TARGET"
+              }
+            ],
+            "expressions": []
+          }
+        }
+      ]
+    },
+    {
+      "kind": "EXPLANATION",
+      "displayMode": "TEXT",
+      "sentences": [
+        {
+          "sentence": {
+            "originalText": "สวัสดี는 기본 인사말입니다.",
+            "translationKo": "สวัสดี는 안녕하세요라는 뜻입니다.",
+            "pronunciationKo": "싸왓디",
+            "toneMarks": "L-H-M",
+            "mediaAssetId": "00000000-0000-4000-8000-000000000011",
+            "tokens": [],
+            "expressions": []
+          }
+        }
+      ]
+    }
+  ],
+  "options": [
+    {
+      "clientRef": "option-1",
+      "position": 0,
+      "sentence": {
+        "originalText": "안녕하세요",
+        "translationKo": "안녕하세요",
+        "pronunciationKo": "안녕하세요",
+        "toneMarks": "-",
+        "mediaAssetId": "00000000-0000-4000-8000-000000000011",
+        "tokens": [],
+        "expressions": []
+      },
+      "span": null
+    },
+    {
+      "clientRef": "option-2",
+      "position": 1,
+      "sentence": {
+        "originalText": "감사합니다",
+        "translationKo": "감사합니다",
+        "pronunciationKo": "감사합니다",
+        "toneMarks": "-",
+        "mediaAssetId": "00000000-0000-4000-8000-000000000011",
+        "tokens": [],
+        "expressions": []
+      },
+      "span": null
+    },
+    {
+      "clientRef": "option-3",
+      "position": 2,
+      "sentence": {
+        "originalText": "괜찮습니다",
+        "translationKo": "괜찮습니다",
+        "pronunciationKo": "괜찮습니다",
+        "toneMarks": "-",
+        "mediaAssetId": "00000000-0000-4000-8000-000000000011",
+        "tokens": [],
+        "expressions": []
+      },
+      "span": null
+    },
+    {
+      "clientRef": "option-4",
+      "position": 3,
+      "sentence": {
+        "originalText": "미안합니다",
+        "translationKo": "미안합니다",
+        "pronunciationKo": "미안합니다",
+        "toneMarks": "-",
+        "mediaAssetId": "00000000-0000-4000-8000-000000000011",
+        "tokens": [],
+        "expressions": []
+      },
+      "span": null
+    }
+  ],
+  "correctOptionRef": "option-1"
+}
+$readingVocabularyExample$::jsonb,
+  'bd5e5b2dc6584778680394153547b1ee054b1846465655b15603b213b9c55df3',
+  '2026-07-10T00:00:00Z'
+);
 
 insert into question_attempts (
   id,

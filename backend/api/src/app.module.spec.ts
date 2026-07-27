@@ -1,4 +1,4 @@
-/** MVP root가 Identity·Learning·Admin과 환경별 provider를 조립하는지 검증한다 */
+/** root가 학습·관리·운영 기능과 환경별 provider를 조립하는지 검증한다 */
 import {
   DrizzleContentProductionPresetCatalog,
   DrizzleContentProductionRepository,
@@ -70,6 +70,8 @@ describe('createApplicationModule 조립', () => {
       'ContentErrorReportsModule',
       'RecommendationsModule',
       'ContentProductionModule',
+      'QuestionTaxonomyModule',
+      'OperationsModule',
     ]);
     expect(importedModuleNames).not.toContain('JobsModule');
     expect(importedModuleNames).not.toContain('UploadsModule');

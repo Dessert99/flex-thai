@@ -14,6 +14,7 @@ import {
   DrizzleAdminMediaQuery,
   DrizzleAdminQuestionQuery,
   DrizzleAdminVocabularyQuery,
+  DrizzleAuditLogQuery,
   DrizzleContentDraftRepository,
   DrizzleContentImportQuery,
   DrizzleContentImportRepository,
@@ -31,6 +32,8 @@ import {
   DrizzleMediaAdminRepository,
   DrizzleQuestionAdminRepository,
   DrizzleQuestionPublicationRepository,
+  DrizzleQuestionTaxonomyQuery,
+  DrizzleQuestionTaxonomyRepository,
   DrizzleRecommendationQuery,
   DrizzleReadinessProbe,
   DrizzleUploadRepository,
@@ -48,11 +51,13 @@ import {
   ContentImportService,
   ContentProductionService,
   ConceptService,
+  AuditLogService,
   IdentityAuthenticationService,
   MediaAdminService,
   QuestionAdminService,
   QuestionAttemptService,
   QuestionPublicationService,
+  QuestionTaxonomyService,
   SavedContentService,
   PasswordlessAuthenticationService,
   UploadPolicyService,
@@ -92,6 +97,8 @@ import { IdentityModule } from './identity/identity.module.js';
 import { LearningModule } from './learning/learning.module.js';
 import { VocabularyPracticeModule } from './learning/vocabulary-practice.module.js';
 import { RecommendationsModule } from './recommendations/recommendations.module.js';
+import { OperationsModule } from './operations/operations.module.js';
+import { QuestionTaxonomyModule } from './questions/question-taxonomy.module.js';
 
 /** 기초 API의 root module */
 @Module({})
@@ -300,6 +307,10 @@ export const createApplicationModule = (
     contentProductionRepository,
     contentProductionQueue,
   );
+  const questionTaxonomy = new QuestionTaxonomyService(
+    new DrizzleQuestionTaxonomyRepository(database),
+  );
+  const auditLogs = new AuditLogService(new DrizzleAuditLogQuery(database));
 
   return {
     module: AppModule,
@@ -380,6 +391,13 @@ export const createApplicationModule = (
         users,
         authorizer,
       }),
+      QuestionTaxonomyModule.register({
+        query: new DrizzleQuestionTaxonomyQuery(database),
+        service: questionTaxonomy,
+        users,
+        authorizer,
+      }),
+      OperationsModule.register({ auditLogs, users, authorizer }),
     ],
     controllers: [HealthController, ReadinessController],
     providers: [

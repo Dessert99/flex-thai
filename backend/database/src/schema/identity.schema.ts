@@ -67,6 +67,10 @@ export const users = pgTable(
   (table) => [
     uniqueIndex('users_cognito_sub_unique').on(table.cognitoSub),
     uniqueIndex('users_email_unique').on(table.email),
+    index('users_updated_at_id_idx').on(
+      table.updatedAt.desc(),
+      table.id.desc(),
+    ),
   ],
 );
 
@@ -132,19 +136,44 @@ export const stepUpGrants = pgTable('step_up_grants', {
 });
 
 /** 관리자 변경을 append-only로 보존한다 */
-export const auditLogs = pgTable('audit_logs', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  actorSub: text('actor_sub').notNull(),
-  actorUserId: uuid('actor_user_id').references(() => users.id, {
-    onDelete: 'restrict',
-  }),
-  action: text('action').notNull(),
-  target: text('target').notNull(),
-  targetType: text('target_type'),
-  targetId: uuid('target_id'),
-  summary: jsonb('summary').$type<Record<string, unknown>>().notNull(),
-  requestId: text('request_id').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+export const auditLogs = pgTable(
+  'audit_logs',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    actorSub: text('actor_sub').notNull(),
+    actorUserId: uuid('actor_user_id').references(() => users.id, {
+      onDelete: 'restrict',
+    }),
+    action: text('action').notNull(),
+    target: text('target').notNull(),
+    targetType: text('target_type'),
+    targetId: uuid('target_id'),
+    summary: jsonb('summary').$type<Record<string, unknown>>().notNull(),
+    requestId: text('request_id').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index('audit_logs_created_at_id_idx').on(
+      table.createdAt.desc(),
+      table.id.desc(),
+    ),
+    index('audit_logs_actor_created_at_id_idx').on(
+      table.actorUserId,
+      table.createdAt.desc(),
+      table.id.desc(),
+    ),
+    index('audit_logs_action_created_at_id_idx').on(
+      table.action,
+      table.createdAt.desc(),
+      table.id.desc(),
+    ),
+    index('audit_logs_target_created_at_id_idx').on(
+      table.targetType,
+      table.targetId,
+      table.createdAt.desc(),
+      table.id.desc(),
+    ),
+  ],
+);

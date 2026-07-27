@@ -105,6 +105,8 @@ const routeTitles = [
   [/^\/admin\/concepts\/?$/, '개념 관리'],
   [/^\/admin\/content-error-reports\/?$/, '콘텐츠 오류 신고 관리'],
   [/^\/admin\/users\/?$/, '사용자 관리'],
+  [/^\/admin\/audit-logs\/?$/, '감사 기록'],
+  [/^\/admin\/question-settings\/?$/, '문제 유형 설정'],
   [/^\/admin\/?$/, '관리자 홈'],
   [/^\/forbidden\/?$/, '접근 권한 없음'],
 ] as const;

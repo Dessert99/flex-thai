@@ -9,15 +9,22 @@ import {
   questionBlocks,
   questionBlockSentences,
   questionDisplayModeEnum,
+  questionMajorCategoryEnum,
   questionOptions,
   questionSkillEnum,
   questionStatusEnum,
+  questionTags,
   questionTemplateEnum,
+  questionTopics,
+  questionTypeApprovedExamples,
+  questionTypeDifficultyCriteria,
+  questionTypeVersionStatusEnum,
   questionTypes,
   questionTypeVersions,
   questionValidationStatusEnum,
   questions,
   questionVersions,
+  questionVersionTags,
   questionVersionStatusEnum,
   tokenOccurrenceRoleEnum,
 } from './index.js';
@@ -110,6 +117,62 @@ describe('문제 게시 데이터베이스 schema', () => {
       'TEXT_AND_AUDIO',
       'AUDIO_THEN_REVEAL',
     ]);
+    expect(questionMajorCategoryEnum.enumValues).toHaveLength(7);
+    expect(questionTypeVersionStatusEnum.enumValues).toEqual([
+      'DRAFT',
+      'ACTIVE',
+      'RETIRED',
+    ]);
+  });
+
+  it('세부 유형 버전의 설정과 승인 예시를 불변 참조로 저장한다', () => {
+    expect(getTableColumns(questionTypes).majorCategory.notNull).toBe(true);
+    expect(getTableColumns(questionTypeVersions).status.notNull).toBe(true);
+    expect(indexSummaries(questionTypeVersions)).toContainEqual({
+      name: 'question_type_versions_one_active_per_type',
+      columns: ['question_type_id'],
+      unique: true,
+      partial: true,
+    });
+    expect(
+      Object.values(getTableColumns(questionTypeDifficultyCriteria)).map(
+        (column) => column.name,
+      ),
+    ).toEqual(
+      expect.arrayContaining(['type_version_id', 'difficulty', 'criteria']),
+    );
+    expect(
+      Object.values(getTableColumns(questionTypeApprovedExamples)).map(
+        (column) => column.name,
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        'type_version_id',
+        'title',
+        'payload',
+        'payload_hash',
+      ]),
+    );
+  });
+
+  it('문제 버전에 필수 주제와 선택 태그를 연결한다', () => {
+    expect(getTableColumns(questionVersions).topicId.notNull).toBe(true);
+    expect(indexSummaries(questionTopics)).toContainEqual({
+      name: 'question_topics_slug_unique',
+      columns: ['slug'],
+      unique: true,
+      partial: false,
+    });
+    expect(indexSummaries(questionTags)).toContainEqual({
+      name: 'question_tags_slug_unique',
+      columns: ['slug'],
+      unique: true,
+      partial: false,
+    });
+    expect(uniqueConstraintSummaries(questionVersionTags)).toContainEqual({
+      name: 'question_version_tags_version_tag_unique',
+      columns: ['question_version_id', 'tag_id'],
+    });
   });
 
   it('문제 유형 slug와 유형·문제 버전 번호의 중복을 차단한다', () => {
@@ -200,13 +263,16 @@ describe('문제 게시 데이터베이스 schema', () => {
       questionTypeVersions,
       questions,
       questionVersions,
+      questionTypeDifficultyCriteria,
+      questionTypeApprovedExamples,
+      questionVersionTags,
       questionBlocks,
       questionBlockSentences,
       questionOptions,
     ];
     const foreignKeys = tables.flatMap(foreignKeySummaries);
 
-    expect(foreignKeys).toHaveLength(10);
+    expect(foreignKeys).toHaveLength(15);
     expect(foreignKeys.every(({ onDelete }) => onDelete === 'restrict')).toBe(
       true,
     );

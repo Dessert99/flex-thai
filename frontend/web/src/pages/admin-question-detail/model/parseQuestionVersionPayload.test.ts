@@ -25,7 +25,7 @@ describe('문제 버전 canonical JSON 해석', () => {
     const payload = createValidPayload();
     expect(parseQuestionVersionPayload(JSON.stringify(payload))).toEqual({
       ok: true,
-      payload,
+      payload: { ...payload, topicSlug: 'general', tagSlugs: [] },
     });
   });
 });

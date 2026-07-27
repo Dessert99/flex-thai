@@ -10,6 +10,7 @@ import type { ProblemDetailsResponse } from '@flex-thia/contracts';
 import { WordbookPersistenceError } from '@flex-thia/database';
 import {
   AuthDomainError,
+  AuditLogError,
   ContentImportError,
   EmailChallengeError,
   IdentityDomainError,
@@ -17,6 +18,7 @@ import {
   MediaAssetDomainError,
   QuestionAdminError,
   QuestionPublicationError,
+  QuestionTaxonomyError,
   UploadPolicyError,
   UserManagementError,
   VocabularyAdminError,
@@ -71,6 +73,13 @@ const USER_MANAGEMENT_STATUS: Record<UserManagementError['code'], number> = {
   ADMIN_REQUIRED: HttpStatus.FORBIDDEN,
   INVALID_SCHOOL_EMAIL: HttpStatus.BAD_REQUEST,
   USER_NOT_FOUND: HttpStatus.NOT_FOUND,
+  SELF_LOCKOUT_FORBIDDEN: HttpStatus.CONFLICT,
+  LAST_ACTIVE_ADMIN_REQUIRED: HttpStatus.CONFLICT,
+};
+
+const AUDIT_LOG_STATUS: Record<AuditLogError['code'], number> = {
+  ADMIN_REQUIRED: HttpStatus.FORBIDDEN,
+  AUDIT_LOG_NOT_FOUND: HttpStatus.NOT_FOUND,
 };
 
 const EMAIL_CHALLENGE_STATUS: Record<EmailChallengeError['code'], number> = {
@@ -119,12 +128,24 @@ const QUESTION_ADMIN_STATUS: Record<QuestionAdminError['code'], number> = {
   QUESTION_VERSION_NOT_FOUND: HttpStatus.NOT_FOUND,
   QUESTION_VERSION_MISMATCH: HttpStatus.CONFLICT,
   QUESTION_TYPE_NOT_FOUND: HttpStatus.NOT_FOUND,
+  QUESTION_TAXONOMY_NOT_FOUND: HttpStatus.NOT_FOUND,
   QUESTION_REFERENCE_NOT_FOUND: HttpStatus.NOT_FOUND,
   QUESTION_REFERENCE_MISMATCH: HttpStatus.CONFLICT,
   QUESTION_MEDIA_NOT_READY: HttpStatus.CONFLICT,
   QUESTION_CONTENT_INVALID: HttpStatus.BAD_REQUEST,
   IMMUTABLE_VERSION: HttpStatus.CONFLICT,
 };
+
+const QUESTION_TAXONOMY_STATUS: Record<QuestionTaxonomyError['code'], number> =
+  {
+    TYPE_VERSION_NOT_FOUND: HttpStatus.NOT_FOUND,
+    TYPE_VERSION_IMMUTABLE: HttpStatus.CONFLICT,
+    TYPE_VERSION_NOT_READY: HttpStatus.CONFLICT,
+    INVALID_LIFECYCLE_TRANSITION: HttpStatus.CONFLICT,
+    DIFFICULTY_CRITERIA_INVALID: HttpStatus.BAD_REQUEST,
+    APPROVED_EXAMPLE_INVALID: HttpStatus.BAD_REQUEST,
+    TAXONOMY_CONFLICT: HttpStatus.CONFLICT,
+  };
 
 const QUESTION_PUBLICATION_STATUS: Record<
   QuestionPublicationError['code'],
@@ -229,6 +250,14 @@ export const buildErrorResponse = (
     };
   }
 
+  if (error instanceof AuditLogError) {
+    const status = AUDIT_LOG_STATUS[error.code];
+    return {
+      status,
+      body: createProblem(error.code, status, requestId),
+    };
+  }
+
   if (error instanceof LearningDomainError) {
     const status = LEARNING_STATUS[error.code];
     return {
@@ -281,6 +310,14 @@ export const buildErrorResponse = (
 
   if (error instanceof QuestionPublicationError) {
     const status = QUESTION_PUBLICATION_STATUS[error.code];
+    return {
+      status,
+      body: createProblem(error.code, status, requestId),
+    };
+  }
+  if (error instanceof QuestionTaxonomyError) {
+    const status =
+      QUESTION_TAXONOMY_STATUS[error.code] ?? INTERNAL_SERVER_ERROR_STATUS;
     return {
       status,
       body: createProblem(error.code, status, requestId),

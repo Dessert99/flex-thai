@@ -29,13 +29,32 @@ const command = {
   ],
 };
 
+const createSeeds = (
+  job: Awaited<
+    ReturnType<FakeContentProductionRepository['createOrFind']>
+  >['job'],
+  ordinals: number[],
+) =>
+  ordinals.map((ordinal) => {
+    const input = job.inputs[ordinal];
+    if (!input?.jobInputId) {
+      throw new Error('테스트 입력 metadata가 없습니다');
+    }
+
+    return {
+      sourceRef: `input:${ordinal}:question`,
+      jobInputId: input.jobInputId,
+      operation: 'QUESTION_GENERATION' as const,
+    };
+  });
+
 describe('FakeContentProductionRepository 상태 전이', () => {
   it('heartbeat 중에는 탈취하지 않고 중단 뒤 만료되면 새 token으로 재claim한다', async () => {
     let currentTime = new Date('2026-07-27T00:00:00.000Z');
     const repository = new FakeContentProductionRepository(() => currentTime);
     const { job } = await repository.createOrFind(command);
     await repository.startAttempt(job.id, 0);
-    await repository.ensureItems(job.id, ['input:0']);
+    await repository.ensureItems(job.id, createSeeds(job, [0]));
     const [pending] = await repository.listAttemptItems(job.id, 0);
     const firstClaim = await repository.startItem(job.id, pending!.id, 0);
 
@@ -94,7 +113,7 @@ describe('FakeContentProductionRepository 상태 전이', () => {
     expect(await repository.startAttempt(job.id, 0)).toMatchObject({
       status: 'RUNNING',
     });
-    await repository.ensureItems(job.id, ['input:0']);
+    await repository.ensureItems(job.id, createSeeds(job, [0]));
     const [item] = await repository.listAttemptItems(job.id, 0);
     const claimed = await repository.startItem(job.id, item!.id, 0);
     await repository.finishItem(job.id, item!.id, 0, claimed!.leaseToken!, {
@@ -111,8 +130,14 @@ describe('FakeContentProductionRepository 상태 전이', () => {
     const repository = new FakeContentProductionRepository();
     const { job } = await repository.createOrFind(command);
     await repository.startAttempt(job.id, 0);
-    await repository.ensureItems(job.id, ['input:0', 'input:1']);
+    await repository.ensureItems(job.id, createSeeds(job, [0, 1]));
     const [first, second] = await repository.listAttemptItems(job.id, 0);
+
+    expect(first).toMatchObject({
+      sourceRef: 'input:0:question',
+      jobInputId: job.inputs[0]?.jobInputId,
+      operation: 'QUESTION_GENERATION',
+    });
 
     const firstClaim = await repository.startItem(job.id, first!.id, 0);
     await repository.finishItem(job.id, first!.id, 0, firstClaim!.leaseToken!, {

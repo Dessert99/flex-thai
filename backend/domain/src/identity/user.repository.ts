@@ -16,6 +16,36 @@ export interface ManagedIdentityUser extends IdentityUser {
   updatedAt: Date;
 }
 
+/** 관리자 사용자 검색·필터·페이지 입력 */
+export interface ManagedIdentityUserListQuery {
+  query?: string;
+  role?: IdentityUser['role'];
+  status?: IdentityUser['status'];
+  mfaEnrolled?: boolean;
+  page: number;
+  pageSize: number;
+}
+
+/** 관리자 사용자 페이지 */
+export interface ManagedIdentityUserPage {
+  items: ManagedIdentityUser[];
+  page: {
+    page: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+}
+
+/** 원자적 사용자 변경 저장 결과 */
+export type ManagedIdentityUserChangeResult =
+  | { kind: 'UPDATED'; user: ManagedIdentityUser }
+  | { kind: 'UNCHANGED'; user: ManagedIdentityUser }
+  | { kind: 'NOT_FOUND' }
+  | { kind: 'ACTOR_FORBIDDEN' }
+  | { kind: 'SELF_LOCKOUT' }
+  | { kind: 'LAST_ACTIVE_ADMIN' };
+
 /** Identity 인증과 guard가 최신 사용자 상태를 조회·갱신하는 저장 port */
 export interface IdentityUserRepository {
   findBySub(subject: string): Promise<IdentityUser | null>;
@@ -28,14 +58,23 @@ export interface IdentityUserRepository {
 
 /** 관리자 사용자 목록과 활성 상태를 변경하는 저장 port */
 export interface IdentityUserManagementRepository {
-  listManagedUsers(): Promise<ManagedIdentityUser[]>;
+  listManagedUsers(
+    query: ManagedIdentityUserListQuery,
+  ): Promise<ManagedIdentityUserPage>;
   changeStatusWithAudit(input: {
-    action: 'IDENTITY_USER_ENABLED' | 'IDENTITY_USER_DISABLED';
     actorSub: string;
     actorUserId: string;
     occurredAt: Date;
     requestId: string;
     status: IdentityUser['status'];
     userId: string;
-  }): Promise<ManagedIdentityUser | null>;
+  }): Promise<ManagedIdentityUserChangeResult>;
+  changeRoleWithAudit(input: {
+    actorSub: string;
+    actorUserId: string;
+    occurredAt: Date;
+    requestId: string;
+    role: IdentityUser['role'];
+    userId: string;
+  }): Promise<ManagedIdentityUserChangeResult>;
 }
