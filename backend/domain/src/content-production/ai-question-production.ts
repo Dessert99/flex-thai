@@ -857,6 +857,7 @@ export class QuestionCandidateReviewError extends Error {
   constructor(
     readonly code:
       | 'QUESTION_CANDIDATE_NOT_APPROVABLE'
+      | 'QUESTION_CANDIDATE_IDEMPOTENCY_CONFLICT'
       | 'QUESTION_CANDIDATE_REVIEW_CONFLICT',
   ) {
     super(code);

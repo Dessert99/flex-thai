@@ -1,7 +1,7 @@
 /** AI 문제 후보 artifact와 item terminal 전이를 같은 PostgreSQL transaction으로 저장한다 */
 import { isDeepStrictEqual } from 'node:util';
 import { QuestionCandidateReviewError } from '@flex-thia/domain';
-import { and, eq, gt, sql } from 'drizzle-orm';
+import { and, eq, gt, isNull, sql } from 'drizzle-orm';
 import type {
   ApprovedQuestionDraft,
   ApproveQuestionCandidateInput,
@@ -69,6 +69,15 @@ type ReviewCandidate = {
   approvedQuestionVersionId: string | null;
 };
 
+type ReviewReplay = {
+  action: string;
+  targetId: string | null;
+  requestId: string;
+  actorUserId: string | null;
+  actorSub: string;
+  summary: Record<string, unknown>;
+};
+
 const requiredValidationStages = new Set([
   'SCHEMA',
   'DECISION_RULE',
@@ -110,19 +119,47 @@ const readReviewReplay = async (
     requestId: string;
     action: string;
   },
-): Promise<Record<string, unknown> | null> => {
+): Promise<ReviewReplay | null> => {
   const [audit] = await transaction
-    .select({ summary: auditLogs.summary })
+    .select({
+      action: auditLogs.action,
+      targetId: auditLogs.targetId,
+      requestId: auditLogs.requestId,
+      actorUserId: auditLogs.actorUserId,
+      actorSub: auditLogs.actorSub,
+      summary: auditLogs.summary,
+    })
     .from(auditLogs)
     .where(
       and(
-        eq(auditLogs.action, input.action),
-        eq(auditLogs.targetId, input.candidateId),
+        eq(auditLogs.targetType, 'QUESTION_CANDIDATE'),
         eq(auditLogs.requestId, input.requestId),
       ),
     )
     .limit(1);
-  return audit?.summary ?? null;
+  return audit ?? null;
+};
+
+const isExactReviewReplay = (
+  replay: ReviewReplay,
+  input: ApproveQuestionCandidateInput,
+  action: string,
+): boolean =>
+  replay.action === action &&
+  replay.targetId === input.candidateId &&
+  replay.requestId === input.requestId &&
+  replay.actorUserId === input.actorUserId &&
+  replay.actorSub === input.actorSub &&
+  replay.summary['expectedRevision'] === input.expectedRevision;
+
+const throwIdempotencyConflict = (): never => {
+  throw new QuestionCandidateReviewError(
+    'QUESTION_CANDIDATE_IDEMPOTENCY_CONFLICT',
+  );
+};
+
+const throwReviewConflict = (): never => {
+  throw new QuestionCandidateReviewError('QUESTION_CANDIDATE_REVIEW_CONFLICT');
 };
 
 const appendReviewAudit = (
@@ -147,7 +184,7 @@ const appendReviewAudit = (
 
 const isApprovedReplay = (
   candidate: ReviewCandidate,
-  summary: Record<string, unknown> | null,
+  replay: ReviewReplay,
 ): candidate is ReviewCandidate & {
   approvedQuestionId: string;
   approvedQuestionVersionId: string;
@@ -155,8 +192,8 @@ const isApprovedReplay = (
   candidate.reviewStatus === 'APPROVED' &&
   candidate.approvedQuestionId !== null &&
   candidate.approvedQuestionVersionId !== null &&
-  summary?.['questionId'] === candidate.approvedQuestionId &&
-  summary['questionVersionId'] === candidate.approvedQuestionVersionId;
+  replay.summary['questionId'] === candidate.approvedQuestionId &&
+  replay.summary['questionVersionId'] === candidate.approvedQuestionVersionId;
 
 const hasAllPassedValidations = (
   validations: Array<{ stage: string; status: string }>,
@@ -414,13 +451,19 @@ export class DrizzleAiQuestionProductionRepository
       );
       if (!candidate) return { kind: 'CONFLICT' };
 
+      const replay = await readReviewReplay(transaction, {
+        candidateId: input.candidateId,
+        requestId: input.requestId,
+        action: 'QUESTION_CANDIDATE_APPROVED',
+      });
+      if (
+        replay &&
+        !isExactReviewReplay(replay, input, 'QUESTION_CANDIDATE_APPROVED')
+      ) {
+        throwIdempotencyConflict();
+      }
       if (candidate.reviewStatus === 'APPROVED') {
-        const replay = await readReviewReplay(transaction, {
-          candidateId: input.candidateId,
-          requestId: input.requestId,
-          action: 'QUESTION_CANDIDATE_APPROVED',
-        });
-        return isApprovedReplay(candidate, replay)
+        return replay && isApprovedReplay(candidate, replay)
           ? {
               kind: 'ALREADY_APPROVED',
               questionId: candidate.approvedQuestionId,
@@ -428,6 +471,7 @@ export class DrizzleAiQuestionProductionRepository
             }
           : { kind: 'CONFLICT' };
       }
+      if (replay) return { kind: 'CONFLICT' };
       if (
         candidate.reviewStatus !== 'PENDING' ||
         candidate.revision !== input.expectedRevision
@@ -499,6 +543,7 @@ export class DrizzleAiQuestionProductionRepository
         command: input,
         action: 'QUESTION_CANDIDATE_APPROVED',
         summary: {
+          expectedRevision: input.expectedRevision,
           previousRevision: candidate.revision,
           revision: nextRevision,
           questionId: draft.questionId,
@@ -521,15 +566,21 @@ export class DrizzleAiQuestionProductionRepository
         input.candidateId,
       );
       if (!candidate) return false;
-      if (candidate.reviewStatus === 'DISCARDED') {
-        return (
-          (await readReviewReplay(transaction, {
-            candidateId: input.candidateId,
-            requestId: input.requestId,
-            action: 'QUESTION_CANDIDATE_DISCARDED',
-          })) !== null
-        );
+      const replay = await readReviewReplay(transaction, {
+        candidateId: input.candidateId,
+        requestId: input.requestId,
+        action: 'QUESTION_CANDIDATE_DISCARDED',
+      });
+      if (
+        replay &&
+        !isExactReviewReplay(replay, input, 'QUESTION_CANDIDATE_DISCARDED')
+      ) {
+        throwIdempotencyConflict();
       }
+      if (candidate.reviewStatus === 'DISCARDED') {
+        return replay !== null;
+      }
+      if (replay) return false;
       if (
         candidate.reviewStatus !== 'PENDING' ||
         candidate.revision !== input.expectedRevision
@@ -559,6 +610,7 @@ export class DrizzleAiQuestionProductionRepository
         command: input,
         action: 'QUESTION_CANDIDATE_DISCARDED',
         summary: {
+          expectedRevision: input.expectedRevision,
           previousRevision: candidate.revision,
           revision: nextRevision,
         },
@@ -589,10 +641,23 @@ export class DrizzleAiQuestionProductionRepository
       });
       if (
         replay &&
-        typeof replay['jobId'] === 'string' &&
-        typeof replay['attempt'] === 'number'
+        !isExactReviewReplay(
+          replay,
+          input,
+          'QUESTION_CANDIDATE_REGENERATION_REQUESTED',
+        )
       ) {
-        return { jobId: replay['jobId'], attempt: replay['attempt'] };
+        throwIdempotencyConflict();
+      }
+      if (
+        replay &&
+        typeof replay.summary['jobId'] === 'string' &&
+        typeof replay.summary['attempt'] === 'number'
+      ) {
+        return {
+          jobId: replay.summary['jobId'],
+          attempt: replay.summary['attempt'],
+        };
       }
       if (
         candidate.reviewStatus !== 'PENDING' ||
@@ -608,6 +673,9 @@ export class DrizzleAiQuestionProductionRepository
           id: jobItems.id,
           jobId: jobItems.jobId,
           attempt: jobItems.attempt,
+          status: jobItems.status,
+          leaseToken: jobItems.leaseToken,
+          leaseUntil: jobItems.leaseUntil,
         })
         .from(jobItems)
         .where(eq(jobItems.id, candidate.jobItemId))
@@ -617,6 +685,36 @@ export class DrizzleAiQuestionProductionRepository
         throw new QuestionCandidateReviewError(
           'QUESTION_CANDIDATE_REVIEW_CONFLICT',
         );
+      }
+      if (
+        item.attempt !== candidate.jobAttempt ||
+        !['SUCCEEDED', 'NEEDS_ATTENTION', 'FAILED'].includes(item.status) ||
+        item.leaseToken !== null ||
+        item.leaseUntil !== null
+      ) {
+        throwReviewConflict();
+      }
+
+      const [job] = await transaction
+        .select({
+          id: jobs.id,
+          attempt: jobs.attempt,
+          status: jobs.status,
+        })
+        .from(jobs)
+        .where(eq(jobs.id, item.jobId))
+        .for('update')
+        .limit(1);
+      if (!job) {
+        throw new QuestionCandidateReviewError(
+          'QUESTION_CANDIDATE_REVIEW_CONFLICT',
+        );
+      }
+      if (
+        job.attempt !== item.attempt ||
+        !['COMPLETED', 'COMPLETED_WITH_FAILURES', 'FAILED'].includes(job.status)
+      ) {
+        throwReviewConflict();
       }
 
       const nextAttempt = item.attempt + 1;
@@ -633,7 +731,13 @@ export class DrizzleAiQuestionProductionRepository
           updatedAt: this.now(),
         })
         .where(
-          and(eq(jobItems.id, item.id), eq(jobItems.attempt, item.attempt)),
+          and(
+            eq(jobItems.id, item.id),
+            eq(jobItems.attempt, item.attempt),
+            eq(jobItems.status, item.status),
+            isNull(jobItems.leaseToken),
+            isNull(jobItems.leaseUntil),
+          ),
         )
         .returning({ id: jobItems.id });
       if (updatedItem.length !== 1) {
@@ -642,7 +746,7 @@ export class DrizzleAiQuestionProductionRepository
         );
       }
 
-      await transaction
+      const updatedJob = await transaction
         .update(jobs)
         .set({
           status: 'QUEUED',
@@ -652,8 +756,19 @@ export class DrizzleAiQuestionProductionRepository
           failureCode: null,
           updatedAt: this.now(),
         })
-        .where(eq(jobs.id, item.jobId));
-      await transaction
+        .where(
+          and(
+            eq(jobs.id, job.id),
+            eq(jobs.attempt, job.attempt),
+            eq(jobs.status, job.status),
+          ),
+        )
+        .returning({ id: jobs.id });
+      if (updatedJob.length !== 1) {
+        throwReviewConflict();
+      }
+
+      const updatedCandidate = await transaction
         .update(questionProductionCandidates)
         .set({
           revision: candidate.revision + 1,
@@ -665,11 +780,16 @@ export class DrizzleAiQuestionProductionRepository
             eq(questionProductionCandidates.revision, candidate.revision),
             eq(questionProductionCandidates.reviewStatus, 'PENDING'),
           ),
-        );
+        )
+        .returning({ id: questionProductionCandidates.id });
+      if (updatedCandidate.length !== 1) {
+        throwReviewConflict();
+      }
       await appendReviewAudit(transaction, {
         command: input,
         action: 'QUESTION_CANDIDATE_REGENERATION_REQUESTED',
         summary: {
+          expectedRevision: input.expectedRevision,
           jobId: item.jobId,
           attempt: nextAttempt,
           regeneratedFromCandidateId: candidate.id,

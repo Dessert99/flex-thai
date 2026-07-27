@@ -49,33 +49,131 @@ const input = {
   },
 };
 
+const reviewCommand = {
+  candidateId: 'candidate-id',
+  expectedRevision: 0,
+  actorUserId: 'actor-user-id',
+  actorSub: 'actor-sub',
+  requestId: 'request-id',
+  occurredAt: new Date('2026-07-27T02:00:00.000Z'),
+};
+
+const pendingCandidate = {
+  id: reviewCommand.candidateId,
+  jobItemId: input.itemId,
+  jobAttempt: input.attempt,
+  typeVersionId: 'type-version-id',
+  topicId: 'topic-id',
+  difficulty: 3,
+  payload: input.artifacts.candidates[0]!.candidate.payload,
+  resultGroup: 'NORMAL',
+  reviewStatus: 'PENDING',
+  revision: 0,
+  approvedQuestionId: null,
+  approvedQuestionVersionId: null,
+};
+
+const replayDatabase = (
+  candidate: Record<string, unknown>,
+  audit: Record<string, unknown>,
+) => {
+  const candidateLimit = vi.fn().mockResolvedValue([candidate]);
+  const candidateFor = vi.fn(() => ({ limit: candidateLimit }));
+  const candidateWhere = vi.fn(() => ({ for: candidateFor }));
+  const candidateFrom = vi.fn(() => ({ where: candidateWhere }));
+  const auditLimit = vi.fn().mockResolvedValue([audit]);
+  const auditWhere = vi.fn(() => ({ limit: auditLimit }));
+  const auditFrom = vi.fn(() => ({ where: auditWhere }));
+  const select = vi
+    .fn()
+    .mockReturnValueOnce({ from: candidateFrom })
+    .mockReturnValueOnce({ from: auditFrom });
+  const transaction = vi.fn(
+    (callback: (executor: unknown) => Promise<unknown>) => callback({ select }),
+  );
+  return { transaction };
+};
+
+const reviewReplayCases = [
+  {
+    name: '승인',
+    candidate: {
+      ...pendingCandidate,
+      reviewStatus: 'APPROVED',
+      revision: 1,
+      approvedQuestionId: 'question-id',
+      approvedQuestionVersionId: 'version-id',
+    },
+    audit: {
+      action: 'QUESTION_CANDIDATE_APPROVED',
+      targetId: reviewCommand.candidateId,
+      requestId: reviewCommand.requestId,
+      actorUserId: reviewCommand.actorUserId,
+      actorSub: reviewCommand.actorSub,
+      summary: {
+        expectedRevision: reviewCommand.expectedRevision,
+        questionId: 'question-id',
+        questionVersionId: 'version-id',
+      },
+    },
+    invoke: (
+      repository: DrizzleAiQuestionProductionRepository,
+      command: typeof reviewCommand,
+    ) => repository.approve(command),
+    expected: {
+      kind: 'ALREADY_APPROVED',
+      questionId: 'question-id',
+      questionVersionId: 'version-id',
+    },
+  },
+  {
+    name: '폐기',
+    candidate: {
+      ...pendingCandidate,
+      reviewStatus: 'DISCARDED',
+      revision: 1,
+    },
+    audit: {
+      action: 'QUESTION_CANDIDATE_DISCARDED',
+      targetId: reviewCommand.candidateId,
+      requestId: reviewCommand.requestId,
+      actorUserId: reviewCommand.actorUserId,
+      actorSub: reviewCommand.actorSub,
+      summary: { expectedRevision: reviewCommand.expectedRevision },
+    },
+    invoke: (
+      repository: DrizzleAiQuestionProductionRepository,
+      command: typeof reviewCommand,
+    ) => repository.discard(command),
+    expected: true,
+  },
+  {
+    name: '재생성',
+    candidate: pendingCandidate,
+    audit: {
+      action: 'QUESTION_CANDIDATE_REGENERATION_REQUESTED',
+      targetId: reviewCommand.candidateId,
+      requestId: reviewCommand.requestId,
+      actorUserId: reviewCommand.actorUserId,
+      actorSub: reviewCommand.actorSub,
+      summary: {
+        expectedRevision: reviewCommand.expectedRevision,
+        jobId: input.jobId,
+        attempt: input.attempt + 1,
+        regeneratedFromCandidateId: reviewCommand.candidateId,
+      },
+    },
+    invoke: (
+      repository: DrizzleAiQuestionProductionRepository,
+      command: typeof reviewCommand,
+    ) => repository.requestRegeneration(command),
+    expected: { jobId: input.jobId, attempt: input.attempt + 1 },
+  },
+] as const;
+
 describe('AI 문제 제작 Drizzle 저장소', () => {
-  const reviewCommand = {
-    candidateId: 'candidate-id',
-    expectedRevision: 0,
-    actorUserId: 'actor-user-id',
-    actorSub: 'actor-sub',
-    requestId: 'request-id',
-    occurredAt: new Date('2026-07-27T02:00:00.000Z'),
-  };
-
-  const approvableCandidate = {
-    id: reviewCommand.candidateId,
-    jobItemId: input.itemId,
-    jobAttempt: input.attempt,
-    typeVersionId: 'type-version-id',
-    topicId: 'topic-id',
-    difficulty: 3,
-    payload: input.artifacts.candidates[0]!.candidate.payload,
-    resultGroup: 'NORMAL',
-    reviewStatus: 'PENDING',
-    revision: 0,
-    approvedQuestionId: null,
-    approvedQuestionVersionId: null,
-  };
-
   it('NORMAL과 네 필수 검증 PASSED 후보만 row lock 뒤 DRAFT로 승인한다', async () => {
-    const candidateLimit = vi.fn().mockResolvedValue([approvableCandidate]);
+    const candidateLimit = vi.fn().mockResolvedValue([pendingCandidate]);
     const candidateFor = vi.fn(() => ({ limit: candidateLimit }));
     const candidateWhere = vi.fn(() => ({ for: candidateFor }));
     const candidateFrom = vi.fn(() => ({ where: candidateWhere }));
@@ -86,9 +184,13 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
       { stage: 'AI_CROSS_VALIDATION', status: 'PASSED' },
     ]);
     const validationFrom = vi.fn(() => ({ where: validationWhere }));
+    const auditLimit = vi.fn().mockResolvedValue([]);
+    const auditWhere = vi.fn(() => ({ limit: auditLimit }));
+    const auditFrom = vi.fn(() => ({ where: auditWhere }));
     const select = vi
       .fn()
       .mockReturnValueOnce({ from: candidateFrom })
+      .mockReturnValueOnce({ from: auditFrom })
       .mockReturnValueOnce({ from: validationFrom });
     const candidateReturning = vi
       .fn()
@@ -125,7 +227,7 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
     expect(draftInput).toMatchObject({
       candidate: {
         id: reviewCommand.candidateId,
-        payload: approvableCandidate.payload,
+        payload: pendingCandidate.payload,
       },
       actor: {
         actorUserId: reviewCommand.actorUserId,
@@ -146,6 +248,7 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
         targetId: reviewCommand.candidateId,
         requestId: reviewCommand.requestId,
         summary: {
+          expectedRevision: reviewCommand.expectedRevision,
           previousRevision: 0,
           revision: 1,
           questionId: 'question-id',
@@ -156,7 +259,7 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
   });
 
   it('필수 검증 하나가 없거나 실패한 후보는 DRAFT를 만들지 않는다', async () => {
-    const candidateLimit = vi.fn().mockResolvedValue([approvableCandidate]);
+    const candidateLimit = vi.fn().mockResolvedValue([pendingCandidate]);
     const candidateFor = vi.fn(() => ({ limit: candidateLimit }));
     const candidateWhere = vi.fn(() => ({ for: candidateFor }));
     const candidateFrom = vi.fn(() => ({ where: candidateWhere }));
@@ -166,9 +269,13 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
       { stage: 'SIMILARITY', status: 'FAILED' },
     ]);
     const validationFrom = vi.fn(() => ({ where: validationWhere }));
+    const auditLimit = vi.fn().mockResolvedValue([]);
+    const auditWhere = vi.fn(() => ({ limit: auditLimit }));
+    const auditFrom = vi.fn(() => ({ where: auditWhere }));
     const select = vi
       .fn()
       .mockReturnValueOnce({ from: candidateFrom })
+      .mockReturnValueOnce({ from: auditFrom })
       .mockReturnValueOnce({ from: validationFrom });
     const transaction = vi.fn(
       (callback: (executor: unknown) => Promise<unknown>) =>
@@ -187,56 +294,132 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
     expect(createDraft).not.toHaveBeenCalled();
   });
 
-  it('승인 후보의 같은 request replay만 기존 연결을 반환한다', async () => {
-    const approved = {
-      ...approvableCandidate,
-      reviewStatus: 'APPROVED',
-      revision: 1,
-      approvedQuestionId: 'question-id',
-      approvedQuestionVersionId: 'version-id',
-    };
-    const candidateLimit = vi.fn().mockResolvedValue([approved]);
+  it('폐기 audit에 semantic replay 입력을 보존한다', async () => {
+    const candidateLimit = vi.fn().mockResolvedValue([pendingCandidate]);
     const candidateFor = vi.fn(() => ({ limit: candidateLimit }));
     const candidateWhere = vi.fn(() => ({ for: candidateFor }));
     const candidateFrom = vi.fn(() => ({ where: candidateWhere }));
-    const auditLimit = vi.fn().mockResolvedValue([
-      {
-        summary: {
-          questionId: 'question-id',
-          questionVersionId: 'version-id',
-        },
-      },
-    ]);
+    const auditLimit = vi.fn().mockResolvedValue([]);
     const auditWhere = vi.fn(() => ({ limit: auditLimit }));
     const auditFrom = vi.fn(() => ({ where: auditWhere }));
     const select = vi
       .fn()
       .mockReturnValueOnce({ from: candidateFrom })
       .mockReturnValueOnce({ from: auditFrom });
-    const transaction = vi.fn(
-      (callback: (executor: unknown) => Promise<unknown>) =>
-        callback({ select }),
-    );
-    const createDraft = vi.fn();
+    const returning = vi
+      .fn()
+      .mockResolvedValue([{ id: reviewCommand.candidateId }]);
+    const where = vi.fn(() => ({ returning }));
+    const set = vi.fn(() => ({ where }));
+    const update = vi.fn(() => ({ set }));
+    const values = vi.fn().mockResolvedValue(undefined);
+    const insert = vi.fn(() => ({ values }));
+    const repository = new DrizzleAiQuestionProductionRepository({
+      transaction: vi.fn((callback: (executor: unknown) => Promise<unknown>) =>
+        callback({ insert, select, update }),
+      ),
+    } as never);
+
+    await expect(repository.discard(reviewCommand)).resolves.toBe(true);
+    expect(values).toHaveBeenCalledWith({
+      actorSub: reviewCommand.actorSub,
+      actorUserId: reviewCommand.actorUserId,
+      action: 'QUESTION_CANDIDATE_DISCARDED',
+      target: reviewCommand.candidateId,
+      targetType: 'QUESTION_CANDIDATE',
+      targetId: reviewCommand.candidateId,
+      summary: {
+        expectedRevision: reviewCommand.expectedRevision,
+        previousRevision: reviewCommand.expectedRevision,
+        revision: reviewCommand.expectedRevision + 1,
+      },
+      requestId: reviewCommand.requestId,
+      createdAt: reviewCommand.occurredAt,
+    });
+  });
+
+  it.each(reviewReplayCases)(
+    '$name command는 같은 semantic request만 replay한다',
+    async ({ audit, candidate, expected, invoke }) => {
+      const repository = new DrizzleAiQuestionProductionRepository(
+        replayDatabase(candidate, audit) as never,
+      );
+
+      await expect(
+        invoke(repository, {
+          ...reviewCommand,
+          occurredAt: new Date('2026-07-27T02:05:00.000Z'),
+        }),
+      ).resolves.toEqual(expected);
+    },
+  );
+
+  it.each(reviewReplayCases)(
+    '$name command는 같은 request ID의 semantic payload 변경을 멱등 충돌로 거절한다',
+    async ({ audit, candidate, invoke }) => {
+      const changedCommands = [
+        { ...reviewCommand, candidateId: 'changed-candidate-id' },
+        { ...reviewCommand, actorUserId: 'changed-actor-user-id' },
+        { ...reviewCommand, actorSub: 'changed-actor-sub' },
+        { ...reviewCommand, expectedRevision: 1 },
+      ];
+      for (const command of changedCommands) {
+        const repository = new DrizzleAiQuestionProductionRepository(
+          replayDatabase(candidate, audit) as never,
+        );
+        await expect(invoke(repository, command)).rejects.toThrow(
+          'QUESTION_CANDIDATE_IDEMPOTENCY_CONFLICT',
+        );
+      }
+    },
+  );
+
+  it('같은 request ID를 다른 후보 command action에 재사용하면 멱등 충돌로 거절한다', async () => {
+    const discarded = {
+      ...pendingCandidate,
+      reviewStatus: 'DISCARDED',
+      revision: 1,
+    };
+    const approvalAudit = {
+      action: 'QUESTION_CANDIDATE_APPROVED',
+      targetId: reviewCommand.candidateId,
+      requestId: reviewCommand.requestId,
+      actorUserId: reviewCommand.actorUserId,
+      actorSub: reviewCommand.actorSub,
+      summary: { expectedRevision: reviewCommand.expectedRevision },
+    };
     const repository = new DrizzleAiQuestionProductionRepository(
-      { transaction } as never,
-      () => reviewCommand.occurredAt,
-      { createDraft },
+      replayDatabase(discarded, approvalAudit) as never,
     );
 
-    await expect(repository.approve(reviewCommand)).resolves.toEqual({
-      kind: 'ALREADY_APPROVED',
-      questionId: 'question-id',
-      questionVersionId: 'version-id',
-    });
-    expect(createDraft).not.toHaveBeenCalled();
+    await expect(repository.discard(reviewCommand)).rejects.toThrow(
+      'QUESTION_CANDIDATE_IDEMPOTENCY_CONFLICT',
+    );
+  });
+
+  it('다른 후보가 먼저 쓴 request ID로 PENDING 후보를 승인하지 않는다', async () => {
+    const priorAudit = {
+      action: 'QUESTION_CANDIDATE_DISCARDED',
+      targetId: 'other-candidate-id',
+      requestId: reviewCommand.requestId,
+      actorUserId: reviewCommand.actorUserId,
+      actorSub: reviewCommand.actorSub,
+      summary: { expectedRevision: reviewCommand.expectedRevision },
+    };
+    const repository = new DrizzleAiQuestionProductionRepository(
+      replayDatabase(pendingCandidate, priorAudit) as never,
+    );
+
+    await expect(repository.approve(reviewCommand)).rejects.toThrow(
+      'QUESTION_CANDIDATE_IDEMPOTENCY_CONFLICT',
+    );
   });
 
   it('폐기된 후보와 승인된 후보의 다른 terminal 전이를 거절한다', async () => {
     const rows = [
-      { ...approvableCandidate, reviewStatus: 'DISCARDED', revision: 1 },
+      { ...pendingCandidate, reviewStatus: 'DISCARDED', revision: 1 },
       {
-        ...approvableCandidate,
+        ...pendingCandidate,
         reviewStatus: 'APPROVED',
         revision: 1,
         approvedQuestionId: 'question-id',
@@ -245,11 +428,18 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
     ];
     const transaction = vi.fn(
       (callback: (executor: unknown) => Promise<unknown>) => {
-        const limit = vi.fn().mockResolvedValue([rows.shift()]);
-        const forUpdate = vi.fn(() => ({ limit }));
-        const where = vi.fn(() => ({ for: forUpdate }));
-        const from = vi.fn(() => ({ where }));
-        return callback({ select: vi.fn(() => ({ from })) });
+        const candidateLimit = vi.fn().mockResolvedValue([rows.shift()]);
+        const candidateFor = vi.fn(() => ({ limit: candidateLimit }));
+        const candidateWhere = vi.fn(() => ({ for: candidateFor }));
+        const candidateFrom = vi.fn(() => ({ where: candidateWhere }));
+        const auditLimit = vi.fn().mockResolvedValue([]);
+        const auditWhere = vi.fn(() => ({ limit: auditLimit }));
+        const auditFrom = vi.fn(() => ({ where: auditWhere }));
+        const select = vi
+          .fn()
+          .mockReturnValueOnce({ from: candidateFrom })
+          .mockReturnValueOnce({ from: auditFrom });
+        return callback({ select });
       },
     );
     const repository = new DrizzleAiQuestionProductionRepository(
@@ -265,26 +455,42 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
   });
 
   it('재생성은 같은 item의 attempt를 증가시키고 원본 후보 lineage를 보존한다', async () => {
-    const candidateLimit = vi.fn().mockResolvedValue([approvableCandidate]);
+    const candidateLimit = vi.fn().mockResolvedValue([pendingCandidate]);
     const candidateFor = vi.fn(() => ({ limit: candidateLimit }));
     const candidateWhere = vi.fn(() => ({ for: candidateFor }));
     const candidateFrom = vi.fn(() => ({ where: candidateWhere }));
     const auditLimit = vi.fn().mockResolvedValue([]);
     const auditWhere = vi.fn(() => ({ limit: auditLimit }));
     const auditFrom = vi.fn(() => ({ where: auditWhere }));
-    const itemLimit = vi
-      .fn()
-      .mockResolvedValue([
-        { id: input.itemId, jobId: input.jobId, attempt: input.attempt },
-      ]);
+    const itemLimit = vi.fn().mockResolvedValue([
+      {
+        id: input.itemId,
+        jobId: input.jobId,
+        attempt: input.attempt,
+        status: 'SUCCEEDED',
+        leaseToken: null,
+        leaseUntil: null,
+      },
+    ]);
     const itemFor = vi.fn(() => ({ limit: itemLimit }));
     const itemWhere = vi.fn(() => ({ for: itemFor }));
     const itemFrom = vi.fn(() => ({ where: itemWhere }));
+    const jobLimit = vi.fn().mockResolvedValue([
+      {
+        id: input.jobId,
+        attempt: input.attempt,
+        status: 'COMPLETED',
+      },
+    ]);
+    const jobFor = vi.fn(() => ({ limit: jobLimit }));
+    const jobWhere = vi.fn(() => ({ for: jobFor }));
+    const jobFrom = vi.fn(() => ({ where: jobWhere }));
     const select = vi
       .fn()
       .mockReturnValueOnce({ from: candidateFrom })
       .mockReturnValueOnce({ from: auditFrom })
-      .mockReturnValueOnce({ from: itemFrom });
+      .mockReturnValueOnce({ from: itemFrom })
+      .mockReturnValueOnce({ from: jobFrom });
     const returning = vi.fn().mockResolvedValue([{ id: input.itemId }]);
     const where = vi.fn(() => ({ returning }));
     const set = vi.fn(() => ({ where }));
@@ -318,12 +524,243 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
       expect.objectContaining({
         action: 'QUESTION_CANDIDATE_REGENERATION_REQUESTED',
         summary: {
+          expectedRevision: reviewCommand.expectedRevision,
           jobId: input.jobId,
           attempt: input.attempt + 1,
           regeneratedFromCandidateId: reviewCommand.candidateId,
         },
       }),
     );
+  });
+
+  it('PROCESSING item과 활성 lease는 재생성으로 덮어쓰지 않는다', async () => {
+    const candidateLimit = vi.fn().mockResolvedValue([pendingCandidate]);
+    const candidateFor = vi.fn(() => ({ limit: candidateLimit }));
+    const candidateWhere = vi.fn(() => ({ for: candidateFor }));
+    const candidateFrom = vi.fn(() => ({ where: candidateWhere }));
+    const auditLimit = vi.fn().mockResolvedValue([]);
+    const auditWhere = vi.fn(() => ({ limit: auditLimit }));
+    const auditFrom = vi.fn(() => ({ where: auditWhere }));
+    const itemLimit = vi.fn().mockResolvedValue([
+      {
+        id: input.itemId,
+        jobId: input.jobId,
+        attempt: input.attempt,
+        status: 'PROCESSING',
+        leaseToken: 'active-lease',
+        leaseUntil: new Date('2026-07-27T03:00:00.000Z'),
+      },
+    ]);
+    const itemFor = vi.fn(() => ({ limit: itemLimit }));
+    const itemWhere = vi.fn(() => ({ for: itemFor }));
+    const itemFrom = vi.fn(() => ({ where: itemWhere }));
+    const select = vi
+      .fn()
+      .mockReturnValueOnce({ from: candidateFrom })
+      .mockReturnValueOnce({ from: auditFrom })
+      .mockReturnValueOnce({ from: itemFrom });
+    const returning = vi.fn().mockResolvedValue([{ id: input.itemId }]);
+    const where = vi.fn(() => ({ returning }));
+    const set = vi.fn(() => ({ where }));
+    const update = vi.fn(() => ({ set }));
+    const values = vi.fn().mockResolvedValue(undefined);
+    const insert = vi.fn(() => ({ values }));
+    const repository = new DrizzleAiQuestionProductionRepository({
+      transaction: vi.fn((callback: (executor: unknown) => Promise<unknown>) =>
+        callback({ insert, select, update }),
+      ),
+    } as never);
+
+    await expect(repository.requestRegeneration(reviewCommand)).rejects.toThrow(
+      'QUESTION_CANDIDATE_REVIEW_CONFLICT',
+    );
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('item lifecycle CAS가 0건이면 job을 재개하지 않는다', async () => {
+    const candidateLimit = vi.fn().mockResolvedValue([pendingCandidate]);
+    const candidateFor = vi.fn(() => ({ limit: candidateLimit }));
+    const candidateWhere = vi.fn(() => ({ for: candidateFor }));
+    const candidateFrom = vi.fn(() => ({ where: candidateWhere }));
+    const auditLimit = vi.fn().mockResolvedValue([]);
+    const auditWhere = vi.fn(() => ({ limit: auditLimit }));
+    const auditFrom = vi.fn(() => ({ where: auditWhere }));
+    const itemLimit = vi.fn().mockResolvedValue([
+      {
+        id: input.itemId,
+        jobId: input.jobId,
+        attempt: input.attempt,
+        status: 'NEEDS_ATTENTION',
+        leaseToken: null,
+        leaseUntil: null,
+      },
+    ]);
+    const itemFor = vi.fn(() => ({ limit: itemLimit }));
+    const itemWhere = vi.fn(() => ({ for: itemFor }));
+    const itemFrom = vi.fn(() => ({ where: itemWhere }));
+    const jobLimit = vi.fn().mockResolvedValue([
+      {
+        id: input.jobId,
+        attempt: input.attempt,
+        status: 'COMPLETED_WITH_FAILURES',
+      },
+    ]);
+    const jobFor = vi.fn(() => ({ limit: jobLimit }));
+    const jobWhere = vi.fn(() => ({ for: jobFor }));
+    const jobFrom = vi.fn(() => ({ where: jobWhere }));
+    const select = vi
+      .fn()
+      .mockReturnValueOnce({ from: candidateFrom })
+      .mockReturnValueOnce({ from: auditFrom })
+      .mockReturnValueOnce({ from: itemFrom })
+      .mockReturnValueOnce({ from: jobFrom });
+    const itemReturning = vi.fn().mockResolvedValue([]);
+    const itemWhereUpdate = vi.fn(() => ({ returning: itemReturning }));
+    const update = vi.fn().mockReturnValueOnce({
+      set: vi.fn(() => ({ where: itemWhereUpdate })),
+    });
+    const repository = new DrizzleAiQuestionProductionRepository({
+      transaction: vi.fn((callback: (executor: unknown) => Promise<unknown>) =>
+        callback({ select, update }),
+      ),
+    } as never);
+
+    await expect(repository.requestRegeneration(reviewCommand)).rejects.toThrow(
+      'QUESTION_CANDIDATE_REVIEW_CONFLICT',
+    );
+    expect(itemReturning).toHaveBeenCalledOnce();
+    expect(update).toHaveBeenCalledOnce();
+  });
+
+  it('job lifecycle CAS가 0건이면 item 재개를 transaction conflict로 되돌린다', async () => {
+    const candidateLimit = vi.fn().mockResolvedValue([pendingCandidate]);
+    const candidateFor = vi.fn(() => ({ limit: candidateLimit }));
+    const candidateWhere = vi.fn(() => ({ for: candidateFor }));
+    const candidateFrom = vi.fn(() => ({ where: candidateWhere }));
+    const auditLimit = vi.fn().mockResolvedValue([]);
+    const auditWhere = vi.fn(() => ({ limit: auditLimit }));
+    const auditFrom = vi.fn(() => ({ where: auditWhere }));
+    const itemLimit = vi.fn().mockResolvedValue([
+      {
+        id: input.itemId,
+        jobId: input.jobId,
+        attempt: input.attempt,
+        status: 'FAILED',
+        leaseToken: null,
+        leaseUntil: null,
+      },
+    ]);
+    const itemFor = vi.fn(() => ({ limit: itemLimit }));
+    const itemWhere = vi.fn(() => ({ for: itemFor }));
+    const itemFrom = vi.fn(() => ({ where: itemWhere }));
+    const jobLimit = vi
+      .fn()
+      .mockResolvedValue([
+        { id: input.jobId, attempt: input.attempt, status: 'FAILED' },
+      ]);
+    const jobFor = vi.fn(() => ({ limit: jobLimit }));
+    const jobWhere = vi.fn(() => ({ for: jobFor }));
+    const jobFrom = vi.fn(() => ({ where: jobWhere }));
+    const select = vi
+      .fn()
+      .mockReturnValueOnce({ from: candidateFrom })
+      .mockReturnValueOnce({ from: auditFrom })
+      .mockReturnValueOnce({ from: itemFrom })
+      .mockReturnValueOnce({ from: jobFrom });
+    const itemReturning = vi.fn().mockResolvedValue([{ id: input.itemId }]);
+    const itemWhereUpdate = vi.fn(() => ({ returning: itemReturning }));
+    const jobReturning = vi.fn().mockResolvedValue([]);
+    const jobWhereUpdate = vi.fn(() => ({ returning: jobReturning }));
+    const candidateReturning = vi
+      .fn()
+      .mockResolvedValue([{ id: reviewCommand.candidateId }]);
+    const candidateWhereUpdate = vi.fn(() => ({
+      returning: candidateReturning,
+    }));
+    const update = vi
+      .fn()
+      .mockReturnValueOnce({ set: vi.fn(() => ({ where: itemWhereUpdate })) })
+      .mockReturnValueOnce({ set: vi.fn(() => ({ where: jobWhereUpdate })) })
+      .mockReturnValueOnce({
+        set: vi.fn(() => ({ where: candidateWhereUpdate })),
+      });
+    const repository = new DrizzleAiQuestionProductionRepository({
+      transaction: vi.fn((callback: (executor: unknown) => Promise<unknown>) =>
+        callback({ select, update }),
+      ),
+    } as never);
+
+    await expect(repository.requestRegeneration(reviewCommand)).rejects.toThrow(
+      'QUESTION_CANDIDATE_REVIEW_CONFLICT',
+    );
+    expect(jobReturning).toHaveBeenCalledOnce();
+    expect(candidateReturning).not.toHaveBeenCalled();
+  });
+
+  it('candidate revision CAS가 0건이면 두 번째 재생성을 conflict로 되돌린다', async () => {
+    const candidateLimit = vi.fn().mockResolvedValue([pendingCandidate]);
+    const candidateFor = vi.fn(() => ({ limit: candidateLimit }));
+    const candidateWhere = vi.fn(() => ({ for: candidateFor }));
+    const candidateFrom = vi.fn(() => ({ where: candidateWhere }));
+    const auditLimit = vi.fn().mockResolvedValue([]);
+    const auditWhere = vi.fn(() => ({ limit: auditLimit }));
+    const auditFrom = vi.fn(() => ({ where: auditWhere }));
+    const itemLimit = vi.fn().mockResolvedValue([
+      {
+        id: input.itemId,
+        jobId: input.jobId,
+        attempt: input.attempt,
+        status: 'SUCCEEDED',
+        leaseToken: null,
+        leaseUntil: null,
+      },
+    ]);
+    const itemFor = vi.fn(() => ({ limit: itemLimit }));
+    const itemWhere = vi.fn(() => ({ for: itemFor }));
+    const itemFrom = vi.fn(() => ({ where: itemWhere }));
+    const jobLimit = vi
+      .fn()
+      .mockResolvedValue([
+        { id: input.jobId, attempt: input.attempt, status: 'COMPLETED' },
+      ]);
+    const jobFor = vi.fn(() => ({ limit: jobLimit }));
+    const jobWhere = vi.fn(() => ({ for: jobFor }));
+    const jobFrom = vi.fn(() => ({ where: jobWhere }));
+    const select = vi
+      .fn()
+      .mockReturnValueOnce({ from: candidateFrom })
+      .mockReturnValueOnce({ from: auditFrom })
+      .mockReturnValueOnce({ from: itemFrom })
+      .mockReturnValueOnce({ from: jobFrom });
+    const successReturning = vi.fn().mockResolvedValue([{ id: input.itemId }]);
+    const candidateReturning = vi.fn().mockResolvedValue([]);
+    const update = vi
+      .fn()
+      .mockReturnValueOnce({
+        set: vi.fn(() => ({
+          where: vi.fn(() => ({ returning: successReturning })),
+        })),
+      })
+      .mockReturnValueOnce({
+        set: vi.fn(() => ({
+          where: vi.fn(() => ({ returning: successReturning })),
+        })),
+      })
+      .mockReturnValueOnce({
+        set: vi.fn(() => ({
+          where: vi.fn(() => ({ returning: candidateReturning })),
+        })),
+      });
+    const repository = new DrizzleAiQuestionProductionRepository({
+      transaction: vi.fn((callback: (executor: unknown) => Promise<unknown>) =>
+        callback({ select, update }),
+      ),
+    } as never);
+
+    await expect(repository.requestRegeneration(reviewCommand)).rejects.toThrow(
+      'QUESTION_CANDIDATE_REVIEW_CONFLICT',
+    );
+    expect(candidateReturning).toHaveBeenCalledOnce();
   });
 
   it('성공한 문제 provider 실행은 문제 후보 결과로 replay한다', async () => {
