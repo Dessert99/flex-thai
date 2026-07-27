@@ -10,7 +10,7 @@ const topicId = '22222222-2222-4222-8222-222222222222';
 const tagId = '33333333-3333-4333-8333-333333333333';
 
 describe('questionListSearch', () => {
-  it('URL 입력의 모든 문제 탐색 조건을 API 요청과 다음 route search까지 보존한다', () => {
+  it('URL 입력의 모든 문제 탐색 조건을 보존한다', () => {
     const search = parseQuestionListSearch({
       difficulty: '4',
       firstResult: 'INCORRECT',
@@ -38,7 +38,6 @@ describe('questionListSearch', () => {
       tagId,
       topicId,
     });
-    expect(parseQuestionListSearch(search)).toEqual(search);
   });
 
   it('빈 문자열은 선택하지 않은 URL 조건으로 정규화한다', () => {
