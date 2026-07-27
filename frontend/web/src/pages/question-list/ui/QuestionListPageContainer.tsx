@@ -2,7 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { questionListQueryOptions } from '../api/questionListQueries';
 import {
-  changeQuestionListFilters,
+  applyQuestionFilterPatch,
   type QuestionListSearch,
 } from '../model/questionListSearch';
 import { QuestionListPageView } from './QuestionListPageView';
@@ -25,10 +25,10 @@ export function QuestionListPageContainer({
       error={questions.isError}
       loading={questions.isPending}
       onFilterChange={(patch) => {
-        onSearchChange(changeQuestionListFilters(search, patch));
+        onSearchChange(applyQuestionFilterPatch(search, patch));
       }}
       onPageChange={(page) => {
-        onSearchChange({ ...search, page });
+        onSearchChange(applyQuestionFilterPatch(search, { page }));
       }}
       onResetFilters={() => {
         onSearchChange({ page: 1, pageSize: search.pageSize });

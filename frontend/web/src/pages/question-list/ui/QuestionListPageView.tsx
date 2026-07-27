@@ -114,15 +114,39 @@ function renderQuestionState({
                     {question.questionType.displayName}
                   </a>
                 </CardTitle>
+                <p className='text-body text-subtle'>
+                  대분류:{' '}
+                  {data.facets.majorCategories.find(
+                    (category) => category.value === question.majorCategory,
+                  )?.label ?? '대분류 정보 없음'}
+                </p>
               </CardHeader>
               <CardContent className='flex flex-wrap gap-cluster'>
                 <Badge variant='secondary'>
                   {question.skill === 'READING' ? '읽기' : '듣기'}
                 </Badge>
+                <Badge variant='outline'>
+                  세부 유형: {question.questionType.displayName}
+                </Badge>
+                <Badge variant='outline'>
+                  주제: {question.topic.displayName}
+                </Badge>
                 <Badge variant='outline'>난이도 {question.difficulty}</Badge>
                 <Badge variant='outline'>
                   {toFirstResultLabel(question.firstResult)}
                 </Badge>
+                {question.tags.length > 0 ? (
+                  <ul
+                    aria-label='태그'
+                    className='flex flex-wrap gap-cluster'
+                  >
+                    {question.tags.map((tag) => (
+                      <li key={tag.id}>
+                        <Badge variant='secondary'>{tag.displayName}</Badge>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
               </CardContent>
             </Card>
           </li>

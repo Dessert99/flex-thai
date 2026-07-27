@@ -39,7 +39,11 @@ export function applyQuestionFilterPatch(
   search: QuestionListSearch,
   patch: Partial<QuestionListSearch>,
 ): QuestionListSearch {
-  const nextSearch = normalizeEmptyStrings({ ...search, ...patch });
+  const nextSearch = Object.fromEntries(
+    Object.entries(normalizeEmptyStrings({ ...search, ...patch })).filter(
+      ([, value]) => value !== undefined,
+    ),
+  ) as QuestionListSearch;
   const pageOnlyPatch = Object.keys(patch).every((key) => key === 'page');
 
   return {

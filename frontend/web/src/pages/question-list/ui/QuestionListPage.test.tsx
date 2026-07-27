@@ -8,6 +8,7 @@ import {
   parseQuestionListSearch,
   type QuestionListSearch,
 } from '../model/questionListSearch';
+import { questionListQueryOptions } from '../api/questionListQueries';
 import { QuestionListPageContainer } from './QuestionListPageContainer';
 
 const mocks = vi.hoisted(() => ({
@@ -133,6 +134,165 @@ describe('문제 목록 페이지', () => {
     );
   });
 
+  it('문제 카드에 taxonomy 이름과 난이도를 표시하고 태그가 없는 카드에는 태그 목록을 만들지 않는다', async () => {
+    mocks.authenticatedRequest.mockResolvedValue({
+      facets,
+      items: [
+        {
+          difficulty: 2,
+          firstResult: 'UNANSWERED',
+          majorCategory: 'READING_PASSAGE',
+          questionId: '01933b6a-8f13-7a19-b7e5-536d70f57aaa',
+          questionType: {
+            displayName: '문맥에 맞는 표현',
+            id: questionTypeId,
+            slug: 'reading-context',
+          },
+          questionVersionId: '01933b6a-8f13-7a19-b7e5-536d70f57aab',
+          saved: false,
+          skill: 'READING',
+          tags: [{ displayName: '여행', id: tagId, slug: 'travel' }],
+          topic: {
+            displayName: '일상 회화',
+            id: topicId,
+            slug: 'daily-conversation',
+          },
+        },
+        {
+          difficulty: 3,
+          firstResult: 'CORRECT',
+          majorCategory: 'READING_PASSAGE',
+          questionId: '01933b6a-8f13-7a19-b7e5-536d70f57ab0',
+          questionType: {
+            displayName: '빈 태그 문제',
+            id: questionTypeId,
+            slug: 'empty-tags',
+          },
+          questionVersionId: '01933b6a-8f13-7a19-b7e5-536d70f57ab1',
+          saved: false,
+          skill: 'READING',
+          tags: [],
+          topic: {
+            displayName: '일상 회화',
+            id: topicId,
+            slug: 'daily-conversation',
+          },
+        },
+      ],
+      page: {
+        page: 1,
+        pageSize: 20,
+        totalItems: 2,
+        totalPages: 1,
+      },
+    });
+
+    renderQuestionList();
+
+    const taggedQuestion = (
+      await screen.findByRole('link', {
+        name: '문맥에 맞는 표현',
+      })
+    ).closest('li');
+    if (taggedQuestion === null) {
+      throw new Error('taxonomy 정보를 표시할 문제 카드가 필요합니다.');
+    }
+    expect(
+      within(taggedQuestion).getByText('대분류: 읽기 지문'),
+    ).toBeInTheDocument();
+    expect(
+      within(taggedQuestion).getByText('세부 유형: 문맥에 맞는 표현'),
+    ).toBeInTheDocument();
+    expect(
+      within(taggedQuestion).getByText('주제: 일상 회화'),
+    ).toBeInTheDocument();
+    expect(within(taggedQuestion).getByText('난이도 2')).toBeInTheDocument();
+    expect(
+      within(taggedQuestion).getByRole('list', { name: '태그' }),
+    ).toHaveTextContent('여행');
+    const untaggedQuestion = screen
+      .getByRole('link', { name: '빈 태그 문제' })
+      .closest('li');
+    if (untaggedQuestion === null) {
+      throw new Error('태그 없는 문제 카드가 필요합니다.');
+    }
+    expect(
+      within(untaggedQuestion).queryByRole('list', { name: '태그' }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(questionTypeId)).not.toBeInTheDocument();
+    expect(screen.queryByText(topicId)).not.toBeInTheDocument();
+    expect(screen.queryByText(tagId)).not.toBeInTheDocument();
+  });
+
+  it('페이지 이동은 선택한 taxonomy 필터를 보존한다', async () => {
+    const onSearchChange = vi.fn();
+    const user = userEvent.setup();
+    const search = {
+      ...defaultSearch,
+      majorCategory: 'READING_PASSAGE' as const,
+      page: 2,
+      tagId,
+      topicId,
+    };
+    mocks.authenticatedRequest.mockResolvedValue({
+      ...emptyResponse,
+      items: [
+        {
+          difficulty: 2,
+          firstResult: 'UNANSWERED',
+          majorCategory: 'READING_PASSAGE',
+          questionId: '01933b6a-8f13-7a19-b7e5-536d70f57aaa',
+          questionType: {
+            displayName: '문맥에 맞는 표현',
+            id: questionTypeId,
+            slug: 'reading-context',
+          },
+          questionVersionId: '01933b6a-8f13-7a19-b7e5-536d70f57aab',
+          saved: false,
+          skill: 'READING',
+          tags: [],
+          topic: {
+            displayName: '일상 회화',
+            id: topicId,
+            slug: 'daily-conversation',
+          },
+        },
+      ],
+      page: { page: 2, pageSize: 20, totalItems: 3, totalPages: 3 },
+    });
+    renderQuestionList({ onSearchChange, search });
+
+    await screen.findByRole('button', { name: '다음' });
+    await user.click(screen.getByRole('button', { name: '다음' }));
+    expect(onSearchChange).toHaveBeenLastCalledWith({ ...search, page: 3 });
+
+    await user.click(screen.getByRole('button', { name: '이전' }));
+    expect(onSearchChange).toHaveBeenLastCalledWith({ ...search, page: 1 });
+  });
+
+  it('taxonomy 필터 값은 다른 TanStack Query key를 만든다', () => {
+    const baseKey = questionListQueryOptions(defaultSearch).queryKey;
+    const filteredKey = questionListQueryOptions({
+      ...defaultSearch,
+      majorCategory: 'READING_PASSAGE',
+      tagId,
+      topicId,
+    }).queryKey;
+
+    expect(filteredKey).toEqual([
+      'learner',
+      'questions',
+      'list',
+      {
+        ...defaultSearch,
+        majorCategory: 'READING_PASSAGE',
+        tagId,
+        topicId,
+      },
+    ]);
+    expect(filteredKey).not.toEqual(baseKey);
+  });
+
   it('필터 변경 시 URL 검색값의 페이지를 1로 되돌린다', () => {
     expect(
       changeQuestionListFilters(
@@ -241,7 +401,7 @@ describe('문제 목록 taxonomy 필터', () => {
     }
   });
 
-  it('대분류 변경은 호환되지 않는 유형을 해제하고 1페이지 검색값을 전달한다', async () => {
+  it('대분류 변경은 호환되지 않는 유형을 해제하고 route 기본 페이지 검색값을 전달한다', async () => {
     const onSearchChange = vi.fn();
     const user = userEvent.setup();
     const { rerender } = renderQuestionList({
@@ -265,7 +425,7 @@ describe('문제 목록 taxonomy 필터', () => {
     expect(nextSearch).toMatchObject({
       ...defaultSearch,
       majorCategory: 'LISTENING_DIALOGUE',
-      page: 1,
+      page: undefined,
     });
     expect(nextSearch).not.toHaveProperty('questionTypeId');
 
@@ -295,7 +455,7 @@ describe('문제 목록 taxonomy 필터', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('mobile bottom Sheet도 같은 이름의 필터로 1페이지 검색값을 전달한다', async () => {
+  it('mobile bottom Sheet도 같은 이름의 필터로 route 기본 페이지 검색값을 전달한다', async () => {
     const onSearchChange = vi.fn();
     const user = userEvent.setup();
     renderQuestionList({
@@ -318,7 +478,7 @@ describe('문제 목록 taxonomy 필터', () => {
     expect(nextSearch).toMatchObject({
       ...defaultSearch,
       majorCategory: 'READING_PASSAGE',
-      page: 1,
+      page: undefined,
     });
     expect(nextSearch).not.toHaveProperty('questionTypeId');
   });
