@@ -320,8 +320,7 @@ describe('DrizzleTtsRepository lease와 완료 transaction', () => {
     );
   });
 
-  it('같은 key의 두 item은 provider 생성 한 번 뒤 두 번째 item을 READY media로 완료한다', async () => {
-    let providerCalls = 0;
+  it('같은 key는 한 GENERATE 소유권 뒤 두 번째 item에 READY REUSE를 반환한다', async () => {
     const firstClaimSelect = createSelect([]);
     const firstClaimInsert = createInsert([{ id: 'cache-id' }]);
     const firstClaimRepository = new DrizzleTtsRepository(
@@ -337,7 +336,6 @@ describe('DrizzleTtsRepository lease와 완료 transaction', () => {
       () => now,
     );
     const firstClaim = await firstClaimRepository.claimAudio('cache-key');
-    if (firstClaim.kind === 'GENERATE') providerCalls += 1;
     expect(firstClaim.kind).toBe('GENERATE');
     if (firstClaim.kind !== 'GENERATE') throw new Error('GENERATE_REQUIRED');
 
@@ -381,7 +379,7 @@ describe('DrizzleTtsRepository lease와 완료 transaction', () => {
     );
     const reuseClaim = await reuseClaimRepository.claimAudio('cache-key');
     expect(reuseClaim).toEqual({ kind: 'REUSE', mediaAssetId });
-    expect(providerCalls).toBe(1);
+    expect([firstClaim.kind, reuseClaim.kind]).toEqual(['GENERATE', 'REUSE']);
 
     const secondProcessing = {
       ...processingItem,
