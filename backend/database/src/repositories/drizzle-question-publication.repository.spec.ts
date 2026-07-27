@@ -233,6 +233,35 @@ describe('DrizzleQuestionPublicationRepository가 문제 게시 생명주기를 
     expect(fake.lockModes).toEqual(['update', 'update']);
   });
 
+  it('게시 transaction과 같은 session으로 필수 TTS 준비 상태를 다시 읽는다', async () => {
+    const fake = createFake({
+      selectResults: [
+        [{ sentenceVersionId: 'sentence-id' }],
+        [],
+        [
+          {
+            targetId: 'sentence-id',
+            mediaAssetId: 'media-id',
+            mediaStatus: 'READY',
+          },
+        ],
+        [],
+        [],
+        [],
+      ],
+    });
+
+    await withTransaction(fake.database, async (transaction) => {
+      await expect(
+        transaction.listRequiredTargets({
+          questionId: 'question-id',
+          versionId: 'version-id',
+        }),
+      ).resolves.toEqual([{ targetId: 'sentence-id', mediaStatus: 'READY' }]);
+    });
+    expect(fake.database.transaction).toHaveBeenCalledTimes(1);
+  });
+
   it('최신 콘텐츠 row를 위치 순서의 검증 후보로 조립하고 같은 문장을 재사용한다', async () => {
     const readyAt = new Date('2026-07-24T00:00:00.000Z');
     const media = {

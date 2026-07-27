@@ -26,6 +26,7 @@ import {
   vocabularyPronunciations,
 } from '../schema/index.js';
 import * as schema from '../schema/index.js';
+import { DrizzleContentTtsReadinessQuery } from '../queries/drizzle-content-tts-readiness.query.js';
 
 type QuestionPublicationDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 type QuestionPublicationSession = Pick<
@@ -176,8 +177,11 @@ const createQuestionPublicationTransaction = (
   transaction: QuestionPublicationSession,
 ): QuestionPublicationTransaction => {
   const pronunciationMedia = alias(mediaAssets, 'pronunciation_media_assets');
+  const ttsReadiness = new DrizzleContentTtsReadinessQuery(transaction);
 
   return {
+    listRequiredTargets: (content) => ttsReadiness.listRequiredTargets(content),
+
     async loadQuestion(questionId) {
       const [row] = await transaction
         .select({

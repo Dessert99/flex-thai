@@ -11,6 +11,10 @@ import {
   QuestionPublicationService,
   type QuestionPublicationErrorCode,
 } from './question-publication.js';
+import {
+  ContentTtsReadinessError,
+  type ContentTtsReadinessTarget,
+} from '../media/tts-job.js';
 import type { QuestionVersionValidationCandidate } from './question-version.js';
 
 const occurredAt = new Date('2026-07-24T00:00:00.000Z');
@@ -117,6 +121,7 @@ interface TransactionOverrides {
   version?: QuestionVersionRecord | null;
   versions?: Record<string, QuestionVersionRecord | null>;
   candidate?: QuestionVersionValidationCandidate | null;
+  ttsTargets?: ContentTtsReadinessTarget[];
   onRetireVersion?: (versionId: string, questionId: string) => void;
   onAudit?: (
     input: Parameters<QuestionPublicationTransaction['appendAuditLog']>[0],
@@ -127,6 +132,15 @@ const createTransaction = (
   calls: string[],
   overrides: TransactionOverrides = {},
 ): QuestionPublicationTransaction => ({
+  listRequiredTargets: () => {
+    calls.push('listRequiredTargets');
+    return Promise.resolve(
+      overrides.ttsTargets ?? [
+        { targetId: 'sentence-1', mediaStatus: 'READY' },
+        { targetId: 'sentence-2', mediaStatus: 'READY' },
+      ],
+    );
+  },
   loadQuestion: () => {
     calls.push('loadQuestion');
     return Promise.resolve(
@@ -263,6 +277,7 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
     expect(calls).toEqual([
       'loadQuestion',
       'loadVersion',
+      'listRequiredTargets',
       'loadValidationCandidate',
       'saveValidation',
       'loadVersion',
@@ -316,6 +331,7 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
     expect(calls).toEqual([
       'loadQuestion',
       'loadVersion',
+      'listRequiredTargets',
       'loadValidationCandidate',
       'saveValidation',
       'loadVersion',
@@ -337,10 +353,37 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
     expect(calls).toEqual([
       'loadQuestion',
       'loadVersion',
+      'listRequiredTargets',
       'loadValidationCandidate',
       'saveValidation',
     ]);
   });
+
+  it.each(['MISSING', 'UPLOADING', 'FAILED'] as const)(
+    '%s 필수 음성은 CONTENT_TTS_NOT_READY로 게시를 닫는다',
+    async (mediaStatus) => {
+      const calls: string[] = [];
+      const service = createService(
+        createTransaction(calls, {
+          ttsTargets: [
+            { targetId: 'ready-target', mediaStatus: 'READY' },
+            { targetId: 'blocked-target', mediaStatus },
+          ],
+        }),
+        calls,
+      );
+
+      await expect(service.publishVersion(publishCommand)).rejects.toEqual(
+        new ContentTtsReadinessError(['blocked-target']),
+      );
+      expect(calls).toEqual([
+        'loadQuestion',
+        'loadVersion',
+        'listRequiredTargets',
+      ]);
+      expect(calls).not.toContain('transactionCommitted');
+    },
+  );
 
   it('숨긴 문제의 초안 버전은 검증과 저장 없이 게시를 거절한다', async () => {
     const calls: string[] = [];

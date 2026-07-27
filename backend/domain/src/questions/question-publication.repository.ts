@@ -1,4 +1,5 @@
 /** 문제 게시 use case가 원자적으로 실행할 저장소 transaction 계약을 정의한다 */
+import type { ContentTtsReadinessRepository } from '../media/tts-job.js';
 import type {
   QuestionValidationReport,
   QuestionVersionValidationCandidate,
@@ -22,7 +23,7 @@ export interface QuestionVersionRecord {
 }
 
 /** 한 PostgreSQL transaction 안에서만 사용할 문제 게시 저장 연산을 정의한다 */
-export interface QuestionPublicationTransaction {
+export interface QuestionPublicationTransaction extends ContentTtsReadinessRepository {
   loadQuestion(questionId: string): Promise<QuestionRecord | null>;
   loadVersion(versionId: string): Promise<QuestionVersionRecord | null>;
   loadValidationCandidate(
