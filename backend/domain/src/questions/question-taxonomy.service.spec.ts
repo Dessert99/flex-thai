@@ -14,6 +14,7 @@ const draft = (
 ): QuestionTypeVersionRecord => ({
   id: 'version-1',
   questionTypeId: 'type-1',
+  questionTypeSlug: 'reading-vocabulary',
   version: 1,
   status: 'DRAFT',
   template: 'STANDARD_CHOICE',
@@ -46,6 +47,8 @@ const canonicalSentence = {
 };
 
 const standardPayload = () => ({
+  questionTypeSlug: 'reading-vocabulary',
+  questionTypeVersion: 1,
   difficulty: 3,
   blocks: [
     {
@@ -63,20 +66,19 @@ const standardPayload = () => ({
   correctOptionRef: 'a',
 });
 
-const repository = (
-  version: QuestionTypeVersionRecord | null = draft(),
-): QuestionTaxonomyRepository => ({
-  createQuestionTypeWithDraft: vi.fn(),
-  createNextDraft: vi.fn(),
-  findVersion: vi.fn().mockResolvedValue(version),
-  replaceDifficultyCriteria: vi.fn().mockResolvedValue('UPDATED'),
-  addApprovedExample: vi.fn().mockResolvedValue('UPDATED'),
-  removeApprovedExample: vi.fn().mockResolvedValue('UPDATED'),
-  activateVersion: vi.fn().mockResolvedValue('ACTIVATED'),
-  retireVersion: vi.fn(),
-  createTerm: vi.fn(),
-  archiveTerm: vi.fn(),
-});
+const repository = (version: QuestionTypeVersionRecord | null = draft()) =>
+  ({
+    createQuestionTypeWithDraft: vi.fn(),
+    createNextDraft: vi.fn(),
+    findVersion: vi.fn().mockResolvedValue(version),
+    replaceDifficultyCriteria: vi.fn().mockResolvedValue('UPDATED'),
+    addApprovedExample: vi.fn().mockResolvedValue('UPDATED'),
+    removeApprovedExample: vi.fn().mockResolvedValue('UPDATED'),
+    activateVersion: vi.fn().mockResolvedValue('ACTIVATED'),
+    retireVersion: vi.fn(),
+    createTerm: vi.fn(),
+    archiveTerm: vi.fn(),
+  }) satisfies QuestionTaxonomyRepository;
 
 describe('QuestionTaxonomyService', () => {
   it('대분류에서 skill을 파생해 유형과 v1 DRAFT를 만든다', async () => {
@@ -131,6 +133,32 @@ describe('QuestionTaxonomyService', () => {
     expect(repo.addApprovedExample).not.toHaveBeenCalled();
   });
 
+  it.each([
+    {
+      label: '논리 유형 slug',
+      payload: { ...standardPayload(), questionTypeSlug: 'listening-response' },
+    },
+    {
+      label: '유형 버전 번호',
+      payload: { ...standardPayload(), questionTypeVersion: 2 },
+    },
+  ])(
+    '승인 예시 payload의 $label가 대상 유형 버전과 다르면 거부한다',
+    async ({ payload }) => {
+      const repo = repository();
+      const service = new QuestionTaxonomyService(repo);
+
+      await expect(
+        service.addApprovedExample('version-1', {
+          title: '다른 유형 예시',
+          payloadHash: 'hash',
+          payload,
+        }),
+      ).rejects.toMatchObject({ code: 'APPROVED_EXAMPLE_INVALID' });
+      expect(repo.addApprovedExample).not.toHaveBeenCalled();
+    },
+  );
+
   it('다섯 난이도 기준과 승인 예시가 있어야 활성화한다', async () => {
     const ready = draft({
       difficultyCriteria: [1, 2, 3, 4, 5].map((difficulty) => ({
@@ -178,6 +206,8 @@ describe('QuestionTaxonomyService', () => {
         title: 'speaker가 없는 대화',
         payloadHash: 'hash',
         payload: {
+          questionTypeSlug: 'reading-vocabulary',
+          questionTypeVersion: 1,
           difficulty: 3,
           blocks: [
             {
@@ -213,6 +243,8 @@ describe('QuestionTaxonomyService', () => {
         title: '범위를 벗어난 inline 예시',
         payloadHash: 'hash',
         payload: {
+          questionTypeSlug: 'reading-vocabulary',
+          questionTypeVersion: 1,
           difficulty: 3,
           blocks: [
             {

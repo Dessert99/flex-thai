@@ -35,7 +35,9 @@ describe.runIf(databaseUrl !== undefined)(
 
     const createItem = async () => {
       const userId = randomUUID();
+      const uploadId = randomUUID();
       const jobId = randomUUID();
+      const jobInputId = randomUUID();
       const itemId = randomUUID();
       await pool.query(
         `insert into users (id, cognito_sub, email, role, status)
@@ -48,18 +50,29 @@ describe.runIf(databaseUrl !== undefined)(
          ) values (
            $1, $2, $3, 'VOCABULARY_EXTRACTION',
            'VOCABULARY_EXTRACTION', 'RUNNING', 0
-         )`,
+        )`,
         [jobId, userId, randomUUID()],
+      );
+      await pool.query(
+        `insert into uploads (
+           id, owner_id, input_type, object_key, declared_content_type, status
+         ) values ($1, $2, 'TEXT', $3, 'text/plain', 'VERIFIED')`,
+        [uploadId, userId, `ai-vocab/${uploadId}.txt`],
+      );
+      await pool.query(
+        `insert into job_inputs (id, job_id, upload_id, ordinal)
+         values ($1, $2, $3, 0)`,
+        [jobInputId, jobId, uploadId],
       );
       await pool.query(
         `insert into job_items (
            id, job_id, source_ref, status, attempt, lease_token, lease_until,
-           operation
+           job_input_id, operation
          ) values (
            $1, $2, 'fixture', 'PROCESSING', 0, 'active-token',
-           now() + interval '5 minutes', 'VOCABULARY_EXTRACTION'
+           now() + interval '5 minutes', $3, 'VOCABULARY_EXTRACTION'
          )`,
-        [itemId, jobId],
+        [itemId, jobId, jobInputId],
       );
       return { itemId };
     };
@@ -100,7 +113,7 @@ describe.runIf(databaseUrl !== undefined)(
       );
 
       await expect(
-        repository.finishItem('wrong-job', itemId, 0, 'stale-token', {
+        repository.finishItem(randomUUID(), itemId, 0, 'stale-token', {
           status: 'SUCCEEDED',
           retryable: false,
           errorCode: null,

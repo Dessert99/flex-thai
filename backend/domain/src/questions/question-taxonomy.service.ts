@@ -24,7 +24,8 @@ export type QuestionTaxonomyErrorCode =
   | 'TYPE_VERSION_NOT_READY'
   | 'INVALID_LIFECYCLE_TRANSITION'
   | 'DIFFICULTY_CRITERIA_INVALID'
-  | 'APPROVED_EXAMPLE_INVALID';
+  | 'APPROVED_EXAMPLE_INVALID'
+  | 'TAXONOMY_CONFLICT';
 
 /** 문제 분류 설정 도메인 오류 */
 export class QuestionTaxonomyError extends Error {
@@ -62,6 +63,8 @@ const isValidExample = (
   return (
     example.title.trim().length > 0 &&
     example.payloadHash.length > 0 &&
+    example.payload.questionTypeSlug === version.questionTypeSlug &&
+    example.payload.questionTypeVersion === version.version &&
     new Set(refs).size === refs.length &&
     validateQuestionVersion(toExampleCandidate(version, example)).status ===
       'PASSED'
@@ -78,14 +81,16 @@ const toExampleCandidate = (
     kind: block.kind,
     displayMode: block.displayMode,
     position: blockPosition,
-    sentences: block.sentences.map(({ speaker, sentence }, sentencePosition) => {
-      const id = `example-block-${blockPosition}-sentence-${sentencePosition}`;
-      sentenceIds.set(`${blockPosition}:${sentencePosition}`, id);
-      return {
-        speaker: speaker ?? null,
-        sentence: toExampleSentence(sentence, id),
-      };
-    }),
+    sentences: block.sentences.map(
+      ({ speaker, sentence }, sentencePosition) => {
+        const id = `example-block-${blockPosition}-sentence-${sentencePosition}`;
+        sentenceIds.set(`${blockPosition}:${sentencePosition}`, id);
+        return {
+          speaker: speaker ?? null,
+          sentence: toExampleSentence(sentence, id),
+        };
+      },
+    ),
   }));
   return {
     id: 'approved-example',
@@ -279,10 +284,7 @@ export class QuestionTaxonomyService {
   }
 
   /** 주제 또는 태그를 신규 선택 목록에서 보관 처리한다 */
-  archiveTerm(
-    kind: QuestionTaxonomyTermKind,
-    termId: string,
-  ): Promise<void> {
+  archiveTerm(kind: QuestionTaxonomyTermKind, termId: string): Promise<void> {
     return this.repository.archiveTerm(kind, termId);
   }
 
@@ -297,7 +299,9 @@ export class QuestionTaxonomyService {
   }
 }
 
-const resolveDraftMutation = (result: QuestionTypeDraftMutationResult): void => {
+const resolveDraftMutation = (
+  result: QuestionTypeDraftMutationResult,
+): void => {
   if (result === 'UPDATED') return;
   if (result === 'NOT_FOUND') {
     throw new QuestionTaxonomyError('TYPE_VERSION_NOT_FOUND');

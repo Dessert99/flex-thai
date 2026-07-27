@@ -44,7 +44,14 @@ describe('문제 분류 설정 조회 조립', () => {
           payload: { difficulty: 1 },
         },
       ],
-      [{ id: 'topic-1', slug: 'general', displayName: '일반', status: 'ACTIVE' }],
+      [
+        {
+          id: 'topic-1',
+          slug: 'general',
+          displayName: '일반',
+          status: 'ACTIVE',
+        },
+      ],
       [],
     );
 

@@ -44,7 +44,7 @@ describe.runIf(databaseUrl !== undefined)(
            id, actor_sub, actor_user_id, action, target, target_type,
            target_id, summary, request_id, created_at
          ) values
-           ($1, $3, $3, 'IDENTITY_USER_DISABLED', $4, 'USER', $3, '{}', $5, $7),
+           ($1, $8, $3, 'IDENTITY_USER_DISABLED', $4, 'USER', $3, '{}', $5, $7),
            ($2, 'migration', null, 'MIGRATED', 'legacy', null, null, '{"count":1}', $6, $7)`,
         [
           firstAuditId,
@@ -54,6 +54,7 @@ describe.runIf(databaseUrl !== undefined)(
           randomUUID(),
           randomUUID(),
           createdAt,
+          `sub-${userId}`,
         ],
       );
       const before = await auditCount(pool);

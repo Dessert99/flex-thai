@@ -93,6 +93,8 @@ export interface QuestionApprovedExampleSnapshot {
   title: string;
   payloadHash: string;
   payload: {
+    questionTypeSlug: string;
+    questionTypeVersion: number;
     difficulty: number;
     options: ApprovedExampleOption[];
     correctOptionRef: string;
@@ -105,6 +107,7 @@ export interface QuestionApprovedExampleSnapshot {
 export interface QuestionTypeVersionRecord {
   id: string;
   questionTypeId: string;
+  questionTypeSlug: string;
   version: number;
   status: QuestionTypeVersionStatus;
   template: QuestionTemplate;
@@ -134,16 +137,11 @@ export type QuestionTaxonomyTermKind = 'TOPIC' | 'TAG';
 
 /** DRAFT 전용 변경이 transaction 잠금 뒤 확인한 결과 */
 export type QuestionTypeDraftMutationResult =
-  | 'UPDATED'
-  | 'NOT_FOUND'
-  | 'IMMUTABLE';
+  'UPDATED' | 'NOT_FOUND' | 'IMMUTABLE';
 
 /** 유형 버전 활성화가 transaction 잠금 뒤 확인한 결과 */
 export type QuestionTypeActivationResult =
-  | 'ACTIVATED'
-  | 'NOT_FOUND'
-  | 'IMMUTABLE'
-  | 'NOT_READY';
+  'ACTIVATED' | 'NOT_FOUND' | 'IMMUTABLE' | 'NOT_READY';
 
 /** 문제 분류 설정의 원자 저장 계약 */
 export interface QuestionTaxonomyRepository {

@@ -36,8 +36,10 @@ import { Route as AuthenticatedLearnerVocabulariesVocabularyIdRouteImport } from
 import { Route as AuthenticatedLearnerWordbooksIndexRouteImport } from './app/routes/_authenticated._learner.wordbooks.index'
 import { Route as AuthenticatedLearnerWordbooksWordbookIdRouteImport } from './app/routes/_authenticated._learner.wordbooks.$wordbookId'
 import { Route as AuthenticatedAdminEnrolledIndexRouteImport } from './app/routes/_authenticated.admin._enrolled.index'
+import { Route as AuthenticatedAdminEnrolledAuditLogsRouteImport } from './app/routes/_authenticated.admin._enrolled.audit-logs'
 import { Route as AuthenticatedAdminEnrolledContentErrorReportsRouteImport } from './app/routes/_authenticated.admin._enrolled.content-error-reports'
 import { Route as AuthenticatedAdminEnrolledContentImportsRouteImport } from './app/routes/_authenticated.admin._enrolled.content-imports'
+import { Route as AuthenticatedAdminEnrolledQuestionSettingsRouteImport } from './app/routes/_authenticated.admin._enrolled.question-settings'
 import { Route as AuthenticatedAdminEnrolledQuestionsRouteImport } from './app/routes/_authenticated.admin._enrolled.questions'
 import { Route as AuthenticatedAdminEnrolledUsersRouteImport } from './app/routes/_authenticated.admin._enrolled.users'
 import { Route as AuthenticatedAdminEnrolledVocabulariesRouteImport } from './app/routes/_authenticated.admin._enrolled.vocabularies'
@@ -203,6 +205,12 @@ const AuthenticatedAdminEnrolledIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedAdminEnrolledRoute,
   } as any)
+const AuthenticatedAdminEnrolledAuditLogsRoute =
+  AuthenticatedAdminEnrolledAuditLogsRouteImport.update({
+    id: '/audit-logs',
+    path: '/audit-logs',
+    getParentRoute: () => AuthenticatedAdminEnrolledRoute,
+  } as any)
 const AuthenticatedAdminEnrolledContentErrorReportsRoute =
   AuthenticatedAdminEnrolledContentErrorReportsRouteImport.update({
     id: '/content-error-reports',
@@ -213,6 +221,12 @@ const AuthenticatedAdminEnrolledContentImportsRoute =
   AuthenticatedAdminEnrolledContentImportsRouteImport.update({
     id: '/content-imports',
     path: '/content-imports',
+    getParentRoute: () => AuthenticatedAdminEnrolledRoute,
+  } as any)
+const AuthenticatedAdminEnrolledQuestionSettingsRoute =
+  AuthenticatedAdminEnrolledQuestionSettingsRouteImport.update({
+    id: '/question-settings',
+    path: '/question-settings',
     getParentRoute: () => AuthenticatedAdminEnrolledRoute,
   } as any)
 const AuthenticatedAdminEnrolledQuestionsRoute =
@@ -332,8 +346,10 @@ export interface FileRoutesByFullPath {
   '/questions/$questionId': typeof AuthenticatedLearnerQuestionsQuestionIdRoute
   '/vocabularies/$vocabularyId': typeof AuthenticatedLearnerVocabulariesVocabularyIdRoute
   '/wordbooks/$wordbookId': typeof AuthenticatedLearnerWordbooksWordbookIdRoute
+  '/admin/audit-logs': typeof AuthenticatedAdminEnrolledAuditLogsRoute
   '/admin/content-error-reports': typeof AuthenticatedAdminEnrolledContentErrorReportsRoute
   '/admin/content-imports': typeof AuthenticatedAdminEnrolledContentImportsRouteWithChildren
+  '/admin/question-settings': typeof AuthenticatedAdminEnrolledQuestionSettingsRoute
   '/admin/questions': typeof AuthenticatedAdminEnrolledQuestionsRouteWithChildren
   '/admin/users': typeof AuthenticatedAdminEnrolledUsersRoute
   '/admin/vocabularies': typeof AuthenticatedAdminEnrolledVocabulariesRouteWithChildren
@@ -371,7 +387,9 @@ export interface FileRoutesByTo {
   '/questions/$questionId': typeof AuthenticatedLearnerQuestionsQuestionIdRoute
   '/vocabularies/$vocabularyId': typeof AuthenticatedLearnerVocabulariesVocabularyIdRoute
   '/wordbooks/$wordbookId': typeof AuthenticatedLearnerWordbooksWordbookIdRoute
+  '/admin/audit-logs': typeof AuthenticatedAdminEnrolledAuditLogsRoute
   '/admin/content-error-reports': typeof AuthenticatedAdminEnrolledContentErrorReportsRoute
+  '/admin/question-settings': typeof AuthenticatedAdminEnrolledQuestionSettingsRoute
   '/admin/users': typeof AuthenticatedAdminEnrolledUsersRoute
   '/admin/totp-setup': typeof AuthenticatedAdminEnrollmentTotpSetupRoute
   '/concepts': typeof AuthenticatedLearnerConceptsIndexRoute
@@ -414,8 +432,10 @@ export interface FileRoutesById {
   '/_authenticated/_learner/questions/$questionId': typeof AuthenticatedLearnerQuestionsQuestionIdRoute
   '/_authenticated/_learner/vocabularies/$vocabularyId': typeof AuthenticatedLearnerVocabulariesVocabularyIdRoute
   '/_authenticated/_learner/wordbooks/$wordbookId': typeof AuthenticatedLearnerWordbooksWordbookIdRoute
+  '/_authenticated/admin/_enrolled/audit-logs': typeof AuthenticatedAdminEnrolledAuditLogsRoute
   '/_authenticated/admin/_enrolled/content-error-reports': typeof AuthenticatedAdminEnrolledContentErrorReportsRoute
   '/_authenticated/admin/_enrolled/content-imports': typeof AuthenticatedAdminEnrolledContentImportsRouteWithChildren
+  '/_authenticated/admin/_enrolled/question-settings': typeof AuthenticatedAdminEnrolledQuestionSettingsRoute
   '/_authenticated/admin/_enrolled/questions': typeof AuthenticatedAdminEnrolledQuestionsRouteWithChildren
   '/_authenticated/admin/_enrolled/users': typeof AuthenticatedAdminEnrolledUsersRoute
   '/_authenticated/admin/_enrolled/vocabularies': typeof AuthenticatedAdminEnrolledVocabulariesRouteWithChildren
@@ -459,8 +479,10 @@ export interface FileRouteTypes {
     | '/questions/$questionId'
     | '/vocabularies/$vocabularyId'
     | '/wordbooks/$wordbookId'
+    | '/admin/audit-logs'
     | '/admin/content-error-reports'
     | '/admin/content-imports'
+    | '/admin/question-settings'
     | '/admin/questions'
     | '/admin/users'
     | '/admin/vocabularies'
@@ -498,7 +520,9 @@ export interface FileRouteTypes {
     | '/questions/$questionId'
     | '/vocabularies/$vocabularyId'
     | '/wordbooks/$wordbookId'
+    | '/admin/audit-logs'
     | '/admin/content-error-reports'
+    | '/admin/question-settings'
     | '/admin/users'
     | '/admin/totp-setup'
     | '/concepts'
@@ -540,8 +564,10 @@ export interface FileRouteTypes {
     | '/_authenticated/_learner/questions/$questionId'
     | '/_authenticated/_learner/vocabularies/$vocabularyId'
     | '/_authenticated/_learner/wordbooks/$wordbookId'
+    | '/_authenticated/admin/_enrolled/audit-logs'
     | '/_authenticated/admin/_enrolled/content-error-reports'
     | '/_authenticated/admin/_enrolled/content-imports'
+    | '/_authenticated/admin/_enrolled/question-settings'
     | '/_authenticated/admin/_enrolled/questions'
     | '/_authenticated/admin/_enrolled/users'
     | '/_authenticated/admin/_enrolled/vocabularies'
@@ -764,6 +790,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminEnrolledIndexRouteImport
       parentRoute: typeof AuthenticatedAdminEnrolledRoute
     }
+    '/_authenticated/admin/_enrolled/audit-logs': {
+      id: '/_authenticated/admin/_enrolled/audit-logs'
+      path: '/audit-logs'
+      fullPath: '/admin/audit-logs'
+      preLoaderRoute: typeof AuthenticatedAdminEnrolledAuditLogsRouteImport
+      parentRoute: typeof AuthenticatedAdminEnrolledRoute
+    }
     '/_authenticated/admin/_enrolled/content-error-reports': {
       id: '/_authenticated/admin/_enrolled/content-error-reports'
       path: '/content-error-reports'
@@ -776,6 +809,13 @@ declare module '@tanstack/react-router' {
       path: '/content-imports'
       fullPath: '/admin/content-imports'
       preLoaderRoute: typeof AuthenticatedAdminEnrolledContentImportsRouteImport
+      parentRoute: typeof AuthenticatedAdminEnrolledRoute
+    }
+    '/_authenticated/admin/_enrolled/question-settings': {
+      id: '/_authenticated/admin/_enrolled/question-settings'
+      path: '/question-settings'
+      fullPath: '/admin/question-settings'
+      preLoaderRoute: typeof AuthenticatedAdminEnrolledQuestionSettingsRouteImport
       parentRoute: typeof AuthenticatedAdminEnrolledRoute
     }
     '/_authenticated/admin/_enrolled/questions': {
@@ -1057,8 +1097,10 @@ const AuthenticatedAdminEnrolledVocabulariesRouteWithChildren =
   )
 
 interface AuthenticatedAdminEnrolledRouteChildren {
+  AuthenticatedAdminEnrolledAuditLogsRoute: typeof AuthenticatedAdminEnrolledAuditLogsRoute
   AuthenticatedAdminEnrolledContentErrorReportsRoute: typeof AuthenticatedAdminEnrolledContentErrorReportsRoute
   AuthenticatedAdminEnrolledContentImportsRoute: typeof AuthenticatedAdminEnrolledContentImportsRouteWithChildren
+  AuthenticatedAdminEnrolledQuestionSettingsRoute: typeof AuthenticatedAdminEnrolledQuestionSettingsRoute
   AuthenticatedAdminEnrolledQuestionsRoute: typeof AuthenticatedAdminEnrolledQuestionsRouteWithChildren
   AuthenticatedAdminEnrolledUsersRoute: typeof AuthenticatedAdminEnrolledUsersRoute
   AuthenticatedAdminEnrolledVocabulariesRoute: typeof AuthenticatedAdminEnrolledVocabulariesRouteWithChildren
@@ -1069,10 +1111,14 @@ interface AuthenticatedAdminEnrolledRouteChildren {
 
 const AuthenticatedAdminEnrolledRouteChildren: AuthenticatedAdminEnrolledRouteChildren =
   {
+    AuthenticatedAdminEnrolledAuditLogsRoute:
+      AuthenticatedAdminEnrolledAuditLogsRoute,
     AuthenticatedAdminEnrolledContentErrorReportsRoute:
       AuthenticatedAdminEnrolledContentErrorReportsRoute,
     AuthenticatedAdminEnrolledContentImportsRoute:
       AuthenticatedAdminEnrolledContentImportsRouteWithChildren,
+    AuthenticatedAdminEnrolledQuestionSettingsRoute:
+      AuthenticatedAdminEnrolledQuestionSettingsRoute,
     AuthenticatedAdminEnrolledQuestionsRoute:
       AuthenticatedAdminEnrolledQuestionsRouteWithChildren,
     AuthenticatedAdminEnrolledUsersRoute: AuthenticatedAdminEnrolledUsersRoute,

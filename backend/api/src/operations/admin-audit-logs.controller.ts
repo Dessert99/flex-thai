@@ -5,6 +5,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import {
@@ -31,7 +32,6 @@ import { CognitoAuthorizerGuard } from '../identity/cognito-authorizer.guard.js'
 import { RequireRole } from '../identity/require-role.decorator.js';
 import {
   AuditLogDetailResponseDto,
-  AuditLogIdPathDto,
   AuditLogListQueryDto,
   AuditLogListResponseDto,
 } from './audit-log.dto.js';
@@ -47,12 +47,13 @@ export class AdminAuditLogsController {
 
   /** 검색·필터된 감사 기록 페이지를 반환한다 */
   @ApiOperation({ summary: '감사 기록 목록을 조회한다' })
+  @ApiQuery({ type: AuditLogListQueryDto })
   @ApiOkResponse({ type: AuditLogListResponseDto })
   @ApiProblemResponses(400, 401, 403, 500)
   @Get()
   async list(
     @CurrentUser() user: AuthenticatedUser,
-    @Query() rawQuery: AuditLogListQueryDto,
+    @Query() rawQuery: Record<string, unknown>,
   ): Promise<AuditLogListResponse> {
     const query = auditLogListQuerySchema.parse(rawQuery);
     const page = await this.auditLogs.list(
@@ -77,7 +78,7 @@ export class AdminAuditLogsController {
 
   /** UUID 감사 기록의 summary와 request ID를 반환한다 */
   @ApiOperation({ summary: '감사 기록 상세를 조회한다' })
-  @ApiParam({ name: 'auditLogId', type: AuditLogIdPathDto })
+  @ApiParam({ name: 'auditLogId', type: 'string', format: 'uuid' })
   @ApiOkResponse({ type: AuditLogDetailResponseDto })
   @ApiProblemResponses(400, 401, 403, 404, 500)
   @Get(':auditLogId')
@@ -122,6 +123,7 @@ const SENSITIVE_SUMMARY_KEY_PATTERNS = [
   /password/u,
   /credential/u,
   /private.*key/u,
+  /(?:object|input|storage)key$/u,
   /otp/u,
   /authorization/u,
   /cookie/u,

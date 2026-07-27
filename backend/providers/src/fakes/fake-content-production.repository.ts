@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { CONTENT_PRODUCTION_ITEM_LEASE_MS } from '@flex-thia/domain';
 import type {
   ContentProductionItem,
+  ContentProductionItemSeed,
   ContentProductionJob,
   ContentProductionJobStatus,
   ContentProductionRepository,
@@ -55,7 +56,11 @@ export class FakeContentProductionRepository implements ContentProductionReposit
         ...command.presetSnapshot,
         parameters: { ...command.presetSnapshot.parameters },
       },
-      inputs: command.inputs.map((input) => ({ ...input })),
+      inputs: command.inputs.map((input, ordinal) => ({
+        ...input,
+        jobInputId: randomUUID(),
+        ordinal,
+      })),
       status: 'QUEUED',
       attempt: 0,
       enqueuedAt: null,
@@ -131,18 +136,21 @@ export class FakeContentProductionRepository implements ContentProductionReposit
   }
 
   /** 같은 sourceRef 항목을 중복 전달에도 한 번만 생성한다 */
-  ensureItems(jobId: string, sourceRefs: string[]): Promise<void> {
+  ensureItems(
+    jobId: string,
+    seeds: ContentProductionItemSeed[],
+  ): Promise<void> {
     const job = this.requireJob(jobId);
     const existingRefs = new Set(job.items.map((item) => item.sourceRef));
 
-    for (const sourceRef of sourceRefs) {
-      if (existingRefs.has(sourceRef)) {
+    for (const seed of seeds) {
+      if (existingRefs.has(seed.sourceRef)) {
         continue;
       }
 
       job.items.push({
         id: randomUUID(),
-        sourceRef,
+        ...seed,
         status: 'PENDING',
         attempt: job.attempt,
         retryable: false,

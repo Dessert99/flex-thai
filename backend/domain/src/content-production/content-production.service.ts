@@ -1,5 +1,6 @@
 /** 콘텐츠 제작 작업 생성·조회·재시도를 조율하는 도메인 경계 */
 import type { VocabularyProductionArtifacts } from './ai-vocabulary-production.js';
+import type { ContentProductionItemSeed } from './content-production-work-item.js';
 
 /** 콘텐츠 제작 작업 목적 */
 export type ContentProductionPurpose =
@@ -110,7 +111,7 @@ export interface ContentProductionRepository {
     jobId: string,
     attempt: number,
   ): Promise<ContentProductionJob | null>;
-  ensureItems(jobId: string, sourceRefs: string[]): Promise<void>;
+  ensureItems(jobId: string, seeds: ContentProductionItemSeed[]): Promise<void>;
   listAttemptItems(
     jobId: string,
     attempt: number,

@@ -184,8 +184,10 @@ export const jobItems = pgTable(
     jobId: uuid('job_id')
       .references(() => jobs.id)
       .notNull(),
-    jobInputId: uuid('job_input_id').references(() => jobInputs.id),
-    operation: contentProductionOperationEnum('operation'),
+    jobInputId: uuid('job_input_id')
+      .references(() => jobInputs.id)
+      .notNull(),
+    operation: contentProductionOperationEnum('operation').notNull(),
     status: jobItemStatusEnum('status').default('PENDING').notNull(),
     sourceRef: text('source_ref'),
     attempt: integer('attempt').default(0).notNull(),

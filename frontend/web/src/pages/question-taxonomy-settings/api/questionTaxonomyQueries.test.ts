@@ -74,7 +74,7 @@ describe('문제 분류 설정 mutation', () => {
     await addApprovedExample({ versionId, input });
 
     expect(mocks.authenticatedRequest).toHaveBeenCalledWith({
-      body: expect.any(Object),
+      body: input,
       method: 'POST',
       path: `/admin/question-type-versions/${versionId}/examples`,
       response: { kind: 'empty' },

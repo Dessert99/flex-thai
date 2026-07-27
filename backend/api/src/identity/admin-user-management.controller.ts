@@ -98,7 +98,7 @@ export class AdminUserManagementController {
   @ApiParam({ name: 'userId', type: 'string', format: 'uuid' })
   @ApiBody({ type: UserStatusUpdateRequestDto })
   @ApiOkResponse({ type: ManagedIdentityUserResponseDto })
-  @ApiProblemResponses(400, 401, 403, 404, 500)
+  @ApiProblemResponses(400, 401, 403, 404, 409, 500)
   @Patch(':userId/status')
   async changeStatus(
     @CurrentUser() user: AuthenticatedUser,

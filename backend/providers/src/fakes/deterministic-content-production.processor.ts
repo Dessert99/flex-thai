@@ -1,5 +1,5 @@
 /** 실제 AI 없이 항목 결과와 부분 실패를 결정적으로 재현한다 */
-import type { ContentProductionItem } from '@flex-thia/domain';
+import type { ContentProductionWorkItem } from '@flex-thia/domain';
 
 /** local fake processor의 항목 처리 결과 */
 export interface DeterministicContentProductionOutcome {
@@ -13,7 +13,7 @@ export interface DeterministicContentProductionOutcome {
 export class DeterministicContentProductionProcessor {
   /** 같은 sourceRef에는 언제나 같은 항목 결과를 반환한다 */
   process(
-    item: ContentProductionItem,
+    workItem: ContentProductionWorkItem,
     signal: AbortSignal,
   ): Promise<DeterministicContentProductionOutcome> {
     if (signal.aborted) {
@@ -23,6 +23,8 @@ export class DeterministicContentProductionProcessor {
           : new Error('콘텐츠 제작 항목 처리가 취소되었습니다'),
       );
     }
+
+    const { item } = workItem;
 
     if (
       item.sourceRef.endsWith(':fail') ||

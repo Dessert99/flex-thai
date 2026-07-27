@@ -373,7 +373,10 @@ export class DrizzleAdminQuestionQuery {
         questionTypes,
         eq(questionTypeVersions.questionTypeId, questionTypes.id),
       )
-      .innerJoin(questionTopics, eq(questionVersions.topicId, questionTopics.id))
+      .innerJoin(
+        questionTopics,
+        eq(questionVersions.topicId, questionTopics.id),
+      )
       .where(eq(questionVersions.questionId, questionId))
       .orderBy(desc(questionVersions.version), desc(questionVersions.id));
     if (versionRows.length === 0) {
@@ -495,9 +498,7 @@ export class DrizzleAdminQuestionQuery {
             displayName: version.topicDisplayName,
           },
           tags: tagRows
-            .filter(
-              ({ questionVersionId }) => questionVersionId === version.id,
-            )
+            .filter(({ questionVersionId }) => questionVersionId === version.id)
             .map(({ tagId, tagSlug, tagDisplayName }) => ({
               id: tagId,
               slug: tagSlug,

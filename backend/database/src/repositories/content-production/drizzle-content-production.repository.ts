@@ -302,7 +302,7 @@ export class DrizzleContentProductionRepository implements ContentProductionRepo
   /** 같은 sourceRef 항목은 중복 전달에도 한 번만 생성한다 */
   async ensureItems(
     jobId: string,
-    inputs: string[] | ContentProductionItemSeed[],
+    inputs: ContentProductionItemSeed[],
   ): Promise<void> {
     if (inputs.length === 0) {
       return;
@@ -322,9 +322,9 @@ export class DrizzleContentProductionRepository implements ContentProductionRepo
       .values(
         inputs.map((input) => ({
           jobId,
-          sourceRef: typeof input === 'string' ? input : input.sourceRef,
-          jobInputId: typeof input === 'string' ? null : input.jobInputId,
-          operation: typeof input === 'string' ? null : input.operation,
+          sourceRef: input.sourceRef,
+          jobInputId: input.jobInputId,
+          operation: input.operation,
           attempt: job.attempt,
         })),
       )

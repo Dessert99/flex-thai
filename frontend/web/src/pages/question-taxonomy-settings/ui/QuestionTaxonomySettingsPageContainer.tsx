@@ -37,9 +37,7 @@ export function QuestionTaxonomySettingsPageContainer() {
       onAddExample={(versionId, input) =>
         run(() => addApprovedExample({ versionId, input }))
       }
-      onArchiveTerm={(kind, id) =>
-        run(() => archiveTaxonomyTerm({ kind, id }))
-      }
+      onArchiveTerm={(kind, id) => run(() => archiveTaxonomyTerm({ kind, id }))}
       onCreateTerm={(kind, input) =>
         run(() => createTaxonomyTerm({ kind, input }))
       }

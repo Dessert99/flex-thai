@@ -31,6 +31,8 @@ const ACTIVE_PATHS = [
   '/api/v1/admin/content-production/presets',
   '/api/v1/admin/content-production/uploads/policies',
   '/api/v1/admin/content-production/uploads/{uploadId}/complete',
+  '/api/v1/admin/audit-logs',
+  '/api/v1/admin/audit-logs/{auditLogId}',
   '/api/v1/admin/media-assets/audio-upload-requests',
   '/api/v1/admin/media-assets/{mediaAssetId}',
   '/api/v1/admin/media-assets/{mediaAssetId}/complete',
@@ -43,6 +45,18 @@ const ACTIVE_PATHS = [
   '/api/v1/admin/question-versions/{versionId}/invalidate',
   '/api/v1/admin/question-versions/{versionId}/publish',
   '/api/v1/admin/question-versions/{versionId}/validate',
+  '/api/v1/admin/question-tags',
+  '/api/v1/admin/question-tags/{id}/archive',
+  '/api/v1/admin/question-taxonomy',
+  '/api/v1/admin/question-topics',
+  '/api/v1/admin/question-topics/{id}/archive',
+  '/api/v1/admin/question-type-versions/{versionId}/activate',
+  '/api/v1/admin/question-type-versions/{versionId}/difficulty-criteria',
+  '/api/v1/admin/question-type-versions/{versionId}/examples',
+  '/api/v1/admin/question-type-versions/{versionId}/examples/{exampleId}',
+  '/api/v1/admin/question-type-versions/{versionId}/retire',
+  '/api/v1/admin/question-types',
+  '/api/v1/admin/question-types/{questionTypeId}/versions',
   '/api/v1/admin/vocabularies',
   '/api/v1/admin/vocabularies/{vocabularyId}',
   '/api/v1/admin/vocabularies/{vocabularyId}/hide',
@@ -53,6 +67,7 @@ const ACTIVE_PATHS = [
   '/api/v1/admin/vocabularies/{vocabularyId}/relations/{relationId}',
   '/api/v1/admin/vocabularies/{vocabularyId}/restore',
   '/api/v1/admin/users',
+  '/api/v1/admin/users/{userId}/role',
   '/api/v1/admin/users/{userId}/status',
   '/api/v1/admin/users/invitations',
   '/api/v1/auth/challenges',
@@ -351,7 +366,10 @@ const expectProtectedOpenApiOperations = (
     const headerParameters = parameters.filter(
       (parameter) => parameter.in === 'header',
     );
-    expect(parameters).toHaveLength(
+    expect(
+      parameters,
+      `${expected.method.toUpperCase()} ${expected.path} parameter count`,
+    ).toHaveLength(
       (expected.pathParameters?.length ?? 0) +
         (expected.query?.length ?? 0) +
         (expected.headers?.length ?? 0),
@@ -433,6 +451,30 @@ const expectProtectedOpenApiOperations = (
 };
 
 const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
+  {
+    method: 'get',
+    path: '/api/v1/admin/audit-logs',
+    query: [
+      'query',
+      'actorUserId',
+      'action',
+      'targetType',
+      'targetId',
+      'from',
+      'to',
+      'page',
+      'pageSize',
+    ],
+    success: ['200', 'AuditLogListResponseDto'],
+    errors: ['400', '401', '403', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/admin/audit-logs/{auditLogId}',
+    pathParameters: ['auditLogId'],
+    success: ['200', 'AuditLogDetailResponseDto'],
+    errors: ['400', '401', '403', '404', '500'],
+  },
   {
     method: 'get',
     path: '/api/v1/admin/concepts',
@@ -650,6 +692,92 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
   },
   {
     method: 'get',
+    path: '/api/v1/admin/question-taxonomy',
+    success: ['200', 'QuestionTaxonomySettingsResponseDto'],
+    errors: ['401', '403', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/question-types',
+    body: 'CreateQuestionTypeRequestDto',
+    success: ['201'],
+    errors: ['400', '401', '403', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/question-types/{questionTypeId}/versions',
+    pathParameters: ['questionTypeId'],
+    body: 'CreateQuestionTypeVersionRequestDto',
+    success: ['201'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'put',
+    path: '/api/v1/admin/question-type-versions/{versionId}/difficulty-criteria',
+    pathParameters: ['versionId'],
+    body: 'ReplaceDifficultyCriteriaRequestDto',
+    success: ['200'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/question-type-versions/{versionId}/examples',
+    pathParameters: ['versionId'],
+    body: 'QuestionTypeApprovedExampleRequestDto',
+    success: ['201'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'delete',
+    path: '/api/v1/admin/question-type-versions/{versionId}/examples/{exampleId}',
+    pathParameters: ['versionId', 'exampleId'],
+    success: ['204'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/question-type-versions/{versionId}/activate',
+    pathParameters: ['versionId'],
+    success: ['204'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/question-type-versions/{versionId}/retire',
+    pathParameters: ['versionId'],
+    success: ['204'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/question-topics',
+    body: 'CreateQuestionTaxonomyTermRequestDto',
+    success: ['201'],
+    errors: ['400', '401', '403', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/question-tags',
+    body: 'CreateQuestionTaxonomyTermRequestDto',
+    success: ['201'],
+    errors: ['400', '401', '403', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/question-topics/{id}/archive',
+    pathParameters: ['id'],
+    success: ['204'],
+    errors: ['400', '401', '403', '404', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/question-tags/{id}/archive',
+    pathParameters: ['id'],
+    success: ['204'],
+    errors: ['400', '401', '403', '404', '500'],
+  },
+  {
+    method: 'get',
     path: '/api/v1/admin/questions/{questionId}',
     pathParameters: ['questionId'],
     success: ['200', 'AdminQuestionDetailResponseDto'],
@@ -790,6 +918,7 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
   {
     method: 'get',
     path: '/api/v1/admin/users',
+    query: ['query', 'role', 'status', 'mfaEnrolled', 'page', 'pageSize'],
     success: ['200', 'UserManagementListResponseDto'],
     errors: ['401', '403', '500'],
   },
@@ -799,7 +928,15 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
     pathParameters: ['userId'],
     body: 'UserStatusUpdateRequestDto',
     success: ['200', 'ManagedIdentityUserResponseDto'],
-    errors: ['400', '401', '403', '404', '500'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'patch',
+    path: '/api/v1/admin/users/{userId}/role',
+    pathParameters: ['userId'],
+    body: 'UserRoleUpdateRequestDto',
+    success: ['200', 'ManagedIdentityUserResponseDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
   },
   {
     method: 'post',
@@ -1312,12 +1449,12 @@ describe('OpenAPI 문서', () => {
     expectProtectedOpenApiOperations(document, LEARNER_OPERATIONS);
   });
 
-  it('관리자 operation 쉰 개의 입력·성공·Bearer·오류 계약을 모두 고정한다', () => {
+  it('관리자 operation 예순다섯 개의 입력·성공·Bearer·오류 계약을 모두 고정한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
 
-    expect(ADMIN_OPERATIONS).toHaveLength(50);
+    expect(ADMIN_OPERATIONS).toHaveLength(65);
     expectProtectedOpenApiOperations(document, ADMIN_OPERATIONS);
   });
 

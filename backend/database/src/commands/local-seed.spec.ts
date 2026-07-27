@@ -1,4 +1,5 @@
 /** 로컬 seed가 passwordless 사용자와 단어장 cutover 이후 graph를 만드는지 검증한다 */
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
@@ -39,5 +40,77 @@ describe('로컬 seed SQL', () => {
       '"primaryText":"인사말 예문","secondaryText":"기본 인사말의 발음과 성조를 실제 문장으로 익힙니다."',
     );
     expect(seedSql).toContain('"locationLabel":"개념 블록 2"');
+  });
+
+  it('기존 reading-vocabulary fixture를 ACTIVE taxonomy와 일반 주제에 보존한다', () => {
+    expect(seedSql).toContain("'00000000-0000-4000-8000-000000000311'");
+    expect(seedSql).toContain("'READING_VOCABULARY_GRAMMAR'");
+    expect(seedSql).toContain("'ACTIVE'");
+    expect(seedSql).toContain("'general'");
+    expect(seedSql).toMatch(
+      /insert into question_versions \([\s\S]*topic_id[\s\S]*'00000000-0000-4000-8000-000000000320'/iu,
+    );
+  });
+
+  it('7대 분류의 유형 버전과 기존 ACTIVE 버전의 준비 데이터를 만든다', () => {
+    [
+      'LISTENING_RESPONSE',
+      'LISTENING_DIALOGUE',
+      'LISTENING_PASSAGE',
+      'READING_VOCABULARY_GRAMMAR',
+      'READING_SYNONYM_RELATION',
+      'READING_ERROR_IDENTIFICATION',
+      'READING_PASSAGE',
+    ].forEach((category) => expect(seedSql).toContain(`'${category}'`));
+    expect(seedSql).toMatch(/insert into question_type_difficulty_criteria/iu);
+    [1, 2, 3, 4, 5].forEach((difficulty) =>
+      expect(seedSql).toMatch(
+        new RegExp(
+          `'00000000-0000-4000-8000-000000000311',\\s*${difficulty},`,
+          'u',
+        ),
+      ),
+    );
+    expect(seedSql).toMatch(/insert into question_type_approved_examples/iu);
+    expect(seedSql).toMatch(
+      /'00000000-0000-4000-8000-000000000311',[\s\S]*'canonical-reading-vocabulary-v1'/iu,
+    );
+    expect(seedSql).toMatch(
+      /'00000000-0000-4000-8000-000000000312',[\s\S]*?'DRAFT'/iu,
+    );
+  });
+
+  it('승인 예시를 관리자 문제 응답과 같은 유효 JSON snapshot으로 저장한다', () => {
+    const payload = seedSql.match(
+      /\$readingVocabularyExample\$\s*([\s\S]*?)\s*\$readingVocabularyExample\$::jsonb/iu,
+    )?.[1];
+
+    expect(payload).toBeDefined();
+    if (payload === undefined) {
+      throw new Error('canonical 승인 예시 payload가 필요합니다.');
+    }
+    const parsedPayload: unknown = JSON.parse(payload);
+    expect(parsedPayload).toMatchObject({
+      questionTypeSlug: 'reading-vocabulary',
+      questionTypeVersion: 1,
+      difficulty: 1,
+      topicSlug: 'general',
+      tagSlugs: [],
+      correctOptionRef: 'option-1',
+    });
+    const storedHash = seedSql.match(
+      /\$readingVocabularyExample\$::jsonb,\s*'([0-9a-f]{64})'/u,
+    )?.[1];
+
+    expect(storedHash).toBe(
+      createHash('sha256').update(JSON.stringify(parsedPayload)).digest('hex'),
+    );
+  });
+
+  it('AI 어휘 preset과 복합 preset의 중복 거리 정책을 보장한다', () => {
+    const presetPolicy =
+      /'00000000-0000-4000-8000-00000000090[13]'[\s\S]*?suspectedDuplicateMaxCodePointDistance[\s\S]*?1/giu;
+
+    expect(seedSql.match(presetPolicy)).toHaveLength(2);
   });
 });

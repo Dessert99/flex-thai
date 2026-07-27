@@ -7,7 +7,7 @@ import {
 
 /** 등록된 관리자 guard 아래에서 감사 기록을 렌더링한다 */
 export const Route = createFileRoute(
-  '/_authenticated/admin/_enrolled/audit-logs' as never,
+  '/_authenticated/admin/_enrolled/audit-logs',
 )({
   component: AuditLogManagementRoute,
   validateSearch: parseAuditLogSearch,
@@ -18,9 +18,7 @@ function AuditLogManagementRoute() {
   const navigate = Route.useNavigate();
   return (
     <AuditLogManagementPage
-      onSearchChange={(next) =>
-        void navigate({ replace: true, search: next } as never)
-      }
+      onSearchChange={(next) => void navigate({ replace: true, search: next })}
       search={search}
     />
   );

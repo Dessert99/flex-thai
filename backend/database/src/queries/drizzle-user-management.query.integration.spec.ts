@@ -142,7 +142,10 @@ const insertUser = async (
 ) => {
   await pool.query(
     `insert into users (id, cognito_sub, email, role, mfa_enrolled_at)
-     values ($1, $2, $3, $4, case when $4 = 'ADMIN' then now() end)`,
+     values (
+       $1, $2, $3, $4::user_role,
+       case when $4::user_role = 'ADMIN' then now() end
+     )`,
     [id, `sub-${id}`, `${id}@hufs.ac.kr`, role],
   );
 };

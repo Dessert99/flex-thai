@@ -69,9 +69,104 @@ describe('문제 분류 설정 transaction 불변식', () => {
     expect(fake.forUpdate).toHaveBeenCalledOnce();
     expect(fake.update).not.toHaveBeenCalled();
   });
+
+  it('동시 next-version 생성의 unique loser를 taxonomy conflict로 바꾼다', async () => {
+    const duplicate = Object.assign(new Error('duplicate key'), {
+      code: '23505',
+      constraint: 'question_type_versions_type_version_unique',
+    });
+    const fake = createMutationFake([[{ nextVersion: 2 }]], {
+      insertError: duplicate,
+    });
+    const repository = new DrizzleQuestionTaxonomyRepository(
+      fake.database as never,
+    );
+
+    await expect(
+      repository.createNextDraft('00000000-0000-4000-8000-000000000001', {
+        template: 'STANDARD_CHOICE',
+        optionCount: 4,
+        decisionRules: {},
+      }),
+    ).rejects.toMatchObject({ code: 'TAXONOMY_CONFLICT' });
+  });
+
+  it('동시 activation의 ACTIVE unique loser를 taxonomy conflict로 바꾼다', async () => {
+    const duplicate = Object.assign(new Error('duplicate key'), {
+      code: '23505',
+      constraint: 'question_type_versions_one_active_per_type',
+    });
+    const fake = createMutationFake(
+      [
+        [
+          {
+            questionTypeId: '00000000-0000-4000-8000-000000000002',
+            status: 'DRAFT',
+          },
+        ],
+        [{ total: 5 }],
+        [{ total: 1 }],
+      ],
+      {
+        returningError: duplicate,
+      },
+    );
+    const repository = new DrizzleQuestionTaxonomyRepository(
+      fake.database as never,
+    );
+
+    await expect(
+      repository.activateVersion('00000000-0000-4000-8000-000000000001'),
+    ).rejects.toMatchObject({ code: 'TAXONOMY_CONFLICT' });
+  });
+
+  it('알려진 topic slug unique 제약만 taxonomy conflict 도메인 오류로 바꾼다', async () => {
+    const duplicate = {
+      code: '23505',
+      constraint: 'question_topics_slug_unique',
+    };
+    const repository = new DrizzleQuestionTaxonomyRepository({
+      insert: vi.fn(() => ({
+        values: vi.fn(() => ({
+          returning: vi.fn().mockRejectedValue(duplicate),
+        })),
+      })),
+    } as never);
+
+    await expect(
+      repository.createTerm('TOPIC', {
+        slug: 'general',
+        displayName: '일반',
+      }),
+    ).rejects.toMatchObject({ code: 'TAXONOMY_CONFLICT' });
+  });
+
+  it('알려지지 않은 unique 제약 오류는 원본으로 유지한다', async () => {
+    const unexpected = {
+      code: '23505',
+      constraint: 'unrelated_unique_constraint',
+    };
+    const repository = new DrizzleQuestionTaxonomyRepository({
+      insert: vi.fn(() => ({
+        values: vi.fn(() => ({
+          returning: vi.fn().mockRejectedValue(unexpected),
+        })),
+      })),
+    } as never);
+
+    await expect(
+      repository.createTerm('TOPIC', {
+        slug: 'general',
+        displayName: '일반',
+      }),
+    ).rejects.toBe(unexpected);
+  });
 });
 
-const createMutationFake = (selectResults: unknown[][]) => {
+const createMutationFake = (
+  selectResults: unknown[][],
+  options: { insertError?: Error; returningError?: Error } = {},
+) => {
   const pendingResults = [...selectResults];
   const forUpdate = vi.fn();
   const remove = vi.fn();
@@ -101,18 +196,25 @@ const createMutationFake = (selectResults: unknown[][]) => {
     }),
     insert: vi.fn(() => {
       insert();
-      return { values: vi.fn().mockResolvedValue(undefined) };
+      return {
+        values: options.insertError
+          ? vi.fn().mockRejectedValue(options.insertError)
+          : vi.fn().mockResolvedValue(undefined),
+      };
     }),
     update: vi.fn(() => {
       update();
       const chain = {
         set: vi.fn(() => chain),
         where: vi.fn(() => chain),
-        returning: vi
-          .fn()
-          .mockResolvedValue([
+        returning: vi.fn().mockImplementation(() => {
+          if (options.returningError) {
+            return Promise.reject(options.returningError);
+          }
+          return Promise.resolve([
             { id: '00000000-0000-4000-8000-000000000001' },
-          ]),
+          ]);
+        }),
         then: (resolve: (value: unknown) => unknown) =>
           Promise.resolve(undefined).then(resolve),
       };

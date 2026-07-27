@@ -126,9 +126,7 @@ export const replaceDifficultyCriteriaRequestSchema = z
   })
   .strict()
   .superRefine(({ criteria }, context) => {
-    if (
-      criteria.some(({ difficulty }, index) => difficulty !== index + 1)
-    ) {
+    if (criteria.some(({ difficulty }, index) => difficulty !== index + 1)) {
       context.addIssue({
         code: 'custom',
         path: ['criteria'],

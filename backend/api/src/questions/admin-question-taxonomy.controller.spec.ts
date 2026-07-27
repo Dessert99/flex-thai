@@ -24,13 +24,21 @@ describe('AdminQuestionTaxonomyController', () => {
 
   it('DRAFT·ACTIVE·RETIRED lifecycle route만 노출한다', () => {
     const metadata = (method: keyof AdminQuestionTaxonomyController) => {
-      const handler = Object.getOwnPropertyDescriptor(
+      const handler: unknown = Object.getOwnPropertyDescriptor(
         AdminQuestionTaxonomyController.prototype,
         method,
-      )?.value as object;
+      )?.value;
+      if (typeof handler !== 'function') {
+        throw new TypeError('controller handler metadata가 필요합니다.');
+      }
+      const methodMetadata: unknown = Reflect.getMetadata(
+        METHOD_METADATA,
+        handler,
+      );
+      const pathMetadata: unknown = Reflect.getMetadata(PATH_METADATA, handler);
       return {
-        method: Reflect.getMetadata(METHOD_METADATA, handler),
-        path: Reflect.getMetadata(PATH_METADATA, handler),
+        method: methodMetadata,
+        path: pathMetadata,
       };
     };
 

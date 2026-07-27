@@ -18,6 +18,8 @@ const approvedTargets = [
   '/wordbooks',
   '/admin',
   '/admin/users',
+  '/admin/audit-logs',
+  '/admin/question-settings',
   '/admin/totp-setup',
   '/admin/content-imports',
   '/admin/questions',

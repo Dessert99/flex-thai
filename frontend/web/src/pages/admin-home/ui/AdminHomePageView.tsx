@@ -1,13 +1,17 @@
-/** 관리자 홈의 최근 문제·어휘를 통계나 추천 없이 표현한다 */
+/** 관리자 홈의 최근 문제·어휘·감사 기록을 통계나 추천 없이 표현한다 */
 import type {
   AdminQuestionListResponse,
   AdminVocabularyListResponse,
+  AuditLogListResponse,
 } from '@flex-thia/contracts';
 import type { ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { PageEmpty, PageError, PageLoading } from '@/shared/ui/page-state';
 
 interface AdminHomePageViewProps {
+  auditLogs: AuditLogListResponse['items'];
+  auditLogsError: boolean;
+  onRetryAuditLogs: () => void;
   onRetryQuestions: () => void;
   onRetryVocabularies: () => void;
   questions: AdminQuestionListResponse['items'];
@@ -19,6 +23,9 @@ interface AdminHomePageViewProps {
 
 /** 독립적인 최근 목록 상태를 지우지 않고 관리 시작점을 제공한다 */
 export function AdminHomePageView({
+  auditLogs,
+  auditLogsError,
+  onRetryAuditLogs,
   onRetryQuestions,
   onRetryVocabularies,
   questions,
@@ -34,8 +41,10 @@ export function AdminHomePageView({
   if (
     !questionsError &&
     !vocabulariesError &&
+    !auditLogsError &&
     questions.length === 0 &&
-    vocabularies.length === 0
+    vocabularies.length === 0 &&
+    auditLogs.length === 0
   ) {
     return (
       <PageEmpty
@@ -66,10 +75,10 @@ export function AdminHomePageView({
           관리 홈
         </h1>
         <p className='text-body text-subtle'>
-          최근 수정된 문제와 어휘를 확인하세요.
+          최근 수정된 문제와 어휘, 감사 기록을 확인하세요.
         </p>
       </header>
-      <div className='grid gap-section lg:grid-cols-2'>
+      <div className='grid gap-section lg:grid-cols-3'>
         <RecentAdminQuestions
           error={questionsError}
           items={questions}
@@ -80,8 +89,71 @@ export function AdminHomePageView({
           items={vocabularies}
           onRetry={onRetryVocabularies}
         />
+        <RecentAuditLogs
+          error={auditLogsError}
+          items={auditLogs}
+          onRetry={onRetryAuditLogs}
+        />
       </div>
     </section>
+  );
+}
+
+function RecentAuditLogs({
+  error,
+  items,
+  onRetry,
+}: {
+  error: boolean;
+  items: AuditLogListResponse['items'];
+  onRetry: () => void;
+}) {
+  let content: ReactNode;
+  if (error) {
+    content = (
+      <PageError
+        message='최근 감사 기록을 불러오지 못했습니다.'
+        onRetry={onRetry}
+      />
+    );
+  } else if (items.length === 0) {
+    content = (
+      <p className='text-body text-subtle'>표시할 최근 감사 기록이 없습니다.</p>
+    );
+  } else {
+    content = (
+      <ul className='flex flex-col gap-cluster'>
+        {items.map((auditLog) => (
+          <li key={auditLog.id}>
+            <span className='block rounded-control border border-default p-cluster text-body text-primary'>
+              {auditLog.actor.kind === 'USER'
+                ? auditLog.actor.email
+                : auditLog.actor.label}
+              <span className='block text-caption text-subtle'>
+                {auditLog.action} · {auditLog.target}
+              </span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  return (
+    <Card className='rounded-panel border-default bg-surface'>
+      <CardHeader>
+        <CardTitle className='text-title'>최근 감사 기록</CardTitle>
+      </CardHeader>
+      <CardContent className='space-y-cluster'>
+        {content}
+        <a
+          className='text-body text-primary underline-offset-4 hover:underline'
+          href='/admin/audit-logs'
+        >
+          감사 기록 열기
+        </a>
+      </CardContent>
+    </Card>
   );
 }
 

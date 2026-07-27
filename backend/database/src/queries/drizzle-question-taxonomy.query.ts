@@ -74,15 +74,15 @@ export const assembleQuestionTaxonomySettings = (
   tags,
 });
 
-const querySchema = {
-  questionTags,
-  questionTopics,
-  questionTypeApprovedExamples,
-  questionTypeDifficultyCriteria,
-  questionTypes,
-  questionTypeVersions,
+type QuerySchema = {
+  questionTags: typeof questionTags;
+  questionTopics: typeof questionTopics;
+  questionTypeApprovedExamples: typeof questionTypeApprovedExamples;
+  questionTypeDifficultyCriteria: typeof questionTypeDifficultyCriteria;
+  questionTypes: typeof questionTypes;
+  questionTypeVersions: typeof questionTypeVersions;
 };
-type QueryDatabase = PgDatabase<PgQueryResultHKT, typeof querySchema>;
+type QueryDatabase = PgDatabase<PgQueryResultHKT, QuerySchema>;
 
 /** 관리자 taxonomy 설정 전체 query */
 export class DrizzleQuestionTaxonomyQuery {

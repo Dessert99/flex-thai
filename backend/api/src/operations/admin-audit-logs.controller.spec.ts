@@ -49,7 +49,7 @@ describe('AdminAuditLogsController', () => {
         from: '2026-07-01T00:00:00.000Z',
         page: '1',
         pageSize: '20',
-      } as never),
+      }),
     ).resolves.toMatchObject({
       items: [{ id: auditId, createdAt: item.createdAt.toISOString() }],
     });
@@ -125,6 +125,41 @@ describe('AdminAuditLogsController', () => {
         after: 'DISABLED',
       },
       requestId: 'request-1',
+    });
+  });
+
+  it('중첩 storage 객체 키와 정규화된 suffix 변형을 모두 가린다', async () => {
+    const service = {
+      get: vi.fn().mockResolvedValue({
+        ...item,
+        summary: {
+          nested: {
+            objectKey: 'private/object',
+            input_key: 'private/input',
+            'storage-key': 'private/storage',
+            privateObjectKey: 'private/object-key',
+            archiveStorageKey: 'private/archive',
+            safeKey: 'visible',
+          },
+        },
+        requestId: 'request-2',
+      }),
+    };
+    const controller = new AdminAuditLogsController(service as never);
+
+    await expect(
+      controller.get(user, { auditLogId: auditId }),
+    ).resolves.toMatchObject({
+      summary: {
+        nested: {
+          objectKey: '[REDACTED]',
+          input_key: '[REDACTED]',
+          'storage-key': '[REDACTED]',
+          privateObjectKey: '[REDACTED]',
+          archiveStorageKey: '[REDACTED]',
+          safeKey: 'visible',
+        },
+      },
     });
   });
 });

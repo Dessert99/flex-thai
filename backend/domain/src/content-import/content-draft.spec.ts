@@ -199,7 +199,7 @@ const createTransaction = (
             version: 1,
             template: 'STANDARD_CHOICE',
             optionCount: 2,
-        }),
+          }),
     ),
     findActiveQuestionTopic: vi
       .fn()
