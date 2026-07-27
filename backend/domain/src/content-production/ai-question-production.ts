@@ -7,16 +7,11 @@ export type QuestionCandidateGroup = 'NORMAL' | 'NEEDS_ATTENTION' | 'FAILED';
 
 /** 후보의 관리자 검토 lifecycle 상태 */
 export type QuestionCandidateReviewStatus =
-  | 'PENDING'
-  | 'APPROVED'
-  | 'DISCARDED';
+  'PENDING' | 'APPROVED' | 'DISCARDED';
 
 /** 후보 검증을 기록하는 단계 */
 export type QuestionValidationStage =
-  | 'SCHEMA'
-  | 'DECISION_RULE'
-  | 'SIMILARITY'
-  | 'AI_CROSS_VALIDATION';
+  'SCHEMA' | 'DECISION_RULE' | 'SIMILARITY' | 'AI_CROSS_VALIDATION';
 
 /** 생성 모델이 media 없이 제안하는 문장 graph */
 export type GeneratedQuestionSentenceInput = Omit<
@@ -52,12 +47,7 @@ export interface GeneratedQuestionPayload {
   topicSlug: string;
   tagSlugs: string[];
   blocks: Array<{
-    kind:
-      | 'INSTRUCTION'
-      | 'PASSAGE'
-      | 'DIALOGUE'
-      | 'QUESTION'
-      | 'EXPLANATION';
+    kind: 'INSTRUCTION' | 'PASSAGE' | 'DIALOGUE' | 'QUESTION' | 'EXPLANATION';
     displayMode: 'TEXT' | 'AUDIO' | 'TEXT_AND_AUDIO' | 'AUDIO_THEN_REVEAL';
     sentences: Array<{
       speaker: string | null;
@@ -232,6 +222,70 @@ const isNonemptyString = (value: unknown): value is string =>
 const isSafeInteger = (value: unknown): value is number =>
   typeof value === 'number' && Number.isSafeInteger(value);
 
+const isContentDraftReference = (value: unknown): boolean => {
+  if (!isRecord(value)) return false;
+
+  const keys = Object.keys(value);
+  return (
+    keys.length === 1 &&
+    ((keys[0] === 'id' && isNonemptyString(value.id)) ||
+      (keys[0] === 'clientRef' && isNonemptyString(value.clientRef)))
+  );
+};
+
+const isCanonicalToken = (value: unknown): boolean => {
+  if (!isRecord(value)) return false;
+
+  return (
+    hasExactKeys(value, [
+      'surface',
+      'startOffset',
+      'endOffset',
+      'vocabulary',
+      'meaning',
+      'pronunciation',
+      'contextMeaningKo',
+      'role',
+    ]) &&
+    isNonemptyString(value.surface) &&
+    isSafeInteger(value.startOffset) &&
+    isSafeInteger(value.endOffset) &&
+    isContentDraftReference(value.vocabulary) &&
+    isContentDraftReference(value.meaning) &&
+    isContentDraftReference(value.pronunciation) &&
+    isNonemptyString(value.contextMeaningKo) &&
+    ['TARGET', 'REQUIRED', 'SUPPORTING', 'INSTRUCTION'].includes(
+      value.role as string,
+    )
+  );
+};
+
+const isCanonicalExpression = (value: unknown): boolean => {
+  if (!isRecord(value)) return false;
+
+  const requiredKeys = [
+    'startTokenIndex',
+    'endTokenIndex',
+    'vocabulary',
+    'meaning',
+    'pronunciation',
+    'contextMeaningKo',
+  ];
+  const keys = Object.keys(value);
+  return (
+    requiredKeys.every((key) => Object.hasOwn(value, key)) &&
+    keys.every((key) => [...requiredKeys, 'representative'].includes(key)) &&
+    isSafeInteger(value.startTokenIndex) &&
+    isSafeInteger(value.endTokenIndex) &&
+    isContentDraftReference(value.vocabulary) &&
+    isContentDraftReference(value.meaning) &&
+    isContentDraftReference(value.pronunciation) &&
+    isNonemptyString(value.contextMeaningKo) &&
+    (value.representative === undefined ||
+      typeof value.representative === 'boolean')
+  );
+};
+
 const isGeneratedSentence = (
   value: unknown,
 ): value is GeneratedQuestionSentenceInput => {
@@ -251,7 +305,9 @@ const isGeneratedSentence = (
     isNonemptyString(value.pronunciationKo) &&
     typeof value.toneMarks === 'string' &&
     Array.isArray(value.tokens) &&
-    Array.isArray(value.expressions)
+    value.tokens.every(isCanonicalToken) &&
+    Array.isArray(value.expressions) &&
+    value.expressions.every(isCanonicalExpression)
   );
 };
 
@@ -260,13 +316,9 @@ const isBlock = (value: unknown): boolean => {
 
   return (
     hasExactKeys(value, ['kind', 'displayMode', 'sentences']) &&
-    [
-      'INSTRUCTION',
-      'PASSAGE',
-      'DIALOGUE',
-      'QUESTION',
-      'EXPLANATION',
-    ].includes(value.kind as string) &&
+    ['INSTRUCTION', 'PASSAGE', 'DIALOGUE', 'QUESTION', 'EXPLANATION'].includes(
+      value.kind as string,
+    ) &&
     ['TEXT', 'AUDIO', 'TEXT_AND_AUDIO', 'AUDIO_THEN_REVEAL'].includes(
       value.displayMode as string,
     ) &&
@@ -308,6 +360,26 @@ const isOption = (value: unknown): boolean => {
     isSafeInteger(value.span.sentencePosition) &&
     isSafeInteger(value.span.startTokenIndex) &&
     isSafeInteger(value.span.endTokenIndex)
+  );
+};
+
+const hasValidInlineSpan = (
+  candidate: GeneratedQuestionCandidate,
+  option: GeneratedQuestionOptionInput,
+): boolean => {
+  if (option.sentence !== null) return true;
+
+  const { span } = option;
+  const block = candidate.payload.blocks[span.blockPosition];
+  const sentence = block?.sentences[span.sentencePosition]?.sentence;
+  return (
+    block?.kind === 'QUESTION' &&
+    sentence !== undefined &&
+    span.blockPosition >= 0 &&
+    span.sentencePosition >= 0 &&
+    span.startTokenIndex >= 0 &&
+    span.endTokenIndex > span.startTokenIndex &&
+    span.endTokenIndex <= sentence.tokens.length
   );
 };
 
@@ -370,7 +442,9 @@ export const validateQuestionDecisionRules = (
     return { status: 'FAILED', code: 'QUESTION_RULE_INVALID' };
   }
 
-  const optionRefs = candidate.payload.options.map((option) => option.clientRef);
+  const optionRefs = candidate.payload.options.map(
+    (option) => option.clientRef,
+  );
   const valid =
     candidate.difficulty >= 1 &&
     candidate.difficulty <= 5 &&
@@ -378,13 +452,15 @@ export const validateQuestionDecisionRules = (
     candidate.payload.options.length > 0 &&
     optionRefs.length === new Set(optionRefs).size &&
     candidate.payload.options.every(
-      (option, index) => option.position === index,
+      (option, index) =>
+        option.position === index && hasValidInlineSpan(candidate, option),
     ) &&
     optionRefs.includes(candidate.payload.correctOptionRef) &&
     candidate.payload.blocks.filter((block) => block.kind === 'QUESTION')
       .length === 1 &&
     candidate.tagIds.length === new Set(candidate.tagIds).size &&
-    candidate.payload.tagSlugs.length === new Set(candidate.payload.tagSlugs).size;
+    candidate.payload.tagSlugs.length ===
+      new Set(candidate.payload.tagSlugs).size;
 
   return valid
     ? { status: 'PASSED', code: null }
