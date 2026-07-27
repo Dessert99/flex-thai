@@ -444,13 +444,14 @@ export class DrizzleContentProductionRepository implements ContentProductionRepo
   ): Promise<boolean> {
     return this.database.transaction(async (transaction) => {
       const { artifacts, ...terminal } = outcome;
+      const finishedAt = this.now();
       const updated = await transaction
         .update(jobItems)
         .set({
           ...terminal,
           leaseUntil: null,
           leaseToken: null,
-          updatedAt: this.now(),
+          updatedAt: finishedAt,
         })
         .where(
           and(
@@ -459,6 +460,7 @@ export class DrizzleContentProductionRepository implements ContentProductionRepo
             eq(jobItems.attempt, attempt),
             eq(jobItems.status, 'PROCESSING'),
             eq(jobItems.leaseToken, leaseToken),
+            gt(jobItems.leaseUntil, finishedAt),
           ),
         )
         .returning({ id: jobItems.id });

@@ -134,14 +134,17 @@ export class AiVocabularyProductionProcessor {
         promptVersion: 'vocabulary-extraction-v1',
       }),
       this.providerRuns,
-      async () => ({
-        kind: 'CANDIDATES',
-        candidates: await this.extractionProvider.extract({
+      async () => {
+        const extracted = await this.extractionProvider.extract({
           text,
           preset: workItem.presetSnapshot,
           signal,
-        }),
-      }),
+        });
+        return {
+          kind: 'CANDIDATES',
+          ...extracted,
+        };
+      },
     );
 
     if (extraction.status !== 'SUCCEEDED') {
@@ -163,6 +166,11 @@ export class AiVocabularyProductionProcessor {
 
     const records: VocabularyProductionCandidateRecord[] = [];
     const validations: VocabularyProductionValidationRecord[] = [];
+    const providerFailures: Array<{
+      status: 'FAILED' | 'OUTCOME_UNKNOWN';
+      errorCode: string;
+      retryable: boolean;
+    }> = [];
 
     for (const [ordinal, candidate] of candidates.entries()) {
       const evaluated = await evaluateVocabularyCandidate({
@@ -198,7 +206,20 @@ export class AiVocabularyProductionProcessor {
       );
 
       if (crossValidation.status !== 'SUCCEEDED') {
-        return providerFailureOutcome(crossValidation);
+        providerFailures.push(crossValidation);
+        validations.push({
+          candidateOrdinal: ordinal,
+          stage: 'AI_CROSS_VALIDATION',
+          status: 'FAILED',
+          code: crossValidation.errorCode,
+          details: { retryable: crossValidation.retryable },
+        });
+        evaluated.candidate.resultGroup =
+          crossValidation.status === 'OUTCOME_UNKNOWN'
+            ? 'NEEDS_ATTENTION'
+            : 'FAILED';
+        evaluated.candidate.reviewCode = crossValidation.errorCode;
+        continue;
       }
 
       const validation =
@@ -234,11 +255,22 @@ export class AiVocabularyProductionProcessor {
         .length,
     };
     const needsAttention = counts.needsAttention > 0 || counts.failed > 0;
+    const outcomeUnknown = providerFailures.find(
+      ({ status }) => status === 'OUTCOME_UNKNOWN',
+    );
+    const providerFailure = providerFailures[0];
 
     return {
-      status: needsAttention ? 'NEEDS_ATTENTION' : 'SUCCEEDED',
-      retryable: false,
-      errorCode: null,
+      status: outcomeUnknown
+        ? 'NEEDS_ATTENTION'
+        : providerFailure
+          ? 'FAILED'
+          : needsAttention
+            ? 'NEEDS_ATTENTION'
+            : 'SUCCEEDED',
+      retryable: providerFailures.some(({ retryable }) => retryable),
+      errorCode:
+        outcomeUnknown?.errorCode ?? providerFailure?.errorCode ?? null,
       result: counts,
       artifacts: {
         kind: 'VOCABULARY_CANDIDATES',

@@ -1,5 +1,5 @@
 /** AI 어휘 후보와 provider 실행을 PostgreSQL 조건부 전이로 저장한다 */
-import { and, eq } from 'drizzle-orm';
+import { and, eq, gt } from 'drizzle-orm';
 import type {
   VocabularyProviderExecution,
   VocabularyProviderFailure,
@@ -8,7 +8,7 @@ import type {
 } from '@flex-thia/domain';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
-import { providerRuns } from '../../schema/jobs.schema.js';
+import { jobItems, providerRuns } from '../../schema/jobs.schema.js';
 
 type AiVocabularyDatabase = PgDatabase<PgQueryResultHKT>;
 type AiVocabularyTransaction = Parameters<
@@ -72,6 +72,25 @@ export class DrizzleAiVocabularyProductionRepository implements VocabularyProvid
     execution: VocabularyProviderExecution,
   ): ReturnType<VocabularyProviderRunRepository['claim']> {
     return this.database.transaction(async (transaction) => {
+      const claimedAt = this.now();
+      const [activeItem] = await transaction
+        .select({ id: jobItems.id })
+        .from(jobItems)
+        .where(
+          and(
+            eq(jobItems.id, execution.jobItemId),
+            eq(jobItems.attempt, execution.jobAttempt),
+            eq(jobItems.status, 'PROCESSING'),
+            eq(jobItems.leaseToken, execution.itemLeaseToken),
+            gt(jobItems.leaseUntil, claimedAt),
+          ),
+        )
+        .for('update')
+        .limit(1);
+      if (!activeItem) {
+        return { kind: 'OUTCOME_UNKNOWN' };
+      }
+
       const existing = await readExecution(transaction, execution);
 
       if (existing) {
@@ -86,7 +105,7 @@ export class DrizzleAiVocabularyProductionRepository implements VocabularyProvid
               success: false,
               retryable: true,
               errorCode: 'PROVIDER_OUTCOME_UNKNOWN',
-              finishedAt: this.now(),
+              finishedAt: claimedAt,
             })
             .where(
               and(
@@ -111,7 +130,7 @@ export class DrizzleAiVocabularyProductionRepository implements VocabularyProvid
           itemLeaseToken: execution.itemLeaseToken,
           attempt: execution.jobAttempt,
           status: 'STARTED',
-          startedAt: this.now(),
+          startedAt: claimedAt,
         })
         .onConflictDoNothing()
         .returning({ id: providerRuns.id });
@@ -130,12 +149,21 @@ export class DrizzleAiVocabularyProductionRepository implements VocabularyProvid
     runId: string,
     result: VocabularyProviderNormalizedResult,
   ): Promise<boolean> {
+    const {
+      usage = {},
+      estimatedCostUsd = '0',
+      providerRequestId = null,
+      ...normalizedResult
+    } = result;
     const rows = await this.database
       .update(providerRuns)
       .set({
         status: 'SUCCEEDED',
         success: true,
-        result,
+        result: normalizedResult,
+        usage,
+        estimatedCostUsd,
+        providerRequestId,
         retryable: false,
         errorCode: null,
         finishedAt: this.now(),

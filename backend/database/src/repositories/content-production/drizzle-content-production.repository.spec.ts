@@ -1,5 +1,6 @@
 /** Drizzle 콘텐츠 제작 adapter가 stale 상태 전이를 성공처럼 처리하지 않는지 검증한다 */
 import { describe, expect, it, vi } from 'vitest';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import { DrizzleContentProductionRepository } from './drizzle-content-production.repository.js';
 
 describe('DrizzleContentProductionRepository 조건부 전이', () => {
@@ -162,6 +163,33 @@ describe('DrizzleContentProductionRepository 조건부 전이', () => {
       }),
     ).resolves.toBe(false);
     expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('만료된 lease는 token이 같아도 terminal 결과를 저장하지 않는다', async () => {
+    const returning = vi.fn().mockResolvedValue([]);
+    const where = vi.fn(() => ({ returning }));
+    const set = vi.fn(() => ({ where }));
+    const update = vi.fn(() => ({ set }));
+    const transaction = vi.fn(
+      (callback: (executor: unknown) => Promise<unknown>) =>
+        callback({ update }),
+    );
+    const now = new Date('2026-07-27T00:05:00.000Z');
+    const repository = new DrizzleContentProductionRepository(
+      { transaction } as never,
+      () => now,
+    );
+
+    await repository.finishItem('job-id', 'item-id', 1, 'lease-token', {
+      status: 'SUCCEEDED',
+      retryable: false,
+      errorCode: null,
+    });
+
+    const [condition] = where.mock.calls[0] as unknown[];
+    const compiled = new PgDialect().sqlToQuery(condition as never);
+    expect(compiled.sql).toContain('"job_items"."lease_until" >');
+    expect(compiled.params).toContain(now.toISOString());
   });
 
   it('현재 QUEUED 또는 RUNNING attempt가 아니면 failure marker를 무시한다', async () => {

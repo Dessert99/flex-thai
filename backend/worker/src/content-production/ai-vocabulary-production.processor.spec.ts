@@ -10,6 +10,7 @@ import type {
   VocabularyProductionLookup,
   VocabularyProviderRunRepository,
 } from '@flex-thia/domain';
+import { VocabularyProviderCallError } from '@flex-thia/domain';
 import { AiVocabularyProductionProcessor } from './ai-vocabulary-production.processor.js';
 
 const workItem = (
@@ -59,6 +60,8 @@ const createProcessor = (
     },
   ],
   lookupOverride?: VocabularyProductionLookup,
+  validationOverride?: VocabularyCrossValidationProvider,
+  providerRunsOverride?: VocabularyProviderRunRepository,
 ) => {
   let ocrCount = 0;
   const reader: ContentProductionInputReader = {
@@ -71,9 +74,9 @@ const createProcessor = (
     },
   };
   const extraction: VocabularyExtractionProvider = {
-    extract: () => Promise.resolve(candidates),
+    extract: () => Promise.resolve({ candidates }),
   };
-  const validation: VocabularyCrossValidationProvider = {
+  const validation: VocabularyCrossValidationProvider = validationOverride ?? {
     validate: () => Promise.resolve({ status: 'PASSED', code: null }),
   };
   const lookup: VocabularyProductionLookup = lookupOverride ?? {
@@ -81,12 +84,13 @@ const createProcessor = (
     findSuspected: () => Promise.resolve([]),
   };
   let runSequence = 0;
-  const providerRuns: VocabularyProviderRunRepository = {
-    claim: () =>
-      Promise.resolve({ kind: 'CLAIMED', runId: `run-${runSequence++}` }),
-    succeed: () => Promise.resolve(true),
-    fail: () => Promise.resolve(true),
-  };
+  const providerRuns: VocabularyProviderRunRepository =
+    providerRunsOverride ?? {
+      claim: () =>
+        Promise.resolve({ kind: 'CLAIMED', runId: `run-${runSequence++}` }),
+      succeed: () => Promise.resolve(true),
+      fail: () => Promise.resolve(true),
+    };
   return {
     processor: new AiVocabularyProductionProcessor(
       reader,
@@ -177,5 +181,73 @@ describe('AI 어휘 제작 processor', () => {
       }),
     );
     expect(outcome.status).toBe('NEEDS_ATTENTION');
+  });
+
+  it('후보 하나의 교차 검증 실패가 후속 후보와 기존 artifact를 버리지 않는다', async () => {
+    let validationCount = 0;
+    const { processor } = createProcessor(
+      [
+        {
+          thai: 'หนึ่ง',
+          kind: 'WORD',
+          meanings: [
+            { meaningKo: '하나', partOfSpeech: '수사', difficulty: 1 },
+          ],
+        },
+        {
+          thai: 'สอง',
+          kind: 'WORD',
+          meanings: [{ meaningKo: '둘', partOfSpeech: '수사', difficulty: 1 }],
+        },
+      ],
+      undefined,
+      {
+        validate: () => {
+          validationCount += 1;
+          return validationCount === 1
+            ? Promise.reject(
+                new VocabularyProviderCallError(
+                  'CROSS_VALIDATION_FAILED',
+                  true,
+                  true,
+                ),
+              )
+            : Promise.resolve({ status: 'PASSED', code: null });
+        },
+      },
+    );
+
+    const outcome = await processor.process(
+      workItem('TEXT'),
+      new AbortController().signal,
+    );
+
+    expect(validationCount).toBe(2);
+    expect(outcome).toMatchObject({
+      status: 'FAILED',
+      retryable: true,
+      errorCode: 'CROSS_VALIDATION_FAILED',
+      artifacts: {
+        candidates: [
+          { ordinal: 0, resultGroup: 'FAILED' },
+          { ordinal: 1, resultGroup: 'NORMAL' },
+        ],
+      },
+    });
+    expect(outcome.artifacts?.validations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          candidateOrdinal: 0,
+          stage: 'AI_CROSS_VALIDATION',
+          status: 'FAILED',
+          code: 'CROSS_VALIDATION_FAILED',
+        }),
+        expect.objectContaining({
+          candidateOrdinal: 1,
+          stage: 'AI_CROSS_VALIDATION',
+          status: 'PASSED',
+        }),
+      ]),
+    );
   });
 });

@@ -1,5 +1,6 @@
 /** AI 어휘 provider 실행이 같은 attempt에서 중복 호출되지 않는지 검증한다 */
 import { describe, expect, it, vi } from 'vitest';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import { DrizzleAiVocabularyProductionRepository } from './drizzle-ai-vocabulary-production.repository.js';
 
 const execution = {
@@ -14,6 +15,70 @@ const execution = {
 };
 
 describe('DrizzleAiVocabularyProductionRepository provider 수명', () => {
+  it('provider 성공의 usage·비용·request ID를 전용 컬럼에 저장한다', async () => {
+    const returning = vi.fn().mockResolvedValue([{ id: 'run-id' }]);
+    const where = vi.fn(() => ({ returning }));
+    const set = vi.fn(() => ({ where }));
+    const update = vi.fn(() => ({ set }));
+    const repository = new DrizzleAiVocabularyProductionRepository({
+      update,
+    } as never);
+
+    await repository.succeed('run-id', {
+      kind: 'TEXT',
+      text: '결과',
+      usage: { inputTokens: 10, outputTokens: 3 },
+      estimatedCostUsd: '0.001200',
+      providerRequestId: 'provider-request-id',
+    });
+
+    expect(set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        result: { kind: 'TEXT', text: '결과' },
+        usage: { inputTokens: 10, outputTokens: 3 },
+        estimatedCostUsd: '0.001200',
+        providerRequestId: 'provider-request-id',
+      }),
+    );
+  });
+
+  it('활성 PROCESSING lease가 없으면 provider 실행을 만들지 않는다', async () => {
+    const limit = vi.fn().mockResolvedValue([]);
+    const lock = vi.fn(() => ({ limit }));
+    const where = vi.fn(() => ({ for: lock, limit }));
+    const from = vi.fn(() => ({ where }));
+    const select = vi.fn(() => ({ from }));
+    const insert = vi.fn();
+    const transaction = vi.fn(
+      (callback: (executor: unknown) => Promise<unknown>) =>
+        callback({ insert, select }),
+    );
+    const now = new Date('2026-07-27T00:05:00.000Z');
+    const repository = new DrizzleAiVocabularyProductionRepository(
+      { transaction } as never,
+      () => now,
+    );
+
+    await expect(repository.claim(execution)).resolves.toEqual({
+      kind: 'OUTCOME_UNKNOWN',
+    });
+    expect(insert).not.toHaveBeenCalled();
+    const [condition] = where.mock.calls[0] as unknown[];
+    const compiled = new PgDialect().sqlToQuery(condition as never);
+    expect(compiled.sql).toContain('"job_items"."attempt" =');
+    expect(compiled.sql).toContain('"job_items"."status" =');
+    expect(compiled.sql).toContain('"job_items"."lease_token" =');
+    expect(compiled.sql).toContain('"job_items"."lease_until" >');
+    expect(compiled.params).toEqual(
+      expect.arrayContaining([
+        execution.jobAttempt,
+        'PROCESSING',
+        execution.itemLeaseToken,
+        now.toISOString(),
+      ]),
+    );
+  });
+
   it('성공한 실행은 normalized 결과를 replay한다', async () => {
     const limit = vi.fn().mockResolvedValue([
       {
@@ -22,7 +87,8 @@ describe('DrizzleAiVocabularyProductionRepository provider 수명', () => {
         result: { kind: 'TEXT', text: '저장 결과' },
       },
     ]);
-    const where = vi.fn(() => ({ limit }));
+    const lock = vi.fn(() => ({ limit }));
+    const where = vi.fn(() => ({ for: lock, limit }));
     const from = vi.fn(() => ({ where }));
     const select = vi.fn(() => ({ from }));
     const transaction = vi.fn(
@@ -40,15 +106,18 @@ describe('DrizzleAiVocabularyProductionRepository provider 수명', () => {
   });
 
   it('STARTED 실행이 남아 있으면 outcome unknown으로 닫고 재호출을 막는다', async () => {
-    const limit = vi.fn().mockResolvedValueOnce([
-      {
-        id: 'run-id',
-        status: 'STARTED',
-        result: null,
-        itemLeaseToken: 'old-lease-token',
-      },
-    ]);
-    const selectWhere = vi.fn(() => ({ limit }));
+    const started = {
+      id: 'run-id',
+      status: 'STARTED',
+      result: null,
+      itemLeaseToken: 'old-lease-token',
+    };
+    const limit = vi
+      .fn()
+      .mockResolvedValueOnce([{ id: execution.jobItemId }])
+      .mockResolvedValueOnce([started]);
+    const lock = vi.fn(() => ({ limit }));
+    const selectWhere = vi.fn(() => ({ for: lock, limit }));
     const from = vi.fn(() => ({ where: selectWhere }));
     const select = vi.fn(() => ({ from }));
     const updateWhere = vi.fn().mockResolvedValue(undefined);
@@ -82,7 +151,8 @@ describe('DrizzleAiVocabularyProductionRepository provider 수명', () => {
         itemLeaseToken: 'new-lease-token',
       },
     ]);
-    const where = vi.fn(() => ({ limit }));
+    const lock = vi.fn(() => ({ limit }));
+    const where = vi.fn(() => ({ for: lock, limit }));
     const from = vi.fn(() => ({ where }));
     const select = vi.fn(() => ({ from }));
     const update = vi.fn();
@@ -101,8 +171,12 @@ describe('DrizzleAiVocabularyProductionRepository provider 수명', () => {
   });
 
   it('실행 key가 없으면 STARTED row를 만들고 소유권을 반환한다', async () => {
-    const limit = vi.fn().mockResolvedValue([]);
-    const where = vi.fn(() => ({ limit }));
+    const limit = vi
+      .fn()
+      .mockResolvedValueOnce([{ id: execution.jobItemId }])
+      .mockResolvedValueOnce([]);
+    const lock = vi.fn(() => ({ limit }));
+    const where = vi.fn(() => ({ for: lock, limit }));
     const from = vi.fn(() => ({ where }));
     const select = vi.fn(() => ({ from }));
     const returning = vi.fn().mockResolvedValue([{ id: 'new-run-id' }]);

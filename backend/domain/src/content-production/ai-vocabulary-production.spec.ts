@@ -119,6 +119,30 @@ describe('AI 어휘 후보 결정 규칙', () => {
     ]);
   });
 
+  it('기존 뜻과 새 뜻이 섞이면 전체를 기존 뜻으로 오분류하지 않는다', async () => {
+    const result = await evaluateVocabularyCandidate({
+      candidate: {
+        ...candidate,
+        meanings: [
+          ...candidate.meanings,
+          { meaningKo: '새로운 뜻', partOfSpeech: '명사', difficulty: 2 },
+        ],
+      },
+      ordinal: 0,
+      lookup: lookup(
+        {
+          vocabularyId: 'exact-id',
+          meanings: [{ meaningKo: '안녕 하세요' }],
+        },
+        [],
+      ),
+      policy: { suspectedDuplicateMaxCodePointDistance: 1 },
+    });
+
+    expect(result.candidate.classification).toBe('EXACT_NEW_MEANING');
+    expect(result.candidate.resultGroup).toBe('NORMAL');
+  });
+
   it('preset의 의심 중복 거리는 0부터 3 사이 정수만 허용한다', () => {
     expect(() =>
       readVocabularyProductionPolicy({
@@ -206,6 +230,24 @@ describe('AI 어휘 provider 실행 수명', () => {
 
     expect(completed).toEqual([{ kind: 'TEXT', text: '새 결과' }]);
     expect(result.status).toBe('SUCCEEDED');
+  });
+
+  it('성공 결과를 durable 저장하지 못하면 성공으로 반환하지 않는다', async () => {
+    const result = await runVocabularyProviderOperation(
+      execution,
+      {
+        claim: () => Promise.resolve({ kind: 'CLAIMED', runId: 'run-id' }),
+        succeed: () => Promise.resolve(false),
+        fail: () => Promise.resolve(false),
+      },
+      () => Promise.resolve({ kind: 'TEXT', text: '저장되지 않은 결과' }),
+    );
+
+    expect(result).toEqual({
+      status: 'OUTCOME_UNKNOWN',
+      errorCode: 'PROVIDER_OUTCOME_UNKNOWN',
+      retryable: true,
+    });
   });
 
   it('응답 수신 여부가 불명확한 오류를 outcome unknown으로 저장한다', async () => {

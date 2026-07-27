@@ -86,7 +86,7 @@ export interface ContentOcrProvider {
     bytes: Uint8Array;
     inputType: 'PDF' | 'IMAGE';
     signal: AbortSignal;
-  }): Promise<{ text: string }>;
+  }): Promise<{ text: string } & Partial<VocabularyProviderMetadata>>;
 }
 
 /** text에서 구조화된 어휘 후보를 추출하는 AI port */
@@ -95,7 +95,11 @@ export interface VocabularyExtractionProvider {
     text: string;
     preset: ContentProductionPresetSnapshot;
     signal: AbortSignal;
-  }): Promise<ExtractedVocabularyCandidate[]>;
+  }): Promise<
+    {
+      candidates: ExtractedVocabularyCandidate[];
+    } & Partial<VocabularyProviderMetadata>
+  >;
 }
 
 /** 결정 규칙과 분리된 AI 교차 검증 port */
@@ -104,7 +108,19 @@ export interface VocabularyCrossValidationProvider {
     candidate: VocabularyProductionCandidateRecord;
     preset: ContentProductionPresetSnapshot;
     signal: AbortSignal;
-  }): Promise<{ status: 'PASSED' | 'FAILED'; code: string | null }>;
+  }): Promise<
+    {
+      status: 'PASSED' | 'FAILED';
+      code: string | null;
+    } & Partial<VocabularyProviderMetadata>
+  >;
+}
+
+/** provider 호출에서 normalized payload와 분리해 보존할 운영 metadata */
+export interface VocabularyProviderMetadata {
+  usage: Record<string, number>;
+  estimatedCostUsd: string;
+  providerRequestId: string | null;
 }
 
 /** 한 provider 호출을 중복 없이 식별하는 실행 key */
@@ -120,14 +136,16 @@ export interface VocabularyProviderExecution {
 }
 
 /** replay 가능한 provider 정규화 결과 */
-export type VocabularyProviderNormalizedResult =
+export type VocabularyProviderNormalizedResult = (
   | { kind: 'TEXT'; text: string }
   | { kind: 'CANDIDATES'; candidates: ExtractedVocabularyCandidate[] }
   | {
       kind: 'VALIDATION';
       status: 'PASSED' | 'FAILED';
       code: string | null;
-    };
+    }
+) &
+  Partial<VocabularyProviderMetadata>;
 
 /** provider 실행의 terminal 실패 */
 export interface VocabularyProviderFailure {
@@ -192,7 +210,14 @@ export const runVocabularyProviderOperation = async (
 
   try {
     const result = await call();
-    await repository.succeed(claim.runId, result);
+    const saved = await repository.succeed(claim.runId, result);
+    if (!saved) {
+      return {
+        status: 'OUTCOME_UNKNOWN',
+        errorCode: 'PROVIDER_OUTCOME_UNKNOWN',
+        retryable: true,
+      };
+    }
     return { status: 'SUCCEEDED', result };
   } catch (error) {
     const failure: VocabularyProviderFailure =
@@ -277,7 +302,7 @@ const hasExistingMeaning = (
   const existing = new Set(
     exact.meanings.map((meaning) => normalizeMeaning(meaning.meaningKo)),
   );
-  return candidate.meanings.some((meaning) =>
+  return candidate.meanings.every((meaning) =>
     existing.has(normalizeMeaning(meaning.meaningKo)),
   );
 };

@@ -13,7 +13,7 @@ export class FakeVocabularyExtractionProvider implements VocabularyExtractionPro
   /** 취소 신호를 지키고 호출 간 fixture mutation을 격리한다 */
   extract(
     input: Parameters<VocabularyExtractionProvider['extract']>[0],
-  ): Promise<ExtractedVocabularyCandidate[]> {
+  ): ReturnType<VocabularyExtractionProvider['extract']> {
     if (input.signal.aborted) {
       return Promise.reject(
         input.signal.reason instanceof Error
@@ -21,6 +21,8 @@ export class FakeVocabularyExtractionProvider implements VocabularyExtractionPro
           : new Error('어휘 추출이 취소되었습니다'),
       );
     }
-    return Promise.resolve(structuredClone(this.fixtures[input.text] ?? []));
+    return Promise.resolve({
+      candidates: structuredClone(this.fixtures[input.text] ?? []),
+    });
   }
 }

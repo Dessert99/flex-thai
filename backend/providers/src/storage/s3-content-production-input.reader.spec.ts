@@ -11,12 +11,19 @@ const input = {
   sizeBytes: 3,
 };
 
+const bodyFrom = (...chunks: number[][]) => ({
+  async *[Symbol.asyncIterator]() {
+    await Promise.resolve();
+    for (const chunk of chunks) {
+      yield Uint8Array.from(chunk);
+    }
+  },
+});
+
 describe('S3ContentProductionInputReader', () => {
   it('snapshot의 exact key object를 읽는다', async () => {
     const send = vi.fn().mockResolvedValue({
-      Body: {
-        transformToByteArray: () => Promise.resolve(Uint8Array.from([1, 2, 3])),
-      },
+      Body: bodyFrom([1, 2], [3]),
     });
     const reader = new S3ContentProductionInputReader(
       { send } as never,
@@ -37,9 +44,7 @@ describe('S3ContentProductionInputReader', () => {
 
   it('검증된 size와 다른 object를 거절한다', async () => {
     const send = vi.fn().mockResolvedValue({
-      Body: {
-        transformToByteArray: () => Promise.resolve(Uint8Array.from([1, 2])),
-      },
+      Body: bodyFrom([1, 2]),
     });
     const reader = new S3ContentProductionInputReader(
       { send } as never,
@@ -49,5 +54,71 @@ describe('S3ContentProductionInputReader', () => {
     await expect(
       reader.read(input, new AbortController().signal),
     ).rejects.toThrow('CONTENT_INPUT_SIZE_MISMATCH');
+  });
+
+  it('expected size를 넘는 즉시 stream을 중단하고 후속 chunk를 읽지 않는다', async () => {
+    let yielded = 0;
+    const destroy = vi.fn();
+    const body = {
+      destroy,
+      async *[Symbol.asyncIterator]() {
+        await Promise.resolve();
+        yielded += 1;
+        yield Uint8Array.from([1, 2]);
+        yielded += 1;
+        yield Uint8Array.from([3, 4]);
+        yielded += 1;
+        yield Uint8Array.from([5]);
+      },
+    };
+    const send = vi.fn().mockResolvedValue({ Body: body });
+    const reader = new S3ContentProductionInputReader(
+      { send } as never,
+      'input-bucket',
+    );
+
+    await expect(
+      reader.read(input, new AbortController().signal),
+    ).rejects.toThrow('CONTENT_INPUT_SIZE_MISMATCH');
+    expect(yielded).toBe(2);
+    expect(destroy).toHaveBeenCalledOnce();
+  });
+
+  it('취소된 signal은 stream을 중단한다', async () => {
+    const destroy = vi.fn();
+    const send = vi.fn().mockResolvedValue({
+      Body: { ...bodyFrom([1, 2, 3]), destroy },
+    });
+    const reader = new S3ContentProductionInputReader(
+      { send } as never,
+      'input-bucket',
+    );
+    const controller = new AbortController();
+    controller.abort(new Error('사용자 취소'));
+
+    await expect(reader.read(input, controller.signal)).rejects.toThrow(
+      '사용자 취소',
+    );
+    expect(destroy).toHaveBeenCalledOnce();
+  });
+
+  it('stream 오류를 숨기지 않는다', async () => {
+    const send = vi.fn().mockResolvedValue({
+      Body: {
+        async *[Symbol.asyncIterator]() {
+          await Promise.resolve();
+          yield Uint8Array.from([1]);
+          throw new Error('S3_STREAM_FAILED');
+        },
+      },
+    });
+    const reader = new S3ContentProductionInputReader(
+      { send } as never,
+      'input-bucket',
+    );
+
+    await expect(
+      reader.read(input, new AbortController().signal),
+    ).rejects.toThrow('S3_STREAM_FAILED');
   });
 });

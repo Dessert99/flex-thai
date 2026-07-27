@@ -2,6 +2,53 @@
 import { GetObjectCommand, type S3Client } from '@aws-sdk/client-s3';
 import type { ContentProductionInputReader } from '@flex-thia/domain';
 
+type BoundedS3Body = AsyncIterable<Uint8Array> & {
+  destroy?: () => void;
+};
+
+const readBounded = async (
+  body: BoundedS3Body,
+  expectedSize: number,
+  signal: AbortSignal,
+): Promise<Uint8Array> => {
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  const stop = () => body.destroy?.();
+  signal.addEventListener('abort', stop, { once: true });
+
+  try {
+    if (signal.aborted) {
+      stop();
+      throw signal.reason;
+    }
+    for await (const chunk of body) {
+      if (signal.aborted) {
+        stop();
+        throw signal.reason;
+      }
+      if (total + chunk.byteLength > expectedSize) {
+        stop();
+        throw new Error('CONTENT_INPUT_SIZE_MISMATCH');
+      }
+      chunks.push(chunk);
+      total += chunk.byteLength;
+    }
+  } finally {
+    signal.removeEventListener('abort', stop);
+  }
+
+  if (total !== expectedSize) {
+    throw new Error('CONTENT_INPUT_SIZE_MISMATCH');
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
+};
+
 /** input snapshot 밖의 key를 만들지 않고 bytes를 공개 경계 밖에서 유지한다 */
 export class S3ContentProductionInputReader implements ContentProductionInputReader {
   constructor(
@@ -25,11 +72,10 @@ export class S3ContentProductionInputReader implements ContentProductionInputRea
     if (!object.Body) {
       throw new Error('CONTENT_INPUT_BODY_MISSING');
     }
-    const bytes = await object.Body.transformToByteArray();
-
-    if (bytes.byteLength !== input.sizeBytes) {
-      throw new Error('CONTENT_INPUT_SIZE_MISMATCH');
+    const body = object.Body as unknown as BoundedS3Body;
+    if (typeof body[Symbol.asyncIterator] !== 'function') {
+      throw new Error('CONTENT_INPUT_STREAM_UNSUPPORTED');
     }
-    return bytes;
+    return readBounded(body, input.sizeBytes, signal);
   }
 }

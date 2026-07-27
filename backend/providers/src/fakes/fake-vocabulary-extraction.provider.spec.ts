@@ -16,7 +16,7 @@ describe('FakeVocabularyExtractionProvider', () => {
       ],
     });
 
-    const candidates = await provider.extract({
+    const result = await provider.extract({
       text: 'สวัสดี',
       preset: {
         id: 'preset-id',
@@ -28,6 +28,6 @@ describe('FakeVocabularyExtractionProvider', () => {
       signal: new AbortController().signal,
     });
 
-    expect(candidates[0]?.thai).toBe('สวัสดี');
+    expect(result.candidates[0]?.thai).toBe('สวัสดี');
   });
 });
