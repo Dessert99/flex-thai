@@ -1,7 +1,9 @@
 /** 문제 탐색 URL 상태가 실제 API 요청과 route 검증 경계에서 보존되는지 검증한다 */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { questionListQueryOptions } from '@/pages/question-list/api/questionListQueries';
-import { parseQuestionListSearch } from '@/pages/question-list';
+import {
+  parseQuestionListSearch,
+  questionListQueryOptions,
+} from '@/pages/question-list';
 import { createTestQueryClient } from '@/shared/test';
 import { Route } from './_authenticated._learner.questions';
 
