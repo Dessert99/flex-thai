@@ -82,6 +82,7 @@ export class ApplicationStack extends Stack {
       fromEmail: `no-reply@${props.config.rootDomain}`,
       inputBucket: props.dataStack.inputBucket,
       jobQueue: this.asyncJobs.queue,
+      ttsVoicePresetId: props.config.ttsVoicePresetId,
       mediaBucket: props.dataStack.mediaBucket,
       mediaCdnBaseUrl: `https://${webDomain}/media`,
       mediaKeyPairId: props.mediaKeyPairId,

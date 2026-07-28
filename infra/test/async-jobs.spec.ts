@@ -12,6 +12,7 @@ const config = readInfrastructureConfig({
   hostedZoneId: 'Z0123456789EXAMPLE',
   alertEmail: 'owner@example.com',
   githubRepository: 'Dessert99/flex-thai',
+  ttsVoicePresetId: '00000000-0000-4000-8000-000000000777',
   mediaPublicKeyPem:
     '-----BEGIN PUBLIC KEY-----\ndGVzdA==\n-----END PUBLIC KEY-----',
 });
@@ -200,5 +201,44 @@ describe('AsyncJobs', () => {
     expect(policies).toContain('s3:GetObject');
     expect(policies).toContain('s3:DeleteObject');
     expect(policies).toContain('private/tts/runs/*');
+  });
+
+  it('GC ListBucket 권한은 private TTS run prefix로만 제한한다', () => {
+    const app = new App();
+    const dataStack = new DataStack(app, 'AsyncGcListData');
+    const stack = new ApplicationStack(app, 'AsyncGcListApplication', {
+      config,
+      dataStack,
+      mediaKeyPairId: 'KTESTMEDIAKEY',
+    });
+    const policies = Object.values(
+      Template.fromStack(stack).findResources('AWS::IAM::Policy') as Record<
+        string,
+        {
+          Properties: {
+            PolicyDocument: {
+              Statement: Array<Record<string, unknown>>;
+            };
+          };
+        }
+      >,
+    );
+    const statements = policies.flatMap(
+      ({ Properties }) => Properties.PolicyDocument.Statement,
+    );
+
+    expect(statements).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          Action: 's3:ListBucket',
+          Condition: {
+            StringLike: {
+              's3:prefix': 'private/tts/runs/*',
+            },
+          },
+          Effect: 'Allow',
+        }),
+      ]),
+    );
   });
 });

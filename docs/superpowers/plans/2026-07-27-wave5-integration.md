@@ -355,6 +355,7 @@ interface GeneratedDraftSentenceInput
 - Modify/Test: `backend/api/src/media/media.module.ts`
 - Modify/Test: `backend/worker/src/dispatch/async-dispatch-relay-task.ts`
 - Modify/Test: `backend/worker/src/media/tts-entry-runtime.ts`
+- Create/Test: `backend/worker/src/local-worker.ts`
 - Modify/Test: `compose.yaml`
 - Modify/Test: `backend/config/src/local-compose.spec.ts`
 - Modify/Test: `infra/src/constructs/async-jobs.ts`
@@ -377,18 +378,25 @@ interface GeneratedDraftSentenceInput
   concurrency and grants their DB access
 - Replaces production `UnavailableTtsAudioStore` with private S3 put,
   metadata-inspect and reference-safe delete; the adapter must preserve
-  reserved storage keys, abort/deadline no-late-visibility and immutable
-  metadata checks
-- Grants task/GC only required media-bucket object permissions and adds the
+  reserved storage keys, recompute the bytes SHA-256 before I/O, and reconcile
+  abort/deadline write races to an exact visible object without deleting a
+  concurrent writer's object
+- Grants task/GC only required media-bucket object permissions, including
+  GC-only bucket listing restricted to `private/tts/runs/*`, and adds the
   orphan-audio lifecycle policy without exposing storage keys through HTTP
+- Requires an explicit production `TTS_VOICE_PRESET_ID` through API and CDK
+  configuration. Only local mode may use the deterministic development default;
+  Task 8 owns bootstrapping the referenced active production row before traffic.
 - Replaces local `FakeMediaReadUrlProvider` with a local-only short-lived HMAC
   URL provider and `GET /local-media/:objectId`; the controller reads the
   object-id-mapped WAV from the exact
   `FLEX_THIA_LOCAL_TTS_AUDIO_DIRECTORY`, rejects expired/invalid tokens and
   never exposes the private storage key
 - Uses one named compose volume mounted at the same absolute local TTS
-  directory for API, relay, TTS task and GC processes; host execution keeps the
-  project-specific env override or the `tmpdir()/flex-thia/tts-audio` default
+  directory for API and one long-running, signal-aware worker process. The
+  worker continuously polls relay work and periodically runs GC; host execution
+  keeps the project-specific env override or the
+  `tmpdir()/flex-thia/tts-audio` default.
 
 - [ ] **Step 1: Write failing DI tests**
 
@@ -410,8 +418,11 @@ interface GeneratedDraftSentenceInput
   Local component tests must put through `LocalFileTtsAudioStore`, fetch the
   returned short-lived URL through the controller, compare exact WAV bytes and
   prove expired/tampered object IDs return 404 without leaking storage keys.
-  Compose assertions must prove every local media producer/consumer mounts the
-  same named volume and directory env value.
+  Compose assertions must prove API and the single local worker mount the same
+  named volume and directory env value, and the worker command stays running
+  until SIGINT/SIGTERM instead of importing one-shot Lambda modules. The
+  `test` profile must include that runner so the standard local manual-test
+  command does not omit relay and GC automation.
 
 - [ ] **Step 3: Run Red**
 
@@ -451,6 +462,9 @@ interface GeneratedDraftSentenceInput
   audio GC records, and nullable/check-constrained redacted AI candidate columns
 - Seed includes deterministic active type examples, voice preset and TTS-ready
   local fixtures
+- Operational bootstrap must insert and activate the production voice preset
+  row whose UUID is passed as `TTS_VOICE_PRESET_ID` before API traffic. The
+  local deterministic preset is not a production fallback.
 
 - [ ] **Step 1: Generate migration from combined schema**
 

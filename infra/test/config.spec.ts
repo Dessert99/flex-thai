@@ -10,6 +10,20 @@ describe('readInfrastructureConfig', () => {
     expect(() => readInfrastructureConfig({})).toThrow();
   });
 
+  it('production TTS voice preset UUID가 빠지면 synth 전에 실패한다', () => {
+    expect(() =>
+      readInfrastructureConfig({
+        account: '123456789012',
+        rootDomain: 'example.com',
+        hostedZoneId: 'Z0123456789EXAMPLE',
+        alertEmail: 'owner@example.com',
+        githubRepository: 'Dessert99/flex-thai',
+        mediaPublicKeyPem:
+          '-----BEGIN PUBLIC KEY-----\ndGVzdA==\n-----END PUBLIC KEY-----',
+      }),
+    ).toThrow();
+  });
+
   it('서울 애플리케이션과 버지니아 edge 리전을 고정한다', () => {
     const config = readInfrastructureConfig({
       account: '123456789012',
@@ -17,6 +31,7 @@ describe('readInfrastructureConfig', () => {
       hostedZoneId: 'Z0123456789EXAMPLE',
       alertEmail: 'owner@example.com',
       githubRepository: 'Dessert99/flex-thai',
+      ttsVoicePresetId: '00000000-0000-4000-8000-000000000777',
       mediaPublicKeyPem:
         '-----BEGIN PUBLIC KEY-----\ndGVzdA==\n-----END PUBLIC KEY-----',
     });
@@ -34,6 +49,7 @@ describe('readInfrastructureConfig', () => {
       hostedZoneId: 'Z0123456789EXAMPLE',
       alertEmail: 'owner@example.com',
       githubRepository: 'Dessert99/flex-thai',
+      ttsVoicePresetId: '00000000-0000-4000-8000-000000000777',
       mediaPublicKeyPem: `${mediaPublicKeyPem}\n`,
     });
 
@@ -50,8 +66,12 @@ describe('readInfrastructureConfig', () => {
         hostedZoneId: 'Z0123456789EXAMPLE',
         alertEmail: 'owner@example.com',
         githubRepository: 'Dessert99/flex-thai',
+        ttsVoicePresetId: '00000000-0000-4000-8000-000000000777',
       },
-      { MEDIA_PUBLIC_KEY_PEM: mediaPublicKeyPem },
+      {
+        MEDIA_PUBLIC_KEY_PEM: mediaPublicKeyPem,
+        TTS_VOICE_PRESET_ID: '00000000-0000-4000-8000-000000000777',
+      },
     );
 
     expect(config.mediaPublicKeyPem).toBe(mediaPublicKeyPem);
@@ -65,6 +85,7 @@ describe('readInfrastructureConfig', () => {
         hostedZoneId: 'Z0123456789EXAMPLE',
         alertEmail: 'owner@example.com',
         githubRepository: 'Dessert99/flex-thai',
+        ttsVoicePresetId: '00000000-0000-4000-8000-000000000777',
         mediaPublicKeyPem: 'test-public-key',
       }),
     ).toThrow('CloudFront media public key는 PEM 형식이어야 한다');

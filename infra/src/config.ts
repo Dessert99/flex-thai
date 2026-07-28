@@ -7,6 +7,7 @@ const infrastructureConfigSchema = z.object({
   hostedZoneId: z.string().min(2),
   alertEmail: z.email(),
   githubRepository: z.string().regex(/^[^/]+\/[^/]+$/u),
+  ttsVoicePresetId: z.uuid(),
   mediaPublicKeyPem: z
     .string()
     .trim()
@@ -37,4 +38,6 @@ export const readInfrastructureConfigFromSources = (
     ...context,
     mediaPublicKeyPem:
       context.mediaPublicKeyPem ?? environment.MEDIA_PUBLIC_KEY_PEM,
+    ttsVoicePresetId:
+      context.ttsVoicePresetId ?? environment.TTS_VOICE_PRESET_ID,
   });

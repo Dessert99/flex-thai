@@ -12,6 +12,7 @@ const config = readInfrastructureConfig({
   hostedZoneId: 'Z0123456789EXAMPLE',
   alertEmail: 'owner@example.com',
   githubRepository: 'Dessert99/flex-thai',
+  ttsVoicePresetId: '00000000-0000-4000-8000-000000000777',
   mediaPublicKeyPem:
     '-----BEGIN PUBLIC KEY-----\ndGVzdA==\n-----END PUBLIC KEY-----',
 });
@@ -234,6 +235,7 @@ describe('HttpApi 운영 API 경계', () => {
           MEDIA_CDN_BASE_URL: 'https://www.example.com/media',
           MEDIA_KEY_PAIR_ID: 'KTESTMEDIAKEY',
           MEDIA_PRIVATE_KEY_SECRET_ARN: Match.anyValue(),
+          TTS_VOICE_PRESET_ID: '00000000-0000-4000-8000-000000000777',
         }),
       },
     });

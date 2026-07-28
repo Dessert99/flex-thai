@@ -30,7 +30,7 @@ services:
       retries: 15
 
   db-setup:
-    profiles: [test, frontend-dev]
+    profiles: [test, frontend-dev, workers]
     build:
       context: .
       dockerfile: Dockerfile.local
@@ -67,8 +67,8 @@ services:
       timeout: 2s
       retries: 30
 
-  async-dispatch-relay:
-    profiles: [workers]
+  local-worker:
+    profiles: [test, workers]
     build:
       context: .
       dockerfile: Dockerfile.local
@@ -79,56 +79,15 @@ services:
       - '@flex-thia/worker'
       - exec
       - tsx
-      - src/dispatch/async-dispatch-relay-task.ts
+      - src/local-worker.ts
     environment:
       <<: *app-environment
     volumes:
       - flex-thia-tts-audio:/var/lib/flex-thia/tts-audio
     depends_on:
-      postgres:
-        condition: service_healthy
-
-  tts-task:
-    profiles: [workers]
-    build:
-      context: .
-      dockerfile: Dockerfile.local
-      target: workspace
-    command:
-      - pnpm
-      - --filter
-      - '@flex-thia/worker'
-      - exec
-      - tsx
-      - src/media/tts-task-entry.ts
-    environment:
-      <<: *app-environment
-    volumes:
-      - flex-thia-tts-audio:/var/lib/flex-thia/tts-audio
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-  tts-audio-gc:
-    profiles: [workers]
-    build:
-      context: .
-      dockerfile: Dockerfile.local
-      target: workspace
-    command:
-      - pnpm
-      - --filter
-      - '@flex-thia/worker'
-      - exec
-      - tsx
-      - src/media/tts-audio-gc-task.ts
-    environment:
-      <<: *app-environment
-    volumes:
-      - flex-thia-tts-audio:/var/lib/flex-thia/tts-audio
-    depends_on:
-      postgres:
-        condition: service_healthy
+      db-setup:
+        condition: service_completed_successfully
+    restart: unless-stopped
 
   web:
     profiles: [test]

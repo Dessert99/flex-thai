@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/unbound-method -- Vitest는 interface-owned mock method 호출 여부를 직접 검증한다. */
 import { describe, expect, it, vi } from 'vitest';
 import type { TtsAudioGarbageStore } from '@flex-thia/domain';
+import { S3TtsAudioStore } from '@flex-thia/providers';
 import {
   TtsAudioGarbageCollector,
   type TtsAudioGcRepository,
@@ -12,7 +13,7 @@ const claimed = {
   id: '00000000-0000-4000-8000-000000000001',
   leaseOwner: 'worker-a:lease-1',
   media: {
-    storageKey: 'private/tts/cache.wav',
+    storageKey: 'private/tts/runs/00000000-0000-4000-8000-000000000001.wav',
     mimeType: 'audio/wav' as const,
     sizeBytes: 204,
     sha256: 'a'.repeat(64),
@@ -79,6 +80,27 @@ describe('TTS audio garbage collector', () => {
 
     expect(store.delete).not.toHaveBeenCalled();
     expect(repository.acknowledgeAudioDeleted).toHaveBeenCalledOnce();
+  });
+
+  it('S3 HeadObject 404도 object 부재로 보고 같은 lease를 terminal ack한다', async () => {
+    const repository = createRepository();
+    const store = new S3TtsAudioStore(
+      {
+        send: vi.fn().mockRejectedValue({ $metadata: { httpStatusCode: 404 } }),
+      } as never,
+      'media-bucket',
+    );
+
+    await expect(
+      new TtsAudioGarbageCollector(repository, store, () => now).processBatch({
+        workerId: 'worker-a',
+        batchSize: 1,
+        leaseDurationMs: 60_000,
+        retryDelayMs: 30_000,
+      }),
+    ).resolves.toEqual({ claimed: 1, deleted: 1, released: 0 });
+    expect(repository.acknowledgeAudioDeleted).toHaveBeenCalledOnce();
+    expect(repository.releaseAudioGc).not.toHaveBeenCalled();
   });
 
   it.each([

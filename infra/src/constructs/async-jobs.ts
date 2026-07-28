@@ -272,6 +272,17 @@ export class AsyncJobs extends Construct {
         resources: [props.mediaBucket.arnForObjects('private/tts/runs/*')],
       }),
     );
+    this.ttsAudioGcFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['s3:ListBucket'],
+        resources: [props.mediaBucket.bucketArn],
+        conditions: {
+          StringLike: {
+            's3:prefix': 'private/tts/runs/*',
+          },
+        },
+      }),
+    );
   }
 
   private createWorker(

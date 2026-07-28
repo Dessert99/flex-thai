@@ -1,4 +1,5 @@
 /** production TTS WAV를 private S3 object로 불변 저장하고 GC metadata를 검증한다 */
+import { createHash } from 'node:crypto';
 import {
   DeleteObjectCommand,
   HeadObjectCommand,
@@ -10,6 +11,8 @@ import type { TtsAudioGarbageStore, TtsAudioStore } from '@flex-thia/domain';
 const storageKeyPattern =
   /^private\/tts\/runs\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.wav$/u;
 const sha256Pattern = /^[0-9a-f]{64}$/u;
+const writeReconciliationAttempts = 3;
+const writeReconciliationDelayMs = 25;
 
 const assertStorageKey = (storageKey: string): void => {
   if (!storageKeyPattern.test(storageKey)) {
@@ -80,6 +83,11 @@ export class S3TtsAudioStore implements TtsAudioStore, TtsAudioGarbageStore {
     if (!sha256Pattern.test(input.sha256)) {
       throw new Error('S3_TTS_AUDIO_SHA256_INVALID');
     }
+    if (
+      createHash('sha256').update(input.bytes).digest('hex') !== input.sha256
+    ) {
+      throw new Error('S3_TTS_AUDIO_SHA256_MISMATCH');
+    }
     if (input.signal.aborted) {
       throw new Error('S3_TTS_AUDIO_WRITE_ABORTED');
     }
@@ -109,21 +117,18 @@ export class S3TtsAudioStore implements TtsAudioStore, TtsAudioGarbageStore {
         { abortSignal: signal },
       );
     } catch (error) {
+      const existing = await this.reconcileWrite(input);
+      if (existing !== null) return existing;
       if (input.signal.aborted) {
         throw new Error('S3_TTS_AUDIO_WRITE_ABORTED');
       }
-      if (deadlineController.signal.aborted) {
+      if (
+        deadlineController.signal.aborted ||
+        input.deadline.getTime() <= Date.now()
+      ) {
         throw new Error('S3_TTS_AUDIO_WRITE_DEADLINE_EXCEEDED');
       }
       if (isAwsError(error, 412)) {
-        const existing = await this.inspect(input.storageKey);
-        if (
-          existing?.mimeType === input.mimeType &&
-          existing.sizeBytes === input.bytes.byteLength &&
-          existing.sha256 === input.sha256
-        ) {
-          return existing;
-        }
         throw new Error('S3_TTS_AUDIO_IMMUTABLE_CONFLICT');
       }
       throw new Error('S3_TTS_AUDIO_WRITE_FAILED');
@@ -177,5 +182,38 @@ export class S3TtsAudioStore implements TtsAudioStore, TtsAudioGarbageStore {
     } catch {
       throw new Error('S3_TTS_AUDIO_DELETE_FAILED');
     }
+  }
+
+  private async reconcileWrite(
+    input: Parameters<TtsAudioStore['put']>[0],
+  ): Promise<Awaited<ReturnType<TtsAudioStore['put']>> | null> {
+    for (let attempt = 0; attempt < writeReconciliationAttempts; attempt += 1) {
+      try {
+        const existing = await this.inspect(input.storageKey);
+        if (existing !== null) {
+          if (
+            existing.mimeType === input.mimeType &&
+            existing.sizeBytes === input.bytes.byteLength &&
+            existing.sha256 === input.sha256
+          ) {
+            return existing;
+          }
+          throw new Error('S3_TTS_AUDIO_IMMUTABLE_CONFLICT');
+        }
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message === 'S3_TTS_AUDIO_IMMUTABLE_CONFLICT'
+        ) {
+          throw error;
+        }
+      }
+      if (attempt < writeReconciliationAttempts - 1) {
+        await new Promise<void>((resolve) => {
+          setTimeout(resolve, writeReconciliationDelayMs);
+        });
+      }
+    }
+    return null;
   }
 }
