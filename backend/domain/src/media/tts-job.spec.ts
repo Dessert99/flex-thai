@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   aggregateTtsJobStatus,
   assertContentTtsReady,
+  assertTtsVoicePresetCanDisable,
   claimTtsItem,
   completeTtsItem,
   ContentTtsReadinessError,
@@ -219,6 +220,22 @@ describe('TTS 작업 항목 수명', () => {
       status: 'QUEUED',
       counts: { pending: 1, processing: 0, succeeded: 1, failed: 0 },
     });
+  });
+});
+
+describe('TTS voice preset 불변식', () => {
+  it('active TTS preset은 disable할 수 없다', () => {
+    expect(() =>
+      assertTtsVoicePresetCanDisable('active-preset', 'active-preset'),
+    ).toThrowError(
+      expect.objectContaining({ code: 'TTS_VOICE_PRESET_ACTIVE_DISABLE' }),
+    );
+  });
+
+  it('비활성 대상과 다른 active ID는 disable 검증을 통과한다', () => {
+    expect(() =>
+      assertTtsVoicePresetCanDisable('other-preset', 'active-preset'),
+    ).not.toThrow();
   });
 });
 

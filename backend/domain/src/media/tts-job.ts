@@ -68,6 +68,28 @@ export interface TtsVoiceSnapshot {
   generationRevision: string;
 }
 
+/** row 교체 없이 버전별로 보존하는 TTS voice preset */
+export interface TtsVoicePresetVersion {
+  id: string;
+  name: string;
+  provider: string;
+  model: string;
+  voice: string;
+  locale: 'th-TH';
+  audioFormat: 'audio/wav';
+  generationRevision: string;
+  enabled: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** TTS 관리자 command와 감사 기록을 묶는 인증 문맥 */
+export interface TtsOperationAuditContext {
+  actorSub: string;
+  actorUserId: string;
+  requestId: string;
+}
+
 /** 관리자 요청을 새 TTS job과 immutable 대상·voice snapshot으로 만드는 입력 */
 export interface CreateTtsJobInput {
   requestedBy: string;
@@ -210,12 +232,29 @@ export class TtsDomainError extends Error {
       | 'TTS_JOB_TARGETS_REQUIRED'
       | 'TTS_RETRY_ATTEMPT_MISMATCH'
       | 'TTS_RETRY_ITEMS_REQUIRED'
-      | 'TTS_RETRY_SELECTION_INVALID',
+      | 'TTS_RETRY_SELECTION_INVALID'
+      | 'TTS_VOICE_PRESET_NOT_FOUND'
+      | 'TTS_VOICE_PRESET_VERSION_CONFLICT'
+      | 'TTS_VOICE_PRESET_STALE_REVISION'
+      | 'TTS_VOICE_PRESET_ACTIVE_DISABLE'
+      | 'TTS_AUDIO_NOT_READY'
+      | 'TTS_MEDIA_READ_URL_PROVIDER_REQUIRED'
+      | 'TTS_PUBLICATION_TARGET_MISMATCH',
   ) {
     super(code);
     this.name = 'TtsDomainError';
   }
 }
+
+/** active voice preset을 운영 중 실수로 비활성화하지 못하게 한다 */
+export const assertTtsVoicePresetCanDisable = (
+  presetId: string,
+  activePresetId: string,
+): void => {
+  if (presetId === activePresetId) {
+    throw new TtsDomainError('TTS_VOICE_PRESET_ACTIVE_DISABLE');
+  }
+};
 
 /** claim 시점과 새 lease를 한 transaction에서 기록하기 위한 입력 */
 export interface ClaimTtsItemInput {

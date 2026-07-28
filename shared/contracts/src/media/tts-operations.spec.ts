@@ -2,14 +2,21 @@
 import { describe, expect, it } from 'vitest';
 import { ttsJobPathSchema as publicTtsJobPathSchema } from '../index.js';
 import {
+  changeTtsVoicePresetEnabledRequestSchema,
+  createTtsVoicePresetRequestSchema,
+  createTtsVoicePresetVersionRequestSchema,
   retryTtsItemRequestSchema,
   retryTtsJobRequestSchema,
+  ttsItemAudioResponseSchema,
   ttsItemPathSchema,
   ttsJobDetailResponseSchema,
   ttsJobItemsQuerySchema,
   ttsJobListQuerySchema,
   ttsJobListResponseSchema,
   ttsJobPathSchema,
+  ttsPublicationReadinessResponseSchema,
+  ttsVoicePresetListQuerySchema,
+  ttsVoicePresetListResponseSchema,
   ttsRetryResponseSchema,
 } from './tts-operations.js';
 
@@ -253,6 +260,117 @@ describe('TTS 재시도 계약', () => {
         jobId: ids.job,
         itemIds: [ids.item, ids.item],
         retriedCount: 2,
+      }),
+    ).toThrow();
+  });
+});
+
+describe('TTS 운영 콘솔 계약', () => {
+  const preset = {
+    id: ids.preset,
+    name: 'thai-default',
+    provider: 'local',
+    model: 'deterministic-v1',
+    voice: 'thai-female',
+    locale: 'th-TH',
+    audioFormat: 'audio/wav',
+    generationRevision: '2026-07-28',
+    enabled: true,
+    active: true,
+    createdAt: '2026-07-28T00:00:00.000Z',
+    updatedAt: '2026-07-28T00:00:00.000Z',
+  } as const;
+
+  it('immutable preset 목록과 strict command를 검증한다', () => {
+    expect(
+      ttsVoicePresetListResponseSchema.parse({ items: [preset], page }),
+    ).toEqual({ items: [preset], page });
+    expect(
+      ttsVoicePresetListQuerySchema.parse({
+        query: 'thai',
+        enabled: 'true',
+      }),
+    ).toEqual({ query: 'thai', enabled: true, page: 1, pageSize: 20 });
+    expect(
+      createTtsVoicePresetRequestSchema.parse({
+        name: ' thai-default ',
+        provider: ' local ',
+        model: ' deterministic-v1 ',
+        voice: ' thai-female ',
+        locale: 'th-TH',
+        audioFormat: 'audio/wav',
+        generationRevision: ' 2026-07-28 ',
+        enabled: true,
+      }),
+    ).toMatchObject({
+      name: 'thai-default',
+      provider: 'local',
+      model: 'deterministic-v1',
+      voice: 'thai-female',
+      generationRevision: '2026-07-28',
+    });
+    expect(() =>
+      changeTtsVoicePresetEnabledRequestSchema.parse({
+        expectedUpdatedAt: preset.updatedAt,
+        unknown: true,
+      }),
+    ).toThrow();
+    expect(() =>
+      createTtsVoicePresetVersionRequestSchema.parse({
+        expectedUpdatedAt: preset.updatedAt,
+        provider: 'local',
+        model: 'deterministic-v2',
+        voice: 'thai-female',
+        locale: 'en-US',
+        audioFormat: 'audio/wav',
+        generationRevision: '2026-08-01',
+        enabled: true,
+      }),
+    ).toThrow();
+  });
+
+  it('재생 응답은 URL과 만료 시각만 공개한다', () => {
+    const response = {
+      url: 'http://127.0.0.1/audio',
+      expiresAt: '2026-07-28T00:05:00.000Z',
+    };
+    expect(ttsItemAudioResponseSchema.parse(response)).toEqual(response);
+    expect(() =>
+      ttsItemAudioResponseSchema.parse({
+        ...response,
+        storageKey: 'private/audio.wav',
+      }),
+    ).toThrow();
+  });
+
+  it('readiness 수량과 blocker 유무가 일치해야 한다', () => {
+    const blocker = {
+      kind: 'THAI_SENTENCE_VERSION',
+      targetId: ids.target,
+      mediaStatus: 'FAILED',
+      operation: {
+        jobId: ids.job,
+        itemId: ids.item,
+        itemStatus: 'FAILED',
+        attempt: 2,
+        errorCode: 'TTS_PROVIDER_TIMEOUT',
+        retryable: true,
+      },
+    } as const;
+    expect(
+      ttsPublicationReadinessResponseSchema.parse({
+        ready: false,
+        requiredCount: 2,
+        readyCount: 1,
+        blockers: [blocker],
+      }),
+    ).toMatchObject({ ready: false, blockers: [blocker] });
+    expect(() =>
+      ttsPublicationReadinessResponseSchema.parse({
+        ready: true,
+        requiredCount: 2,
+        readyCount: 1,
+        blockers: [blocker],
       }),
     ).toThrow();
   });
