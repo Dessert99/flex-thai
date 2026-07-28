@@ -3,7 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { DrizzleAsyncDispatchOutboxRepository } from '../dispatch/drizzle-async-dispatch-outbox.repository.js';
 import { DrizzleAiQuestionProductionRepository } from './drizzle-ai-question-production.repository.js';
 
 const databaseUrl = process.env.AI_QUESTION_TEST_DATABASE_URL;
@@ -469,15 +470,16 @@ describe.runIf(databaseUrl !== undefined)(
       });
     });
 
-    it('같은 재생성 request replay는 dispatch intent를 추가하지 않는다', async () => {
+    it('같은 재생성 request replay는 실제 outbox intent를 한 행만 남긴다', async () => {
       const fixture = await createRegenerationFixture();
       const requestId = randomUUID();
-      const enqueue = vi.fn().mockResolvedValue(undefined);
+      const database = drizzle({ client: pool }) as never;
+      const outbox = new DrizzleAsyncDispatchOutboxRepository(database);
       const repository = new DrizzleAiQuestionProductionRepository(
-        drizzle({ client: pool }) as never,
+        database,
         () => new Date('2026-07-27T05:10:00.000Z'),
         undefined,
-        { enqueue },
+        outbox,
       );
       const command = {
         candidateId: fixture.candidateId,
@@ -493,7 +495,25 @@ describe.runIf(databaseUrl !== undefined)(
 
       expect(first).toEqual({ jobId: fixture.jobId, attempt: 1 });
       expect(replay).toEqual(first);
-      expect(enqueue).toHaveBeenCalledOnce();
+      const outboxRows = await pool.query<{
+        payloadKind: string;
+        idempotencyKey: string;
+        payload: Record<string, unknown>;
+      }>(
+        `select payload_kind "payloadKind",
+                idempotency_key "idempotencyKey",
+                payload
+         from async_dispatch_outbox
+         where job_id = $1 and attempt = 1`,
+        [fixture.jobId],
+      );
+      expect(outboxRows.rows).toEqual([
+        {
+          payloadKind: 'CONTENT_PRODUCTION',
+          idempotencyKey: `content-production:${fixture.jobId}:1`,
+          payload: { jobId: fixture.jobId, attempt: 1 },
+        },
+      ]);
       const audit = await pool.query<{ count: string }>(
         `select count(*)::text count
          from audit_logs
