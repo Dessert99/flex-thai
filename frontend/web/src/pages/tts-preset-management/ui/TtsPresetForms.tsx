@@ -7,6 +7,7 @@ import {
   type CreateTtsVoicePresetVersionRequest,
   type TtsVoicePresetListResponse,
 } from '@flex-thia/contracts';
+import { useEffect } from 'react';
 import { useForm, type UseFormRegisterReturn } from 'react-hook-form';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
@@ -116,6 +117,9 @@ export function CreateTtsPresetVersionForm({
     },
     resolver: zodResolver(createTtsVoicePresetVersionRequestSchema),
   });
+  useEffect(() => {
+    form.setValue('expectedUpdatedAt', preset.updatedAt);
+  }, [form, preset.updatedAt]);
   const submit = form.handleSubmit(async (body) => {
     await onCreateVersion(preset.id, body);
     onCancel();

@@ -1,5 +1,6 @@
 /** 관리자 문제 상세의 404·검증 보고서·불변 버전 표현을 검증한다 */
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/shared/api';
 import { renderWithProviders } from '@/shared/test';
@@ -89,6 +90,35 @@ describe('관리자 문제 상세 상태', () => {
     expect(
       screen.queryByRole('button', { name: '버전 게시' }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe('관리자 문제 TTS readiness 복구', () => {
+  it('readiness 조회 실패를 version 안에서 다시 시도할 수 있다', async () => {
+    let readinessAttempts = 0;
+    mocks.authenticatedRequest.mockImplementation(
+      ({ path }: { path: string }) => {
+        if (!path.includes('/readiness')) {
+          return Promise.resolve(
+            createQuestionDetail({ draftValidationStatus: 'PASSED' }),
+          );
+        }
+        readinessAttempts += 1;
+        return readinessAttempts === 1
+          ? Promise.reject(new Error('readiness unavailable'))
+          : Promise.resolve(createReadyReadiness());
+      },
+    );
+
+    renderDetail();
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'TTS 준비 상태 다시 시도' }),
+    );
+    expect(
+      await screen.findByText('필수 음성이 모두 준비되었습니다.'),
+    ).toBeVisible();
+    expect(screen.getByRole('button', { name: '버전 게시' })).toBeEnabled();
   });
 
   it('404 응답을 존재하지 않는 문제로 안전하게 안내한다', async () => {

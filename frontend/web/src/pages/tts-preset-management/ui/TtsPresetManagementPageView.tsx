@@ -49,7 +49,9 @@ export function TtsPresetManagementPageView({
   onToggle,
   search,
 }: Props) {
-  const [versionSource, setVersionSource] = useState<Preset | null>(null);
+  const [versionSourceId, setVersionSourceId] = useState<string | null>(null);
+  const versionSource =
+    data?.items.find((preset) => preset.id === versionSourceId) ?? null;
 
   return (
     <section className='grid gap-section'>
@@ -67,7 +69,7 @@ export function TtsPresetManagementPageView({
         <CreateTtsPresetVersionForm
           disabled={mutationPending}
           key={versionSource.id}
-          onCancel={() => setVersionSource(null)}
+          onCancel={() => setVersionSourceId(null)}
           onCreateVersion={onCreateVersion}
           preset={versionSource}
         />
@@ -89,7 +91,7 @@ export function TtsPresetManagementPageView({
         loading={loading}
         mutationPending={mutationPending}
         onRetry={onRetry}
-        onSelectVersion={setVersionSource}
+        onSelectVersion={(preset) => setVersionSourceId(preset.id)}
         onToggle={onToggle}
         search={search}
       />

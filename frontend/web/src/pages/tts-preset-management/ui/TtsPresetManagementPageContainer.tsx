@@ -49,6 +49,7 @@ export function TtsPresetManagementPageContainer({
       body: CreateTtsVoicePresetVersionRequest;
       presetId: string;
     }) => createTtsPresetVersion(presetId, body),
+    onError: (_error, variables) => invalidatePresets(variables.presetId),
     onSuccess: (_result, variables) => invalidatePresets(variables.presetId),
   });
   const toggleMutation = useMutation({
