@@ -4,15 +4,20 @@ import type { TtsWorkItem } from '@flex-thia/domain';
 import { and, eq, gt, lte, or } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
+import { vocabularyPracticeQuestions } from '../../schema/learning-practice.schema.js';
 import { mediaAssets } from '../../schema/media.schema.js';
+import { thaiSentenceVersions } from '../../schema/thai-content.schema.js';
 import {
   ttsAudioCache,
   ttsAudioGcRecords,
   ttsItems,
   ttsProviderRuns,
 } from '../../schema/tts.schema.js';
+import { vocabularyPronunciations } from '../../schema/vocabulary.schema.js';
 
 type TtsDurabilityDatabase = PgDatabase<PgQueryResultHKT>;
+/** pre-write GC intent가 정상 object write와 경쟁하지 않게 하는 최소 유예 */
+export const ttsAudioGcWriteGraceMs = 5 * 60 * 1000;
 /** READY commit과 GC claim이 같은 row lock을 쓰게 하는 transaction 타입 */
 export type TtsDurabilityTransaction = Parameters<
   Parameters<TtsDurabilityDatabase['transaction']>[0]
@@ -443,7 +448,7 @@ export class DrizzleTtsDurabilityRepository {
     return rows.length === 1;
   }
 
-  /** object write 직후 storage key를 metadata exact replay로 GC 대상에 등록한다 */
+  /** object write 전에 세대 고유 storage key를 metadata exact GC intent로 등록한다 */
   async registerAudioGc(input: {
     media: TtsStoredAudio;
     registeredAt: Date;
@@ -455,7 +460,9 @@ export class DrizzleTtsDurabilityRepository {
         .values({
           ...input.media,
           status: 'PENDING',
-          availableAt: input.registeredAt,
+          availableAt: new Date(
+            input.registeredAt.getTime() + ttsAudioGcWriteGraceMs,
+          ),
           createdAt: input.registeredAt,
           updatedAt: input.registeredAt,
         })
@@ -471,6 +478,9 @@ export class DrizzleTtsDurabilityRepository {
         .limit(1);
       if (!existing || !exactAudio(existing, input.media)) {
         throw new TtsDurabilityError('TTS_AUDIO_GC_METADATA_CONFLICT');
+      }
+      if (existing.status === 'PROCESSING' || existing.status === 'DELETED') {
+        throw new TtsDurabilityError('TTS_AUDIO_GC_STORAGE_KEY_UNAVAILABLE');
       }
     });
   }
@@ -546,13 +556,37 @@ export class DrizzleTtsDurabilityRepository {
         const [reference] = await transaction
           .select({ id: mediaAssets.id })
           .from(mediaAssets)
+          .leftJoin(
+            ttsAudioCache,
+            eq(ttsAudioCache.mediaAssetId, mediaAssets.id),
+          )
+          .leftJoin(ttsItems, eq(ttsItems.mediaAssetId, mediaAssets.id))
+          .leftJoin(
+            thaiSentenceVersions,
+            eq(thaiSentenceVersions.mediaAssetId, mediaAssets.id),
+          )
+          .leftJoin(
+            vocabularyPronunciations,
+            eq(vocabularyPronunciations.mediaAssetId, mediaAssets.id),
+          )
+          .leftJoin(
+            vocabularyPracticeQuestions,
+            eq(vocabularyPracticeQuestions.mediaAssetId, mediaAssets.id),
+          )
           .where(
             and(
               eq(mediaAssets.storageKey, candidate.storageKey),
-              eq(mediaAssets.status, 'READY'),
+              or(
+                eq(mediaAssets.status, 'READY'),
+                eq(ttsAudioCache.status, 'READY'),
+                eq(ttsItems.status, 'SUCCEEDED'),
+                eq(thaiSentenceVersions.mediaAssetId, mediaAssets.id),
+                eq(vocabularyPronunciations.mediaAssetId, mediaAssets.id),
+                eq(vocabularyPracticeQuestions.mediaAssetId, mediaAssets.id),
+              ),
             ),
           )
-          .for('update')
+          .for('update', { of: mediaAssets })
           .limit(1);
         if (reference) {
           await transaction

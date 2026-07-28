@@ -29,6 +29,8 @@ describe.runIf(databaseUrl !== undefined)(
     let pool: Pool;
     const cleanupKeys: string[] = [];
     const cleanupUsers: string[] = [];
+    const cleanupSentences: string[] = [];
+    const cleanupVocabularies: string[] = [];
 
     beforeAll(async () => {
       if (!databaseUrl) {
@@ -49,16 +51,23 @@ describe.runIf(databaseUrl !== undefined)(
     });
 
     afterEach(async () => {
-      if (cleanupKeys.length > 0) {
-        const keys = cleanupKeys.splice(0);
+      for (const sentenceId of cleanupSentences.splice(0)) {
         await pool.query(
-          `delete from tts_audio_gc_records where storage_key = any($1::text[])`,
-          [keys],
+          `delete from thai_sentence_versions where sentence_id = $1`,
+          [sentenceId],
         );
+        await pool.query(`delete from thai_sentences where id = $1`, [
+          sentenceId,
+        ]);
+      }
+      for (const vocabularyId of cleanupVocabularies.splice(0)) {
         await pool.query(
-          `delete from media_assets where storage_key = any($1::text[])`,
-          [keys],
+          `delete from vocabulary_pronunciations where vocabulary_id = $1`,
+          [vocabularyId],
         );
+        await pool.query(`delete from vocabularies where id = $1`, [
+          vocabularyId,
+        ]);
       }
       for (const userId of cleanupUsers.splice(0)) {
         await pool.query(
@@ -83,6 +92,17 @@ describe.runIf(databaseUrl !== undefined)(
           userId,
         ]);
         await pool.query(`delete from users where id = $1`, [userId]);
+      }
+      if (cleanupKeys.length > 0) {
+        const keys = cleanupKeys.splice(0);
+        await pool.query(
+          `delete from tts_audio_gc_records where storage_key = any($1::text[])`,
+          [keys],
+        );
+        await pool.query(
+          `delete from media_assets where storage_key = any($1::text[])`,
+          [keys],
+        );
       }
     });
 
@@ -171,6 +191,81 @@ describe.runIf(databaseUrl !== undefined)(
       expect(count.rows[0]?.count).toBe('1');
     });
 
+    it('provider terminal 성공·실패 CAS 경쟁은 STARTED run을 한 번만 닫는다', async () => {
+      const fixture = await createProviderFixture();
+      const repository = new DrizzleTtsDurabilityRepository(
+        drizzle({ client: pool, schema }) as never,
+      );
+      const claimed = await repository.claimProviderRun({
+        item: {
+          itemId: fixture.item,
+          attempt: 1,
+          leaseToken: 'lease-1',
+        },
+        cacheKey: fixture.cacheKey,
+        cacheClaimToken: 'cache-claim',
+        provider: 'LOCAL_FAKE',
+        model: 'deterministic-v1',
+        claimedAt: new Date(),
+      });
+      if (claimed.kind !== 'CLAIMED') throw new Error('CLAIM_REQUIRED');
+
+      const results = await Promise.all([
+        repository.succeedProviderRun({
+          runId: claimed.runId,
+          usage: { inputCharacters: 7 },
+          estimatedCostUsd: '0.00000100',
+          providerRequestId: 'request-1',
+          media: {
+            ...media,
+            storageKey: `private/tts/runs/${claimed.runId}.wav`,
+          },
+          finishedAt: new Date(),
+        }),
+        repository.failProviderRun({
+          runId: claimed.runId,
+          status: 'FAILED',
+          errorCode: 'TTS_PROVIDER_FAILED',
+          retryable: true,
+          finishedAt: new Date(),
+        }),
+      ]);
+
+      expect(results.filter(Boolean)).toHaveLength(1);
+      const terminal = await pool.query<{ status: string }>(
+        `select status from tts_provider_runs where id = $1`,
+        [claimed.runId],
+      );
+      expect(['SUCCEEDED', 'FAILED']).toContain(terminal.rows[0]?.status);
+    });
+
+    it('stale item lease의 STARTED run은 결과 불명 terminal로 닫힌다', async () => {
+      const fixture = await createProviderFixture();
+      const repository = new DrizzleTtsDurabilityRepository(
+        drizzle({ client: pool, schema }) as never,
+      );
+      await repository.claimProviderRun({
+        item: {
+          itemId: fixture.item,
+          attempt: 1,
+          leaseToken: 'lease-1',
+        },
+        cacheKey: fixture.cacheKey,
+        cacheClaimToken: 'cache-claim',
+        provider: 'LOCAL_FAKE',
+        model: 'deterministic-v1',
+        claimedAt: new Date(),
+      });
+
+      await expect(
+        repository.findProviderRun({
+          itemId: fixture.item,
+          attempt: 1,
+          leaseToken: 'lease-redelivered',
+        }),
+      ).resolves.toMatchObject({ kind: 'OUTCOME_UNKNOWN' });
+    });
+
     it('READY 참조와 GC delete claim 경쟁은 둘 중 하나만 storage key를 소유한다', async () => {
       const storageKey = `private/tts/gc-${randomUUID()}.wav`;
       cleanupKeys.push(storageKey);
@@ -180,18 +275,37 @@ describe.runIf(databaseUrl !== undefined)(
         () => 'lease-1',
       );
       const object = { ...media, storageKey };
+      const mediaId = randomUUID();
       await repository.registerAudioGc({
         media: object,
-        registeredAt: new Date(),
+        registeredAt: new Date(Date.now() - 10 * 60 * 1000),
       });
 
       const [referenceResult, gcClaims] = await Promise.all([
-        drizzle({ client: pool, schema }).transaction((transaction) =>
-          repository.markAudioReferenced(transaction as never, {
-            media: object,
-            referencedAt: new Date(),
-          }),
-        ),
+        drizzle({ client: pool, schema }).transaction(async (transaction) => {
+          const result = await repository.markAudioReferenced(
+            transaction as never,
+            {
+              media: object,
+              referencedAt: new Date(),
+            },
+          );
+          if (result === 'REFERENCED') {
+            await transaction.insert(schema.mediaAssets).values({
+              id: mediaId,
+              storageKey,
+              declaredMimeType: 'audio/wav',
+              declaredSizeBytes: object.sizeBytes,
+              declaredSha256: object.sha256,
+              mimeType: 'audio/wav',
+              sizeBytes: object.sizeBytes,
+              sha256: object.sha256,
+              status: 'READY',
+              readyAt: new Date(),
+            });
+          }
+          return result;
+        }),
         repository.claimAudioGcBatch({
           workerId: 'worker-a',
           batchSize: 1,
@@ -201,6 +315,102 @@ describe.runIf(databaseUrl !== undefined)(
       expect((referenceResult === 'REFERENCED' ? 1 : 0) + gcClaims.length).toBe(
         1,
       );
+    });
+
+    it('실제 READY cache·SUCCEEDED item 참조는 같은 storage key의 GC claim을 막는다', async () => {
+      const fixture = await createProviderFixture();
+      const storageKey = `private/tts/gc-${randomUUID()}.wav`;
+      const mediaId = randomUUID();
+      cleanupKeys.push(storageKey);
+      await pool.query(
+        `insert into media_assets (
+           id, storage_key, declared_mime_type, declared_size_bytes,
+           declared_sha256, status
+         ) values ($1, $2, 'audio/wav', 204, $3, 'UPLOADING')`,
+        [mediaId, storageKey, media.sha256],
+      );
+      await pool.query(
+        `update tts_audio_cache
+         set status = 'READY', media_asset_id = $2,
+             ready_metadata_revision = 'v1', ready_at = now()
+         where cache_key = $1`,
+        [fixture.cacheKey, mediaId],
+      );
+      await pool.query(
+        `update tts_items
+         set status = 'SUCCEEDED', media_asset_id = $2
+         where id = $1`,
+        [fixture.item, mediaId],
+      );
+      const repository = new DrizzleTtsDurabilityRepository(
+        drizzle({ client: pool, schema }) as never,
+      );
+      await repository.registerAudioGc({
+        media: { ...media, storageKey },
+        registeredAt: new Date(Date.now() - 10 * 60 * 1000),
+      });
+
+      await expect(
+        repository.claimAudioGcBatch({
+          workerId: 'worker-reference',
+          batchSize: 1,
+          leaseDurationMs: 60_000,
+        }),
+      ).resolves.toEqual([]);
+    });
+
+    it('실제 문장·어휘 발음 attachment는 UPLOADING media여도 GC claim을 막는다', async () => {
+      const storageKey = `private/tts/gc-${randomUUID()}.wav`;
+      const mediaId = randomUUID();
+      const sentenceId = randomUUID();
+      const vocabularyId = randomUUID();
+      cleanupKeys.push(storageKey);
+      cleanupSentences.push(sentenceId);
+      cleanupVocabularies.push(vocabularyId);
+      await pool.query(
+        `insert into media_assets (
+           id, storage_key, declared_mime_type, declared_size_bytes,
+           declared_sha256, status
+         ) values ($1, $2, 'audio/wav', 204, $3, 'UPLOADING')`,
+        [mediaId, storageKey, media.sha256],
+      );
+      await pool.query(`insert into thai_sentences (id) values ($1)`, [
+        sentenceId,
+      ]);
+      await pool.query(
+        `insert into thai_sentence_versions (
+           sentence_id, version, original_text, translation_ko,
+           pronunciation_ko, tone_marks, media_asset_id
+         ) values ($1, 1, 'ไทย', '태국어', '타이어', '-', $2)`,
+        [sentenceId, mediaId],
+      );
+      await pool.query(
+        `insert into vocabularies (
+           id, thai, normalized_thai, kind, status
+         ) values ($1, 'ไทย', $2, 'WORD', 'DRAFT')`,
+        [vocabularyId, `pg-${vocabularyId}`],
+      );
+      await pool.query(
+        `insert into vocabulary_pronunciations (
+           vocabulary_id, pronunciation_ko, tone_marks, media_asset_id
+         ) values ($1, '타이어', '-', $2)`,
+        [vocabularyId, mediaId],
+      );
+      const repository = new DrizzleTtsDurabilityRepository(
+        drizzle({ client: pool, schema }) as never,
+      );
+      await repository.registerAudioGc({
+        media: { ...media, storageKey },
+        registeredAt: new Date(Date.now() - 10 * 60 * 1000),
+      });
+
+      await expect(
+        repository.claimAudioGcBatch({
+          workerId: 'worker-attachment',
+          batchSize: 1,
+          leaseDurationMs: 60_000,
+        }),
+      ).resolves.toEqual([]);
     });
 
     it('GC transaction rollback은 PENDING record를 terminal로 만들지 않는다', async () => {
@@ -244,12 +454,13 @@ describe.runIf(databaseUrl !== undefined)(
         media: { ...media, storageKey },
         registeredAt: clock,
       });
+      clock = new Date('2026-07-28T05:05:01.000Z');
       const [first] = await repository.claimAudioGcBatch({
         workerId: 'worker-a',
         batchSize: 1,
         leaseDurationMs: 1_000,
       });
-      clock = new Date('2026-07-28T05:00:02.000Z');
+      clock = new Date('2026-07-28T05:05:03.000Z');
       lease = 'lease-b';
       const [second] = await repository.claimAudioGcBatch({
         workerId: 'worker-b',

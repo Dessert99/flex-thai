@@ -270,12 +270,14 @@ class MemoryTtsDurabilityRepository implements TtsProcessorDurabilityRepository 
     return Promise.resolve(true);
   }
 
-  registerAudioGc(
-    input: Parameters<TtsProcessorDurabilityRepository['registerAudioGc']>[0],
-  ): ReturnType<TtsProcessorDurabilityRepository['registerAudioGc']> {
-    this.registeredAudio.push(input.media);
-    return Promise.resolve();
-  }
+  registerAudioGc = vi.fn(
+    (
+      input: Parameters<TtsProcessorDurabilityRepository['registerAudioGc']>[0],
+    ): ReturnType<TtsProcessorDurabilityRepository['registerAudioGc']> => {
+      this.registeredAudio.push(input.media);
+      return Promise.resolve();
+    },
+  );
 }
 
 const providerResult = (
@@ -294,9 +296,9 @@ const createProvider = (
 ): TtsProvider => ({ synthesize: vi.fn(synthesize) });
 
 const createStore = (): TtsAudioStore => ({
-  put: vi.fn(({ cacheKey, bytes, mimeType, sha256 }) =>
+  put: vi.fn(({ storageKey, bytes, mimeType, sha256 }) =>
     Promise.resolve({
-      storageKey: `private/tts/${cacheKey}.wav`,
+      storageKey,
       mimeType,
       sizeBytes: bytes.byteLength,
       sha256,
@@ -348,18 +350,19 @@ describe('TtsProcessor 음성 생성과 재사용', () => {
     const sha256 = createHash('sha256').update(bytes).digest('hex');
     expect(provider.synthesize).toHaveBeenCalledOnce();
     expect(store.put).toHaveBeenCalledWith({
-      cacheKey: item.cacheKey,
+      storageKey: expect.stringMatching(/^private\/tts\/runs\/.+\.wav$/u),
       bytes,
       mimeType: 'audio/wav',
       sha256,
     });
+    const storageKey = vi.mocked(store.put).mock.calls[0]![0].storageKey;
     expect(repository.succeeded).toEqual([
       {
         kind: 'GENERATED',
         item,
         claimToken: `claim-${item.cacheKey}`,
         media: {
-          storageKey: `private/tts/${item.cacheKey}.wav`,
+          storageKey,
           mimeType: 'audio/wav',
           sizeBytes: bytes.byteLength,
           sha256,
@@ -868,16 +871,7 @@ describe('TtsProcessor 실패 격리', () => {
       ),
     );
     const store: TtsAudioStore = {
-      put: vi.fn(({ cacheKey, bytes, mimeType, sha256 }) =>
-        cacheKey === storeFailed.cacheKey
-          ? Promise.reject(new Error('store failed'))
-          : Promise.resolve({
-              storageKey: `private/${cacheKey}.wav`,
-              mimeType,
-              sizeBytes: bytes.byteLength,
-              sha256,
-            }),
-      ),
+      put: vi.fn(() => Promise.reject(new Error('store failed'))),
     };
 
     await expect(
@@ -906,9 +900,9 @@ describe('TtsProcessor 실패 격리', () => {
     const item = workItem('corrupt-store', 'corrupt-key');
     const repository = new MemoryTtsRepository([item]);
     const store: TtsAudioStore = {
-      put: vi.fn(({ cacheKey, bytes, mimeType }) =>
+      put: vi.fn(({ storageKey, bytes, mimeType }) =>
         Promise.resolve({
-          storageKey: `private/tts/${cacheKey}.wav`,
+          storageKey,
           mimeType,
           sizeBytes: bytes.byteLength + 1,
           sha256: '0'.repeat(64),
@@ -1030,7 +1024,7 @@ describe('TtsProcessor 실패 격리', () => {
     controller.abort();
     const bytes = providerResult().bytes;
     resolveStore({
-      storageKey: `private/tts/${item.cacheKey}.wav`,
+      storageKey: vi.mocked(store.put).mock.calls[0]![0].storageKey,
       mimeType: 'audio/wav',
       sizeBytes: bytes.byteLength,
       sha256: createHash('sha256').update(bytes).digest('hex'),
@@ -1086,25 +1080,35 @@ describe('TtsProcessor 실패 격리', () => {
 });
 
 describe('TtsProcessor provider run과 orphan audio 내구성', () => {
-  it('provider 호출 전에 run을 claim하고 object 등록 뒤 usage·비용과 storage 결과를 한 번만 닫는다', async () => {
+  it('run 고유 key의 GC intent를 object write 전에 등록하고 같은 key로 usage·비용을 닫는다', async () => {
     const item = workItem('durable-success');
     const repository = new MemoryTtsRepository([item]);
     const durability = new MemoryTtsDurabilityRepository();
     const provider = createProvider();
 
+    const store = createStore();
     await new TtsProcessor(
       repository,
       provider,
-      createStore(),
+      store,
       () => now,
       undefined,
       durability,
     ).process(jobId, new AbortController().signal);
 
     expect(provider.synthesize).toHaveBeenCalledOnce();
+    expect(durability.registeredAudio).toHaveLength(1);
+    expect(store.put).toHaveBeenCalledWith(
+      expect.objectContaining({
+        storageKey: `private/tts/runs/${durability.runId}.wav`,
+      }),
+    );
+    expect(
+      vi.mocked(durability.registerAudioGc).mock.invocationCallOrder[0],
+    ).toBeLessThan(vi.mocked(store.put).mock.invocationCallOrder[0]!);
     expect(durability.registeredAudio).toEqual([
       expect.objectContaining({
-        storageKey: `private/tts/${item.cacheKey}.wav`,
+        storageKey: `private/tts/runs/${durability.runId}.wav`,
       }),
     ]);
     expect(durability.succeededRuns).toEqual([
@@ -1114,9 +1118,39 @@ describe('TtsProcessor provider run과 orphan audio 내구성', () => {
         estimatedCostUsd: '0.000000',
         providerRequestId: 'provider-request',
         media: expect.objectContaining({
-          storageKey: `private/tts/${item.cacheKey}.wav`,
+          storageKey: `private/tts/runs/${durability.runId}.wav`,
         }),
       }),
+    ]);
+  });
+
+  it('GC intent 등록 뒤 object write가 실패해도 고유 key tombstone을 남긴다', async () => {
+    const item = workItem('durable-put-failure');
+    const repository = new MemoryTtsRepository([item]);
+    const durability = new MemoryTtsDurabilityRepository();
+    durability.registerAudioGc = vi.fn(
+      durability.registerAudioGc.bind(durability),
+    );
+    const store: TtsAudioStore = {
+      put: vi.fn(() => Promise.reject(new Error('STORE_DOWN'))),
+    };
+
+    await new TtsProcessor(
+      repository,
+      createProvider(),
+      store,
+      () => now,
+      undefined,
+      durability,
+    ).process(jobId, new AbortController().signal);
+
+    expect(durability.registeredAudio).toEqual([
+      expect.objectContaining({
+        storageKey: `private/tts/runs/${durability.runId}.wav`,
+      }),
+    ]);
+    expect(repository.failed).toEqual([
+      expect.objectContaining({ errorCode: 'TTS_AUDIO_STORE_FAILED' }),
     ]);
   });
 

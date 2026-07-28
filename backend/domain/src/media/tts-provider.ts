@@ -19,10 +19,10 @@ export interface TtsProvider {
   }): Promise<TtsProviderResult>;
 }
 
-/** 생성한 WAV bytes를 cache key 아래 immutable object로 보존하는 storage port */
+/** 생성한 WAV bytes를 호출자가 예약한 세대 고유 key 아래 immutable object로 보존하는 storage port */
 export interface TtsAudioStore {
   put(input: {
-    cacheKey: string;
+    storageKey: string;
     bytes: Uint8Array;
     mimeType: 'audio/wav';
     sha256: string;

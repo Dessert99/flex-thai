@@ -1,8 +1,15 @@
 /** TTS provider 실행과 orphan audio GC의 멱등·lease·참조 직렬화를 검증한다 */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- Drizzle chain doubles expose any-typed metadata. */
 import { describe, expect, it, vi } from 'vitest';
+import { vocabularyPracticeQuestions } from '../../schema/learning-practice.schema.js';
 import { mediaAssets } from '../../schema/media.schema.js';
-import { ttsProviderRuns } from '../../schema/tts.schema.js';
+import { thaiSentenceVersions } from '../../schema/thai-content.schema.js';
+import {
+  ttsAudioCache,
+  ttsItems,
+  ttsProviderRuns,
+} from '../../schema/tts.schema.js';
+import { vocabularyPronunciations } from '../../schema/vocabulary.schema.js';
 import {
   DrizzleTtsDurabilityRepository,
   TtsDurabilityError,
@@ -22,12 +29,14 @@ const storedAudio = {
 const selectChain = (rows: unknown[]) => {
   const chain = {
     from: vi.fn(),
+    leftJoin: vi.fn(),
     where: vi.fn(),
     orderBy: vi.fn(),
     for: vi.fn(),
     limit: vi.fn(),
   };
   chain.from.mockReturnValue(chain);
+  chain.leftJoin.mockReturnValue(chain);
   chain.where.mockReturnValue(chain);
   chain.orderBy.mockReturnValue(chain);
   chain.for.mockReturnValue(chain);
@@ -203,6 +212,12 @@ describe('TTS orphan audio GC 저장소', () => {
         registeredAt: now,
       }),
     ).resolves.toBeUndefined();
+    expect(inserts.values).toHaveBeenCalledWith(
+      expect.objectContaining({
+        storageKey: storedAudio.storageKey,
+        availableAt: new Date(now.getTime() + 5 * 60 * 1000),
+      }),
+    );
     await expect(
       repository.registerAudioGc({
         media: { ...storedAudio, sha256: 'b'.repeat(64) },
@@ -214,6 +229,25 @@ describe('TTS orphan audio GC 저장소', () => {
       }),
     );
   });
+
+  it.each(['PROCESSING', 'DELETED'] as const)(
+    '%s tombstone에는 같은 metadata도 새 generation 등록을 거부한다',
+    async (status) => {
+      const inserts = insertChain([]);
+      const select = vi.fn(() =>
+        selectChain([{ id: gcId, ...storedAudio, status }]),
+      );
+      const repository = new DrizzleTtsDurabilityRepository(
+        transactionDatabase({ insert: inserts.insert, select }) as never,
+      );
+
+      await expect(
+        repository.registerAudioGc({ media: storedAudio, registeredAt: now }),
+      ).rejects.toMatchObject({
+        code: 'TTS_AUDIO_GC_STORAGE_KEY_UNAVAILABLE',
+      });
+    },
+  );
 
   it('READY media가 생긴 key는 object를 claim하지 않고 REFERENCED terminal로 닫는다', async () => {
     const gcSelect = selectChain([
@@ -247,6 +281,26 @@ describe('TTS orphan audio GC 저장소', () => {
       }),
     ).resolves.toEqual([]);
     expect(referenceSelect.from).toHaveBeenCalledWith(mediaAssets);
+    expect(referenceSelect.leftJoin).toHaveBeenCalledWith(
+      ttsAudioCache,
+      expect.anything(),
+    );
+    expect(referenceSelect.leftJoin).toHaveBeenCalledWith(
+      ttsItems,
+      expect.anything(),
+    );
+    expect(referenceSelect.leftJoin).toHaveBeenCalledWith(
+      thaiSentenceVersions,
+      expect.anything(),
+    );
+    expect(referenceSelect.leftJoin).toHaveBeenCalledWith(
+      vocabularyPronunciations,
+      expect.anything(),
+    );
+    expect(referenceSelect.leftJoin).toHaveBeenCalledWith(
+      vocabularyPracticeQuestions,
+      expect.anything(),
+    );
     expect(updates.writes[0]?.values).toMatchObject({
       status: 'REFERENCED',
       referencedAt: now,

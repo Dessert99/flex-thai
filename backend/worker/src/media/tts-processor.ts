@@ -1,5 +1,5 @@
 /** TTS job 항목을 DB cache claim·합성·immutable 저장·원자 완료 순서로 처리한다 */
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type {
   TtsAudioStore,
   TtsFailureInput,
@@ -428,10 +428,44 @@ export class TtsProcessor {
     }
 
     const sha256 = createHash('sha256').update(result.bytes).digest('hex');
+    const runIdentity = providerRunId ?? randomUUID();
+    const expectedMedia: GeneratedTtsMedia = {
+      storageKey: `private/tts/runs/${runIdentity}.wav`,
+      mimeType: result.mimeType,
+      sizeBytes: result.bytes.byteLength,
+      sha256,
+    };
+    if (this.durability) {
+      try {
+        // write 전에 exact key tombstone을 남겨 hard crash도 GC가 회수하게 한다.
+        await this.durability.registerAudioGc({
+          media: expectedMedia,
+          registeredAt: this.now(),
+        });
+      } catch {
+        const replay = await this.persistKnownProviderFailure(
+          item,
+          providerRunId,
+          result,
+          'TTS_AUDIO_GC_REGISTRATION_FAILED',
+          true,
+        );
+        if (replay) {
+          await this.handleProviderRunReplay(item, replay);
+          return;
+        }
+        await this.failOwnedClaim(item, claim, {
+          errorCode: 'TTS_AUDIO_GC_REGISTRATION_FAILED',
+          retryable: true,
+          resolution: 'FAILED',
+        });
+        return;
+      }
+    }
     let stored: Awaited<ReturnType<TtsAudioStore['put']>>;
     try {
       stored = await this.audioStore.put({
-        cacheKey: item.cacheKey,
+        storageKey: expectedMedia.storageKey,
         bytes: result.bytes,
         mimeType: result.mimeType,
         sha256,
@@ -462,14 +496,8 @@ export class TtsProcessor {
       sizeBytes: stored.sizeBytes,
       sha256: stored.sha256,
     };
-    if (this.durability) {
-      await this.durability.registerAudioGc({
-        media: storedMedia,
-        registeredAt: this.now(),
-      });
-    }
-
     if (
+      stored.storageKey !== expectedMedia.storageKey ||
       stored.mimeType !== result.mimeType ||
       stored.sizeBytes !== result.bytes.byteLength ||
       stored.sha256 !== sha256

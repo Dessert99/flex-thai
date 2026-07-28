@@ -11,31 +11,33 @@ describe('FakeTtsAudioStore', () => {
     const sha256 = createHash('sha256').update(bytes).digest('hex');
     await expect(
       store.put({
-        cacheKey: 'cache-key',
+        storageKey: 'private/tts/runs/run-1.wav',
         bytes,
         mimeType: 'audio/wav',
         sha256,
       }),
     ).resolves.toEqual({
-      storageKey: 'private/tts/cache-key.wav',
+      storageKey: 'private/tts/runs/run-1.wav',
       mimeType: 'audio/wav',
       sizeBytes: 3,
       sha256,
     });
 
     bytes[0] = 9;
-    const stored = store.get('cache-key');
+    const stored = store.get('private/tts/runs/run-1.wav');
     expect(stored).toEqual(Uint8Array.from([1, 2, 3]));
 
     if (stored) stored[1] = 9;
-    expect(store.get('cache-key')).toEqual(Uint8Array.from([1, 2, 3]));
+    expect(store.get('private/tts/runs/run-1.wav')).toEqual(
+      Uint8Array.from([1, 2, 3]),
+    );
   });
 
   it('같은 cache key의 다른 audio는 기존 immutable snapshot을 덮어쓰지 않는다', async () => {
     const store = new FakeTtsAudioStore();
     const firstBytes = Uint8Array.from([1, 2, 3]);
     const input = {
-      cacheKey: 'cache-key',
+      storageKey: 'private/tts/runs/run-1.wav',
       mimeType: 'audio/wav' as const,
       sha256: createHash('sha256').update(firstBytes).digest('hex'),
     };
@@ -51,6 +53,30 @@ describe('FakeTtsAudioStore', () => {
           .digest('hex'),
       }),
     ).rejects.toThrow('FAKE_TTS_AUDIO_IMMUTABLE_CONFLICT');
-    expect(store.get('cache-key')).toEqual(Uint8Array.from([1, 2, 3]));
+    expect(store.get('private/tts/runs/run-1.wav')).toEqual(
+      Uint8Array.from([1, 2, 3]),
+    );
+  });
+
+  it('서로 다른 세대 key는 같은 cache 입력이어도 독립 immutable object로 보존한다', async () => {
+    const store = new FakeTtsAudioStore();
+    const bytes = Uint8Array.from([1, 2, 3]);
+    const sha256 = createHash('sha256').update(bytes).digest('hex');
+
+    await store.put({
+      storageKey: 'private/tts/runs/run-1.wav',
+      bytes,
+      mimeType: 'audio/wav',
+      sha256,
+    });
+    await store.put({
+      storageKey: 'private/tts/runs/run-2.wav',
+      bytes,
+      mimeType: 'audio/wav',
+      sha256,
+    });
+
+    expect(store.get('private/tts/runs/run-1.wav')).toEqual(bytes);
+    expect(store.get('private/tts/runs/run-2.wav')).toEqual(bytes);
   });
 });
