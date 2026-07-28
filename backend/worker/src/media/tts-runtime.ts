@@ -1,4 +1,6 @@
 /** TTS processor·READY guard·GC를 동일 durability와 mode별 adapter로 조립한다 */
+import { tmpdir } from 'node:os';
+import { isAbsolute, join, resolve } from 'node:path';
 import {
   DrizzleTtsDurabilityRepository,
   DrizzleTtsRepository,
@@ -13,6 +15,7 @@ import type {
 import {
   DeterministicTtsProvider,
   FakeTtsAudioStore,
+  LocalFileTtsAudioStore,
   UnavailableTtsAudioStore,
 } from '@flex-thia/providers';
 import { TtsAudioGarbageCollector } from './tts-audio-gc.js';
@@ -27,11 +30,25 @@ const isTerminal = (status: TtsJobStatus): boolean =>
   status === 'PARTIALLY_FAILED' ||
   status === 'FAILED';
 
+/** local TTS directory는 전용 env override 또는 host temp 기본값으로 고정한다 */
+export const resolveLocalTtsAudioDirectory = (
+  source: Record<string, string | undefined> = process.env,
+  workingDirectory: string = process.cwd(),
+  temporaryDirectory: string = tmpdir(),
+): string => {
+  const configured = source.FLEX_THIA_LOCAL_TTS_AUDIO_DIRECTORY?.trim();
+  if (!configured) return join(temporaryDirectory, 'flex-thia', 'tts-audio');
+  return isAbsolute(configured)
+    ? configured
+    : resolve(workingDirectory, configured);
+};
+
 /** 동일 DB·durability·storage identity를 TTS task와 GC task에 제공한다 */
 export const createTtsRuntime = (input: {
   database: ConstructorParameters<typeof DrizzleTtsRepository>[0];
   mode: TtsRuntimeMode;
   now?: () => Date;
+  localAudioDirectory?: string;
 }) => {
   const now = input.now ?? (() => new Date());
   const durability = new DrizzleTtsDurabilityRepository(input.database, now);
@@ -49,7 +66,11 @@ export const createTtsRuntime = (input: {
   const audioStore: TtsAudioStore & TtsAudioGarbageStore =
     input.mode === 'production'
       ? new UnavailableTtsAudioStore()
-      : new FakeTtsAudioStore();
+      : input.mode === 'local'
+        ? new LocalFileTtsAudioStore(
+            input.localAudioDirectory ?? resolveLocalTtsAudioDirectory(),
+          )
+        : new FakeTtsAudioStore();
   const processor = new TtsProcessor(
     repository,
     provider,

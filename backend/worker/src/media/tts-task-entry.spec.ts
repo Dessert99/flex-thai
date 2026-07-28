@@ -23,7 +23,7 @@ describe('TTS SQS entry', () => {
           '{"jobId":"00000000-0000-4000-8000-000000000001","attempt":2}',
         ),
       ],
-    } as SQSEvent;
+    };
 
     await expect(handler(event)).resolves.toEqual({ batchItemFailures: [] });
     expect(directHandler).toHaveBeenCalledWith({
@@ -37,7 +37,7 @@ describe('TTS SQS entry', () => {
     const handler = createTtsSqsHandler(() => directHandler);
 
     await expect(
-      handler({ Records: [record('message-1', '{broken')] } as SQSEvent),
+      handler({ Records: [record('message-1', '{broken')] }),
     ).resolves.toEqual({ batchItemFailures: [] });
     expect(directHandler).not.toHaveBeenCalled();
   });
@@ -61,7 +61,7 @@ describe('TTS SQS entry', () => {
             '{"jobId":"00000000-0000-4000-8000-000000000002","attempt":1}',
           ),
         ],
-      } as SQSEvent),
+      }),
     ).resolves.toEqual({
       batchItemFailures: [{ itemIdentifier: 'message-1' }],
     });

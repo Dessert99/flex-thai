@@ -1,4 +1,4 @@
-/** TTS task·GC·local read entry가 동일 cold-start runtime을 공유하게 조립한다 */
+/** TTS Lambda entry용 runtime을 cold-start당 한 번 조립한다 */
 import { createWorkerDatabase } from '../database-runtime.js';
 import { createTtsRuntime } from './tts-runtime.js';
 
@@ -29,5 +29,5 @@ const defaultProvider = createTtsEntryRuntimeProvider(() =>
   }),
 );
 
-/** 실제 TTS entry들이 한 process의 provider·store·durability를 함께 사용한다 */
+/** 한 Lambda process 안에서 default runtime을 cold-start 한 번만 생성한다 */
 export const getDefaultTtsEntryRuntime = () => defaultProvider.get();

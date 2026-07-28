@@ -1,4 +1,4 @@
-/** TTS task·GC entry가 한 local runtime과 audio store를 공유하는지 검증한다 */
+/** TTS entry provider의 cold-start 재사용과 task·GC factory 연결을 검증한다 */
 import type { SQSEvent } from 'aws-lambda';
 import { describe, expect, it, vi } from 'vitest';
 import { createTtsAudioGcTaskHandler } from './tts-audio-gc-task.js';
@@ -6,23 +6,16 @@ import { createTtsEntryRuntimeProvider } from './tts-entry-runtime.js';
 import { createTtsSqsHandler } from './tts-task-entry.js';
 
 describe('TTS entry runtime provider', () => {
-  it('task·GC·read 경로가 같은 runtime과 audio store identity를 재사용한다', () => {
-    const audioStore = {};
+  it('같은 provider의 반복 호출은 cold-start runtime을 한 번만 만든다', () => {
     const runtime = {
-      audioStore,
       taskHandler: vi.fn(),
       collector: { processBatch: vi.fn() },
     };
     const createRuntime = vi.fn(() => runtime);
     const provider = createTtsEntryRuntimeProvider(createRuntime);
 
-    const taskRuntime = provider.get();
-    const gcRuntime = provider.get();
-    const readRuntime = provider.get();
-
-    expect(taskRuntime).toBe(runtime);
-    expect(gcRuntime).toBe(taskRuntime);
-    expect(readRuntime.audioStore).toBe(taskRuntime.audioStore);
+    expect(provider.get()).toBe(runtime);
+    expect(provider.get()).toBe(runtime);
     expect(createRuntime).toHaveBeenCalledTimes(1);
   });
 
@@ -30,7 +23,6 @@ describe('TTS entry runtime provider', () => {
     const taskHandler = vi.fn().mockResolvedValue({ kind: 'PROCESSED' });
     const processBatch = vi.fn().mockResolvedValue({ deleted: 1 });
     const createRuntime = vi.fn(() => ({
-      audioStore: {},
       taskHandler,
       collector: { processBatch },
     }));

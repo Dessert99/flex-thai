@@ -349,8 +349,14 @@ interface GeneratedDraftSentenceInput
 - Modify/Test: `backend/api/src/openapi/openapi.spec.ts`
 - Create/Test: `backend/providers/src/aws/sqs-async-dispatch.queue.ts`
 - Create/Test: `backend/providers/src/storage/s3-tts-audio.store.ts`
+- Create/Test: `backend/providers/src/storage/local-file-media-read.provider.ts`
+- Modify/Test: `backend/config/src/api-env.ts`
+- Create/Test: `backend/api/src/media/local-media.controller.ts`
+- Modify/Test: `backend/api/src/media/media.module.ts`
 - Modify/Test: `backend/worker/src/dispatch/async-dispatch-relay-task.ts`
 - Modify/Test: `backend/worker/src/media/tts-entry-runtime.ts`
+- Modify/Test: `compose.yaml`
+- Modify/Test: `backend/config/src/local-compose.spec.ts`
 - Modify/Test: `infra/src/constructs/async-jobs.ts`
 - Modify/Test: `infra/test/async-jobs.spec.ts`
 - Modify/Test: `infra/src/application-stack.ts`
@@ -375,6 +381,14 @@ interface GeneratedDraftSentenceInput
   metadata checks
 - Grants task/GC only required media-bucket object permissions and adds the
   orphan-audio lifecycle policy without exposing storage keys through HTTP
+- Replaces local `FakeMediaReadUrlProvider` with a local-only short-lived HMAC
+  URL provider and `GET /local-media/:objectId`; the controller reads the
+  object-id-mapped WAV from the exact
+  `FLEX_THIA_LOCAL_TTS_AUDIO_DIRECTORY`, rejects expired/invalid tokens and
+  never exposes the private storage key
+- Uses one named compose volume mounted at the same absolute local TTS
+  directory for API, relay, TTS task and GC processes; host execution keeps the
+  project-specific env override or the `tmpdir()/flex-thia/tts-audio` default
 
 - [ ] **Step 1: Write failing DI tests**
 
@@ -382,6 +396,9 @@ interface GeneratedDraftSentenceInput
   Production worker composition must resolve two concrete queue acceptance
   adapters and a concrete TTS audio store; `Unavailable*` adapters are a test
   failure in configured production.
+  Local API composition must resolve the filesystem media URL/reader pair
+  instead of `FakeMediaReadUrlProvider`; its generated URL must use the local
+  API origin rather than `fake-media.invalid`.
 
 - [ ] **Step 2: Write failing OpenAPI/infra exact route tests**
 
@@ -390,6 +407,11 @@ interface GeneratedDraftSentenceInput
   CDK assertions must cover both queues/DLQs, TTS partial-batch event source,
   relay and GC schedules, queue URLs, least-privilege send/consume IAM,
   media-bucket put/get-head/delete permissions and orphan lifecycle rules.
+  Local component tests must put through `LocalFileTtsAudioStore`, fetch the
+  returned short-lived URL through the controller, compare exact WAV bytes and
+  prove expired/tampered object IDs return 404 without leaking storage keys.
+  Compose assertions must prove every local media producer/consumer mounts the
+  same named volume and directory env value.
 
 - [ ] **Step 3: Run Red**
 
