@@ -6,7 +6,6 @@ import type {
   TtsJobDetail,
   TtsJobListInput,
   TtsJobPage,
-  TtsVoiceSnapshot,
 } from '@flex-thia/domain';
 import { and, count, desc, eq, gte, lte } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
@@ -111,7 +110,7 @@ export class DrizzleTtsOperationsQuery implements TtsOperationsQuery {
       .limit(input.pageSize)
       .offset((input.page - 1) * input.pageSize);
     return {
-      items: rows.map((row) => toJob(row as JobRow)),
+      items: rows.map((row) => toJob(row)),
       page: {
         page: input.page,
         pageSize: input.pageSize,
@@ -130,8 +129,8 @@ export class DrizzleTtsOperationsQuery implements TtsOperationsQuery {
       .limit(1);
     if (!row) return null;
     return {
-      ...toJob(row as JobRow),
-      voice: row.voiceSnapshot as TtsVoiceSnapshot,
+      ...toJob(row),
+      voice: row.voiceSnapshot,
     };
   }
 
