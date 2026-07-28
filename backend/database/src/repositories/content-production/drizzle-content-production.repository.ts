@@ -11,10 +11,12 @@ import {
   isNull,
   lte,
   or,
+  sql,
 } from 'drizzle-orm';
 import {
   CONTENT_PRODUCTION_ITEM_LEASE_MS,
   ContentProductionDomainError,
+  ContentProductionPresetError,
 } from '@flex-thia/domain';
 import type {
   ContentProductionItem,
@@ -23,9 +25,14 @@ import type {
   ContentProductionJobStatus,
   ContentProductionPresetCatalog,
   ContentProductionPresetSnapshot,
+  ContentProductionPresetVersion,
   ContentProductionRepository,
   ContentProductionOperation,
   CreateContentProductionCommand,
+  CreateInitialContentProductionPresetInput,
+  CreateNextContentProductionPresetVersionInput,
+  ResolveContentProductionPresetSnapshotInput,
+  SetContentProductionPresetEnabledInput,
 } from '@flex-thia/domain';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
@@ -35,6 +42,10 @@ import {
   jobItems,
   jobs,
   uploads,
+  auditLogs,
+  questionTypeVersions,
+  ttsVoicePresets,
+  vocabularies,
 } from '../../schema/index.js';
 import {
   vocabularyProductionCandidates,
@@ -45,6 +56,19 @@ import * as schema from '../../schema/index.js';
 type ContentProductionDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 type ContentProductionExecutor = Pick<ContentProductionDatabase, 'select'>;
 type JobRow = typeof jobs.$inferSelect;
+
+const canonicalJson = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(canonicalJson);
+  if (value === null || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => [key, canonicalJson(item)]),
+  );
+};
+
+const sameJson = (left: unknown, right: unknown): boolean =>
+  JSON.stringify(canonicalJson(left)) === JSON.stringify(canonicalJson(right));
 
 const toItem = (row: typeof jobItems.$inferSelect): ContentProductionItem => {
   if (!row.sourceRef) {
@@ -770,6 +794,45 @@ export class DrizzleContentProductionPresetCatalog implements ContentProductionP
       );
   }
 
+  /** immutable preset row와 enable audit 수로 계산한 revision을 반환한다 */
+  async listVersions(): Promise<ContentProductionPresetVersion[]> {
+    const [presets, enableAudits] = await Promise.all([
+      this.database
+        .select({
+          id: contentProductionPresets.id,
+          name: contentProductionPresets.name,
+          purpose: contentProductionPresets.purpose,
+          version: contentProductionPresets.version,
+          parameters: contentProductionPresets.parameters,
+          enabled: contentProductionPresets.enabled,
+          createdAt: contentProductionPresets.createdAt,
+        })
+        .from(contentProductionPresets)
+        .orderBy(
+          asc(contentProductionPresets.purpose),
+          asc(contentProductionPresets.name),
+          desc(contentProductionPresets.version),
+        ),
+      this.database
+        .select({ targetId: auditLogs.targetId })
+        .from(auditLogs)
+        .where(
+          eq(
+            auditLogs.action,
+            'CONTENT_PRODUCTION_PRESET_ENABLED_CHANGED',
+          ),
+        ),
+    ]);
+    const revisions = new Map<string, number>();
+    for (const { targetId } of enableAudits) {
+      if (targetId) revisions.set(targetId, (revisions.get(targetId) ?? 0) + 1);
+    }
+    return presets.map((preset) => ({
+      ...preset,
+      revision: revisions.get(preset.id) ?? 0,
+    }));
+  }
+
   /** 작업 생성 시 선택한 활성 preset snapshot을 반환한다 */
   async findEnabledById(
     presetId: string,
@@ -791,5 +854,372 @@ export class DrizzleContentProductionPresetCatalog implements ContentProductionP
       )
       .limit(1);
     return preset ?? null;
+  }
+
+  /** job override 허용 목록을 적용하고 모든 활성 참조가 유효할 때 snapshot을 반환한다 */
+  async resolveEffectiveSnapshot(
+    input: ResolveContentProductionPresetSnapshotInput,
+  ): Promise<ContentProductionPresetSnapshot | null> {
+    const preset = await this.findEnabledById(input.presetId);
+    if (!preset || preset.purpose !== input.purpose) return null;
+    if (input.purpose === 'VOCABULARY_EXTRACTION') return preset;
+
+    const allowed = [
+      'questionCount',
+      'questionTypePlan',
+      'difficultyPlan',
+      'targetVocabularyIds',
+      'requiredVocabularyIds',
+      'excludedVocabularyIds',
+      'newAuxiliaryVocabularyLimit',
+      'similarityThreshold',
+      'defaultVoicePresetId',
+      'speakerVoiceAssignments',
+      'additionalInstructionKo',
+    ] as const;
+    const parameters = {
+      ...preset.parameters,
+      ...Object.fromEntries(
+        allowed.flatMap((key) =>
+          key in input.options ? [[key, input.options[key]]] : [],
+        ),
+      ),
+    };
+    const typePlan = parameters['questionTypePlan'];
+    const vocabularyIds = [
+      parameters['targetVocabularyIds'],
+      parameters['requiredVocabularyIds'],
+      parameters['excludedVocabularyIds'],
+    ].flatMap((ids) => (Array.isArray(ids) ? ids : []));
+    const voiceAssignments = parameters['speakerVoiceAssignments'];
+    const typeIds = Array.isArray(typePlan)
+      ? typePlan.flatMap((entry) =>
+          entry &&
+          typeof entry === 'object' &&
+          'questionTypeVersionId' in entry &&
+          typeof entry.questionTypeVersionId === 'string'
+            ? [entry.questionTypeVersionId]
+            : [],
+        )
+      : [];
+    const voiceIds = [
+      parameters['defaultVoicePresetId'],
+      ...(Array.isArray(voiceAssignments)
+        ? voiceAssignments.flatMap((assignment) =>
+            assignment &&
+            typeof assignment === 'object' &&
+            'voicePresetId' in assignment &&
+            typeof assignment.voicePresetId === 'string'
+              ? [assignment.voicePresetId]
+              : [],
+          )
+        : []),
+    ].filter((id): id is string => typeof id === 'string');
+    if (typeIds.length === 0 || voiceIds.length === 0) return null;
+
+    const [activeTypes, publishedVocabulary, enabledVoices] = await Promise.all([
+      this.database
+        .select({ id: questionTypeVersions.id })
+        .from(questionTypeVersions)
+        .where(
+          and(
+            inArray(questionTypeVersions.id, [...new Set(typeIds)]),
+            eq(questionTypeVersions.status, 'ACTIVE'),
+          ),
+        ),
+      vocabularyIds.length === 0
+        ? Promise.resolve([])
+        : this.database
+            .select({ id: vocabularies.id })
+            .from(vocabularies)
+            .where(
+              and(
+                inArray(vocabularies.id, [...new Set(vocabularyIds)]),
+                eq(vocabularies.status, 'PUBLISHED'),
+              ),
+            ),
+      this.database
+        .select({ id: ttsVoicePresets.id })
+        .from(ttsVoicePresets)
+        .where(
+          and(
+            inArray(ttsVoicePresets.id, [...new Set(voiceIds)]),
+            eq(ttsVoicePresets.enabled, true),
+          ),
+        ),
+    ]);
+    if (
+      activeTypes.length !== new Set(typeIds).size ||
+      publishedVocabulary.length !== new Set(vocabularyIds).size ||
+      enabledVoices.length !== new Set(voiceIds).size
+    ) {
+      return null;
+    }
+    return { ...preset, parameters };
+  }
+
+  /** 새 이름의 최초 immutable preset row와 감사 로그를 원자 생성한다 */
+  async createInitial(
+    input: CreateInitialContentProductionPresetInput,
+  ): Promise<ContentProductionPresetVersion> {
+    return this.database.transaction(async (transaction) => {
+      await transaction.execute(
+        sql`select pg_advisory_xact_lock(hashtextextended(${input.requestId}, 1))`,
+      );
+      const [replay] = await transaction
+        .select({
+          action: auditLogs.action,
+          targetId: auditLogs.targetId,
+        })
+        .from(auditLogs)
+        .where(eq(auditLogs.requestId, input.requestId))
+        .limit(1);
+      if (replay) {
+        const [created] = replay.targetId
+          ? await transaction
+              .select()
+              .from(contentProductionPresets)
+              .where(eq(contentProductionPresets.id, replay.targetId))
+              .limit(1)
+          : [];
+        if (
+          replay.action === 'CONTENT_PRODUCTION_PRESET_CREATED' &&
+          created?.name === input.name &&
+          created.purpose === input.purpose &&
+          sameJson(created.parameters, input.parameters)
+        ) {
+          return { ...created, revision: 0 };
+        }
+        throw new ContentProductionPresetError(
+          'CONTENT_PRODUCTION_PRESET_IDEMPOTENCY_CONFLICT',
+        );
+      }
+      await transaction.execute(
+        sql`select pg_advisory_xact_lock(hashtextextended(${input.name}, 0))`,
+      );
+      const [existing] = await transaction
+        .select({ id: contentProductionPresets.id })
+        .from(contentProductionPresets)
+        .where(eq(contentProductionPresets.name, input.name))
+        .limit(1);
+      if (existing) {
+        throw new ContentProductionPresetError(
+          'CONTENT_PRODUCTION_PRESET_IDEMPOTENCY_CONFLICT',
+        );
+      }
+      const [created] = await transaction
+        .insert(contentProductionPresets)
+        .values({
+          name: input.name,
+          purpose: input.purpose,
+          version: 1,
+          parameters: input.parameters,
+          enabled: true,
+        })
+        .returning();
+      if (!created) throw new Error('CONTENT_PRODUCTION_PRESET_CREATE_FAILED');
+      await transaction.insert(auditLogs).values({
+        actorSub: input.actorSub,
+        actorUserId: input.actorUserId,
+        action: 'CONTENT_PRODUCTION_PRESET_CREATED',
+        target: created.id,
+        targetType: 'CONTENT_PRODUCTION_PRESET',
+        targetId: created.id,
+        summary: {
+          presetId: created.id,
+          version: created.version,
+        },
+        requestId: input.requestId,
+        createdAt: input.occurredAt,
+      });
+      return { ...created, revision: 0 };
+    });
+  }
+
+  /** 같은 이름의 max(version)+1 immutable row를 advisory lock 아래 생성한다 */
+  async createNextVersion(
+    input: CreateNextContentProductionPresetVersionInput,
+  ): Promise<ContentProductionPresetVersion> {
+    return this.database.transaction(async (transaction) => {
+      await transaction.execute(
+        sql`select pg_advisory_xact_lock(hashtextextended(${input.requestId}, 1))`,
+      );
+      const [replay] = await transaction
+        .select({
+          action: auditLogs.action,
+          targetId: auditLogs.targetId,
+          summary: auditLogs.summary,
+        })
+        .from(auditLogs)
+        .where(eq(auditLogs.requestId, input.requestId))
+        .limit(1);
+      if (replay) {
+        const [created] = replay.targetId
+          ? await transaction
+              .select()
+              .from(contentProductionPresets)
+              .where(eq(contentProductionPresets.id, replay.targetId))
+              .limit(1)
+          : [];
+        if (
+          replay.action === 'CONTENT_PRODUCTION_PRESET_VERSION_CREATED' &&
+          replay.summary['previousPresetId'] === input.presetId &&
+          created &&
+          sameJson(created.parameters, input.parameters)
+        ) {
+          return { ...created, revision: 0 };
+        }
+        throw new ContentProductionPresetError(
+          'CONTENT_PRODUCTION_PRESET_IDEMPOTENCY_CONFLICT',
+        );
+      }
+      const [base] = await transaction
+        .select()
+        .from(contentProductionPresets)
+        .where(eq(contentProductionPresets.id, input.presetId))
+        .limit(1);
+      if (!base) {
+        throw new ContentProductionPresetError(
+          'CONTENT_PRODUCTION_PRESET_NOT_FOUND',
+        );
+      }
+      await transaction.execute(
+        sql`select pg_advisory_xact_lock(hashtextextended(${base.name}, 0))`,
+      );
+      const [latest] = await transaction
+        .select({ version: contentProductionPresets.version })
+        .from(contentProductionPresets)
+        .where(eq(contentProductionPresets.name, base.name))
+        .orderBy(desc(contentProductionPresets.version))
+        .limit(1);
+      const [created] = await transaction
+        .insert(contentProductionPresets)
+        .values({
+          name: base.name,
+          purpose: base.purpose,
+          version: (latest?.version ?? 0) + 1,
+          parameters: input.parameters,
+          enabled: true,
+        })
+        .returning();
+      if (!created) throw new Error('CONTENT_PRODUCTION_PRESET_CREATE_FAILED');
+      await transaction.insert(auditLogs).values({
+        actorSub: input.actorSub,
+        actorUserId: input.actorUserId,
+        action: 'CONTENT_PRODUCTION_PRESET_VERSION_CREATED',
+        target: created.id,
+        targetType: 'CONTENT_PRODUCTION_PRESET',
+        targetId: created.id,
+        summary: {
+          presetId: created.id,
+          previousPresetId: base.id,
+          version: created.version,
+        },
+        requestId: input.requestId,
+        createdAt: input.occurredAt,
+      });
+      return { ...created, revision: 0 };
+    });
+  }
+
+  /** enable audit count와 expected revision이 같을 때만 상태를 바꾼다 */
+  async setEnabled(
+    input: SetContentProductionPresetEnabledInput,
+  ): Promise<ContentProductionPresetVersion> {
+    return this.database.transaction(async (transaction) => {
+      await transaction.execute(
+        sql`select pg_advisory_xact_lock(hashtextextended(${input.requestId}, 1))`,
+      );
+      const [replay] = await transaction
+        .select({
+          action: auditLogs.action,
+          targetId: auditLogs.targetId,
+          summary: auditLogs.summary,
+        })
+        .from(auditLogs)
+        .where(eq(auditLogs.requestId, input.requestId))
+        .limit(1);
+      if (replay) {
+        const [preset] = replay.targetId
+          ? await transaction
+              .select()
+              .from(contentProductionPresets)
+              .where(eq(contentProductionPresets.id, replay.targetId))
+              .limit(1)
+          : [];
+        if (
+          replay.action === 'CONTENT_PRODUCTION_PRESET_ENABLED_CHANGED' &&
+          replay.targetId === input.presetId &&
+          replay.summary['enabled'] === input.enabled &&
+          replay.summary['expectedRevision'] === input.expectedRevision &&
+          preset
+        ) {
+          return {
+            ...preset,
+            enabled: input.enabled,
+            revision: input.expectedRevision + 1,
+          };
+        }
+        throw new ContentProductionPresetError(
+          'CONTENT_PRODUCTION_PRESET_IDEMPOTENCY_CONFLICT',
+        );
+      }
+      await transaction.execute(
+        sql`select id from ${contentProductionPresets} where ${contentProductionPresets.id} = ${input.presetId} for update`,
+      );
+      const [preset] = await transaction
+        .select()
+        .from(contentProductionPresets)
+        .where(eq(contentProductionPresets.id, input.presetId))
+        .limit(1);
+      if (!preset) {
+        throw new ContentProductionPresetError(
+          'CONTENT_PRODUCTION_PRESET_NOT_FOUND',
+        );
+      }
+      const revisions = await transaction
+        .select({ id: auditLogs.id })
+        .from(auditLogs)
+        .where(
+          and(
+            eq(
+              auditLogs.action,
+              'CONTENT_PRODUCTION_PRESET_ENABLED_CHANGED',
+            ),
+            eq(auditLogs.targetId, input.presetId),
+          ),
+        );
+      if (revisions.length !== input.expectedRevision) {
+        throw new ContentProductionPresetError(
+          'CONTENT_PRODUCTION_PRESET_REVISION_CONFLICT',
+        );
+      }
+      const [updated] = await transaction
+        .update(contentProductionPresets)
+        .set({ enabled: input.enabled })
+        .where(eq(contentProductionPresets.id, input.presetId))
+        .returning();
+      if (!updated) {
+        throw new ContentProductionPresetError(
+          'CONTENT_PRODUCTION_PRESET_NOT_FOUND',
+        );
+      }
+      await transaction.insert(auditLogs).values({
+        actorSub: input.actorSub,
+        actorUserId: input.actorUserId,
+        action: 'CONTENT_PRODUCTION_PRESET_ENABLED_CHANGED',
+        target: input.presetId,
+        targetType: 'CONTENT_PRODUCTION_PRESET',
+        targetId: input.presetId,
+        summary: {
+          presetId: input.presetId,
+          enabled: input.enabled,
+          expectedRevision: input.expectedRevision,
+        },
+        requestId: input.requestId,
+        createdAt: input.occurredAt,
+      });
+      return { ...updated, revision: input.expectedRevision + 1 };
+    });
   }
 }

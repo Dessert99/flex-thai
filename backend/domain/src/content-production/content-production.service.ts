@@ -31,6 +31,52 @@ export interface ContentProductionPresetSnapshot {
   parameters: Record<string, unknown>;
 }
 
+/** 관리자 preset version 목록에 필요한 immutable row와 enabled revision */
+export interface ContentProductionPresetVersion
+  extends ContentProductionPresetSnapshot {
+  enabled: boolean;
+  revision: number;
+  createdAt: Date;
+}
+
+/** preset 변경 명령의 서버 신뢰 감사 문맥 */
+export interface ContentProductionPresetAuditContext {
+  requestId: string;
+  actorUserId: string;
+  actorSub: string;
+  occurredAt: Date;
+}
+
+/** 새 이름으로 최초 preset version을 만드는 명령 */
+export interface CreateInitialContentProductionPresetInput
+  extends ContentProductionPresetAuditContext {
+  name: string;
+  purpose: ContentProductionPurpose;
+  parameters: Record<string, unknown>;
+}
+
+/** 같은 이름·목적의 다음 immutable preset version을 만드는 명령 */
+export interface CreateNextContentProductionPresetVersionInput
+  extends ContentProductionPresetAuditContext {
+  presetId: string;
+  parameters: Record<string, unknown>;
+}
+
+/** preset enabled 상태를 optimistic revision으로 바꾸는 명령 */
+export interface SetContentProductionPresetEnabledInput
+  extends ContentProductionPresetAuditContext {
+  presetId: string;
+  enabled: boolean;
+  expectedRevision: number;
+}
+
+/** job/preview 요청의 허용된 override만 preset policy에 적용하는 입력 */
+export interface ResolveContentProductionPresetSnapshotInput {
+  purpose: ContentProductionPurpose;
+  presetId: string;
+  options: Record<string, unknown>;
+}
+
 /** 문제 유형·난이도 분포를 item 단위로 펼칠 typed parameter */
 export interface QuestionGenerationParameters {
   questionCount: number;
@@ -208,9 +254,35 @@ export interface ContentProductionRepository {
 /** 작업 생성 시 사용할 활성 preset 조회 port */
 export interface ContentProductionPresetCatalog {
   listEnabled(): Promise<ContentProductionPresetSnapshot[]>;
+  listVersions(): Promise<ContentProductionPresetVersion[]>;
   findEnabledById(
     presetId: string,
   ): Promise<ContentProductionPresetSnapshot | null>;
+  resolveEffectiveSnapshot(
+    input: ResolveContentProductionPresetSnapshotInput,
+  ): Promise<ContentProductionPresetSnapshot | null>;
+  createInitial(
+    input: CreateInitialContentProductionPresetInput,
+  ): Promise<ContentProductionPresetVersion>;
+  createNextVersion(
+    input: CreateNextContentProductionPresetVersionInput,
+  ): Promise<ContentProductionPresetVersion>;
+  setEnabled(
+    input: SetContentProductionPresetEnabledInput,
+  ): Promise<ContentProductionPresetVersion>;
+}
+
+/** preset version 명령의 멱등·optimistic 충돌 */
+export class ContentProductionPresetError extends Error {
+  constructor(
+    readonly code:
+      | 'CONTENT_PRODUCTION_PRESET_IDEMPOTENCY_CONFLICT'
+      | 'CONTENT_PRODUCTION_PRESET_REVISION_CONFLICT'
+      | 'CONTENT_PRODUCTION_PRESET_NOT_FOUND',
+  ) {
+    super(code);
+    this.name = 'ContentProductionPresetError';
+  }
 }
 
 /** 콘텐츠 제작 queue port */
