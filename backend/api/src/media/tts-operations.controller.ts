@@ -24,12 +24,17 @@ import {
   retryTtsItemRequestSchema,
   retryTtsJobRequestSchema,
   ttsItemPathSchema,
+  ttsItemAudioResponseSchema,
   ttsJobDetailResponseSchema,
   ttsJobItemsQuerySchema,
   ttsJobListQuerySchema,
   ttsJobListResponseSchema,
   ttsJobPathSchema,
   ttsRetryResponseSchema,
+  ttsPublicationReadinessPathSchema,
+  ttsPublicationReadinessResponseSchema,
+  type TtsItemAudioResponse,
+  type TtsPublicationReadinessResponse,
   type TtsJobDetailResponse,
   type TtsJobListResponse,
   type TtsRetryResponse,
@@ -53,6 +58,8 @@ import {
   TtsJobListQueryDto,
   TtsJobListResponseDto,
   TtsRetryResponseDto,
+  TtsItemAudioResponseDto,
+  TtsPublicationReadinessResponseDto,
 } from './tts-operations.dto.js';
 import { TtsOperationsService } from './tts-operations.service.js';
 
@@ -68,6 +75,8 @@ import { TtsOperationsService } from './tts-operations.service.js';
   RetryTtsJobRequestDto,
   RetryTtsItemRequestDto,
   TtsRetryResponseDto,
+  TtsItemAudioResponseDto,
+  TtsPublicationReadinessResponseDto,
 )
 @Controller('admin/tts')
 @UseGuards(CognitoAuthorizerGuard, ApplicationRoleGuard, AdminMfaGuard)
@@ -103,6 +112,38 @@ export class TtsOperationsController {
     const query = ttsJobItemsQuerySchema.parse(rawQuery);
     return ttsJobDetailResponseSchema.parse(
       await this.service.getJob(jobId, query),
+    );
+  }
+
+  /** 성공 TTS 항목의 click-time read URL을 반환한다 */
+  @ApiOperation({ summary: 'TTS 항목 음성 재생 URL을 발급한다' })
+  @ApiParam({ name: 'itemId', type: 'string', format: 'uuid' })
+  @ApiOkResponse({ type: TtsItemAudioResponseDto })
+  @ApiProblemResponses(400, 401, 403, 404, 409, 500)
+  @Get('items/:itemId/audio')
+  async getItemAudio(
+    @Param() rawPath: Record<string, unknown>,
+  ): Promise<TtsItemAudioResponse> {
+    const { itemId } = ttsItemPathSchema.parse(rawPath);
+    return ttsItemAudioResponseSchema.parse(
+      await this.service.getItemAudio(itemId),
+    );
+  }
+
+  /** 문제 version의 TTS 게시 readiness와 blocker를 반환한다 */
+  @ApiOperation({ summary: '문제 version TTS 게시 readiness를 조회한다' })
+  @ApiParam({ name: 'questionId', type: 'string', format: 'uuid' })
+  @ApiParam({ name: 'versionId', type: 'string', format: 'uuid' })
+  @ApiOkResponse({ type: TtsPublicationReadinessResponseDto })
+  @ApiProblemResponses(400, 401, 403, 404, 409, 500)
+  @Get('questions/:questionId/versions/:versionId/readiness')
+  async getPublicationReadiness(
+    @Param() rawPath: Record<string, unknown>,
+  ): Promise<TtsPublicationReadinessResponse> {
+    const { questionId, versionId } =
+      ttsPublicationReadinessPathSchema.parse(rawPath);
+    return ttsPublicationReadinessResponseSchema.parse(
+      await this.service.getPublicationReadiness(questionId, versionId),
     );
   }
 

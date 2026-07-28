@@ -12,6 +12,7 @@ import {
   AuthDomainError,
   AuditLogError,
   ContentImportError,
+  ContentTtsReadinessError,
   EmailChallengeError,
   IdentityDomainError,
   LearningDomainError,
@@ -218,6 +219,14 @@ export const buildErrorResponse = (
   error: unknown,
   requestId: string,
 ): ErrorResponse => {
+  if (error instanceof ContentTtsReadinessError) {
+    const status = HttpStatus.CONFLICT;
+    return {
+      status,
+      body: createProblem(error.code, status, requestId),
+    };
+  }
+
   if (error instanceof AuthDomainError) {
     const status = AUTH_STATUS[error.code];
     return {

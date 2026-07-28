@@ -18,6 +18,8 @@ const ids = {
   item: '00000000-0000-4000-8000-000000000002',
   admin: '00000000-0000-4000-8000-000000000003',
   request: '00000000-0000-4000-8000-000000000004',
+  question: '00000000-0000-4000-8000-000000000005',
+  version: '00000000-0000-4000-8000-000000000006',
 } as const;
 const user = { userId: ids.admin, sub: 'admin-sub' } as never;
 
@@ -188,5 +190,40 @@ describe('TtsOperationsController 공개 경계', () => {
         { items: [{ itemId: ids.item, expectedAttempt: 2 }] },
       ),
     ).rejects.toBe(dispatchFailure);
+  });
+
+  it('음성 재생과 게시 readiness GET route를 strict path로 연결한다', async () => {
+    const service = {
+      getItemAudio: vi.fn().mockResolvedValue({
+        url: 'http://127.0.0.1/audio',
+        expiresAt: '2026-07-28T00:05:00.000Z',
+      }),
+      getPublicationReadiness: vi.fn().mockResolvedValue({
+        ready: true,
+        requiredCount: 0,
+        readyCount: 0,
+        blockers: [],
+      }),
+    };
+    const controller = new TtsOperationsController(service as never);
+
+    expect(metadata('getItemAudio')).toMatchObject({
+      method: RequestMethod.GET,
+      path: 'items/:itemId/audio',
+    });
+    expect(metadata('getPublicationReadiness')).toMatchObject({
+      method: RequestMethod.GET,
+      path: 'questions/:questionId/versions/:versionId/readiness',
+    });
+    await controller.getItemAudio({ itemId: ids.item });
+    await controller.getPublicationReadiness({
+      questionId: ids.question,
+      versionId: ids.version,
+    });
+    expect(service.getItemAudio).toHaveBeenCalledWith(ids.item);
+    expect(service.getPublicationReadiness).toHaveBeenCalledWith(
+      ids.question,
+      ids.version,
+    );
   });
 });
