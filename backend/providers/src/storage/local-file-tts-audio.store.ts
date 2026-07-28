@@ -17,6 +17,7 @@ interface LocalAudioContainer {
 
 interface LocalFileTtsAudioStoreOptions {
   beforeCommit?: (signal: AbortSignal) => Promise<void>;
+  cleanupTemporaryFile?: (filePath: string) => Promise<void>;
 }
 
 const storageKeyPattern =
@@ -96,10 +97,14 @@ export class LocalFileTtsAudioStore
 {
   private readonly directory: string;
   private readonly beforeCommit: (signal: AbortSignal) => Promise<void>;
+  private readonly cleanupTemporaryFile: (filePath: string) => Promise<void>;
 
   constructor(directory: string, options: LocalFileTtsAudioStoreOptions = {}) {
     this.directory = resolve(directory);
     this.beforeCommit = options.beforeCommit ?? (() => Promise.resolve());
+    this.cleanupTemporaryFile =
+      options.cleanupTemporaryFile ??
+      ((filePath) => this.unlinkIfPresent(filePath));
   }
 
   /** 검증된 WAV를 한 파일로 원자 생성해 같은 key의 덮어쓰기를 막는다 */
@@ -130,6 +135,7 @@ export class LocalFileTtsAudioStore
       this.directory,
       `.${createHash('sha256').update(input.storageKey).digest('hex')}.${randomUUID()}.tmp`,
     );
+    let finalObjectAccepted = false;
     try {
       await writeFile(temporaryPath, encodeContainer(metadata, input.bytes), {
         flag: 'wx',
@@ -138,6 +144,7 @@ export class LocalFileTtsAudioStore
       this.assertWritable(input.signal, input.deadline);
       try {
         await link(temporaryPath, objectPath);
+        finalObjectAccepted = true;
       } catch (error) {
         if (!isFileSystemError(error, 'EEXIST')) {
           throw new Error('LOCAL_TTS_AUDIO_WRITE_FAILED');
@@ -151,13 +158,20 @@ export class LocalFileTtsAudioStore
         ) {
           throw new Error('LOCAL_TTS_AUDIO_IMMUTABLE_CONFLICT');
         }
+        finalObjectAccepted = true;
         return { storageKey: input.storageKey, ...existing.metadata };
       }
 
       // atomic link가 성공한 뒤에는 concurrent idempotent writer의 object를 rollback하지 않는다.
       return { storageKey: input.storageKey, ...metadata };
     } finally {
-      await this.unlinkIfPresent(temporaryPath);
+      try {
+        await this.cleanupTemporaryFile(temporaryPath);
+      } catch {
+        if (!finalObjectAccepted) {
+          throw new Error('LOCAL_TTS_AUDIO_TEMP_CLEANUP_FAILED');
+        }
+      }
     }
   }
 

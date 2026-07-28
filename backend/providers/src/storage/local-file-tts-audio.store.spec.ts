@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LocalFileTtsAudioStore } from './local-file-tts-audio.store.js';
 
 const directories: string[] = [];
@@ -104,6 +104,32 @@ describe('LocalFileTtsAudioStore', () => {
     ).rejects.toThrow('LOCAL_TTS_AUDIO_SHA256_MISMATCH');
     await expect(store.inspect(storageKey)).resolves.toBeNull();
     await expect(readdir(directory)).resolves.toEqual([]);
+  });
+
+  it('final object commit 뒤 temp cleanup이 실패해도 저장 성공과 가시성을 유지한다', async () => {
+    const directory = await createDirectory();
+    const cleanupTemporaryFile = vi.fn(() =>
+      Promise.reject(new Error('cleanup failed')),
+    );
+    const store = new LocalFileTtsAudioStore(directory, {
+      cleanupTemporaryFile,
+    });
+    const bytes = Uint8Array.from([1, 2, 3]);
+    const sha256 = createHash('sha256').update(bytes).digest('hex');
+
+    await expect(store.put(input(bytes))).resolves.toEqual({
+      storageKey,
+      mimeType: 'audio/wav',
+      sizeBytes: 3,
+      sha256,
+    });
+    expect(cleanupTemporaryFile).toHaveBeenCalledTimes(1);
+    await expect(store.inspect(storageKey)).resolves.toEqual({
+      storageKey,
+      mimeType: 'audio/wav',
+      sizeBytes: 3,
+      sha256,
+    });
   });
 
   it.each([
