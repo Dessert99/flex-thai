@@ -693,6 +693,8 @@ const ids = {
   expression: '30000000-0000-4000-8000-000000000002',
   meaning: '30000000-0000-4000-8000-000000000003',
   pronunciation: '30000000-0000-4000-8000-000000000004',
+  expressionMeaning: '30000000-0000-4000-8000-000000000005',
+  expressionPronunciation: '30000000-0000-4000-8000-000000000006',
   sentence: '40000000-0000-4000-8000-000000000001',
   sentenceVersion: '40000000-0000-4000-8000-000000000002',
   readingType: '50000000-0000-4000-8000-000000000001',
@@ -756,6 +758,8 @@ const ids = {
 
 const createQuestionQueryFixture = async (pool: Pool): Promise<void> => {
   const sha256 = 'a'.repeat(64);
+  // 로컬 seed와 무관하게 fixture가 정의한 공개 문제 집합만 검증한다.
+  await pool.query('truncate table questions, question_types cascade');
   await pool.query(
     `insert into users (id, cognito_sub, email, status)
      values ($1, 'query-user', 'query-user@example.com', 'ACTIVE')`,
@@ -778,14 +782,16 @@ const createQuestionQueryFixture = async (pool: Pool): Promise<void> => {
   await pool.query(
     `insert into vocabulary_meanings
        (id, vocabulary_id, meaning_ko, part_of_speech, difficulty)
-     values ($1, $2, '좋다', '형용사', 2)`,
-    [ids.meaning, ids.word],
+     values ($1, $2, '좋다', '형용사', 2),
+            ($3, $4, '안녕하세요', '표현', 2)`,
+    [ids.meaning, ids.word, ids.expressionMeaning, ids.expression],
   );
   await pool.query(
     `insert into vocabulary_pronunciations
        (id, vocabulary_id, pronunciation_ko, tone_marks)
-     values ($1, $2, '디', '-')`,
-    [ids.pronunciation, ids.word],
+     values ($1, $2, '디', '-'),
+            ($3, $4, '싸왓디 크랍', '-')`,
+    [ids.pronunciation, ids.word, ids.expressionPronunciation, ids.expression],
   );
   await pool.query(`insert into thai_sentences (id) values ($1)`, [
     ids.sentence,
@@ -807,9 +813,15 @@ const createQuestionQueryFixture = async (pool: Pool): Promise<void> => {
   await pool.query(
     `insert into expression_occurrences (
        sentence_version_id, start_token_index, end_token_index,
-       vocabulary_id, vocabulary_kind, representative
-     ) values ($1, 0, 2, $2, 'EXPRESSION', true)`,
-    [ids.sentenceVersion, ids.expression],
+       vocabulary_id, vocabulary_kind, meaning_id, pronunciation_id,
+       context_meaning_ko, representative
+     ) values ($1, 0, 2, $2, 'EXPRESSION', $3, $4, '안녕하세요', true)`,
+    [
+      ids.sentenceVersion,
+      ids.expression,
+      ids.expressionMeaning,
+      ids.expressionPronunciation,
+    ],
   );
   await pool.query(
     `insert into question_topics (id, slug, display_name)
@@ -881,7 +893,7 @@ const createQuestionQueryFixture = async (pool: Pool): Promise<void> => {
   await pool.query(
     `insert into question_version_tags (question_version_id, tag_id)
      values ($1, $4), ($1, $5), ($2, $5),
-            ($3, $6), ($9, $7), ($10, $8)`,
+            ($3, $6), ($9, $7), ($10, $8), ($11, $5)`,
     [
       ids.versions[1],
       ids.versions[2],
@@ -890,6 +902,7 @@ const createQuestionQueryFixture = async (pool: Pool): Promise<void> => {
       ...ids.unavailableTags,
       ids.versions[6],
       ids.versions[7],
+      ids.versions[4],
     ],
   );
   await pool.query(

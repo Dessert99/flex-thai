@@ -319,7 +319,7 @@ const expectExactCandidateGraph = async (
        select approved_question_id question_id,
               approved_question_version_id question_version_id
        from question_production_candidates
-       where id = $1
+       where id = $1::uuid
      ), graph_sentence_versions as (
        select qbs.sentence_version_id id
        from approved a
@@ -363,16 +363,19 @@ const expectExactCandidateGraph = async (
         join expression_occurrences occurrence
           on occurrence.sentence_version_id = gsv.id) expressions,
        (select count(*)::text from graph_sentence_versions gsv
-        join thai_sentence_versions tsv
+       join thai_sentence_versions tsv
           on tsv.id = gsv.id and tsv.media_asset_id is null) "nullMedia",
        (select count(*)::text from audit_logs
-        where target_id = $1 and action = 'QUESTION_CANDIDATE_APPROVED') audits,
+        where target_id = $1::uuid
+          and action = 'QUESTION_CANDIDATE_APPROVED') audits,
        (select count(*)::text from approved a
-        join tts_items ti on ti.revision = a.question_version_id) "ttsItems",
+        join tts_items ti on ti.revision = a.question_version_id::text)
+         "ttsItems",
        (select count(distinct ti.job_id)::text from approved a
-        join tts_items ti on ti.revision = a.question_version_id) "ttsJobs",
+        join tts_items ti on ti.revision = a.question_version_id::text)
+         "ttsJobs",
        (select count(distinct ado.id)::text from approved a
-        join tts_items ti on ti.revision = a.question_version_id
+        join tts_items ti on ti.revision = a.question_version_id::text
         join async_dispatch_outbox ado
           on ado.payload_kind = 'TTS' and ado.job_id = ti.job_id
         where ado.attempt = 0) "ttsOutbox"`,
@@ -652,9 +655,14 @@ describe.runIf(databaseUrl !== undefined)(
            for each row execute function ${functionName}('${requestId}')`,
         );
 
-        await expect(
-          repository(fixture).approve(command(fixture, requestId)),
-        ).rejects.toThrow('WAVE5_AUDIT_INSERT_FAILED');
+        const failure = await repository(fixture)
+          .approve(command(fixture, requestId))
+          .catch((error: unknown) => error);
+        expect(failure).toBeInstanceOf(Error);
+        if (!(failure instanceof Error) || !(failure.cause instanceof Error)) {
+          throw new Error('WAVE5_AUDIT_FAILURE_CAUSE_REQUIRED');
+        }
+        expect(failure.cause.message).toContain('WAVE5_AUDIT_INSERT_FAILED');
       } finally {
         await pool
           .query(`drop trigger if exists ${triggerName} on audit_logs`)
