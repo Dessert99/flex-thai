@@ -169,33 +169,59 @@ describe('사용량·비용 운영 페이지', () => {
     expect(onSearchChange).toHaveBeenCalledWith({ status: 'FAILED' });
   });
 
-  it('settings 충돌은 최신 값을 다시 읽고 별도 안내를 표시한다', async () => {
+  it('settings 충돌 뒤 최신 revision을 다시 읽어 재저장한다', async () => {
     let settingsRequestCount = 0;
+    let updateRequestCount = 0;
+    const updateBodies: Array<Record<string, unknown>> = [];
+    const latestSettings = {
+      currency: 'USD',
+      warningUsd: '17.000000',
+      criticalUsd: '26.000000',
+      updatedAt: '2026-07-02T00:00:00.000Z',
+    };
     mocks.authenticatedRequest.mockImplementation(
-      ({ method, path }: { method?: string; path: string }) => {
+      ({
+        body,
+        method,
+        path,
+      }: {
+        body?: unknown;
+        method?: string;
+        path: string;
+      }) => {
         if (method === 'PUT') {
-          return Promise.reject(
-            new ApiError({
-              kind: 'problem',
-              problem: {
-                code: 'OPERATIONS_COST_SETTINGS_CONFLICT',
-                fieldErrors: [],
-                requestId: 'request-id',
-                status: 409,
-                title: 'Conflict',
-                type: 'about:blank',
-              },
-            }),
-          );
+          updateRequestCount += 1;
+          if (body !== null && typeof body === 'object') {
+            updateBodies.push(body as Record<string, unknown>);
+          }
+          return updateRequestCount === 1
+            ? Promise.reject(
+                new ApiError({
+                  kind: 'problem',
+                  problem: {
+                    code: 'OPERATIONS_COST_SETTINGS_CONFLICT',
+                    fieldErrors: [],
+                    requestId: 'request-id',
+                    status: 409,
+                    title: 'Conflict',
+                    type: 'about:blank',
+                  },
+                }),
+              )
+            : Promise.resolve(latestSettings);
         }
         if (path === '/admin/usage-cost/settings') {
           settingsRequestCount += 1;
-          return Promise.resolve({
-            currency: 'USD',
-            warningUsd: '15.000000',
-            criticalUsd: '24.000000',
-            updatedAt: '2026-07-01T00:00:00.000Z',
-          });
+          return Promise.resolve(
+            settingsRequestCount === 1
+              ? {
+                  currency: 'USD',
+                  warningUsd: '15.000000',
+                  criticalUsd: '24.000000',
+                  updatedAt: '2026-07-01T00:00:00.000Z',
+                }
+              : latestSettings,
+          );
         }
         return Promise.resolve(overview);
       },
@@ -217,6 +243,15 @@ describe('사용량·비용 운영 페이지', () => {
       ),
     ).toBeInTheDocument();
     await waitFor(() => expect(settingsRequestCount).toBeGreaterThanOrEqual(2));
-    expect(screen.getByDisplayValue('15.000000')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('17.000000')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('26.000000')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '경고 기준 저장' }));
+    await waitFor(() => expect(updateRequestCount).toBe(2));
+    expect(updateBodies[1]).toMatchObject({
+      warningUsd: '17.000000',
+      criticalUsd: '26.000000',
+      expectedUpdatedAt: '2026-07-02T00:00:00.000Z',
+    });
   });
 });

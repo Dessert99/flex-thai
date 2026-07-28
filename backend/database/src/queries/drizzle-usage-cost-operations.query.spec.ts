@@ -13,9 +13,9 @@ const createDatabase = (rows: unknown[][]) => {
   return {
     calls,
     database: {
-      execute: async (query: unknown) => {
+      execute: (query: unknown) => {
         calls.push(query);
-        return { rows: queued.shift() ?? [] };
+        return Promise.resolve({ rows: queued.shift() ?? [] });
       },
     },
   };
@@ -84,5 +84,29 @@ describe('DrizzleUsageCostOperationsQuery', () => {
       '16.000000',
     );
     expect(fake.calls).toHaveLength(1);
+  });
+
+  it('예상한 scalar가 아닌 DB 값을 문자열로 숨기지 않고 거절한다', async () => {
+    const fake = createDatabase([
+      [{ estimated_cost_usd: '1.000000' }],
+      [
+        {
+          source: 'AI',
+          provider: {},
+          model: 'deterministic-v1',
+          voice: null,
+          run_count: 1,
+          estimated_cost_usd: '1.000000',
+        },
+      ],
+      [{ in_progress_job_count: 0 }],
+      [{ failed_run_count: 0 }],
+      [{ pending_review_candidate_count: 0 }],
+    ]);
+    const query = new DrizzleUsageCostOperationsQuery(fake.database);
+
+    await expect(query.getOverview({ range })).rejects.toThrow(
+      'USAGE_COST_ROW_VALUE_INVALID',
+    );
   });
 });

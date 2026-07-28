@@ -116,6 +116,27 @@ describe('UsageCostOperationsService', () => {
     });
   });
 
+  it.each([
+    ['14.99999999', 'NORMAL'],
+    ['15.00000001', 'WARNING'],
+    ['23.9999999', 'WARNING'],
+    ['24.0000001', 'CRITICAL'],
+  ] as const)(
+    '7·8번째 소수 자리 비용 %s를 threshold 경계에서 %s로 분류한다',
+    async (estimatedCostUsd, status) => {
+      const { query, service } = createService();
+      query.getCurrentMonthEstimatedCost.mockResolvedValueOnce(
+        estimatedCostUsd,
+      );
+
+      await expect(
+        service.overview({ role: 'ADMIN' }, { source: 'TTS' }),
+      ).resolves.toMatchObject({
+        currentMonthThreshold: { estimatedCostUsd, status },
+      });
+    },
+  );
+
   it('partial UTC range와 non-admin update를 stable 오류로 거절한다', async () => {
     const { service } = createService();
 

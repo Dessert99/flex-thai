@@ -61,6 +61,9 @@ const createDatabase = (locked: SettingsFixture) => {
     })),
     insert: vi.fn(() => ({ values: auditValues })),
   };
+  const runTransaction = <Result>(
+    callback: (value: typeof transaction) => Promise<Result>,
+  ): Promise<Result> => callback(transaction);
   return {
     auditValues,
     database: {
@@ -69,7 +72,7 @@ const createDatabase = (locked: SettingsFixture) => {
           where: vi.fn(() => ({ limit: vi.fn().mockResolvedValue([locked]) })),
         })),
       })),
-      transaction: vi.fn((callback) => callback(transaction)),
+      transaction: vi.fn(runTransaction),
     },
   };
 };

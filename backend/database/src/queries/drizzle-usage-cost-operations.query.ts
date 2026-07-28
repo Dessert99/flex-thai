@@ -82,7 +82,14 @@ const rowsOf = (result: { rows: unknown[] } | unknown[]): unknown[] =>
 const readString = (row: unknown, key: string): string => {
   if (row === null || typeof row !== 'object') return '0';
   const value = (row as Record<string, unknown>)[key];
-  return value === null || value === undefined ? '0' : String(value);
+  if (value === null || value === undefined) return '0';
+  if (typeof value === 'string' || typeof value === 'bigint') {
+    return String(value);
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+  throw new Error('USAGE_COST_ROW_VALUE_INVALID');
 };
 
 const readCount = (row: unknown, key: string): number =>
