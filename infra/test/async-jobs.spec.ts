@@ -43,6 +43,7 @@ describe('AsyncJobs', () => {
       MessageRetentionPeriod: 1209600,
       SqsManagedSseEnabled: true,
     });
+    template.resourceCountIs('AWS::SQS::Queue', 4);
   });
 
   it('message 하나씩 Standard Workflow를 시작한다', () => {
@@ -116,5 +117,88 @@ describe('AsyncJobs', () => {
     expect(definition).toContain(
       '\\"Error\\":\\"ContentProductionWorkflowFailed\\"',
     );
+  });
+
+  it('TTS queue는 partial batch 실패를 보고하고 task 동시성을 제한한다', () => {
+    const app = new App();
+    const dataStack = new DataStack(app, 'AsyncTtsData');
+    const stack = new ApplicationStack(app, 'AsyncTtsApplication', {
+      config,
+      dataStack,
+      mediaKeyPairId: 'KTESTMEDIAKEY',
+    });
+    const template = Template.fromStack(stack);
+
+    template.hasResourceProperties('AWS::Lambda::EventSourceMapping', {
+      BatchSize: 10,
+      FunctionResponseTypes: ['ReportBatchItemFailures'],
+    });
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      Timeout: 300,
+      ReservedConcurrentExecutions: 2,
+      Environment: {
+        Variables: Match.objectLike({
+          DATABASE_MODE: 'data-api',
+          MEDIA_BUCKET_NAME: Match.anyValue(),
+        }),
+      },
+    });
+  });
+
+  it('relay와 TTS GC를 DB 접근·bounded concurrency·schedule로 실행한다', () => {
+    const app = new App();
+    const dataStack = new DataStack(app, 'AsyncScheduleData');
+    const stack = new ApplicationStack(app, 'AsyncScheduleApplication', {
+      config,
+      dataStack,
+      mediaKeyPairId: 'KTESTMEDIAKEY',
+    });
+    const template = Template.fromStack(stack);
+
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      ReservedConcurrentExecutions: 1,
+      Environment: {
+        Variables: Match.objectLike({
+          DATABASE_MODE: 'data-api',
+          CONTENT_PRODUCTION_QUEUE_URL: Match.anyValue(),
+          TTS_QUEUE_URL: Match.anyValue(),
+        }),
+      },
+    });
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      ReservedConcurrentExecutions: 1,
+      Environment: {
+        Variables: Match.objectLike({
+          DATABASE_MODE: 'data-api',
+          MEDIA_BUCKET_NAME: Match.anyValue(),
+        }),
+      },
+    });
+    template.hasResourceProperties('AWS::Events::Rule', {
+      ScheduleExpression: 'rate(1 minute)',
+      State: 'ENABLED',
+    });
+    template.hasResourceProperties('AWS::Events::Rule', {
+      ScheduleExpression: 'rate(1 hour)',
+      State: 'ENABLED',
+    });
+  });
+
+  it('relay와 TTS task·GC에 queue 및 reserved audio object 최소 권한만 준다', () => {
+    const app = new App();
+    const dataStack = new DataStack(app, 'AsyncIamData');
+    const stack = new ApplicationStack(app, 'AsyncIamApplication', {
+      config,
+      dataStack,
+      mediaKeyPairId: 'KTESTMEDIAKEY',
+    });
+    const templateJson = Template.fromStack(stack).toJSON();
+    const policies = JSON.stringify(templateJson.Resources);
+
+    expect(policies).toContain('sqs:SendMessage');
+    expect(policies).toContain('s3:PutObject');
+    expect(policies).toContain('s3:GetObject');
+    expect(policies).toContain('s3:DeleteObject');
+    expect(policies).toContain('private/tts/runs/*');
   });
 });

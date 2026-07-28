@@ -79,7 +79,12 @@ export class DataStack extends Stack {
     this.inputBucket = this.createPrivateBucket('InputBucket', [
       { expiration: Duration.days(30) },
     ]);
-    this.mediaBucket = this.createPrivateBucket('MediaBucket');
+    this.mediaBucket = this.createPrivateBucket('MediaBucket', [
+      {
+        prefix: 'private/tts/runs/',
+        abortIncompleteMultipartUploadAfter: Duration.days(1),
+      },
+    ]);
     // CloudFront에만 읽기를 허용 — EdgeStack에 이 policy를 두면 두 Stack이 서로를 참조해 순환한다.
     this.mediaBucket.addToResourcePolicy(
       new iam.PolicyStatement({

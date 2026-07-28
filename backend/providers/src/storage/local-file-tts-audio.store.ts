@@ -1,7 +1,8 @@
 /** 로컬 TTS WAV를 storageKey 해시 기반 immutable 파일로 보관한다 */
 import { createHash, randomUUID } from 'node:crypto';
 import { link, mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { isAbsolute, join, resolve } from 'node:path';
 import type { TtsAudioGarbageStore, TtsAudioStore } from '@flex-thia/domain';
 
 interface LocalAudioMetadata {
@@ -23,6 +24,19 @@ interface LocalFileTtsAudioStoreOptions {
 const storageKeyPattern =
   /^private\/tts\/runs\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.wav$/u;
 const sha256Pattern = /^[0-9a-f]{64}$/u;
+
+/** local TTS directory를 project 전용 env 또는 host temp 기본값으로 결정한다 */
+export const resolveLocalTtsAudioDirectory = (
+  source: Record<string, string | undefined> = process.env,
+  workingDirectory: string = process.cwd(),
+  temporaryDirectory: string = tmpdir(),
+): string => {
+  const configured = source.FLEX_THIA_LOCAL_TTS_AUDIO_DIRECTORY?.trim();
+  if (!configured) return join(temporaryDirectory, 'flex-thia', 'tts-audio');
+  return isAbsolute(configured)
+    ? configured
+    : resolve(workingDirectory, configured);
+};
 
 const isFileSystemError = (
   error: unknown,
@@ -99,7 +113,10 @@ export class LocalFileTtsAudioStore
   private readonly beforeCommit: (signal: AbortSignal) => Promise<void>;
   private readonly cleanupTemporaryFile: (filePath: string) => Promise<void>;
 
-  constructor(directory: string, options: LocalFileTtsAudioStoreOptions = {}) {
+  constructor(
+    directory: string = resolveLocalTtsAudioDirectory(),
+    options: LocalFileTtsAudioStoreOptions = {},
+  ) {
     this.directory = resolve(directory);
     this.beforeCommit = options.beforeCommit ?? (() => Promise.resolve());
     this.cleanupTemporaryFile =

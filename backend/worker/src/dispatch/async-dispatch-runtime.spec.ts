@@ -5,6 +5,7 @@ import {
   UnavailableAsyncDispatchSender,
   createLocalAsyncDispatchSenders,
 } from './async-dispatch-runtime.js';
+import { createProductionAsyncDispatchQueues } from './async-dispatch-relay-task.js';
 
 const jobId = '00000000-0000-4000-8000-000000000001';
 
@@ -76,5 +77,39 @@ describe('async dispatch sender runtime', () => {
         payload: { jobId, attempt: 0 },
       }),
     ).rejects.toThrow('ASYNC_DISPATCH_QUEUE_UNAVAILABLE');
+  });
+
+  it('production relay는 CONTENT_PRODUCTION과 TTS queue URL을 서로 다른 adapter에 고정한다', () => {
+    const createQueue = vi.fn(
+      (input: {
+        region: string;
+        queueUrl: string;
+        destination: 'CONTENT_PRODUCTION' | 'TTS';
+      }) => {
+        void input;
+        return { accept: vi.fn(() => Promise.resolve()) };
+      },
+    );
+
+    const queues = createProductionAsyncDispatchQueues(
+      {
+        AWS_REGION: 'ap-northeast-2',
+        CONTENT_PRODUCTION_QUEUE_URL: 'https://sqs.example.com/content',
+        TTS_QUEUE_URL: 'https://sqs.example.com/tts',
+      },
+      createQueue,
+    );
+
+    expect(createQueue).toHaveBeenNthCalledWith(1, {
+      region: 'ap-northeast-2',
+      queueUrl: 'https://sqs.example.com/content',
+      destination: 'CONTENT_PRODUCTION',
+    });
+    expect(createQueue).toHaveBeenNthCalledWith(2, {
+      region: 'ap-northeast-2',
+      queueUrl: 'https://sqs.example.com/tts',
+      destination: 'TTS',
+    });
+    expect(queues.CONTENT_PRODUCTION).not.toBe(queues.TTS);
   });
 });

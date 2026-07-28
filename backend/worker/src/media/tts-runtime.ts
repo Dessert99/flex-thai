@@ -1,6 +1,4 @@
 /** TTS processor·READY guard·GC를 동일 durability와 mode별 adapter로 조립한다 */
-import { tmpdir } from 'node:os';
-import { isAbsolute, join, resolve } from 'node:path';
 import {
   DrizzleTtsDurabilityRepository,
   DrizzleTtsRepository,
@@ -16,6 +14,7 @@ import {
   DeterministicTtsProvider,
   FakeTtsAudioStore,
   LocalFileTtsAudioStore,
+  resolveLocalTtsAudioDirectory,
   UnavailableTtsAudioStore,
 } from '@flex-thia/providers';
 import { TtsAudioGarbageCollector } from './tts-audio-gc.js';
@@ -30,18 +29,8 @@ const isTerminal = (status: TtsJobStatus): boolean =>
   status === 'PARTIALLY_FAILED' ||
   status === 'FAILED';
 
-/** local TTS directory는 전용 env override 또는 host temp 기본값으로 고정한다 */
-export const resolveLocalTtsAudioDirectory = (
-  source: Record<string, string | undefined> = process.env,
-  workingDirectory: string = process.cwd(),
-  temporaryDirectory: string = tmpdir(),
-): string => {
-  const configured = source.FLEX_THIA_LOCAL_TTS_AUDIO_DIRECTORY?.trim();
-  if (!configured) return join(temporaryDirectory, 'flex-thia', 'tts-audio');
-  return isAbsolute(configured)
-    ? configured
-    : resolve(workingDirectory, configured);
-};
+/** 기존 worker 공개 경계에서 shared local directory resolver를 유지한다 */
+export { resolveLocalTtsAudioDirectory };
 
 /** 동일 DB·durability·storage identity를 TTS task와 GC task에 제공한다 */
 export const createTtsRuntime = (input: {
@@ -49,6 +38,7 @@ export const createTtsRuntime = (input: {
   mode: TtsRuntimeMode;
   now?: () => Date;
   localAudioDirectory?: string;
+  audioStore?: TtsAudioStore & TtsAudioGarbageStore;
 }) => {
   const now = input.now ?? (() => new Date());
   const durability = new DrizzleTtsDurabilityRepository(input.database, now);
@@ -64,13 +54,14 @@ export const createTtsRuntime = (input: {
       ? new UnavailableTtsProvider()
       : new DeterministicTtsProvider();
   const audioStore: TtsAudioStore & TtsAudioGarbageStore =
-    input.mode === 'production'
+    input.audioStore ??
+    (input.mode === 'production'
       ? new UnavailableTtsAudioStore()
       : input.mode === 'local'
         ? new LocalFileTtsAudioStore(
             input.localAudioDirectory ?? resolveLocalTtsAudioDirectory(),
           )
-        : new FakeTtsAudioStore();
+        : new FakeTtsAudioStore());
   const processor = new TtsProcessor(
     repository,
     provider,

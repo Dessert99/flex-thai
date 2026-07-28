@@ -2,7 +2,10 @@
 import type { SQSEvent } from 'aws-lambda';
 import { describe, expect, it, vi } from 'vitest';
 import { createTtsAudioGcTaskHandler } from './tts-audio-gc-task.js';
-import { createTtsEntryRuntimeProvider } from './tts-entry-runtime.js';
+import {
+  createProductionTtsAudioStore,
+  createTtsEntryRuntimeProvider,
+} from './tts-entry-runtime.js';
 import { createTtsSqsHandler } from './tts-task-entry.js';
 
 describe('TTS entry runtime provider', () => {
@@ -47,5 +50,24 @@ describe('TTS entry runtime provider', () => {
       expect.objectContaining({ workerId: 'gc-worker' }),
     );
     expect(createRuntime).toHaveBeenCalledTimes(1);
+  });
+
+  it('production entry는 region과 private media bucket으로 S3 store를 만든다', () => {
+    const store = { put: vi.fn(), inspect: vi.fn(), delete: vi.fn() };
+    const createStore = vi.fn(() => store);
+
+    expect(
+      createProductionTtsAudioStore(
+        {
+          AWS_REGION: 'ap-northeast-2',
+          MEDIA_BUCKET_NAME: 'private-media',
+        },
+        createStore,
+      ),
+    ).toBe(store);
+    expect(createStore).toHaveBeenCalledWith({
+      region: 'ap-northeast-2',
+      bucketName: 'private-media',
+    });
   });
 });

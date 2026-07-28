@@ -10,6 +10,9 @@ export * from './aws/sns-sms.sender.js';
 /** SQS Job queue adapter를 production 조립 경계에 노출한다 */
 export * from './aws/sqs-job.queue.js';
 
+/** shared outbox의 목적지별 SQS 수락 adapter를 공개한다 */
+export * from './aws/sqs-async-dispatch.queue.js';
+
 /** challenge HMAC adapter를 공개한다 */
 export * from './crypto/challenge-crypto.js';
 
@@ -36,6 +39,12 @@ export * from './storage/unavailable-tts-audio.store.js';
 
 /** process 간 공유 가능한 local filesystem TTS audio store를 공개한다 */
 export * from './storage/local-file-tts-audio.store.js';
+
+/** local filesystem TTS object의 HMAC 읽기 adapter를 공개한다 */
+export * from './storage/local-file-media-read.provider.js';
+
+/** production private S3 TTS object store를 공개한다 */
+export * from './storage/s3-tts-audio.store.js';
 
 /** 검증된 S3 콘텐츠 제작 입력 reader를 공개한다 */
 export * from './storage/s3-content-production-input.reader.js';

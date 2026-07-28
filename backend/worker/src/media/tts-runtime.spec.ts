@@ -115,4 +115,21 @@ describe('TTS runtime', () => {
     expect(runtime.audioStore).toBeInstanceOf(UnavailableTtsAudioStore);
     expect(runtime.garbageStore).toBe(runtime.audioStore);
   });
+
+  it('production은 entry에서 주입한 private object store를 task와 GC가 공유한다', () => {
+    const audioStore = {
+      put: () => Promise.reject(new Error('테스트에서 호출하지 않습니다')),
+      inspect: () => Promise.resolve(null),
+      delete: () => Promise.resolve(),
+    };
+    const runtime = createTtsRuntime({
+      database: {} as never,
+      mode: 'production',
+      audioStore,
+    });
+
+    expect(runtime.provider).toBeInstanceOf(UnavailableTtsProvider);
+    expect(runtime.audioStore).toBe(audioStore);
+    expect(runtime.garbageStore).toBe(audioStore);
+  });
 });

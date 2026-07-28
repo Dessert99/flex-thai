@@ -28,7 +28,6 @@ import {
   DeterministicContentProductionProcessor,
   FakeAudioUploadProvider,
   FakeEmailChallengeSender,
-  FakeMediaReadUrlProvider,
   FakePasswordlessAuthenticationProvider,
   FakeUploadProvider,
   LocalContentProductionQueue,
@@ -36,6 +35,7 @@ import {
   S3UploadProvider,
   SesEmailChallengeSender,
   SqsJobQueue,
+  LocalFileMediaReadProvider,
 } from '@flex-thia/providers';
 import { AdminContentService } from './admin/admin-content.service.js';
 import { ContentProductionApplicationService } from './content-production/content-production.service.js';
@@ -46,12 +46,16 @@ import { RecommendationsService } from './recommendations/recommendations.servic
 import { createApplicationModule } from './app.module.js';
 
 describe('createApplicationModule 조립', () => {
-  it('로컬 설정에서 전체 HTTP 기능과 실제 local adapter를 조립한다', () => {
+  it('로컬 설정에서 전체 HTTP 기능과 실제 local adapter를 조립한다', async () => {
     const application = createApplicationModule({
       NODE_ENV: 'test',
       AUTH_MODE: 'fake',
       DATABASE_MODE: 'local',
       DATABASE_URL: 'postgres://local/test',
+      FLEX_THIA_LOCAL_TTS_AUDIO_DIRECTORY: '/tmp/flex-thia-app-media',
+      FLEX_THIA_LOCAL_API_ORIGIN: 'http://127.0.0.1:3000',
+      FLEX_THIA_LOCAL_MEDIA_HMAC_SECRET:
+        'local-media-hmac-secret-that-is-not-production',
     });
 
     const importedModuleNames = application.imports?.map(
@@ -70,6 +74,7 @@ describe('createApplicationModule 조립', () => {
       'ContentErrorReportsModule',
       'RecommendationsModule',
       'ContentProductionModule',
+      'MediaModule',
       'QuestionTaxonomyModule',
       'OperationsModule',
     ]);
@@ -129,13 +134,19 @@ describe('createApplicationModule 조립', () => {
         vocabularyQuery: { database: unknown };
         questionAttempts: { repository: { database: unknown } };
         savedContent: { repository: unknown };
-        mediaReadUrls: unknown;
+        mediaReadUrls: LocalFileMediaReadProvider;
       };
     };
 
     expect(content.dependencies.mediaReadUrls).toBeInstanceOf(
-      FakeMediaReadUrlProvider,
+      LocalFileMediaReadProvider,
     );
+    await expect(
+      content.dependencies.mediaReadUrls.createReadUrl(
+        'private/tts/runs/00000000-0000-4000-8000-000000000001.wav',
+        new Date(Date.now() + 60_000),
+      ),
+    ).resolves.toMatch(/^http:\/\/127\.0\.0\.1:3000\/api\/v1\/local-media\//u);
     expect(content.dependencies.questionQuery.database).toBe(
       content.dependencies.vocabularyQuery.database,
     );
@@ -353,6 +364,7 @@ describe('createApplicationModule 조립', () => {
       MEDIA_BUCKET_NAME: 'media-bucket',
       INPUT_BUCKET_NAME: 'input-bucket',
       JOB_QUEUE_URL: 'https://sqs.example.com/jobs',
+      TTS_VOICE_PRESET_ID: '00000000-0000-4000-8000-000000000001',
       CUSTOM_AUTH_SECRET: 'C'.repeat(32),
       CUSTOM_AUTH_SECRET_ARN: 'arn:custom-auth-secret',
       CHALLENGE_HMAC_PEPPER: 'P'.repeat(32),

@@ -10,9 +10,10 @@ import type {
 import { and, count, desc, eq, gte, lte } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
+import * as schema from '../schema/index.js';
 import { ttsItems, ttsJobs } from '../schema/tts.schema.js';
 
-type TtsOperationsDatabase = PgDatabase<PgQueryResultHKT>;
+type TtsOperationsDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 
 /** lifecycle 입력과 분리해 운영 목록의 생성 시각 범위를 받는다 */
 export interface TtsOperationsJobListInput extends TtsJobListInput {

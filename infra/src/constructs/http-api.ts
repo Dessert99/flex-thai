@@ -251,6 +251,26 @@ export class HttpApi extends Construct {
         '/api/v1/admin/content-production/jobs/{jobId}/retry',
       ],
       [
+        apigwv2.HttpMethod.GET,
+        '/api/v1/admin/content-production/question-candidates',
+      ],
+      [
+        apigwv2.HttpMethod.GET,
+        '/api/v1/admin/content-production/question-candidates/{candidateId}',
+      ],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/content-production/question-candidates/{candidateId}/approve',
+      ],
+      [
+        apigwv2.HttpMethod.DELETE,
+        '/api/v1/admin/content-production/question-candidates/{candidateId}',
+      ],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/content-production/question-candidates/{candidateId}/regenerate',
+      ],
+      [
         apigwv2.HttpMethod.POST,
         '/api/v1/admin/media-assets/audio-upload-requests',
       ],
@@ -281,6 +301,10 @@ export class HttpApi extends Construct {
         '/api/v1/admin/question-versions/{versionId}/invalidate',
       ],
       [apigwv2.HttpMethod.GET, '/api/v1/admin/question-taxonomy'],
+      [apigwv2.HttpMethod.GET, '/api/v1/admin/tts/jobs'],
+      [apigwv2.HttpMethod.GET, '/api/v1/admin/tts/jobs/{jobId}'],
+      [apigwv2.HttpMethod.POST, '/api/v1/admin/tts/jobs/{jobId}/retry'],
+      [apigwv2.HttpMethod.POST, '/api/v1/admin/tts/items/{itemId}/retry'],
       [apigwv2.HttpMethod.POST, '/api/v1/admin/question-types'],
       [
         apigwv2.HttpMethod.POST,

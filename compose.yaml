@@ -10,6 +10,9 @@ x-app-environment: &app-environment
   CHALLENGE_HMAC_PEPPER: local-only-email-challenge-pepper
   EMAIL_LINK_CONFIRMATION_URL: http://localhost:5173/login/confirm
   ALLOWED_ORIGINS: http://localhost:5173
+  FLEX_THIA_LOCAL_TTS_AUDIO_DIRECTORY: /var/lib/flex-thia/tts-audio
+  FLEX_THIA_LOCAL_API_ORIGIN: http://localhost:3000
+  FLEX_THIA_LOCAL_MEDIA_HMAC_SECRET: local-only-media-read-hmac-secret
 
 services:
   postgres:
@@ -53,6 +56,8 @@ services:
       PORT: '3000'
     ports:
       - '3000:3000'
+    volumes:
+      - flex-thia-tts-audio:/var/lib/flex-thia/tts-audio
     depends_on:
       db-setup:
         condition: service_completed_successfully
@@ -61,6 +66,69 @@ services:
       interval: 2s
       timeout: 2s
       retries: 30
+
+  async-dispatch-relay:
+    profiles: [workers]
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+      target: workspace
+    command:
+      - pnpm
+      - --filter
+      - '@flex-thia/worker'
+      - exec
+      - tsx
+      - src/dispatch/async-dispatch-relay-task.ts
+    environment:
+      <<: *app-environment
+    volumes:
+      - flex-thia-tts-audio:/var/lib/flex-thia/tts-audio
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  tts-task:
+    profiles: [workers]
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+      target: workspace
+    command:
+      - pnpm
+      - --filter
+      - '@flex-thia/worker'
+      - exec
+      - tsx
+      - src/media/tts-task-entry.ts
+    environment:
+      <<: *app-environment
+    volumes:
+      - flex-thia-tts-audio:/var/lib/flex-thia/tts-audio
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  tts-audio-gc:
+    profiles: [workers]
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+      target: workspace
+    command:
+      - pnpm
+      - --filter
+      - '@flex-thia/worker'
+      - exec
+      - tsx
+      - src/media/tts-audio-gc-task.ts
+    environment:
+      <<: *app-environment
+    volumes:
+      - flex-thia-tts-audio:/var/lib/flex-thia/tts-audio
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   web:
     profiles: [test]
@@ -73,3 +141,6 @@ services:
     depends_on:
       api:
         condition: service_healthy
+
+volumes:
+  flex-thia-tts-audio:

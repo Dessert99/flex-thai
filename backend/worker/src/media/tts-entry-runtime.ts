@@ -1,4 +1,9 @@
 /** TTS Lambda entry용 runtime을 cold-start당 한 번 조립한다 */
+import {
+  createS3TtsAudioStore,
+  type CreateS3TtsAudioStoreInput,
+} from '@flex-thia/providers';
+import type { TtsAudioGarbageStore, TtsAudioStore } from '@flex-thia/domain';
 import { createWorkerDatabase } from '../database-runtime.js';
 import { createTtsRuntime } from './tts-runtime.js';
 
@@ -20,14 +25,39 @@ export const createTtsEntryRuntimeProvider = <Runtime>(
   };
 };
 
-const defaultProvider = createTtsEntryRuntimeProvider(() =>
-  createTtsRuntime({
+const requireRuntimeEnv = (
+  source: Record<string, string | undefined>,
+  key: string,
+): string => {
+  const value = source[key];
+  if (!value) throw new Error(`${key} 환경 변수가 필요합니다`);
+  return value;
+};
+
+/** production TTS entry의 region과 private bucket을 S3 store에 고정한다 */
+export const createProductionTtsAudioStore = (
+  source: Record<string, string | undefined>,
+  createStore: (
+    input: CreateS3TtsAudioStoreInput,
+  ) => TtsAudioStore & TtsAudioGarbageStore = createS3TtsAudioStore,
+) =>
+  createStore({
+    region: requireRuntimeEnv(source, 'AWS_REGION'),
+    bucketName: requireRuntimeEnv(source, 'MEDIA_BUCKET_NAME'),
+  });
+
+const defaultProvider = createTtsEntryRuntimeProvider(() => {
+  const mode = process.env.DATABASE_MODE === 'local' ? 'local' : 'production';
+  return createTtsRuntime({
     database: createWorkerDatabase() as unknown as Parameters<
       typeof createTtsRuntime
     >[0]['database'],
-    mode: process.env.DATABASE_MODE === 'local' ? 'local' : 'production',
-  }),
-);
+    mode,
+    ...(mode === 'production'
+      ? { audioStore: createProductionTtsAudioStore(process.env) }
+      : {}),
+  });
+});
 
 /** 한 Lambda process 안에서 default runtime을 cold-start 한 번만 생성한다 */
 export const getDefaultTtsEntryRuntime = () => defaultProvider.get();

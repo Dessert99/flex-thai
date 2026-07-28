@@ -3,6 +3,10 @@ import {
   DrizzleAsyncDispatchOutboxRepository,
   DrizzleContentProductionRepository,
 } from '@flex-thia/database';
+import {
+  createSqsAsyncDispatchQueue,
+  type CreateSqsAsyncDispatchQueueInput,
+} from '@flex-thia/providers';
 import { createContentProductionRuntime } from '../content-production/content-production-runtime.js';
 import { createWorkerDatabase } from '../database-runtime.js';
 import { getDefaultTtsEntryRuntime } from '../media/tts-entry-runtime.js';
@@ -32,6 +36,37 @@ export interface AsyncDispatchRelayTaskInput {
   leaseDurationMs?: number;
   retryDelayMs?: number;
 }
+
+const requireRuntimeEnv = (
+  source: Record<string, string | undefined>,
+  key: string,
+): string => {
+  const value = source[key];
+  if (!value) throw new Error(`${key} 환경 변수가 필요합니다`);
+  return value;
+};
+
+/** production relay의 두 목적지 URL을 각각 고정된 SQS adapter로 조립한다 */
+export const createProductionAsyncDispatchQueues = (
+  source: Record<string, string | undefined>,
+  createQueue: (
+    input: CreateSqsAsyncDispatchQueueInput,
+  ) => AsyncDispatchQueueAcceptance = createSqsAsyncDispatchQueue,
+) => {
+  const region = requireRuntimeEnv(source, 'AWS_REGION');
+  return {
+    CONTENT_PRODUCTION: createQueue({
+      region,
+      queueUrl: requireRuntimeEnv(source, 'CONTENT_PRODUCTION_QUEUE_URL'),
+      destination: 'CONTENT_PRODUCTION',
+    }),
+    TTS: createQueue({
+      region,
+      queueUrl: requireRuntimeEnv(source, 'TTS_QUEUE_URL'),
+      destination: 'TTS',
+    }),
+  };
+};
 
 /** local은 handler 직접 실행, production은 queue acceptance 뒤 ack로 조립한다 */
 export const createAsyncDispatchRelayRuntime = (
@@ -99,7 +134,7 @@ export const handler = (input: AsyncDispatchRelayTaskInput = {}) => {
     mode,
     ...(mode === 'local'
       ? { localTtsHandler: getDefaultTtsEntryRuntime().taskHandler }
-      : {}),
+      : { queues: createProductionAsyncDispatchQueues(process.env) }),
   }).handler;
   return defaultHandler(input);
 };
