@@ -5,6 +5,7 @@ import {
 } from '@flex-thia/database';
 import { createContentProductionRuntime } from '../content-production/content-production-runtime.js';
 import { createWorkerDatabase } from '../database-runtime.js';
+import { getDefaultTtsEntryRuntime } from '../media/tts-entry-runtime.js';
 import { createTtsRuntime } from '../media/tts-runtime.js';
 import { AsyncDispatchOutboxRelay } from './async-dispatch-outbox-relay.js';
 import {
@@ -21,6 +22,7 @@ export interface AsyncDispatchRelayRuntimeConfig {
   queues?: Partial<
     Record<'CONTENT_PRODUCTION' | 'TTS', AsyncDispatchQueueAcceptance>
   >;
+  localTtsHandler?: ReturnType<typeof createTtsRuntime>['taskHandler'];
 }
 
 /** schedule event가 한 bounded outbox drain에 전달하는 조정값 */
@@ -54,12 +56,14 @@ export const createAsyncDispatchRelayRuntime = (
             database: input.database,
             mode: input.mode,
           }).handler,
-          ttsHandler: createTtsRuntime({
-            database: input.database as unknown as Parameters<
-              typeof createTtsRuntime
-            >[0]['database'],
-            mode: input.mode,
-          }).taskHandler,
+          ttsHandler:
+            input.localTtsHandler ??
+            createTtsRuntime({
+              database: input.database as unknown as Parameters<
+                typeof createTtsRuntime
+              >[0]['database'],
+              mode: input.mode,
+            }).taskHandler,
         });
   const relay = new AsyncDispatchOutboxRelay(repository, senders);
 
@@ -89,9 +93,13 @@ let defaultHandler:
 
 /** production queue 미구성 시 row를 ack하지 않고 안전하게 release한다 */
 export const handler = (input: AsyncDispatchRelayTaskInput = {}) => {
+  const mode = process.env.DATABASE_MODE === 'local' ? 'local' : 'production';
   defaultHandler ??= createAsyncDispatchRelayRuntime({
     database: createWorkerDatabase(),
-    mode: process.env.DATABASE_MODE === 'local' ? 'local' : 'production',
+    mode,
+    ...(mode === 'local'
+      ? { localTtsHandler: getDefaultTtsEntryRuntime().taskHandler }
+      : {}),
   }).handler;
   return defaultHandler(input);
 };

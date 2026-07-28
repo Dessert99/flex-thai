@@ -1,17 +1,38 @@
-/** TTS Lambda가 mode별 runtime을 cold start 한 번만 조립한다 */
-import { createWorkerDatabase } from '../database-runtime.js';
-import { createTtsRuntime } from './tts-runtime.js';
+/** TTS Lambda가 SQS record body를 direct task handler와 부분 batch 응답으로 변환한다 */
+import type { SQSBatchResponse, SQSEvent } from 'aws-lambda';
+import { getDefaultTtsEntryRuntime } from './tts-entry-runtime.js';
+import type { createTtsRuntime } from './tts-runtime.js';
 
-let defaultHandler:
-  ReturnType<typeof createTtsRuntime>['taskHandler'] | undefined;
+type TtsDirectHandler = ReturnType<typeof createTtsRuntime>['taskHandler'];
 
-/** TTS queue message 하나를 canonical job 결과로 처리한다 */
-export const handler = (message: unknown) => {
-  defaultHandler ??= createTtsRuntime({
-    database: createWorkerDatabase() as unknown as Parameters<
-      typeof createTtsRuntime
-    >[0]['database'],
-    mode: process.env.DATABASE_MODE === 'local' ? 'local' : 'production',
-  }).taskHandler;
-  return defaultHandler(message);
-};
+/** malformed JSON은 terminal ACK하고 실행 예외만 record 단위 재전달한다 */
+export const createTtsSqsHandler =
+  (getDirectHandler: () => TtsDirectHandler) =>
+  async (event: SQSEvent): Promise<SQSBatchResponse> => {
+    const outcomes = await Promise.all(
+      event.Records.map(async (record) => {
+        let message: unknown;
+        try {
+          message = JSON.parse(record.body) as unknown;
+        } catch {
+          return null;
+        }
+        try {
+          await getDirectHandler()(message);
+          return null;
+        } catch {
+          return { itemIdentifier: record.messageId };
+        }
+      }),
+    );
+    return {
+      batchItemFailures: outcomes.filter(
+        (outcome): outcome is { itemIdentifier: string } => outcome !== null,
+      ),
+    };
+  };
+
+/** TTS SQS batch를 shared cold-start runtime의 direct handler로 처리한다 */
+export const handler = createTtsSqsHandler(
+  () => getDefaultTtsEntryRuntime().taskHandler,
+);

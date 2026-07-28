@@ -1,4 +1,5 @@
-/** 콘텐츠 제작 runtime의 local 결정성·운영 fail-closed 조립을 검증한다 */
+/** 콘텐츠 제작 runtime의 DB lookup·local 결정성·운영 fail-closed 조립을 검증한다 */
+import { DrizzlePublishedQuestionSimilarityLookup } from '@flex-thia/database';
 import { FakeContentInputReader } from '@flex-thia/providers';
 import { describe, expect, it } from 'vitest';
 import { UnavailableContentProductionProcessor } from './unavailable-content-production.processor.js';
@@ -20,6 +21,9 @@ describe('콘텐츠 제작 runtime', () => {
     );
     expect(runtime.questionProcessor?.constructor.name).toBe(
       'AiQuestionProductionProcessor',
+    );
+    expect(runtime.similarityLookup).toBeInstanceOf(
+      DrizzlePublishedQuestionSimilarityLookup,
     );
     expect(runtime.processor).not.toBeInstanceOf(
       UnavailableContentProductionProcessor,

@@ -3,6 +3,7 @@ import {
   DrizzleAiQuestionProductionRepository,
   DrizzleAiVocabularyProductionRepository,
   DrizzleContentProductionRepository,
+  DrizzlePublishedQuestionSimilarityLookup,
   DrizzleQuestionProductionContextQuery,
   DrizzleVocabularyProductionLookup,
 } from '@flex-thia/database';
@@ -10,7 +11,6 @@ import type {
   ContentProductionInputReader,
   ExtractedVocabularyCandidate,
   GeneratedQuestionCandidate,
-  QuestionSimilarityLookup,
 } from '@flex-thia/domain';
 import {
   FakeContentInputReader,
@@ -54,6 +54,7 @@ export const createContentProductionRuntime = (input: {
       processor,
       vocabularyProcessor: null,
       questionProcessor: null,
+      similarityLookup: null,
       handler: createContentProductionDispatcher(repository, processor),
     };
   }
@@ -77,14 +78,14 @@ export const createContentProductionRuntime = (input: {
   const questionRepository = new DrizzleAiQuestionProductionRepository(
     input.database,
   );
-  const noSimilarQuestions: QuestionSimilarityLookup = {
-    findSimilar: () => Promise.resolve([]),
-  };
+  const similarityLookup = new DrizzlePublishedQuestionSimilarityLookup(
+    input.database,
+  );
   const questionProcessor = new AiQuestionProductionProcessor(
     new DrizzleQuestionProductionContextQuery(input.database),
     new FakeQuestionGenerationProvider(input.local?.questionFixtures ?? {}),
     new FakeQuestionCrossValidationProvider(),
-    noSimilarQuestions,
+    similarityLookup,
     questionRepository,
     questionRepository,
     {
@@ -115,6 +116,7 @@ export const createContentProductionRuntime = (input: {
     processor,
     vocabularyProcessor,
     questionProcessor,
+    similarityLookup,
     handler: createContentProductionDispatcher(repository, processor),
   };
 };

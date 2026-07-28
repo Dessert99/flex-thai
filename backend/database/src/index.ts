@@ -136,6 +136,9 @@ export * from './repositories/content-production/drizzle-ai-question-production.
 /** AI 문제 생성 prompt context read model을 공개한다 */
 export * from './queries/drizzle-question-production-context.query.js';
 
+/** 현재 게시 문제의 결정적 유사도 lookup을 공개한다 */
+export * from './queries/drizzle-published-question-similarity.lookup.js';
+
 /** 생성 문제의 nullable-audio DRAFT graph writer를 공개한다 */
 export * from './repositories/content-production/drizzle-generated-question-draft.repository.js';
 
