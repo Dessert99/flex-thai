@@ -11,8 +11,8 @@ import type { TtsAudioGarbageStore, TtsAudioStore } from '@flex-thia/domain';
 const storageKeyPattern =
   /^private\/tts\/runs\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.wav$/u;
 const sha256Pattern = /^[0-9a-f]{64}$/u;
-const writeReconciliationAttempts = 3;
-const writeReconciliationDelayMs = 25;
+const initialWriteRetryDelayMs = 25;
+const maximumWriteRetryDelayMs = 1_000;
 
 const assertStorageKey = (storageKey: string): void => {
   if (!storageKeyPattern.test(storageKey)) {
@@ -26,6 +26,33 @@ const isAwsError = (error: unknown, statusCode: number): boolean =>
   '$metadata' in error &&
   (error as { $metadata?: { httpStatusCode?: number } }).$metadata
     ?.httpStatusCode === statusCode;
+
+const awsStatusCode = (error: unknown): number | undefined =>
+  error !== null && typeof error === 'object' && '$metadata' in error
+    ? (error as { $metadata?: { httpStatusCode?: number } }).$metadata
+        ?.httpStatusCode
+    : undefined;
+
+const isDefinitiveClientError = (error: unknown): boolean => {
+  const statusCode = awsStatusCode(error);
+  return (
+    statusCode !== undefined &&
+    statusCode >= 400 &&
+    statusCode < 500 &&
+    ![408, 409, 412, 429].includes(statusCode)
+  );
+};
+
+const writeRetryDelay = (attempt: number): number =>
+  Math.min(
+    initialWriteRetryDelayMs * 2 ** Math.min(attempt, 6),
+    maximumWriteRetryDelayMs,
+  );
+
+const defaultWait = (durationMs: number): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, durationMs);
+  });
 
 const metadataFromHead = (
   storageKey: string,
@@ -62,6 +89,11 @@ export interface CreateS3TtsAudioStoreInput {
   bucketName: string;
 }
 
+/** ambiguous conditional PUT 재시도의 bounded backoff 대기 dependency */
+export interface S3TtsAudioStoreOptions {
+  wait?: (durationMs: number) => Promise<void>;
+}
+
 /** AWS client 생성도 provider 경계 안에 두고 private S3 store를 만든다 */
 export const createS3TtsAudioStore = (
   input: CreateS3TtsAudioStoreInput,
@@ -73,9 +105,10 @@ export class S3TtsAudioStore implements TtsAudioStore, TtsAudioGarbageStore {
   constructor(
     private readonly client: S3Client,
     private readonly bucketName: string,
+    private readonly options: S3TtsAudioStoreOptions = {},
   ) {}
 
-  /** reserved key에 WAV를 한 번만 쓰고 exact replay만 성공으로 인정한다 */
+  /** dispatch 뒤 ambiguous 결과는 conditional PUT으로 definitive 결과까지 조정한다 */
   async put(
     input: Parameters<TtsAudioStore['put']>[0],
   ): ReturnType<TtsAudioStore['put']> {
@@ -95,53 +128,41 @@ export class S3TtsAudioStore implements TtsAudioStore, TtsAudioGarbageStore {
       throw new Error('S3_TTS_AUDIO_WRITE_DEADLINE_EXCEEDED');
     }
 
-    const deadlineController = new AbortController();
-    const timeout = setTimeout(
-      () => deadlineController.abort(),
-      Math.max(0, input.deadline.getTime() - Date.now()),
-    );
-    const signal = AbortSignal.any([input.signal, deadlineController.signal]);
-    try {
-      await this.client.send(
-        new PutObjectCommand({
-          Bucket: this.bucketName,
-          Key: input.storageKey,
-          Body: input.bytes,
-          ContentType: input.mimeType,
-          IfNoneMatch: '*',
-          Metadata: {
-            sha256: input.sha256,
-            sizebytes: String(input.bytes.byteLength),
-          },
-        }),
-        { abortSignal: signal },
-      );
-    } catch (error) {
-      const existing = await this.reconcileWrite(input);
-      if (existing !== null) return existing;
-      if (input.signal.aborted) {
-        throw new Error('S3_TTS_AUDIO_WRITE_ABORTED');
+    let retryAttempt = 0;
+    const wait = this.options.wait ?? defaultWait;
+    while (true) {
+      try {
+        await this.client.send(
+          new PutObjectCommand({
+            Bucket: this.bucketName,
+            Key: input.storageKey,
+            Body: input.bytes,
+            ContentType: input.mimeType,
+            IfNoneMatch: '*',
+            Metadata: {
+              sha256: input.sha256,
+              sizebytes: String(input.bytes.byteLength),
+            },
+          }),
+        );
+        return {
+          storageKey: input.storageKey,
+          mimeType: input.mimeType,
+          sizeBytes: input.bytes.byteLength,
+          sha256: input.sha256,
+        };
+      } catch (error) {
+        if (isAwsError(error, 412)) {
+          const existing = await this.inspectAfterPrecondition(input);
+          if (existing !== null) return existing;
+        } else if (isDefinitiveClientError(error)) {
+          throw new Error('S3_TTS_AUDIO_WRITE_FAILED');
+        }
       }
-      if (
-        deadlineController.signal.aborted ||
-        input.deadline.getTime() <= Date.now()
-      ) {
-        throw new Error('S3_TTS_AUDIO_WRITE_DEADLINE_EXCEEDED');
-      }
-      if (isAwsError(error, 412)) {
-        throw new Error('S3_TTS_AUDIO_IMMUTABLE_CONFLICT');
-      }
-      throw new Error('S3_TTS_AUDIO_WRITE_FAILED');
-    } finally {
-      clearTimeout(timeout);
-    }
 
-    return {
-      storageKey: input.storageKey,
-      mimeType: input.mimeType,
-      sizeBytes: input.bytes.byteLength,
-      sha256: input.sha256,
-    };
+      await wait(writeRetryDelay(retryAttempt));
+      retryAttempt += 1;
+    }
   }
 
   /** GC가 private object의 allow-list metadata만 확인한다 */
@@ -184,36 +205,29 @@ export class S3TtsAudioStore implements TtsAudioStore, TtsAudioGarbageStore {
     }
   }
 
-  private async reconcileWrite(
+  private async inspectAfterPrecondition(
     input: Parameters<TtsAudioStore['put']>[0],
   ): Promise<Awaited<ReturnType<TtsAudioStore['put']>> | null> {
-    for (let attempt = 0; attempt < writeReconciliationAttempts; attempt += 1) {
-      try {
-        const existing = await this.inspect(input.storageKey);
-        if (existing !== null) {
-          if (
-            existing.mimeType === input.mimeType &&
-            existing.sizeBytes === input.bytes.byteLength &&
-            existing.sha256 === input.sha256
-          ) {
-            return existing;
-          }
-          throw new Error('S3_TTS_AUDIO_IMMUTABLE_CONFLICT');
-        }
-      } catch (error) {
-        if (
-          error instanceof Error &&
-          error.message === 'S3_TTS_AUDIO_IMMUTABLE_CONFLICT'
-        ) {
-          throw error;
-        }
+    try {
+      const existing = await this.inspect(input.storageKey);
+      if (existing === null) return null;
+      if (
+        existing.mimeType === input.mimeType &&
+        existing.sizeBytes === input.bytes.byteLength &&
+        existing.sha256 === input.sha256
+      ) {
+        return existing;
       }
-      if (attempt < writeReconciliationAttempts - 1) {
-        await new Promise<void>((resolve) => {
-          setTimeout(resolve, writeReconciliationDelayMs);
-        });
+      throw new Error('S3_TTS_AUDIO_IMMUTABLE_CONFLICT');
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        (error.message === 'S3_TTS_AUDIO_IMMUTABLE_CONFLICT' ||
+          error.message === 'S3_TTS_AUDIO_METADATA_INVALID')
+      ) {
+        throw new Error('S3_TTS_AUDIO_IMMUTABLE_CONFLICT');
       }
+      return null;
     }
-    return null;
   }
 }

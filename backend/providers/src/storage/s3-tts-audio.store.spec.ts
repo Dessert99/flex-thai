@@ -101,63 +101,100 @@ describe('S3TtsAudioStore', () => {
     expect(send).not.toHaveBeenCalled();
   });
 
-  it('mid-flight abort 오류 뒤 exact object가 commit됐으면 reject하지 않고 성공으로 조정한다', async () => {
+  it('dispatch 뒤 caller abort는 첫 ambiguous 오류를 rejection으로 바꾸지 않고 PUT을 재시도한다', async () => {
     const controller = new AbortController();
-    let committed = false;
+    let putAttempts = 0;
     const send = vi.fn((command: unknown) => {
       if (command instanceof PutObjectCommand) {
-        committed = true;
-        controller.abort();
-        return Promise.reject(new Error('AbortError'));
-      }
-      if (command instanceof HeadObjectCommand && committed) {
-        return Promise.resolve({
-          ContentType: 'audio/wav',
-          ContentLength: bytes.byteLength,
-          Metadata: { sha256, sizebytes: String(bytes.byteLength) },
-        });
-      }
-      return Promise.reject(new Error('unexpected command'));
-    });
-    const store = new S3TtsAudioStore({ send } as never, 'media-bucket');
-
-    await expect(
-      store.put(putInput({ signal: controller.signal })),
-    ).resolves.toEqual({
-      storageKey,
-      mimeType: 'audio/wav',
-      sizeBytes: bytes.byteLength,
-      sha256,
-    });
-  });
-
-  it('abort 오류 직후 404여도 뒤늦게 보이는 exact object까지 bounded reconcile한다', async () => {
-    const controller = new AbortController();
-    let headAttempts = 0;
-    const send = vi.fn((command: unknown) => {
-      if (command instanceof PutObjectCommand) {
-        controller.abort();
-        return Promise.reject(new Error('AbortError'));
-      }
-      if (command instanceof HeadObjectCommand) {
-        headAttempts += 1;
-        if (headAttempts === 1) {
-          return Promise.reject(awsError(404));
+        putAttempts += 1;
+        if (putAttempts === 1) {
+          controller.abort();
+          return Promise.reject(new Error('AbortError'));
         }
-        return Promise.resolve({
-          ContentType: 'audio/wav',
-          ContentLength: bytes.byteLength,
-          Metadata: { sha256, sizebytes: String(bytes.byteLength) },
-        });
+        return Promise.resolve({ ETag: '"etag"' });
       }
       return Promise.reject(new Error('unexpected command'));
     });
-    const store = new S3TtsAudioStore({ send } as never, 'media-bucket');
+    const wait = vi.fn(() => Promise.resolve());
+    const store = new S3TtsAudioStore({ send } as never, 'media-bucket', {
+      wait,
+    });
 
     await expect(
       store.put(putInput({ signal: controller.signal })),
     ).resolves.toMatchObject({ storageKey, sha256 });
-    expect(headAttempts).toBe(2);
+    expect(putAttempts).toBe(2);
+    expect(wait).toHaveBeenCalledTimes(1);
+  });
+
+  it('100ms 뒤 commit되는 ambiguous PUT을 제한 횟수 rejection 없이 exact object로 조정한다', async () => {
+    let elapsedMs = 0;
+    let committed = false;
+    let putAttempts = 0;
+    const send = vi.fn((command: unknown) => {
+      if (command instanceof PutObjectCommand) {
+        putAttempts += 1;
+        return committed
+          ? Promise.reject(awsError(412))
+          : Promise.reject(new Error('transport disconnected'));
+      }
+      if (command instanceof HeadObjectCommand) {
+        return committed
+          ? Promise.resolve({
+              ContentType: 'audio/wav',
+              ContentLength: bytes.byteLength,
+              Metadata: { sha256, sizebytes: String(bytes.byteLength) },
+            })
+          : Promise.reject(awsError(404));
+      }
+      return Promise.reject(new Error('unexpected command'));
+    });
+    const wait = vi.fn((durationMs: number) => {
+      expect(durationMs).toBeGreaterThan(0);
+      elapsedMs += durationMs;
+      if (elapsedMs >= 125) committed = true;
+      return Promise.resolve();
+    });
+    const store = new S3TtsAudioStore({ send } as never, 'media-bucket', {
+      wait,
+    });
+
+    await expect(store.put(putInput())).resolves.toMatchObject({
+      storageKey,
+      sha256,
+    });
+    expect(elapsedMs).toBeGreaterThan(100);
+    expect(putAttempts).toBe(wait.mock.calls.length + 1);
+  });
+
+  it('ambiguous 오류 다음 412와 exact Head는 한 번 대기한 replay 성공이다', async () => {
+    let putAttempts = 0;
+    const send = vi.fn((command: unknown) => {
+      if (command instanceof PutObjectCommand) {
+        putAttempts += 1;
+        return putAttempts === 1
+          ? Promise.reject(awsError(503))
+          : Promise.reject(awsError(412));
+      }
+      if (command instanceof HeadObjectCommand) {
+        return Promise.resolve({
+          ContentType: 'audio/wav',
+          ContentLength: bytes.byteLength,
+          Metadata: { sha256, sizebytes: String(bytes.byteLength) },
+        });
+      }
+      return Promise.reject(new Error('unexpected command'));
+    });
+    const wait = vi.fn(() => Promise.resolve());
+    const store = new S3TtsAudioStore({ send } as never, 'media-bucket', {
+      wait,
+    });
+
+    await expect(store.put(putInput())).resolves.toMatchObject({
+      storageKey,
+      sha256,
+    });
+    expect(wait).toHaveBeenCalledTimes(1);
   });
 
   it('동시 writer의 exact object는 replay 성공으로 보존하고 삭제하지 않는다', async () => {
@@ -187,31 +224,77 @@ describe('S3TtsAudioStore', () => {
     ).toBe(false);
   });
 
-  it('deadline 중 client 오류 뒤 exact object가 commit됐으면 성공으로 조정한다', async () => {
-    vi.useFakeTimers();
-    const startedAt = new Date('2026-07-28T00:00:00.000Z');
-    const deadline = new Date(startedAt.getTime() + 1_000);
-    vi.setSystemTime(startedAt);
+  it('동시 writer의 conflicting object는 삭제하지 않고 immutable conflict로 거절한다', async () => {
     const send = vi.fn((command: unknown) => {
       if (command instanceof PutObjectCommand) {
-        vi.setSystemTime(new Date(deadline.getTime() + 1));
-        return Promise.reject(new Error('TimeoutError'));
+        return Promise.reject(awsError(412));
       }
       if (command instanceof HeadObjectCommand) {
         return Promise.resolve({
           ContentType: 'audio/wav',
           ContentLength: bytes.byteLength,
-          Metadata: { sha256, sizebytes: String(bytes.byteLength) },
+          Metadata: {
+            sha256: 'f'.repeat(64),
+            sizebytes: String(bytes.byteLength),
+          },
         });
       }
       return Promise.reject(new Error('unexpected command'));
     });
     const store = new S3TtsAudioStore({ send } as never, 'media-bucket');
 
+    await expect(store.put(putInput())).rejects.toThrow(
+      'S3_TTS_AUDIO_IMMUTABLE_CONFLICT',
+    );
+    expect(
+      send.mock.calls.some(
+        ([command]) => command instanceof DeleteObjectCommand,
+      ),
+    ).toBe(false);
+  });
+
+  it('definitive 4xx는 재시도하지 않고 write failure로 거절한다', async () => {
+    const send = vi.fn().mockRejectedValue(awsError(403));
+    const wait = vi.fn(() => Promise.resolve());
+    const store = new S3TtsAudioStore({ send } as never, 'media-bucket', {
+      wait,
+    });
+
+    await expect(store.put(putInput())).rejects.toThrow(
+      'S3_TTS_AUDIO_WRITE_FAILED',
+    );
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(wait).not.toHaveBeenCalled();
+  });
+
+  it('dispatch 뒤 deadline 경과는 첫 ambiguous 오류를 rejection으로 바꾸지 않고 PUT을 재시도한다', async () => {
+    vi.useFakeTimers();
+    const startedAt = new Date('2026-07-28T00:00:00.000Z');
+    const deadline = new Date(startedAt.getTime() + 1_000);
+    vi.setSystemTime(startedAt);
+    let putAttempts = 0;
+    const send = vi.fn((command: unknown) => {
+      if (command instanceof PutObjectCommand) {
+        putAttempts += 1;
+        if (putAttempts === 1) {
+          vi.setSystemTime(new Date(deadline.getTime() + 1));
+          return Promise.reject(new Error('TimeoutError'));
+        }
+        return Promise.resolve({ ETag: '"etag"' });
+      }
+      return Promise.reject(new Error('unexpected command'));
+    });
+    const wait = vi.fn(() => Promise.resolve());
+    const store = new S3TtsAudioStore({ send } as never, 'media-bucket', {
+      wait,
+    });
+
     await expect(store.put(putInput({ deadline }))).resolves.toMatchObject({
       storageKey,
       sha256,
     });
+    expect(putAttempts).toBe(2);
+    expect(wait).toHaveBeenCalledTimes(1);
   });
 
   it('Put이 성공한 뒤 deadline이 지나도 visible exact object 결과를 성공으로 유지한다', async () => {

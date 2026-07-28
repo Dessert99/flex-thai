@@ -356,6 +356,8 @@ interface GeneratedDraftSentenceInput
 - Modify/Test: `backend/worker/src/dispatch/async-dispatch-relay-task.ts`
 - Modify/Test: `backend/worker/src/media/tts-entry-runtime.ts`
 - Create/Test: `backend/worker/src/local-worker.ts`
+- Modify/Test: `backend/worker/package.json`
+- Modify: `pnpm-lock.yaml`
 - Modify/Test: `compose.yaml`
 - Modify/Test: `backend/config/src/local-compose.spec.ts`
 - Modify/Test: `infra/src/constructs/async-jobs.ts`
@@ -378,9 +380,12 @@ interface GeneratedDraftSentenceInput
   concurrency and grants their DB access
 - Replaces production `UnavailableTtsAudioStore` with private S3 put,
   metadata-inspect and reference-safe delete; the adapter must preserve
-  reserved storage keys, recompute the bytes SHA-256 before I/O, and reconcile
-  abort/deadline write races to an exact visible object without deleting a
-  concurrent writer's object
+  reserved storage keys and recompute the bytes SHA-256 before I/O. Abort and
+  deadline are pre-dispatch admission checks only. After dispatch, ambiguous
+  transport/abort/5xx outcomes retry the same conditional PUT with bounded
+  backoff until success or a 412 plus exact/conflicting Head is definitive;
+  process termination and redelivery are safer than a rejected call that may
+  leave a visible object. Never delete a concurrent writer's object.
 - Grants task/GC only required media-bucket object permissions, including
   GC-only bucket listing restricted to `private/tts/runs/*`, and adds the
   orphan-audio lifecycle policy without exposing storage keys through HTTP
@@ -423,6 +428,8 @@ interface GeneratedDraftSentenceInput
   until SIGINT/SIGTERM instead of importing one-shot Lambda modules. The
   `test` profile must include that runner so the standard local manual-test
   command does not omit relay and GC automation.
+  The worker package must directly declare the `tsx` executable used by compose
+  so a frozen fresh workspace can resolve the command.
 
 - [ ] **Step 3: Run Red**
 

@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 type PackageManifest = {
   scripts?: Record<string, string>;
+  devDependencies?: Record<string, string>;
 };
 
 describe('worker package 스크립트', () => {
@@ -27,5 +28,20 @@ describe('worker package 스크립트', () => {
     expect(buildConfig).toContain("'tts-task'");
     expect(buildConfig).toContain("'async-dispatch-relay-task'");
     expect(buildConfig).toContain("'tts-audio-gc-task'");
+  });
+
+  it('compose local worker가 실행하는 tsx를 worker package가 직접 선언한다', () => {
+    const manifest = JSON.parse(
+      readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+    ) as PackageManifest;
+    const compose = readFileSync(
+      new URL('../../../compose.yaml', import.meta.url),
+      'utf8',
+    );
+
+    expect(manifest.devDependencies?.tsx).toBe('^4.20.0');
+    expect(compose).toMatch(
+      /--filter\s*\n\s*- '@flex-thia\/worker'\s*\n\s*- exec\s*\n\s*- tsx\s*\n\s*- src\/local-worker\.ts/u,
+    );
   });
 });
