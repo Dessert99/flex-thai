@@ -69,6 +69,11 @@ const command = (fixture: Awaited<ReturnType<typeof createFixture>>) => ({
   itemIds: [fixture.ids.item],
   expectedAttempts: { [fixture.ids.item]: 2 },
   requestedAt,
+  context: {
+    actorSub: `retry-${fixture.ids.user}`,
+    actorUserId: fixture.ids.user,
+    requestId: fixture.ids.job,
+  },
 });
 
 describe.runIf(databaseUrl !== undefined)(
@@ -180,6 +185,11 @@ describe.runIf(databaseUrl !== undefined)(
             [secondItemId]: 5,
           },
           requestedAt,
+          context: {
+            actorSub: `retry-${fixture.ids.user}`,
+            actorUserId: fixture.ids.user,
+            requestId: fixture.ids.job,
+          },
         }),
       ).resolves.toBe(2);
       const state = await pool.query<{

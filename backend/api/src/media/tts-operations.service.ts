@@ -2,7 +2,7 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import {
   TtsDomainError,
-  type RetryTtsItemsInput,
+  type AuditedRetryTtsItemsInput,
   type TtsItemPage,
   type TtsJob,
   type TtsJobDetail,
@@ -42,7 +42,14 @@ export interface TtsOperationsQueryPort {
 
 /** 상태 전이와 durable worker 재전송을 하나의 신뢰 가능한 command로 묶는다 */
 export interface TtsRetryCoordinator {
-  retryAndDispatch(input: RetryTtsItemsInput): Promise<number>;
+  retryAndDispatch(input: AuditedRetryTtsItemsInput): Promise<number>;
+}
+
+/** 인증된 관리자와 request ID를 재시도 audit에 전달한다 */
+export interface TtsAdminActorContext {
+  userId: string;
+  sub: string;
+  requestId: string;
 }
 
 /** TTS 운영 HTTP 서비스 조립 의존성 */
@@ -154,23 +161,26 @@ export class TtsOperationsService {
 
   /** 선택한 실패 항목을 optimistic attempt 확인 뒤 일괄 재접수한다 */
   retryJob(
+    actor: TtsAdminActorContext,
     jobId: string,
     items: RetryTtsItemSelection[],
   ): Promise<TtsRetryResponse> {
-    return this.retry(jobId, items);
+    return this.retry(actor, jobId, items);
   }
 
   /** 실패 항목 하나를 동일한 optimistic command로 재접수한다 */
   retryItem(
+    actor: TtsAdminActorContext,
     itemId: string,
     input: RetryTtsItemRequest,
   ): Promise<TtsRetryResponse> {
-    return this.retry(input.jobId, [
+    return this.retry(actor, input.jobId, [
       { itemId, expectedAttempt: input.expectedAttempt },
     ]);
   }
 
   private async retry(
+    actor: TtsAdminActorContext,
     jobId: string,
     items: RetryTtsItemSelection[],
   ): Promise<TtsRetryResponse> {
@@ -184,6 +194,11 @@ export class TtsOperationsService {
         itemIds,
         expectedAttempts,
         requestedAt: this.now(),
+        context: {
+          actorSub: actor.sub,
+          actorUserId: actor.userId,
+          requestId: actor.requestId,
+        },
       }),
     );
     return ttsRetryResponseSchema.parse({

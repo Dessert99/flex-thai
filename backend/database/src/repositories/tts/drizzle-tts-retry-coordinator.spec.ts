@@ -1,6 +1,11 @@
 /** TTS 재시도 상태와 durable outbox가 같은 transaction에서 전이되는지 검증한다 */
 import { describe, expect, it, vi } from 'vitest';
-import { ttsAudioCache, ttsItems, ttsJobs } from '../../schema/index.js';
+import {
+  auditLogs,
+  ttsAudioCache,
+  ttsItems,
+  ttsJobs,
+} from '../../schema/index.js';
 import { DrizzleTtsRetryCoordinator } from './drizzle-tts-retry-coordinator.js';
 
 const requestedAt = new Date('2026-07-28T01:00:00.000Z');
@@ -55,6 +60,8 @@ const createSelect = (results: unknown[][]) =>
   });
 
 const createFixture = (results: unknown[][]) => {
+  const inserts: Array<{ table: unknown; values: Record<string, unknown> }> =
+    [];
   const updates: Array<{ table: unknown; values: Record<string, unknown> }> =
     [];
   const update = vi.fn((table: unknown) => ({
@@ -70,12 +77,18 @@ const createFixture = (results: unknown[][]) => {
   const transactionExecutor = {
     select: createSelect(results),
     update,
+    insert: vi.fn((table: unknown) => ({
+      values: vi.fn((values: Record<string, unknown>) => {
+        inserts.push({ table, values });
+        return Promise.resolve();
+      }),
+    })),
   };
   const transaction = vi.fn(
     <T>(work: (value: typeof transactionExecutor) => Promise<T>) =>
       work(transactionExecutor),
   );
-  return { database: { transaction }, transactionExecutor, updates };
+  return { database: { transaction }, transactionExecutor, updates, inserts };
 };
 
 const command = {
@@ -83,6 +96,11 @@ const command = {
   itemIds: [itemId],
   expectedAttempts: { [itemId]: 2 },
   requestedAt,
+  context: {
+    actorSub: 'admin-sub',
+    actorUserId: '00000000-0000-4000-8000-000000000007',
+    requestId: '00000000-0000-4000-8000-000000000008',
+  },
 };
 
 describe('DrizzleTtsRetryCoordinator', () => {
@@ -136,6 +154,23 @@ describe('DrizzleTtsRetryCoordinator', () => {
       attempt: 1,
       commandFingerprint,
       requestedAt,
+    });
+    expect(fixture.inserts).toContainEqual({
+      table: auditLogs,
+      values: expect.objectContaining({
+        actorSub: command.context.actorSub,
+        actorUserId: command.context.actorUserId,
+        action: 'TTS_ITEMS_RETRIED',
+        targetType: 'TTS_JOB',
+        targetId: jobId,
+        requestId: command.context.requestId,
+        summary: expect.objectContaining({
+          itemIds: [itemId],
+          expectedAttempts: [2],
+          dispatchAttempt: 1,
+          commandFingerprint,
+        }),
+      }),
     });
   });
 
@@ -235,6 +270,7 @@ describe('DrizzleTtsRetryCoordinator', () => {
 
     await expect(coordinator.retryAndDispatch(command)).resolves.toBe(1);
     expect(fixture.updates).toHaveLength(0);
+    expect(fixture.inserts).toHaveLength(0);
     expect(enqueueTts).not.toHaveBeenCalled();
     expect(assertTtsDispatch).toHaveBeenCalledWith(
       fixture.transactionExecutor,

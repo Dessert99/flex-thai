@@ -16,7 +16,10 @@ import { TtsOperationsController } from './tts-operations.controller.js';
 const ids = {
   job: '00000000-0000-4000-8000-000000000001',
   item: '00000000-0000-4000-8000-000000000002',
+  admin: '00000000-0000-4000-8000-000000000003',
+  request: '00000000-0000-4000-8000-000000000004',
 } as const;
+const user = { userId: ids.admin, sub: 'admin-sub' } as never;
 
 const metadata = (method: keyof TtsOperationsController) => {
   const handler = Object.getOwnPropertyDescriptor(
@@ -135,6 +138,8 @@ describe('TtsOperationsController 공개 경계', () => {
 
     await expect(
       controller.retryJob(
+        user,
+        ids.request,
         { jobId: ids.job },
         { items: [{ itemId: ids.item, expectedAttempt: 2 }] },
       ),
@@ -145,6 +150,8 @@ describe('TtsOperationsController 공개 경계', () => {
     });
     await expect(
       controller.retryItem(
+        user,
+        ids.request,
         { itemId: ids.item },
         { jobId: ids.job, expectedAttempt: 2 },
       ),
@@ -153,10 +160,15 @@ describe('TtsOperationsController 공개 경계', () => {
       itemIds: [ids.item],
       retriedCount: 1,
     });
-    expect(service.retryJob).toHaveBeenCalledWith(ids.job, [
+    const actor = {
+      userId: ids.admin,
+      sub: 'admin-sub',
+      requestId: ids.request,
+    };
+    expect(service.retryJob).toHaveBeenCalledWith(actor, ids.job, [
       { itemId: ids.item, expectedAttempt: 2 },
     ]);
-    expect(service.retryItem).toHaveBeenCalledWith(ids.item, {
+    expect(service.retryItem).toHaveBeenCalledWith(actor, ids.item, {
       jobId: ids.job,
       expectedAttempt: 2,
     });
@@ -170,6 +182,8 @@ describe('TtsOperationsController 공개 경계', () => {
 
     await expect(
       controller.retryJob(
+        user,
+        ids.request,
         { jobId: ids.job },
         { items: [{ itemId: ids.item, expectedAttempt: 2 }] },
       ),

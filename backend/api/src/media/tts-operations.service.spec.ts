@@ -13,7 +13,10 @@ const ids = {
   requester: '00000000-0000-4000-8000-000000000003',
   target: '00000000-0000-4000-8000-000000000004',
   preset: '00000000-0000-4000-8000-000000000005',
+  admin: '00000000-0000-4000-8000-000000000006',
+  request: '00000000-0000-4000-8000-000000000007',
 } as const;
+const actor = { userId: ids.admin, sub: 'admin-sub', requestId: ids.request };
 
 const job = {
   id: ids.job,
@@ -161,7 +164,9 @@ describe('TtsOperationsService 재시도', () => {
     const { retryCoordinator, service } = createService();
 
     await expect(
-      service.retryJob(ids.job, [{ itemId: ids.item, expectedAttempt: 2 }]),
+      service.retryJob(actor, ids.job, [
+        { itemId: ids.item, expectedAttempt: 2 },
+      ]),
     ).resolves.toEqual({
       jobId: ids.job,
       itemIds: [ids.item],
@@ -173,6 +178,11 @@ describe('TtsOperationsService 재시도', () => {
       itemIds: [ids.item],
       expectedAttempts: { [ids.item]: 2 },
       requestedAt: new Date('2026-07-27T03:00:00.000Z'),
+      context: {
+        actorSub: 'admin-sub',
+        actorUserId: ids.admin,
+        requestId: ids.request,
+      },
     });
   });
 
@@ -180,7 +190,10 @@ describe('TtsOperationsService 재시도', () => {
     const { retryCoordinator, service } = createService();
 
     await expect(
-      service.retryItem(ids.item, { jobId: ids.job, expectedAttempt: 2 }),
+      service.retryItem(actor, ids.item, {
+        jobId: ids.job,
+        expectedAttempt: 2,
+      }),
     ).resolves.toEqual({
       jobId: ids.job,
       itemIds: [ids.item],
@@ -204,7 +217,10 @@ describe('TtsOperationsService 재시도', () => {
       });
 
       await expect(
-        service.retryItem(ids.item, { jobId: ids.job, expectedAttempt: 2 }),
+        service.retryItem(actor, ids.item, {
+          jobId: ids.job,
+          expectedAttempt: 2,
+        }),
       ).rejects.toMatchObject({
         status: 409,
         response: { code },
@@ -220,7 +236,10 @@ describe('TtsOperationsService 재시도', () => {
     });
 
     await expect(
-      service.retryItem(ids.item, { jobId: ids.job, expectedAttempt: 2 }),
+      service.retryItem(actor, ids.item, {
+        jobId: ids.job,
+        expectedAttempt: 2,
+      }),
     ).rejects.toMatchObject({
       status: 404,
       response: { code: 'TTS_ITEM_NOT_FOUND' },
@@ -233,7 +252,9 @@ describe('TtsOperationsService 재시도', () => {
     const { service } = createService({ retryAndDispatch });
 
     await expect(
-      service.retryJob(ids.job, [{ itemId: ids.item, expectedAttempt: 2 }]),
+      service.retryJob(actor, ids.job, [
+        { itemId: ids.item, expectedAttempt: 2 },
+      ]),
     ).rejects.toBe(dispatchFailure);
     expect(retryAndDispatch).toHaveBeenCalledOnce();
   });

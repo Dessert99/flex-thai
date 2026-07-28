@@ -34,6 +34,11 @@ import {
   type TtsJobListResponse,
   type TtsRetryResponse,
 } from '@flex-thia/contracts';
+import {
+  CurrentUser,
+  type AuthenticatedUser,
+} from '../common/auth/current-user.decorator.js';
+import { AdminRequestId } from '../common/http/admin-request-id.js';
 import { AdminMfaGuard } from '../identity/admin-mfa.guard.js';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
 import { CognitoAuthorizerGuard } from '../identity/cognito-authorizer.guard.js';
@@ -110,13 +115,19 @@ export class TtsOperationsController {
   @Post('jobs/:jobId/retry')
   @HttpCode(202)
   async retryJob(
+    @CurrentUser() user: AuthenticatedUser,
+    @AdminRequestId() requestId: string,
     @Param() rawPath: Record<string, unknown>,
     @Body() rawBody: unknown,
   ): Promise<TtsRetryResponse> {
     const { jobId } = ttsJobPathSchema.parse(rawPath);
     const { items } = retryTtsJobRequestSchema.parse(rawBody);
     return ttsRetryResponseSchema.parse(
-      await this.service.retryJob(jobId, items),
+      await this.service.retryJob(
+        { userId: user.userId, sub: user.sub, requestId },
+        jobId,
+        items,
+      ),
     );
   }
 
@@ -129,13 +140,19 @@ export class TtsOperationsController {
   @Post('items/:itemId/retry')
   @HttpCode(202)
   async retryItem(
+    @CurrentUser() user: AuthenticatedUser,
+    @AdminRequestId() requestId: string,
     @Param() rawPath: Record<string, unknown>,
     @Body() rawBody: unknown,
   ): Promise<TtsRetryResponse> {
     const { itemId } = ttsItemPathSchema.parse(rawPath);
     const request = retryTtsItemRequestSchema.parse(rawBody);
     return ttsRetryResponseSchema.parse(
-      await this.service.retryItem(itemId, request),
+      await this.service.retryItem(
+        { userId: user.userId, sub: user.sub, requestId },
+        itemId,
+        request,
+      ),
     );
   }
 }

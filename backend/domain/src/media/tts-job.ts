@@ -219,6 +219,11 @@ export interface RetryTtsItemsInput {
   requestedAt: Date;
 }
 
+/** 인증된 관리자 audit 문맥을 포함하는 durable TTS 재시도 입력 */
+export interface AuditedRetryTtsItemsInput extends RetryTtsItemsInput {
+  context: TtsOperationAuditContext;
+}
+
 /** TTS 상태 전이를 안정적으로 구분하는 domain 오류 */
 export class TtsDomainError extends Error {
   constructor(
