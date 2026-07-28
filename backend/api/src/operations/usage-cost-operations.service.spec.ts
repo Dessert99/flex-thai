@@ -83,6 +83,39 @@ describe('UsageCostOperationsService', () => {
     });
   });
 
+  it('현재 월 filter가 있어도 전체 월 비용으로 threshold를 계산한다', async () => {
+    const { query, service } = createService();
+    query.getCurrentMonthEstimatedCost.mockResolvedValueOnce('24.00000000');
+
+    await expect(
+      service.overview({ role: 'ADMIN' }, { source: 'TTS', status: 'FAILED' }),
+    ).resolves.toMatchObject({
+      estimatedCostUsd: '16.000000',
+      currentMonthThreshold: {
+        estimatedCostUsd: '24.00000000',
+        status: 'CRITICAL',
+      },
+    });
+    expect(query.getCurrentMonthEstimatedCost).toHaveBeenCalledWith({
+      from: new Date('2026-07-01T00:00:00.000Z'),
+      to: new Date('2026-08-01T00:00:00.000Z'),
+    });
+  });
+
+  it('소수 8자리 월 비용을 micro USD 단위로 정확히 비교한다', async () => {
+    const { query, service } = createService();
+    query.getCurrentMonthEstimatedCost.mockResolvedValueOnce('15.00000000');
+
+    await expect(
+      service.overview({ role: 'ADMIN' }, { source: 'AI' }),
+    ).resolves.toMatchObject({
+      currentMonthThreshold: {
+        estimatedCostUsd: '15.00000000',
+        status: 'WARNING',
+      },
+    });
+  });
+
   it('partial UTC range와 non-admin update를 stable 오류로 거절한다', async () => {
     const { service } = createService();
 

@@ -2,8 +2,10 @@
 import { z } from 'zod';
 
 const usdDecimalPattern = /^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/u;
+const estimatedCostUsdPattern = /^(?:0|[1-9]\d*)(?:\.\d{1,8})?$/u;
 
 const usdDecimalSchema = z.string().regex(usdDecimalPattern);
+const estimatedCostUsdSchema = z.string().regex(estimatedCostUsdPattern);
 
 const toMicroUsd = (value: string): bigint => {
   const [whole, fraction = ''] = value.split('.');
@@ -76,7 +78,7 @@ export const usageCostBreakdownSchema = z
     model: z.string().min(1),
     voice: z.string().min(1).nullable(),
     runCount: z.number().int().nonnegative(),
-    estimatedCostUsd: usdDecimalSchema,
+    estimatedCostUsd: estimatedCostUsdSchema,
   })
   .strict();
 
@@ -84,7 +86,7 @@ export const usageCostBreakdownSchema = z
 export const usageCostOverviewResponseSchema = z
   .object({
     range: timeRangeSchema,
-    estimatedCostUsd: usdDecimalSchema,
+    estimatedCostUsd: estimatedCostUsdSchema,
     inProgressJobCount: z.number().int().nonnegative(),
     failedRunCount: z.number().int().nonnegative(),
     pendingReviewCandidateCount: z.number().int().nonnegative(),
@@ -92,7 +94,7 @@ export const usageCostOverviewResponseSchema = z
     currentMonthThreshold: z
       .object({
         range: timeRangeSchema,
-        estimatedCostUsd: usdDecimalSchema,
+        estimatedCostUsd: estimatedCostUsdSchema,
         status: thresholdStatusSchema,
       })
       .strict(),

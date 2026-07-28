@@ -80,6 +80,29 @@ describe('사용량·비용 계약', () => {
     ).toBe(false);
   });
 
+  it('TTS 저장소의 소수 8자리 예상 비용을 손실 없이 허용한다', () => {
+    expect(
+      usageCostOverviewResponseSchema.parse({
+        ...validOverview,
+        estimatedCostUsd: '15.00000000',
+        breakdown: [
+          {
+            ...validOverview.breakdown[0],
+            estimatedCostUsd: '0.00000100',
+          },
+        ],
+        currentMonthThreshold: {
+          ...validOverview.currentMonthThreshold,
+          estimatedCostUsd: '15.00000000',
+          status: 'WARNING',
+        },
+      }),
+    ).toMatchObject({
+      estimatedCostUsd: '15.00000000',
+      breakdown: [{ estimatedCostUsd: '0.00000100' }],
+    });
+  });
+
   it('USD 경고 기준은 양수이며 warning보다 critical이 커야 한다', () => {
     expect(() =>
       operationsCostSettingsResponseSchema.parse({

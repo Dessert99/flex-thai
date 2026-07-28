@@ -119,9 +119,9 @@ export interface UsageCostOperationsServiceDependencies {
   now?: () => Date;
 }
 
-const toMicroUsd = (value: string): bigint => {
+const toUsdSubunits = (value: string): bigint => {
   const [whole, fraction = ''] = value.split('.');
-  return BigInt(`${whole}${fraction.padEnd(6, '0')}`);
+  return BigInt(`${whole}${fraction.padEnd(8, '0')}`);
 };
 
 const toIsoRange = (range: UsageCostDateRangeInput) => ({
@@ -185,11 +185,18 @@ const thresholdStatus = (
   estimatedCostUsd: string,
   settings: OperationsCostSettingsInput,
 ): 'NORMAL' | 'WARNING' | 'CRITICAL' => {
-  const cost = toMicroUsd(estimatedCostUsd);
-  if (cost >= toMicroUsd(settings.criticalUsd)) return 'CRITICAL';
-  if (cost >= toMicroUsd(settings.warningUsd)) return 'WARNING';
+  const cost = toUsdSubunits(estimatedCostUsd);
+  if (cost >= toUsdSubunits(settings.criticalUsd)) return 'CRITICAL';
+  if (cost >= toUsdSubunits(settings.warningUsd)) return 'WARNING';
   return 'NORMAL';
 };
+
+const hasProviderRunFilter = (query: UsageCostOverviewQueryInput): boolean =>
+  query.source !== undefined ||
+  query.provider !== undefined ||
+  query.model !== undefined ||
+  query.voice !== undefined ||
+  query.status !== undefined;
 
 const requestFingerprint = (input: {
   warningUsd: string;
@@ -232,7 +239,7 @@ export class UsageCostOperationsService {
         ...(query.status ? { status: query.status } : {}),
       }),
       this.dependencies.settings.find(),
-      sameRange(range, monthRange)
+      sameRange(range, monthRange) && !hasProviderRunFilter(query)
         ? Promise.resolve(undefined)
         : this.dependencies.query.getCurrentMonthEstimatedCost(monthRange),
     ]);
