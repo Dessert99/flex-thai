@@ -239,7 +239,21 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
   });
 
   it('NORMAL과 네 필수 검증 PASSED 후보만 row lock 뒤 DRAFT로 승인한다', async () => {
-    const candidateLimit = vi.fn().mockResolvedValue([pendingCandidate]);
+    const voicePolicy = {
+      defaultVoicePresetId: '00000000-0000-4000-8000-000000000021',
+      speakerVoiceAssignments: [
+        {
+          speakerRole: 'A',
+          voicePresetId: '00000000-0000-4000-8000-000000000022',
+        },
+      ],
+    };
+    const candidateLimit = vi.fn().mockResolvedValue([
+      {
+        ...pendingCandidate,
+        presetSnapshot: { parameters: voicePolicy },
+      },
+    ]);
     const candidateFor = vi.fn(() => ({ limit: candidateLimit }));
     const candidateWhere = vi.fn(() => ({ for: candidateFor }));
     const candidateFrom = vi.fn(() => ({ where: candidateWhere }));
@@ -276,7 +290,7 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
       questionId: 'question-id',
       questionVersionId: 'version-id',
     });
-    const schedule = vi.fn().mockResolvedValue({ jobId: 'tts-job-id' });
+    const schedule = vi.fn().mockResolvedValue({ jobIds: ['tts-job-id'] });
     const repository = new DrizzleAiQuestionProductionRepository(
       { transaction } as never,
       () => reviewCommand.occurredAt,
@@ -300,6 +314,7 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
       },
       requestedBy: reviewCommand.actorUserId,
       requestedAt: reviewCommand.occurredAt,
+      voicePolicy,
     });
     const draftInput: unknown = createDraft.mock.calls[0]?.[1];
     expect(draftInput).toMatchObject({
