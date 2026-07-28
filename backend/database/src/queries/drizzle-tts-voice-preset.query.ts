@@ -55,7 +55,9 @@ export class DrizzleTtsVoicePresetQuery {
 
   /** 검색·enabled 조건에 맞는 최신 preset version page를 반환한다 */
   async list(input: TtsVoicePresetListInput): Promise<TtsVoicePresetPage> {
-    const escapedQuery = input.query?.replaceAll('%', '\\%').replaceAll('_', '\\_');
+    const escapedQuery = input.query
+      ?.replaceAll('%', '\\%')
+      .replaceAll('_', '\\_');
     const condition = and(
       escapedQuery
         ? or(

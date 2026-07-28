@@ -6,7 +6,7 @@ import {
   type RetryTtsItemsInput,
   TtsDomainError,
 } from '@flex-thia/domain';
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import * as schema from '../../schema/index.js';
@@ -144,6 +144,30 @@ export class DrizzleTtsRetryCoordinator {
           attempt: job.dispatchAttempt,
           commandFingerprint,
         });
+        const [audit] = await transaction
+          .select({
+            requestId: auditLogs.requestId,
+            summary: auditLogs.summary,
+          })
+          .from(auditLogs)
+          .where(
+            and(
+              eq(auditLogs.action, 'TTS_ITEMS_RETRIED'),
+              eq(auditLogs.targetType, 'TTS_JOB'),
+              eq(auditLogs.targetId, input.jobId),
+              eq(auditLogs.requestId, input.context.requestId),
+            ),
+          )
+          .orderBy(desc(auditLogs.createdAt), desc(auditLogs.id))
+          .limit(1);
+        const auditSummary = audit?.summary as
+          { commandFingerprint?: unknown } | undefined;
+        if (
+          audit?.requestId !== input.context.requestId ||
+          auditSummary?.commandFingerprint !== commandFingerprint
+        ) {
+          throw new TtsDomainError('TTS_ITEM_STALE_ATTEMPT');
+        }
         return command.itemIds.length;
       }
       const dispatchAttempt = job.dispatchAttempt + 1;

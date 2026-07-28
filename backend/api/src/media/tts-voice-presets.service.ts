@@ -69,7 +69,9 @@ export interface TtsVoicePresetsServiceDependencies {
   now?: () => Date;
 }
 
-const auditContext = (actor: TtsAdminActorContext): TtsOperationAuditContext => ({
+const auditContext = (
+  actor: TtsAdminActorContext,
+): TtsOperationAuditContext => ({
   actorSub: actor.sub,
   actorUserId: actor.userId,
   requestId: actor.requestId,
@@ -100,7 +102,9 @@ export class TtsVoicePresetsService {
   }
 
   /** preset version page에 configured active 상태를 계산한다 */
-  async list(input: TtsVoicePresetListQuery): Promise<TtsVoicePresetListResponse> {
+  async list(
+    input: TtsVoicePresetListQuery,
+  ): Promise<TtsVoicePresetListResponse> {
     const page = await this.dependencies.query.list(input);
     return ttsVoicePresetListResponseSchema.parse({
       items: page.items.map((row) => this.toResponse(row)),
@@ -199,9 +203,7 @@ export class TtsVoicePresetsService {
     return this.toResponse(row);
   }
 
-  private toResponse(
-    row: TtsVoicePresetVersion,
-  ): TtsVoicePresetDetailResponse {
+  private toResponse(row: TtsVoicePresetVersion): TtsVoicePresetDetailResponse {
     return ttsVoicePresetDetailResponseSchema.parse({
       ...row,
       active: row.id === this.dependencies.activePresetId,

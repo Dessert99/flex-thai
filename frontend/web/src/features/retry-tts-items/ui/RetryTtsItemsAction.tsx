@@ -1,6 +1,7 @@
 /** retryable TTS 실패 항목 selection과 query invalidation을 관리한다 */
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { isApiError } from '@/shared/api';
 import { Button } from '@/shared/ui/button';
 import { retryTtsItems } from '../api/retryTtsItems';
 
@@ -21,16 +22,21 @@ export function RetryTtsItemsAction({
 }) {
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState<string[]>([]);
-  const eligible = items.filter(
-    (item) => item.status === 'FAILED' && item.retryable,
+  const eligible = useMemo(
+    () => items.filter((item) => item.status === 'FAILED' && item.retryable),
+    [items],
+  );
+  const selectedItems = eligible.filter((item) =>
+    selected.includes(selectionKey(item)),
   );
   const mutation = useMutation({
     mutationFn: () =>
       retryTtsItems(
         jobId,
-        eligible
-          .filter((item) => selected.includes(item.id))
-          .map((item) => ({ itemId: item.id, expectedAttempt: item.attempt })),
+        selectedItems.map((item) => ({
+          itemId: item.id,
+          expectedAttempt: item.attempt,
+        })),
       ),
     onSuccess: async () => {
       setSelected([]);
@@ -46,18 +52,26 @@ export function RetryTtsItemsAction({
         }),
       ]);
     },
+    onError: async (error) => {
+      if (isStaleAttempt(error)) {
+        await queryClient.invalidateQueries({
+          queryKey: ['admin', 'tts', 'jobs', 'detail', jobId],
+        });
+      }
+    },
   });
+  if (eligible.length === 0) return null;
   return (
     <div className='grid gap-cluster'>
       {eligible.map((item) => (
         <Button
-          aria-checked={selected.includes(item.id)}
+          aria-checked={selected.includes(selectionKey(item))}
           key={item.id}
           onClick={() =>
             setSelected((current) =>
-              current.includes(item.id)
-                ? current.filter((id) => id !== item.id)
-                : [...current, item.id],
+              current.includes(selectionKey(item))
+                ? current.filter((key) => key !== selectionKey(item))
+                : [...current, selectionKey(item)],
             )
           }
           role='checkbox'
@@ -68,12 +82,25 @@ export function RetryTtsItemsAction({
         </Button>
       ))}
       <Button
-        disabled={selected.length === 0 || mutation.isPending}
+        disabled={selectedItems.length === 0 || mutation.isPending}
         onClick={() => mutation.mutate()}
         type='button'
       >
         선택 재시도
       </Button>
     </div>
+  );
+}
+
+function selectionKey(item: RetryItem) {
+  return `${item.id}:${item.attempt}`;
+}
+
+function isStaleAttempt(error: unknown) {
+  return (
+    isApiError(error) &&
+    error.detail.kind === 'problem' &&
+    error.detail.problem.status === 409 &&
+    error.detail.problem.code === 'TTS_ITEM_STALE_ATTEMPT'
   );
 }

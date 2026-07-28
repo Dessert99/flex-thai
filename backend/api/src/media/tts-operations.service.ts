@@ -214,11 +214,10 @@ export class TtsOperationsService {
     questionId: string,
     versionId: string,
   ): Promise<TtsPublicationReadinessResponse> {
-    const readiness =
-      await this.dependencies.query.getPublicationReadiness({
-        questionId,
-        versionId,
-      });
+    const readiness = await this.dependencies.query.getPublicationReadiness({
+      questionId,
+      versionId,
+    });
     if (!readiness) {
       throw new NotFoundException({
         code: 'TTS_PUBLICATION_TARGET_MISMATCH',

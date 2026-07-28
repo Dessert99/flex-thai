@@ -281,7 +281,9 @@ export const ttsVoicePresetListQuerySchema = z
   .strict();
 
 /** TTS voice preset UUID path */
-export const ttsVoicePresetPathSchema = z.object({ presetId: z.uuid() }).strict();
+export const ttsVoicePresetPathSchema = z
+  .object({ presetId: z.uuid() })
+  .strict();
 
 /** 최초 TTS voice preset 생성 요청 */
 export const createTtsVoicePresetRequestSchema = z

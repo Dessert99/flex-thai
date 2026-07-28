@@ -266,6 +266,12 @@ describe('DrizzleTtsRetryCoordinator', () => {
           lastDispatchCommandFingerprint: fingerprint,
         },
       ],
+      [
+        {
+          requestId: command.context.requestId,
+          summary: { commandFingerprint: fingerprint },
+        },
+      ],
     ]);
 
     await expect(coordinator.retryAndDispatch(command)).resolves.toBe(1);
@@ -318,6 +324,12 @@ describe('DrizzleTtsRetryCoordinator', () => {
             lastDispatchCommandFingerprint: fingerprint,
           },
         ],
+        [
+          {
+            requestId: command.context.requestId,
+            summary: { commandFingerprint: fingerprint },
+          },
+        ],
       ]);
       const assertTtsDispatch = vi.fn().mockResolvedValue(undefined);
       const coordinator = new DrizzleTtsRetryCoordinator(
@@ -337,6 +349,38 @@ describe('DrizzleTtsRetryCoordinator', () => {
       );
     },
   );
+
+  it('exact replay는 같은 request와 fingerprint audit이 없으면 거부한다', async () => {
+    const fingerprint = DrizzleTtsRetryCoordinator.commandFingerprint(command);
+    const replayed = {
+      ...failedItem,
+      status: 'PENDING' as const,
+      attempt: 3,
+      retryable: false,
+      errorCode: null,
+    };
+    const fixture = createFixture([
+      [replayed],
+      [
+        {
+          id: jobId,
+          dispatchAttempt: 1,
+          lastDispatchCommandFingerprint: fingerprint,
+        },
+      ],
+      [],
+    ]);
+    const assertTtsDispatch = vi.fn().mockResolvedValue(undefined);
+    const coordinator = new DrizzleTtsRetryCoordinator(
+      fixture.database as never,
+      { enqueueTts: vi.fn(), assertTtsDispatch },
+    );
+
+    await expect(coordinator.retryAndDispatch(command)).rejects.toMatchObject({
+      code: 'TTS_ITEM_STALE_ATTEMPT',
+    });
+    expect(assertTtsDispatch).toHaveBeenCalledOnce();
+  });
 
   it('동일 item attempt가 한 번 더 전진했으면 이전 retry command replay를 거부한다', async () => {
     const fingerprint = DrizzleTtsRetryCoordinator.commandFingerprint(command);

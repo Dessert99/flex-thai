@@ -31,15 +31,13 @@ interface PresetCommandBase {
 
 /** 최초 TTS voice preset row 생성 입력 */
 export interface CreateInitialTtsVoicePresetInput
-  extends PresetCommandBase,
-    PresetConfiguration {
+  extends PresetCommandBase, PresetConfiguration {
   name: string;
 }
 
 /** 기존 이름을 유지하는 새 TTS voice preset version 입력 */
 export interface CreateTtsVoicePresetVersionInput
-  extends PresetCommandBase,
-    PresetConfiguration {
+  extends PresetCommandBase, PresetConfiguration {
   sourcePresetId: string;
   expectedUpdatedAt: Date;
 }

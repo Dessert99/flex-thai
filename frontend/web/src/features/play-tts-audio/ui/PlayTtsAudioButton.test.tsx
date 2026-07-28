@@ -22,7 +22,7 @@ describe('TTS 음성 재생', () => {
     );
     expect(mocks.authenticatedRequest).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole('button', { name: '음성 재생' }));
-    expect(await screen.findByRole('audio')).toHaveAttribute(
+    expect(await screen.findByLabelText('TTS 음성')).toHaveAttribute(
       'src',
       'http://127.0.0.1/audio',
     );

@@ -98,6 +98,12 @@ function DraftVersionTtsState({
     ttsPublicationReadinessQueryOptions(questionId, version.id),
   );
   const validationPassed = version.validation.status === 'PASSED';
+  let disabledReason = 'TTS 준비 상태를 확인한 뒤 게시할 수 있습니다.';
+  if (readiness.isError) {
+    disabledReason = 'TTS 준비 상태를 확인할 수 없어 게시할 수 없습니다.';
+  } else if (readiness.data?.ready === false) {
+    disabledReason = '필수 음성이 준비되지 않았습니다.';
+  }
 
   return (
     <div className='grid gap-cluster'>
@@ -114,13 +120,7 @@ function DraftVersionTtsState({
         <QuestionStateAction
           command={{ action: 'publish', versionId: version.id }}
           disabled={readiness.data?.ready !== true}
-          disabledReason={
-            readiness.isError
-              ? 'TTS 준비 상태를 확인할 수 없어 게시할 수 없습니다.'
-              : readiness.data?.ready === false
-                ? '필수 음성이 준비되지 않았습니다.'
-                : 'TTS 준비 상태를 확인한 뒤 게시할 수 있습니다.'
-          }
+          disabledReason={disabledReason}
           onConfirmed={() => void onConfirmed()}
         />
       ) : null}

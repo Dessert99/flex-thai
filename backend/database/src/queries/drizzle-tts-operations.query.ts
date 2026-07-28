@@ -114,8 +114,7 @@ export class DrizzleTtsOperationsQuery implements TtsOperationsQuery {
     private readonly database: TtsOperationsDatabase,
     readiness?: ContentTtsReadinessRepository,
   ) {
-    this.readiness =
-      readiness ?? new DrizzleContentTtsReadinessQuery(database);
+    this.readiness = readiness ?? new DrizzleContentTtsReadinessQuery(database);
   }
 
   /** 상태·생성 기간을 함께 적용한 최신 job page를 반환한다 */
@@ -272,10 +271,7 @@ export class DrizzleTtsOperationsQuery implements TtsOperationsQuery {
               ),
             )
             .orderBy(desc(ttsItems.updatedAt), desc(ttsItems.id));
-    const operationByTarget = new Map<
-      string,
-      (typeof rows)[number]
-    >();
+    const operationByTarget = new Map<string, (typeof rows)[number]>();
     for (const row of rows) {
       const key = `${row.targetKind}:${row.targetId}`;
       if (!operationByTarget.has(key)) operationByTarget.set(key, row);

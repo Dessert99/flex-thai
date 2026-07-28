@@ -64,6 +64,33 @@ describe('관리자 문제 상세 상태', () => {
     ).toHaveLength(1);
   });
 
+  it('검증과 TTS readiness가 모두 통과하면 게시를 허용한다', async () => {
+    mockDetailAndReadiness(
+      createQuestionDetail({ draftValidationStatus: 'PASSED' }),
+      createReadyReadiness(),
+    );
+
+    renderDetail();
+
+    expect(
+      await screen.findByText('필수 음성이 모두 준비되었습니다.'),
+    ).toBeVisible();
+    expect(screen.getByRole('button', { name: '버전 게시' })).toBeEnabled();
+  });
+
+  it('TTS가 준비되어도 validation 실패 DRAFT에는 게시를 제공하지 않는다', async () => {
+    mockDetailAndReadiness(createQuestionDetail(), createReadyReadiness());
+
+    renderDetail();
+
+    expect(
+      await screen.findByText('필수 음성이 모두 준비되었습니다.'),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole('button', { name: '버전 게시' }),
+    ).not.toBeInTheDocument();
+  });
+
   it('404 응답을 존재하지 않는 문제로 안전하게 안내한다', async () => {
     mocks.authenticatedRequest.mockRejectedValue(createProblemError(404));
 
@@ -76,7 +103,7 @@ describe('관리자 문제 상세 상태', () => {
   });
 
   it('FAILED 검증 issue의 안정 path와 code를 표시한다', async () => {
-    mocks.authenticatedRequest.mockResolvedValue(createQuestionDetail());
+    mockDetailAndReadiness(createQuestionDetail(), createReadyReadiness());
 
     renderDetail();
 
@@ -86,7 +113,7 @@ describe('관리자 문제 상세 상태', () => {
   });
 
   it('DRAFT에만 전체 교체 링크를 제공해 게시 버전을 직접 편집하지 않는다', async () => {
-    mocks.authenticatedRequest.mockResolvedValue(createQuestionDetail());
+    mockDetailAndReadiness(createQuestionDetail(), createReadyReadiness());
 
     renderDetail();
 
@@ -106,6 +133,24 @@ function renderDetail() {
   return renderWithProviders(
     <AdminQuestionDetailPageContainer questionId={questionId} />,
   );
+}
+
+function mockDetailAndReadiness(
+  detail: ReturnType<typeof createQuestionDetail>,
+  readiness: ReturnType<typeof createReadyReadiness>,
+) {
+  mocks.authenticatedRequest.mockImplementation(({ path }: { path: string }) =>
+    Promise.resolve(path.includes('/readiness') ? readiness : detail),
+  );
+}
+
+function createReadyReadiness() {
+  return {
+    ready: true,
+    requiredCount: 1,
+    readyCount: 1,
+    blockers: [],
+  };
 }
 
 function createProblemError(status: number) {

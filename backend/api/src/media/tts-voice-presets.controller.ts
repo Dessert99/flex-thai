@@ -50,10 +50,11 @@ import {
 } from './tts-voice-presets.dto.js';
 import { TtsVoicePresetsService } from './tts-voice-presets.service.js';
 
-const actorContext = (
-  user: AuthenticatedUser,
-  requestId: string,
-) => ({ userId: user.userId, sub: user.sub, requestId });
+const actorContext = (user: AuthenticatedUser, requestId: string) => ({
+  userId: user.userId,
+  sub: user.sub,
+  requestId,
+});
 
 /** ADMIN과 MFA를 요구하는 TTS voice preset endpoint */
 @ApiTags('Admin TTS Presets')
@@ -79,8 +80,10 @@ export class TtsVoicePresetsController {
   @ApiOkResponse({ type: TtsVoicePresetListResponseDto })
   @ApiProblemResponses(400, 401, 403, 500)
   @Get()
-  list(@Query() rawQuery: Record<string, unknown>) {
-    return this.service.list(ttsVoicePresetListQuerySchema.parse(rawQuery));
+  async list(@Query() rawQuery: Record<string, unknown>) {
+    return ttsVoicePresetListResponseSchema.parse(
+      await this.service.list(ttsVoicePresetListQuerySchema.parse(rawQuery)),
+    );
   }
 
   /** 최초 TTS voice preset version을 생성한다 */

@@ -30,7 +30,10 @@ describe('TTS 작업 상세 화면', () => {
         }}
         error={null}
         loading={false}
+        onFilterChange={() => undefined}
+        onPageChange={() => undefined}
         onRetry={() => undefined}
+        search={{ page: 1, pageSize: 20 }}
       />,
     );
     expect(screen.getByText('local / v1 / thai')).toBeInTheDocument();

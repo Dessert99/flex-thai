@@ -17,10 +17,11 @@ export function PlayTtsAudioButton({ itemId }: { itemId: string }) {
         음성 재생
       </Button>
       {mutation.data ? (
+        // eslint-disable-next-line jsx-a11y/media-has-caption
         <audio
+          aria-label='TTS 음성'
           autoPlay
           controls
-          role='audio'
           src={mutation.data.url}
         />
       ) : null}

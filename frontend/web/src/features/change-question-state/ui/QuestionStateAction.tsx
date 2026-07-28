@@ -47,7 +47,7 @@ export function QuestionStateAction({
     <div className='grid gap-cluster'>
       {command.action === 'restore' ? (
         <Button
-          disabled={mutation.isPending}
+          disabled={disabled || mutation.isPending}
           onClick={() => mutation.mutate(command)}
           type='button'
           variant='outline'
