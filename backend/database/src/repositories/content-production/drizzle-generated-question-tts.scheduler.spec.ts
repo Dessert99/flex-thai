@@ -10,6 +10,7 @@ import {
   ttsJobs,
   ttsVoicePresets,
 } from '../../schema/index.js';
+import { createTtsInitialCommandFingerprint } from '../dispatch/drizzle-async-dispatch-outbox.repository.js';
 import { DrizzleGeneratedQuestionTtsScheduler } from './drizzle-generated-question-tts.scheduler.js';
 
 const requestedAt = new Date('2026-07-28T00:00:00.000Z');
@@ -130,7 +131,7 @@ describe('생성 문제 TTS scheduler', () => {
     const ids = [jobId, ...itemIds];
     const scheduler = new DrizzleGeneratedQuestionTtsScheduler(
       presetId,
-      { enqueueTts },
+      { enqueueTts, assertTtsDispatch: vi.fn() },
       () => ids.shift()!,
     );
 
@@ -155,6 +156,7 @@ describe('생성 문제 TTS scheduler', () => {
       id: jobId,
       requestedBy: userId,
       pendingCount: 2,
+      lastDispatchCommandFingerprint: createTtsInitialCommandFingerprint(jobId),
       voiceSnapshot: {
         presetId,
         provider: preset.provider,
@@ -189,9 +191,12 @@ describe('생성 문제 TTS scheduler', () => {
         mediaAssetId: null,
       }),
     ]);
+    const jobValues = fixture.inserted.find(({ table }) => table === ttsJobs)
+      ?.values as { lastDispatchCommandFingerprint: string };
     expect(enqueueTts).toHaveBeenCalledWith(fixture.transaction, {
       jobId,
       attempt: 0,
+      commandFingerprint: jobValues.lastDispatchCommandFingerprint,
       requestedAt,
     });
     expect(
@@ -204,6 +209,7 @@ describe('생성 문제 TTS scheduler', () => {
       const fixture = createTransaction({ presetRows });
       const scheduler = new DrizzleGeneratedQuestionTtsScheduler(presetId, {
         enqueueTts: vi.fn(),
+        assertTtsDispatch: vi.fn(),
       });
 
       await expect(
@@ -247,6 +253,7 @@ describe('생성 문제 TTS scheduler', () => {
       const fixture = createTransaction({ sentenceRows });
       const scheduler = new DrizzleGeneratedQuestionTtsScheduler(presetId, {
         enqueueTts,
+        assertTtsDispatch: vi.fn(),
       });
 
       await expect(

@@ -5,12 +5,15 @@ import { asyncDispatchOutbox } from '../../schema/async-dispatch-outbox.schema.j
 import { jobs } from '../../schema/jobs.schema.js';
 import {
   AsyncDispatchOutboxError,
+  createTtsInitialCommandFingerprint,
+  createTtsRetryCommandFingerprint,
   DrizzleAsyncDispatchOutboxRepository,
 } from './drizzle-async-dispatch-outbox.repository.js';
 
 const now = new Date('2026-07-28T00:00:00.000Z');
 const jobId = '00000000-0000-4000-8000-000000000001';
 const outboxId = '00000000-0000-4000-8000-000000000002';
+const commandFingerprint = 'a'.repeat(64);
 
 const selectChain = (rows: unknown[]) => {
   const chain = {
@@ -69,6 +72,25 @@ const stored = {
 };
 
 describe('공유 dispatch outbox Drizzle 저장소', () => {
+  it('TTS initial과 정렬된 retry 선택·미래 attempt는 서로 다른 identity를 만든다', () => {
+    const first = createTtsRetryCommandFingerprint(jobId, {
+      itemB: 5,
+      itemA: 2,
+    });
+    const reordered = createTtsRetryCommandFingerprint(jobId, {
+      itemA: 2,
+      itemB: 5,
+    });
+    const future = createTtsRetryCommandFingerprint(jobId, {
+      itemA: 3,
+      itemB: 5,
+    });
+
+    expect(first).toBe(reordered);
+    expect(first).not.toBe(future);
+    expect(first).not.toBe(createTtsInitialCommandFingerprint(jobId));
+  });
+
   it('AI 재생성 실행을 결정적 key와 최소 payload로 같은 transaction에 기록한다', async () => {
     const inserted = { ...stored };
     const chain = insertChain([inserted]);
@@ -130,6 +152,84 @@ describe('공유 dispatch outbox Drizzle 저장소', () => {
         code: 'ASYNC_DISPATCH_OUTBOX_IDEMPOTENCY_CONFLICT',
       }),
     );
+  });
+
+  it('TTS 실행은 command fingerprint를 payload에 보존하고 exact row를 별도로 확인한다', async () => {
+    const ttsStored = {
+      ...stored,
+      payloadKind: 'TTS' as const,
+      attempt: 4,
+      idempotencyKey: `tts:${jobId}:4`,
+      payload: { jobId, attempt: 4, commandFingerprint },
+    };
+    const insert = insertChain([ttsStored]);
+    const repository = new DrizzleAsyncDispatchOutboxRepository({} as never);
+
+    await expect(
+      repository.enqueueTts({ insert: insert.insert } as never, {
+        jobId,
+        attempt: 4,
+        commandFingerprint,
+        requestedAt: now,
+      }),
+    ).resolves.toBeUndefined();
+    expect(insert.values).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payloadKind: 'TTS',
+        jobId,
+        attempt: 4,
+        idempotencyKey: `tts:${jobId}:4`,
+        payload: { jobId, attempt: 4, commandFingerprint },
+      }),
+    );
+
+    const select = vi.fn(() => selectChain([ttsStored]));
+    await expect(
+      repository.assertTtsDispatch({ select } as never, {
+        jobId,
+        attempt: 4,
+        commandFingerprint,
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  it('TTS exact row가 없거나 command fingerprint가 다르면 replay를 거부한다', async () => {
+    const repository = new DrizzleAsyncDispatchOutboxRepository({} as never);
+    const missing = vi.fn(() => selectChain([]));
+    await expect(
+      repository.assertTtsDispatch({ select: missing } as never, {
+        jobId,
+        attempt: 4,
+        commandFingerprint,
+      }),
+    ).rejects.toMatchObject({
+      code: 'ASYNC_DISPATCH_OUTBOX_IDEMPOTENCY_CONFLICT',
+    });
+
+    const mismatch = vi.fn(() =>
+      selectChain([
+        {
+          ...stored,
+          payloadKind: 'TTS',
+          attempt: 4,
+          idempotencyKey: `tts:${jobId}:4`,
+          payload: {
+            jobId,
+            attempt: 4,
+            commandFingerprint: 'b'.repeat(64),
+          },
+        },
+      ]),
+    );
+    await expect(
+      repository.assertTtsDispatch({ select: mismatch } as never, {
+        jobId,
+        attempt: 4,
+        commandFingerprint,
+      }),
+    ).rejects.toMatchObject({
+      code: 'ASYNC_DISPATCH_OUTBOX_IDEMPOTENCY_CONFLICT',
+    });
   });
 
   it('claim은 SKIP LOCKED 후보에 매번 새 owner를 발급하고 attempt를 증가시킨다', async () => {

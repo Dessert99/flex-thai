@@ -10,7 +10,10 @@ import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import * as schema from '../../schema/index.js';
 import { ttsAudioCache, ttsItems, ttsJobs } from '../../schema/tts.schema.js';
-import type { TtsDispatchOutboxWriter } from '../dispatch/drizzle-async-dispatch-outbox.repository.js';
+import {
+  createTtsRetryCommandFingerprint,
+  type TtsDispatchOutboxWriter,
+} from '../dispatch/drizzle-async-dispatch-outbox.repository.js';
 
 type TtsRetryDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 type TtsRetryTransaction = Parameters<
@@ -41,7 +44,7 @@ const toItem = (row: TtsRetryItemRow) => ({
 
 const assertCommand = (
   input: RetryTtsItemsInput,
-): { itemIds: string[]; expectedAttempt: number } => {
+): { itemIds: string[]; expectedAttempts: Record<string, number> } => {
   if (input.itemIds.length === 0) {
     throw new TtsDomainError('TTS_RETRY_ITEMS_REQUIRED');
   }
@@ -54,31 +57,33 @@ const assertCommand = (
   ) {
     throw new TtsDomainError('TTS_RETRY_SELECTION_INVALID');
   }
-  const attempts = [
-    ...new Set(itemIds.map((itemId) => input.expectedAttempts[itemId])),
-  ];
-  const expectedAttempt = attempts[0];
   if (
-    attempts.length !== 1 ||
-    expectedAttempt === undefined ||
-    !Number.isSafeInteger(expectedAttempt) ||
-    expectedAttempt < 0
+    itemIds.some((itemId) => {
+      const expectedAttempt = input.expectedAttempts[itemId];
+      return (
+        expectedAttempt === undefined ||
+        !Number.isSafeInteger(expectedAttempt) ||
+        expectedAttempt < 0
+      );
+    })
   ) {
     throw new TtsDomainError('TTS_RETRY_ATTEMPT_MISMATCH');
   }
   return {
     itemIds,
-    expectedAttempt,
+    expectedAttempts: Object.fromEntries(
+      itemIds.map((itemId) => [itemId, input.expectedAttempts[itemId]!]),
+    ),
   };
 };
 
 const isExactReplay = (
   rows: TtsRetryItemRow[],
-  expectedAttempt: number,
+  expectedAttempts: Readonly<Record<string, number>>,
 ): boolean =>
   rows.every(
     (row) =>
-      row.attempt === expectedAttempt + 1 &&
+      row.attempt === expectedAttempts[row.id]! + 1 &&
       row.status !== 'FAILED' &&
       row.errorCode === null &&
       !row.retryable,
@@ -91,9 +96,22 @@ export class DrizzleTtsRetryCoordinator {
     private readonly dispatchWriter: TtsDispatchOutboxWriter<TtsRetryTransaction>,
   ) {}
 
+  /** retry selection을 순서와 무관한 durable command fingerprint로 만든다 */
+  static commandFingerprint(input: RetryTtsItemsInput): string {
+    const command = assertCommand(input);
+    return createTtsRetryCommandFingerprint(
+      input.jobId,
+      command.expectedAttempts,
+    );
+  }
+
   /** 성공 반환은 상태 전이와 동일 attempt outbox가 함께 commit될 때만 허용한다 */
   async retryAndDispatch(input: RetryTtsItemsInput): Promise<number> {
     const command = assertCommand(input);
+    const commandFingerprint = createTtsRetryCommandFingerprint(
+      input.jobId,
+      command.expectedAttempts,
+    );
     return this.database.transaction(async (transaction) => {
       const rows = await transaction
         .select()
@@ -112,6 +130,8 @@ export class DrizzleTtsRetryCoordinator {
         .select({
           id: ttsJobs.id,
           dispatchAttempt: ttsJobs.dispatchAttempt,
+          lastDispatchCommandFingerprint:
+            ttsJobs.lastDispatchCommandFingerprint,
         })
         .from(ttsJobs)
         .where(eq(ttsJobs.id, input.jobId))
@@ -119,7 +139,15 @@ export class DrizzleTtsRetryCoordinator {
         .limit(1);
       if (!job) throw new TtsDomainError('TTS_ITEM_NOT_FOUND');
 
-      if (isExactReplay(rows, command.expectedAttempt)) {
+      if (isExactReplay(rows, command.expectedAttempts)) {
+        if (job.lastDispatchCommandFingerprint !== commandFingerprint) {
+          throw new TtsDomainError('TTS_ITEM_STALE_ATTEMPT');
+        }
+        await this.dispatchWriter.assertTtsDispatch(transaction, {
+          jobId: input.jobId,
+          attempt: job.dispatchAttempt,
+          commandFingerprint,
+        });
         return command.itemIds.length;
       }
       const dispatchAttempt = job.dispatchAttempt + 1;
@@ -131,7 +159,11 @@ export class DrizzleTtsRetryCoordinator {
       const retriedById = new Map(retried.map((item) => [item.id, item]));
       for (const itemId of command.itemIds) {
         const item = retriedById.get(itemId);
+        const expectedAttempt = command.expectedAttempts[itemId];
         if (!item) throw new TtsDomainError('TTS_ITEM_NOT_FOUND');
+        if (expectedAttempt === undefined) {
+          throw new TtsDomainError('TTS_RETRY_SELECTION_INVALID');
+        }
         const updated = await transaction
           .update(ttsItems)
           .set({
@@ -149,7 +181,7 @@ export class DrizzleTtsRetryCoordinator {
               eq(ttsItems.id, item.id),
               eq(ttsItems.jobId, input.jobId),
               eq(ttsItems.status, 'FAILED'),
-              eq(ttsItems.attempt, command.expectedAttempt),
+              eq(ttsItems.attempt, expectedAttempt),
               eq(ttsItems.retryable, true),
             ),
           )
@@ -194,6 +226,7 @@ export class DrizzleTtsRetryCoordinator {
           succeededCount: summary.counts.succeeded,
           failedCount: summary.counts.failed,
           dispatchAttempt,
+          lastDispatchCommandFingerprint: commandFingerprint,
           finishedAt: null,
           updatedAt: input.requestedAt,
         })
@@ -211,6 +244,7 @@ export class DrizzleTtsRetryCoordinator {
       await this.dispatchWriter.enqueueTts(transaction, {
         jobId: input.jobId,
         attempt: dispatchAttempt,
+        commandFingerprint,
         requestedAt: input.requestedAt,
       });
       return command.itemIds.length;

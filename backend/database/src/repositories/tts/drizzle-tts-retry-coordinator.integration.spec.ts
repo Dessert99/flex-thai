@@ -139,11 +139,86 @@ describe.runIf(databaseUrl !== undefined)(
       });
     });
 
+    it('서로 다른 attempt 이력의 두 item을 각 기대값으로 한 번에 재시도한다', async () => {
+      const fixture = await createFixture(pool);
+      const secondItemId = randomUUID();
+      const secondTargetId = randomUUID();
+      const secondRevision = randomUUID();
+      const secondCacheId = randomUUID();
+      const secondCacheKey = `retry-${secondItemId}`;
+      await pool.query(
+        `insert into tts_items (
+           id, job_id, target_kind, target_id, target_text, target_required,
+           revision, voice_snapshot, cache_key, status, attempt, error_code,
+           retryable
+         ) values (
+           $1, $2, 'THAI_SENTENCE_VERSION', $3, 'ขอบคุณ', true, $4, $5, $6,
+           'FAILED', 5, 'PROVIDER_TIMEOUT', true
+         )`,
+        [
+          secondItemId,
+          fixture.ids.job,
+          secondTargetId,
+          secondRevision,
+          voiceSnapshot,
+          secondCacheKey,
+        ],
+      );
+      await pool.query(
+        `insert into tts_audio_cache (
+           id, cache_key, status, generation_attempt, error_code, retryable
+         ) values ($1, $2, 'FAILED', 1, 'PROVIDER_TIMEOUT', true)`,
+        [secondCacheId, secondCacheKey],
+      );
+
+      await expect(
+        coordinator().retryAndDispatch({
+          jobId: fixture.ids.job,
+          itemIds: [secondItemId, fixture.ids.item],
+          expectedAttempts: {
+            [fixture.ids.item]: 2,
+            [secondItemId]: 5,
+          },
+          requestedAt,
+        }),
+      ).resolves.toBe(2);
+      const state = await pool.query<{
+        attempts: number[];
+        commandFingerprint: string;
+        dispatchAttempt: number;
+        outboxFingerprint: string;
+      }>(
+        `select
+           array_agg(ti.attempt order by ti.id)::int[] attempts,
+           tj.dispatch_attempt "dispatchAttempt",
+           tj.last_dispatch_command_fingerprint "commandFingerprint",
+           ado.payload ->> 'commandFingerprint' "outboxFingerprint"
+         from tts_jobs tj
+         join tts_items ti on ti.job_id = tj.id
+         join async_dispatch_outbox ado
+           on ado.job_id = tj.id
+          and ado.payload_kind = 'TTS'
+          and ado.attempt = tj.dispatch_attempt
+         where tj.id = $1
+         group by tj.id, ado.id`,
+        [fixture.ids.job],
+      );
+      expect(
+        state.rows[0]?.attempts.sort((left, right) => left - right),
+      ).toEqual([3, 6]);
+      expect(state.rows[0]?.dispatchAttempt).toBe(1);
+      expect(state.rows[0]?.commandFingerprint).toMatch(/^[a-f0-9]{64}$/);
+      expect(state.rows[0]?.outboxFingerprint).toBe(
+        state.rows[0]?.commandFingerprint,
+      );
+    });
+
     it('outbox writer 실패는 item·cache·job 전이를 모두 rollback한다', async () => {
       const fixture = await createFixture(pool);
       const database = drizzle({ client: pool }) as never;
       const failing = new DrizzleTtsRetryCoordinator(database, {
         enqueueTts: () => Promise.reject(new Error('OUTBOX_FAILED')),
+        assertTtsDispatch: () => Promise.resolve(),
       });
 
       await expect(failing.retryAndDispatch(command(fixture))).rejects.toThrow(

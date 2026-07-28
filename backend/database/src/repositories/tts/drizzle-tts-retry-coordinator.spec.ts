@@ -87,15 +87,24 @@ const command = {
 
 describe('DrizzleTtsRetryCoordinator', () => {
   it('선택 item과 cache/job 전이 뒤 같은 transaction에 다음 attempt outbox를 쓴다', async () => {
+    const commandFingerprint =
+      DrizzleTtsRetryCoordinator.commandFingerprint(command);
     const fixture = createFixture([
       [failedItem],
-      [{ id: jobId, dispatchAttempt: 0 }],
+      [
+        {
+          id: jobId,
+          dispatchAttempt: 0,
+          lastDispatchCommandFingerprint: null,
+        },
+      ],
       [{ ...failedItem, status: 'PENDING', attempt: 3, retryable: false }],
     ]);
     const enqueueTts = vi.fn().mockResolvedValue(undefined);
+    const assertTtsDispatch = vi.fn();
     const coordinator = new DrizzleTtsRetryCoordinator(
       fixture.database as never,
-      { enqueueTts },
+      { enqueueTts, assertTtsDispatch },
     );
 
     await expect(coordinator.retryAndDispatch(command)).resolves.toBe(1);
@@ -125,11 +134,69 @@ describe('DrizzleTtsRetryCoordinator', () => {
     expect(enqueueTts).toHaveBeenCalledWith(fixture.transactionExecutor, {
       jobId,
       attempt: 1,
+      commandFingerprint,
       requestedAt,
     });
   });
 
-  it('같은 command replay는 상태를 다시 바꾸지 않고 같은 outbox identity만 확인한다', async () => {
+  it('서로 다른 이력의 항목을 각 expected attempt로 한 배치에서 재시도한다', async () => {
+    const secondFailed = {
+      ...failedItem,
+      id: secondItemId,
+      cacheKey: 'cache-key-2',
+      attempt: 5,
+    };
+    const fixture = createFixture([
+      [failedItem, secondFailed],
+      [
+        {
+          id: jobId,
+          dispatchAttempt: 7,
+          lastDispatchCommandFingerprint: 'old-command',
+        },
+      ],
+      [
+        { ...failedItem, status: 'PENDING', attempt: 3, retryable: false },
+        { ...secondFailed, status: 'PENDING', attempt: 6, retryable: false },
+      ],
+    ]);
+    const enqueueTts = vi.fn().mockResolvedValue(undefined);
+    const coordinator = new DrizzleTtsRetryCoordinator(
+      fixture.database as never,
+      { enqueueTts, assertTtsDispatch: vi.fn() },
+    );
+
+    const mixedCommand = {
+      ...command,
+      itemIds: [secondItemId, itemId],
+      expectedAttempts: { [itemId]: 2, [secondItemId]: 5 },
+    };
+    const commandFingerprint =
+      DrizzleTtsRetryCoordinator.commandFingerprint(mixedCommand);
+
+    await expect(coordinator.retryAndDispatch(mixedCommand)).resolves.toBe(2);
+    expect(
+      fixture.updates
+        .filter(({ table }) => table === ttsItems)
+        .map(({ values }) => values.attempt),
+    ).toEqual([3, 6]);
+    expect(
+      fixture.updates.find(({ table }) => table === ttsJobs)?.values,
+    ).toMatchObject({
+      dispatchAttempt: 8,
+      lastDispatchCommandFingerprint: commandFingerprint,
+    });
+    expect(enqueueTts).toHaveBeenCalledWith(
+      fixture.transactionExecutor,
+      expect.objectContaining({
+        jobId,
+        attempt: 8,
+        commandFingerprint,
+      }),
+    );
+  });
+
+  it('같은 command replay는 job fingerprint와 정확한 outbox가 모두 있을 때만 성공한다', async () => {
     const replayed = {
       ...failedItem,
       status: 'PENDING' as const,
@@ -139,20 +206,116 @@ describe('DrizzleTtsRetryCoordinator', () => {
     };
     const fixture = createFixture([
       [replayed],
-      [{ id: jobId, dispatchAttempt: 1 }],
+      [
+        {
+          id: jobId,
+          dispatchAttempt: 1,
+          lastDispatchCommandFingerprint: 'placeholder',
+        },
+      ],
     ]);
     const enqueueTts = vi.fn().mockResolvedValue(undefined);
+    const assertTtsDispatch = vi.fn().mockResolvedValue(undefined);
     const coordinator = new DrizzleTtsRetryCoordinator(
       fixture.database as never,
-      { enqueueTts },
+      { enqueueTts, assertTtsDispatch },
     );
+
+    const fingerprint = DrizzleTtsRetryCoordinator.commandFingerprint(command);
+    fixture.transactionExecutor.select = createSelect([
+      [replayed],
+      [
+        {
+          id: jobId,
+          dispatchAttempt: 1,
+          lastDispatchCommandFingerprint: fingerprint,
+        },
+      ],
+    ]);
 
     await expect(coordinator.retryAndDispatch(command)).resolves.toBe(1);
     expect(fixture.updates).toHaveLength(0);
     expect(enqueueTts).not.toHaveBeenCalled();
+    expect(assertTtsDispatch).toHaveBeenCalledWith(
+      fixture.transactionExecutor,
+      {
+        jobId,
+        attempt: 1,
+        commandFingerprint: fingerprint,
+      },
+    );
   });
 
-  it('빈 선택·다른 job·서로 다른 expected attempt를 fail closed한다', async () => {
+  it('이미 따로 재시도된 항목의 미발행 복합 선택과 outbox 없는 상태 replay를 거부한다', async () => {
+    const retried = {
+      ...failedItem,
+      status: 'PENDING' as const,
+      attempt: 3,
+      retryable: false,
+      errorCode: null,
+    };
+    const secondRetried = {
+      ...retried,
+      id: secondItemId,
+      attempt: 6,
+      cacheKey: 'cache-key-2',
+    };
+    const composite = {
+      ...command,
+      itemIds: [itemId, secondItemId],
+      expectedAttempts: { [itemId]: 2, [secondItemId]: 5 },
+    };
+    const compositeFingerprint =
+      DrizzleTtsRetryCoordinator.commandFingerprint(composite);
+    const fixture = createFixture([
+      [retried, secondRetried],
+      [
+        {
+          id: jobId,
+          dispatchAttempt: 2,
+          lastDispatchCommandFingerprint: 'different-issued-command',
+        },
+      ],
+    ]);
+    const coordinator = new DrizzleTtsRetryCoordinator(
+      fixture.database as never,
+      {
+        enqueueTts: vi.fn(),
+        assertTtsDispatch: vi.fn(),
+      },
+    );
+    expect(compositeFingerprint).not.toBe('different-issued-command');
+    await expect(coordinator.retryAndDispatch(composite)).rejects.toMatchObject(
+      {
+        code: 'TTS_ITEM_STALE_ATTEMPT',
+      },
+    );
+
+    const exactFingerprint =
+      DrizzleTtsRetryCoordinator.commandFingerprint(command);
+    const stateOnly = createFixture([
+      [retried],
+      [
+        {
+          id: jobId,
+          dispatchAttempt: 1,
+          lastDispatchCommandFingerprint: exactFingerprint,
+        },
+      ],
+    ]);
+    const assertTtsDispatch = vi
+      .fn()
+      .mockRejectedValue(new Error('OUTBOX_MISSING'));
+    const stateOnlyCoordinator = new DrizzleTtsRetryCoordinator(
+      stateOnly.database as never,
+      { enqueueTts: vi.fn(), assertTtsDispatch },
+    );
+    await expect(
+      stateOnlyCoordinator.retryAndDispatch(command),
+    ).rejects.toThrow('OUTBOX_MISSING');
+  });
+
+  it('빈 선택·다른 job·잘못된 expected attempt map을 fail closed한다', async () => {
     const cases = [
       {
         command: { ...command, itemIds: [], expectedAttempts: {} },
@@ -167,15 +330,9 @@ describe('DrizzleTtsRetryCoordinator', () => {
       {
         command: {
           ...command,
-          itemIds: [itemId, secondItemId],
-          expectedAttempts: { [itemId]: 2, [secondItemId]: 3 },
+          expectedAttempts: { [itemId]: -1 },
         },
-        rows: [
-          [
-            failedItem,
-            { ...failedItem, id: secondItemId, cacheKey: 'cache-key-2' },
-          ],
-        ],
+        rows: [],
         code: 'TTS_RETRY_ATTEMPT_MISMATCH',
       },
     ];
@@ -185,7 +342,7 @@ describe('DrizzleTtsRetryCoordinator', () => {
       const enqueueTts = vi.fn();
       const coordinator = new DrizzleTtsRetryCoordinator(
         fixture.database as never,
-        { enqueueTts },
+        { enqueueTts, assertTtsDispatch: vi.fn() },
       );
       await expect(
         coordinator.retryAndDispatch(testCase.command),
@@ -198,13 +355,20 @@ describe('DrizzleTtsRetryCoordinator', () => {
   it('outbox 실패를 삼키지 않아 호출 transaction 전체가 rollback되게 한다', async () => {
     const fixture = createFixture([
       [failedItem],
-      [{ id: jobId, dispatchAttempt: 0 }],
+      [
+        {
+          id: jobId,
+          dispatchAttempt: 0,
+          lastDispatchCommandFingerprint: null,
+        },
+      ],
       [{ ...failedItem, status: 'PENDING', attempt: 3, retryable: false }],
     ]);
     const coordinator = new DrizzleTtsRetryCoordinator(
       fixture.database as never,
       {
         enqueueTts: vi.fn().mockRejectedValue(new Error('OUTBOX_FAILED')),
+        assertTtsDispatch: vi.fn(),
       },
     );
 

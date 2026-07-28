@@ -12,7 +12,10 @@ import {
   ttsJobs,
   ttsVoicePresets,
 } from '../../schema/index.js';
-import type { TtsDispatchOutboxWriter } from '../dispatch/drizzle-async-dispatch-outbox.repository.js';
+import {
+  createTtsInitialCommandFingerprint,
+  type TtsDispatchOutboxWriter,
+} from '../dispatch/drizzle-async-dispatch-outbox.repository.js';
 import type {
   GeneratedQuestionTtsScheduler,
   QuestionProductionTransaction,
@@ -174,11 +177,13 @@ export class DrizzleGeneratedQuestionTtsScheduler implements GeneratedQuestionTt
     }
 
     const jobId = this.generateId();
+    const commandFingerprint = createTtsInitialCommandFingerprint(jobId);
     await transaction.insert(ttsJobs).values({
       id: jobId,
       requestedBy: input.requestedBy,
       voiceSnapshot: voice,
       dispatchAttempt: 0,
+      lastDispatchCommandFingerprint: commandFingerprint,
       status: 'QUEUED',
       pendingCount: sentences.length,
       processingCount: 0,
@@ -208,6 +213,7 @@ export class DrizzleGeneratedQuestionTtsScheduler implements GeneratedQuestionTt
     await this.dispatchWriter.enqueueTts(transaction, {
       jobId,
       attempt: 0,
+      commandFingerprint,
       requestedAt: input.requestedAt,
     });
     return { jobId };

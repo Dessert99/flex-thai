@@ -50,6 +50,7 @@ describe.runIf(databaseUrl !== undefined)(
         repository.enqueueTts(transaction as never, {
           jobId,
           attempt,
+          commandFingerprint: 'a'.repeat(64),
           requestedAt: new Date('2026-07-28T00:00:00.000Z'),
         }),
       );
@@ -69,6 +70,7 @@ describe.runIf(databaseUrl !== undefined)(
           await repository.enqueueTts(transaction as never, {
             jobId,
             attempt: 0,
+            commandFingerprint: 'a'.repeat(64),
             requestedAt: new Date('2026-07-28T00:00:00.000Z'),
           });
           throw new Error('ROLLBACK');

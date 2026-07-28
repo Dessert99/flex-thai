@@ -626,19 +626,43 @@ describe.runIf(databaseUrl !== undefined)(
       });
     });
 
-    it('audit FK 실패는 앞선 graph와 candidate link를 전부 rollback한다', async () => {
+    it('audit insert 전용 trigger 실패는 graph·TTS·candidate 전이를 전부 rollback한다', async () => {
       const fixture = await createFixture(pool);
       const before = await graphTotals(pool);
+      const requestId = `approve-${randomUUID()}`;
+      const triggerName = 'wave5_fail_generated_question_audit';
+      const functionName = 'wave5_fail_generated_question_audit';
 
-      await expect(
-        repository(fixture).approve(
-          command(
-            fixture,
-            `approve-${randomUUID()}`,
-            'ffffffff-ffff-4fff-8fff-ffffffffffff',
-          ),
-        ),
-      ).rejects.toBeTruthy();
+      try {
+        await pool.query(`drop trigger if exists ${triggerName} on audit_logs`);
+        await pool.query(
+          `create or replace function ${functionName}()
+           returns trigger language plpgsql as $$
+           begin
+             if new.request_id = TG_ARGV[0] then
+               raise exception 'WAVE5_AUDIT_INSERT_FAILED';
+             end if;
+             return new;
+           end
+           $$`,
+        );
+        await pool.query(
+          `create trigger ${triggerName}
+           before insert on audit_logs
+           for each row execute function ${functionName}('${requestId}')`,
+        );
+
+        await expect(
+          repository(fixture).approve(command(fixture, requestId)),
+        ).rejects.toThrow('WAVE5_AUDIT_INSERT_FAILED');
+      } finally {
+        await pool
+          .query(`drop trigger if exists ${triggerName} on audit_logs`)
+          .catch(() => undefined);
+        await pool
+          .query(`drop function if exists ${functionName}()`)
+          .catch(() => undefined);
+      }
 
       const after = await graphTotals(pool);
       const candidate = await pool.query<{
@@ -656,6 +680,11 @@ describe.runIf(databaseUrl !== undefined)(
         [fixture.ids.candidate],
       );
       expect(after).toEqual(before);
+      const audit = await pool.query<{ count: string }>(
+        `select count(*)::text count from audit_logs where request_id = $1`,
+        [requestId],
+      );
+      expect(audit.rows[0]?.count).toBe('0');
       expect(candidate.rows[0]).toEqual({
         approvedQuestionId: null,
         approvedQuestionVersionId: null,
@@ -672,6 +701,7 @@ describe.runIf(databaseUrl !== undefined)(
         fixture.ids.voicePreset,
         {
           enqueueTts: () => Promise.reject(new Error('OUTBOX_FAILED')),
+          assertTtsDispatch: () => Promise.resolve(),
         },
       );
       const failingRepository = new DrizzleAiQuestionProductionRepository(
