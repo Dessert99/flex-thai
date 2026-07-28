@@ -246,6 +246,86 @@ describe('DrizzleTtsRetryCoordinator', () => {
     );
   });
 
+  it.each([
+    [
+      '빠르게 실패',
+      {
+        status: 'FAILED' as const,
+        errorCode: 'PROVIDER_TIMEOUT',
+        retryable: true,
+      },
+    ],
+    [
+      '빠르게 성공',
+      {
+        status: 'SUCCEEDED' as const,
+        errorCode: null,
+        retryable: false,
+      },
+    ],
+  ])(
+    '동일 retry command가 %s한 뒤에도 exact replay로 성공한다',
+    async (_, outcome) => {
+      const fingerprint =
+        DrizzleTtsRetryCoordinator.commandFingerprint(command);
+      const replayed = {
+        ...failedItem,
+        ...outcome,
+        attempt: 3,
+      };
+      const fixture = createFixture([
+        [replayed],
+        [
+          {
+            id: jobId,
+            dispatchAttempt: 1,
+            lastDispatchCommandFingerprint: fingerprint,
+          },
+        ],
+      ]);
+      const assertTtsDispatch = vi.fn().mockResolvedValue(undefined);
+      const coordinator = new DrizzleTtsRetryCoordinator(
+        fixture.database as never,
+        { enqueueTts: vi.fn(), assertTtsDispatch },
+      );
+
+      await expect(coordinator.retryAndDispatch(command)).resolves.toBe(1);
+      expect(fixture.updates).toHaveLength(0);
+      expect(assertTtsDispatch).toHaveBeenCalledWith(
+        fixture.transactionExecutor,
+        {
+          jobId,
+          attempt: 1,
+          commandFingerprint: fingerprint,
+        },
+      );
+    },
+  );
+
+  it('동일 item attempt가 한 번 더 전진했으면 이전 retry command replay를 거부한다', async () => {
+    const fingerprint = DrizzleTtsRetryCoordinator.commandFingerprint(command);
+    const fixture = createFixture([
+      [{ ...failedItem, status: 'PENDING' as const, attempt: 4 }],
+      [
+        {
+          id: jobId,
+          dispatchAttempt: 2,
+          lastDispatchCommandFingerprint: fingerprint,
+        },
+      ],
+    ]);
+    const assertTtsDispatch = vi.fn();
+    const coordinator = new DrizzleTtsRetryCoordinator(
+      fixture.database as never,
+      { enqueueTts: vi.fn(), assertTtsDispatch },
+    );
+
+    await expect(coordinator.retryAndDispatch(command)).rejects.toMatchObject({
+      code: 'TTS_ITEM_STALE_ATTEMPT',
+    });
+    expect(assertTtsDispatch).not.toHaveBeenCalled();
+  });
+
   it('이미 따로 재시도된 항목의 미발행 복합 선택과 outbox 없는 상태 replay를 거부한다', async () => {
     const retried = {
       ...failedItem,

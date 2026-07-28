@@ -53,20 +53,39 @@ export interface AsyncDispatchRelayResult {
   stale: number;
 }
 
-const isExactPayload = (
-  payload: Record<string, unknown>,
+const toDispatchMessagePayload = (
   row: ClaimedAsyncDispatch,
-): payload is { jobId: string; attempt: number } => {
-  const keys = Object.keys(payload).sort();
-  return (
+): AsyncDispatchMessage['payload'] | null => {
+  const expectedIdempotencyKey = `${row.payloadKind === 'CONTENT_PRODUCTION' ? 'content-production' : 'tts'}:${row.jobId}:${row.attempt}`;
+  const keys = Object.keys(row.payload).sort();
+  const commonIdentityMatches =
+    row.idempotencyKey === expectedIdempotencyKey &&
+    row.payload['jobId'] === row.jobId &&
+    row.payload['attempt'] === row.attempt &&
+    Number.isSafeInteger(row.payload['attempt']) &&
+    row.attempt >= 0;
+  if (!commonIdentityMatches) return null;
+
+  if (
+    row.payloadKind === 'CONTENT_PRODUCTION' &&
     keys.length === 2 &&
     keys[0] === 'attempt' &&
-    keys[1] === 'jobId' &&
-    payload['jobId'] === row.jobId &&
-    payload['attempt'] === row.attempt &&
-    Number.isSafeInteger(payload['attempt']) &&
-    row.attempt >= 0
-  );
+    keys[1] === 'jobId'
+  ) {
+    return { jobId: row.jobId, attempt: row.attempt };
+  }
+  if (
+    row.payloadKind === 'TTS' &&
+    keys.length === 3 &&
+    keys[0] === 'attempt' &&
+    keys[1] === 'commandFingerprint' &&
+    keys[2] === 'jobId' &&
+    typeof row.payload['commandFingerprint'] === 'string' &&
+    /^[a-f0-9]{64}$/.test(row.payload['commandFingerprint'])
+  ) {
+    return { jobId: row.jobId, attempt: row.attempt };
+  }
+  return null;
 };
 
 /** claim commit 이후 transport side effect와 ack/release만 수행한다 */
@@ -100,7 +119,8 @@ export class AsyncDispatchOutboxRelay {
     };
 
     for (const row of claimed) {
-      if (!isExactPayload(row.payload, row)) {
+      const messagePayload = toDispatchMessagePayload(row);
+      if (messagePayload === null) {
         const failedAt = this.now();
         const released = await this.repository.release({
           id: row.id,
@@ -119,7 +139,7 @@ export class AsyncDispatchOutboxRelay {
       try {
         await this.senders[row.payloadKind].send({
           messageId: row.idempotencyKey,
-          payload: { jobId: row.payload.jobId, attempt: row.payload.attempt },
+          payload: messagePayload,
         });
       } catch {
         const failedAt = this.now();

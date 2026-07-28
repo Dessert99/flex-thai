@@ -81,13 +81,7 @@ const isExactReplay = (
   rows: TtsRetryItemRow[],
   expectedAttempts: Readonly<Record<string, number>>,
 ): boolean =>
-  rows.every(
-    (row) =>
-      row.attempt === expectedAttempts[row.id]! + 1 &&
-      row.status !== 'FAILED' &&
-      row.errorCode === null &&
-      !row.retryable,
-  );
+  rows.every((row) => row.attempt === expectedAttempts[row.id]! + 1);
 
 /** 선택 retryable item과 cache/job/outbox를 낙관적 attempt 기준으로 원자화한다 */
 export class DrizzleTtsRetryCoordinator {
