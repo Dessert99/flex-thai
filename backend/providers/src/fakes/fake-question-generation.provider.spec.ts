@@ -63,6 +63,9 @@ const candidate: GeneratedQuestionCandidate = {
 
 const context: QuestionProductionContext = {
   commonPrinciples: [],
+  difficulty: 1,
+  similarityThreshold: 0.7,
+  speakerRoles: [],
   typeVersion: {
     id: 'type-version-id',
     slug: 'reading-choice',
