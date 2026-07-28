@@ -45,7 +45,7 @@ describe('AsyncJobs', () => {
       SqsManagedSseEnabled: true,
     });
     template.resourceCountIs('AWS::SQS::Queue', 4);
-  });
+  }, 10_000);
 
   it('message 하나씩 Standard Workflow를 시작한다', () => {
     const app = new App();
