@@ -4,6 +4,7 @@ import type {
   ContentProductionItem,
   ContentProductionPresetSnapshot,
   ContentProductionPurpose,
+  QuestionGenerationItemPlan,
 } from './content-production.service.js';
 
 /** 콘텐츠 제작 항목이 실행할 세부 작업 */
@@ -15,6 +16,7 @@ export interface ContentProductionItemSeed {
   sourceRef: string;
   jobInputId: string;
   operation: ContentProductionOperation;
+  questionPlan: QuestionGenerationItemPlan | null;
 }
 
 /** worker가 항목 처리에 필요한 job snapshot */
@@ -42,6 +44,7 @@ export interface ContentProductionWorkItem {
   item: ContentProductionItem & {
     jobInputId: string;
     operation: ContentProductionOperation;
+    questionPlan: QuestionGenerationItemPlan | null;
     leaseUntil: Date;
     leaseToken: string;
   };

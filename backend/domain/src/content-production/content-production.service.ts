@@ -31,6 +31,55 @@ export interface ContentProductionPresetSnapshot {
   parameters: Record<string, unknown>;
 }
 
+/** 문제 유형·난이도 분포를 item 단위로 펼칠 typed parameter */
+export interface QuestionGenerationParameters {
+  questionCount: number;
+  questionTypePlan: Array<{
+    questionTypeVersionId: string;
+    count: number;
+  }>;
+  difficultyPlan: Array<{
+    difficulty: 1 | 2 | 3 | 4 | 5;
+    count: number;
+  }>;
+}
+
+/** 한 문제 생성 item이 고정하는 유형·난이도 */
+export interface QuestionGenerationItemPlan {
+  questionPlanIndex: number;
+  questionTypeVersionId: string;
+  difficulty: 1 | 2 | 3 | 4 | 5;
+}
+
+/** 배열 입력 순서와 무관하게 유형·난이도 분포를 item snapshot으로 펼친다 */
+export const expandQuestionGenerationPlan = (
+  parameters: QuestionGenerationParameters,
+): QuestionGenerationItemPlan[] => {
+  const types = [...parameters.questionTypePlan]
+    .sort((left, right) =>
+      left.questionTypeVersionId.localeCompare(right.questionTypeVersionId),
+    )
+    .flatMap(({ questionTypeVersionId, count }) =>
+      Array.from({ length: count }, () => questionTypeVersionId),
+    );
+  const difficulties = [...parameters.difficultyPlan]
+    .sort((left, right) => left.difficulty - right.difficulty)
+    .flatMap(({ difficulty, count }) =>
+      Array.from({ length: count }, () => difficulty),
+    );
+  if (
+    types.length !== parameters.questionCount ||
+    difficulties.length !== parameters.questionCount
+  ) {
+    throw new Error('QUESTION_GENERATION_PLAN_INVALID');
+  }
+  return types.map((questionTypeVersionId, questionPlanIndex) => ({
+    questionPlanIndex,
+    questionTypeVersionId,
+    difficulty: difficulties[questionPlanIndex]!,
+  }));
+};
+
 /** 콘텐츠 제작 입력 snapshot */
 export interface ContentProductionInput {
   jobInputId?: string;

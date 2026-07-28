@@ -39,6 +39,11 @@ describe('콘텐츠 제작 work item', () => {
         errorCode: null,
         leaseUntil: new Date('2026-07-27T00:05:00.000Z'),
         leaseToken: 'lease-token',
+        questionPlan: {
+          questionPlanIndex: 0,
+          questionTypeVersionId: 'type-version-id',
+          difficulty: 3,
+        },
       },
     );
 
@@ -54,6 +59,11 @@ describe('콘텐츠 제작 work item', () => {
       item: {
         operation: 'VOCABULARY_EXTRACTION',
         sourceRef: 'opaque-source',
+        questionPlan: {
+          questionPlanIndex: 0,
+          questionTypeVersionId: 'type-version-id',
+          difficulty: 3,
+        },
       },
     });
   });
