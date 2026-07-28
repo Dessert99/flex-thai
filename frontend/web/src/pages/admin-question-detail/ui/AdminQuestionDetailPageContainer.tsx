@@ -1,6 +1,11 @@
 /** 관리자 문제 상세 Query를 불변 버전 inspection View에 연결한다 */
+import type { AdminQuestionDetailResponse } from '@flex-thia/contracts';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { QuestionStateAction } from '@/features/change-question-state';
+import {
+  TtsPublicationReadinessPanel,
+  ttsPublicationReadinessQueryOptions,
+} from '@/features/tts-publication-readiness';
 import { adminQuestionDetailQueryOptions } from '../api/adminQuestionDetailQueries';
 import { AdminQuestionDetailPageView } from './AdminQuestionDetailPageView';
 import { CloneQuestionVersionButton } from './CloneQuestionVersionButton';
@@ -24,6 +29,9 @@ export function AdminQuestionDetailPageContainer({
       }),
       queryClient.invalidateQueries({
         queryKey: ['admin', 'questions', 'list'],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['admin', 'tts', 'readiness'],
       }),
     ]);
   return (
@@ -51,14 +59,12 @@ export function AdminQuestionDetailPageContainer({
       loading={detail.isPending}
       onRetry={() => void detail.refetch()}
       renderVersionAction={(version) => {
-        if (
-          version.status === 'DRAFT' &&
-          version.validation.status === 'PASSED'
-        ) {
+        if (version.status === 'DRAFT') {
           return (
-            <QuestionStateAction
-              command={{ action: 'publish', versionId: version.id }}
-              onConfirmed={() => void refreshQuestions()}
+            <DraftVersionTtsState
+              onConfirmed={refreshQuestions}
+              questionId={questionId}
+              version={version}
             />
           );
         }
@@ -73,5 +79,51 @@ export function AdminQuestionDetailPageContainer({
         return null;
       }}
     />
+  );
+}
+
+type QuestionVersion = AdminQuestionDetailResponse['versions'][number];
+
+/** DRAFT마다 독립 readiness query를 소유해 게시 조건과 validation을 함께 지킨다 */
+function DraftVersionTtsState({
+  onConfirmed,
+  questionId,
+  version,
+}: {
+  onConfirmed: () => Promise<unknown>;
+  questionId: string;
+  version: QuestionVersion;
+}) {
+  const readiness = useQuery(
+    ttsPublicationReadinessQueryOptions(questionId, version.id),
+  );
+  const validationPassed = version.validation.status === 'PASSED';
+
+  return (
+    <div className='grid gap-cluster'>
+      {readiness.data ? (
+        <TtsPublicationReadinessPanel readiness={readiness.data} />
+      ) : (
+        <p className='text-caption text-subtle'>
+          {readiness.isError
+            ? 'TTS 준비 상태를 불러오지 못했습니다.'
+            : 'TTS 준비 상태를 확인하고 있습니다.'}
+        </p>
+      )}
+      {validationPassed ? (
+        <QuestionStateAction
+          command={{ action: 'publish', versionId: version.id }}
+          disabled={readiness.data?.ready !== true}
+          disabledReason={
+            readiness.isError
+              ? 'TTS 준비 상태를 확인할 수 없어 게시할 수 없습니다.'
+              : readiness.data?.ready === false
+                ? '필수 음성이 준비되지 않았습니다.'
+                : 'TTS 준비 상태를 확인한 뒤 게시할 수 있습니다.'
+          }
+          onConfirmed={() => void onConfirmed()}
+        />
+      ) : null}
+    </div>
   );
 }

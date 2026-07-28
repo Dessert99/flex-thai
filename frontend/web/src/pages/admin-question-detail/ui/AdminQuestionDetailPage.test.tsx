@@ -22,6 +22,48 @@ beforeEach(() => {
 });
 
 describe('관리자 문제 상세 상태', () => {
+  it('DRAFT마다 TTS readiness를 조회하고 blocker가 있으면 게시를 막는다', async () => {
+    mocks.authenticatedRequest.mockImplementation(
+      ({ path }: { path: string }) => {
+        if (path.includes('/readiness')) {
+          return Promise.resolve({
+            ready: false,
+            requiredCount: 1,
+            readyCount: 0,
+            blockers: [
+              {
+                kind: 'THAI_SENTENCE_VERSION',
+                targetId: '00000000-0000-4000-8000-000000000011',
+                mediaStatus: 'MISSING',
+                operation: null,
+              },
+            ],
+          });
+        }
+        return Promise.resolve(
+          createQuestionDetail({ draftValidationStatus: 'PASSED' }),
+        );
+      },
+    );
+
+    renderDetail();
+
+    expect(
+      await screen.findAllByText('필수 음성이 준비되지 않았습니다.'),
+    ).toHaveLength(2);
+    expect(screen.getByRole('button', { name: '버전 게시' })).toBeDisabled();
+    expect(mocks.authenticatedRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: `/admin/tts/questions/${questionId}/versions/${draftVersionId}/readiness`,
+      }),
+    );
+    expect(
+      mocks.authenticatedRequest.mock.calls.filter(([options]) =>
+        (options as { path: string }).path.includes('/readiness'),
+      ),
+    ).toHaveLength(1);
+  });
+
   it('404 응답을 존재하지 않는 문제로 안전하게 안내한다', async () => {
     mocks.authenticatedRequest.mockRejectedValue(createProblemError(404));
 
@@ -80,7 +122,11 @@ function createProblemError(status: number) {
   });
 }
 
-function createQuestionDetail() {
+function createQuestionDetail({
+  draftValidationStatus = 'FAILED',
+}: {
+  draftValidationStatus?: 'FAILED' | 'PASSED';
+} = {}) {
   return {
     questionId,
     status: 'PUBLISHED',
@@ -90,13 +136,16 @@ function createQuestionDetail() {
         id: draftVersionId,
         status: 'DRAFT',
         validation: {
-          status: 'FAILED',
-          issues: [
-            {
-              path: 'blocks.0.sentences.0',
-              code: 'MEDIA_ASSET_NOT_READY',
-            },
-          ],
+          status: draftValidationStatus,
+          issues:
+            draftValidationStatus === 'FAILED'
+              ? [
+                  {
+                    path: 'blocks.0.sentences.0',
+                    code: 'MEDIA_ASSET_NOT_READY',
+                  },
+                ]
+              : [],
           validatedAt: '2026-07-25T00:00:00.000Z',
         },
         version: 3,

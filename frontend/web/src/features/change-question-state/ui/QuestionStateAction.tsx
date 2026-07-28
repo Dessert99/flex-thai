@@ -20,12 +20,16 @@ import {
 
 interface QuestionStateActionProps {
   command: QuestionStateCommand;
+  disabled?: boolean;
+  disabledReason?: string;
   onConfirmed: (command: QuestionStateCommand) => void;
 }
 
 /** destructive command는 확인 뒤, restore는 명시 버튼 클릭 뒤에만 전송한다 */
 export function QuestionStateAction({
   command,
+  disabled = false,
+  disabledReason,
   onConfirmed,
 }: QuestionStateActionProps) {
   const [open, setOpen] = useState(false);
@@ -57,7 +61,7 @@ export function QuestionStateAction({
         >
           <DialogTrigger asChild>
             <Button
-              disabled={mutation.isPending}
+              disabled={disabled || mutation.isPending}
               type='button'
               variant='outline'
             >
@@ -91,6 +95,9 @@ export function QuestionStateAction({
           </DialogContent>
         </Dialog>
       )}
+      {disabled && disabledReason ? (
+        <p className='text-caption text-danger'>{disabledReason}</p>
+      ) : null}
       {mutation.isError ? (
         <p className='text-body text-danger'>
           {isConflict(mutation.error)
