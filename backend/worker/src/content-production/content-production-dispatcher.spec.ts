@@ -288,10 +288,6 @@ describe('콘텐츠 제작 dispatcher', () => {
       expect.objectContaining({
         sourceRef: 'input:0:question:0',
         jobInputId: 'input-a',
-        questionPlan: expect.objectContaining({
-          questionTypeVersionId: 'type-a',
-          difficulty: 2,
-        }),
       }),
       expect.objectContaining({
         sourceRef: 'input:1:question:1',
@@ -300,16 +296,20 @@ describe('콘텐츠 제작 dispatcher', () => {
       expect.objectContaining({
         sourceRef: 'input:0:question:2',
         jobInputId: 'input-a',
-        questionPlan: expect.objectContaining({
-          questionTypeVersionId: 'type-b',
-          difficulty: 4,
-        }),
       }),
       expect.objectContaining({
         sourceRef: 'input:1:question:3',
         jobInputId: 'input-b',
       }),
     ]);
+    expect(ensured[0]?.[0]?.questionPlan).toMatchObject({
+      questionTypeVersionId: 'type-a',
+      difficulty: 2,
+    });
+    expect(ensured[0]?.[2]?.questionPlan).toMatchObject({
+      questionTypeVersionId: 'type-b',
+      difficulty: 4,
+    });
   });
 
   it('복합 목적은 어휘 항목이 모두 성공하기 전 문제 항목을 만들지 않는다', async () => {

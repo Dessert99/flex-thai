@@ -126,19 +126,19 @@ const readVoicePolicy = (
   if (typeof defaultVoicePresetId !== 'string' || !Array.isArray(assignments)) {
     return {};
   }
-  const speakerVoiceAssignments = assignments.flatMap((assignment) => {
+  const assignmentValues: unknown[] = assignments;
+  const speakerVoiceAssignments = assignmentValues.flatMap((assignment) => {
     if (!assignment || typeof assignment !== 'object') return [];
-    const speakerRole =
-      'speakerRole' in assignment ? assignment.speakerRole : undefined;
-    const voicePresetId =
-      'voicePresetId' in assignment ? assignment.voicePresetId : undefined;
+    const record = assignment as Record<string, unknown>;
+    const speakerRole = record['speakerRole'];
+    const voicePresetId = record['voicePresetId'];
     return typeof speakerRole === 'string' &&
       speakerRole.trim() !== '' &&
       typeof voicePresetId === 'string'
       ? [{ speakerRole: speakerRole.trim(), voicePresetId }]
       : [];
   });
-  if (speakerVoiceAssignments.length !== assignments.length) return {};
+  if (speakerVoiceAssignments.length !== assignmentValues.length) return {};
   return {
     voicePolicy: { defaultVoicePresetId, speakerVoiceAssignments },
   };

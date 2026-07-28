@@ -137,6 +137,18 @@ const readSimilarQuestions = (
         )
     : [];
 
+const readSpeakerRoles = (value: unknown): string[] => {
+  const assignments: unknown[] = Array.isArray(value) ? value : [];
+  return assignments.flatMap((assignment) => {
+    if (!assignment || typeof assignment !== 'object') return [];
+    const record = assignment as Record<string, unknown>;
+    const speakerRole = record['speakerRole'];
+    return typeof speakerRole === 'string' && speakerRole.trim().length > 0
+      ? [speakerRole.trim()]
+      : [];
+  });
+};
+
 /** preset snapshot에서 prompt에 안전한 정책만 선택한다 */
 export const readQuestionProductionPresetPolicy = (
   parameters: Record<string, unknown>,
@@ -164,20 +176,7 @@ export const readQuestionProductionPresetPolicy = (
       typeof parameters.similarityThreshold === 'number'
         ? parameters.similarityThreshold
         : 0,
-    speakerRoles: Array.isArray(parameters.speakerVoiceAssignments)
-      ? parameters.speakerVoiceAssignments.flatMap((assignment) => {
-          if (
-            assignment &&
-            typeof assignment === 'object' &&
-            'speakerRole' in assignment &&
-            typeof assignment.speakerRole === 'string' &&
-            assignment.speakerRole.trim().length > 0
-          ) {
-            return [assignment.speakerRole.trim()];
-          }
-          return [];
-        })
-      : [],
+    speakerRoles: readSpeakerRoles(parameters.speakerVoiceAssignments),
   };
 };
 

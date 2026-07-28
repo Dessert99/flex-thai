@@ -74,7 +74,10 @@ describe('QuestionCandidateManagementPageView', () => {
         selectedIds={[]}
       />,
     );
-    fireEvent.click(screen.getAllByRole('button', { name: '선택' })[0]!);
+    const selectButton = screen.getAllByRole('button', { name: '선택' })[0];
+    expect(selectButton).toBeDefined();
+    if (!selectButton) return;
+    fireEvent.click(selectButton);
     fireEvent.click(screen.getByRole('button', { name: '이전' }));
     fireEvent.click(screen.getByRole('button', { name: '다음' }));
     expect(onSelectionChange).toHaveBeenCalledWith(data.items[0]);

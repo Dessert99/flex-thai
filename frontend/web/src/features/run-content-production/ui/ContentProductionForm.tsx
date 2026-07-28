@@ -19,21 +19,149 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import { Textarea } from '@/shared/ui/textarea';
 import type { UploadedContentProductionInput } from '../model/uploadContentProductionInput';
 
+type PreviewInput = {
+  presetId: string;
+  additionalInstructionKo: string | null;
+  questionPlanIndex: number;
+};
+type SubmitInput = Omit<PreviewInput, 'questionPlanIndex'> & {
+  uploadId: string;
+};
+
 interface ContentProductionFormProps {
   presets: ContentProductionPreset[];
   preview?: PromptPreviewResponse;
   pending?: boolean;
   onFile: (file: File) => Promise<UploadedContentProductionInput>;
-  onPreview: (input: {
-    presetId: string;
-    additionalInstructionKo: string | null;
-    questionPlanIndex: number;
-  }) => void;
-  onSubmit: (input: {
-    presetId: string;
-    uploadId: string;
-    additionalInstructionKo: string | null;
-  }) => void;
+  onPreview: (input: PreviewInput) => void;
+  onSubmit: (input: SubmitInput) => void;
+}
+
+interface QuickSettingsProps {
+  onFile: ContentProductionFormProps['onFile'];
+  onPresetChange: (presetId: string) => void;
+  onQuestionPlanIndexChange: (index: string) => void;
+  presetId: string;
+  presets: ContentProductionPreset[];
+  questionCount: number;
+  questionPlanIndex: string;
+}
+
+function QuickSettings(props: QuickSettingsProps) {
+  return (
+    <TabsContent
+      className='grid gap-cluster'
+      value='quick'
+    >
+      <Label htmlFor='content-production-preset'>Preset</Label>
+      <Select
+        onValueChange={props.onPresetChange}
+        value={props.presetId}
+      >
+        <SelectTrigger id='content-production-preset'>
+          <SelectValue placeholder='Preset 선택' />
+        </SelectTrigger>
+        <SelectContent>
+          {props.presets.map((preset) => (
+            <SelectItem
+              key={preset.id}
+              value={preset.id}
+            >
+              {preset.name} v{preset.version}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {props.questionCount > 0 ? (
+        <>
+          <Label htmlFor='content-production-plan-index'>미리보기 항목</Label>
+          <Select
+            onValueChange={props.onQuestionPlanIndexChange}
+            value={props.questionPlanIndex}
+          >
+            <SelectTrigger id='content-production-plan-index'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: props.questionCount }, (_, index) => (
+                <SelectItem
+                  key={index}
+                  value={String(index)}
+                >
+                  {index + 1}번
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </>
+      ) : null}
+      <Label htmlFor='content-production-file'>입력 파일</Label>
+      <Input
+        accept='.txt,.pdf,image/jpeg,image/png,image/webp'
+        id='content-production-file'
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) void props.onFile(file);
+        }}
+        type='file'
+      />
+    </TabsContent>
+  );
+}
+
+interface FormActionsProps {
+  onPreview: ContentProductionFormProps['onPreview'];
+  onSubmit: ContentProductionFormProps['onSubmit'];
+  pending: boolean;
+  preview?: PromptPreviewResponse;
+  previewInput: PreviewInput;
+  questionCount: number;
+  uploaded: UploadedContentProductionInput | null;
+}
+
+function FormActions(props: FormActionsProps) {
+  const submit = () => {
+    if (!props.uploaded) return;
+    props.onSubmit({
+      presetId: props.previewInput.presetId,
+      uploadId: props.uploaded.uploadId,
+      additionalInstructionKo: props.previewInput.additionalInstructionKo,
+    });
+  };
+  return (
+    <>
+      <div className='flex gap-cluster'>
+        <Button
+          disabled={
+            !props.previewInput.presetId ||
+            props.questionCount === 0 ||
+            props.pending
+          }
+          onClick={() => props.onPreview(props.previewInput)}
+          type='button'
+          variant='outline'
+        >
+          Prompt 미리보기
+        </Button>
+        <Button
+          disabled={
+            !props.uploaded || !props.previewInput.presetId || props.pending
+          }
+          onClick={submit}
+          type='button'
+        >
+          작업 실행
+        </Button>
+      </div>
+      {props.preview ? (
+        <Textarea
+          aria-label='생성 prompt'
+          readOnly
+          value={props.preview.prompt}
+        />
+      ) : null}
+    </>
+  );
 }
 
 /** verified upload 전에는 실행을 막고 prompt 원문은 read-only로 유지한다 */
@@ -71,68 +199,22 @@ export function ContentProductionForm({
             <TabsTrigger value='quick'>빠른 설정</TabsTrigger>
             <TabsTrigger value='advanced'>고급 설정</TabsTrigger>
           </TabsList>
-          <TabsContent
-            className='grid gap-cluster'
-            value='quick'
-          >
-            <Label htmlFor='content-production-preset'>Preset</Label>
-            <Select
-              onValueChange={(value) => {
-                setPresetId(value);
-                setQuestionPlanIndex('0');
-              }}
-              value={presetId}
-            >
-              <SelectTrigger id='content-production-preset'>
-                <SelectValue placeholder='Preset 선택' />
-              </SelectTrigger>
-              <SelectContent>
-                {presets.map((preset) => (
-                  <SelectItem
-                    key={preset.id}
-                    value={preset.id}
-                  >
-                    {preset.name} v{preset.version}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {questionCount > 0 ? (
-              <>
-                <Label htmlFor='content-production-plan-index'>
-                  미리보기 항목
-                </Label>
-                <Select
-                  onValueChange={setQuestionPlanIndex}
-                  value={questionPlanIndex}
-                >
-                  <SelectTrigger id='content-production-plan-index'>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: questionCount }, (_, index) => (
-                      <SelectItem
-                        key={index}
-                        value={String(index)}
-                      >
-                        {index + 1}번
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </>
-            ) : null}
-            <Label htmlFor='content-production-file'>입력 파일</Label>
-            <Input
-              accept='.txt,.pdf,image/jpeg,image/png,image/webp'
-              id='content-production-file'
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) void onFile(file).then(setUploaded);
-              }}
-              type='file'
-            />
-          </TabsContent>
+          <QuickSettings
+            onFile={async (file) => {
+              const result = await onFile(file);
+              setUploaded(result);
+              return result;
+            }}
+            onPresetChange={(value) => {
+              setPresetId(value);
+              setQuestionPlanIndex('0');
+            }}
+            onQuestionPlanIndexChange={setQuestionPlanIndex}
+            presetId={presetId}
+            presets={presets}
+            questionCount={questionCount}
+            questionPlanIndex={questionPlanIndex}
+          />
           <TabsContent
             className='grid gap-cluster'
             value='advanced'
@@ -146,37 +228,15 @@ export function ContentProductionForm({
             />
           </TabsContent>
         </Tabs>
-        <div className='flex gap-cluster'>
-          <Button
-            disabled={!presetId || questionCount === 0 || pending}
-            onClick={() => onPreview(previewInput)}
-            type='button'
-            variant='outline'
-          >
-            Prompt 미리보기
-          </Button>
-          <Button
-            disabled={!uploaded || !presetId || pending}
-            onClick={() =>
-              uploaded &&
-              onSubmit({
-                presetId,
-                uploadId: uploaded.uploadId,
-                additionalInstructionKo: previewInput.additionalInstructionKo,
-              })
-            }
-            type='button'
-          >
-            작업 실행
-          </Button>
-        </div>
-        {preview ? (
-          <Textarea
-            aria-label='생성 prompt'
-            readOnly
-            value={preview.prompt}
-          />
-        ) : null}
+        <FormActions
+          onPreview={onPreview}
+          onSubmit={onSubmit}
+          pending={pending}
+          {...(preview ? { preview } : {})}
+          previewInput={previewInput}
+          questionCount={questionCount}
+          uploaded={uploaded}
+        />
       </CardContent>
     </Card>
   );

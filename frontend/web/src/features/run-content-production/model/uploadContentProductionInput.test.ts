@@ -31,17 +31,16 @@ describe('uploadContentProductionInput', () => {
       new File(['abc'], 'input.txt', { type: 'text/plain' }),
       new AbortController().signal,
     );
-    expect(authenticatedRequest).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        path: '/admin/content-production/uploads/policies',
-        body: expect.objectContaining({ inputType: 'TEXT' }),
-      }),
-    );
-    expect(fetch).toHaveBeenCalledWith(
-      'https://uploads.example.test',
-      expect.objectContaining({ method: 'POST', body: expect.any(FormData) }),
-    );
+    const policyRequest: unknown =
+      vi.mocked(authenticatedRequest).mock.calls[0]?.[0];
+    expect(policyRequest).toMatchObject({
+      path: '/admin/content-production/uploads/policies',
+      body: { inputType: 'TEXT' },
+    });
+    const uploadCall = vi.mocked(fetch).mock.calls[0];
+    expect(uploadCall?.[0]).toBe('https://uploads.example.test');
+    expect(uploadCall?.[1]?.method).toBe('POST');
+    expect(uploadCall?.[1]?.body).toBeInstanceOf(FormData);
     expect(authenticatedRequest).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({

@@ -55,9 +55,12 @@ describe('ContentProductionJobDetailPageView', () => {
   });
 
   it('재시도 가능한 항목이 없으면 재시도를 막는다', () => {
+    const item = job.items[0];
+    expect(item).toBeDefined();
+    if (!item) return;
     render(
       <ContentProductionJobDetailPageView
-        job={{ ...job, items: [{ ...job.items[0]!, retryable: false }] }}
+        job={{ ...job, items: [{ ...item, retryable: false }] }}
         onRetry={vi.fn()}
       />,
     );

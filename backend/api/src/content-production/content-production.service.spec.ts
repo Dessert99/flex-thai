@@ -1,6 +1,10 @@
 /** 콘텐츠 제작 HTTP application 계층의 upload·preset 검증을 고정한다 */
 import { describe, expect, it, vi } from 'vitest';
-import type { CreateContentProductionCommand } from '@flex-thia/domain';
+import type {
+  ContentProductionPresetSnapshot,
+  CreateContentProductionCommand,
+  ResolveContentProductionPresetSnapshotInput,
+} from '@flex-thia/domain';
 import {
   ContentProductionApplicationError,
   ContentProductionApplicationService,
@@ -32,19 +36,25 @@ const createService = (options?: {
   const create = vi
     .fn<(command: CreateContentProductionCommand) => Promise<{ id: string }>>()
     .mockResolvedValue({ id: 'job-id' });
-  const resolveEffectiveSnapshot = vi.fn().mockImplementation((input) =>
-    Promise.resolve({
-      id: presetId,
-      name: '기본 생성',
-      purpose: options?.presetPurpose ?? input.purpose,
-      version: 1,
-      parameters: {
-        ...input.options,
-        commonPrinciples: [],
-        similarQuestions: [],
-      },
-    }),
-  );
+  const resolveEffectiveSnapshot = vi
+    .fn<
+      (
+        input: ResolveContentProductionPresetSnapshotInput,
+      ) => Promise<ContentProductionPresetSnapshot>
+    >()
+    .mockImplementation((input) =>
+      Promise.resolve({
+        id: presetId,
+        name: '기본 생성',
+        purpose: options?.presetPurpose ?? input.purpose,
+        version: 1,
+        parameters: {
+          ...input.options,
+          commonPrinciples: [],
+          similarQuestions: [],
+        },
+      }),
+    );
   const presets = {
     findEnabledById: vi.fn(),
     listEnabled: vi.fn().mockResolvedValue([]),

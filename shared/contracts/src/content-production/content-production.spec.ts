@@ -186,12 +186,14 @@ describe('콘텐츠 제작 공개 계약', () => {
     ).toBe(false);
     const parsed = contentProductionJobDetailResponseSchema.parse({
       ...privateResponse,
-      inputs: privateResponse.inputs.map(
-        ({ storageKey: _storageKey, ...input }) => input,
-      ),
-      items: privateResponse.items.map(
-        ({ providerResponse: _providerResponse, ...item }) => item,
-      ),
+      inputs: privateResponse.inputs.map(({ storageKey, ...input }) => {
+        void storageKey;
+        return input;
+      }),
+      items: privateResponse.items.map(({ providerResponse, ...item }) => {
+        void providerResponse;
+        return item;
+      }),
     });
     expect(JSON.stringify(parsed)).not.toContain('storageKey');
     expect(JSON.stringify(parsed)).not.toContain('providerResponse');

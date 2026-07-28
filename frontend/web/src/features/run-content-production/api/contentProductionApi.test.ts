@@ -32,12 +32,11 @@ describe('contentProductionApi', () => {
       uploadIds: [id(3)],
       options: {},
     });
-    expect(authenticatedRequest).toHaveBeenCalledWith(
-      expect.objectContaining({
-        method: 'POST',
-        path: '/admin/content-production/jobs',
-        body: expect.objectContaining({ clientRequestId: id(1) }),
-      }),
-    );
+    const request: unknown = vi.mocked(authenticatedRequest).mock.calls[0]?.[0];
+    expect(request).toMatchObject({
+      method: 'POST',
+      path: '/admin/content-production/jobs',
+      body: { clientRequestId: id(1) },
+    });
   });
 });

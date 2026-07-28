@@ -36,6 +36,114 @@ const groupLabel = {
   FAILED: '실패',
 } as const;
 
+interface CandidateTableProps {
+  items: QuestionCandidateListItem[];
+  pending: boolean;
+  selectedIds: string[];
+  onSelectionChange: (candidate: QuestionCandidateListItem) => void;
+}
+
+function CandidateTable(props: CandidateTableProps) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>선택</TableHead>
+          <TableHead>그룹</TableHead>
+          <TableHead>상태</TableHead>
+          <TableHead>난이도</TableHead>
+          <TableHead>상세</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {props.items.map((candidate) => {
+          const selected = props.selectedIds.includes(candidate.id);
+          return (
+            <TableRow
+              data-state={selected ? 'selected' : undefined}
+              key={candidate.id}
+            >
+              <TableCell>
+                <Button
+                  aria-pressed={selected}
+                  disabled={
+                    props.pending || candidate.review.status !== 'PENDING'
+                  }
+                  onClick={() => props.onSelectionChange(candidate)}
+                  size='sm'
+                  type='button'
+                  variant='outline'
+                >
+                  {selected ? '선택 해제' : '선택'}
+                </Button>
+              </TableCell>
+              <TableCell>
+                <Badge>{groupLabel[candidate.resultGroup]}</Badge>
+              </TableCell>
+              <TableCell>{candidate.review.status}</TableCell>
+              <TableCell>
+                {candidate.payloadState === 'CANONICAL'
+                  ? candidate.difficulty
+                  : '비공개'}
+              </TableCell>
+              <TableCell>
+                <Button
+                  asChild
+                  size='sm'
+                  variant='link'
+                >
+                  <a
+                    href={`/admin/content-production/candidates/${candidate.id}`}
+                  >
+                    열기
+                  </a>
+                </Button>
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
+  );
+}
+
+function CandidatePagination({
+  page,
+  totalPages,
+  onPageChange,
+}: {
+  page: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}) {
+  return (
+    <nav
+      aria-label='후보 페이지'
+      className='flex items-center gap-cluster'
+    >
+      <Button
+        disabled={page <= 1}
+        onClick={() => onPageChange(page - 1)}
+        type='button'
+        variant='outline'
+      >
+        이전
+      </Button>
+      <span>
+        {page} / {Math.max(1, totalPages)}
+      </span>
+      <Button
+        disabled={page >= totalPages}
+        onClick={() => onPageChange(page + 1)}
+        type='button'
+        variant='outline'
+      >
+        다음
+      </Button>
+    </nav>
+  );
+}
+
 /** 목록 query 상태와 현재 page selection을 서로 덮지 않고 렌더링한다 */
 export function QuestionCandidateManagementPageView(
   props: QuestionCandidateManagementPageViewProps,
@@ -72,89 +180,17 @@ export function QuestionCandidateManagementPageView(
         onDiscard={() => props.onAction('DISCARD')}
         onRegenerate={() => props.onAction('REGENERATE')}
       />
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>선택</TableHead>
-            <TableHead>그룹</TableHead>
-            <TableHead>상태</TableHead>
-            <TableHead>난이도</TableHead>
-            <TableHead>상세</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {props.data.items.map((candidate) => {
-            const selected = props.selectedIds.includes(candidate.id);
-            return (
-              <TableRow
-                data-state={selected ? 'selected' : undefined}
-                key={candidate.id}
-              >
-                <TableCell>
-                  <Button
-                    aria-pressed={selected}
-                    disabled={
-                      props.pending || candidate.review.status !== 'PENDING'
-                    }
-                    onClick={() => props.onSelectionChange(candidate)}
-                    size='sm'
-                    type='button'
-                    variant='outline'
-                  >
-                    {selected ? '선택 해제' : '선택'}
-                  </Button>
-                </TableCell>
-                <TableCell>
-                  <Badge>{groupLabel[candidate.resultGroup]}</Badge>
-                </TableCell>
-                <TableCell>{candidate.review.status}</TableCell>
-                <TableCell>
-                  {candidate.payloadState === 'CANONICAL'
-                    ? candidate.difficulty
-                    : '비공개'}
-                </TableCell>
-                <TableCell>
-                  <Button
-                    asChild
-                    size='sm'
-                    variant='link'
-                  >
-                    <a
-                      href={`/admin/content-production/candidates/${candidate.id}`}
-                    >
-                      열기
-                    </a>
-                  </Button>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-      <nav
-        aria-label='후보 페이지'
-        className='flex items-center gap-cluster'
-      >
-        <Button
-          disabled={props.data.page.page <= 1}
-          onClick={() => props.onPageChange(props.data!.page.page - 1)}
-          type='button'
-          variant='outline'
-        >
-          이전
-        </Button>
-        <span>
-          {props.data.page.page} / {Math.max(1, props.data.page.totalPages)}
-        </span>
-        <Button
-          disabled={props.data.page.page >= props.data.page.totalPages}
-          onClick={() => props.onPageChange(props.data!.page.page + 1)}
-          type='button'
-          variant='outline'
-        >
-          다음
-        </Button>
-      </nav>
+      <CandidateTable
+        items={props.data.items}
+        onSelectionChange={props.onSelectionChange}
+        pending={props.pending}
+        selectedIds={props.selectedIds}
+      />
+      <CandidatePagination
+        onPageChange={props.onPageChange}
+        page={props.data.page.page}
+        totalPages={props.data.page.totalPages}
+      />
     </section>
   );
 }

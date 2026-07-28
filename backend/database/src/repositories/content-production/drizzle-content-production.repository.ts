@@ -874,7 +874,7 @@ export class DrizzleContentProductionPresetCatalog implements ContentProductionP
       'speakerVoiceAssignments',
       'additionalInstructionKo',
     ] as const;
-    const parameters = {
+    const parameters: Record<string, unknown> = {
       ...preset.parameters,
       ...Object.fromEntries(
         allowed.flatMap((key) =>
@@ -883,34 +883,40 @@ export class DrizzleContentProductionPresetCatalog implements ContentProductionP
       ),
     };
     const typePlan = parameters['questionTypePlan'];
-    const vocabularyIds = [
+    const vocabularyIds: string[] = [
       parameters['targetVocabularyIds'],
       parameters['requiredVocabularyIds'],
       parameters['excludedVocabularyIds'],
-    ].flatMap((ids) => (Array.isArray(ids) ? ids : []));
+    ].flatMap((ids) =>
+      Array.isArray(ids)
+        ? (ids as unknown[]).filter(
+            (id): id is string => typeof id === 'string',
+          )
+        : [],
+    );
     const voiceAssignments = parameters['speakerVoiceAssignments'];
-    const typeIds = Array.isArray(typePlan)
-      ? typePlan.flatMap((entry) =>
-          entry &&
-          typeof entry === 'object' &&
-          'questionTypeVersionId' in entry &&
-          typeof entry.questionTypeVersionId === 'string'
-            ? [entry.questionTypeVersionId]
-            : [],
-        )
+    const typePlanEntries: unknown[] = Array.isArray(typePlan) ? typePlan : [];
+    const typeIds = typePlanEntries.flatMap((entry) => {
+      if (!entry || typeof entry !== 'object') return [];
+      const questionTypeVersionId = (entry as Record<string, unknown>)[
+        'questionTypeVersionId'
+      ];
+      return typeof questionTypeVersionId === 'string'
+        ? [questionTypeVersionId]
+        : [];
+    });
+    const assignmentValues: unknown[] = Array.isArray(voiceAssignments)
+      ? voiceAssignments
       : [];
     const voiceIds = [
       parameters['defaultVoicePresetId'],
-      ...(Array.isArray(voiceAssignments)
-        ? voiceAssignments.flatMap((assignment) =>
-            assignment &&
-            typeof assignment === 'object' &&
-            'voicePresetId' in assignment &&
-            typeof assignment.voicePresetId === 'string'
-              ? [assignment.voicePresetId]
-              : [],
-          )
-        : []),
+      ...assignmentValues.flatMap((assignment) => {
+        if (!assignment || typeof assignment !== 'object') return [];
+        const voicePresetId = (assignment as Record<string, unknown>)[
+          'voicePresetId'
+        ];
+        return typeof voicePresetId === 'string' ? [voicePresetId] : [];
+      }),
     ].filter((id): id is string => typeof id === 'string');
     if (typeIds.length === 0 || voiceIds.length === 0) return null;
 

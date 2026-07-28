@@ -29,7 +29,8 @@ export async function runCandidateBulkAction(
   const worker = async () => {
     while (cursor < selected.length) {
       const index = cursor++;
-      const target = selected[index]!;
+      const target = selected[index];
+      if (!target) break;
       try {
         await actionFor[action](target.candidateId, target.revision);
         results[index] = {

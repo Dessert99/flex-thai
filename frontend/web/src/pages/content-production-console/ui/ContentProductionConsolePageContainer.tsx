@@ -66,23 +66,24 @@ export function ContentProductionConsolePageContainer() {
         const preset = presetFor(presetId);
         if (!preset) return;
         const options = questionOptions(presetId, additionalInstructionKo);
-        createMutation.mutate(
-          preset.purpose === 'VOCABULARY_EXTRACTION'
-            ? {
-                clientRequestId: crypto.randomUUID(),
-                purpose: preset.purpose,
-                presetId,
-                uploadIds: [uploadId],
-                options: {},
-              }
-            : {
-                clientRequestId: crypto.randomUUID(),
-                purpose: preset.purpose,
-                presetId,
-                uploadIds: [uploadId],
-                options: options!,
-              },
-        );
+        if (preset.purpose === 'VOCABULARY_EXTRACTION') {
+          createMutation.mutate({
+            clientRequestId: crypto.randomUUID(),
+            purpose: preset.purpose,
+            presetId,
+            uploadIds: [uploadId],
+            options: {},
+          });
+          return;
+        }
+        if (!options) return;
+        createMutation.mutate({
+          clientRequestId: crypto.randomUUID(),
+          purpose: preset.purpose,
+          presetId,
+          uploadIds: [uploadId],
+          options,
+        });
       }}
       {...(presets.data ? { presets: presets.data } : {})}
       presetsError={presets.isError}
