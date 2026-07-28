@@ -113,6 +113,7 @@ export const ttsJobs = pgTable('tts_jobs', {
       generationRevision: string;
     }>()
     .notNull(),
+  dispatchAttempt: integer('dispatch_attempt').default(0).notNull(),
   status: ttsJobStatusEnum('status').default('QUEUED').notNull(),
   pendingCount: integer('pending_count').default(0).notNull(),
   processingCount: integer('processing_count').default(0).notNull(),

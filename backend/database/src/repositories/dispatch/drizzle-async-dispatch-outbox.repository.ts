@@ -50,6 +50,16 @@ export interface ClaimedAsyncDispatchOutboxRow {
   deliveryAttempts: number;
 }
 
+/** 호출 transaction 안에 TTS 실행 intent를 exact-once로 기록하는 writer */
+export interface TtsDispatchOutboxWriter<
+  Transaction = AsyncDispatchTransaction,
+> {
+  enqueueTts(
+    transaction: Transaction,
+    input: { jobId: string; attempt: number; requestedAt: Date },
+  ): Promise<void>;
+}
+
 /** outbox 저장 불변식 위반을 stable 내부 code로 전달한다 */
 export class AsyncDispatchOutboxError extends Error {
   constructor(
@@ -154,7 +164,11 @@ const mapClaimed = (
 };
 
 /** 공용 outbox writer와 lease repository를 한 PostgreSQL adapter로 제공한다 */
-export class DrizzleAsyncDispatchOutboxRepository implements QuestionRegenerationDispatchWriter<AsyncDispatchTransaction> {
+export class DrizzleAsyncDispatchOutboxRepository
+  implements
+    QuestionRegenerationDispatchWriter<AsyncDispatchTransaction>,
+    TtsDispatchOutboxWriter<AsyncDispatchTransaction>
+{
   constructor(
     private readonly database: AsyncDispatchDatabase,
     private readonly now: () => Date = () => new Date(),

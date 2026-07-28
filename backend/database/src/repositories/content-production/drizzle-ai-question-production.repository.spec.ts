@@ -276,10 +276,13 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
       questionId: 'question-id',
       questionVersionId: 'version-id',
     });
+    const schedule = vi.fn().mockResolvedValue({ jobId: 'tts-job-id' });
     const repository = new DrizzleAiQuestionProductionRepository(
       { transaction } as never,
       () => reviewCommand.occurredAt,
       { createDraft },
+      undefined,
+      { schedule },
     );
 
     await expect(repository.approve(reviewCommand)).resolves.toEqual({
@@ -289,6 +292,15 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
     });
     expect(candidateFor).toHaveBeenCalledWith('update');
     expect(createDraft).toHaveBeenCalledOnce();
+    expect(schedule).toHaveBeenCalledOnce();
+    expect(schedule).toHaveBeenCalledWith(expect.anything(), {
+      draft: {
+        questionId: 'question-id',
+        questionVersionId: 'version-id',
+      },
+      requestedBy: reviewCommand.actorUserId,
+      requestedAt: reviewCommand.occurredAt,
+    });
     const draftInput: unknown = createDraft.mock.calls[0]?.[1];
     expect(draftInput).toMatchObject({
       candidate: {
@@ -322,6 +334,55 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
         },
       }),
     );
+  });
+
+  it('TTS schedule 실패는 후보 승인과 audit 전에 transaction을 실패시킨다', async () => {
+    const candidateLimit = vi.fn().mockResolvedValue([pendingCandidate]);
+    const candidateFor = vi.fn(() => ({ limit: candidateLimit }));
+    const candidateWhere = vi.fn(() => ({ for: candidateFor }));
+    const candidateFrom = vi.fn(() => ({ where: candidateWhere }));
+    const validationWhere = vi.fn().mockResolvedValue([
+      { stage: 'SCHEMA', status: 'PASSED' },
+      { stage: 'DECISION_RULE', status: 'PASSED' },
+      { stage: 'SIMILARITY', status: 'PASSED' },
+      { stage: 'AI_CROSS_VALIDATION', status: 'PASSED' },
+    ]);
+    const validationFrom = vi.fn(() => ({ where: validationWhere }));
+    const auditLimit = vi.fn().mockResolvedValue([]);
+    const auditWhere = vi.fn(() => ({ limit: auditLimit }));
+    const auditFrom = vi.fn(() => ({ where: auditWhere }));
+    const select = vi
+      .fn()
+      .mockReturnValueOnce({ from: candidateFrom })
+      .mockReturnValueOnce({ from: auditFrom })
+      .mockReturnValueOnce({ from: validationFrom });
+    const update = vi.fn();
+    const insert = vi.fn();
+    const createDraft = vi.fn().mockResolvedValue({
+      questionId: 'question-id',
+      questionVersionId: 'version-id',
+    });
+    const schedule = vi.fn().mockRejectedValue(new Error('OUTBOX_FAILED'));
+    const repository = new DrizzleAiQuestionProductionRepository(
+      {
+        transaction: vi.fn(
+          (callback: (executor: unknown) => Promise<unknown>) =>
+            callback(withReviewRequestLock({ insert, select, update })),
+        ),
+      } as never,
+      () => reviewCommand.occurredAt,
+      { createDraft },
+      undefined,
+      { schedule },
+    );
+
+    await expect(repository.approve(reviewCommand)).rejects.toThrow(
+      'OUTBOX_FAILED',
+    );
+    expect(createDraft).toHaveBeenCalledOnce();
+    expect(schedule).toHaveBeenCalledOnce();
+    expect(update).not.toHaveBeenCalled();
+    expect(insert).not.toHaveBeenCalled();
   });
 
   it('필수 검증 하나가 없거나 실패한 후보는 DRAFT를 만들지 않는다', async () => {

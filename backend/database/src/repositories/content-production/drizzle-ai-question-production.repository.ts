@@ -55,6 +55,18 @@ export interface GeneratedQuestionDraftWriter {
   ): Promise<ApprovedQuestionDraft>;
 }
 
+/** 생성 DRAFT와 같은 transaction에 초기 TTS job·dispatch를 예약하는 port */
+export interface GeneratedQuestionTtsScheduler {
+  schedule(
+    transaction: QuestionProductionTransaction,
+    input: {
+      draft: ApprovedQuestionDraft;
+      requestedBy: string;
+      requestedAt: Date;
+    },
+  ): Promise<{ jobId: string }>;
+}
+
 type ReviewCandidate = {
   id: string;
   jobItemId: string;
@@ -453,6 +465,7 @@ export class DrizzleAiQuestionProductionRepository
     private readonly now: () => Date = () => new Date(),
     private readonly draftWriter?: GeneratedQuestionDraftWriter,
     private readonly regenerationDispatchWriter?: QuestionRegenerationDispatchWriter<QuestionProductionTransaction>,
+    private readonly ttsScheduler?: GeneratedQuestionTtsScheduler,
   ) {}
 
   /** 검증 완료 후보를 잠근 채 nullable-audio DRAFT·연결·감사를 한 commit으로 만든다 */
@@ -519,6 +532,9 @@ export class DrizzleAiQuestionProductionRepository
       if (!this.draftWriter) {
         throw new Error('QUESTION_DRAFT_WRITER_NOT_CONFIGURED');
       }
+      if (!this.ttsScheduler) {
+        throw new Error('QUESTION_TTS_SCHEDULER_NOT_CONFIGURED');
+      }
 
       const draft = await this.draftWriter.createDraft(transaction, {
         candidate: {
@@ -534,6 +550,11 @@ export class DrizzleAiQuestionProductionRepository
           requestId: input.requestId,
           occurredAt: input.occurredAt,
         },
+      });
+      await this.ttsScheduler.schedule(transaction, {
+        draft,
+        requestedBy: input.actorUserId,
+        requestedAt: input.occurredAt,
       });
       const nextRevision = candidate.revision + 1;
       const updated = await transaction

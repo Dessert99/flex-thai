@@ -60,6 +60,7 @@ describe('자동 TTS 데이터베이스 schema', () => {
   });
 
   it('재시도 attempt는 필수이고 worker lease는 비어 있을 수 있다', () => {
+    expect(ttsJobs.dispatchAttempt.notNull).toBe(true);
     expect(ttsItems.attempt.notNull).toBe(true);
     expect(ttsItems.leaseToken.notNull).toBe(false);
   });

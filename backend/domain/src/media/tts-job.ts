@@ -207,7 +207,10 @@ export class TtsDomainError extends Error {
       | 'TTS_ITEM_STALE_ATTEMPT'
       | 'TTS_ITEM_STALE_LEASE'
       | 'TTS_ITEM_TERMINAL'
-      | 'TTS_JOB_TARGETS_REQUIRED',
+      | 'TTS_JOB_TARGETS_REQUIRED'
+      | 'TTS_RETRY_ATTEMPT_MISMATCH'
+      | 'TTS_RETRY_ITEMS_REQUIRED'
+      | 'TTS_RETRY_SELECTION_INVALID',
   ) {
     super(code);
     this.name = 'TtsDomainError';

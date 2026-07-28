@@ -135,3 +135,21 @@ export * from './repositories/content-production/drizzle-ai-question-production.
 
 /** AI 문제 생성 prompt context read model을 공개한다 */
 export * from './queries/drizzle-question-production-context.query.js';
+
+/** 생성 문제의 nullable-audio DRAFT graph writer를 공개한다 */
+export * from './repositories/content-production/drizzle-generated-question-draft.repository.js';
+
+/** 생성 문제 승인 transaction의 초기 TTS scheduler를 공개한다 */
+export * from './repositories/content-production/drizzle-generated-question-tts.scheduler.js';
+
+/** 콘텐츠 제작·TTS 공용 durable outbox writer와 lease repository를 공개한다 */
+export * from './repositories/dispatch/drizzle-async-dispatch-outbox.repository.js';
+
+/** TTS 성공 transaction의 immutable target attachment writer를 공개한다 */
+export * from './repositories/tts/drizzle-tts-target-attachment.repository.js';
+
+/** 문제 게시 전 필수 TTS target readiness query를 공개한다 */
+export * from './queries/drizzle-content-tts-readiness.query.js';
+
+/** TTS retry 상태와 durable dispatch를 원자화하는 coordinator를 공개한다 */
+export * from './repositories/tts/drizzle-tts-retry-coordinator.js';

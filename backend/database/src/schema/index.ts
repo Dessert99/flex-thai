@@ -39,3 +39,6 @@ export * from './feedback.schema.js';
 
 /** 관리자 콘텐츠 가져오기 요청·항목 schema를 공개한다 */
 export * from './content-import.schema.js';
+
+/** 콘텐츠 제작·TTS durable handoff 공용 outbox schema를 공개한다 */
+export * from './async-dispatch-outbox.schema.js';
