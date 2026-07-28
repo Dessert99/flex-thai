@@ -11,6 +11,11 @@ import type {
 import {
   CONTENT_PRODUCTION_ITEM_LEASE_MS,
   createContentProductionWorkItem,
+  expandQuestionGenerationPlan,
+} from '@flex-thia/domain';
+import type {
+  ContentProductionOperation,
+  QuestionGenerationParameters,
 } from '@flex-thia/domain';
 
 const CONTENT_PRODUCTION_ITEM_HEARTBEAT_MS = Math.floor(
@@ -39,7 +44,12 @@ export interface ContentProductionWorkerRepository {
   listAttemptItems(
     jobId: string,
     attempt: number,
+    operation?: ContentProductionOperation,
   ): Promise<ContentProductionItem[]>;
+  areOperationItemsSuccessful?(
+    jobId: string,
+    operation: ContentProductionOperation,
+  ): Promise<boolean>;
   startItem(
     jobId: string,
     itemId: string,
@@ -201,46 +211,41 @@ const startLeaseHeartbeat = (
   };
 };
 
-const buildItemSeeds = (
+const buildVocabularySeeds = (
   job: ContentProductionWorkerJobSnapshot,
 ): ContentProductionItemSeed[] =>
-  job.inputs.flatMap((input, index) => {
+  job.inputs.map((input, index) => {
     if (!input.jobInputId || input.ordinal === undefined) {
       throw new Error(`job input ID가 없는 콘텐츠 제작 작업입니다: ${job.id}`);
     }
-    if (job.purpose === 'VOCABULARY_EXTRACTION') {
-      return [
-        {
-          sourceRef: `input:${index}:vocabulary`,
-          jobInputId: input.jobInputId,
-          operation: 'VOCABULARY_EXTRACTION' as const,
-        },
-      ];
-    }
-
-    if (job.purpose === 'QUESTION_GENERATION') {
-      return [
-        {
-          sourceRef: `input:${index}:question`,
-          jobInputId: input.jobInputId,
-          operation: 'QUESTION_GENERATION' as const,
-        },
-      ];
-    }
-
-    return [
-      {
-        sourceRef: `input:${index}:vocabulary`,
-        jobInputId: input.jobInputId,
-        operation: 'VOCABULARY_EXTRACTION' as const,
-      },
-      {
-        sourceRef: `input:${index}:question`,
-        jobInputId: input.jobInputId,
-        operation: 'QUESTION_GENERATION' as const,
-      },
-    ];
+    return {
+      sourceRef: `input:${index}:vocabulary`,
+      jobInputId: input.jobInputId,
+      operation: 'VOCABULARY_EXTRACTION',
+      questionPlan: null,
+    };
   });
+
+const buildQuestionSeeds = (
+  job: ContentProductionWorkerJobSnapshot,
+): ContentProductionItemSeed[] => {
+  if (job.inputs.length === 0) return [];
+  const plans = expandQuestionGenerationPlan(
+    job.presetSnapshot.parameters as unknown as QuestionGenerationParameters,
+  );
+  return plans.map((questionPlan) => {
+    const input = job.inputs[questionPlan.questionPlanIndex % job.inputs.length]!;
+    if (!input.jobInputId || input.ordinal === undefined) {
+      throw new Error(`job input ID가 없는 콘텐츠 제작 작업입니다: ${job.id}`);
+    }
+    return {
+      sourceRef: `input:${input.ordinal}:question:${questionPlan.questionPlanIndex}`,
+      jobInputId: input.jobInputId,
+      operation: 'QUESTION_GENERATION',
+      questionPlan,
+    };
+  });
+};
 
 /** stale·terminal 전달을 무시하고 항목 실패를 격리해 한 attempt를 집계한다 */
 export const createContentProductionDispatcher =
@@ -261,14 +266,20 @@ export const createContentProductionDispatcher =
       return { jobId: input.jobId, status: 'IGNORED' };
     }
 
-    const itemSeeds = buildItemSeeds(job);
-    await repository.ensureItems(job.id, itemSeeds);
-    const seedsBySourceRef = new Map(
-      itemSeeds.map((seed) => [seed.sourceRef, seed]),
-    );
-    const items = await repository.listAttemptItems(job.id, input.attempt);
-
-    for (const item of items) {
+    const processSeeds = async (
+      operation: ContentProductionOperation,
+      itemSeeds: ContentProductionItemSeed[],
+    ) => {
+      await repository.ensureItems(job.id, itemSeeds);
+      const seedsBySourceRef = new Map(
+        itemSeeds.map((seed) => [seed.sourceRef, seed]),
+      );
+      const items = await repository.listAttemptItems(
+        job.id,
+        input.attempt,
+        operation,
+      );
+      for (const item of items) {
       const claimed = await repository.startItem(
         job.id,
         item.id,
@@ -314,6 +325,7 @@ export const createContentProductionDispatcher =
             ...claimed,
             jobInputId: seed.jobInputId,
             operation: seed.operation,
+            questionPlan: seed.questionPlan,
             leaseUntil: claimed.leaseUntil,
             leaseToken: claimed.leaseToken,
           }),
@@ -340,6 +352,22 @@ export const createContentProductionDispatcher =
         claimed.leaseToken,
         outcome,
       );
+      }
+    };
+
+    if (job.purpose !== 'QUESTION_GENERATION') {
+      await processSeeds('VOCABULARY_EXTRACTION', buildVocabularySeeds(job));
+    }
+    if (
+      job.purpose === 'QUESTION_GENERATION' ||
+      (job.purpose === 'VOCABULARY_THEN_QUESTION_GENERATION' &&
+        ((await repository.areOperationItemsSuccessful?.(
+          job.id,
+          'VOCABULARY_EXTRACTION',
+        )) ??
+          false))
+    ) {
+      await processSeeds('QUESTION_GENERATION', buildQuestionSeeds(job));
     }
 
     return (

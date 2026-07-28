@@ -24,6 +24,7 @@ import type {
   ContentProductionPresetCatalog,
   ContentProductionPresetSnapshot,
   ContentProductionRepository,
+  ContentProductionOperation,
   CreateContentProductionCommand,
 } from '@flex-thia/domain';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
@@ -337,6 +338,7 @@ export class DrizzleContentProductionRepository implements ContentProductionRepo
   async listAttemptItems(
     jobId: string,
     attempt: number,
+    operation?: ContentProductionOperation,
   ): Promise<ContentProductionItem[]> {
     const now = this.now();
     return (
@@ -347,6 +349,7 @@ export class DrizzleContentProductionRepository implements ContentProductionRepo
           and(
             eq(jobItems.jobId, jobId),
             eq(jobItems.attempt, attempt),
+            operation ? eq(jobItems.operation, operation) : undefined,
             or(
               eq(jobItems.status, 'PENDING'),
               and(
@@ -358,6 +361,20 @@ export class DrizzleContentProductionRepository implements ContentProductionRepo
         )
         .orderBy(asc(jobItems.createdAt), asc(jobItems.id))
     ).map(toItem);
+  }
+
+  /** 한 operation의 모든 durable item이 성공했을 때만 다음 단계를 연다 */
+  async areOperationItemsSuccessful(
+    jobId: string,
+    operation: ContentProductionOperation,
+  ): Promise<boolean> {
+    const rows = await this.database
+      .select({ status: jobItems.status })
+      .from(jobItems)
+      .where(
+        and(eq(jobItems.jobId, jobId), eq(jobItems.operation, operation)),
+      );
+    return rows.length > 0 && rows.every(({ status }) => status === 'SUCCEEDED');
   }
 
   /** PENDING 또는 lease 만료 PROCESSING 항목만 새 lease로 claim한다 */

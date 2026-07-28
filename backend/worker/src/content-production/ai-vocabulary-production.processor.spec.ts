@@ -40,6 +40,7 @@ const workItem = (
     sourceRef: 'opaque',
     jobInputId: 'job-input-id',
     operation: 'VOCABULARY_EXTRACTION',
+    questionPlan: null,
     status: 'PROCESSING',
     attempt: 0,
     retryable: false,

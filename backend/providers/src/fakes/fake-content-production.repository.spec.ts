@@ -45,6 +45,7 @@ const createSeeds = (
       sourceRef: `input:${ordinal}:question`,
       jobInputId: input.jobInputId,
       operation: 'QUESTION_GENERATION' as const,
+      questionPlan: null,
     };
   });
 

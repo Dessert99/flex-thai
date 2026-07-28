@@ -23,6 +23,7 @@ describe('DrizzleContentProductionRepository 조건부 전이', () => {
         sourceRef: 'opaque',
         jobInputId: 'input-id',
         operation: 'VOCABULARY_EXTRACTION',
+        questionPlan: null,
       },
     ]);
 
