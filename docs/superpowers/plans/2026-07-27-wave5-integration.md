@@ -25,8 +25,9 @@
   best-effort queue send 구현은 금지한다.
 - provider success 전후 crash에서도 TTS usage/cost를 중복 계상하지 않도록
   item attempt별 provider-run claim/outcome을 멱등 저장한다.
-- object store write 뒤 DB 완료 실패는 참조 확인형 GC record 또는 동등한
-  lifecycle cleanup으로 수렴해야 한다.
+- object store write 뒤 DB 완료 실패는 참조 확인형 GC record로 수렴해야
+  한다. 정상 `private/tts/runs/` object에는 expiration lifecycle을 두지
+  않고, S3 lifecycle은 incomplete multipart upload 중단에만 사용한다.
 
 ---
 
@@ -387,8 +388,9 @@ interface GeneratedDraftSentenceInput
   process termination and redelivery are safer than a rejected call that may
   leave a visible object. Never delete a concurrent writer's object.
 - Grants task/GC only required media-bucket object permissions, including
-  GC-only bucket listing restricted to `private/tts/runs/*`, and adds the
-  orphan-audio lifecycle policy without exposing storage keys through HTTP
+  GC-only bucket listing restricted to `private/tts/runs/*`. Reference-safe DB
+  GC owns orphan cleanup; lifecycle only aborts incomplete multipart uploads
+  and never expires final run objects or exposes storage keys through HTTP
 - Requires an explicit production `TTS_VOICE_PRESET_ID` through API and CDK
   configuration. Only local mode may use the deterministic development default;
   Task 8 owns bootstrapping the referenced active production row before traffic.
@@ -419,7 +421,8 @@ interface GeneratedDraftSentenceInput
   validation 400, auth 401/403, missing 404 and conflict 409 as applicable.
   CDK assertions must cover both queues/DLQs, TTS partial-batch event source,
   relay and GC schedules, queue URLs, least-privilege send/consume IAM,
-  media-bucket put/get-head/delete permissions and orphan lifecycle rules.
+  media-bucket put/get-head/delete permissions, prefix-scoped GC listing,
+  incomplete multipart cleanup and the absence of final-run expiration.
   Local component tests must put through `LocalFileTtsAudioStore`, fetch the
   returned short-lived URL through the controller, compare exact WAV bytes and
   prove expired/tampered object IDs return 404 without leaking storage keys.
@@ -440,8 +443,9 @@ interface GeneratedDraftSentenceInput
 
   Do not expose provider raw data or private storage keys. Gateway protected path
   list and OpenAPI path list must match. Production is not runtime-ready until
-  the relay queue senders, queue/schedule event sources, S3 TTS store, bucket
-  lifecycle and exact IAM grants are all synthesized and asserted.
+  the relay queue senders, queue/schedule event sources, S3 TTS store,
+  reference-safe GC, incomplete multipart cleanup and exact IAM grants are all
+  synthesized and asserted.
 
 - [ ] **Step 5: Verify and commit**
 
@@ -460,6 +464,11 @@ interface GeneratedDraftSentenceInput
 - Modify: `backend/database/drizzle/meta/_journal.json`
 - Modify: `backend/database/seed/local.sql`
 - Modify/Test: `backend/database/src/commands/local-seed.spec.ts`
+- Create/Test:
+  `backend/database/src/operations/bootstrap-tts-voice-preset.ts`
+- Create/Test:
+  `backend/database/src/commands/bootstrap-tts-voice-preset.ts`
+- Modify/Test: `backend/database/package.json`
 - Create/Test: `backend/database/src/schema/wave5-integration.schema.spec.ts`
 
 **Interfaces:**
@@ -472,6 +481,13 @@ interface GeneratedDraftSentenceInput
 - Operational bootstrap must insert and activate the production voice preset
   row whose UUID is passed as `TTS_VOICE_PRESET_ID` before API traffic. The
   local deterministic preset is not a production fallback.
+- The production bootstrap command requires
+  `TTS_VOICE_PRESET_ID`, `TTS_VOICE_PRESET_NAME`, `TTS_PROVIDER_NAME`,
+  `TTS_PROVIDER_MODEL`, `TTS_PROVIDER_VOICE` and
+  `TTS_GENERATION_REVISION`. It creates the exact enabled row through the Data
+  API, treats an exact replay as success, and rejects an existing UUID or
+  `(name, generationRevision)` with different immutable fields. It never stores
+  credentials or changes a preset already referenced by a job.
 
 - [ ] **Step 1: Generate migration from combined schema**
 
@@ -493,15 +509,23 @@ interface GeneratedDraftSentenceInput
   Required type versions have criteria/examples. Voice preset references only
   deterministic local provider. Existing local learner/admin fixtures remain.
 
-- [ ] **Step 4: Adjust generated SQL only for safe ordering/backfill**
+- [ ] **Step 4: Write failing production voice bootstrap tests**
+
+  Parse the six required production values without defaults. Prove a missing
+  value fails before opening a client, a new exact row is enabled, an exact
+  replay succeeds, and conflicting immutable fields fail without update. The
+  command uses the existing Data API connection variables and is exposed as
+  `pnpm --filter @flex-thia/database db:bootstrap:tts-voice:data-api`.
+
+- [ ] **Step 5: Adjust generated SQL only for safe ordering/backfill**
 
   Preserve generated snapshot. Move/backfill statements only when PostgreSQL
   requires index/FK order. Do not create multiple Wave 5 migrations.
 
-- [ ] **Step 5: Verify and commit**
+- [ ] **Step 6: Verify and commit**
 
   Run:
-  `pnpm exec vitest run backend/database/src/schema/wave5-integration.schema.spec.ts backend/database/src/commands/local-seed.spec.ts`
+  `pnpm exec vitest run backend/database/src/schema/wave5-integration.schema.spec.ts backend/database/src/commands/local-seed.spec.ts backend/database/src/commands/bootstrap-tts-voice-preset.spec.ts`
 
   Commit:
   `git commit -m "feat(database): migrate Wave 5 production"`
