@@ -31,6 +31,9 @@ export * from './storage/cloudfront-media-read-url.provider.js';
 /** private audio S3 upload와 hash inspection adapter를 공개한다 */
 export * from './storage/audio-upload.provider.js';
 
+/** TTS object storage 미구성 production fail-closed adapter를 공개한다 */
+export * from './storage/unavailable-tts-audio.store.js';
+
 /** 검증된 S3 콘텐츠 제작 입력 reader를 공개한다 */
 export * from './storage/s3-content-production-input.reader.js';
 

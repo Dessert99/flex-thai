@@ -115,7 +115,11 @@ export type TtsProcessorFailureResult =
 
 /** worker가 TTS item lease와 cache 상태를 조정하는 저장 경계 */
 export interface TtsProcessorRepository {
-  claimNext(jobId: string, now: Date): Promise<TtsWorkItem | null>;
+  claimNext(
+    jobId: string,
+    now: Date,
+    dispatchAttempt?: number,
+  ): Promise<TtsWorkItem | null>;
   claimAudio(
     cacheKey: string,
   ): Promise<
@@ -266,9 +270,17 @@ export class TtsProcessor {
   }
 
   /** claim 가능한 항목을 처리한 뒤 repository의 canonical job 상태를 반환한다 */
-  async process(jobId: string, signal: AbortSignal): Promise<TtsJobStatus> {
+  async process(
+    jobId: string,
+    signal: AbortSignal,
+    dispatchAttempt?: number,
+  ): Promise<TtsJobStatus> {
     while (!signal.aborted) {
-      const item = await this.repository.claimNext(jobId, this.now());
+      const item = await this.repository.claimNext(
+        jobId,
+        this.now(),
+        dispatchAttempt,
+      );
       if (!item) break;
       await this.processItem(item, signal);
     }

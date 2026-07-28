@@ -1,6 +1,6 @@
 /** 로컬 TTS WAV를 세대 고유 storage key별 immutable private snapshot으로 보관한다 */
 import { createHash } from 'node:crypto';
-import type { TtsAudioStore } from '@flex-thia/domain';
+import type { TtsAudioGarbageStore, TtsAudioStore } from '@flex-thia/domain';
 
 interface StoredAudio {
   bytes: Uint8Array;
@@ -15,7 +15,7 @@ const sameBytes = (left: Uint8Array, right: Uint8Array): boolean =>
   left.every((byte, index) => byte === right[index]);
 
 /** S3 없이 TTS cache의 idempotent private object 저장을 재현하는 fake */
-export class FakeTtsAudioStore implements TtsAudioStore {
+export class FakeTtsAudioStore implements TtsAudioStore, TtsAudioGarbageStore {
   private readonly storedByStorageKey = new Map<string, StoredAudio>();
 
   constructor(
@@ -63,6 +63,27 @@ export class FakeTtsAudioStore implements TtsAudioStore {
   get(storageKey: string): Uint8Array | null {
     const stored = this.storedByStorageKey.get(storageKey);
     return stored ? new Uint8Array(stored.bytes) : null;
+  }
+
+  /** GC가 삭제 전 object의 실제 immutable metadata를 재확인하게 한다 */
+  inspect(storageKey: string): ReturnType<TtsAudioGarbageStore['inspect']> {
+    const stored = this.storedByStorageKey.get(storageKey);
+    return Promise.resolve(
+      stored
+        ? {
+            storageKey,
+            mimeType: stored.mimeType,
+            sizeBytes: stored.bytes.byteLength,
+            sha256: stored.sha256,
+          }
+        : null,
+    );
+  }
+
+  /** run 고유 key 삭제를 멱등 처리해 relay redelivery를 안전하게 한다 */
+  delete(storageKey: string): Promise<void> {
+    this.storedByStorageKey.delete(storageKey);
+    return Promise.resolve();
   }
 
   private waitBeforeCommit(signal: AbortSignal, deadline: Date): Promise<void> {

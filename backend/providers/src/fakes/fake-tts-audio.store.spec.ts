@@ -120,4 +120,29 @@ describe('FakeTtsAudioStore', () => {
     await preparation;
     expect(store.get(storageKey)).toBeNull();
   });
+
+  it('inspect는 immutable metadata를 반환하고 delete는 같은 key를 멱등 삭제한다', async () => {
+    const store = new FakeTtsAudioStore();
+    const bytes = Uint8Array.from([1, 2, 3]);
+    const sha256 = createHash('sha256').update(bytes).digest('hex');
+    const storageKey = 'private/tts/runs/gc-run.wav';
+    await store.put({
+      storageKey,
+      bytes,
+      mimeType: 'audio/wav',
+      sha256,
+      signal: new AbortController().signal,
+      deadline: writableUntil(),
+    });
+
+    await expect(store.inspect(storageKey)).resolves.toEqual({
+      storageKey,
+      mimeType: 'audio/wav',
+      sizeBytes: bytes.byteLength,
+      sha256,
+    });
+    await store.delete(storageKey);
+    await store.delete(storageKey);
+    await expect(store.inspect(storageKey)).resolves.toBeNull();
+  });
 });

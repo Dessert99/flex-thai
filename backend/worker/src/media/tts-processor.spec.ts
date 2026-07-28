@@ -307,6 +307,20 @@ const createStore = (): TtsAudioStore => ({
 });
 
 describe('TtsProcessor 음성 생성과 재사용', () => {
+  it('dispatch attempt를 모든 DB claim에 전달해 stale generation이 새 항목을 가져가지 않게 한다', async () => {
+    const repository = new MemoryTtsRepository([]);
+    const claimNext = vi.spyOn(repository, 'claimNext');
+
+    await new TtsProcessor(
+      repository,
+      createProvider(),
+      createStore(),
+      () => now,
+    ).process(jobId, new AbortController().signal, 4);
+
+    expect(claimNext).toHaveBeenCalledWith(jobId, now, 4);
+  });
+
   it('READY cache는 provider와 store를 호출하지 않고 기존 media를 연결한다', async () => {
     const item = workItem('item-1');
     const repository = new MemoryTtsRepository([item]);

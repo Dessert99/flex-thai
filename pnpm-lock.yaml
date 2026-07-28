@@ -204,6 +204,9 @@ importers:
       '@flex-thia/domain':
         specifier: workspace:*
         version: link:../domain
+      '@flex-thia/providers':
+        specifier: workspace:*
+        version: link:../providers
     devDependencies:
       '@types/aws-lambda':
         specifier: ^8.10.0

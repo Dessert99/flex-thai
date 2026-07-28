@@ -16,4 +16,16 @@ describe('worker package 스크립트', () => {
       'vitest run --root ../.. backend/worker/src',
     );
   });
+
+  it('Wave 5 content·TTS·relay·GC entrypoint를 Lambda bundle에 포함한다', () => {
+    const buildConfig = readFileSync(
+      new URL('../esbuild.config.mjs', import.meta.url),
+      'utf8',
+    );
+
+    expect(buildConfig).toContain("'content-production-task'");
+    expect(buildConfig).toContain("'tts-task'");
+    expect(buildConfig).toContain("'async-dispatch-relay-task'");
+    expect(buildConfig).toContain("'tts-audio-gc-task'");
+  });
 });

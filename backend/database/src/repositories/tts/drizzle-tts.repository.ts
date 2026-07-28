@@ -107,7 +107,11 @@ export interface TtsAudioReadyGuard {
 /** TTS worker가 필요로 하는 작업·음성 재사용 저장 경계 */
 export interface TtsRepository {
   createJob(input: CreateTtsJobInput): Promise<TtsJob>;
-  claimNext(jobId: string, now: Date): Promise<TtsWorkItem | null>;
+  claimNext(
+    jobId: string,
+    now: Date,
+    dispatchAttempt?: number,
+  ): Promise<TtsWorkItem | null>;
   claimAudio(
     cacheKey: string,
   ): Promise<
@@ -127,6 +131,10 @@ export interface TtsRepository {
     finalizedAt: Date,
   ): Promise<'FINALIZED' | 'STALE_CACHE_CLAIM'>;
   getJobStatus(jobId: string): Promise<TtsJob['status'] | null>;
+  getDispatchState(jobId: string): Promise<{
+    dispatchAttempt: number;
+    status: TtsJob['status'];
+  } | null>;
   retry(input: RetryTtsItemsInput): Promise<number>;
 }
 
@@ -475,8 +483,22 @@ export class DrizzleTtsRepository implements TtsRepository {
   }
 
   /** pending 또는 만료 lease 항목 하나를 skip-locked로 새 worker에게 준다 */
-  async claimNext(jobId: string, now: Date): Promise<TtsWorkItem | null> {
+  async claimNext(
+    jobId: string,
+    now: Date,
+    dispatchAttempt?: number,
+  ): Promise<TtsWorkItem | null> {
     return this.database.transaction(async (transaction) => {
+      if (dispatchAttempt !== undefined) {
+        const [job] = await transaction
+          .select({ dispatchAttempt: ttsJobs.dispatchAttempt })
+          .from(ttsJobs)
+          .where(eq(ttsJobs.id, jobId))
+          .for('share')
+          .limit(1);
+        if (!job || job.dispatchAttempt !== dispatchAttempt) return null;
+      }
+
       const [candidate] = await transaction
         .select()
         .from(ttsItems)
@@ -789,6 +811,22 @@ export class DrizzleTtsRepository implements TtsRepository {
       .where(eq(ttsJobs.id, jobId))
       .limit(1);
     return job?.status ?? null;
+  }
+
+  /** queue payload가 현재 job dispatch 세대인지 processor 호출 전에 확인한다 */
+  async getDispatchState(jobId: string): Promise<{
+    dispatchAttempt: number;
+    status: TtsJob['status'];
+  } | null> {
+    const [job] = await this.database
+      .select({
+        dispatchAttempt: ttsJobs.dispatchAttempt,
+        status: ttsJobs.status,
+      })
+      .from(ttsJobs)
+      .where(eq(ttsJobs.id, jobId))
+      .limit(1);
+    return job ?? null;
   }
 
   /** optimistic attempt가 맞는 retryable failed 항목만 새 pending attempt로 연다 */

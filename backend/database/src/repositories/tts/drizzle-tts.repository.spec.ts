@@ -165,6 +165,39 @@ describe('DrizzleTtsRepository 작업 생성', () => {
   });
 });
 
+describe('DrizzleTtsRepository dispatch 세대 조회', () => {
+  it('현재 job의 dispatch attempt와 canonical 상태를 함께 반환한다', async () => {
+    const select = createSelect([
+      { dispatchAttempt: 3, status: 'PARTIALLY_FAILED' },
+    ]);
+    const repository = new DrizzleTtsRepository(
+      { select } as never,
+      { attach: async () => 'ATTACHED' },
+      () => now,
+    );
+
+    await expect(repository.getDispatchState(jobId)).resolves.toEqual({
+      dispatchAttempt: 3,
+      status: 'PARTIALLY_FAILED',
+    });
+  });
+
+  it('stale dispatch attempt는 현재 retry 항목을 claim하지 않는다', async () => {
+    const select = createSelect([{ dispatchAttempt: 3 }]);
+    const transaction = { select };
+    const repository = new DrizzleTtsRepository(
+      {
+        transaction: passthroughTransaction(transaction),
+      } as never,
+      { attach: async () => 'ATTACHED' },
+      () => now,
+    );
+
+    await expect(repository.claimNext(jobId, now, 2)).resolves.toBeNull();
+    expect(select).toHaveBeenCalledOnce();
+  });
+});
+
 describe('DrizzleTtsRepository 음성 claim', () => {
   it('cache 생성 insert는 unique 충돌을 무시하고 소유권이 없으면 outcome unknown을 반환한다', async () => {
     const firstSelect = createSelect([]);
