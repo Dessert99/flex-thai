@@ -9,6 +9,8 @@ const ids = {
   item: '00000000-0000-4000-8000-000000000002',
   requester: '00000000-0000-4000-8000-000000000003',
   media: '00000000-0000-4000-8000-000000000004',
+  target: '00000000-0000-4000-8000-000000000006',
+  version: '00000000-0000-4000-8000-000000000007',
 } as const;
 
 const voice = {
@@ -68,6 +70,8 @@ const createDatabase = (results: Array<Array<Record<string, unknown>>>) => {
         return chain;
       }),
       where: vi.fn(() => chain),
+      innerJoin: vi.fn(() => chain),
+      leftJoin: vi.fn(() => chain),
       orderBy: vi.fn((...order: unknown[]) => {
         call.orderBy = order;
         return chain;
@@ -135,6 +139,91 @@ describe('DrizzleTtsOperationsQuery 작업 목록', () => {
       'startedAt',
       'finishedAt',
     ]);
+  });
+});
+
+describe('DrizzleTtsOperationsQuery 재생·게시 readiness', () => {
+  it('SUCCEEDED 항목과 READY media의 내부 storage projection을 조회한다', async () => {
+    const fake = createDatabase([
+      [
+        {
+          itemId: ids.item,
+          itemStatus: 'SUCCEEDED',
+          mediaStatus: 'READY',
+          storageKey: 'private/tts/audio.wav',
+        },
+      ],
+    ]);
+    const query = new DrizzleTtsOperationsQuery(fake.database as never);
+
+    await expect(query.findAudioItem(ids.item)).resolves.toEqual({
+      itemId: ids.item,
+      itemStatus: 'SUCCEEDED',
+      mediaStatus: 'READY',
+      storageKey: 'private/tts/audio.wav',
+    });
+  });
+
+  it('필수 target을 최신 관련 item metadata로 blocker projection한다', async () => {
+    const fake = createDatabase([
+      [{ id: ids.version }],
+      [
+        {
+          jobId: ids.job,
+          itemId: ids.item,
+          targetKind: 'THAI_SENTENCE_VERSION',
+          targetId: ids.target,
+          itemStatus: 'FAILED',
+          attempt: 2,
+          errorCode: 'TTS_PROVIDER_TIMEOUT',
+          retryable: true,
+        },
+      ],
+    ]);
+    const readiness = {
+      listRequiredTargets: vi.fn().mockResolvedValue([
+        {
+          kind: 'VOCABULARY_PRONUNCIATION',
+          targetId: ids.media,
+          mediaStatus: 'READY',
+        },
+        {
+          kind: 'THAI_SENTENCE_VERSION',
+          targetId: ids.target,
+          mediaStatus: 'FAILED',
+        },
+      ]),
+    };
+    const query = new DrizzleTtsOperationsQuery(
+      fake.database as never,
+      readiness,
+    );
+
+    await expect(
+      query.getPublicationReadiness({
+        questionId: ids.job,
+        versionId: ids.version,
+      }),
+    ).resolves.toEqual({
+      ready: false,
+      requiredCount: 2,
+      readyCount: 1,
+      blockers: [
+        {
+          kind: 'THAI_SENTENCE_VERSION',
+          targetId: ids.target,
+          mediaStatus: 'FAILED',
+          operation: {
+            jobId: ids.job,
+            itemId: ids.item,
+            itemStatus: 'FAILED',
+            attempt: 2,
+            errorCode: 'TTS_PROVIDER_TIMEOUT',
+            retryable: true,
+          },
+        },
+      ],
+    });
   });
 });
 

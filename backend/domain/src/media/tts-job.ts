@@ -27,8 +27,29 @@ export type ContentTtsMediaStatus =
 
 /** 게시 전 확인할 필수 TTS target의 식별자와 준비 상태 */
 export interface ContentTtsReadinessTarget {
+  kind: 'THAI_SENTENCE_VERSION' | 'VOCABULARY_PRONUNCIATION';
   targetId: string;
   mediaStatus: ContentTtsMediaStatus;
+}
+
+/** 관리자 게시 화면이 blocker와 연결 작업을 함께 읽는 projection */
+export interface TtsPublicationReadinessProjection {
+  ready: boolean;
+  requiredCount: number;
+  readyCount: number;
+  blockers: Array<{
+    kind: ContentTtsReadinessTarget['kind'];
+    targetId: string;
+    mediaStatus: Exclude<ContentTtsMediaStatus, 'READY'>;
+    operation: {
+      jobId: string;
+      itemId: string;
+      itemStatus: TtsItemStatus;
+      attempt: number;
+      errorCode: string | null;
+      retryable: boolean;
+    } | null;
+  }>;
 }
 
 /** 게시할 문제 버전에 필요한 TTS target 준비 상태를 읽는 port */

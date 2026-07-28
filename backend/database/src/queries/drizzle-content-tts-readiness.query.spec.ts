@@ -93,12 +93,12 @@ describe('DrizzleContentTtsReadinessQuery 게시 필수 음성 집계', () => {
         versionId: 'question-version-id',
       }),
     ).resolves.toEqual([
-      { targetId: 'pronunciation-missing', mediaStatus: 'MISSING' },
-      { targetId: 'pronunciation-ready', mediaStatus: 'READY' },
-      { targetId: 'pronunciation-rejected', mediaStatus: 'FAILED' },
-      { targetId: 'sentence-block', mediaStatus: 'READY' },
-      { targetId: 'sentence-explanation', mediaStatus: 'MISSING' },
-      { targetId: 'sentence-option', mediaStatus: 'UPLOADING' },
+      { kind: 'VOCABULARY_PRONUNCIATION', targetId: 'pronunciation-missing', mediaStatus: 'MISSING' },
+      { kind: 'VOCABULARY_PRONUNCIATION', targetId: 'pronunciation-ready', mediaStatus: 'READY' },
+      { kind: 'VOCABULARY_PRONUNCIATION', targetId: 'pronunciation-rejected', mediaStatus: 'FAILED' },
+      { kind: 'THAI_SENTENCE_VERSION', targetId: 'sentence-block', mediaStatus: 'READY' },
+      { kind: 'THAI_SENTENCE_VERSION', targetId: 'sentence-explanation', mediaStatus: 'MISSING' },
+      { kind: 'THAI_SENTENCE_VERSION', targetId: 'sentence-option', mediaStatus: 'UPLOADING' },
     ]);
     expect(fake.database.select).toHaveBeenCalledTimes(6);
     expect(sqlParams(fake.conditions[0])).toEqual(
@@ -126,7 +126,7 @@ describe('DrizzleContentTtsReadinessQuery 게시 필수 음성 집계', () => {
         versionId: 'question-version-id',
       }),
     ).resolves.toEqual([
-      { targetId: 'missing-sentence', mediaStatus: 'MISSING' },
+      { kind: 'THAI_SENTENCE_VERSION', targetId: 'missing-sentence', mediaStatus: 'MISSING' },
     ]);
   });
 
@@ -153,8 +153,8 @@ describe('DrizzleContentTtsReadinessQuery 게시 필수 음성 집계', () => {
         versionId: 'question-version-id',
       }),
     ).resolves.toEqual([
-      { targetId: 'shared-target-id', mediaStatus: 'READY' },
-      { targetId: 'shared-target-id', mediaStatus: 'MISSING' },
+      { kind: 'THAI_SENTENCE_VERSION', targetId: 'shared-target-id', mediaStatus: 'READY' },
+      { kind: 'VOCABULARY_PRONUNCIATION', targetId: 'shared-target-id', mediaStatus: 'MISSING' },
     ]);
   });
 
