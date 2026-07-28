@@ -31,6 +31,9 @@ export * from './repositories/drizzle-media-admin.repository.js';
 /** 자동 TTS 작업·cache transaction repository를 공개한다 */
 export * from './repositories/tts/drizzle-tts.repository.js';
 
+/** TTS provider 실행 exact-once와 orphan audio GC 저장소를 공개한다 */
+export * from './repositories/tts/drizzle-tts-durability.repository.js';
+
 /** canonical 콘텐츠 draft transaction repository를 공개한다 */
 export * from './repositories/drizzle-content-draft.repository.js';
 

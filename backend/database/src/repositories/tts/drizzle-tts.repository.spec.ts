@@ -149,10 +149,9 @@ const passthroughTransaction = (transaction: Record<string, unknown>) =>
 describe('DrizzleTtsRepository 작업 생성', () => {
   it('대상이 없는 job은 영구 QUEUED로 저장하지 않고 안정적인 오류로 거절한다', async () => {
     const transaction = vi.fn();
-    const repository = new DrizzleTtsRepository(
-      { transaction } as never,
-      { attach: async () => 'ATTACHED' },
-    );
+    const repository = new DrizzleTtsRepository({ transaction } as never, {
+      attach: async () => 'ATTACHED',
+    });
 
     await expect(
       repository.createJob({
@@ -407,6 +406,39 @@ describe('DrizzleTtsRepository 음성 claim', () => {
 });
 
 describe('DrizzleTtsRepository lease와 완료 transaction', () => {
+  it('GC가 PROCESSING·DELETED로 잠근 storage key는 READY media로 commit하지 않는다', async () => {
+    const select = createSelect([processingItem]);
+    const insert = createInsert([{ id: mediaAssetId }]);
+    const { update } = createUpdate();
+    const markAudioReferenced = vi.fn(async () => 'DELETED' as const);
+    const repository = new DrizzleTtsRepository(
+      {
+        select,
+        insert,
+        update,
+        transaction: passthroughTransaction({ select, insert, update }),
+      } as never,
+      { attach: async () => 'ATTACHED' },
+      () => now,
+      { markAudioReferenced },
+    );
+
+    await expect(
+      repository.succeed({
+        kind: 'GENERATED',
+        item: toWorkItem(),
+        media: generatedMedia,
+        claimToken: 'claim-token',
+        completedAt: now,
+      }),
+    ).resolves.toEqual({ kind: 'AUDIO_DELETED' });
+    expect(markAudioReferenced).toHaveBeenCalledWith(
+      expect.objectContaining({ select, insert, update }),
+      { media: generatedMedia, referencedAt: now },
+    );
+    expect(insert).not.toHaveBeenCalled();
+  });
+
   it('만료된 lease의 success는 item·cache·attachment를 변경하지 않는다', async () => {
     const select = createSelect([]);
     const { update, updates } = createUpdate();

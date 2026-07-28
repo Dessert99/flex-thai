@@ -3,8 +3,10 @@ import { getTableConfig, PgDialect } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 import {
   ttsAudioCache,
+  ttsAudioGcRecords,
   ttsItems,
   ttsJobs,
+  ttsProviderRuns,
   ttsVoicePresets,
 } from './tts.schema.js';
 
@@ -88,5 +90,30 @@ describe('자동 TTS 데이터베이스 schema', () => {
     ).toBe(
       `"tts_audio_cache"."status" <> 'READY' or ("tts_audio_cache"."media_asset_id" is not null and "tts_audio_cache"."ready_metadata_revision" is not null and "tts_audio_cache"."ready_at" is not null)`,
     );
+  });
+
+  it('provider 실행은 item과 attempt마다 하나만 두고 원문·audio bytes 없이 운영 metadata만 저장한다', () => {
+    expect(hasUniqueColumns(ttsProviderRuns, ['itemId', 'attempt'])).toBe(true);
+    expect(ttsProviderRuns.cacheKey.notNull).toBe(true);
+    expect(ttsProviderRuns.cacheClaimToken.notNull).toBe(true);
+    expect(ttsProviderRuns.usage).toBeDefined();
+    expect(ttsProviderRuns.estimatedCostUsd).toBeDefined();
+    expect(ttsProviderRuns.providerRequestId).toBeDefined();
+    expect(ttsProviderRuns.storageKey).toBeDefined();
+    expect('audioBytes' in ttsProviderRuns).toBe(false);
+    expect('rawPayload' in ttsProviderRuns).toBe(false);
+  });
+
+  it('orphan audio GC는 storage key를 유일하게 하고 lease와 terminal 결과를 분리한다', () => {
+    expect(hasUniqueColumns(ttsAudioGcRecords, ['storageKey'])).toBe(true);
+    expect(ttsAudioGcRecords.status.enumValues).toEqual([
+      'PENDING',
+      'PROCESSING',
+      'REFERENCED',
+      'DELETED',
+    ]);
+    expect(ttsAudioGcRecords.leaseOwner.notNull).toBe(false);
+    expect(ttsAudioGcRecords.leaseExpiresAt.notNull).toBe(false);
+    expect(ttsAudioGcRecords.lastErrorCode.notNull).toBe(false);
   });
 });

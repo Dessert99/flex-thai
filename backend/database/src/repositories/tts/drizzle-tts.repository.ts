@@ -70,7 +70,11 @@ export type CompleteTtsAudioResult =
   | { kind: 'COMPLETED'; mediaAssetId: string }
   | {
       kind:
-        'STALE_LEASE' | 'STALE_CACHE_CLAIM' | 'STALE_TARGET' | 'MEDIA_CONFLICT';
+        | 'STALE_LEASE'
+        | 'STALE_CACHE_CLAIM'
+        | 'STALE_TARGET'
+        | 'MEDIA_CONFLICT'
+        | 'AUDIO_DELETED';
     };
 
 /** TTS 실패 transaction이 실제 item을 닫았는지 구분한다 */
@@ -87,6 +91,17 @@ export interface TtsTargetAttachmentWriter {
       expectedRevision: string;
     },
   ): Promise<'ATTACHED' | 'STALE_TARGET'>;
+}
+
+/** READY transaction이 같은 storage key의 GC 삭제와 직렬화되는 DB-local guard */
+export interface TtsAudioReadyGuard {
+  markAudioReferenced(
+    transaction: TtsRepositoryTransaction,
+    input: {
+      media: Extract<CompleteTtsAudioInput, { kind: 'GENERATED' }>['media'];
+      referencedAt: Date;
+    },
+  ): Promise<'REFERENCED' | 'DELETED'>;
 }
 
 /** TTS worker가 필요로 하는 작업·음성 재사용 저장 경계 */
@@ -118,6 +133,7 @@ export interface TtsRepository {
 class StaleTargetAttachmentError extends Error {}
 class StaleTtsLeaseError extends Error {}
 class StaleTtsCacheClaimError extends Error {}
+class DeletedTtsAudioError extends Error {}
 class TtsMediaImmutableConflictError extends Error {
   constructor() {
     super('TTS_MEDIA_IMMUTABLE_CONFLICT');
@@ -304,8 +320,7 @@ const finalizeOwnedAudioClaim = async (
   const [finalized] = await transaction
     .update(ttsAudioCache)
     .set({
-      status:
-        audioClaim.resolution === 'FAILED' ? 'FAILED' : 'OUTCOME_UNKNOWN',
+      status: audioClaim.resolution === 'FAILED' ? 'FAILED' : 'OUTCOME_UNKNOWN',
       claimToken: null,
       claimedAt: null,
       errorCode:
@@ -363,10 +378,7 @@ const resolveExistingAudioClaim = async (
         updatedAt: now,
       })
       .where(
-        and(
-          eq(ttsAudioCache.id, row.id),
-          eq(ttsAudioCache.status, 'PENDING'),
-        ),
+        and(eq(ttsAudioCache.id, row.id), eq(ttsAudioCache.status, 'PENDING')),
       )
       .returning({ id: ttsAudioCache.id });
     return claimed ? { kind: 'GENERATE', claimToken } : { kind: 'WAIT' };
@@ -410,6 +422,7 @@ export class DrizzleTtsRepository implements TtsRepository {
     private readonly database: TtsDatabase,
     private readonly targetAttachments: TtsTargetAttachmentWriter,
     private readonly now: () => Date = () => new Date(),
+    private readonly audioReadyGuard?: TtsAudioReadyGuard,
   ) {}
 
   /** immutable target·voice snapshot과 초기 pending count를 함께 만든다 */
@@ -573,6 +586,17 @@ export class DrizzleTtsRepository implements TtsRepository {
         );
         if (!current) return { kind: 'STALE_LEASE' };
 
+        if (
+          input.kind === 'GENERATED' &&
+          this.audioReadyGuard &&
+          (await this.audioReadyGuard.markAudioReferenced(transaction, {
+            media: input.media,
+            referencedAt: input.completedAt,
+          })) !== 'REFERENCED'
+        ) {
+          throw new DeletedTtsAudioError();
+        }
+
         const mediaAssetId =
           input.kind === 'GENERATED'
             ? await persistGeneratedMedia(transaction, input)
@@ -672,6 +696,9 @@ export class DrizzleTtsRepository implements TtsRepository {
       }
       if (error instanceof TtsMediaImmutableConflictError) {
         return { kind: 'MEDIA_CONFLICT' };
+      }
+      if (error instanceof DeletedTtsAudioError) {
+        return { kind: 'AUDIO_DELETED' };
       }
       throw error;
     }

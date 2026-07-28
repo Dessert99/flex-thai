@@ -1,10 +1,13 @@
 /** 자동 TTS 요청·항목·음성 재사용 claim과 완료 음성 자산을 저장한다 */
 import { sql } from 'drizzle-orm';
 import {
+  bigint,
   boolean,
   check,
+  index,
   integer,
   jsonb,
+  numeric,
   pgEnum,
   pgTable,
   text,
@@ -39,6 +42,22 @@ export const ttsAudioCacheStatusEnum = pgEnum('tts_audio_cache_status', [
   'READY',
   'FAILED',
   'OUTCOME_UNKNOWN',
+]);
+
+/** item attempt별 TTS provider 호출의 외부 outcome 상태 */
+export const ttsProviderRunStatusEnum = pgEnum('tts_provider_run_status', [
+  'STARTED',
+  'SUCCEEDED',
+  'FAILED',
+  'OUTCOME_UNKNOWN',
+]);
+
+/** immutable audio object의 참조 확인형 정리 상태 */
+export const ttsAudioGcStatusEnum = pgEnum('tts_audio_gc_status', [
+  'PENDING',
+  'PROCESSING',
+  'REFERENCED',
+  'DELETED',
 ]);
 
 /** immutable item snapshot에 남기는 TTS 대상 종류 */
@@ -190,6 +209,122 @@ export const ttsAudioCache = pgTable(
     check(
       'tts_audio_cache_ready_metadata_consistent',
       sql`${table.status} <> 'READY' or (${table.mediaAssetId} is not null and ${table.readyMetadataRevision} is not null and ${table.readyAt} is not null)`,
+    ),
+  ],
+);
+
+/** item attempt별 provider outcome과 비용·저장 metadata를 중복 없이 보존한다 */
+export const ttsProviderRuns = pgTable(
+  'tts_provider_runs',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    itemId: uuid('item_id')
+      .references(() => ttsItems.id, { onDelete: 'restrict' })
+      .notNull(),
+    attempt: integer('attempt').notNull(),
+    cacheKey: text('cache_key').notNull(),
+    cacheClaimToken: text('cache_claim_token').notNull(),
+    itemLeaseToken: text('item_lease_token').notNull(),
+    provider: text('provider').notNull(),
+    model: text('model').notNull(),
+    status: ttsProviderRunStatusEnum('status').default('STARTED').notNull(),
+    usage: jsonb('usage').$type<Record<string, number>>(),
+    estimatedCostUsd: numeric('estimated_cost_usd', {
+      precision: 18,
+      scale: 8,
+    }),
+    providerRequestId: text('provider_request_id'),
+    errorCode: text('error_code'),
+    retryable: boolean('retryable').default(false).notNull(),
+    storageKey: text('storage_key'),
+    storageMimeType: text('storage_mime_type'),
+    storageSizeBytes: bigint('storage_size_bytes', { mode: 'number' }),
+    storageSha256: text('storage_sha256'),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex('tts_provider_runs_item_attempt_unique').on(
+      table.itemId,
+      table.attempt,
+    ),
+    index('tts_provider_runs_status_started_at_idx').on(
+      table.status,
+      table.startedAt,
+    ),
+    check('tts_provider_runs_attempt_non_negative', sql`${table.attempt} >= 0`),
+    check(
+      'tts_provider_runs_storage_metadata_consistent',
+      sql`(${table.storageKey} is null and ${table.storageMimeType} is null and ${table.storageSizeBytes} is null and ${table.storageSha256} is null) or (${table.storageKey} is not null and ${table.storageMimeType} is not null and ${table.storageSizeBytes} > 0 and ${table.storageSizeBytes} <= 9007199254740991 and ${table.storageSha256} ~ '^[0-9A-Fa-f]{64}$')`,
+    ),
+    check(
+      'tts_provider_runs_terminal_consistent',
+      sql`(${table.status} = 'STARTED' and ${table.finishedAt} is null) or (${table.status} <> 'STARTED' and ${table.finishedAt} is not null)`,
+    ),
+    check(
+      'tts_provider_runs_success_consistent',
+      sql`${table.status} <> 'SUCCEEDED' or (${table.usage} is not null and ${table.estimatedCostUsd} is not null and ${table.errorCode} is null and ${table.retryable} = false and ${table.storageKey} is not null)`,
+    ),
+  ],
+);
+
+/** object write 뒤 DB 참조 실패를 lease 기반 참조 확인·삭제로 수렴시킨다 */
+export const ttsAudioGcRecords = pgTable(
+  'tts_audio_gc_records',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    storageKey: text('storage_key').notNull(),
+    mimeType: text('mime_type').notNull(),
+    sizeBytes: bigint('size_bytes', { mode: 'number' }).notNull(),
+    sha256: text('sha256').notNull(),
+    status: ttsAudioGcStatusEnum('status').default('PENDING').notNull(),
+    availableAt: timestamp('available_at', { withTimezone: true }).notNull(),
+    leaseOwner: text('lease_owner'),
+    leaseExpiresAt: timestamp('lease_expires_at', { withTimezone: true }),
+    processingAttempts: integer('processing_attempts').default(0).notNull(),
+    lastErrorCode: text('last_error_code'),
+    lastErrorAt: timestamp('last_error_at', { withTimezone: true }),
+    referencedAt: timestamp('referenced_at', { withTimezone: true }),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex('tts_audio_gc_records_storage_key_unique').on(table.storageKey),
+    index('tts_audio_gc_records_claim_idx').on(
+      table.status,
+      table.availableAt,
+      table.leaseExpiresAt,
+    ),
+    check(
+      'tts_audio_gc_records_size_safe_integer',
+      sql`${table.sizeBytes} > 0 and ${table.sizeBytes} <= 9007199254740991`,
+    ),
+    check(
+      'tts_audio_gc_records_sha256_length',
+      sql`${table.sha256} ~ '^[0-9A-Fa-f]{64}$'`,
+    ),
+    check(
+      'tts_audio_gc_records_attempts_non_negative',
+      sql`${table.processingAttempts} >= 0`,
+    ),
+    check(
+      'tts_audio_gc_records_lease_pair_consistent',
+      sql`(${table.leaseOwner} is null) = (${table.leaseExpiresAt} is null)`,
+    ),
+    check(
+      'tts_audio_gc_records_terminal_consistent',
+      sql`(${table.status} = 'REFERENCED' and ${table.referencedAt} is not null and ${table.deletedAt} is null) or (${table.status} = 'DELETED' and ${table.deletedAt} is not null and ${table.referencedAt} is null) or (${table.status} in ('PENDING', 'PROCESSING') and ${table.referencedAt} is null and ${table.deletedAt} is null)`,
     ),
   ],
 );

@@ -17,6 +17,72 @@ export interface GeneratedTtsMedia {
   sha256: string;
 }
 
+/** provider 호출을 재실행하지 않고 복구할 수 있는 item attempt outcome */
+export type TtsProviderRunReplay =
+  | {
+      kind: 'SUCCEEDED';
+      runId: string;
+      cacheClaimToken: string;
+      usage: Record<string, number>;
+      estimatedCostUsd: string;
+      providerRequestId: string | null;
+      media: GeneratedTtsMedia;
+    }
+  | {
+      kind: 'FAILED';
+      runId: string;
+      cacheClaimToken: string;
+      errorCode: string;
+      retryable: boolean;
+    }
+  | {
+      kind: 'OUTCOME_UNKNOWN';
+      runId?: string;
+      cacheClaimToken: string;
+    }
+  | {
+      kind: 'IN_PROGRESS';
+      runId: string;
+      cacheClaimToken: string;
+    };
+
+/** provider 실행 claim·terminal과 object GC 등록을 worker에 제공하는 저장 경계 */
+export interface TtsProcessorDurabilityRepository {
+  findProviderRun(
+    item: Pick<TtsWorkItem, 'itemId' | 'attempt' | 'leaseToken'>,
+  ): Promise<TtsProviderRunReplay | null>;
+  claimProviderRun(input: {
+    item: Pick<TtsWorkItem, 'itemId' | 'attempt' | 'leaseToken'>;
+    cacheKey: string;
+    cacheClaimToken: string;
+    provider: string;
+    model: string;
+    claimedAt: Date;
+  }): Promise<{ kind: 'CLAIMED'; runId: string } | TtsProviderRunReplay>;
+  succeedProviderRun(input: {
+    runId: string;
+    usage: Record<string, number>;
+    estimatedCostUsd: string;
+    providerRequestId: string | null;
+    media: GeneratedTtsMedia;
+    finishedAt: Date;
+  }): Promise<boolean>;
+  failProviderRun(input: {
+    runId: string;
+    status: 'FAILED' | 'OUTCOME_UNKNOWN';
+    errorCode: string;
+    retryable: boolean;
+    usage?: Record<string, number>;
+    estimatedCostUsd?: string;
+    providerRequestId?: string | null;
+    finishedAt: Date;
+  }): Promise<boolean>;
+  registerAudioGc(input: {
+    media: GeneratedTtsMedia;
+    registeredAt: Date;
+  }): Promise<void>;
+}
+
 /** 생성 claim의 known 실패와 외부 결과 불명확 상태를 cache에 고정한다 */
 export type TtsAudioClaimFinalization =
   | {
@@ -35,7 +101,11 @@ export type TtsProcessorCompletionResult =
   | { kind: 'COMPLETED'; mediaAssetId: string }
   | {
       kind:
-        'STALE_LEASE' | 'STALE_CACHE_CLAIM' | 'STALE_TARGET' | 'MEDIA_CONFLICT';
+        | 'STALE_LEASE'
+        | 'STALE_CACHE_CLAIM'
+        | 'STALE_TARGET'
+        | 'MEDIA_CONFLICT'
+        | 'AUDIO_DELETED';
     };
 
 /** DB transaction이 item 실패를 저장했는지 구분한다 */
@@ -177,6 +247,7 @@ export class TtsProcessor {
     private readonly audioStore: TtsAudioStore,
     private readonly now: () => Date = () => new Date(),
     private readonly wait: (signal: AbortSignal) => Promise<void> = waitForPoll,
+    private readonly durability?: TtsProcessorDurabilityRepository,
   ) {}
 
   /** claim 가능한 항목을 처리한 뒤 repository의 canonical job 상태를 반환한다 */
@@ -199,6 +270,12 @@ export class TtsProcessor {
         errorCode: 'TTS_PROCESS_ABORTED',
         retryable: true,
       });
+      return;
+    }
+
+    const storedRun = await this.durability?.findProviderRun(item);
+    if (storedRun) {
+      await this.handleProviderRunReplay(item, storedRun);
       return;
     }
 
@@ -268,6 +345,23 @@ export class TtsProcessor {
       return;
     }
 
+    let providerRunId: string | null = null;
+    if (this.durability) {
+      const providerClaim = await this.durability.claimProviderRun({
+        item,
+        cacheKey: item.cacheKey,
+        cacheClaimToken: claim.claimToken,
+        provider: item.voice.provider,
+        model: item.voice.model,
+        claimedAt: this.now(),
+      });
+      if (providerClaim.kind !== 'CLAIMED') {
+        await this.handleProviderRunReplay(item, providerClaim);
+        return;
+      }
+      providerRunId = providerClaim.runId;
+    }
+
     let result: TtsProviderResult;
     try {
       result = await this.provider.synthesize({
@@ -277,6 +371,15 @@ export class TtsProcessor {
       });
     } catch (error) {
       const failure = asProviderFailure(error, signal);
+      const replay = await this.persistProviderFailure(item, providerRunId, {
+        status: failure.outcomeUnknown ? 'OUTCOME_UNKNOWN' : 'FAILED',
+        errorCode: failure.errorCode,
+        retryable: failure.retryable,
+      });
+      if (replay) {
+        await this.handleProviderRunReplay(item, replay);
+        return;
+      }
       await this.failOwnedClaim(item, claim, {
         errorCode: failure.errorCode,
         retryable: failure.retryable,
@@ -286,6 +389,17 @@ export class TtsProcessor {
     }
 
     if (signal.aborted) {
+      const replay = await this.persistKnownProviderFailure(
+        item,
+        providerRunId,
+        result,
+        'TTS_PROCESS_ABORTED',
+        true,
+      );
+      if (replay) {
+        await this.handleProviderRunReplay(item, replay);
+        return;
+      }
       await this.failOwnedClaim(item, claim, {
         errorCode: 'TTS_PROCESS_ABORTED',
         retryable: true,
@@ -294,6 +408,17 @@ export class TtsProcessor {
       return;
     }
     if (result.bytes.byteLength === 0) {
+      const replay = await this.persistKnownProviderFailure(
+        item,
+        providerRunId,
+        result,
+        'TTS_PROVIDER_EMPTY_AUDIO',
+        false,
+      );
+      if (replay) {
+        await this.handleProviderRunReplay(item, replay);
+        return;
+      }
       await this.failOwnedClaim(item, claim, {
         errorCode: 'TTS_PROVIDER_EMPTY_AUDIO',
         retryable: false,
@@ -312,6 +437,17 @@ export class TtsProcessor {
         sha256,
       });
     } catch {
+      const replay = await this.persistKnownProviderFailure(
+        item,
+        providerRunId,
+        result,
+        'TTS_AUDIO_STORE_FAILED',
+        true,
+      );
+      if (replay) {
+        await this.handleProviderRunReplay(item, replay);
+        return;
+      }
       await this.failOwnedClaim(item, claim, {
         errorCode: 'TTS_AUDIO_STORE_FAILED',
         retryable: true,
@@ -320,11 +456,35 @@ export class TtsProcessor {
       return;
     }
 
+    const storedMedia: GeneratedTtsMedia = {
+      storageKey: stored.storageKey,
+      mimeType: stored.mimeType,
+      sizeBytes: stored.sizeBytes,
+      sha256: stored.sha256,
+    };
+    if (this.durability) {
+      await this.durability.registerAudioGc({
+        media: storedMedia,
+        registeredAt: this.now(),
+      });
+    }
+
     if (
       stored.mimeType !== result.mimeType ||
       stored.sizeBytes !== result.bytes.byteLength ||
       stored.sha256 !== sha256
     ) {
+      const replay = await this.persistKnownProviderFailure(
+        item,
+        providerRunId,
+        result,
+        'TTS_AUDIO_STORE_METADATA_MISMATCH',
+        true,
+      );
+      if (replay) {
+        await this.handleProviderRunReplay(item, replay);
+        return;
+      }
       await this.failOwnedClaim(item, claim, {
         errorCode: 'TTS_AUDIO_STORE_METADATA_MISMATCH',
         retryable: true,
@@ -334,6 +494,17 @@ export class TtsProcessor {
     }
 
     if (signal.aborted) {
+      const replay = await this.persistKnownProviderFailure(
+        item,
+        providerRunId,
+        result,
+        'TTS_PROCESS_ABORTED',
+        true,
+      );
+      if (replay) {
+        await this.handleProviderRunReplay(item, replay);
+        return;
+      }
       await this.failOwnedClaim(item, claim, {
         errorCode: 'TTS_PROCESS_ABORTED',
         retryable: true,
@@ -342,19 +513,127 @@ export class TtsProcessor {
       return;
     }
 
+    if (
+      providerRunId &&
+      this.durability &&
+      !(await this.durability.succeedProviderRun({
+        runId: providerRunId,
+        ...this.providerAccounting(result),
+        media: storedMedia,
+        finishedAt: this.now(),
+      }))
+    ) {
+      const replay = await this.durability.findProviderRun(item);
+      if (replay) {
+        await this.handleProviderRunReplay(item, replay);
+        return;
+      }
+      await this.failOwnedClaim(item, claim, {
+        errorCode: 'TTS_PROVIDER_OUTCOME_UNKNOWN',
+        retryable: false,
+        resolution: 'OUTCOME_UNKNOWN',
+      });
+      return;
+    }
+
     const completion = await this.repository.succeed({
       kind: 'GENERATED',
       item,
       claimToken: claim.claimToken,
-      media: {
-        storageKey: stored.storageKey,
-        mimeType: stored.mimeType,
-        sizeBytes: stored.sizeBytes,
-        sha256: stored.sha256,
-      },
+      media: storedMedia,
       completedAt: this.now(),
     });
     await this.handleCompletion(item, completion, claim);
+  }
+
+  private providerAccounting(result: TtsProviderResult): {
+    usage: Record<string, number>;
+    estimatedCostUsd: string;
+    providerRequestId: string | null;
+  } {
+    return {
+      usage: result.usage,
+      estimatedCostUsd: result.estimatedCostUsd,
+      providerRequestId: result.providerRequestId,
+    };
+  }
+
+  private persistKnownProviderFailure(
+    item: TtsWorkItem,
+    runId: string | null,
+    result: TtsProviderResult,
+    errorCode: string,
+    retryable: boolean,
+  ): Promise<TtsProviderRunReplay | null> {
+    return this.persistProviderFailure(item, runId, {
+      status: 'FAILED',
+      errorCode,
+      retryable,
+      ...this.providerAccounting(result),
+    });
+  }
+
+  private async persistProviderFailure(
+    item: TtsWorkItem,
+    runId: string | null,
+    failure: {
+      status: 'FAILED' | 'OUTCOME_UNKNOWN';
+      errorCode: string;
+      retryable: boolean;
+      usage?: Record<string, number>;
+      estimatedCostUsd?: string;
+      providerRequestId?: string | null;
+    },
+  ): Promise<TtsProviderRunReplay | null> {
+    if (!runId || !this.durability) return null;
+    if (
+      await this.durability.failProviderRun({
+        ...failure,
+        runId,
+        finishedAt: this.now(),
+      })
+    ) {
+      return null;
+    }
+    return this.durability.findProviderRun(item);
+  }
+
+  private async handleProviderRunReplay(
+    item: TtsWorkItem,
+    replay: TtsProviderRunReplay,
+  ): Promise<void> {
+    if (replay.kind === 'IN_PROGRESS') return;
+    if (replay.kind === 'SUCCEEDED') {
+      await this.durability?.registerAudioGc({
+        media: replay.media,
+        registeredAt: this.now(),
+      });
+      const completion = await this.repository.succeed({
+        kind: 'GENERATED',
+        item,
+        claimToken: replay.cacheClaimToken,
+        media: replay.media,
+        completedAt: this.now(),
+      });
+      await this.handleCompletion(item, completion, {
+        kind: 'GENERATE',
+        claimToken: replay.cacheClaimToken,
+      });
+      return;
+    }
+
+    const outcomeUnknown = replay.kind === 'OUTCOME_UNKNOWN';
+    await this.failOwnedClaim(
+      item,
+      { kind: 'GENERATE', claimToken: replay.cacheClaimToken },
+      {
+        errorCode: outcomeUnknown
+          ? 'TTS_PROVIDER_OUTCOME_UNKNOWN'
+          : replay.errorCode,
+        retryable: outcomeUnknown ? false : replay.retryable,
+        resolution: outcomeUnknown ? 'OUTCOME_UNKNOWN' : 'FAILED',
+      },
+    );
   }
 
   private async waitForAudioClaim(
@@ -407,7 +686,9 @@ export class TtsProcessor {
         errorCode:
           completion.kind === 'STALE_TARGET'
             ? 'TTS_TARGET_STALE'
-            : 'TTS_MEDIA_IMMUTABLE_CONFLICT',
+            : completion.kind === 'AUDIO_DELETED'
+              ? 'TTS_AUDIO_OBJECT_DELETED'
+              : 'TTS_MEDIA_IMMUTABLE_CONFLICT',
         retryable: false,
       },
       claim
@@ -417,7 +698,9 @@ export class TtsProcessor {
             errorCode:
               completion.kind === 'STALE_TARGET'
                 ? 'TTS_TARGET_STALE'
-                : 'TTS_MEDIA_IMMUTABLE_CONFLICT',
+                : completion.kind === 'AUDIO_DELETED'
+                  ? 'TTS_AUDIO_OBJECT_DELETED'
+                  : 'TTS_MEDIA_IMMUTABLE_CONFLICT',
             retryable: false,
           }
         : undefined,

@@ -34,6 +34,17 @@ export interface TtsAudioStore {
   }>;
 }
 
+/** GC worker가 immutable audio object를 검증한 뒤 멱등 삭제하는 storage port */
+export interface TtsAudioGarbageStore {
+  inspect(storageKey: string): Promise<{
+    storageKey: string;
+    mimeType: 'audio/wav';
+    sizeBytes: number;
+    sha256: string;
+  } | null>;
+  delete(storageKey: string): Promise<void>;
+}
+
 /** target revision이 아직 유효할 때만 생성 음성을 원자 연결하는 repository port */
 export interface TtsTargetAttachmentRepository {
   attach(input: {

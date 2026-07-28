@@ -1,5 +1,5 @@
 /** TTS processor의 재사용·동시성·부분 실패와 안전한 공급자 실패를 검증한다 */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/unbound-method -- Vitest asymmetric matchers and interface-owned mock methods are any-typed. */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/unbound-method -- Vitest asymmetric matchers and interface-owned mock methods are any-typed. */
 import { createHash } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import type {
@@ -11,6 +11,7 @@ import type {
 import {
   TtsProcessor,
   UnavailableTtsProvider,
+  type TtsProcessorDurabilityRepository,
   type TtsProcessorRepository,
 } from './tts-processor.js';
 
@@ -220,6 +221,60 @@ class MemoryTtsRepository implements TtsProcessorRepository {
     if (this.failedCount === 0) return Promise.resolve('SUCCEEDED');
     if (this.attachments.length === 0) return Promise.resolve('FAILED');
     return Promise.resolve('PARTIALLY_FAILED');
+  }
+}
+
+class MemoryTtsDurabilityRepository implements TtsProcessorDurabilityRepository {
+  readonly registeredAudio: Array<{
+    storageKey: string;
+    mimeType: 'audio/wav';
+    sizeBytes: number;
+    sha256: string;
+  }> = [];
+  readonly succeededRuns: Parameters<
+    TtsProcessorDurabilityRepository['succeedProviderRun']
+  >[0][] = [];
+  readonly failedRuns: Parameters<
+    TtsProcessorDurabilityRepository['failProviderRun']
+  >[0][] = [];
+  replay: Awaited<
+    ReturnType<TtsProcessorDurabilityRepository['findProviderRun']>
+  > = null;
+  runId = 'provider-run-1';
+
+  findProviderRun(): ReturnType<
+    TtsProcessorDurabilityRepository['findProviderRun']
+  > {
+    return Promise.resolve(this.replay);
+  }
+
+  claimProviderRun(): ReturnType<
+    TtsProcessorDurabilityRepository['claimProviderRun']
+  > {
+    return Promise.resolve({ kind: 'CLAIMED', runId: this.runId });
+  }
+
+  succeedProviderRun(
+    input: Parameters<
+      TtsProcessorDurabilityRepository['succeedProviderRun']
+    >[0],
+  ): ReturnType<TtsProcessorDurabilityRepository['succeedProviderRun']> {
+    this.succeededRuns.push(input);
+    return Promise.resolve(true);
+  }
+
+  failProviderRun(
+    input: Parameters<TtsProcessorDurabilityRepository['failProviderRun']>[0],
+  ): ReturnType<TtsProcessorDurabilityRepository['failProviderRun']> {
+    this.failedRuns.push(input);
+    return Promise.resolve(true);
+  }
+
+  registerAudioGc(
+    input: Parameters<TtsProcessorDurabilityRepository['registerAudioGc']>[0],
+  ): ReturnType<TtsProcessorDurabilityRepository['registerAudioGc']> {
+    this.registeredAudio.push(input.media);
+    return Promise.resolve();
   }
 }
 
@@ -862,12 +917,10 @@ describe('TtsProcessor 실패 격리', () => {
     };
 
     await expect(
-      new TtsProcessor(
-        repository,
-        createProvider(),
-        store,
-        () => now,
-      ).process(jobId, new AbortController().signal),
+      new TtsProcessor(repository, createProvider(), store, () => now).process(
+        jobId,
+        new AbortController().signal,
+      ),
     ).resolves.toBe('FAILED');
     expect(repository.succeeded).toEqual([]);
     expect(repository.failed).toEqual([
@@ -957,12 +1010,14 @@ describe('TtsProcessor 실패 격리', () => {
     const item = workItem('abort-after-store');
     const repository = new MemoryTtsRepository([item]);
     repository.completionByItemId.set(item.itemId, 'STALE_LEASE');
-    let resolveStore!: (value: Awaited<ReturnType<TtsAudioStore['put']>>) => void;
-    const storeResult = new Promise<
-      Awaited<ReturnType<TtsAudioStore['put']>>
-    >((resolve) => {
-      resolveStore = resolve;
-    });
+    let resolveStore!: (
+      value: Awaited<ReturnType<TtsAudioStore['put']>>,
+    ) => void;
+    const storeResult = new Promise<Awaited<ReturnType<TtsAudioStore['put']>>>(
+      (resolve) => {
+        resolveStore = resolve;
+      },
+    );
     const store: TtsAudioStore = { put: vi.fn(() => storeResult) };
     const processing = new TtsProcessor(
       repository,
@@ -1025,6 +1080,172 @@ describe('TtsProcessor 실패 격리', () => {
       expect.objectContaining({
         errorCode: 'TTS_PROVIDER_UNAVAILABLE',
         retryable: false,
+      }),
+    ]);
+  });
+});
+
+describe('TtsProcessor provider run과 orphan audio 내구성', () => {
+  it('provider 호출 전에 run을 claim하고 object 등록 뒤 usage·비용과 storage 결과를 한 번만 닫는다', async () => {
+    const item = workItem('durable-success');
+    const repository = new MemoryTtsRepository([item]);
+    const durability = new MemoryTtsDurabilityRepository();
+    const provider = createProvider();
+
+    await new TtsProcessor(
+      repository,
+      provider,
+      createStore(),
+      () => now,
+      undefined,
+      durability,
+    ).process(jobId, new AbortController().signal);
+
+    expect(provider.synthesize).toHaveBeenCalledOnce();
+    expect(durability.registeredAudio).toEqual([
+      expect.objectContaining({
+        storageKey: `private/tts/${item.cacheKey}.wav`,
+      }),
+    ]);
+    expect(durability.succeededRuns).toEqual([
+      expect.objectContaining({
+        runId: durability.runId,
+        usage: { inputCharacters: 7 },
+        estimatedCostUsd: '0.000000',
+        providerRequestId: 'provider-request',
+        media: expect.objectContaining({
+          storageKey: `private/tts/${item.cacheKey}.wav`,
+        }),
+      }),
+    ]);
+  });
+
+  it('저장된 성공 run은 provider와 put을 재호출하지 않고 storage metadata로 DB 완료를 재개한다', async () => {
+    const item = workItem('durable-replay');
+    const repository = new MemoryTtsRepository([item]);
+    const durability = new MemoryTtsDurabilityRepository();
+    const media = {
+      storageKey: `private/tts/${item.cacheKey}.wav`,
+      mimeType: 'audio/wav' as const,
+      sizeBytes: 4,
+      sha256: 'a'.repeat(64),
+    };
+    durability.replay = {
+      kind: 'SUCCEEDED',
+      runId: durability.runId,
+      cacheClaimToken: `claim-${item.cacheKey}`,
+      usage: { inputCharacters: 7 },
+      estimatedCostUsd: '0.000000',
+      providerRequestId: 'provider-request',
+      media,
+    };
+    repository.generating.add(item.cacheKey);
+    const provider = createProvider();
+    const store = createStore();
+
+    await new TtsProcessor(
+      repository,
+      provider,
+      store,
+      () => now,
+      undefined,
+      durability,
+    ).process(jobId, new AbortController().signal);
+
+    expect(provider.synthesize).not.toHaveBeenCalled();
+    expect(store.put).not.toHaveBeenCalled();
+    expect(repository.succeeded).toEqual([
+      expect.objectContaining({
+        kind: 'GENERATED',
+        claimToken: `claim-${item.cacheKey}`,
+        media,
+      }),
+    ]);
+  });
+
+  it('STARTED crash를 결과 불명으로 replay하면 provider를 다시 호출하지 않는다', async () => {
+    const item = workItem('durable-unknown');
+    const repository = new MemoryTtsRepository([item]);
+    const durability = new MemoryTtsDurabilityRepository();
+    durability.replay = {
+      kind: 'OUTCOME_UNKNOWN',
+      runId: durability.runId,
+      cacheClaimToken: `claim-${item.cacheKey}`,
+    };
+    repository.generating.add(item.cacheKey);
+    const provider = createProvider();
+
+    await new TtsProcessor(
+      repository,
+      provider,
+      createStore(),
+      () => now,
+      undefined,
+      durability,
+    ).process(jobId, new AbortController().signal);
+
+    expect(provider.synthesize).not.toHaveBeenCalled();
+    expect(repository.failed).toEqual([
+      expect.objectContaining({
+        errorCode: 'TTS_PROVIDER_OUTCOME_UNKNOWN',
+        retryable: false,
+        audioClaim: expect.objectContaining({
+          claimToken: `claim-${item.cacheKey}`,
+          resolution: 'OUTCOME_UNKNOWN',
+        }),
+      }),
+    ]);
+  });
+
+  it('object write 뒤 DB 완료가 throw해도 GC 등록과 성공 run은 남겨 redelivery가 재호출하지 않게 한다', async () => {
+    const item = workItem('durable-db-failure');
+    const repository = new MemoryTtsRepository([item]);
+    repository.succeed = vi.fn(() => Promise.reject(new Error('DB_DOWN')));
+    const durability = new MemoryTtsDurabilityRepository();
+    const provider = createProvider();
+
+    await expect(
+      new TtsProcessor(
+        repository,
+        provider,
+        createStore(),
+        () => now,
+        undefined,
+        durability,
+      ).process(jobId, new AbortController().signal),
+    ).rejects.toThrow('DB_DOWN');
+    expect(durability.registeredAudio).toHaveLength(1);
+    expect(durability.succeededRuns).toHaveLength(1);
+  });
+
+  it('known provider 실패도 STARTED run을 먼저 terminal로 닫고 cache·item 실패를 기록한다', async () => {
+    const item = workItem('durable-failure');
+    const repository = new MemoryTtsRepository([item]);
+    const durability = new MemoryTtsDurabilityRepository();
+    const provider = createProvider(() =>
+      Promise.reject(
+        Object.assign(new Error('secret payload'), {
+          code: 'TTS_PROVIDER_RETRYABLE',
+          retryable: true,
+        }),
+      ),
+    );
+
+    await new TtsProcessor(
+      repository,
+      provider,
+      createStore(),
+      () => now,
+      undefined,
+      durability,
+    ).process(jobId, new AbortController().signal);
+
+    expect(durability.failedRuns).toEqual([
+      expect.objectContaining({
+        runId: durability.runId,
+        status: 'FAILED',
+        errorCode: 'TTS_PROVIDER_RETRYABLE',
+        retryable: true,
       }),
     ]);
   });
