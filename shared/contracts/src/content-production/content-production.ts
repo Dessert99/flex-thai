@@ -474,17 +474,42 @@ export const setContentProductionPresetEnabledRequestSchema = z
   })
   .strict();
 
+const contentProductionPresetVersionStateShape = {
+  enabled: z.boolean(),
+  revision: safeNonnegativeIntegerSchema,
+  createdAt: z.string().datetime(),
+};
+
 /** preset version 운영 목록의 공개 row */
-export const contentProductionPresetVersionSchema =
-  contentProductionPresetSchema.and(
+export const contentProductionPresetVersionSchema = z.discriminatedUnion(
+  'purpose',
+  [
     z
       .object({
-        enabled: z.boolean(),
-        revision: safeNonnegativeIntegerSchema,
-        createdAt: z.string().datetime(),
+        ...contentProductionPresetBaseShape,
+        ...contentProductionPresetVersionStateShape,
+        purpose: z.literal('VOCABULARY_EXTRACTION'),
+        parameters: vocabularyExtractionPresetParametersSchema,
       })
       .strict(),
-  );
+    z
+      .object({
+        ...contentProductionPresetBaseShape,
+        ...contentProductionPresetVersionStateShape,
+        purpose: z.literal('QUESTION_GENERATION'),
+        parameters: questionGenerationPresetParametersSchema,
+      })
+      .strict(),
+    z
+      .object({
+        ...contentProductionPresetBaseShape,
+        ...contentProductionPresetVersionStateShape,
+        purpose: z.literal('VOCABULARY_THEN_QUESTION_GENERATION'),
+        parameters: combinedProductionPresetParametersSchema,
+      })
+      .strict(),
+  ],
+);
 
 /** preset version 운영 목록 응답 */
 export const contentProductionPresetVersionListResponseSchema = z

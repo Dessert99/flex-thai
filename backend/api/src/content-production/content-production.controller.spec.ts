@@ -5,7 +5,10 @@ import {
   PATH_METADATA,
 } from '@nestjs/common/constants.js';
 import { describe, expect, it, vi } from 'vitest';
-import { ContentProductionDomainError } from '@flex-thia/domain';
+import {
+  ContentProductionDomainError,
+  ContentProductionPresetError,
+} from '@flex-thia/domain';
 import { AdminMfaGuard } from '../identity/admin-mfa.guard.js';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
 import { CognitoAuthorizerGuard } from '../identity/cognito-authorizer.guard.js';
@@ -19,6 +22,25 @@ const user = {
   role: 'ADMIN',
   mfaEnrolledAt: new Date(),
 } as const;
+
+const questionOptions = {
+  questionCount: 1,
+  questionTypePlan: [
+    {
+      questionTypeVersionId: 'cbb22737-6f3d-4112-bb0e-8e4f005c810b',
+      count: 1,
+    },
+  ],
+  difficultyPlan: [{ difficulty: 1, count: 1 }],
+  targetVocabularyIds: [],
+  requiredVocabularyIds: [],
+  excludedVocabularyIds: [],
+  newAuxiliaryVocabularyLimit: 0,
+  similarityThreshold: 0.7,
+  defaultVoicePresetId: 'a9979e5d-515d-43ab-a380-e88b78513c38',
+  speakerVoiceAssignments: [],
+  additionalInstructionKo: null,
+};
 
 const readHttpCode = (method: keyof ContentProductionController) => {
   const handler = Object.getOwnPropertyDescriptor(
@@ -41,6 +63,10 @@ describe('ContentProductionController 공개 경계', () => {
     ).toBe('ADMIN');
     expect(readHttpCode('createJob')).toBe(202);
     expect(readHttpCode('retryJob')).toBe(202);
+    expect(readHttpCode('previewPrompt')).toBe(200);
+    expect(readHttpCode('createPreset')).toBe(201);
+    expect(readHttpCode('createPresetVersion')).toBe(201);
+    expect(readHttpCode('setPresetEnabled')).toBe(200);
   });
 
   it('작업 상세에서 input key와 내부 result를 공개하지 않는다', async () => {
@@ -54,7 +80,7 @@ describe('ContentProductionController 공개 경계', () => {
         name: '기본 어휘 추출',
         purpose: 'VOCABULARY_EXTRACTION',
         version: 1,
-        parameters: { language: 'th' },
+        parameters: { suspectedDuplicateMaxCodePointDistance: 1 },
       },
       inputs: [
         {
@@ -112,12 +138,42 @@ describe('ContentProductionController 공개 경계', () => {
         purpose: 'QUESTION_GENERATION',
         presetId: 'a9979e5d-515d-43ab-a380-e88b78513c38',
         uploadIds: ['77a1e8ff-7c85-4739-9004-647e12e34b65'],
+        options: questionOptions,
       })
       .catch((caught: unknown) => caught);
 
     expect(error).toMatchObject({
       status: 409,
       response: { code: 'CONTENT_PRODUCTION_IDEMPOTENCY_CONFLICT' },
+    });
+  });
+
+  it('preset optimistic revision 충돌을 stable 409 오류로 바꾼다', async () => {
+    const controller = new ContentProductionController({
+      setPresetEnabled: vi
+        .fn()
+        .mockRejectedValue(
+          new ContentProductionPresetError(
+            'CONTENT_PRODUCTION_PRESET_REVISION_CONFLICT',
+          ),
+        ),
+    } as never);
+
+    const error = await controller
+      .setPresetEnabled(
+        user,
+        { presetId: '405986f9-e552-4ce1-82d6-70a1fc460f96' },
+        {
+          enabled: false,
+          expectedRevision: 0,
+          requestId: 'd9886994-5b49-46ac-bcd5-3f2024b9c1c6',
+        },
+      )
+      .catch((caught: unknown) => caught);
+
+    expect(error).toMatchObject({
+      status: 409,
+      response: { code: 'CONTENT_PRODUCTION_PRESET_REVISION_CONFLICT' },
     });
   });
 });
