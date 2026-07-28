@@ -72,7 +72,9 @@ export interface UpdateOperationsCostSettingsCommand {
 /** API service가 요구하는 settings 저장 adapter */
 export interface OperationsCostSettingsRepositoryPort {
   find(): Promise<OperationsCostSettingsInput>;
-  update(input: UpdateOperationsCostSettingsCommand): Promise<
+  update(
+    input: UpdateOperationsCostSettingsCommand,
+  ): Promise<
     | { kind: 'UPDATED'; settings: OperationsCostSettingsInput }
     | { kind: 'REPLAY'; settings: OperationsCostSettingsInput }
     | { kind: 'CONFLICT' }
@@ -205,7 +207,9 @@ const requestFingerprint = (input: {
 export class UsageCostOperationsService {
   private readonly now: () => Date;
 
-  constructor(private readonly dependencies: UsageCostOperationsServiceDependencies) {
+  constructor(
+    private readonly dependencies: UsageCostOperationsServiceDependencies,
+  ) {
     this.now = dependencies.now ?? (() => new Date());
   }
 
@@ -245,9 +249,9 @@ export class UsageCostOperationsService {
   }
 
   /** ADMIN에게 현재 비용 경고 설정을 반환한다 */
-  async settings(
-    actor: { role: 'ADMIN' | 'LEARNER' },
-  ): Promise<OperationsCostSettingsResult> {
+  async settings(actor: {
+    role: 'ADMIN' | 'LEARNER';
+  }): Promise<OperationsCostSettingsResult> {
     assertAdmin(actor);
     return toSettingsResult(await this.dependencies.settings.find());
   }
@@ -274,9 +278,7 @@ export class UsageCostOperationsService {
       changedAt,
     });
     if (result.kind === 'CONFLICT') {
-      throw new UsageCostOperationsError(
-        'OPERATIONS_COST_SETTINGS_CONFLICT',
-      );
+      throw new UsageCostOperationsError('OPERATIONS_COST_SETTINGS_CONFLICT');
     }
     return toSettingsResult(result.settings);
   }

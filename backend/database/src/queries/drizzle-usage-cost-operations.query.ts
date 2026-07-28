@@ -126,9 +126,7 @@ const currentMonthCostConditions = (range: UsageCostDateRange): SQL =>
   sql`((status = 'STARTED' and started_at >= ${range.from} and started_at < ${range.to}) or (status <> 'STARTED' and finished_at >= ${range.from} and finished_at < ${range.to}))`;
 
 /** AI·TTS 비용 breakdown과 운영 aggregate를 변경 없이 읽는다 */
-export class DrizzleUsageCostOperationsQuery
-  implements UsageCostOperationsQuery
-{
+export class DrizzleUsageCostOperationsQuery implements UsageCostOperationsQuery {
   constructor(private readonly database: SqlExecutor) {}
 
   /** 선택한 기간·filter의 비용과 운영 상태를 함께 반환한다 */
@@ -137,34 +135,39 @@ export class DrizzleUsageCostOperationsQuery
   ): Promise<UsageCostOverviewReadModel> {
     const selectedConditions = runConditions(input, { includeStatus: true });
     const failedConditions = runConditions(input, { includeStatus: false });
-    const [costResult, breakdownResult, inProgressResult, failedResult, pendingResult] =
-      await Promise.all([
-        this.database.execute(sql`${normalizedRuns}
+    const [
+      costResult,
+      breakdownResult,
+      inProgressResult,
+      failedResult,
+      pendingResult,
+    ] = await Promise.all([
+      this.database.execute(sql`${normalizedRuns}
           select coalesce(sum(estimated_cost_usd), 0)::text as estimated_cost_usd
           from normalized_provider_runs where ${selectedConditions}`),
-        this.database.execute(sql`${normalizedRuns}
+      this.database.execute(sql`${normalizedRuns}
           select source, provider, model, voice, count(*)::int as run_count,
             coalesce(sum(estimated_cost_usd), 0)::text as estimated_cost_usd
           from normalized_provider_runs where ${selectedConditions}
           group by source, provider, model, voice
           order by source, provider, model, voice nulls first`),
-        this.database.execute(sql`
+      this.database.execute(sql`
           select (
             (select count(*) from jobs where status in ('QUEUED', 'RUNNING')
               and created_at >= ${input.range.from} and created_at < ${input.range.to}) +
             (select count(*) from tts_jobs where status in ('QUEUED', 'RUNNING')
               and created_at >= ${input.range.from} and created_at < ${input.range.to})
           )::int as in_progress_job_count`),
-        this.database.execute(sql`${normalizedRuns}
+      this.database.execute(sql`${normalizedRuns}
           select count(*)::int as failed_run_count
           from normalized_provider_runs
           where ${failedConditions} and status = 'FAILED'`),
-        this.database.execute(sql`
+      this.database.execute(sql`
           select count(*)::int as pending_review_candidate_count
           from question_production_candidates
           where review_status = 'PENDING'
             and created_at >= ${input.range.from} and created_at < ${input.range.to}`),
-      ]);
+    ]);
     const [cost] = rowsOf(costResult);
     const [inProgress] = rowsOf(inProgressResult);
     const [failed] = rowsOf(failedResult);

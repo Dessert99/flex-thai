@@ -144,7 +144,9 @@ export class DrizzleOperationsCostSettingsRepository {
         .where(eq(operationsCostSettings.id, 1))
         .returning(settingSelection);
       const settings = toRecord(requireSettings(updated));
-      await transaction.insert(auditLogs).values(toAuditLog(input, current, settings));
+      await transaction
+        .insert(auditLogs)
+        .values(toAuditLog(input, current, settings));
       return { kind: 'UPDATED', settings };
     });
   }

@@ -42,7 +42,10 @@ export function usageCostSettingsQueryOptions() {
     queryFn: ({ signal }) =>
       authenticatedRequest({
         path: '/admin/usage-cost/settings',
-        response: { kind: 'json', schema: operationsCostSettingsResponseSchema },
+        response: {
+          kind: 'json',
+          schema: operationsCostSettingsResponseSchema,
+        },
         signal,
       }),
   });

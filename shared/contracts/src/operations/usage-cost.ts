@@ -121,26 +121,25 @@ export const operationsCostSettingsResponseSchema = z
   });
 
 /** 비용 경고 설정의 optimistic·idempotent 변경 요청 */
-export const updateOperationsCostSettingsRequestSchema =
-  z
-    .object({
-      warningUsd: positiveUsdDecimalSchema,
-      criticalUsd: positiveUsdDecimalSchema,
-    })
-    .extend({
-      expectedUpdatedAt: z.iso.datetime(),
-      requestId: z.uuid(),
-    })
-    .strict()
-    .superRefine((value, context) => {
-      if (toMicroUsd(value.warningUsd) >= toMicroUsd(value.criticalUsd)) {
-        context.addIssue({
-          code: 'custom',
-          message: 'warningUsd는 criticalUsd보다 작아야 합니다.',
-          path: ['warningUsd'],
-        });
-      }
-    });
+export const updateOperationsCostSettingsRequestSchema = z
+  .object({
+    warningUsd: positiveUsdDecimalSchema,
+    criticalUsd: positiveUsdDecimalSchema,
+  })
+  .extend({
+    expectedUpdatedAt: z.iso.datetime(),
+    requestId: z.uuid(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (toMicroUsd(value.warningUsd) >= toMicroUsd(value.criticalUsd)) {
+      context.addIssue({
+        code: 'custom',
+        message: 'warningUsd는 criticalUsd보다 작아야 합니다.',
+        path: ['warningUsd'],
+      });
+    }
+  });
 
 /** 사용량·비용 overview filter */
 export type UsageCostOverviewQuery = z.infer<

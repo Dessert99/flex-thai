@@ -89,9 +89,9 @@ describe('UsageCostOperationsService', () => {
     await expect(
       service.overview({ role: 'ADMIN' }, { from: '2026-07-01T00:00:00.000Z' }),
     ).rejects.toEqual(new UsageCostOperationsError('USAGE_COST_RANGE_INVALID'));
-    await expect(
-      service.settings({ role: 'LEARNER' }),
-    ).rejects.toEqual(new UsageCostOperationsError('ADMIN_REQUIRED'));
+    await expect(service.settings({ role: 'LEARNER' })).rejects.toEqual(
+      new UsageCostOperationsError('ADMIN_REQUIRED'),
+    );
   });
 
   it('repository conflict를 settings conflict로 유지한다', async () => {

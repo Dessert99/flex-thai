@@ -67,7 +67,9 @@ describe('사용량·비용 계약', () => {
   });
 
   it('overview에서 안전한 breakdown만 허용한다', () => {
-    expect(() => usageCostOverviewResponseSchema.parse(validOverview)).not.toThrow();
+    expect(() =>
+      usageCostOverviewResponseSchema.parse(validOverview),
+    ).not.toThrow();
     expect(
       usageCostOverviewResponseSchema.safeParse({
         ...validOverview,

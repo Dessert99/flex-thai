@@ -122,7 +122,8 @@ export function UsageCostOperationsPage({
             {overview.data.currentMonthThreshold.estimatedCostUsd} USD
           </p>
           <p className='text-body text-subtle'>
-            경고 상태: <strong>{overview.data.currentMonthThreshold.status}</strong>
+            경고 상태:{' '}
+            <strong>{overview.data.currentMonthThreshold.status}</strong>
           </p>
         </CardContent>
       </Card>
@@ -158,31 +159,41 @@ function UsageCostFilters({
       <CardContent className='grid gap-control md:grid-cols-2 lg:grid-cols-4'>
         <Input
           aria-label='시작 시각'
-          onChange={(event) => onChange({ from: fromDatetimeLocal(event.target.value) })}
+          onChange={(event) =>
+            onChange({ from: fromDatetimeLocal(event.target.value) })
+          }
           type='datetime-local'
           value={toDatetimeLocal(search.from)}
         />
         <Input
           aria-label='종료 시각'
-          onChange={(event) => onChange({ to: fromDatetimeLocal(event.target.value) })}
+          onChange={(event) =>
+            onChange({ to: fromDatetimeLocal(event.target.value) })
+          }
           type='datetime-local'
           value={toDatetimeLocal(search.to)}
         />
         <Input
           aria-label='Provider'
-          onChange={(event) => onChange({ provider: event.target.value || undefined })}
+          onChange={(event) =>
+            onChange({ provider: event.target.value || undefined })
+          }
           placeholder='Provider'
           value={search.provider ?? ''}
         />
         <Input
           aria-label='Model'
-          onChange={(event) => onChange({ model: event.target.value || undefined })}
+          onChange={(event) =>
+            onChange({ model: event.target.value || undefined })
+          }
           placeholder='Model'
           value={search.model ?? ''}
         />
         <Input
           aria-label='Voice'
-          onChange={(event) => onChange({ voice: event.target.value || undefined })}
+          onChange={(event) =>
+            onChange({ voice: event.target.value || undefined })
+          }
           placeholder='Voice'
           value={search.voice ?? ''}
         />
@@ -245,7 +256,9 @@ function BreakdownTable({
       </CardHeader>
       <CardContent>
         {breakdown.length === 0 ? (
-          <p className='text-body text-subtle'>조건에 맞는 실행 기록이 없습니다.</p>
+          <p className='text-body text-subtle'>
+            조건에 맞는 실행 기록이 없습니다.
+          </p>
         ) : (
           <div className='overflow-x-auto'>
             <table className='w-full text-left text-body'>
@@ -261,7 +274,9 @@ function BreakdownTable({
               </thead>
               <tbody>
                 {breakdown.map((item) => (
-                  <tr key={`${item.source}:${item.provider}:${item.model}:${item.voice ?? ''}`}>
+                  <tr
+                    key={`${item.source}:${item.provider}:${item.model}:${item.voice ?? ''}`}
+                  >
                     <td>{item.source}</td>
                     <td>{item.provider}</td>
                     <td>{item.model}</td>
@@ -307,11 +322,20 @@ function SettingsCard({
         <CardTitle className='text-title'>비용 경고 기준</CardTitle>
       </CardHeader>
       <CardContent className='grid gap-control'>
-        {loading ? <p className='text-body text-subtle'>경고 기준을 불러오고 있습니다.</p> : null}
+        {loading ? (
+          <p className='text-body text-subtle'>
+            경고 기준을 불러오고 있습니다.
+          </p>
+        ) : null}
         {error ? (
           <div className='flex items-center gap-control'>
-            <p className='text-body text-subtle'>경고 기준을 불러오지 못했습니다.</p>
-            <Button onClick={onRetry} variant='outline'>
+            <p className='text-body text-subtle'>
+              경고 기준을 불러오지 못했습니다.
+            </p>
+            <Button
+              onClick={onRetry}
+              variant='outline'
+            >
               다시 시도
             </Button>
           </div>

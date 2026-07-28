@@ -52,15 +52,18 @@ const overview = {
 
 describe('사용량·비용 운영 페이지', () => {
   it('현재 월 비용, threshold와 provider/model/voice breakdown을 표시한다', async () => {
-    mocks.authenticatedRequest.mockImplementation(({ path }: { path: string }) =>
-      Promise.resolve(path === '/admin/usage-cost/settings'
-        ? {
-            currency: 'USD',
-            warningUsd: '15.000000',
-            criticalUsd: '24.000000',
-            updatedAt: '2026-07-01T00:00:00.000Z',
-          }
-        : overview),
+    mocks.authenticatedRequest.mockImplementation(
+      ({ path }: { path: string }) =>
+        Promise.resolve(
+          path === '/admin/usage-cost/settings'
+            ? {
+                currency: 'USD',
+                warningUsd: '15.000000',
+                criticalUsd: '24.000000',
+                updatedAt: '2026-07-01T00:00:00.000Z',
+              }
+            : overview,
+        ),
     );
 
     renderWithProviders(
@@ -77,10 +80,11 @@ describe('사용량·비용 운영 페이지', () => {
   });
 
   it('settings 조회 실패가 overview breakdown을 비우지 않는다', async () => {
-    mocks.authenticatedRequest.mockImplementation(({ path }: { path: string }) =>
-      path === '/admin/usage-cost/settings'
-        ? Promise.reject(new Error('settings failed'))
-        : Promise.resolve(overview),
+    mocks.authenticatedRequest.mockImplementation(
+      ({ path }: { path: string }) =>
+        path === '/admin/usage-cost/settings'
+          ? Promise.reject(new Error('settings failed'))
+          : Promise.resolve(overview),
     );
 
     renderWithProviders(
