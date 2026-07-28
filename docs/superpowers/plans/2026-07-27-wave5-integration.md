@@ -25,8 +25,9 @@
   best-effort queue send 구현은 금지한다.
 - provider success 전후 crash에서도 TTS usage/cost를 중복 계상하지 않도록
   item attempt별 provider-run claim/outcome을 멱등 저장한다.
-- object store write 뒤 DB 완료 실패는 참조 확인형 GC record 또는 동등한
-  lifecycle cleanup으로 수렴해야 한다.
+- object store write 뒤 DB 완료 실패는 참조 확인형 GC record로 수렴해야
+  한다. 정상 `private/tts/runs/` object에는 expiration lifecycle을 두지
+  않고, S3 lifecycle은 incomplete multipart upload 중단에만 사용한다.
 
 ---
 
@@ -260,9 +261,10 @@ interface GeneratedDraftSentenceInput
 - Modify worker media task/runtime files or create
   `backend/worker/src/media/tts-task.ts`
 - Modify provider/runtime factories used by local and production modes
-- Create/Modify: TTS dispatch outbox schema, repository and relay under
-  `backend/database/src/schema`, `backend/database/src/repositories/tts`,
-  `backend/worker/src/media`
+- Create/Modify: shared async dispatch outbox schema, repository and relay under
+  `backend/database/src/schema`, `backend/database/src/repositories/content-production`,
+  `backend/worker/src/content-production`; payload kinds are
+  `CONTENT_PRODUCTION` and `TTS`
 - Create/Modify: TTS provider-run schema/repository under the same TTS
   database feature
 - Create/Modify: unreferenced audio GC record/repository and worker cleanup task
@@ -278,6 +280,9 @@ interface GeneratedDraftSentenceInput
 - Generated draft approval atomically writes target snapshots, TTS job/items and
   a durable dispatch outbox record. Request replay creates neither a second job
   nor a second outbox record.
+- Question candidate regeneration atomically applies candidate/item/job state,
+  audit and a `CONTENT_PRODUCTION` outbox row before returning 202. Request
+  replay creates neither a second attempt nor a second outbox row.
 - `TtsRetryCoordinator.retryAndDispatch` atomically applies optimistic retry and
   writes an outbox record. A relay claims outbox rows with lease/redelivery and
   marks delivery only after queue acceptance.
@@ -303,6 +308,10 @@ interface GeneratedDraftSentenceInput
 
   - first approval → nullable-audio DRAFT + one TTS job + one outbox row
   - approval request replay → same job, no duplicate outbox
+  - question regeneration → candidate/item/job/audit + one content-production
+    outbox row in one transaction
+  - question regeneration replay → same attempt, no duplicate outbox
+  - question regeneration outbox-writer failure rolls back every state change
   - retry transition + outbox insert rollback together
   - dispatch failure leaves an undelivered outbox row and relay redelivery
   - duplicate relay delivery does not duplicate provider calls or usage/cost
@@ -319,8 +328,9 @@ interface GeneratedDraftSentenceInput
 
   Keep external provider unavailable path explicit. Do not add provider package,
   model ID or credential. Use the shared database transaction for initial
-  approval/job/outbox and retry/outbox. Queue send and object delete remain
-  relay side effects after commit.
+  approval/job/outbox, question regeneration/outbox and retry/outbox. A shared
+  leased relay dispatches both payload kinds after commit. Queue send and object
+  delete remain relay side effects after commit.
 
 - [ ] **Step 6: Verify and commit**
 
@@ -338,6 +348,24 @@ interface GeneratedDraftSentenceInput
 - Modify/create feature module files under `backend/api/src/content-production`
   and `backend/api/src/media`
 - Modify/Test: `backend/api/src/openapi/openapi.spec.ts`
+- Create/Test: `backend/providers/src/aws/sqs-async-dispatch.queue.ts`
+- Create/Test: `backend/providers/src/storage/s3-tts-audio.store.ts`
+- Create/Test: `backend/providers/src/storage/local-file-media-read.provider.ts`
+- Modify/Test: `backend/config/src/api-env.ts`
+- Create/Test: `backend/api/src/media/local-media.controller.ts`
+- Modify/Test: `backend/api/src/media/media.module.ts`
+- Modify/Test: `backend/worker/src/dispatch/async-dispatch-relay-task.ts`
+- Modify/Test: `backend/worker/src/media/tts-entry-runtime.ts`
+- Create/Test: `backend/worker/src/local-worker.ts`
+- Modify/Test: `backend/worker/package.json`
+- Modify: `pnpm-lock.yaml`
+- Modify/Test: `compose.yaml`
+- Modify/Test: `backend/config/src/local-compose.spec.ts`
+- Modify/Test: `infra/src/constructs/async-jobs.ts`
+- Modify/Test: `infra/test/async-jobs.spec.ts`
+- Modify/Test: `infra/src/application-stack.ts`
+- Modify/Test: `infra/src/data-stack.ts`
+- Modify/Test: `infra/test/data-stack.spec.ts`
 - Modify/Test: `infra/src/constructs/http-api.ts`
 - Modify/Test: `infra/test/http-api.spec.ts`
 
@@ -345,29 +373,84 @@ interface GeneratedDraftSentenceInput
 
 - Registers question candidate and TTS operation controllers
 - Protects every new route with ADMIN + enrolled MFA
+- Creates separate CONTENT_PRODUCTION and TTS queues with DLQ/event-source
+  mappings; TTS event source enables `ReportBatchItemFailures`
+- Injects concrete queue-acceptance senders into the production relay and grants
+  only the matching `sqs:SendMessage` permissions
+- Schedules bounded relay drain and TTS audio GC invocations with retry-safe
+  concurrency and grants their DB access
+- Replaces production `UnavailableTtsAudioStore` with private S3 put,
+  metadata-inspect and reference-safe delete; the adapter must preserve
+  reserved storage keys and recompute the bytes SHA-256 before I/O. Abort and
+  deadline are pre-dispatch admission checks only. After dispatch, ambiguous
+  transport/abort/5xx outcomes retry the same conditional PUT with bounded
+  backoff until success or a 412 plus exact/conflicting Head is definitive;
+  process termination and redelivery are safer than a rejected call that may
+  leave a visible object. Never delete a concurrent writer's object.
+- Grants task/GC only required media-bucket object permissions, including
+  GC-only bucket listing restricted to `private/tts/runs/*`. Reference-safe DB
+  GC owns orphan cleanup; lifecycle only aborts incomplete multipart uploads
+  and never expires final run objects or exposes storage keys through HTTP
+- Requires an explicit production `TTS_VOICE_PRESET_ID` through API and CDK
+  configuration. Only local mode may use the deterministic development default;
+  Task 8 owns bootstrapping the referenced active production row before traffic.
+- Replaces local `FakeMediaReadUrlProvider` with a local-only short-lived HMAC
+  URL provider and `GET /local-media/:objectId`; the controller reads the
+  object-id-mapped WAV from the exact
+  `FLEX_THIA_LOCAL_TTS_AUDIO_DIRECTORY`, rejects expired/invalid tokens and
+  never exposes the private storage key
+- Uses one named compose volume mounted at the same absolute local TTS
+  directory for API and one long-running, signal-aware worker process. The
+  worker continuously polls relay work and periodically runs GC; host execution
+  keeps the project-specific env override or the
+  `tmpdir()/flex-thia/tts-audio` default.
 
 - [ ] **Step 1: Write failing DI tests**
 
   AppModule resolves both feature modules in local and production configuration.
+  Production worker composition must resolve two concrete queue acceptance
+  adapters and a concrete TTS audio store; `Unavailable*` adapters are a test
+  failure in configured production.
+  Local API composition must resolve the filesystem media URL/reader pair
+  instead of `FakeMediaReadUrlProvider`; its generated URL must use the local
+  API origin rather than `fake-media.invalid`.
 
 - [ ] **Step 2: Write failing OpenAPI/infra exact route tests**
 
   Add every GET/POST/DELETE candidate and TTS route with status 200/202/204,
   validation 400, auth 401/403, missing 404 and conflict 409 as applicable.
+  CDK assertions must cover both queues/DLQs, TTS partial-batch event source,
+  relay and GC schedules, queue URLs, least-privilege send/consume IAM,
+  media-bucket put/get-head/delete permissions, prefix-scoped GC listing,
+  incomplete multipart cleanup and the absence of final-run expiration.
+  Local component tests must put through `LocalFileTtsAudioStore`, fetch the
+  returned short-lived URL through the controller, compare exact WAV bytes and
+  prove expired/tampered object IDs return 404 without leaking storage keys.
+  Compose assertions must prove API and the single local worker mount the same
+  named volume and directory env value, and the worker command stays running
+  until SIGINT/SIGTERM instead of importing one-shot Lambda modules. The
+  `test` profile must include that runner so the standard local manual-test
+  command does not omit relay and GC automation.
+  The worker package must directly declare the `tsx` executable used by compose
+  so a frozen fresh workspace can resolve the command.
 
 - [ ] **Step 3: Run Red**
 
   Run:
-  `pnpm exec vitest run backend/api/src/app.module.spec.ts backend/api/src/openapi/openapi.spec.ts infra/test/http-api.spec.ts`
+  `pnpm exec vitest run backend/api/src/app.module.spec.ts backend/api/src/openapi/openapi.spec.ts backend/providers/src/aws/sqs-async-dispatch.queue.spec.ts backend/providers/src/storage/s3-tts-audio.store.spec.ts backend/worker/src/dispatch/async-dispatch-runtime.spec.ts backend/worker/src/media/tts-entry-runtime.spec.ts infra/test/http-api.spec.ts infra/test/async-jobs.spec.ts infra/test/data-stack.spec.ts`
 
 - [ ] **Step 4: Implement modules and routes**
 
   Do not expose provider raw data or private storage keys. Gateway protected path
-  list and OpenAPI path list must match.
+  list and OpenAPI path list must match. Production is not runtime-ready until
+  the relay queue senders, queue/schedule event sources, S3 TTS store,
+  reference-safe GC, incomplete multipart cleanup and exact IAM grants are all
+  synthesized and asserted.
 
 - [ ] **Step 5: Verify and commit**
 
-  Run Red command plus API/infra typechecks.
+  Run Red command plus API/worker/providers/infra typechecks and synth. Assert
+  the worker build still emits exactly six Lambda bundles.
 
   Commit:
   `git commit -m "feat(api): integrate Wave 5 operations"`
@@ -381,14 +464,30 @@ interface GeneratedDraftSentenceInput
 - Modify: `backend/database/drizzle/meta/_journal.json`
 - Modify: `backend/database/seed/local.sql`
 - Modify/Test: `backend/database/src/commands/local-seed.spec.ts`
+- Create/Test:
+  `backend/database/src/operations/bootstrap-tts-voice-preset.ts`
+- Create/Test:
+  `backend/database/src/commands/bootstrap-tts-voice-preset.ts`
+- Modify/Test: `backend/database/package.json`
 - Create/Test: `backend/database/src/schema/wave5-integration.schema.spec.ts`
 
 **Interfaces:**
 
 - Migration includes AI question tables, TTS tables and nullable sentence media
-- Migration also includes TTS dispatch outbox, provider runs and audio GC records
+- Migration also includes shared async dispatch outbox, TTS provider runs,
+  audio GC records, and nullable/check-constrained redacted AI candidate columns
 - Seed includes deterministic active type examples, voice preset and TTS-ready
   local fixtures
+- Operational bootstrap must insert and activate the production voice preset
+  row whose UUID is passed as `TTS_VOICE_PRESET_ID` before API traffic. The
+  local deterministic preset is not a production fallback.
+- The production bootstrap command requires
+  `TTS_VOICE_PRESET_ID`, `TTS_VOICE_PRESET_NAME`, `TTS_PROVIDER_NAME`,
+  `TTS_PROVIDER_MODEL`, `TTS_PROVIDER_VOICE` and
+  `TTS_GENERATION_REVISION`. It creates the exact enabled row through the Data
+  API, treats an exact replay as success, and rejects an existing UUID or
+  `(name, generationRevision)` with different immutable fields. It never stores
+  credentials or changes a preset already referenced by a job.
 
 - [ ] **Step 1: Generate migration from combined schema**
 
@@ -410,15 +509,23 @@ interface GeneratedDraftSentenceInput
   Required type versions have criteria/examples. Voice preset references only
   deterministic local provider. Existing local learner/admin fixtures remain.
 
-- [ ] **Step 4: Adjust generated SQL only for safe ordering/backfill**
+- [ ] **Step 4: Write failing production voice bootstrap tests**
+
+  Parse the six required production values without defaults. Prove a missing
+  value fails before opening a client, a new exact row is enabled, an exact
+  replay succeeds, and conflicting immutable fields fail without update. The
+  command uses the existing Data API connection variables and is exposed as
+  `pnpm --filter @flex-thia/database db:bootstrap:tts-voice:data-api`.
+
+- [ ] **Step 5: Adjust generated SQL only for safe ordering/backfill**
 
   Preserve generated snapshot. Move/backfill statements only when PostgreSQL
   requires index/FK order. Do not create multiple Wave 5 migrations.
 
-- [ ] **Step 5: Verify and commit**
+- [ ] **Step 6: Verify and commit**
 
   Run:
-  `pnpm exec vitest run backend/database/src/schema/wave5-integration.schema.spec.ts backend/database/src/commands/local-seed.spec.ts`
+  `pnpm exec vitest run backend/database/src/schema/wave5-integration.schema.spec.ts backend/database/src/commands/local-seed.spec.ts backend/database/src/commands/bootstrap-tts-voice-preset.spec.ts`
 
   Commit:
   `git commit -m "feat(database): migrate Wave 5 production"`
@@ -456,6 +563,8 @@ interface GeneratedDraftSentenceInput
 
   - two-connection cache claim and media/cache/item/attachment rollback
   - initial approval/job/outbox atomicity and request replay
+  - question regeneration state/audit/outbox atomicity, request replay,
+    writer-failure rollback and relay redelivery
   - retry/outbox rollback, lease/redelivery and duplicate delivery
   - provider-run usage/cost exact-once persistence across replay
   - object GC registration and reference-safe deletion

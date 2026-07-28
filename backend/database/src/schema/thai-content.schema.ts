@@ -50,9 +50,9 @@ export const thaiSentenceVersions = pgTable(
     translationKo: text('translation_ko').notNull(),
     pronunciationKo: text('pronunciation_ko').notNull(),
     toneMarks: text('tone_marks').notNull(),
-    mediaAssetId: uuid('media_asset_id')
-      .references(() => mediaAssets.id, { onDelete: 'restrict' })
-      .notNull(),
+    mediaAssetId: uuid('media_asset_id').references(() => mediaAssets.id, {
+      onDelete: 'restrict',
+    }),
     frozenAt: timestamp('frozen_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()

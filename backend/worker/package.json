@@ -12,10 +12,12 @@
     "@aws-sdk/client-secrets-manager": "^3.900.0",
     "@aws-sdk/client-sfn": "^3.900.0",
     "@flex-thia/database": "workspace:*",
-    "@flex-thia/domain": "workspace:*"
+    "@flex-thia/domain": "workspace:*",
+    "@flex-thia/providers": "workspace:*"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.0",
-    "esbuild": "^0.25.0"
+    "esbuild": "^0.25.0",
+    "tsx": "^4.20.0"
   }
 }

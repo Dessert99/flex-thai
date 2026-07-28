@@ -18,6 +18,12 @@ import {
 } from '../identity/cognito-authorizer.guard.js';
 import { ContentProductionController } from './content-production.controller.js';
 import { ContentProductionApplicationService } from './content-production.service.js';
+import { QuestionCandidateController } from './question-production.controller.js';
+import {
+  QuestionCandidateApplicationService,
+  type QuestionCandidateReadRepository,
+  type QuestionCandidateReviewOperations,
+} from './question-production.service.js';
 
 /** 환경별 콘텐츠 제작 adapter를 주입하기 위한 module 옵션 */
 export interface ContentProductionModuleOptions {
@@ -25,6 +31,8 @@ export interface ContentProductionModuleOptions {
   uploadPolicies: UploadPolicyService;
   presets: ContentProductionPresetCatalog;
   contentProduction: ContentProductionService;
+  questionCandidates: QuestionCandidateReadRepository;
+  questionCandidateReview: QuestionCandidateReviewOperations;
   users: IdentityUserRepository;
   authorizer: AuthorizerGuardOptions;
 }
@@ -36,7 +44,7 @@ export class ContentProductionModule {
   static register(options: ContentProductionModuleOptions): DynamicModule {
     return {
       module: ContentProductionModule,
-      controllers: [ContentProductionController],
+      controllers: [ContentProductionController, QuestionCandidateController],
       providers: [
         {
           provide: ContentProductionApplicationService,
@@ -45,6 +53,13 @@ export class ContentProductionModule {
             options.presets,
             options.contentProduction,
             options.uploadPolicies,
+          ),
+        },
+        {
+          provide: QuestionCandidateApplicationService,
+          useValue: new QuestionCandidateApplicationService(
+            options.questionCandidates,
+            options.questionCandidateReview,
           ),
         },
         { provide: IDENTITY_USER_REPOSITORY, useValue: options.users },

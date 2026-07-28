@@ -167,7 +167,7 @@ export class DrizzleConceptErrorReportTargetLookup implements ConceptErrorReport
         originalText: thaiSentenceVersions.originalText,
         translationKo: thaiSentenceVersions.translationKo,
         pronunciationKo: thaiSentenceVersions.pronunciationKo,
-        mediaAssetId: thaiSentenceVersions.mediaAssetId,
+        mediaAssetId: mediaAssets.id,
       })
       .from(conceptBlockExamples)
       .innerJoin(
@@ -210,7 +210,8 @@ export class DrizzleConceptErrorReportTargetLookup implements ConceptErrorReport
         asc(conceptBlockExamples.position),
       )
       .limit(1);
-    return rows[0] ?? null;
+    const row = rows[0];
+    return row?.mediaAssetId ? row : null;
   }
 
   private buildConceptTarget(

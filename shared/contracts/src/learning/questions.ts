@@ -1,5 +1,6 @@
 /** 학습자 문제 조회·답안 제출의 정답 비노출 공개 JSON 계약을 정의한다 */
 import { z } from 'zod';
+import { questionMajorCategorySchema } from '../questions/question-major-category.js';
 import { publicThaiSentenceSchema } from '../thai-content/sentences.js';
 
 const uuidSchema = z.uuid();
@@ -32,6 +33,8 @@ const pageQueryShape = {
 
 const questionSkillSchema = z.enum(['READING', 'LISTENING']);
 const firstResultSchema = z.enum(['CORRECT', 'INCORRECT', 'UNANSWERED']);
+/** 문제 목록의 현재 지원 정렬 기준 */
+export const questionListSortSchema = z.enum(['LATEST']);
 const questionTemplateSchema = z.enum([
   'STANDARD_CHOICE',
   'PASSAGE_CHOICE',
@@ -56,6 +59,40 @@ const questionTypeSchema = z
     id: uuidSchema,
     slug: z.string().min(1),
     displayName: z.string().min(1),
+  })
+  .strict();
+
+/** 학습자 문제 검색에서만 공개하는 주제·태그 요약 */
+export const questionTaxonomyTermSchema = z
+  .object({
+    id: uuidSchema,
+    slug: z.string().min(1),
+    displayName: z.string().min(1),
+  })
+  .strict();
+
+const questionListFacetsSchema = z
+  .object({
+    majorCategories: z.array(
+      z
+        .object({
+          value: questionMajorCategorySchema,
+          label: z.string().min(1),
+        })
+        .strict(),
+    ),
+    questionTypes: z.array(
+      z
+        .object({
+          id: uuidSchema,
+          slug: z.string().min(1),
+          displayName: z.string().min(1),
+          majorCategory: questionMajorCategorySchema,
+        })
+        .strict(),
+    ),
+    topics: z.array(questionTaxonomyTermSchema),
+    tags: z.array(questionTaxonomyTermSchema),
   })
   .strict();
 
@@ -132,10 +169,14 @@ export const pageMetadataSchema = z
 export const questionListQuerySchema = z
   .object({
     skill: questionSkillSchema.optional(),
+    majorCategory: questionMajorCategorySchema.optional(),
     questionTypeId: uuidSchema.optional(),
+    topicId: uuidSchema.optional(),
+    tagId: uuidSchema.optional(),
     difficulty: httpIntegerSchema(1, 5).optional(),
     saved: httpBooleanSchema.optional(),
     firstResult: firstResultSchema.optional(),
+    sort: questionListSortSchema.default('LATEST'),
     ...pageQueryShape,
   })
   .strict();
@@ -153,11 +194,21 @@ export const questionListItemSchema = z
   })
   .strict();
 
+/** 문제 탐색 목록에 대분류·주제·태그를 더한 정답 없는 문제 요약 */
+export const questionDiscoveryListItemSchema = questionListItemSchema
+  .extend({
+    majorCategory: questionMajorCategorySchema,
+    topic: questionTaxonomyTermSchema,
+    tags: z.array(questionTaxonomyTermSchema),
+  })
+  .strict();
+
 /** 현재 게시 문제의 정답 없는 페이지 응답 */
 export const questionListResponseSchema = z
   .object({
-    items: z.array(questionListItemSchema),
+    items: z.array(questionDiscoveryListItemSchema),
     page: pageMetadataSchema,
+    facets: questionListFacetsSchema,
   })
   .strict();
 
@@ -257,11 +308,25 @@ export const questionIdPathSchema = z
 /** 검증된 문제 목록 query type */
 export type QuestionListQuery = z.infer<typeof questionListQuerySchema>;
 
+/** 검증된 문제 목록 정렬 기준 type */
+export type QuestionListSort = z.infer<typeof questionListSortSchema>;
+
+/** 직렬화 가능한 학습자 공개 taxonomy term type */
+export type QuestionTaxonomyTerm = z.infer<typeof questionTaxonomyTermSchema>;
+
+/** 직렬화 가능한 문제 목록 필터 선택지 type */
+export type QuestionListFacets = z.infer<typeof questionListFacetsSchema>;
+
 /** 직렬화 가능한 공통 페이지 metadata type */
 export type PageMetadata = z.infer<typeof pageMetadataSchema>;
 
 /** 직렬화 가능한 정답 없는 문제 요약 type */
 export type QuestionListItem = z.infer<typeof questionListItemSchema>;
+
+/** 직렬화 가능한 문제 탐색 전용 문제 요약 type */
+export type QuestionDiscoveryListItem = z.infer<
+  typeof questionDiscoveryListItemSchema
+>;
 
 /** 직렬화 가능한 문제 목록 응답 type */
 export type QuestionListResponse = z.infer<typeof questionListResponseSchema>;

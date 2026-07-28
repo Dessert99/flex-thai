@@ -8,10 +8,12 @@ import type {
   QuestionAdminVersionSource,
 } from './question-admin.repository.js';
 import {
+  assertGeneratedDraftSentenceInput,
   QuestionAdminError,
   QuestionAdminService,
   type ReplaceQuestionVersionCommand,
 } from './question-admin.js';
+import type { GeneratedDraftSentenceInput } from '../content-import/content-import.js';
 
 const occurredAt = new Date('2026-07-24T00:00:00.000Z');
 const generatedIds = Array.from(
@@ -412,6 +414,17 @@ describe('QuestionAdminService 문제 버전 복제', () => {
 });
 
 describe('QuestionAdminService 문제 버전 전체 교체', () => {
+  it('내부 생성 DRAFT 문장은 TTS 전 mediaAssetId null을 허용한다', () => {
+    const generatedSentence: GeneratedDraftSentenceInput = {
+      ...replaceCommand().input.blocks[0]!.sentences[0]!.sentence,
+      mediaAssetId: null,
+    };
+
+    expect(() =>
+      assertGeneratedDraftSentenceInput(generatedSentence, 'sentence'),
+    ).not.toThrow();
+  });
+
   it('DRAFT의 canonical payload를 새 sentence graph로 교체하고 검증을 초기화한다', async () => {
     const calls: string[] = [];
     let replaced: QuestionAdminVersionGraph | undefined;
@@ -629,6 +642,23 @@ describe('QuestionAdminService 문제 버전 전체 교체', () => {
       path: 'blocks.0.sentences.0.sentence.mediaAssetId',
     });
     expect(calls).not.toContain('replaceVersion');
+  });
+
+  it('관리자 교체 문장에서 mediaAssetId를 생략하면 DB 호출 전에 거절한다', async () => {
+    const calls: string[] = [];
+    const command = replaceCommand();
+    delete (
+      command.input.blocks[0]!.sentences[0]!.sentence as unknown as Partial<
+        (typeof command.input.blocks)[number]['sentences'][number]['sentence']
+      >
+    ).mediaAssetId;
+    const service = createService(createTransaction(calls), calls);
+
+    await expect(service.replaceVersion(command)).rejects.toMatchObject({
+      code: 'QUESTION_CONTENT_INVALID',
+      path: 'blocks.0.sentences.0.sentence',
+    });
+    expect(calls).toEqual([]);
   });
 
   it('clientRef 콘텐츠 참조는 import 문맥으로 추측하지 않고 거절한다', async () => {

@@ -28,6 +28,12 @@ export * from './repositories/drizzle-upload.repository.js';
 /** 관리자 audio media transaction repository를 공개한다 */
 export * from './repositories/drizzle-media-admin.repository.js';
 
+/** 자동 TTS 작업·cache transaction repository를 공개한다 */
+export * from './repositories/tts/drizzle-tts.repository.js';
+
+/** TTS provider 실행 exact-once와 orphan audio GC 저장소를 공개한다 */
+export * from './repositories/tts/drizzle-tts-durability.repository.js';
+
 /** canonical 콘텐츠 draft transaction repository를 공개한다 */
 export * from './repositories/drizzle-content-draft.repository.js';
 
@@ -66,6 +72,9 @@ export * from './repositories/drizzle-vocabulary-practice.repository.js';
 
 /** 관리자 media 상태와 발음·문장 사용처 read model을 공개한다 */
 export * from './queries/drizzle-admin-media.query.js';
+
+/** 자동 TTS 작업·항목 운영 read model을 공개한다 */
+export * from './queries/drizzle-tts-operations.query.js';
 
 /** 전체 관리자 콘텐츠 가져오기 이력 read model을 공개한다 */
 export * from './queries/drizzle-content-import.query.js';
@@ -120,3 +129,33 @@ export * from './repositories/content-production/drizzle-ai-vocabulary-productio
 
 /** AI 어휘 제작용 exact·의심 중복 조회 adapter를 공개한다 */
 export * from './queries/drizzle-vocabulary-production.lookup.js';
+
+/** AI 문제 후보·검증·승인 transaction adapter를 공개한다 */
+export * from './repositories/content-production/drizzle-ai-question-production.repository.js';
+
+/** AI 문제 생성 prompt context read model을 공개한다 */
+export * from './queries/drizzle-question-production-context.query.js';
+
+/** 현재 게시 문제의 결정적 유사도 lookup을 공개한다 */
+export * from './queries/drizzle-published-question-similarity.lookup.js';
+
+/** AI 문제 후보 운영 목록·상세 read model을 공개한다 */
+export * from './queries/drizzle-question-candidate.query.js';
+
+/** 생성 문제의 nullable-audio DRAFT graph writer를 공개한다 */
+export * from './repositories/content-production/drizzle-generated-question-draft.repository.js';
+
+/** 생성 문제 승인 transaction의 초기 TTS scheduler를 공개한다 */
+export * from './repositories/content-production/drizzle-generated-question-tts.scheduler.js';
+
+/** 콘텐츠 제작·TTS 공용 durable outbox writer와 lease repository를 공개한다 */
+export * from './repositories/dispatch/drizzle-async-dispatch-outbox.repository.js';
+
+/** TTS 성공 transaction의 immutable target attachment writer를 공개한다 */
+export * from './repositories/tts/drizzle-tts-target-attachment.repository.js';
+
+/** 문제 게시 전 필수 TTS target readiness query를 공개한다 */
+export * from './queries/drizzle-content-tts-readiness.query.js';
+
+/** TTS retry 상태와 durable dispatch를 원자화하는 coordinator를 공개한다 */
+export * from './repositories/tts/drizzle-tts-retry-coordinator.js';

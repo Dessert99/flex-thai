@@ -7,6 +7,7 @@ const localMediaDefaults = {
   MEDIA_KEY_PAIR_ID: 'local-fake-key-pair',
   MEDIA_PRIVATE_KEY_SECRET_ARN: 'local-fake-media-secret',
 } as const;
+const localTtsVoicePresetId = '00000000-0000-4000-8000-000000000001';
 
 const apiEnvSchema = z
   .object({
@@ -30,6 +31,18 @@ const apiEnvSchema = z
     CUSTOM_AUTH_SECRET_ARN: z.string().optional(),
     INPUT_BUCKET_NAME: z.string().optional(),
     JOB_QUEUE_URL: z.string().optional(),
+    TTS_VOICE_PRESET_ID: z.uuid().optional(),
+    FLEX_THIA_LOCAL_TTS_AUDIO_DIRECTORY: z.string().trim().min(1).optional(),
+    FLEX_THIA_LOCAL_API_ORIGIN: z
+      .url()
+      .refine((value) => new URL(value).protocol === 'http:', {
+        message: 'local API origin은 HTTP URL이어야 합니다',
+      })
+      .default('http://localhost:3000'),
+    FLEX_THIA_LOCAL_MEDIA_HMAC_SECRET: z
+      .string()
+      .min(32)
+      .default('local-only-media-read-hmac-secret'),
     CHALLENGE_HMAC_PEPPER: z
       .string()
       .min(32)
@@ -62,6 +75,14 @@ const apiEnvSchema = z
     }
 
     if (value.NODE_ENV === 'production') {
+      if (!value.TTS_VOICE_PRESET_ID) {
+        context.addIssue({
+          code: 'custom',
+          path: ['TTS_VOICE_PRESET_ID'],
+          message: 'production TTS_VOICE_PRESET_ID가 누락되었습니다',
+        });
+      }
+
       if (value.DATABASE_MODE === 'local') {
         context.addIssue({
           code: 'custom',
@@ -135,6 +156,9 @@ const apiEnvSchema = z
   })
   .transform((value) => ({
     ...value,
+    TTS_VOICE_PRESET_ID: value.TTS_VOICE_PRESET_ID ?? localTtsVoicePresetId,
+    FLEX_THIA_LOCAL_TTS_AUDIO_DIRECTORY:
+      value.FLEX_THIA_LOCAL_TTS_AUDIO_DIRECTORY,
     MEDIA_CDN_BASE_URL:
       value.MEDIA_CDN_BASE_URL ?? localMediaDefaults.MEDIA_CDN_BASE_URL,
     MEDIA_BUCKET_NAME:

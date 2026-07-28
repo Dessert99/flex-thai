@@ -29,6 +29,10 @@ const ACTIVE_PATHS = [
   '/api/v1/admin/content-production/jobs/{jobId}',
   '/api/v1/admin/content-production/jobs/{jobId}/retry',
   '/api/v1/admin/content-production/presets',
+  '/api/v1/admin/content-production/question-candidates',
+  '/api/v1/admin/content-production/question-candidates/{candidateId}',
+  '/api/v1/admin/content-production/question-candidates/{candidateId}/approve',
+  '/api/v1/admin/content-production/question-candidates/{candidateId}/regenerate',
   '/api/v1/admin/content-production/uploads/policies',
   '/api/v1/admin/content-production/uploads/{uploadId}/complete',
   '/api/v1/admin/audit-logs',
@@ -41,6 +45,10 @@ const ACTIVE_PATHS = [
   '/api/v1/admin/questions/{questionId}/hide',
   '/api/v1/admin/questions/{questionId}/restore',
   '/api/v1/admin/questions/{questionId}/versions',
+  '/api/v1/admin/tts/items/{itemId}/retry',
+  '/api/v1/admin/tts/jobs',
+  '/api/v1/admin/tts/jobs/{jobId}',
+  '/api/v1/admin/tts/jobs/{jobId}/retry',
   '/api/v1/admin/question-versions/{versionId}',
   '/api/v1/admin/question-versions/{versionId}/invalidate',
   '/api/v1/admin/question-versions/{versionId}/publish',
@@ -451,6 +459,75 @@ const expectProtectedOpenApiOperations = (
 };
 
 const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
+  {
+    method: 'get',
+    path: '/api/v1/admin/content-production/question-candidates',
+    query: ['jobItemId', 'resultGroup', 'reviewStatus', 'page', 'pageSize'],
+    success: ['200', 'QuestionCandidateListResponseDto'],
+    errors: ['400', '401', '403', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/admin/content-production/question-candidates/{candidateId}',
+    pathParameters: ['candidateId'],
+    success: ['200', 'QuestionCandidateDetailResponseDto'],
+    errors: ['400', '401', '403', '404', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/content-production/question-candidates/{candidateId}/approve',
+    pathParameters: ['candidateId'],
+    body: 'ApproveQuestionCandidateRequestDto',
+    success: ['200', 'ApproveQuestionCandidateResponseDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'delete',
+    path: '/api/v1/admin/content-production/question-candidates/{candidateId}',
+    pathParameters: ['candidateId'],
+    body: 'DiscardQuestionCandidateRequestDto',
+    success: ['204'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/content-production/question-candidates/{candidateId}/regenerate',
+    pathParameters: ['candidateId'],
+    body: 'RegenerateQuestionCandidateRequestDto',
+    success: ['202', 'RegenerateQuestionCandidateResponseDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/admin/tts/jobs',
+    query: ['status', 'from', 'to', 'page', 'pageSize'],
+    success: ['200', 'TtsJobListResponseDto'],
+    errors: ['400', '401', '403', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/admin/tts/jobs/{jobId}',
+    pathParameters: ['jobId'],
+    query: ['status', 'errorCode', 'page', 'pageSize'],
+    success: ['200', 'TtsJobDetailResponseDto'],
+    errors: ['400', '401', '403', '404', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/tts/jobs/{jobId}/retry',
+    pathParameters: ['jobId'],
+    body: 'RetryTtsJobRequestDto',
+    success: ['202', 'TtsRetryResponseDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/tts/items/{itemId}/retry',
+    pathParameters: ['itemId'],
+    body: 'RetryTtsItemRequestDto',
+    success: ['202', 'TtsRetryResponseDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
   {
     method: 'get',
     path: '/api/v1/admin/audit-logs',
@@ -1014,10 +1091,14 @@ const LEARNER_OPERATIONS: readonly LearnerOperationExpectation[] = [
     path: '/api/v1/questions',
     query: [
       'skill',
+      'majorCategory',
       'questionTypeId',
+      'topicId',
+      'tagId',
       'difficulty',
       'saved',
       'firstResult',
+      'sort',
       'page',
       'pageSize',
     ],
@@ -1186,7 +1267,7 @@ describe('OpenAPI 문서', () => {
     await app?.close();
   });
 
-  it('현재 활성 endpoint의 서로 다른 path 일흔아홉 개만 공개한다', () => {
+  it('현재 활성 endpoint의 서로 다른 path 백두 개만 공개한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
@@ -1449,12 +1530,12 @@ describe('OpenAPI 문서', () => {
     expectProtectedOpenApiOperations(document, LEARNER_OPERATIONS);
   });
 
-  it('관리자 operation 예순다섯 개의 입력·성공·Bearer·오류 계약을 모두 고정한다', () => {
+  it('관리자 operation 일흔네 개의 입력·성공·Bearer·오류 계약을 모두 고정한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
 
-    expect(ADMIN_OPERATIONS).toHaveLength(65);
+    expect(ADMIN_OPERATIONS).toHaveLength(74);
     expectProtectedOpenApiOperations(document, ADMIN_OPERATIONS);
   });
 

@@ -57,8 +57,12 @@ export class ApplicationStack extends Stack {
       jobStarterEntry: `${workerRoot}job-starter.ts`,
       foundationEntry: `${workerRoot}content-production-task.ts`,
       failureMarkerEntry: `${workerRoot}content-production-failure-marker.ts`,
+      ttsTaskEntry: `${workerRoot}media/tts-task-entry.ts`,
+      relayEntry: `${workerRoot}dispatch/async-dispatch-relay-task.ts`,
+      ttsAudioGcEntry: `${workerRoot}media/tts-audio-gc-task.ts`,
       cluster: props.dataStack.cluster,
       clusterSecret: props.dataStack.clusterSecret,
+      mediaBucket: props.dataStack.mediaBucket,
     });
     const apiAssetPath = fileURLToPath(
       new URL('../../backend/api/dist/', import.meta.url),
@@ -78,6 +82,7 @@ export class ApplicationStack extends Stack {
       fromEmail: `no-reply@${props.config.rootDomain}`,
       inputBucket: props.dataStack.inputBucket,
       jobQueue: this.asyncJobs.queue,
+      ttsVoicePresetId: props.config.ttsVoicePresetId,
       mediaBucket: props.dataStack.mediaBucket,
       mediaCdnBaseUrl: `https://${webDomain}/media`,
       mediaKeyPairId: props.mediaKeyPairId,

@@ -10,6 +10,9 @@ export * from './aws/sns-sms.sender.js';
 /** SQS Job queue adapter를 production 조립 경계에 노출한다 */
 export * from './aws/sqs-job.queue.js';
 
+/** shared outbox의 목적지별 SQS 수락 adapter를 공개한다 */
+export * from './aws/sqs-async-dispatch.queue.js';
+
 /** challenge HMAC adapter를 공개한다 */
 export * from './crypto/challenge-crypto.js';
 
@@ -31,6 +34,18 @@ export * from './storage/cloudfront-media-read-url.provider.js';
 /** private audio S3 upload와 hash inspection adapter를 공개한다 */
 export * from './storage/audio-upload.provider.js';
 
+/** TTS object storage 미구성 production fail-closed adapter를 공개한다 */
+export * from './storage/unavailable-tts-audio.store.js';
+
+/** process 간 공유 가능한 local filesystem TTS audio store를 공개한다 */
+export * from './storage/local-file-tts-audio.store.js';
+
+/** local filesystem TTS object의 HMAC 읽기 adapter를 공개한다 */
+export * from './storage/local-file-media-read.provider.js';
+
+/** production private S3 TTS object store를 공개한다 */
+export * from './storage/s3-tts-audio.store.js';
+
 /** 검증된 S3 콘텐츠 제작 입력 reader를 공개한다 */
 export * from './storage/s3-content-production-input.reader.js';
 
@@ -51,3 +66,15 @@ export * from './fakes/fake-vocabulary-extraction.provider.js';
 
 /** AI 어휘 제작의 local 교차 검증 provider를 공개한다 */
 export * from './fakes/fake-vocabulary-cross-validation.provider.js';
+
+/** AI 문제 제작의 local 생성 provider를 공개한다 */
+export * from './fakes/fake-question-generation.provider.js';
+
+/** AI 문제 제작의 local 교차 검증 provider를 공개한다 */
+export * from './fakes/fake-question-cross-validation.provider.js';
+
+/** 외부 호출 없이 결정적인 WAV를 만드는 TTS provider를 공개한다 */
+export * from './fakes/deterministic-tts.provider.js';
+
+/** 자동 TTS object 저장소를 메모리에서 검증하는 fake를 공개한다 */
+export * from './fakes/fake-tts-audio.store.js';

@@ -305,6 +305,18 @@ describe('QuestionVersion 문제 버전 게시 검증', () => {
     });
   });
 
+  it('생성 DRAFT 문장 음성이 아직 없으면 게시 검증을 실패한다', () => {
+    const input = candidate();
+    const sentence = requireOptionSentence(input);
+    sentence.input.mediaAssetId = null;
+    sentence.mediaAsset = null;
+
+    expect(validateQuestionVersion(input).issues).toContainEqual({
+      path: 'options.0.sentence.mediaAsset',
+      code: 'MEDIA_ASSET_NOT_READY',
+    });
+  });
+
   it('발음 음성 중 READY가 아닌 자산이 있으면 게시 검증을 실패한다', () => {
     const input = candidate();
     requireOptionSentence(input).pronunciationMediaAssets = [

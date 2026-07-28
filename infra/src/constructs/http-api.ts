@@ -33,6 +33,7 @@ export interface HttpApiProps {
   fromEmail: string;
   inputBucket: s3.IBucket;
   jobQueue: sqs.IQueue;
+  ttsVoicePresetId: string;
   mediaBucket: s3.IBucket;
   mediaCdnBaseUrl: string;
   mediaKeyPairId: string;
@@ -76,6 +77,7 @@ export class HttpApi extends Construct {
         COGNITO_CLIENT_ID: props.userPoolClient.userPoolClientId,
         INPUT_BUCKET_NAME: props.inputBucket.bucketName,
         JOB_QUEUE_URL: props.jobQueue.queueUrl,
+        TTS_VOICE_PRESET_ID: props.ttsVoicePresetId,
         CHALLENGE_HMAC_PEPPER_SECRET_ARN: props.challengeHmacPepper.secretArn,
         CUSTOM_AUTH_SECRET_ARN: props.customAuthSecret.secretArn,
         SCHOOL_EMAIL_DOMAINS: props.allowedEmailDomains,
@@ -251,6 +253,26 @@ export class HttpApi extends Construct {
         '/api/v1/admin/content-production/jobs/{jobId}/retry',
       ],
       [
+        apigwv2.HttpMethod.GET,
+        '/api/v1/admin/content-production/question-candidates',
+      ],
+      [
+        apigwv2.HttpMethod.GET,
+        '/api/v1/admin/content-production/question-candidates/{candidateId}',
+      ],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/content-production/question-candidates/{candidateId}/approve',
+      ],
+      [
+        apigwv2.HttpMethod.DELETE,
+        '/api/v1/admin/content-production/question-candidates/{candidateId}',
+      ],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/content-production/question-candidates/{candidateId}/regenerate',
+      ],
+      [
         apigwv2.HttpMethod.POST,
         '/api/v1/admin/media-assets/audio-upload-requests',
       ],
@@ -281,6 +303,10 @@ export class HttpApi extends Construct {
         '/api/v1/admin/question-versions/{versionId}/invalidate',
       ],
       [apigwv2.HttpMethod.GET, '/api/v1/admin/question-taxonomy'],
+      [apigwv2.HttpMethod.GET, '/api/v1/admin/tts/jobs'],
+      [apigwv2.HttpMethod.GET, '/api/v1/admin/tts/jobs/{jobId}'],
+      [apigwv2.HttpMethod.POST, '/api/v1/admin/tts/jobs/{jobId}/retry'],
+      [apigwv2.HttpMethod.POST, '/api/v1/admin/tts/items/{itemId}/retry'],
       [apigwv2.HttpMethod.POST, '/api/v1/admin/question-types'],
       [
         apigwv2.HttpMethod.POST,

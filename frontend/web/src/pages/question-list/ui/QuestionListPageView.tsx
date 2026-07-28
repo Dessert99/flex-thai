@@ -1,5 +1,8 @@
 /** 문제 목록의 로딩·빈 결과·오류·페이지 상태를 접근 가능한 UI로 표현한다 */
-import type { QuestionListResponse } from '@flex-thia/contracts';
+import type {
+  QuestionListFacets,
+  QuestionListResponse,
+} from '@flex-thia/contracts';
 import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
@@ -20,6 +23,14 @@ interface QuestionListPageViewProps {
   onRetry: () => void;
   search: QuestionListSearch;
 }
+
+// 목록 조회 전에도 동일한 비활성 taxonomy 필터 틀을 유지한다.
+const emptyQuestionListFacets: QuestionListFacets = {
+  majorCategories: [],
+  questionTypes: [],
+  tags: [],
+  topics: [],
+};
 
 /** URL 필터와 서버 페이지 결과를 별도 클라이언트 목록 없이 렌더링한다 */
 export function QuestionListPageView({
@@ -48,20 +59,33 @@ export function QuestionListPageView({
           영역과 난이도, 풀이 상태로 문제를 찾아보세요.
         </p>
       </header>
-      <QuestionFilters
-        onChange={onFilterChange}
-        onReset={onResetFilters}
-        search={search}
-      />
-      {renderQuestionState({
-        data,
-        error,
-        loading,
-        onPageChange,
-        onResetFilters,
-        onRetry,
-        search,
-      })}
+      <div className='grid gap-section md:grid-cols-[18rem_minmax(0,1fr)] md:items-start'>
+        <aside
+          aria-label='문제 필터'
+          className='min-w-collapsible'
+        >
+          <QuestionFilters
+            facets={data?.facets ?? emptyQuestionListFacets}
+            onChange={onFilterChange}
+            onReset={onResetFilters}
+            search={search}
+          />
+        </aside>
+        <section
+          aria-label='문제 목록 결과'
+          className='min-w-collapsible'
+        >
+          {renderQuestionState({
+            data,
+            error,
+            loading,
+            onPageChange,
+            onResetFilters,
+            onRetry,
+            search,
+          })}
+        </section>
+      </div>
     </section>
   );
 }
@@ -91,6 +115,20 @@ function renderQuestionState({
   }
 
   return (
+    <QuestionResults
+      data={data}
+      onPageChange={onPageChange}
+    />
+  );
+}
+
+function QuestionResults({
+  data,
+  onPageChange,
+}: Pick<QuestionListPageViewProps, 'data' | 'onPageChange'> & {
+  data: QuestionListResponse;
+}) {
+  return (
     <>
       <ul className='grid gap-cluster'>
         {data.items.map((question) => (
@@ -102,15 +140,39 @@ function renderQuestionState({
                     {question.questionType.displayName}
                   </a>
                 </CardTitle>
+                <p className='text-body text-subtle'>
+                  대분류:{' '}
+                  {data.facets.majorCategories.find(
+                    (category) => category.value === question.majorCategory,
+                  )?.label ?? '대분류 정보 없음'}
+                </p>
               </CardHeader>
               <CardContent className='flex flex-wrap gap-cluster'>
                 <Badge variant='secondary'>
                   {question.skill === 'READING' ? '읽기' : '듣기'}
                 </Badge>
+                <Badge variant='outline'>
+                  세부 유형: {question.questionType.displayName}
+                </Badge>
+                <Badge variant='outline'>
+                  주제: {question.topic.displayName}
+                </Badge>
                 <Badge variant='outline'>난이도 {question.difficulty}</Badge>
                 <Badge variant='outline'>
                   {toFirstResultLabel(question.firstResult)}
                 </Badge>
+                {question.tags.length > 0 ? (
+                  <ul
+                    aria-label='태그'
+                    className='flex flex-wrap gap-cluster'
+                  >
+                    {question.tags.map((tag) => (
+                      <li key={tag.id}>
+                        <Badge variant='secondary'>{tag.displayName}</Badge>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
               </CardContent>
             </Card>
           </li>

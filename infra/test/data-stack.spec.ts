@@ -1,7 +1,7 @@
 /** DataStack이 public DB와 고정 NAT 비용을 만들지 않게 고정한다 */
 import { App } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
-import { describe, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { DataStack } from '../src/data-stack.js';
 
 describe('DataStack', () => {
@@ -68,6 +68,45 @@ describe('DataStack', () => {
           }),
         ]),
       },
+    });
+  });
+
+  it('Media bucket은 final TTS run을 만료하지 않고 incomplete multipart만 중단한다', () => {
+    const template = Template.fromStack(new DataStack(new App(), 'TestData'));
+
+    template.hasResourceProperties('AWS::S3::Bucket', {
+      LifecycleConfiguration: {
+        Rules: Match.arrayWith([
+          Match.objectLike({
+            AbortIncompleteMultipartUpload: {
+              DaysAfterInitiation: 1,
+            },
+            Prefix: 'private/tts/runs/',
+            Status: 'Enabled',
+          }),
+        ]),
+      },
+    });
+    const buckets = Object.values(
+      template.findResources('AWS::S3::Bucket') as Record<
+        string,
+        {
+          Properties?: {
+            LifecycleConfiguration?: {
+              Rules?: Array<{ Prefix?: string; ExpirationInDays?: number }>;
+            };
+          };
+        }
+      >,
+    );
+    const runRules = buckets.flatMap(
+      ({ Properties }) =>
+        Properties?.LifecycleConfiguration?.Rules?.filter(
+          ({ Prefix }) => Prefix === 'private/tts/runs/',
+        ) ?? [],
+    );
+    runRules.forEach((rule) => {
+      expect(rule).not.toHaveProperty('ExpirationInDays');
     });
   });
 

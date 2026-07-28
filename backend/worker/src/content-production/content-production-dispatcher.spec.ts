@@ -2,6 +2,7 @@
 import { CONTENT_PRODUCTION_ITEM_LEASE_MS } from '@flex-thia/domain';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  createContentProductionProcessorRouter,
   createContentProductionDispatcher,
   type ContentProductionWorkerRepository,
 } from './content-production-dispatcher.js';
@@ -524,5 +525,82 @@ describe('콘텐츠 제작 dispatcher', () => {
     expect(signal.aborted).toBe(true);
     expect(finishItem).not.toHaveBeenCalled();
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe('콘텐츠 제작 processor routing', () => {
+  it('연결 작업의 어휘와 문제 항목을 operation별 processor에 exact work item으로 전달한다', async () => {
+    const vocabularyProcess = vi.fn().mockResolvedValue({
+      status: 'SUCCEEDED',
+      retryable: false,
+      errorCode: null,
+    });
+    const questionProcess = vi.fn().mockResolvedValue({
+      status: 'NEEDS_ATTENTION',
+      retryable: false,
+      errorCode: 'NO_QUESTION_CANDIDATES',
+    });
+    const router = createContentProductionProcessorRouter({
+      vocabulary: { process: vocabularyProcess },
+      question: { process: questionProcess },
+    });
+    const vocabularyItem = {
+      jobId: 'job-id',
+      jobAttempt: 0,
+      requestedBy: 'admin-id',
+      purpose: 'VOCABULARY_THEN_QUESTION_GENERATION' as const,
+      presetSnapshot: {
+        id: 'preset-id',
+        name: '연결 작업',
+        purpose: 'VOCABULARY_THEN_QUESTION_GENERATION' as const,
+        version: 1,
+        parameters: {},
+      },
+      input: {
+        jobInputId: 'job-input-id',
+        ordinal: 0,
+        uploadId: 'upload-id',
+        inputType: 'TEXT' as const,
+        inputKey: 'private/input.txt',
+        sizeBytes: 3,
+      },
+      item: {
+        id: 'vocabulary-item',
+        sourceRef: 'input:0:vocabulary',
+        jobInputId: 'job-input-id',
+        operation: 'VOCABULARY_EXTRACTION' as const,
+        status: 'PROCESSING' as const,
+        attempt: 0,
+        retryable: false,
+        errorCode: null,
+        leaseToken: 'vocabulary-lease',
+        leaseUntil: new Date('2026-07-27T00:05:00.000Z'),
+      },
+    };
+    const questionItem = {
+      ...vocabularyItem,
+      item: {
+        ...vocabularyItem.item,
+        id: 'question-item',
+        sourceRef: 'input:0:question',
+        operation: 'QUESTION_GENERATION' as const,
+        leaseToken: 'question-lease',
+      },
+    };
+    const signal = new AbortController().signal;
+
+    await expect(router.process(vocabularyItem, signal)).resolves.toMatchObject(
+      {
+        status: 'SUCCEEDED',
+      },
+    );
+    await expect(router.process(questionItem, signal)).resolves.toMatchObject({
+      status: 'NEEDS_ATTENTION',
+    });
+
+    expect(vocabularyProcess).toHaveBeenCalledWith(vocabularyItem, signal);
+    expect(questionProcess).toHaveBeenCalledWith(questionItem, signal);
+    expect(vocabularyProcess).toHaveBeenCalledOnce();
+    expect(questionProcess).toHaveBeenCalledOnce();
   });
 });

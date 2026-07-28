@@ -19,4 +19,24 @@ describe('로컬 compose 인증 설정', () => {
       'EMAIL_LINK_CONFIRMATION_URL: http://localhost:5173/login/confirm',
     );
   });
+
+  it('API와 단일 worker runner가 같은 TTS media volume과 절대 directory를 사용한다', () => {
+    const compose = readFileSync(
+      fileURLToPath(new URL('../../../compose.yaml', import.meta.url)),
+      'utf8',
+    );
+
+    expect(compose).toContain(
+      'FLEX_THIA_LOCAL_TTS_AUDIO_DIRECTORY: /var/lib/flex-thia/tts-audio',
+    );
+    expect(
+      compose.match(/tts-audio:\/var\/lib\/flex-thia\/tts-audio/gu),
+    ).toHaveLength(2);
+    expect(compose).toContain('src/local-worker.ts');
+    expect(compose).toContain('profiles: [test, workers]');
+    expect(compose).not.toContain('async-dispatch-relay:');
+    expect(compose).not.toContain('tts-task:');
+    expect(compose).not.toContain('tts-audio-gc:');
+    expect(compose).toContain('flex-thia-tts-audio:');
+  });
 });

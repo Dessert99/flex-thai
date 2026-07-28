@@ -83,6 +83,12 @@ export * from './media/media-admin.repository.js';
 /** 관리자 음성 업로드 요청·완료 use case를 공개한다 */
 export * from './media/media-admin.service.js';
 
+/** 자동 TTS 작업 lifecycle과 immutable snapshot 타입을 공개한다 */
+export * from './media/tts-job.js';
+
+/** 자동 TTS 공급자와 음성 저장소 port를 공개한다 */
+export * from './media/tts-provider.js';
+
 /** 태국어 문장 버전의 Unicode offset·표현·동결 규칙을 공개한다 */
 export * from './thai-content/thai-sentence-version.js';
 

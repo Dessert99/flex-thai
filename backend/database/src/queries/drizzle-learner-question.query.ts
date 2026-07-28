@@ -1,4 +1,5 @@
-/** 현재 게시 문제와 append-only 풀이 기록을 정답 노출 없이 읽는다 */
+/** 현재 게시 문제와 append-only 풀이 기록을 정답 노출 없이 탐색한다 */
+import type { QuestionMajorCategory } from '@flex-thia/domain';
 import {
   and,
   asc,
@@ -21,9 +22,12 @@ import {
   questionBlocks,
   questionBlockSentences,
   questionOptions,
+  questionTags,
+  questionTopics,
   questions,
   questionTypes,
   questionTypeVersions,
+  questionVersionTags,
   questionVersions,
   savedQuestions,
   thaiSentenceVersions,
@@ -43,10 +47,14 @@ export type LearnerQuestionFirstResult = 'CORRECT' | 'INCORRECT' | 'UNANSWERED';
 /** database query가 소비하는 검증 완료 문제 목록 조건 */
 export interface LearnerQuestionListQuery {
   skill?: LearnerQuestionSkill;
+  majorCategory?: QuestionMajorCategory;
   questionTypeId?: string;
+  topicId?: string;
+  tagId?: string;
   difficulty?: number;
   saved?: boolean;
   firstResult?: LearnerQuestionFirstResult;
+  sort: 'LATEST';
   page: number;
   pageSize: number;
 }
@@ -72,11 +80,21 @@ export interface LearnerQuestionTypeProjection {
   displayName: string;
 }
 
+/** 현재 게시 문제에 고정된 주제·태그의 내부 projection */
+export interface LearnerQuestionTaxonomyTermProjection {
+  id: string;
+  slug: string;
+  displayName: string;
+}
+
 /** 현재 게시 문제 목록 한 건의 내부 projection */
 export interface LearnerQuestionListItemProjection {
   questionId: string;
   questionVersionId: string;
   questionType: LearnerQuestionTypeProjection;
+  majorCategory: QuestionMajorCategory;
+  topic: LearnerQuestionTaxonomyTermProjection;
+  tags: LearnerQuestionTaxonomyTermProjection[];
   skill: LearnerQuestionSkill;
   difficulty: number;
   saved: boolean;
@@ -87,6 +105,21 @@ export interface LearnerQuestionListItemProjection {
 export interface LearnerQuestionListProjection {
   items: LearnerQuestionListItemProjection[];
   page: LearnerQuestionPageMetadata;
+}
+
+/** 현재 공개 문제에서 실제 선택 가능한 탐색 filter projection */
+export interface LearnerQuestionListFacetsProjection {
+  majorCategories: Array<{
+    value: QuestionMajorCategory;
+    label: string;
+  }>;
+  questionTypes: Array<
+    LearnerQuestionTypeProjection & {
+      majorCategory: QuestionMajorCategory;
+    }
+  >;
+  topics: LearnerQuestionTaxonomyTermProjection[];
+  tags: LearnerQuestionTaxonomyTermProjection[];
 }
 
 /** private media key를 API mapper에만 전달하는 내부 projection */
@@ -223,6 +256,16 @@ const comparePosition = (
   right: { position: number },
 ): number => left.position - right.position;
 
+const questionMajorCategoryLabels = {
+  LISTENING_RESPONSE: '반응 테스트',
+  LISTENING_DIALOGUE: '대화문',
+  LISTENING_PASSAGE: '설명문',
+  READING_VOCABULARY_GRAMMAR: '어휘·문법',
+  READING_SYNONYM_RELATION: '동의·유의 관계',
+  READING_ERROR_IDENTIFICATION: '비문 찾기',
+  READING_PASSAGE: '지문 독해',
+} as const satisfies Record<QuestionMajorCategory, string>;
+
 const compareExpressionPosition = (
   left: {
     occurrenceId: string;
@@ -258,6 +301,120 @@ const requireSentence = (
 export class DrizzleLearnerQuestionQuery {
   constructor(private readonly database: LearnerQuestionDatabase) {}
 
+  /** 현재 공개 버전에서 실제 사용되는 taxonomy facet만 안정 순서로 반환한다 */
+  async listQuestionFacets(): Promise<LearnerQuestionListFacetsProjection> {
+    const publicCurrentQuestionVersions = this.database
+      .$with('public_current_question_versions')
+      .as(
+        this.database
+          .select({
+            questionVersionId: questionVersions.id,
+            questionTypeId: questionTypeVersions.questionTypeId,
+            majorCategory: questionTypes.majorCategory,
+            topicId: questionVersions.topicId,
+          })
+          .from(questions)
+          .innerJoin(
+            questionVersions,
+            and(
+              eq(questionVersions.questionId, questions.id),
+              eq(questionVersions.id, questions.currentPublishedVersionId),
+            ),
+          )
+          .innerJoin(
+            questionTypeVersions,
+            eq(questionVersions.typeVersionId, questionTypeVersions.id),
+          )
+          .innerJoin(
+            questionTypes,
+            eq(questionTypeVersions.questionTypeId, questionTypes.id),
+          )
+          .where(
+            and(
+              eq(questions.status, 'PUBLISHED'),
+              eq(questionVersions.status, 'PUBLISHED'),
+            ),
+          ),
+      );
+    const categoryOrder = sql<number>`case ${publicCurrentQuestionVersions.majorCategory}
+      when 'LISTENING_RESPONSE' then 1
+      when 'LISTENING_DIALOGUE' then 2
+      when 'LISTENING_PASSAGE' then 3
+      when 'READING_VOCABULARY_GRAMMAR' then 4
+      when 'READING_SYNONYM_RELATION' then 5
+      when 'READING_ERROR_IDENTIFICATION' then 6
+      when 'READING_PASSAGE' then 7
+    end`;
+    const [majorCategoryRows, questionTypeRows, topicRows, tagRows] =
+      await Promise.all([
+        this.database
+          .with(publicCurrentQuestionVersions)
+          .selectDistinct({
+            majorCategory: publicCurrentQuestionVersions.majorCategory,
+            sortRank: categoryOrder,
+          })
+          .from(publicCurrentQuestionVersions)
+          .orderBy(categoryOrder),
+        this.database
+          .with(publicCurrentQuestionVersions)
+          .selectDistinct({
+            id: questionTypes.id,
+            slug: questionTypes.slug,
+            displayName: questionTypes.displayName,
+            majorCategory: questionTypes.majorCategory,
+          })
+          .from(questionTypes)
+          .innerJoin(
+            publicCurrentQuestionVersions,
+            eq(questionTypes.id, publicCurrentQuestionVersions.questionTypeId),
+          )
+          .orderBy(asc(questionTypes.displayName), asc(questionTypes.id)),
+        this.database
+          .with(publicCurrentQuestionVersions)
+          .selectDistinct({
+            id: questionTopics.id,
+            slug: questionTopics.slug,
+            displayName: questionTopics.displayName,
+          })
+          .from(questionTopics)
+          .innerJoin(
+            publicCurrentQuestionVersions,
+            eq(questionTopics.id, publicCurrentQuestionVersions.topicId),
+          )
+          .orderBy(asc(questionTopics.displayName), asc(questionTopics.id)),
+        this.database
+          .with(publicCurrentQuestionVersions)
+          .selectDistinct({
+            id: questionTags.id,
+            slug: questionTags.slug,
+            displayName: questionTags.displayName,
+          })
+          .from(questionVersionTags)
+          .innerJoin(
+            publicCurrentQuestionVersions,
+            eq(
+              questionVersionTags.questionVersionId,
+              publicCurrentQuestionVersions.questionVersionId,
+            ),
+          )
+          .innerJoin(
+            questionTags,
+            eq(questionVersionTags.tagId, questionTags.id),
+          )
+          .orderBy(asc(questionTags.displayName), asc(questionTags.id)),
+      ]);
+
+    return {
+      majorCategories: majorCategoryRows.map(({ majorCategory }) => ({
+        value: majorCategory,
+        label: questionMajorCategoryLabels[majorCategory],
+      })),
+      questionTypes: questionTypeRows,
+      topics: topicRows,
+      tags: tagRows,
+    };
+  }
+
   /** 현재 게시 문제만 first-result와 저장 상태까지 계산해 page로 반환한다 */
   async listQuestions(
     userId: string,
@@ -283,8 +440,22 @@ export class DrizzleLearnerQuestionQuery {
     if (query.skill !== undefined) {
       conditions.push(eq(questionTypes.skill, query.skill));
     }
+    if (query.majorCategory !== undefined) {
+      conditions.push(eq(questionTypes.majorCategory, query.majorCategory));
+    }
     if (query.questionTypeId !== undefined) {
       conditions.push(eq(questionTypes.id, query.questionTypeId));
+    }
+    if (query.topicId !== undefined) {
+      conditions.push(eq(questionVersions.topicId, query.topicId));
+    }
+    if (query.tagId !== undefined) {
+      // 태그 다대다 join이 목록 row와 count를 늘리지 않도록 상관 EXISTS를 사용
+      conditions.push(sql`exists (
+        select 1 from ${questionVersionTags}
+        where ${questionVersionTags.questionVersionId} = ${questionVersions.id}
+          and ${questionVersionTags.tagId} = ${query.tagId}
+      )`);
     }
     if (query.difficulty !== undefined) {
       conditions.push(eq(questionVersions.difficulty, query.difficulty));
@@ -318,6 +489,10 @@ export class DrizzleLearnerQuestionQuery {
         questionTypes,
         eq(questionTypeVersions.questionTypeId, questionTypes.id),
       )
+      .innerJoin(
+        questionTopics,
+        eq(questionVersions.topicId, questionTopics.id),
+      )
       .leftJoin(
         savedQuestions,
         and(
@@ -349,6 +524,10 @@ export class DrizzleLearnerQuestionQuery {
         questionTypeId: questionTypes.id,
         questionTypeSlug: questionTypes.slug,
         questionTypeDisplayName: questionTypes.displayName,
+        majorCategory: questionTypes.majorCategory,
+        topicId: questionTopics.id,
+        topicSlug: questionTopics.slug,
+        topicDisplayName: questionTopics.displayName,
         skill: questionTypes.skill,
         difficulty: questionVersions.difficulty,
         saved,
@@ -369,6 +548,10 @@ export class DrizzleLearnerQuestionQuery {
       .innerJoin(
         questionTypes,
         eq(questionTypeVersions.questionTypeId, questionTypes.id),
+      )
+      .innerJoin(
+        questionTopics,
+        eq(questionVersions.topicId, questionTopics.id),
       )
       .leftJoin(
         savedQuestions,
@@ -393,9 +576,50 @@ export class DrizzleLearnerQuestionQuery {
         ),
       )
       .where(and(...conditions))
-      .orderBy(asc(questions.id))
+      .orderBy(desc(questionVersions.publishedAt), desc(questions.id))
       .limit(query.pageSize)
       .offset((query.page - 1) * query.pageSize);
+
+    const questionVersionIds = rows.map((row) => row.questionVersionId);
+    const tagRows =
+      questionVersionIds.length === 0
+        ? []
+        : await this.database
+            .select({
+              questionVersionId: questionVersionTags.questionVersionId,
+              tagId: questionTags.id,
+              tagSlug: questionTags.slug,
+              tagDisplayName: questionTags.displayName,
+            })
+            .from(questionVersionTags)
+            .innerJoin(
+              questionTags,
+              eq(questionVersionTags.tagId, questionTags.id),
+            )
+            .where(
+              inArray(
+                questionVersionTags.questionVersionId,
+                questionVersionIds,
+              ),
+            )
+            .orderBy(
+              asc(questionVersionTags.questionVersionId),
+              asc(questionTags.slug),
+              asc(questionTags.id),
+            );
+    const tagsByQuestionVersionId = new Map<
+      string,
+      LearnerQuestionTaxonomyTermProjection[]
+    >();
+    for (const tag of tagRows) {
+      const tags = tagsByQuestionVersionId.get(tag.questionVersionId) ?? [];
+      tags.push({
+        id: tag.tagId,
+        slug: tag.tagSlug,
+        displayName: tag.tagDisplayName,
+      });
+      tagsByQuestionVersionId.set(tag.questionVersionId, tags);
+    }
 
     return {
       items: rows.map((row) => ({
@@ -406,6 +630,13 @@ export class DrizzleLearnerQuestionQuery {
           slug: row.questionTypeSlug,
           displayName: row.questionTypeDisplayName,
         },
+        majorCategory: row.majorCategory,
+        topic: {
+          id: row.topicId,
+          slug: row.topicSlug,
+          displayName: row.topicDisplayName,
+        },
+        tags: tagsByQuestionVersionId.get(row.questionVersionId) ?? [],
         skill: row.skill,
         difficulty: row.difficulty,
         saved: row.saved,

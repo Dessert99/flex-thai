@@ -86,6 +86,19 @@ insert into media_assets (
     'UPLOADING',
     null,
     '2026-07-01T00:00:00Z'
+  ),
+  (
+    '00000000-0000-4000-8000-000000000013',
+    'private/tts/runs/local-sentence.wav',
+    'audio/wav',
+    2048,
+    repeat('d', 64),
+    'audio/wav',
+    2048,
+    repeat('d', 64),
+    'READY',
+    '2026-07-01T00:00:00Z',
+    '2026-07-01T00:00:00Z'
   );
 
 insert into vocabularies (
@@ -484,7 +497,8 @@ insert into thai_sentences (id, created_at) values
   ('00000000-0000-4000-8000-000000000205', '2026-07-01T00:00:00Z'),
   ('00000000-0000-4000-8000-000000000206', '2026-07-01T00:00:00Z'),
   ('00000000-0000-4000-8000-000000000207', '2026-07-01T00:00:00Z'),
-  ('00000000-0000-4000-8000-000000000208', '2026-07-01T00:00:00Z');
+  ('00000000-0000-4000-8000-000000000208', '2026-07-01T00:00:00Z'),
+  ('00000000-0000-4000-8000-000000000209', '2026-07-01T00:00:00Z');
 
 insert into thai_sentence_versions (
   id,
@@ -593,6 +607,18 @@ insert into thai_sentence_versions (
     '00000000-0000-4000-8000-000000000011',
     '2026-07-01T00:00:00Z',
     '2026-07-01T00:00:00Z'
+  ),
+  (
+    '00000000-0000-4000-8000-000000000219',
+    '00000000-0000-4000-8000-000000000209',
+    1,
+    'สวัสดี',
+    '다음 태국어의 뜻을 고르세요.',
+    '싸왓디',
+    'L-H-M',
+    '00000000-0000-4000-8000-000000000013',
+    null,
+    '2026-07-01T00:01:00Z'
   );
 
 insert into token_occurrences (
@@ -632,6 +658,19 @@ insert into token_occurrences (
     '00000000-0000-4000-8000-000000000112',
     '00000000-0000-4000-8000-000000000122',
     '감사합니다',
+    'TARGET'
+  ),
+  (
+    '00000000-0000-4000-8000-000000000223',
+    '00000000-0000-4000-8000-000000000219',
+    0,
+    'สวัสดี',
+    0,
+    6,
+    '00000000-0000-4000-8000-000000000101',
+    '00000000-0000-4000-8000-000000000111',
+    '00000000-0000-4000-8000-000000000121',
+    '안녕하세요',
     'TARGET'
   );
 
@@ -690,6 +729,122 @@ insert into content_production_presets (
 on conflict (name, version) do update set
   parameters = excluded.parameters,
   enabled = excluded.enabled;
+
+insert into tts_voice_presets (
+  id,
+  name,
+  provider,
+  model,
+  voice,
+  locale,
+  audio_format,
+  generation_revision,
+  enabled,
+  created_at,
+  updated_at
+) values (
+  '00000000-0000-4000-8000-000000000001',
+  '로컬 deterministic 태국어 음성',
+  'LOCAL_FAKE',
+  'deterministic-v1',
+  'th-TH-standard-a',
+  'th-TH',
+  'audio/wav',
+  '2026-07-27',
+  true,
+  '2026-07-01T00:00:00Z',
+  '2026-07-01T00:00:00Z'
+);
+
+insert into tts_jobs (
+  id,
+  requested_by,
+  voice_snapshot,
+  dispatch_attempt,
+  status,
+  pending_count,
+  processing_count,
+  succeeded_count,
+  failed_count,
+  created_at,
+  started_at,
+  finished_at,
+  updated_at
+) values (
+  '00000000-0000-4000-8000-000000000920',
+  '00000000-0000-4000-8000-000000000001',
+  '{"presetId":"00000000-0000-4000-8000-000000000001","provider":"LOCAL_FAKE","model":"deterministic-v1","voice":"th-TH-standard-a","locale":"th-TH","audioFormat":"audio/wav","generationRevision":"2026-07-27"}',
+  0,
+  'SUCCEEDED',
+  0,
+  0,
+  1,
+  0,
+  '2026-07-01T00:00:00Z',
+  '2026-07-01T00:00:00Z',
+  '2026-07-01T00:01:00Z',
+  '2026-07-01T00:01:00Z'
+);
+
+insert into tts_items (
+  id,
+  job_id,
+  target_kind,
+  target_id,
+  target_text,
+  target_required,
+  revision,
+  voice_snapshot,
+  cache_key,
+  status,
+  attempt,
+  retryable,
+  media_asset_id,
+  created_at,
+  updated_at
+) values (
+  '00000000-0000-4000-8000-000000000921',
+  '00000000-0000-4000-8000-000000000920',
+  'THAI_SENTENCE_VERSION',
+  '00000000-0000-4000-8000-000000000219',
+  'สวัสดี',
+  true,
+  '00000000-0000-4000-8000-000000000413',
+  '{"presetId":"00000000-0000-4000-8000-000000000001","provider":"LOCAL_FAKE","model":"deterministic-v1","voice":"th-TH-standard-a","locale":"th-TH","audioFormat":"audio/wav","generationRevision":"2026-07-27"}',
+  '00db352c5a855781202ea35b7e2264d4ec02c938785e23a7ff7f6dfffebbac4e',
+  'SUCCEEDED',
+  0,
+  false,
+  '00000000-0000-4000-8000-000000000013',
+  '2026-07-01T00:00:00Z',
+  '2026-07-01T00:01:00Z'
+);
+
+insert into tts_audio_cache (
+  id,
+  cache_key,
+  audio_digest,
+  status,
+  generation_attempt,
+  retryable,
+  media_asset_id,
+  ready_metadata_revision,
+  ready_at,
+  created_at,
+  updated_at
+) values (
+  '00000000-0000-4000-8000-000000000922',
+  '00db352c5a855781202ea35b7e2264d4ec02c938785e23a7ff7f6dfffebbac4e',
+  repeat('d', 64),
+  'READY',
+  1,
+  false,
+  '00000000-0000-4000-8000-000000000013',
+  '2026-07-27',
+  '2026-07-01T00:01:00Z',
+  '2026-07-01T00:00:00Z',
+  '2026-07-01T00:01:00Z'
+);
 
 insert into question_types (
   id,
@@ -982,7 +1137,7 @@ insert into question_block_sentences (
   ('00000000-0000-4000-8000-000000000452', '00000000-0000-4000-8000-000000000422', '00000000-0000-4000-8000-000000000217', 0, null),
   ('00000000-0000-4000-8000-000000000453', '00000000-0000-4000-8000-000000000423', '00000000-0000-4000-8000-000000000216', 0, null),
   ('00000000-0000-4000-8000-000000000454', '00000000-0000-4000-8000-000000000424', '00000000-0000-4000-8000-000000000218', 0, null),
-  ('00000000-0000-4000-8000-000000000455', '00000000-0000-4000-8000-000000000425', '00000000-0000-4000-8000-000000000211', 0, null),
+  ('00000000-0000-4000-8000-000000000455', '00000000-0000-4000-8000-000000000425', '00000000-0000-4000-8000-000000000219', 0, null),
   ('00000000-0000-4000-8000-000000000456', '00000000-0000-4000-8000-000000000426', '00000000-0000-4000-8000-000000000216', 0, null);
 
 insert into question_options (

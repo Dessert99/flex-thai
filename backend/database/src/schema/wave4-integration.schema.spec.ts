@@ -23,7 +23,7 @@ const currentSnapshot = JSON.parse(
 
 describe('Wave 4 통합 migration', () => {
   it('journal과 snapshot이 0014 다음 0015로 끊김 없이 이어진다', () => {
-    expect(journal.entries.at(-1)).toMatchObject({
+    expect(journal.entries.find(({ idx }) => idx === 15)).toMatchObject({
       idx: 15,
       tag: '0015_jazzy_red_hulk',
     });

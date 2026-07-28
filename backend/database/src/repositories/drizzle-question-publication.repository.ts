@@ -26,6 +26,7 @@ import {
   vocabularyPronunciations,
 } from '../schema/index.js';
 import * as schema from '../schema/index.js';
+import { DrizzleContentTtsReadinessQuery } from '../queries/drizzle-content-tts-readiness.query.js';
 
 type QuestionPublicationDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 type QuestionPublicationSession = Pick<
@@ -44,6 +45,20 @@ interface MediaProjection {
   mediaSizeBytes: number | null;
   mediaSha256: string | null;
   mediaStatus: 'UPLOADING' | 'READY' | 'REJECTED';
+  mediaReadyAt: Date | null;
+}
+
+interface NullableMediaProjection {
+  mediaId: string | null;
+  mediaKind: 'AUDIO' | null;
+  mediaStorageKey: string | null;
+  mediaDeclaredMimeType: string | null;
+  mediaDeclaredSizeBytes: number | null;
+  mediaDeclaredSha256: string | null;
+  mediaMimeType: string | null;
+  mediaSizeBytes: number | null;
+  mediaSha256: string | null;
+  mediaStatus: 'UPLOADING' | 'READY' | 'REJECTED' | null;
   mediaReadyAt: Date | null;
 }
 
@@ -132,12 +147,41 @@ const toMediaAsset = (row: MediaProjection): MediaAsset => {
   };
 };
 
+const toOptionalMediaAsset = (
+  row: NullableMediaProjection,
+): MediaAsset | null => {
+  if (
+    row.mediaId === null ||
+    row.mediaKind === null ||
+    row.mediaStorageKey === null ||
+    row.mediaDeclaredMimeType === null ||
+    row.mediaDeclaredSizeBytes === null ||
+    row.mediaDeclaredSha256 === null ||
+    row.mediaStatus === null
+  ) {
+    return null;
+  }
+  return toMediaAsset({
+    ...row,
+    mediaId: row.mediaId,
+    mediaKind: row.mediaKind,
+    mediaStorageKey: row.mediaStorageKey,
+    mediaDeclaredMimeType: row.mediaDeclaredMimeType,
+    mediaDeclaredSizeBytes: row.mediaDeclaredSizeBytes,
+    mediaDeclaredSha256: row.mediaDeclaredSha256,
+    mediaStatus: row.mediaStatus,
+  });
+};
+
 const createQuestionPublicationTransaction = (
   transaction: QuestionPublicationSession,
 ): QuestionPublicationTransaction => {
   const pronunciationMedia = alias(mediaAssets, 'pronunciation_media_assets');
+  const ttsReadiness = new DrizzleContentTtsReadinessQuery(transaction);
 
   return {
+    listRequiredTargets: (content) => ttsReadiness.listRequiredTargets(content),
+
     async loadQuestion(questionId) {
       const [row] = await transaction
         .select({
@@ -280,7 +324,7 @@ const createQuestionPublicationTransaction = (
           mediaReadyAt: mediaAssets.readyAt,
         })
         .from(thaiSentenceVersions)
-        .innerJoin(
+        .leftJoin(
           mediaAssets,
           eq(thaiSentenceVersions.mediaAssetId, mediaAssets.id),
         )
@@ -438,7 +482,7 @@ const createQuestionPublicationTransaction = (
               adminSelected: expression.representative,
             })),
           },
-          mediaAsset: toMediaAsset(row),
+          mediaAsset: toOptionalMediaAsset(row),
           referencedVocabularies: [
             ...sentenceTokens.map((token) => ({
               id: token.vocabularyId,

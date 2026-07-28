@@ -81,6 +81,18 @@ export interface ContentProductionItemProcessor {
   ): Promise<ContentProductionItemOutcome>;
 }
 
+/** operation별 AI pipeline을 한 dispatcher processor 계약으로 조립한다 */
+export const createContentProductionProcessorRouter = (processors: {
+  vocabulary: ContentProductionItemProcessor;
+  question: ContentProductionItemProcessor;
+}): ContentProductionItemProcessor => ({
+  process(workItem, signal) {
+    return workItem.item.operation === 'QUESTION_GENERATION'
+      ? processors.question.process(workItem, signal)
+      : processors.vocabulary.process(workItem, signal);
+  },
+});
+
 const startLeaseHeartbeat = (
   repository: ContentProductionWorkerRepository,
   claimed: ContentProductionItem & {

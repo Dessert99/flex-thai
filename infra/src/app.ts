@@ -18,6 +18,7 @@ const fixtureConfig: InfrastructureConfig = readInfrastructureConfig({
   hostedZoneId: 'Z0123456789EXAMPLE',
   alertEmail: 'owner@example.com',
   githubRepository: 'Dessert99/flex-thai',
+  ttsVoicePresetId: '00000000-0000-4000-8000-000000000777',
   mediaPublicKeyPem:
     '-----BEGIN PUBLIC KEY-----\ndGVzdA==\n-----END PUBLIC KEY-----',
 });
@@ -34,6 +35,7 @@ const config = synthFixture
         githubRepository: app.node.tryGetContext('githubRepository'),
         allowedEmailDomains: app.node.tryGetContext('allowedEmailDomains'),
         monthlyBudgetUsd: app.node.tryGetContext('monthlyBudgetUsd'),
+        ttsVoicePresetId: app.node.tryGetContext('ttsVoicePresetId'),
       },
       process.env,
     );

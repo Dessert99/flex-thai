@@ -184,6 +184,20 @@ describe('DrizzleConceptErrorReportTargetLookup', () => {
     expect(database.orderByCalls).toHaveLength(1);
   });
 
+  it('게시 문장 조회 결과의 음성 ID가 null이면 대상을 fail-closed 처리한다', async () => {
+    const database = createSelectDatabase([
+      [{ ...publishedSentence, mediaAssetId: null }],
+    ]);
+    const lookup = new DrizzleConceptErrorReportTargetLookup(database as never);
+
+    await expect(
+      lookup.resolveSentence({
+        sentenceVersionId: publishedSentence.sentenceVersionId,
+        tokenPosition: null,
+      }),
+    ).resolves.toBeNull();
+  });
+
   it('요청 token position이 문장에 없으면 대상을 거부한다', async () => {
     const database = createSelectDatabase([[publishedSentence], []]);
     const lookup = new DrizzleConceptErrorReportTargetLookup(database as never);
