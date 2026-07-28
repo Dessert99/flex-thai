@@ -3,6 +3,7 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 import {
   assertDistinctValidationModels,
   buildQuestionGenerationPrompt,
+  serializeQuestionGenerationPrompt,
   classifyQuestionCandidate,
   normalizeQuestionProductionValidationRecord,
   projectQuestionPromptApprovedExample,
@@ -304,6 +305,9 @@ const approvedExamplePayload = Object.assign({}, candidate.payload, {
 }) as GeneratedQuestionCandidate['payload'];
 
 const productionContext: QuestionProductionContext = {
+  difficulty: 3,
+  similarityThreshold: 0.7,
+  speakerRoles: ['진행자', '학습자'],
   commonPrinciples: [
     '정답은 하나만 둔다',
     '태국어 문장을 그대로 복제하지 않는다',
@@ -1536,11 +1540,13 @@ describe('AI 문제 생성 prompt 조립', () => {
     expect(prompt).toMatchObject({ promptVersion: 'question-generation-v1' });
     expect(prompt.sections.map((section) => section.name)).toEqual([
       'common-principles',
+      'generation-target',
       'question-type',
       'difficulty-criteria',
       'approved-examples',
       'vocabulary-policy',
       'new-auxiliary-vocabulary-limit',
+      'speaker-roles',
       'similar-question-summaries',
       'additional-instruction-ko',
     ]);
@@ -1549,6 +1555,10 @@ describe('AI 문제 생성 prompt 조립', () => {
     expect(section('question-type')).toEqual(
       expect.stringContaining('"slug":"reading-choice"'),
     );
+    expect(section('generation-target')).toEqual(
+      '{"difficulty":3,"expectedCandidateCount":1,"questionTypeVersionId":"type-version-id"}',
+    );
+    expect(section('speaker-roles')).toBe('["진행자","학습자"]');
     expect(section('difficulty-criteria')).toEqual(
       expect.stringContaining('"difficulty":3'),
     );
@@ -1569,6 +1579,14 @@ describe('AI 문제 생성 prompt 조립', () => {
       type: 'object',
       required: ['candidates'],
     });
+    expect(prompt.outputSchema).toMatchObject({
+      properties: { candidates: { minItems: 1, maxItems: 1 } },
+    });
+    expect(serializeQuestionGenerationPrompt(prompt)).toBe(
+      serializeQuestionGenerationPrompt(
+        buildQuestionGenerationPrompt(productionContext),
+      ),
+    );
   });
 
   it('output schema가 canonical block과 두 option 변형의 중첩 구조를 고정한다', () => {

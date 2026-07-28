@@ -182,14 +182,25 @@ describe('AI 문제 생성 문맥 조립', () => {
 
     await query.load({
       operation: 'QUESTION_GENERATION',
+      questionPlan: {
+        questionPlanIndex: 0,
+        questionTypeVersionId: 'type-version-id',
+        difficulty: 3,
+      },
       preset: {
         id: 'preset-id',
         name: '문제 생성',
         purpose: 'QUESTION_GENERATION',
         version: 1,
         parameters: {
-          questionTypeVersionId: 'type-version-id',
           newAuxiliaryVocabularyLimit: 0,
+          similarityThreshold: 0.7,
+          speakerVoiceAssignments: [
+            {
+              speakerRole: ' 진행자 ',
+              voicePresetId: '00000000-0000-4000-8000-000000000001',
+            },
+          ],
         },
       },
     });
@@ -199,5 +210,27 @@ describe('AI 문제 생성 문맥 조립', () => {
     );
     expect(compiled.sql).toContain('"question_type_versions"."status" =');
     expect(compiled.params).toContain('ACTIVE');
+  });
+
+  it('item 난이도와 trim된 speaker role을 문맥에 고정한다', () => {
+    expect(
+      assembleQuestionProductionContext(
+        rows,
+        {
+          newAuxiliaryVocabularyLimit: 0,
+          similarityThreshold: 0.75,
+          speakerRoles: [' 학습자 ', '진행자'],
+        },
+        {
+          questionPlanIndex: 0,
+          questionTypeVersionId: 'type-version-id',
+          difficulty: 4,
+        },
+      ),
+    ).toMatchObject({
+      difficulty: 4,
+      similarityThreshold: 0.75,
+      speakerRoles: ['진행자', '학습자'],
+    });
   });
 });

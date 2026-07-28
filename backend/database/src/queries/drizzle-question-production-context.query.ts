@@ -3,6 +3,7 @@ import { and, asc, eq } from 'drizzle-orm';
 import { projectQuestionPromptApprovedExample } from '@flex-thia/domain';
 import type {
   ContentProductionPresetSnapshot,
+  QuestionGenerationItemPlan,
   QuestionProductionContext,
   QuestionProductionContextRepository,
   QuestionPromptVocabulary,
@@ -53,6 +54,8 @@ type QuestionProductionPresetPolicy = {
   newAuxiliaryVocabularyLimit: number;
   similarQuestions: Array<{ difficulty: number; summary: string }>;
   additionalInstructionKo: string | null;
+  similarityThreshold: number;
+  speakerRoles: string[];
 };
 
 type QuerySchema = {
@@ -157,6 +160,24 @@ export const readQuestionProductionPresetPolicy = (
       typeof parameters.additionalInstructionKo === 'string'
         ? parameters.additionalInstructionKo
         : null,
+    similarityThreshold:
+      typeof parameters.similarityThreshold === 'number'
+        ? parameters.similarityThreshold
+        : 0,
+    speakerRoles: Array.isArray(parameters.speakerVoiceAssignments)
+      ? parameters.speakerVoiceAssignments.flatMap((assignment) => {
+          if (
+            assignment &&
+            typeof assignment === 'object' &&
+            'speakerRole' in assignment &&
+            typeof assignment.speakerRole === 'string' &&
+            assignment.speakerRole.trim().length > 0
+          ) {
+            return [assignment.speakerRole.trim()];
+          }
+          return [];
+        })
+      : [],
   };
 };
 
@@ -164,12 +185,23 @@ export const readQuestionProductionPresetPolicy = (
 export const assembleQuestionProductionContext = (
   rows: QuestionProductionContextRows,
   policy: Partial<QuestionProductionPresetPolicy>,
+  questionPlan: QuestionGenerationItemPlan = {
+    questionPlanIndex: 0,
+    questionTypeVersionId: rows.typeVersion?.id ?? '',
+    difficulty: 1,
+  },
 ): QuestionProductionContext | null => {
   if (!rows.typeVersion) return null;
 
   const allowedTopics = sortTerms(rows.topics);
   const allowedTags = sortTerms(rows.tags);
   return {
+    difficulty: questionPlan.difficulty,
+    similarityThreshold: policy.similarityThreshold ?? 0,
+    speakerRoles: [...(policy.speakerRoles ?? [])]
+      .map((role) => role.trim())
+      .filter(Boolean)
+      .sort(compareText),
     commonPrinciples: [...(policy.commonPrinciples ?? [])].sort(compareText),
     typeVersion: {
       id: rows.typeVersion.id,
@@ -233,11 +265,9 @@ export class DrizzleQuestionProductionContextQuery implements QuestionProduction
   async load(input: {
     preset: ContentProductionPresetSnapshot;
     operation: 'QUESTION_GENERATION';
+    questionPlan: QuestionGenerationItemPlan;
   }): Promise<QuestionProductionContext> {
-    const typeVersionId = input.preset.parameters.questionTypeVersionId;
-    if (typeof typeVersionId !== 'string') {
-      throw new Error('QUESTION_TYPE_VERSION_REQUIRED');
-    }
+    const typeVersionId = input.questionPlan.questionTypeVersionId;
 
     const [typeVersion] = await this.database
       .select({
@@ -317,6 +347,7 @@ export class DrizzleQuestionProductionContextQuery implements QuestionProduction
         tags,
       },
       readQuestionProductionPresetPolicy(input.preset.parameters),
+      input.questionPlan,
     );
     if (!context) throw new Error('QUESTION_TYPE_VERSION_UNAVAILABLE');
     return context;
