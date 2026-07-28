@@ -234,7 +234,8 @@ const buildQuestionSeeds = (
     job.presetSnapshot.parameters as unknown as QuestionGenerationParameters,
   );
   return plans.map((questionPlan) => {
-    const input = job.inputs[questionPlan.questionPlanIndex % job.inputs.length]!;
+    const input =
+      job.inputs[questionPlan.questionPlanIndex % job.inputs.length]!;
     if (!input.jobInputId || input.ordinal === undefined) {
       throw new Error(`job input ID가 없는 콘텐츠 제작 작업입니다: ${job.id}`);
     }
@@ -280,78 +281,78 @@ export const createContentProductionDispatcher =
         operation,
       );
       for (const item of items) {
-      const claimed = await repository.startItem(
-        job.id,
-        item.id,
-        input.attempt,
-      );
-
-      if (!claimed) {
-        continue;
-      }
-
-      if (!claimed.leaseUntil) {
-        throw new Error(`lease 없는 PROCESSING 항목입니다: ${claimed.id}`);
-      }
-
-      if (!claimed.leaseToken) {
-        throw new Error(
-          `lease token 없는 PROCESSING 항목입니다: ${claimed.id}`,
+        const claimed = await repository.startItem(
+          job.id,
+          item.id,
+          input.attempt,
         );
-      }
 
-      const controller = new AbortController();
-      const heartbeat = startLeaseHeartbeat(
-        repository,
-        claimed as ContentProductionItem & {
-          leaseUntil: Date;
-          leaseToken: string;
-        },
-        job.id,
-        input.attempt,
-        controller,
-      );
-      let outcome: ContentProductionItemOutcome;
+        if (!claimed) {
+          continue;
+        }
 
-      try {
-        const seed = seedsBySourceRef.get(claimed.sourceRef);
-        if (!seed || !claimed.leaseUntil || !claimed.leaseToken) {
+        if (!claimed.leaseUntil) {
+          throw new Error(`lease 없는 PROCESSING 항목입니다: ${claimed.id}`);
+        }
+
+        if (!claimed.leaseToken) {
           throw new Error(
-            `구조화되지 않은 콘텐츠 제작 claim입니다: ${claimed.id}`,
+            `lease token 없는 PROCESSING 항목입니다: ${claimed.id}`,
           );
         }
-        outcome = await processor.process(
-          createContentProductionWorkItem(job as ContentProductionWorkerJob, {
-            ...claimed,
-            jobInputId: seed.jobInputId,
-            operation: seed.operation,
-            questionPlan: seed.questionPlan,
-            leaseUntil: claimed.leaseUntil,
-            leaseToken: claimed.leaseToken,
-          }),
-          controller.signal,
+
+        const controller = new AbortController();
+        const heartbeat = startLeaseHeartbeat(
+          repository,
+          claimed as ContentProductionItem & {
+            leaseUntil: Date;
+            leaseToken: string;
+          },
+          job.id,
+          input.attempt,
+          controller,
         );
-      } catch {
-        outcome = {
-          status: 'FAILED',
-          retryable: true,
-          errorCode: 'LOCAL_PROCESSOR_FAILURE',
-        };
-      } finally {
-        await heartbeat.stop();
-      }
+        let outcome: ContentProductionItemOutcome;
 
-      if (heartbeat.isLeaseLost()) {
-        continue;
-      }
+        try {
+          const seed = seedsBySourceRef.get(claimed.sourceRef);
+          if (!seed || !claimed.leaseUntil || !claimed.leaseToken) {
+            throw new Error(
+              `구조화되지 않은 콘텐츠 제작 claim입니다: ${claimed.id}`,
+            );
+          }
+          outcome = await processor.process(
+            createContentProductionWorkItem(job as ContentProductionWorkerJob, {
+              ...claimed,
+              jobInputId: seed.jobInputId,
+              operation: seed.operation,
+              questionPlan: seed.questionPlan,
+              leaseUntil: claimed.leaseUntil,
+              leaseToken: claimed.leaseToken,
+            }),
+            controller.signal,
+          );
+        } catch {
+          outcome = {
+            status: 'FAILED',
+            retryable: true,
+            errorCode: 'LOCAL_PROCESSOR_FAILURE',
+          };
+        } finally {
+          await heartbeat.stop();
+        }
 
-      await repository.finishItem(
-        job.id,
-        claimed.id,
-        input.attempt,
-        claimed.leaseToken,
-        outcome,
-      );
+        if (heartbeat.isLeaseLost()) {
+          continue;
+        }
+
+        await repository.finishItem(
+          job.id,
+          claimed.id,
+          input.attempt,
+          claimed.leaseToken,
+          outcome,
+        );
       }
     };
 

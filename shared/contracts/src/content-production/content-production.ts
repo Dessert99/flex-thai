@@ -358,9 +358,7 @@ export const promptPreviewResponseSchema = z
     promptVersion: z.string().min(1),
     questionPlanIndex: z.number().int().safe().nonnegative(),
     sections: z.array(
-      z
-        .object({ name: z.string().min(1), content: z.unknown() })
-        .strict(),
+      z.object({ name: z.string().min(1), content: z.unknown() }).strict(),
     ),
     prompt: z.string().min(1),
   })

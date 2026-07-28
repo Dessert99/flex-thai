@@ -228,8 +228,8 @@ const createProcessor = (overrides?: {
 describe('AI 문제 제작 processor', () => {
   it('item에 고정된 문제 계획을 문맥 조회에 그대로 전달한다', async () => {
     const baseWorkItem = workItem();
-    let loadedPlan: Parameters<QuestionProductionContextRepository['load']>[0]
-      | undefined;
+    let loadedPlan:
+      Parameters<QuestionProductionContextRepository['load']>[0] | undefined;
     const processor = createProcessor({
       contextRepository: {
         load: (input) => {
@@ -242,9 +242,7 @@ describe('AI 문제 제작 processor', () => {
     await expect(
       processor.process(baseWorkItem, new AbortController().signal),
     ).resolves.toMatchObject({ status: 'SUCCEEDED' });
-    expect(loadedPlan?.questionPlan).toEqual(
-      baseWorkItem.item.questionPlan,
-    );
+    expect(loadedPlan?.questionPlan).toEqual(baseWorkItem.item.questionPlan);
   });
 
   it('item 문제 계획이 없으면 문맥이나 provider를 호출하지 않고 실패한다', async () => {
@@ -532,7 +530,9 @@ describe('AI 문제 제작 processor', () => {
     '유사도 $score를 snapshot 임계값과 비교한다',
     async ({ score, expectedStatus, expectedCode, expectedMatches }) => {
       let similarityValidation:
-        | Parameters<QuestionProductionCandidateRepository['persist']>[0]['artifacts']['validations'][number]
+        | Parameters<
+            QuestionProductionCandidateRepository['persist']
+          >[0]['artifacts']['validations'][number]
         | undefined;
       const processor = createProcessor({
         similarity: {

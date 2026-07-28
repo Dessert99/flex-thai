@@ -23,7 +23,10 @@ export const contentProductionPresetsQueryOptions = () =>
     queryFn: ({ signal }) =>
       authenticatedRequest({
         path: '/admin/content-production/presets',
-        response: { kind: 'json', schema: contentProductionPresetListResponseSchema },
+        response: {
+          kind: 'json',
+          schema: contentProductionPresetListResponseSchema,
+        },
         signal,
       }),
   });
@@ -35,7 +38,10 @@ export const contentProductionJobsQueryOptions = (limit = 20) =>
     queryFn: ({ signal }) =>
       authenticatedRequest({
         path: `/admin/content-production/jobs?limit=${limit}`,
-        response: { kind: 'json', schema: contentProductionJobListResponseSchema },
+        response: {
+          kind: 'json',
+          schema: contentProductionJobListResponseSchema,
+        },
         signal,
       }),
   });
@@ -47,7 +53,10 @@ export const contentProductionJobQueryOptions = (jobId: string) =>
     queryFn: ({ signal }) =>
       authenticatedRequest({
         path: `/admin/content-production/jobs/${uuidSchema.parse(jobId)}`,
-        response: { kind: 'json', schema: contentProductionJobDetailResponseSchema },
+        response: {
+          kind: 'json',
+          schema: contentProductionJobDetailResponseSchema,
+        },
         signal,
       }),
   });

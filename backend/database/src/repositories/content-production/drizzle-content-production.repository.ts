@@ -395,10 +395,10 @@ export class DrizzleContentProductionRepository implements ContentProductionRepo
     const rows = await this.database
       .select({ status: jobItems.status })
       .from(jobItems)
-      .where(
-        and(eq(jobItems.jobId, jobId), eq(jobItems.operation, operation)),
-      );
-    return rows.length > 0 && rows.every(({ status }) => status === 'SUCCEEDED');
+      .where(and(eq(jobItems.jobId, jobId), eq(jobItems.operation, operation)));
+    return (
+      rows.length > 0 && rows.every(({ status }) => status === 'SUCCEEDED')
+    );
   }
 
   /** PENDING 또는 lease 만료 PROCESSING 항목만 새 lease로 claim한다 */
@@ -817,10 +817,7 @@ export class DrizzleContentProductionPresetCatalog implements ContentProductionP
         .select({ targetId: auditLogs.targetId })
         .from(auditLogs)
         .where(
-          eq(
-            auditLogs.action,
-            'CONTENT_PRODUCTION_PRESET_ENABLED_CHANGED',
-          ),
+          eq(auditLogs.action, 'CONTENT_PRODUCTION_PRESET_ENABLED_CHANGED'),
         ),
     ]);
     const revisions = new Map<string, number>();
@@ -917,37 +914,39 @@ export class DrizzleContentProductionPresetCatalog implements ContentProductionP
     ].filter((id): id is string => typeof id === 'string');
     if (typeIds.length === 0 || voiceIds.length === 0) return null;
 
-    const [activeTypes, publishedVocabulary, enabledVoices] = await Promise.all([
-      this.database
-        .select({ id: questionTypeVersions.id })
-        .from(questionTypeVersions)
-        .where(
-          and(
-            inArray(questionTypeVersions.id, [...new Set(typeIds)]),
-            eq(questionTypeVersions.status, 'ACTIVE'),
-          ),
-        ),
-      vocabularyIds.length === 0
-        ? Promise.resolve([])
-        : this.database
-            .select({ id: vocabularies.id })
-            .from(vocabularies)
-            .where(
-              and(
-                inArray(vocabularies.id, [...new Set(vocabularyIds)]),
-                eq(vocabularies.status, 'PUBLISHED'),
-              ),
+    const [activeTypes, publishedVocabulary, enabledVoices] = await Promise.all(
+      [
+        this.database
+          .select({ id: questionTypeVersions.id })
+          .from(questionTypeVersions)
+          .where(
+            and(
+              inArray(questionTypeVersions.id, [...new Set(typeIds)]),
+              eq(questionTypeVersions.status, 'ACTIVE'),
             ),
-      this.database
-        .select({ id: ttsVoicePresets.id })
-        .from(ttsVoicePresets)
-        .where(
-          and(
-            inArray(ttsVoicePresets.id, [...new Set(voiceIds)]),
-            eq(ttsVoicePresets.enabled, true),
           ),
-        ),
-    ]);
+        vocabularyIds.length === 0
+          ? Promise.resolve([])
+          : this.database
+              .select({ id: vocabularies.id })
+              .from(vocabularies)
+              .where(
+                and(
+                  inArray(vocabularies.id, [...new Set(vocabularyIds)]),
+                  eq(vocabularies.status, 'PUBLISHED'),
+                ),
+              ),
+        this.database
+          .select({ id: ttsVoicePresets.id })
+          .from(ttsVoicePresets)
+          .where(
+            and(
+              inArray(ttsVoicePresets.id, [...new Set(voiceIds)]),
+              eq(ttsVoicePresets.enabled, true),
+            ),
+          ),
+      ],
+    );
     if (
       activeTypes.length !== new Set(typeIds).size ||
       publishedVocabulary.length !== new Set(vocabularyIds).size ||
@@ -1182,10 +1181,7 @@ export class DrizzleContentProductionPresetCatalog implements ContentProductionP
         .from(auditLogs)
         .where(
           and(
-            eq(
-              auditLogs.action,
-              'CONTENT_PRODUCTION_PRESET_ENABLED_CHANGED',
-            ),
+            eq(auditLogs.action, 'CONTENT_PRODUCTION_PRESET_ENABLED_CHANGED'),
             eq(auditLogs.targetId, input.presetId),
           ),
         );

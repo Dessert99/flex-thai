@@ -32,8 +32,7 @@ export interface ContentProductionPresetSnapshot {
 }
 
 /** 관리자 preset version 목록에 필요한 immutable row와 enabled revision */
-export interface ContentProductionPresetVersion
-  extends ContentProductionPresetSnapshot {
+export interface ContentProductionPresetVersion extends ContentProductionPresetSnapshot {
   enabled: boolean;
   revision: number;
   createdAt: Date;
@@ -48,23 +47,20 @@ export interface ContentProductionPresetAuditContext {
 }
 
 /** 새 이름으로 최초 preset version을 만드는 명령 */
-export interface CreateInitialContentProductionPresetInput
-  extends ContentProductionPresetAuditContext {
+export interface CreateInitialContentProductionPresetInput extends ContentProductionPresetAuditContext {
   name: string;
   purpose: ContentProductionPurpose;
   parameters: Record<string, unknown>;
 }
 
 /** 같은 이름·목적의 다음 immutable preset version을 만드는 명령 */
-export interface CreateNextContentProductionPresetVersionInput
-  extends ContentProductionPresetAuditContext {
+export interface CreateNextContentProductionPresetVersionInput extends ContentProductionPresetAuditContext {
   presetId: string;
   parameters: Record<string, unknown>;
 }
 
 /** preset enabled 상태를 optimistic revision으로 바꾸는 명령 */
-export interface SetContentProductionPresetEnabledInput
-  extends ContentProductionPresetAuditContext {
+export interface SetContentProductionPresetEnabledInput extends ContentProductionPresetAuditContext {
   presetId: string;
   enabled: boolean;
   expectedRevision: number;

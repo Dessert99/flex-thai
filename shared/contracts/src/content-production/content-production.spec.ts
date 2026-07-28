@@ -26,9 +26,7 @@ const validQuestionOptions = {
   newAuxiliaryVocabularyLimit: 10,
   similarityThreshold: 0.7,
   defaultVoicePresetId: voicePresetId,
-  speakerVoiceAssignments: [
-    { speakerRole: ' 진행자 ', voicePresetId },
-  ],
+  speakerVoiceAssignments: [{ speakerRole: ' 진행자 ', voicePresetId }],
   additionalInstructionKo: ' 짧고 명확하게 출제해 주세요. ',
 };
 
@@ -49,20 +47,19 @@ describe('콘텐츠 제작 공개 계약', () => {
       uploadIds: ['77a1e8ff-7c85-4739-9004-647e12e34b65'],
       options: {
         ...validQuestionOptions,
-        speakerVoiceAssignments: [
-          { speakerRole: '진행자', voicePresetId },
-        ],
+        speakerVoiceAssignments: [{ speakerRole: '진행자', voicePresetId }],
         additionalInstructionKo: '짧고 명확하게 출제해 주세요.',
       },
     });
   });
 
   it('문제 생성 옵션의 범위·합계·집합을 엄격하게 검증한다', () => {
-    expect(contentProductionQuestionOptionsSchema.parse(validQuestionOptions))
-      .toMatchObject({
-        questionCount: 2,
-        additionalInstructionKo: '짧고 명확하게 출제해 주세요.',
-      });
+    expect(
+      contentProductionQuestionOptionsSchema.parse(validQuestionOptions),
+    ).toMatchObject({
+      questionCount: 2,
+      additionalInstructionKo: '짧고 명확하게 출제해 주세요.',
+    });
     for (const invalid of [
       { ...validQuestionOptions, questionCount: 0 },
       { ...validQuestionOptions, questionCount: 101 },
@@ -87,8 +84,9 @@ describe('콘텐츠 제작 공개 계약', () => {
       },
       { ...validQuestionOptions, unexpected: true },
     ]) {
-      expect(contentProductionQuestionOptionsSchema.safeParse(invalid).success)
-        .toBe(false);
+      expect(
+        contentProductionQuestionOptionsSchema.safeParse(invalid).success,
+      ).toBe(false);
     }
   });
 

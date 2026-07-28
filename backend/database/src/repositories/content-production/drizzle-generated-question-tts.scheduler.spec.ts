@@ -293,9 +293,9 @@ describe('생성 문제 TTS scheduler', () => {
         optionSentenceId,
       ].sort(),
     );
-    expect(new Set(itemBatches.map(({ targetId }) => targetId).filter(Boolean)).size).toBe(
-      4,
-    );
+    expect(
+      new Set(itemBatches.map(({ targetId }) => targetId).filter(Boolean)).size,
+    ).toBe(4);
     expect(enqueueTts).toHaveBeenCalledTimes(3);
   });
 

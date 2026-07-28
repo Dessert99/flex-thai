@@ -41,6 +41,8 @@ describe('후보 bulk action', () => {
       selected.map(({ candidateId }) => candidateId),
     );
     expect(results[5]).toMatchObject({ status: 'FAILED' });
-    expect(results.filter(({ status }) => status === 'SUCCEEDED')).toHaveLength(7);
+    expect(results.filter(({ status }) => status === 'SUCCEEDED')).toHaveLength(
+      7,
+    );
   });
 });

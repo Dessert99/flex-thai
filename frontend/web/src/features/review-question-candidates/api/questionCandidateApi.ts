@@ -22,7 +22,9 @@ const reviewBody = (revision: number) => ({
 });
 
 /** 후보 filter page query */
-export const questionCandidatesQueryOptions = (input: QuestionCandidateListQuery) => {
+export const questionCandidatesQueryOptions = (
+  input: QuestionCandidateListQuery,
+) => {
   const query = questionCandidateListQuerySchema.parse(input);
   const search = new URLSearchParams(
     Object.entries(query).flatMap(([key, value]) =>
@@ -43,17 +45,28 @@ export const questionCandidatesQueryOptions = (input: QuestionCandidateListQuery
 /** 후보 상세 query */
 export const questionCandidateQueryOptions = (candidateId: string) =>
   queryOptions({
-    queryKey: ['admin', 'content-production', 'candidates', candidateId] as const,
+    queryKey: [
+      'admin',
+      'content-production',
+      'candidates',
+      candidateId,
+    ] as const,
     queryFn: ({ signal }) =>
       authenticatedRequest({
         path: `/admin/content-production/question-candidates/${uuidSchema.parse(candidateId)}`,
-        response: { kind: 'json', schema: questionCandidateDetailResponseSchema },
+        response: {
+          kind: 'json',
+          schema: questionCandidateDetailResponseSchema,
+        },
         signal,
       }),
   });
 
 /** 후보를 승인해 DRAFT로 만든다 */
-export const approveQuestionCandidate = (candidateId: string, revision: number) =>
+export const approveQuestionCandidate = (
+  candidateId: string,
+  revision: number,
+) =>
   authenticatedRequest({
     body: approveQuestionCandidateRequestSchema.parse(reviewBody(revision)),
     method: 'POST',
@@ -62,7 +75,10 @@ export const approveQuestionCandidate = (candidateId: string, revision: number) 
   });
 
 /** 후보를 terminal 폐기한다 */
-export const discardQuestionCandidate = (candidateId: string, revision: number) =>
+export const discardQuestionCandidate = (
+  candidateId: string,
+  revision: number,
+) =>
   authenticatedRequest({
     body: discardQuestionCandidateRequestSchema.parse(reviewBody(revision)),
     method: 'DELETE',
@@ -71,10 +87,16 @@ export const discardQuestionCandidate = (candidateId: string, revision: number) 
   });
 
 /** 원본을 보존한 재생성 attempt를 접수한다 */
-export const regenerateQuestionCandidate = (candidateId: string, revision: number) =>
+export const regenerateQuestionCandidate = (
+  candidateId: string,
+  revision: number,
+) =>
   authenticatedRequest({
     body: regenerateQuestionCandidateRequestSchema.parse(reviewBody(revision)),
     method: 'POST',
     path: `/admin/content-production/question-candidates/${uuidSchema.parse(candidateId)}/regenerate`,
-    response: { kind: 'json', schema: regenerateQuestionCandidateResponseSchema },
+    response: {
+      kind: 'json',
+      schema: regenerateQuestionCandidateResponseSchema,
+    },
   });

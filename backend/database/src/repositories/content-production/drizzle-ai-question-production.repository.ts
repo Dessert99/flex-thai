@@ -123,10 +123,7 @@ const readVoicePolicy = (
   const parameters = snapshot?.parameters;
   const defaultVoicePresetId = parameters?.['defaultVoicePresetId'];
   const assignments = parameters?.['speakerVoiceAssignments'];
-  if (
-    typeof defaultVoicePresetId !== 'string' ||
-    !Array.isArray(assignments)
-  ) {
+  if (typeof defaultVoicePresetId !== 'string' || !Array.isArray(assignments)) {
     return {};
   }
   const speakerVoiceAssignments = assignments.flatMap((assignment) => {

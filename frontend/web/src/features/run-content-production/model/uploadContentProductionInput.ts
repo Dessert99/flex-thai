@@ -8,7 +8,8 @@ import { authenticatedRequest } from '@/shared/api';
 const inputTypeFor = (file: File): 'TEXT' | 'PDF' | 'IMAGE' => {
   if (file.type === 'text/plain') return 'TEXT';
   if (file.type === 'application/pdf') return 'PDF';
-  if (['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return 'IMAGE';
+  if (['image/jpeg', 'image/png', 'image/webp'].includes(file.type))
+    return 'IMAGE';
   throw new Error('CONTENT_PRODUCTION_INPUT_TYPE_UNSUPPORTED');
 };
 
@@ -39,7 +40,9 @@ export async function uploadContentProductionInput(
     signal,
   });
   const form = new FormData();
-  Object.entries(policy.fields).forEach(([key, value]) => form.append(key, value));
+  Object.entries(policy.fields).forEach(([key, value]) =>
+    form.append(key, value),
+  );
   form.append('file', file);
   const timeout = new AbortController();
   const timeoutId = globalThis.setTimeout(() => timeout.abort(), 60_000);

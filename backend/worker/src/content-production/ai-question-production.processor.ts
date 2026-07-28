@@ -547,10 +547,7 @@ export class AiQuestionProductionProcessor {
       ) {
         try {
           const matches = (
-            await this.similarityLookup.findSimilar(
-              canonicalCandidate,
-              5,
-            )
+            await this.similarityLookup.findSimilar(canonicalCandidate, 5)
           ).filter(({ score }) => score >= context.similarityThreshold);
           candidateValidations.push(
             normalizeQuestionProductionValidationRecord({

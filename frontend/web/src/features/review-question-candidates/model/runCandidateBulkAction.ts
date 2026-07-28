@@ -32,14 +32,24 @@ export async function runCandidateBulkAction(
       const target = selected[index]!;
       try {
         await actionFor[action](target.candidateId, target.revision);
-        results[index] = { candidateId: target.candidateId, status: 'SUCCEEDED' };
+        results[index] = {
+          candidateId: target.candidateId,
+          status: 'SUCCEEDED',
+        };
       } catch (error) {
-        results[index] = { candidateId: target.candidateId, status: 'FAILED', error };
+        results[index] = {
+          candidateId: target.candidateId,
+          status: 'FAILED',
+          error,
+        };
       }
     }
   };
   await Promise.all(
-    Array.from({ length: Math.min(Math.max(1, concurrency), selected.length) }, worker),
+    Array.from(
+      { length: Math.min(Math.max(1, concurrency), selected.length) },
+      worker,
+    ),
   );
   return results;
 }
