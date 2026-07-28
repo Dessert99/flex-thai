@@ -98,6 +98,41 @@ describe('공유 dispatch outbox relay', () => {
     });
   });
 
+  it('오래 걸린 전송 실패는 시작 시각이 아니라 실제 실패 시각으로 release한다', async () => {
+    const failedAt = new Date('2026-07-28T00:02:00.000Z');
+    let clock = now;
+    const repository = {
+      claimBatch: vi.fn().mockResolvedValue([row]),
+      acknowledge: vi.fn(),
+      release: vi.fn().mockResolvedValue(false),
+    };
+    const relay = new AsyncDispatchOutboxRelay(
+      repository,
+      {
+        CONTENT_PRODUCTION: {
+          send: vi.fn(() => {
+            clock = failedAt;
+            return Promise.reject(new Error('late failure'));
+          }),
+        },
+        TTS: { send: vi.fn() },
+      },
+      () => clock,
+    );
+
+    await relay.drainOnce({
+      workerId: 'worker-a',
+      retryDelayMs: 30_000,
+    });
+
+    expect(repository.release).toHaveBeenCalledWith(
+      expect.objectContaining({
+        failedAt,
+        nextAvailableAt: new Date('2026-07-28T00:02:30.000Z'),
+      }),
+    );
+  });
+
   it('TTS row는 콘텐츠 sender와 섞이지 않고 TTS sender로만 보낸다', async () => {
     const ttsRow: ClaimedAsyncDispatch = {
       ...row,

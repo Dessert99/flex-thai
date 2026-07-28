@@ -100,8 +100,8 @@ export class AsyncDispatchOutboxRelay {
     };
 
     for (const row of claimed) {
-      const failedAt = this.now();
       if (!isExactPayload(row.payload, row)) {
+        const failedAt = this.now();
         const released = await this.repository.release({
           id: row.id,
           leaseOwner: row.leaseOwner,
@@ -122,6 +122,7 @@ export class AsyncDispatchOutboxRelay {
           payload: { jobId: row.payload.jobId, attempt: row.payload.attempt },
         });
       } catch {
+        const failedAt = this.now();
         const released = await this.repository.release({
           id: row.id,
           leaseOwner: row.leaseOwner,
