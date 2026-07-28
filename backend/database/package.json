@@ -11,7 +11,8 @@
     "db:migrate:local": "drizzle-kit migrate --config drizzle.local.config.ts",
     "db:reset-seed:local": "tsx src/commands/reset-seed-local.ts",
     "db:wait:data-api": "tsx src/commands/wait-for-data-api.ts",
-    "db:migrate:data-api": "tsx src/commands/migrate-data-api.ts"
+    "db:migrate:data-api": "tsx src/commands/migrate-data-api.ts",
+    "db:bootstrap:tts-voice:data-api": "tsx src/commands/bootstrap-tts-voice-preset.ts"
   },
   "dependencies": {
     "@aws-sdk/client-rds-data": "^3.900.0",

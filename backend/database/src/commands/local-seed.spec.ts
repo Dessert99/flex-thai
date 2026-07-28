@@ -113,4 +113,31 @@ describe('로컬 seed SQL', () => {
 
     expect(seedSql.match(presetPolicy)).toHaveLength(2);
   });
+
+  it('API local 기본 UUID에 deterministic TTS 음성 preset을 활성화한다', () => {
+    expect(seedSql).toMatch(/insert into tts_voice_presets/iu);
+    expect(seedSql).toContain("'00000000-0000-4000-8000-000000000001'");
+    expect(seedSql).toContain("'LOCAL_FAKE'");
+    expect(seedSql).toContain("'deterministic-v1'");
+    expect(seedSql).toContain("'th-TH-standard-a'");
+    expect(seedSql).toContain("'2026-07-27'");
+    expect(seedSql).not.toMatch(
+      /insert into tts_voice_presets[\s\S]*?(?:POLLY|GOOGLE|AZURE|ELEVENLABS)/iu,
+    );
+  });
+
+  it('deterministic preset snapshot과 READY media를 연결한 TTS 운영 fixture를 만든다', () => {
+    expect(seedSql).toMatch(/insert into tts_jobs/iu);
+    expect(seedSql).toMatch(/insert into tts_items/iu);
+    expect(seedSql).toMatch(/insert into tts_audio_cache/iu);
+    expect(seedSql).toContain(
+      '"presetId":"00000000-0000-4000-8000-000000000001"',
+    );
+    expect(seedSql).toMatch(
+      /insert into tts_items[\s\S]*?'SUCCEEDED'[\s\S]*?'00000000-0000-4000-8000-000000000013'/iu,
+    );
+    expect(seedSql).toMatch(
+      /insert into tts_audio_cache[\s\S]*?'READY'[\s\S]*?'00000000-0000-4000-8000-000000000013'/iu,
+    );
+  });
 });
