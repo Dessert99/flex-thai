@@ -22,6 +22,7 @@ type ValidationStatus = 'PASSED' | 'FAILED' | 'SKIPPED';
 /** DB candidate row에서 API projection에 필요한 필드만 나타낸다 */
 interface QuestionCandidateReadRecordBase {
   id: string;
+  jobId: string;
   jobItemId: string;
   jobAttempt: number;
   ordinal: number;
@@ -145,6 +146,7 @@ const toReview = (candidate: QuestionCandidateReadRecord) => ({
 
 const toSummary = (candidate: QuestionCandidateReadRecord) => ({
   id: candidate.id,
+  jobId: candidate.jobId,
   jobItemId: candidate.jobItemId,
   jobAttempt: candidate.jobAttempt,
   ordinal: candidate.ordinal,
