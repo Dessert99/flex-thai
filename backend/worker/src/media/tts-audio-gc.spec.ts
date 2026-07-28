@@ -81,32 +81,56 @@ describe('TTS audio garbage collector', () => {
     expect(repository.acknowledgeAudioDeleted).toHaveBeenCalledOnce();
   });
 
-  it('inspect metadata가 다르면 삭제하지 않고 bounded 오류로 release한다', async () => {
+  it.each([
+    ['MIME', { mimeType: 'audio/mpeg' as 'audio/wav' }],
+    ['크기', { sizeBytes: claimed.media.sizeBytes + 1 }],
+    ['해시', { sha256: 'b'.repeat(64) }],
+  ])(
+    '참조 확인된 run 고유 key의 %s metadata가 달라도 object를 삭제하고 terminal ack한다',
+    async (_label, mismatch) => {
+      const repository = createRepository();
+      const actual = { ...claimed.media, ...mismatch };
+      const store: TtsAudioGarbageStore = {
+        inspect: vi
+          .fn()
+          .mockResolvedValueOnce(actual)
+          .mockResolvedValueOnce(null),
+        delete: vi.fn(() => Promise.resolve()),
+      };
+
+      await expect(
+        new TtsAudioGarbageCollector(repository, store, () => now).processBatch(
+          {
+            workerId: 'worker-a',
+            batchSize: 1,
+            leaseDurationMs: 60_000,
+            retryDelayMs: 30_000,
+          },
+        ),
+      ).resolves.toEqual({ claimed: 1, deleted: 1, released: 0 });
+
+      expect(store.delete).toHaveBeenCalledWith(claimed.media.storageKey);
+      expect(repository.releaseAudioGc).not.toHaveBeenCalled();
+      expect(repository.acknowledgeAudioDeleted).toHaveBeenCalledOnce();
+    },
+  );
+
+  it('DB가 직접 참조를 발견해 claim을 주지 않으면 object를 삭제하지 않는다', async () => {
     const repository = createRepository();
-    const store: TtsAudioGarbageStore = {
-      inspect: vi.fn(() =>
-        Promise.resolve({ ...claimed.media, sha256: 'b'.repeat(64) }),
-      ),
-      delete: vi.fn(() => Promise.resolve()),
-    };
+    repository.claimAudioGcBatch = vi.fn(() => Promise.resolve([]));
+    const store = createStore();
 
-    await new TtsAudioGarbageCollector(
-      repository,
-      store,
-      () => now,
-    ).processBatch({
-      workerId: 'worker-a',
-      batchSize: 1,
-      leaseDurationMs: 60_000,
-      retryDelayMs: 30_000,
-    });
-
-    expect(store.delete).not.toHaveBeenCalled();
-    expect(repository.releaseAudioGc).toHaveBeenCalledWith(
-      expect.objectContaining({
-        errorCode: 'TTS_AUDIO_GC_METADATA_MISMATCH',
+    await expect(
+      new TtsAudioGarbageCollector(repository, store, () => now).processBatch({
+        workerId: 'worker-a',
+        batchSize: 1,
+        leaseDurationMs: 60_000,
+        retryDelayMs: 30_000,
       }),
-    );
+    ).resolves.toEqual({ claimed: 0, deleted: 0, released: 0 });
+
+    expect(store.inspect).not.toHaveBeenCalled();
+    expect(store.delete).not.toHaveBeenCalled();
   });
 
   it('delete 실패와 삭제 미확인은 ack하지 않고 lease를 backoff release한다', async () => {

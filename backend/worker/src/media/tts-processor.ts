@@ -1,5 +1,6 @@
 /** TTS job 항목을 DB cache claim·합성·immutable 저장·원자 완료 순서로 처리한다 */
 import { createHash, randomUUID } from 'node:crypto';
+import { ttsAudioGcWriteGraceMs } from '@flex-thia/database';
 import type {
   TtsAudioStore,
   TtsFailureInput,
@@ -169,6 +170,8 @@ type UsableAudioClaim =
   | { kind: 'FAILED'; errorCode: string; retryable: boolean }
   | { kind: 'OUTCOME_UNKNOWN' };
 
+const defaultTtsAudioWriteTimeoutMs = ttsAudioGcWriteGraceMs - 60_000;
+
 const asProviderFailure = (
   error: unknown,
   signal: AbortSignal,
@@ -241,6 +244,8 @@ export class UnavailableTtsProvider implements TtsProvider {
 
 /** DB cache claim 재확인과 item별 실패 격리를 조정한다 */
 export class TtsProcessor {
+  private readonly audioWriteTimeoutMs: number;
+
   constructor(
     private readonly repository: TtsProcessorRepository,
     private readonly provider: TtsProvider,
@@ -248,7 +253,17 @@ export class TtsProcessor {
     private readonly now: () => Date = () => new Date(),
     private readonly wait: (signal: AbortSignal) => Promise<void> = waitForPoll,
     private readonly durability?: TtsProcessorDurabilityRepository,
-  ) {}
+    audioWriteTimeoutMs = defaultTtsAudioWriteTimeoutMs,
+  ) {
+    if (
+      !Number.isSafeInteger(audioWriteTimeoutMs) ||
+      audioWriteTimeoutMs <= 0 ||
+      audioWriteTimeoutMs >= ttsAudioGcWriteGraceMs
+    ) {
+      throw new TtsProcessorError('TTS_AUDIO_WRITE_TIMEOUT_INVALID', false);
+    }
+    this.audioWriteTimeoutMs = audioWriteTimeoutMs;
+  }
 
   /** claim 가능한 항목을 처리한 뒤 repository의 canonical job 상태를 반환한다 */
   async process(jobId: string, signal: AbortSignal): Promise<TtsJobStatus> {
@@ -463,19 +478,38 @@ export class TtsProcessor {
       }
     }
     let stored: Awaited<ReturnType<TtsAudioStore['put']>>;
+    const writeController = new AbortController();
+    let writeTimedOut = false;
+    const abortWrite = (): void => writeController.abort(signal.reason);
+    if (signal.aborted) abortWrite();
+    else signal.addEventListener('abort', abortWrite, { once: true });
+    const writeDeadline = new Date(
+      this.now().getTime() + this.audioWriteTimeoutMs,
+    );
+    const writeTimeout = setTimeout(() => {
+      writeTimedOut = true;
+      writeController.abort();
+    }, this.audioWriteTimeoutMs);
     try {
       stored = await this.audioStore.put({
         storageKey: expectedMedia.storageKey,
         bytes: result.bytes,
         mimeType: result.mimeType,
         sha256,
+        signal: writeController.signal,
+        deadline: writeDeadline,
       });
     } catch {
+      const errorCode = signal.aborted
+        ? 'TTS_PROCESS_ABORTED'
+        : writeTimedOut
+          ? 'TTS_AUDIO_STORE_TIMEOUT'
+          : 'TTS_AUDIO_STORE_FAILED';
       const replay = await this.persistKnownProviderFailure(
         item,
         providerRunId,
         result,
-        'TTS_AUDIO_STORE_FAILED',
+        errorCode,
         true,
       );
       if (replay) {
@@ -483,11 +517,14 @@ export class TtsProcessor {
         return;
       }
       await this.failOwnedClaim(item, claim, {
-        errorCode: 'TTS_AUDIO_STORE_FAILED',
+        errorCode,
         retryable: true,
         resolution: 'FAILED',
       });
       return;
+    } finally {
+      clearTimeout(writeTimeout);
+      signal.removeEventListener('abort', abortWrite);
     }
 
     const storedMedia: GeneratedTtsMedia = {

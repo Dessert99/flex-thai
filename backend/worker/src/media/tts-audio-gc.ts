@@ -29,15 +29,6 @@ export interface TtsAudioGcRepository {
   }): Promise<boolean>;
 }
 
-const sameAudio = (
-  actual: GeneratedTtsMedia,
-  expected: GeneratedTtsMedia,
-): boolean =>
-  actual.storageKey === expected.storageKey &&
-  actual.mimeType === expected.mimeType &&
-  actual.sizeBytes === expected.sizeBytes &&
-  actual.sha256 === expected.sha256;
-
 /** DB claim 뒤 object side effect만 수행해 READY commit과 삭제를 분리한다 */
 export class TtsAudioGarbageCollector {
   constructor(
@@ -61,9 +52,8 @@ export class TtsAudioGarbageCollector {
       let errorCode: string | null = null;
       try {
         const beforeDelete = await this.store.inspect(claim.media.storageKey);
-        if (beforeDelete !== null && !sameAudio(beforeDelete, claim.media)) {
-          errorCode = 'TTS_AUDIO_GC_METADATA_MISMATCH';
-        } else if (beforeDelete !== null) {
+        if (beforeDelete !== null) {
+          // DB가 참조 부재를 직렬화한 run 고유 key는 실제 metadata와 무관하게 통째로 회수한다.
           await this.store.delete(claim.media.storageKey);
           if ((await this.store.inspect(claim.media.storageKey)) !== null) {
             errorCode = 'TTS_AUDIO_GC_DELETE_UNCONFIRMED';

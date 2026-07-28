@@ -354,6 +354,8 @@ describe('TtsProcessor 음성 생성과 재사용', () => {
       bytes,
       mimeType: 'audio/wav',
       sha256,
+      signal: expect.any(AbortSignal),
+      deadline: new Date('2026-07-27T05:04:00.000Z'),
     });
     const storageKey = vi.mocked(store.put).mock.calls[0]![0].storageKey;
     expect(repository.succeeded).toEqual([
@@ -1080,6 +1082,82 @@ describe('TtsProcessor 실패 격리', () => {
 });
 
 describe('TtsProcessor provider run과 orphan audio 내구성', () => {
+  it('object write 제한시간은 5분 GC 유예보다 짧아야 한다', () => {
+    expect(
+      () =>
+        new TtsProcessor(
+          new MemoryTtsRepository([]),
+          createProvider(),
+          createStore(),
+          () => now,
+          undefined,
+          undefined,
+          300_000,
+        ),
+    ).toThrow('TTS_AUDIO_WRITE_TIMEOUT_INVALID');
+  });
+
+  it('object write 제한시간이면 abort 계약으로 늦은 저장을 막고 provider run·item을 실패로 닫는다', async () => {
+    vi.useFakeTimers();
+    try {
+      const item = workItem('durable-put-timeout');
+      const repository = new MemoryTtsRepository([item]);
+      const durability = new MemoryTtsDurabilityRepository();
+      let attemptedKey: string | null = null;
+      let visibleKey: string | null = null;
+      const store: TtsAudioStore = {
+        put: vi.fn(
+          ({ storageKey, signal }: Parameters<TtsAudioStore['put']>[0]) =>
+            new Promise<never>((_resolve, reject) => {
+              attemptedKey = storageKey;
+              signal.addEventListener(
+                'abort',
+                () => {
+                  reject(new Error('ABORTED'));
+                  setTimeout(() => {
+                    if (!signal.aborted) visibleKey = storageKey;
+                  }, 1_000);
+                },
+                { once: true },
+              );
+            }),
+        ),
+      };
+      const processing = new TtsProcessor(
+        repository,
+        createProvider(),
+        store,
+        () => now,
+        undefined,
+        durability,
+        1_000,
+      ).process(jobId, new AbortController().signal);
+      await vi.waitFor(() => expect(store.put).toHaveBeenCalledOnce());
+
+      await vi.advanceTimersByTimeAsync(1_000);
+      await expect(processing).resolves.toBe('FAILED');
+      await vi.advanceTimersByTimeAsync(1_000);
+
+      expect(attemptedKey).toBe(`private/tts/runs/${durability.runId}.wav`);
+      expect(visibleKey).toBeNull();
+      expect(durability.failedRuns).toEqual([
+        expect.objectContaining({
+          status: 'FAILED',
+          errorCode: 'TTS_AUDIO_STORE_TIMEOUT',
+          retryable: true,
+        }),
+      ]);
+      expect(repository.failed).toEqual([
+        expect.objectContaining({
+          errorCode: 'TTS_AUDIO_STORE_TIMEOUT',
+          retryable: true,
+        }),
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('run 고유 key의 GC intent를 object write 전에 등록하고 같은 key로 usage·비용을 닫는다', async () => {
     const item = workItem('durable-success');
     const repository = new MemoryTtsRepository([item]);
