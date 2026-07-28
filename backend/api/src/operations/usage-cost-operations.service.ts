@@ -81,7 +81,7 @@ export interface OperationsCostSettingsRepositoryPort {
   >;
 }
 
-/** public overview response shape */
+/** overview의 공개 응답 형태 */
 export interface UsageCostOverviewResult extends UsageCostOverviewReadResult {
   range: { from: string; to: string };
   currentMonthThreshold: {
@@ -91,7 +91,7 @@ export interface UsageCostOverviewResult extends UsageCostOverviewReadResult {
   };
 }
 
-/** public settings response shape */
+/** settings의 공개 응답 형태 */
 export interface OperationsCostSettingsResult {
   currency: 'USD';
   warningUsd: string;
