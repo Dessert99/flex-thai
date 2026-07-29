@@ -5,6 +5,7 @@ import type {
   ContentProductionPresetCatalog,
   ContentProductionService,
   IdentityUserRepository,
+  QuestionProductionContextRepository,
   UploadPolicyService,
   UploadRepository,
 } from '@flex-thia/domain';
@@ -33,6 +34,7 @@ export interface ContentProductionModuleOptions {
   contentProduction: ContentProductionService;
   questionCandidates: QuestionCandidateReadRepository;
   questionCandidateReview: QuestionCandidateReviewOperations;
+  questionProductionContext?: QuestionProductionContextRepository;
   users: IdentityUserRepository;
   authorizer: AuthorizerGuardOptions;
 }
@@ -53,6 +55,7 @@ export class ContentProductionModule {
             options.presets,
             options.contentProduction,
             options.uploadPolicies,
+            options.questionProductionContext,
           ),
         },
         {

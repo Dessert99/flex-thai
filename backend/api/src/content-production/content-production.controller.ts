@@ -32,14 +32,23 @@ import {
   contentProductionJobPathSchema,
   contentProductionJobSummarySchema,
   contentProductionPresetListResponseSchema,
+  contentProductionPresetPathSchema,
+  contentProductionPresetVersionSchema,
+  contentProductionPresetVersionListResponseSchema,
   contentProductionUploadPathSchema,
+  createContentProductionPresetRequestSchema,
+  createContentProductionPresetVersionRequestSchema,
   createContentProductionJobRequestSchema,
+  promptPreviewRequestSchema,
+  promptPreviewResponseSchema,
+  setContentProductionPresetEnabledRequestSchema,
   uploadPolicyRequestSchema,
   uploadPolicyResponseSchema,
   type ContentProductionJobDetailResponse,
 } from '@flex-thia/contracts';
 import {
   ContentProductionDomainError,
+  ContentProductionPresetError,
   type ContentProductionJob,
 } from '@flex-thia/domain';
 import {
@@ -60,10 +69,18 @@ import {
   ContentProductionJobPathDto,
   ContentProductionJobSummaryDto,
   ContentProductionPresetListResponseDto,
+  ContentProductionPresetPathDto,
+  ContentProductionPresetVersionListResponseDto,
+  ContentProductionPresetVersionResponseDto,
   ContentProductionUploadPathDto,
   ContentProductionUploadPolicyRequestDto,
   ContentProductionUploadPolicyResponseDto,
   CreateContentProductionJobRequestDto,
+  CreateContentProductionPresetRequestDto,
+  CreateContentProductionPresetVersionRequestDto,
+  PromptPreviewRequestDto,
+  PromptPreviewResponseDto,
+  SetContentProductionPresetEnabledRequestDto,
 } from './content-production.dto.js';
 import {
   ContentProductionApplicationError,
@@ -101,6 +118,12 @@ const toJobDetail = (
     })),
   });
 
+const toPresetVersion = <Preset extends { createdAt: Date }>(preset: Preset) =>
+  contentProductionPresetVersionSchema.parse({
+    ...preset,
+    createdAt: preset.createdAt.toISOString(),
+  });
+
 // 기능 소유 오류만 공개 상태로 바꾸고 예상하지 못한 오류는 공통 filter로 전달
 const executeContentProductionOperation = async <Result>(
   operation: () => Promise<Result>,
@@ -133,6 +156,16 @@ const executeContentProductionOperation = async <Result>(
       throw new BadRequestException({ code: error.code });
     }
 
+    if (error instanceof ContentProductionPresetError) {
+      if (
+        error.code === 'CONTENT_PRODUCTION_PRESET_IDEMPOTENCY_CONFLICT' ||
+        error.code === 'CONTENT_PRODUCTION_PRESET_REVISION_CONFLICT'
+      ) {
+        throw new ConflictException({ code: error.code });
+      }
+      throw new BadRequestException({ code: error.code });
+    }
+
     throw error;
   }
 };
@@ -147,6 +180,13 @@ const executeContentProductionOperation = async <Result>(
   ContentProductionUploadPathDto,
   CompletedContentProductionUploadResponseDto,
   ContentProductionPresetListResponseDto,
+  ContentProductionPresetPathDto,
+  ContentProductionPresetVersionListResponseDto,
+  CreateContentProductionPresetRequestDto,
+  CreateContentProductionPresetVersionRequestDto,
+  SetContentProductionPresetEnabledRequestDto,
+  PromptPreviewRequestDto,
+  PromptPreviewResponseDto,
   CreateContentProductionJobRequestDto,
   ContentProductionJobSummaryDto,
   ContentProductionJobListQueryDto,
@@ -214,6 +254,110 @@ export class ContentProductionController {
     return contentProductionPresetListResponseSchema.parse({
       items: await this.contentProduction.listPresets(),
     });
+  }
+
+  /** provider 호출 없이 선택 item의 exact 생성 prompt를 미리 본다 */
+  @ApiOperation({ summary: '콘텐츠 제작 문제 prompt를 미리 본다' })
+  @ApiBody({ type: PromptPreviewRequestDto })
+  @ApiOkResponse({ type: PromptPreviewResponseDto })
+  @ApiProblemResponses(400, 401, 403, 500)
+  @Post('prompt-previews')
+  @HttpCode(200)
+  async previewPrompt(@Body() rawBody: unknown) {
+    return promptPreviewResponseSchema.parse(
+      await executeContentProductionOperation(() =>
+        this.contentProduction.preview(
+          promptPreviewRequestSchema.parse(rawBody),
+        ),
+      ),
+    );
+  }
+
+  /** immutable preset version 운영 목록을 반환한다 */
+  @ApiOperation({ summary: '콘텐츠 제작 preset version을 조회한다' })
+  @ApiOkResponse({ type: ContentProductionPresetVersionListResponseDto })
+  @ApiProblemResponses(401, 403, 500)
+  @Get('preset-versions')
+  async listPresetVersions() {
+    return contentProductionPresetVersionListResponseSchema.parse({
+      items: (await this.contentProduction.listPresetVersions()).map(
+        (preset) => ({
+          ...preset,
+          createdAt: preset.createdAt.toISOString(),
+        }),
+      ),
+    });
+  }
+
+  /** 새 이름의 최초 preset version을 생성한다 */
+  @ApiOperation({ summary: '콘텐츠 제작 preset을 생성한다' })
+  @ApiBody({ type: CreateContentProductionPresetRequestDto })
+  @ApiCreatedResponse({ type: ContentProductionPresetVersionResponseDto })
+  @ApiProblemResponses(400, 401, 403, 409, 500)
+  @Post('presets')
+  @HttpCode(201)
+  async createPreset(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() rawBody: unknown,
+  ) {
+    return toPresetVersion(
+      await executeContentProductionOperation(() =>
+        this.contentProduction.createPreset(
+          user,
+          createContentProductionPresetRequestSchema.parse(rawBody),
+        ),
+      ),
+    );
+  }
+
+  /** 기존 preset의 다음 immutable version을 생성한다 */
+  @ApiOperation({ summary: '콘텐츠 제작 preset 다음 version을 생성한다' })
+  @ApiParam({ name: 'presetId', type: 'string', format: 'uuid' })
+  @ApiBody({ type: CreateContentProductionPresetVersionRequestDto })
+  @ApiCreatedResponse({ type: ContentProductionPresetVersionResponseDto })
+  @ApiProblemResponses(400, 401, 403, 409, 500)
+  @Post('presets/:presetId/versions')
+  @HttpCode(201)
+  async createPresetVersion(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param() rawPath: Record<string, unknown>,
+    @Body() rawBody: unknown,
+  ) {
+    const { presetId } = contentProductionPresetPathSchema.parse(rawPath);
+    return toPresetVersion(
+      await executeContentProductionOperation(() =>
+        this.contentProduction.createPresetVersion(
+          user,
+          presetId,
+          createContentProductionPresetVersionRequestSchema.parse(rawBody),
+        ),
+      ),
+    );
+  }
+
+  /** 현재 revision이 일치할 때만 preset enabled 상태를 바꾼다 */
+  @ApiOperation({ summary: '콘텐츠 제작 preset enabled 상태를 바꾼다' })
+  @ApiParam({ name: 'presetId', type: 'string', format: 'uuid' })
+  @ApiBody({ type: SetContentProductionPresetEnabledRequestDto })
+  @ApiOkResponse({ type: ContentProductionPresetVersionListResponseDto })
+  @ApiProblemResponses(400, 401, 403, 409, 500)
+  @Post('presets/:presetId/enabled')
+  @HttpCode(200)
+  async setPresetEnabled(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param() rawPath: Record<string, unknown>,
+    @Body() rawBody: unknown,
+  ) {
+    const { presetId } = contentProductionPresetPathSchema.parse(rawPath);
+    return toPresetVersion(
+      await executeContentProductionOperation(() =>
+        this.contentProduction.setPresetEnabled(
+          user,
+          presetId,
+          setContentProductionPresetEnabledRequestSchema.parse(rawBody),
+        ),
+      ),
+    );
   }
 
   /** 검증된 입력과 preset snapshot으로 비동기 작업을 접수한다 */

@@ -65,6 +65,9 @@ const candidate = (ordinal = 0): GeneratedQuestionCandidate => ({
 
 const context = (): QuestionProductionContext => ({
   commonPrinciples: ['FLEX 형식'],
+  difficulty: 1,
+  similarityThreshold: 0.7,
+  speakerRoles: [],
   typeVersion: {
     id: 'type-version-id',
     slug: 'reading-choice',
@@ -142,6 +145,11 @@ const workItem = (): QuestionWorkItem => ({
     attempt: 1,
     retryable: false,
     errorCode: null,
+    questionPlan: {
+      questionPlanIndex: 0,
+      questionTypeVersionId: 'type-version-id',
+      difficulty: 1,
+    },
     leaseUntil: new Date('2026-07-27T00:05:00.000Z'),
     leaseToken: 'lease-token',
   },
@@ -149,6 +157,7 @@ const workItem = (): QuestionWorkItem => ({
 
 const createProcessor = (overrides?: {
   context?: QuestionProductionContext;
+  contextRepository?: QuestionProductionContextRepository;
   candidates?: GeneratedQuestionCandidate[];
   generation?: QuestionGenerationProvider;
   crossValidation?: QuestionCrossValidationProvider;
@@ -159,9 +168,10 @@ const createProcessor = (overrides?: {
   crossValidationModel?: string;
 }) => {
   let runSequence = 0;
-  const contextRepository: QuestionProductionContextRepository = {
-    load: () => Promise.resolve(overrides?.context ?? context()),
-  };
+  const contextRepository: QuestionProductionContextRepository =
+    overrides?.contextRepository ?? {
+      load: () => Promise.resolve(overrides?.context ?? context()),
+    };
   const generation: QuestionGenerationProvider = overrides?.generation ?? {
     generate: () =>
       Promise.resolve({
@@ -216,6 +226,56 @@ const createProcessor = (overrides?: {
 };
 
 describe('AI 문제 제작 processor', () => {
+  it('item에 고정된 문제 계획을 문맥 조회에 그대로 전달한다', async () => {
+    const baseWorkItem = workItem();
+    let loadedPlan:
+      Parameters<QuestionProductionContextRepository['load']>[0] | undefined;
+    const processor = createProcessor({
+      contextRepository: {
+        load: (input) => {
+          loadedPlan = input;
+          return Promise.resolve(context());
+        },
+      },
+    });
+
+    await expect(
+      processor.process(baseWorkItem, new AbortController().signal),
+    ).resolves.toMatchObject({ status: 'SUCCEEDED' });
+    expect(loadedPlan?.questionPlan).toEqual(baseWorkItem.item.questionPlan);
+  });
+
+  it('item 문제 계획이 없으면 문맥이나 provider를 호출하지 않고 실패한다', async () => {
+    const missingPlan = workItem();
+    missingPlan.item.questionPlan = null;
+    let contextCalls = 0;
+    let generationCalls = 0;
+    const processor = createProcessor({
+      contextRepository: {
+        load: () => {
+          contextCalls += 1;
+          return Promise.resolve(context());
+        },
+      },
+      generation: {
+        generate: () => {
+          generationCalls += 1;
+          return Promise.reject(new Error('호출되면 안 됨'));
+        },
+      },
+    });
+
+    await expect(
+      processor.process(missingPlan, new AbortController().signal),
+    ).resolves.toMatchObject({
+      status: 'FAILED',
+      retryable: false,
+      errorCode: 'QUESTION_PROVIDER_RESULT_INVALID',
+    });
+    expect(contextCalls).toBe(0);
+    expect(generationCalls).toBe(0);
+  });
+
   it('context부터 artifact 저장까지 정해진 순서로 후보를 처리한다', async () => {
     const calls: string[] = [];
     const baseContext = context();
@@ -378,18 +438,47 @@ describe('AI 문제 제작 processor', () => {
     expect(crossValidationCalls).toBe(0);
   });
 
-  it('한 후보의 provider 실패를 격리하고 다음 후보를 계속 처리한다', async () => {
+  it('item 계획과 다른 난이도 후보는 결정 규칙 실패로 격리한다', async () => {
+    let persisted:
+      | Parameters<QuestionProductionCandidateRepository['persist']>[0]
+      | undefined;
+    const mismatched = candidate();
+    mismatched.difficulty = 2;
+    mismatched.payload.difficulty = 2;
+    const processor = createProcessor({
+      candidates: [mismatched],
+      candidateRepository: {
+        persist: (input) => {
+          persisted = input;
+          return Promise.resolve(true);
+        },
+      },
+    });
+
+    await expect(
+      processor.process(workItem(), new AbortController().signal),
+    ).resolves.toMatchObject({
+      status: 'NEEDS_ATTENTION',
+      result: { total: 1, normal: 0, needsAttention: 0, failed: 1 },
+    });
+    expect(
+      persisted?.artifacts.validations.find(
+        ({ stage }) => stage === 'DECISION_RULE',
+      ),
+    ).toMatchObject({
+      status: 'FAILED',
+      code: 'QUESTION_RULE_INVALID',
+    });
+  });
+
+  it('provider가 두 후보를 반환하면 canonical 후보 없이 전체 결과를 거절한다', async () => {
+    let persistedCandidates: unknown[] | undefined;
     let validationCalls = 0;
-    let persistedGroups: string[] = [];
-    let failedCrossValidationCode: string | null | undefined;
     const processor = createProcessor({
       candidates: [candidate(0), candidate(1)],
       crossValidation: {
         validate: () => {
           validationCalls += 1;
-          if (validationCalls === 1) {
-            return Promise.reject(new Error('provider failed'));
-          }
           return Promise.resolve({
             status: 'PASSED',
             code: null,
@@ -402,13 +491,7 @@ describe('AI 문제 제작 processor', () => {
       },
       candidateRepository: {
         persist: (input) => {
-          persistedGroups = input.artifacts.candidates.map(
-            ({ resultGroup }) => resultGroup,
-          );
-          failedCrossValidationCode = input.artifacts.validations.find(
-            ({ candidateOrdinal, stage }) =>
-              candidateOrdinal === 0 && stage === 'AI_CROSS_VALIDATION',
-          )?.code;
+          persistedCandidates = input.artifacts.candidates;
           return Promise.resolve(true);
         },
       },
@@ -419,16 +502,68 @@ describe('AI 문제 제작 processor', () => {
       new AbortController().signal,
     );
 
-    expect(validationCalls).toBe(2);
-    expect(persistedGroups).toEqual(['NEEDS_ATTENTION', 'NORMAL']);
-    expect(failedCrossValidationCode).toBe('QUESTION_PROVIDER_CALL_FAILED');
+    expect(validationCalls).toBe(0);
+    expect(persistedCandidates).toEqual([]);
     expect(result).toMatchObject({
       status: 'FAILED',
-      retryable: true,
-      errorCode: 'QUESTION_PROVIDER_CALL_FAILED',
-      result: { total: 2, normal: 1, needsAttention: 1, failed: 0 },
+      retryable: false,
+      errorCode: 'QUESTION_PROVIDER_RESULT_INVALID',
     });
   });
+
+  it.each([
+    {
+      score: 0.6999,
+      expectedStatus: 'PASSED',
+      expectedCode: null,
+      expectedMatches: [],
+    },
+    {
+      score: 0.7,
+      expectedStatus: 'FAILED',
+      expectedCode: 'QUESTION_SIMILARITY_REVIEW',
+      expectedMatches: [
+        { questionVersionId: 'similar-version-id', score: 0.7 },
+      ],
+    },
+  ])(
+    '유사도 $score를 snapshot 임계값과 비교한다',
+    async ({ score, expectedStatus, expectedCode, expectedMatches }) => {
+      let similarityValidation:
+        | Parameters<
+            QuestionProductionCandidateRepository['persist']
+          >[0]['artifacts']['validations'][number]
+        | undefined;
+      const processor = createProcessor({
+        similarity: {
+          findSimilar: () =>
+            Promise.resolve([
+              {
+                questionVersionId: 'similar-version-id',
+                score,
+                summary: '비슷한 문제',
+              },
+            ]),
+        },
+        candidateRepository: {
+          persist: (input) => {
+            similarityValidation = input.artifacts.validations.find(
+              ({ stage }) => stage === 'SIMILARITY',
+            );
+            return Promise.resolve(true);
+          },
+        },
+      });
+
+      await processor.process(workItem(), new AbortController().signal);
+
+      expect(similarityValidation).toMatchObject({
+        status: expectedStatus,
+        code: expectedCode,
+        details: { matches: expectedMatches },
+      });
+    },
+  );
 
   it('null code로 실패한 교차 검증 결과를 stable code로 저장한다', async () => {
     let crossValidationCode: string | null | undefined;
@@ -584,17 +719,26 @@ describe('AI 문제 제작 processor', () => {
     expect(similarityCode).toBe('QUESTION_SIMILARITY_LOOKUP_FAILED');
   });
 
-  it('생성 후보가 없으면 성공으로 숨기지 않는다', async () => {
-    const processor = createProcessor({ candidates: [] });
+  it('생성 후보가 없으면 canonical 후보 없이 provider 결과를 거절한다', async () => {
+    let persistedCandidates: unknown[] | undefined;
+    const processor = createProcessor({
+      candidates: [],
+      candidateRepository: {
+        persist: (input) => {
+          persistedCandidates = input.artifacts.candidates;
+          return Promise.resolve(true);
+        },
+      },
+    });
 
     await expect(
       processor.process(workItem(), new AbortController().signal),
     ).resolves.toMatchObject({
-      status: 'NEEDS_ATTENTION',
+      status: 'FAILED',
       retryable: false,
-      errorCode: 'NO_QUESTION_CANDIDATES',
-      result: { total: 0, normal: 0, needsAttention: 0, failed: 0 },
+      errorCode: 'QUESTION_PROVIDER_RESULT_INVALID',
     });
+    expect(persistedCandidates).toEqual([]);
   });
 
   it('저장된 생성 실행은 provider 재호출 없이 replay한다', async () => {
@@ -723,7 +867,7 @@ describe('AI 문제 제작 processor', () => {
     });
   });
 
-  it('malformed 후보를 redacted schema 실패로 격리하고 뒤의 정상 후보를 처리한다', async () => {
+  it('malformed 후보가 섞인 다중 결과를 canonical 후보 없이 거절한다', async () => {
     let persisted:
       | Parameters<QuestionProductionCandidateRepository['persist']>[0]
       | undefined;
@@ -761,88 +905,16 @@ describe('AI 문제 제작 processor', () => {
     await expect(
       processor.process(workItem(), new AbortController().signal),
     ).resolves.toMatchObject({
-      status: 'NEEDS_ATTENTION',
-      result: { total: 3, normal: 1, needsAttention: 0, failed: 2 },
+      status: 'FAILED',
+      retryable: false,
+      errorCode: 'QUESTION_PROVIDER_RESULT_INVALID',
     });
 
-    expect(
-      persisted?.artifacts.validations.filter(
-        ({ stage }) => stage === 'SCHEMA',
-      ),
-    ).toEqual([
-      expect.objectContaining({
-        candidateOrdinal: 0,
-        status: 'FAILED',
-        code: 'QUESTION_SCHEMA_INVALID',
-      }),
-      expect.objectContaining({
-        candidateOrdinal: 1,
-        status: 'FAILED',
-        code: 'QUESTION_SCHEMA_INVALID',
-      }),
-      expect.objectContaining({
-        candidateOrdinal: 2,
-        status: 'PASSED',
-      }),
-    ]);
-    expect(
-      persisted?.artifacts.candidates.map(({ resultGroup }) => resultGroup),
-    ).toEqual(['FAILED', 'FAILED', 'NORMAL']);
-    expect(
-      persisted?.artifacts.candidates
-        .slice(0, 2)
-        .map(({ candidate: stored, payloadHash }) => ({ stored, payloadHash })),
-    ).toEqual([
-      {
-        stored: {
-          payloadState: 'REDACTED_INVALID',
-          questionTypeVersionId: 'type-version-id',
-          topicId: null,
-          tagIds: [],
-          difficulty: null,
-          payload: null,
-        },
-        payloadHash:
-          '79732325ba08de315b7ed66b263eacf3222cb949fc1d2063d536cf7312775eb8',
-      },
-      {
-        stored: {
-          payloadState: 'REDACTED_INVALID',
-          questionTypeVersionId: 'type-version-id',
-          topicId: null,
-          tagIds: [],
-          difficulty: null,
-          payload: null,
-        },
-        payloadHash:
-          '79732325ba08de315b7ed66b263eacf3222cb949fc1d2063d536cf7312775eb8',
-      },
-    ]);
-    expect(
-      persisted?.artifacts.validations
-        .filter(({ candidateOrdinal }) => candidateOrdinal === 0)
-        .map(({ stage, status, code }) => ({ stage, status, code })),
-    ).toEqual([
-      { stage: 'SCHEMA', status: 'FAILED', code: 'QUESTION_SCHEMA_INVALID' },
-      {
-        stage: 'DECISION_RULE',
-        status: 'SKIPPED',
-        code: 'QUESTION_VALIDATION_SKIPPED',
-      },
-      {
-        stage: 'SIMILARITY',
-        status: 'SKIPPED',
-        code: 'QUESTION_VALIDATION_SKIPPED',
-      },
-      {
-        stage: 'AI_CROSS_VALIDATION',
-        status: 'SKIPPED',
-        code: 'QUESTION_VALIDATION_SKIPPED',
-      },
-    ]);
-    expect(JSON.stringify(persisted?.artifacts.candidates)).not.toContain(
-      'private-provider-payload',
-    );
+    expect(persisted?.artifacts).toEqual({
+      kind: 'QUESTION_CANDIDATES',
+      candidates: [],
+      validations: [],
+    });
     expect(JSON.stringify(recordedProviderResults)).not.toContain(
       'private-provider-payload',
     );
@@ -1021,7 +1093,7 @@ describe('AI 문제 제작 processor', () => {
     ]);
   });
 
-  it('malformed replay도 provider 재호출 없이 격리하고 정상 후보를 처리한다', async () => {
+  it('다중 replay 결과도 provider 재호출 없이 전체를 거절한다', async () => {
     let generationCalls = 0;
     let persistedGroups: string[] = [];
     let persisted:
@@ -1064,33 +1136,13 @@ describe('AI 문제 제작 processor', () => {
     await expect(
       processor.process(workItem(), new AbortController().signal),
     ).resolves.toMatchObject({
-      status: 'NEEDS_ATTENTION',
-      result: { total: 2, normal: 1, needsAttention: 0, failed: 1 },
+      status: 'FAILED',
+      retryable: false,
+      errorCode: 'QUESTION_PROVIDER_RESULT_INVALID',
     });
     expect(generationCalls).toBe(0);
-    expect(persistedGroups).toEqual(['FAILED', 'NORMAL']);
-    expect(
-      persisted?.artifacts.validations
-        .filter(({ candidateOrdinal }) => candidateOrdinal === 0)
-        .map(({ stage, status, code }) => ({ stage, status, code })),
-    ).toEqual([
-      { stage: 'SCHEMA', status: 'FAILED', code: 'QUESTION_SCHEMA_INVALID' },
-      {
-        stage: 'DECISION_RULE',
-        status: 'SKIPPED',
-        code: 'QUESTION_VALIDATION_SKIPPED',
-      },
-      {
-        stage: 'SIMILARITY',
-        status: 'SKIPPED',
-        code: 'QUESTION_VALIDATION_SKIPPED',
-      },
-      {
-        stage: 'AI_CROSS_VALIDATION',
-        status: 'SKIPPED',
-        code: 'QUESTION_VALIDATION_SKIPPED',
-      },
-    ]);
+    expect(persistedGroups).toEqual([]);
+    expect(persisted?.artifacts.validations).toEqual([]);
   });
 
   it('결정 규칙 실패 뒤의 유사도·교차 검증을 SKIPPED로 저장한다', async () => {

@@ -243,6 +243,7 @@ export const questionCandidateReviewStateSchema = z.discriminatedUnion(
 
 const questionCandidateSummaryBaseShape = {
   id: uuidSchema,
+  jobId: uuidSchema,
   jobItemId: uuidSchema,
   jobAttempt: nonnegativeIntegerSchema,
   ordinal: nonnegativeIntegerSchema,
@@ -284,6 +285,7 @@ const questionCandidateSummarySchema = z.discriminatedUnion('payloadState', [
 /** 후보 목록에 사용하는 page query와 안정적인 필터 */
 export const questionCandidateListQuerySchema = z
   .object({
+    jobId: uuidSchema.optional(),
     jobItemId: uuidSchema.optional(),
     resultGroup: questionCandidateGroupSchema.optional(),
     reviewStatus: questionCandidateReviewStatusSchema.optional(),
@@ -495,6 +497,16 @@ export type QuestionCandidateListQuery = z.infer<
   typeof questionCandidateListQuerySchema
 >;
 
+/** 검증된 후보 목록 응답 type */
+export type QuestionCandidateListResponse = z.infer<
+  typeof questionCandidateListResponseSchema
+>;
+
+/** 검증된 후보 목록 항목 type */
+export type QuestionCandidateListItem = z.infer<
+  typeof questionCandidateListItemSchema
+>;
+
 /** 검증된 후보 경로 type */
 export type QuestionCandidatePath = z.infer<typeof questionCandidatePathSchema>;
 
@@ -521,4 +533,19 @@ export type DiscardQuestionCandidateRequest = z.infer<
 /** 검증된 후보 재생성 요청 type */
 export type RegenerateQuestionCandidateRequest = z.infer<
   typeof regenerateQuestionCandidateRequestSchema
+>;
+
+/** 후보 승인 응답 type */
+export type ApproveQuestionCandidateResponse = z.infer<
+  typeof approveQuestionCandidateResponseSchema
+>;
+
+/** 후보 폐기 응답 type */
+export type DiscardQuestionCandidateResponse = z.infer<
+  typeof discardQuestionCandidateResponseSchema
+>;
+
+/** 후보 재생성 응답 type */
+export type RegenerateQuestionCandidateResponse = z.infer<
+  typeof regenerateQuestionCandidateResponseSchema
 >;

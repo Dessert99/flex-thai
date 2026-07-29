@@ -11,6 +11,11 @@ import type {
 import {
   CONTENT_PRODUCTION_ITEM_LEASE_MS,
   createContentProductionWorkItem,
+  expandQuestionGenerationPlan,
+} from '@flex-thia/domain';
+import type {
+  ContentProductionOperation,
+  QuestionGenerationParameters,
 } from '@flex-thia/domain';
 
 const CONTENT_PRODUCTION_ITEM_HEARTBEAT_MS = Math.floor(
@@ -39,7 +44,12 @@ export interface ContentProductionWorkerRepository {
   listAttemptItems(
     jobId: string,
     attempt: number,
+    operation?: ContentProductionOperation,
   ): Promise<ContentProductionItem[]>;
+  areOperationItemsSuccessful?(
+    jobId: string,
+    operation: ContentProductionOperation,
+  ): Promise<boolean>;
   startItem(
     jobId: string,
     itemId: string,
@@ -201,46 +211,42 @@ const startLeaseHeartbeat = (
   };
 };
 
-const buildItemSeeds = (
+const buildVocabularySeeds = (
   job: ContentProductionWorkerJobSnapshot,
 ): ContentProductionItemSeed[] =>
-  job.inputs.flatMap((input, index) => {
+  job.inputs.map((input, index) => {
     if (!input.jobInputId || input.ordinal === undefined) {
       throw new Error(`job input ID가 없는 콘텐츠 제작 작업입니다: ${job.id}`);
     }
-    if (job.purpose === 'VOCABULARY_EXTRACTION') {
-      return [
-        {
-          sourceRef: `input:${index}:vocabulary`,
-          jobInputId: input.jobInputId,
-          operation: 'VOCABULARY_EXTRACTION' as const,
-        },
-      ];
-    }
-
-    if (job.purpose === 'QUESTION_GENERATION') {
-      return [
-        {
-          sourceRef: `input:${index}:question`,
-          jobInputId: input.jobInputId,
-          operation: 'QUESTION_GENERATION' as const,
-        },
-      ];
-    }
-
-    return [
-      {
-        sourceRef: `input:${index}:vocabulary`,
-        jobInputId: input.jobInputId,
-        operation: 'VOCABULARY_EXTRACTION' as const,
-      },
-      {
-        sourceRef: `input:${index}:question`,
-        jobInputId: input.jobInputId,
-        operation: 'QUESTION_GENERATION' as const,
-      },
-    ];
+    return {
+      sourceRef: `input:${index}:vocabulary`,
+      jobInputId: input.jobInputId,
+      operation: 'VOCABULARY_EXTRACTION',
+      questionPlan: null,
+    };
   });
+
+const buildQuestionSeeds = (
+  job: ContentProductionWorkerJobSnapshot,
+): ContentProductionItemSeed[] => {
+  if (job.inputs.length === 0) return [];
+  const plans = expandQuestionGenerationPlan(
+    job.presetSnapshot.parameters as unknown as QuestionGenerationParameters,
+  );
+  return plans.map((questionPlan) => {
+    const input =
+      job.inputs[questionPlan.questionPlanIndex % job.inputs.length]!;
+    if (!input.jobInputId || input.ordinal === undefined) {
+      throw new Error(`job input ID가 없는 콘텐츠 제작 작업입니다: ${job.id}`);
+    }
+    return {
+      sourceRef: `input:${input.ordinal}:question:${questionPlan.questionPlanIndex}`,
+      jobInputId: input.jobInputId,
+      operation: 'QUESTION_GENERATION',
+      questionPlan,
+    };
+  });
+};
 
 /** stale·terminal 전달을 무시하고 항목 실패를 격리해 한 attempt를 집계한다 */
 export const createContentProductionDispatcher =
@@ -261,85 +267,108 @@ export const createContentProductionDispatcher =
       return { jobId: input.jobId, status: 'IGNORED' };
     }
 
-    const itemSeeds = buildItemSeeds(job);
-    await repository.ensureItems(job.id, itemSeeds);
-    const seedsBySourceRef = new Map(
-      itemSeeds.map((seed) => [seed.sourceRef, seed]),
-    );
-    const items = await repository.listAttemptItems(job.id, input.attempt);
-
-    for (const item of items) {
-      const claimed = await repository.startItem(
-        job.id,
-        item.id,
-        input.attempt,
+    const processSeeds = async (
+      operation: ContentProductionOperation,
+      itemSeeds: ContentProductionItemSeed[],
+    ) => {
+      await repository.ensureItems(job.id, itemSeeds);
+      const seedsBySourceRef = new Map(
+        itemSeeds.map((seed) => [seed.sourceRef, seed]),
       );
-
-      if (!claimed) {
-        continue;
-      }
-
-      if (!claimed.leaseUntil) {
-        throw new Error(`lease 없는 PROCESSING 항목입니다: ${claimed.id}`);
-      }
-
-      if (!claimed.leaseToken) {
-        throw new Error(
-          `lease token 없는 PROCESSING 항목입니다: ${claimed.id}`,
+      const items = await repository.listAttemptItems(
+        job.id,
+        input.attempt,
+        operation,
+      );
+      for (const item of items) {
+        const claimed = await repository.startItem(
+          job.id,
+          item.id,
+          input.attempt,
         );
-      }
 
-      const controller = new AbortController();
-      const heartbeat = startLeaseHeartbeat(
-        repository,
-        claimed as ContentProductionItem & {
-          leaseUntil: Date;
-          leaseToken: string;
-        },
-        job.id,
-        input.attempt,
-        controller,
-      );
-      let outcome: ContentProductionItemOutcome;
+        if (!claimed) {
+          continue;
+        }
 
-      try {
-        const seed = seedsBySourceRef.get(claimed.sourceRef);
-        if (!seed || !claimed.leaseUntil || !claimed.leaseToken) {
+        if (!claimed.leaseUntil) {
+          throw new Error(`lease 없는 PROCESSING 항목입니다: ${claimed.id}`);
+        }
+
+        if (!claimed.leaseToken) {
           throw new Error(
-            `구조화되지 않은 콘텐츠 제작 claim입니다: ${claimed.id}`,
+            `lease token 없는 PROCESSING 항목입니다: ${claimed.id}`,
           );
         }
-        outcome = await processor.process(
-          createContentProductionWorkItem(job as ContentProductionWorkerJob, {
-            ...claimed,
-            jobInputId: seed.jobInputId,
-            operation: seed.operation,
-            leaseUntil: claimed.leaseUntil,
-            leaseToken: claimed.leaseToken,
-          }),
-          controller.signal,
+
+        const controller = new AbortController();
+        const heartbeat = startLeaseHeartbeat(
+          repository,
+          claimed as ContentProductionItem & {
+            leaseUntil: Date;
+            leaseToken: string;
+          },
+          job.id,
+          input.attempt,
+          controller,
         );
-      } catch {
-        outcome = {
-          status: 'FAILED',
-          retryable: true,
-          errorCode: 'LOCAL_PROCESSOR_FAILURE',
-        };
-      } finally {
-        await heartbeat.stop();
-      }
+        let outcome: ContentProductionItemOutcome;
 
-      if (heartbeat.isLeaseLost()) {
-        continue;
-      }
+        try {
+          const seed = seedsBySourceRef.get(claimed.sourceRef);
+          if (!seed || !claimed.leaseUntil || !claimed.leaseToken) {
+            throw new Error(
+              `구조화되지 않은 콘텐츠 제작 claim입니다: ${claimed.id}`,
+            );
+          }
+          outcome = await processor.process(
+            createContentProductionWorkItem(job as ContentProductionWorkerJob, {
+              ...claimed,
+              jobInputId: seed.jobInputId,
+              operation: seed.operation,
+              questionPlan: seed.questionPlan,
+              leaseUntil: claimed.leaseUntil,
+              leaseToken: claimed.leaseToken,
+            }),
+            controller.signal,
+          );
+        } catch {
+          outcome = {
+            status: 'FAILED',
+            retryable: true,
+            errorCode: 'LOCAL_PROCESSOR_FAILURE',
+          };
+        } finally {
+          await heartbeat.stop();
+        }
 
-      await repository.finishItem(
-        job.id,
-        claimed.id,
-        input.attempt,
-        claimed.leaseToken,
-        outcome,
-      );
+        if (heartbeat.isLeaseLost()) {
+          continue;
+        }
+
+        await repository.finishItem(
+          job.id,
+          claimed.id,
+          input.attempt,
+          claimed.leaseToken,
+          outcome,
+        );
+      }
+    };
+
+    if (job.purpose !== 'QUESTION_GENERATION') {
+      await processSeeds('VOCABULARY_EXTRACTION', buildVocabularySeeds(job));
+    }
+    if (
+      job.purpose === 'QUESTION_GENERATION' ||
+      (job.purpose === 'VOCABULARY_THEN_QUESTION_GENERATION' &&
+        ((await repository.areOperationItemsSuccessful?.(
+          job.id,
+          'VOCABULARY_EXTRACTION',
+        )) ??
+          false))
+    ) {
+      await processSeeds('QUESTION_GENERATION', buildQuestionSeeds(job));
     }
 
     return (

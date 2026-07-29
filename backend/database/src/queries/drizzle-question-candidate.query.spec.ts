@@ -7,6 +7,7 @@ import {
 
 const candidate = {
   id: '00000000-0000-4000-8000-000000000001',
+  jobId: '00000000-0000-4000-8000-000000000099',
   jobItemId: '00000000-0000-4000-8000-000000000002',
   jobAttempt: 1,
   ordinal: 0,
@@ -29,11 +30,16 @@ const candidate = {
 const createDatabase = (results: Array<Array<Record<string, unknown>>>) => {
   const queue = [...results];
   const selectedFields: string[][] = [];
+  const innerJoin = vi.fn();
   const select = vi.fn((fields: Record<string, unknown>) => {
     selectedFields.push(Object.keys(fields));
     const consume = () => Promise.resolve(queue.shift() ?? []);
     const chain = {
       from: vi.fn(() => chain),
+      innerJoin: vi.fn((...input: unknown[]) => {
+        innerJoin(...input);
+        return chain;
+      }),
       where: vi.fn(() => chain),
       orderBy: vi.fn(() => chain),
       limit: vi.fn(() => chain),
@@ -45,7 +51,7 @@ const createDatabase = (results: Array<Array<Record<string, unknown>>>) => {
     };
     return chain;
   });
-  return { database: { select }, selectedFields };
+  return { database: { select }, selectedFields, innerJoin };
 };
 
 describe('DrizzleQuestionCandidateQuery', () => {
@@ -55,6 +61,7 @@ describe('DrizzleQuestionCandidateQuery', () => {
 
     await expect(
       query.list({
+        jobId: candidate.jobId,
         resultGroup: 'NORMAL',
         reviewStatus: 'PENDING',
         page: 1,
@@ -65,6 +72,8 @@ describe('DrizzleQuestionCandidateQuery', () => {
       totalItems: 1,
     });
     expect(fake.selectedFields[1]).not.toContain('payloadHash');
+    expect(fake.selectedFields[1]).toContain('jobId');
+    expect(fake.innerJoin).toHaveBeenCalledTimes(2);
   });
 
   it('상세는 canonical payload와 allow-list validation만 함께 반환한다', async () => {
@@ -83,6 +92,8 @@ describe('DrizzleQuestionCandidateQuery', () => {
       validations: [validation],
     });
     expect(fake.selectedFields.flat()).not.toContain('payloadHash');
+    expect(fake.selectedFields[0]).toContain('jobId');
+    expect(fake.innerJoin).toHaveBeenCalledOnce();
   });
 
   it('비활성 여부와 무관하게 payload tag slug 순서대로 truthful ID를 복원한다', async () => {

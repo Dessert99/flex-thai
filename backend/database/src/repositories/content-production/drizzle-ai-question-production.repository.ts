@@ -63,8 +63,15 @@ export interface GeneratedQuestionTtsScheduler {
       draft: ApprovedQuestionDraft;
       requestedBy: string;
       requestedAt: Date;
+      voicePolicy?: {
+        defaultVoicePresetId: string;
+        speakerVoiceAssignments: Array<{
+          speakerRole: string;
+          voicePresetId: string;
+        }>;
+      };
     },
-  ): Promise<{ jobId: string }>;
+  ): Promise<{ jobIds: string[] }>;
 }
 
 type ReviewCandidate = {
@@ -81,6 +88,7 @@ type ReviewCandidate = {
   revision: number;
   approvedQuestionId: string | null;
   approvedQuestionVersionId: string | null;
+  presetSnapshot?: { parameters?: Record<string, unknown> } | null;
 };
 
 type ReviewReplay = {
@@ -98,6 +106,43 @@ const requiredValidationStages = new Set([
   'SIMILARITY',
   'AI_CROSS_VALIDATION',
 ]);
+
+const readVoicePolicy = (
+  snapshot: ReviewCandidate['presetSnapshot'],
+):
+  | {
+      voicePolicy: {
+        defaultVoicePresetId: string;
+        speakerVoiceAssignments: Array<{
+          speakerRole: string;
+          voicePresetId: string;
+        }>;
+      };
+    }
+  | Record<string, never> => {
+  const parameters = snapshot?.parameters;
+  const defaultVoicePresetId = parameters?.['defaultVoicePresetId'];
+  const assignments = parameters?.['speakerVoiceAssignments'];
+  if (typeof defaultVoicePresetId !== 'string' || !Array.isArray(assignments)) {
+    return {};
+  }
+  const assignmentValues: unknown[] = assignments;
+  const speakerVoiceAssignments = assignmentValues.flatMap((assignment) => {
+    if (!assignment || typeof assignment !== 'object') return [];
+    const record = assignment as Record<string, unknown>;
+    const speakerRole = record['speakerRole'];
+    const voicePresetId = record['voicePresetId'];
+    return typeof speakerRole === 'string' &&
+      speakerRole.trim() !== '' &&
+      typeof voicePresetId === 'string'
+      ? [{ speakerRole: speakerRole.trim(), voicePresetId }]
+      : [];
+  });
+  if (speakerVoiceAssignments.length !== assignmentValues.length) return {};
+  return {
+    voicePolicy: { defaultVoicePresetId, speakerVoiceAssignments },
+  };
+};
 
 const lockReviewRequest = (
   transaction: QuestionProductionTransaction,
@@ -127,6 +172,12 @@ const readReviewCandidate = async (
       approvedQuestionId: questionProductionCandidates.approvedQuestionId,
       approvedQuestionVersionId:
         questionProductionCandidates.approvedQuestionVersionId,
+      presetSnapshot: sql`(
+        select ${jobs.presetSnapshot}
+        from ${jobItems}
+        inner join ${jobs} on ${jobs.id} = ${jobItems.jobId}
+        where ${jobItems.id} = ${questionProductionCandidates.jobItemId}
+      )`,
     })
     .from(questionProductionCandidates)
     .where(eq(questionProductionCandidates.id, candidateId))
@@ -555,6 +606,7 @@ export class DrizzleAiQuestionProductionRepository
         draft,
         requestedBy: input.actorUserId,
         requestedAt: input.occurredAt,
+        ...readVoicePolicy(candidate.presetSnapshot),
       });
       const nextRevision = candidate.revision + 1;
       const updated = await transaction

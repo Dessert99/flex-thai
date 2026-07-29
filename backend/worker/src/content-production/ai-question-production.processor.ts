@@ -66,13 +66,6 @@ type ProviderOperationResult =
       retryable: boolean;
     };
 
-const emptyCounts = (): QuestionProductionCounts => ({
-  total: 0,
-  normal: 0,
-  needsAttention: 0,
-  failed: 0,
-});
-
 const canonicalJson = (value: unknown): unknown => {
   if (Array.isArray(value)) return value.map(canonicalJson);
   if (value === null || typeof value !== 'object') return value;
@@ -382,10 +375,19 @@ export class AiQuestionProductionProcessor {
 
     let context: QuestionProductionContext;
     let prompt;
+    const questionPlan = item.item.questionPlan;
+    if (!questionPlan) {
+      return this.persistEmpty(item, {
+        status: 'FAILED',
+        retryable: false,
+        errorCode: 'QUESTION_PROVIDER_RESULT_INVALID',
+      });
+    }
     try {
       context = await this.contextRepository.load({
         preset: item.presetSnapshot,
         operation: 'QUESTION_GENERATION',
+        questionPlan,
       });
       if (signal.aborted) return abortedResult();
       prompt = buildQuestionGenerationPrompt(context);
@@ -455,12 +457,11 @@ export class AiQuestionProductionProcessor {
         errorCode: 'QUESTION_PROVIDER_RESULT_INVALID',
       });
     }
-    if (generated.length === 0) {
+    if (generated.length !== 1) {
       return this.persistEmpty(item, {
-        status: 'NEEDS_ATTENTION',
+        status: 'FAILED',
         retryable: false,
-        errorCode: 'NO_QUESTION_CANDIDATES',
-        result: emptyCounts(),
+        errorCode: 'QUESTION_PROVIDER_RESULT_INVALID',
       });
     }
 
@@ -517,7 +518,14 @@ export class AiQuestionProductionProcessor {
                 code: 'QUESTION_VALIDATION_SKIPPED',
               } as const)
           : schema.status === 'PASSED'
-            ? validateQuestionDecisionRules(canonicalCandidate!, context)
+            ? canonicalCandidate?.questionTypeVersionId ===
+                questionPlan.questionTypeVersionId &&
+              canonicalCandidate.difficulty === questionPlan.difficulty
+              ? validateQuestionDecisionRules(canonicalCandidate, context)
+              : ({
+                  status: 'FAILED',
+                  code: 'QUESTION_RULE_INVALID',
+                } as const)
             : {
                 status: 'SKIPPED' as const,
                 code: 'QUESTION_VALIDATION_SKIPPED' as const,
@@ -538,10 +546,9 @@ export class AiQuestionProductionProcessor {
         rules.status === 'PASSED'
       ) {
         try {
-          const matches = await this.similarityLookup.findSimilar(
-            canonicalCandidate,
-            5,
-          );
+          const matches = (
+            await this.similarityLookup.findSimilar(canonicalCandidate, 5)
+          ).filter(({ score }) => score >= context.similarityThreshold);
           candidateValidations.push(
             normalizeQuestionProductionValidationRecord({
               candidateOrdinal: ordinal,

@@ -31,6 +31,98 @@ export interface ContentProductionPresetSnapshot {
   parameters: Record<string, unknown>;
 }
 
+/** 관리자 preset version 목록에 필요한 immutable row와 enabled revision */
+export interface ContentProductionPresetVersion extends ContentProductionPresetSnapshot {
+  enabled: boolean;
+  revision: number;
+  createdAt: Date;
+}
+
+/** preset 변경 명령의 서버 신뢰 감사 문맥 */
+export interface ContentProductionPresetAuditContext {
+  requestId: string;
+  actorUserId: string;
+  actorSub: string;
+  occurredAt: Date;
+}
+
+/** 새 이름으로 최초 preset version을 만드는 명령 */
+export interface CreateInitialContentProductionPresetInput extends ContentProductionPresetAuditContext {
+  name: string;
+  purpose: ContentProductionPurpose;
+  parameters: Record<string, unknown>;
+}
+
+/** 같은 이름·목적의 다음 immutable preset version을 만드는 명령 */
+export interface CreateNextContentProductionPresetVersionInput extends ContentProductionPresetAuditContext {
+  presetId: string;
+  purpose: ContentProductionPurpose;
+  parameters: Record<string, unknown>;
+}
+
+/** preset enabled 상태를 optimistic revision으로 바꾸는 명령 */
+export interface SetContentProductionPresetEnabledInput extends ContentProductionPresetAuditContext {
+  presetId: string;
+  enabled: boolean;
+  expectedRevision: number;
+}
+
+/** job/preview 요청의 허용된 override만 preset policy에 적용하는 입력 */
+export interface ResolveContentProductionPresetSnapshotInput {
+  purpose: ContentProductionPurpose;
+  presetId: string;
+  options: Record<string, unknown>;
+}
+
+/** 문제 유형·난이도 분포를 item 단위로 펼칠 typed parameter */
+export interface QuestionGenerationParameters {
+  questionCount: number;
+  questionTypePlan: Array<{
+    questionTypeVersionId: string;
+    count: number;
+  }>;
+  difficultyPlan: Array<{
+    difficulty: 1 | 2 | 3 | 4 | 5;
+    count: number;
+  }>;
+}
+
+/** 한 문제 생성 item이 고정하는 유형·난이도 */
+export interface QuestionGenerationItemPlan {
+  questionPlanIndex: number;
+  questionTypeVersionId: string;
+  difficulty: 1 | 2 | 3 | 4 | 5;
+}
+
+/** 배열 입력 순서와 무관하게 유형·난이도 분포를 item snapshot으로 펼친다 */
+export const expandQuestionGenerationPlan = (
+  parameters: QuestionGenerationParameters,
+): QuestionGenerationItemPlan[] => {
+  const types = [...parameters.questionTypePlan]
+    .sort((left, right) =>
+      left.questionTypeVersionId.localeCompare(right.questionTypeVersionId),
+    )
+    .flatMap(({ questionTypeVersionId, count }) =>
+      Array.from({ length: count }, () => questionTypeVersionId),
+    );
+  const difficulties = [...parameters.difficultyPlan]
+    .sort((left, right) => left.difficulty - right.difficulty)
+    .flatMap(({ difficulty, count }) =>
+      Array.from({ length: count }, () => difficulty),
+    );
+  if (
+    types.length !== parameters.questionCount ||
+    difficulties.length !== parameters.questionCount
+  ) {
+    throw new Error('QUESTION_GENERATION_PLAN_INVALID');
+  }
+  return types.map((questionTypeVersionId, questionPlanIndex) => ({
+    questionPlanIndex,
+    questionTypeVersionId,
+    difficulty: difficulties[questionPlanIndex]!,
+  }));
+};
+
 /** 콘텐츠 제작 입력 snapshot */
 export interface ContentProductionInput {
   jobInputId?: string;
@@ -159,10 +251,61 @@ export interface ContentProductionRepository {
 /** 작업 생성 시 사용할 활성 preset 조회 port */
 export interface ContentProductionPresetCatalog {
   listEnabled(): Promise<ContentProductionPresetSnapshot[]>;
+  listVersions(): Promise<ContentProductionPresetVersion[]>;
   findEnabledById(
     presetId: string,
   ): Promise<ContentProductionPresetSnapshot | null>;
+  resolveEffectiveSnapshot(
+    input: ResolveContentProductionPresetSnapshotInput,
+  ): Promise<ContentProductionPresetSnapshot | null>;
+  createInitial(
+    input: CreateInitialContentProductionPresetInput,
+  ): Promise<ContentProductionPresetVersion>;
+  createNextVersion(
+    input: CreateNextContentProductionPresetVersionInput,
+  ): Promise<ContentProductionPresetVersion>;
+  setEnabled(
+    input: SetContentProductionPresetEnabledInput,
+  ): Promise<ContentProductionPresetVersion>;
 }
+
+/** preset version 명령의 멱등·optimistic 충돌 */
+export class ContentProductionPresetError extends Error {
+  constructor(
+    readonly code:
+      | 'CONTENT_PRODUCTION_PRESET_IDEMPOTENCY_CONFLICT'
+      | 'CONTENT_PRODUCTION_PRESET_REVISION_CONFLICT'
+      | 'CONTENT_PRODUCTION_PRESET_NOT_FOUND'
+      | 'CONTENT_PRODUCTION_PRESET_PURPOSE_MISMATCH',
+  ) {
+    super(code);
+    this.name = 'ContentProductionPresetError';
+  }
+}
+
+/** 저장 adapter 직접 호출에서도 목적과 parameter 계열이 엇갈리지 않게 한다 */
+export const assertContentProductionPresetPurposeParameters = (
+  purpose: ContentProductionPurpose,
+  parameters: Record<string, unknown>,
+): void => {
+  const hasVocabularyPolicy =
+    typeof parameters.suspectedDuplicateMaxCodePointDistance === 'number';
+  const hasQuestionPolicy =
+    typeof parameters.questionCount === 'number' &&
+    Array.isArray(parameters.questionTypePlan) &&
+    Array.isArray(parameters.difficultyPlan);
+  const matches =
+    purpose === 'VOCABULARY_EXTRACTION'
+      ? hasVocabularyPolicy && !hasQuestionPolicy
+      : purpose === 'QUESTION_GENERATION'
+        ? hasQuestionPolicy && !hasVocabularyPolicy
+        : hasVocabularyPolicy && hasQuestionPolicy;
+  if (!matches) {
+    throw new ContentProductionPresetError(
+      'CONTENT_PRODUCTION_PRESET_PURPOSE_MISMATCH',
+    );
+  }
+};
 
 /** 콘텐츠 제작 queue port */
 export interface ContentProductionQueue {

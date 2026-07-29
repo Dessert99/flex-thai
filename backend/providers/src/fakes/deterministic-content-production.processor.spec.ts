@@ -20,6 +20,7 @@ const workItem = (sourceRef: string): ContentProductionWorkItem => ({
     sourceRef,
     jobInputId: '77a1e8ff-7c85-4739-9004-647e12e34b65',
     operation: 'VOCABULARY_EXTRACTION',
+    questionPlan: null,
     status: 'PROCESSING',
     attempt: 0,
     retryable: false,

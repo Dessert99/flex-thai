@@ -69,8 +69,20 @@ export class DrizzleGeneratedQuestionTtsScheduler implements GeneratedQuestionTt
   async schedule(
     transaction: QuestionProductionTransaction,
     input: Parameters<GeneratedQuestionTtsScheduler['schedule']>[1],
-  ): Promise<{ jobId: string }> {
-    const [preset] = await transaction
+  ): Promise<{ jobIds: string[] }> {
+    const voicePolicy = input.voicePolicy ?? {
+      defaultVoicePresetId: this.voicePresetId,
+      speakerVoiceAssignments: [],
+    };
+    const presetIds = [
+      ...new Set([
+        voicePolicy.defaultVoicePresetId,
+        ...voicePolicy.speakerVoiceAssignments.map(
+          ({ voicePresetId }) => voicePresetId,
+        ),
+      ]),
+    ].sort();
+    const presetRows = await transaction
       .select({
         id: ttsVoicePresets.id,
         provider: ttsVoicePresets.provider,
@@ -84,14 +96,15 @@ export class DrizzleGeneratedQuestionTtsScheduler implements GeneratedQuestionTt
       .from(ttsVoicePresets)
       .where(
         and(
-          eq(ttsVoicePresets.id, this.voicePresetId),
+          inArray(ttsVoicePresets.id, presetIds),
           eq(ttsVoicePresets.enabled, true),
         ),
       )
-      .for('share')
-      .limit(1);
-    if (!preset) return unavailablePreset();
-    const voice = voiceSnapshot(preset);
+      .for('share');
+    if (presetRows.length !== presetIds.length) return unavailablePreset();
+    const voices = new Map(
+      presetRows.map((preset) => [preset.id, voiceSnapshot(preset)]),
+    );
 
     const [version] = await transaction
       .select({
@@ -119,7 +132,10 @@ export class DrizzleGeneratedQuestionTtsScheduler implements GeneratedQuestionTt
     }
 
     const blockRows = await transaction
-      .select({ sentenceVersionId: questionBlockSentences.sentenceVersionId })
+      .select({
+        sentenceVersionId: questionBlockSentences.sentenceVersionId,
+        speaker: questionBlockSentences.speaker,
+      })
       .from(questionBlockSentences)
       .innerJoin(
         questionBlocks,
@@ -139,17 +155,27 @@ export class DrizzleGeneratedQuestionTtsScheduler implements GeneratedQuestionTt
         eq(questionOptions.questionVersionId, input.draft.questionVersionId),
       )
       .orderBy(asc(questionOptions.id));
-    const targetIds = [
-      ...new Set([
-        ...blockRows.map(({ sentenceVersionId }) => sentenceVersionId),
-        ...optionRows.flatMap(
-          ({ sentenceVersionId, spanSentenceVersionId }) => [
-            ...(sentenceVersionId === null ? [] : [sentenceVersionId]),
-            ...(spanSentenceVersionId === null ? [] : [spanSentenceVersionId]),
-          ],
-        ),
-      ]),
-    ].sort();
+    const rolesByTarget = new Map<string, string | null>();
+    const assignTarget = (targetId: string, speaker: string | null) => {
+      const role = speaker?.trim() || null;
+      if (rolesByTarget.has(targetId) && rolesByTarget.get(targetId) !== role) {
+        return targetMismatch();
+      }
+      rolesByTarget.set(targetId, role);
+    };
+    for (const { sentenceVersionId, speaker } of blockRows) {
+      assignTarget(sentenceVersionId, speaker);
+    }
+    for (const { sentenceVersionId, spanSentenceVersionId } of optionRows) {
+      if (sentenceVersionId !== null) assignTarget(sentenceVersionId, null);
+      if (
+        spanSentenceVersionId !== null &&
+        !rolesByTarget.has(spanSentenceVersionId)
+      ) {
+        return targetMismatch();
+      }
+    }
+    const targetIds = [...rolesByTarget.keys()].sort();
     if (targetIds.length === 0) return targetMismatch();
 
     const sentences = await transaction
@@ -176,46 +202,70 @@ export class DrizzleGeneratedQuestionTtsScheduler implements GeneratedQuestionTt
       return targetMismatch();
     }
 
-    const jobId = this.generateId();
-    const commandFingerprint = createTtsInitialCommandFingerprint(jobId);
-    await transaction.insert(ttsJobs).values({
-      id: jobId,
-      requestedBy: input.requestedBy,
-      voiceSnapshot: voice,
-      dispatchAttempt: 0,
-      lastDispatchCommandFingerprint: commandFingerprint,
-      status: 'QUEUED',
-      pendingCount: sentences.length,
-      processingCount: 0,
-      succeededCount: 0,
-      failedCount: 0,
-      createdAt: input.requestedAt,
-      updatedAt: input.requestedAt,
-    });
-    await transaction.insert(ttsItems).values(
-      sentences.map((sentence) => ({
-        id: this.generateId(),
-        jobId,
-        targetKind: 'THAI_SENTENCE_VERSION' as const,
-        targetId: sentence.id,
-        targetText: sentence.originalText,
-        targetRequired: true,
-        revision: input.draft.questionVersionId,
+    const presetByRole = new Map(
+      voicePolicy.speakerVoiceAssignments.map(
+        ({ speakerRole, voicePresetId }) => [speakerRole.trim(), voicePresetId],
+      ),
+    );
+    const groups = new Map<string, typeof sentences>();
+    for (const sentence of sentences) {
+      const role = rolesByTarget.get(sentence.id) ?? null;
+      const presetId =
+        (role === null ? undefined : presetByRole.get(role)) ??
+        voicePolicy.defaultVoicePresetId;
+      const group = groups.get(presetId) ?? [];
+      group.push(sentence);
+      groups.set(presetId, group);
+    }
+
+    const jobIds: string[] = [];
+    for (const [presetId, groupedSentences] of [...groups.entries()].sort(
+      ([left], [right]) => left.localeCompare(right),
+    )) {
+      const voice = voices.get(presetId);
+      if (!voice) return unavailablePreset();
+      const jobId = this.generateId();
+      jobIds.push(jobId);
+      const commandFingerprint = createTtsInitialCommandFingerprint(jobId);
+      await transaction.insert(ttsJobs).values({
+        id: jobId,
+        requestedBy: input.requestedBy,
         voiceSnapshot: voice,
-        cacheKey: createTtsCacheKey(sentence.originalText, voice),
-        status: 'PENDING' as const,
-        attempt: 0,
-        mediaAssetId: null,
+        dispatchAttempt: 0,
+        lastDispatchCommandFingerprint: commandFingerprint,
+        status: 'QUEUED',
+        pendingCount: groupedSentences.length,
+        processingCount: 0,
+        succeededCount: 0,
+        failedCount: 0,
         createdAt: input.requestedAt,
         updatedAt: input.requestedAt,
-      })),
-    );
-    await this.dispatchWriter.enqueueTts(transaction, {
-      jobId,
-      attempt: 0,
-      commandFingerprint,
-      requestedAt: input.requestedAt,
-    });
-    return { jobId };
+      });
+      await transaction.insert(ttsItems).values(
+        groupedSentences.map((sentence) => ({
+          id: this.generateId(),
+          jobId,
+          targetKind: 'THAI_SENTENCE_VERSION' as const,
+          targetId: sentence.id,
+          targetText: sentence.originalText,
+          targetRequired: true,
+          revision: input.draft.questionVersionId,
+          voiceSnapshot: voice,
+          cacheKey: createTtsCacheKey(sentence.originalText, voice),
+          status: 'PENDING' as const,
+          attempt: 0,
+          mediaAssetId: null,
+          createdAt: input.requestedAt,
+          updatedAt: input.requestedAt,
+        })),
+      );
+      await this.dispatchWriter.enqueueTts(transaction, {
+        jobId,
+        attempt: 0,
+        commandFingerprint,
+        requestedAt: input.requestedAt,
+      });
+    }
+    return { jobIds };
   }
 }

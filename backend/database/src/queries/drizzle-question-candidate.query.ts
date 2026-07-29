@@ -7,12 +7,14 @@ import {
   questionProductionCandidates,
   questionProductionValidations,
 } from '../schema/ai-question-production.schema.js';
+import { jobItems } from '../schema/jobs.schema.js';
 import { questionTags } from '../schema/questions.schema.js';
 
 type CandidateDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 
 /** 후보 page에 적용할 저장 필터 */
 export interface QuestionCandidateQueryInput {
+  jobId?: string;
   jobItemId?: string;
   resultGroup?: 'NORMAL' | 'NEEDS_ATTENTION' | 'FAILED';
   reviewStatus?: 'PENDING' | 'APPROVED' | 'DISCARDED';
@@ -22,6 +24,7 @@ export interface QuestionCandidateQueryInput {
 
 const candidateSelection = {
   id: questionProductionCandidates.id,
+  jobId: jobItems.jobId,
   jobItemId: questionProductionCandidates.jobItemId,
   jobAttempt: questionProductionCandidates.jobAttempt,
   ordinal: questionProductionCandidates.ordinal,
@@ -45,6 +48,7 @@ const candidateSelection = {
 
 type CandidateRow = {
   id: string;
+  jobId: string;
   jobItemId: string;
   jobAttempt: number;
   ordinal: number;
@@ -151,6 +155,7 @@ export class DrizzleQuestionCandidateQuery {
   /** 작업·검토 상태 필터의 최신 후보 page를 반환한다 */
   async list(input: QuestionCandidateQueryInput) {
     const condition = and(
+      input.jobId ? eq(jobItems.jobId, input.jobId) : undefined,
       input.jobItemId
         ? eq(questionProductionCandidates.jobItemId, input.jobItemId)
         : undefined,
@@ -164,10 +169,18 @@ export class DrizzleQuestionCandidateQuery {
     const [{ totalItems = 0 } = {}] = await this.database
       .select({ totalItems: count(questionProductionCandidates.id) })
       .from(questionProductionCandidates)
+      .innerJoin(
+        jobItems,
+        eq(questionProductionCandidates.jobItemId, jobItems.id),
+      )
       .where(condition);
     const rows = await this.database
       .select(candidateSelection)
       .from(questionProductionCandidates)
+      .innerJoin(
+        jobItems,
+        eq(questionProductionCandidates.jobItemId, jobItems.id),
+      )
       .where(condition)
       .orderBy(
         desc(questionProductionCandidates.createdAt),
@@ -186,6 +199,10 @@ export class DrizzleQuestionCandidateQuery {
     const [row] = await this.database
       .select(candidateSelection)
       .from(questionProductionCandidates)
+      .innerJoin(
+        jobItems,
+        eq(questionProductionCandidates.jobItemId, jobItems.id),
+      )
       .where(eq(questionProductionCandidates.id, candidateId))
       .limit(1);
     if (!row) return null;

@@ -65,6 +65,8 @@ const createSelect = (
 const createTransaction = (overrides?: {
   presetRows?: unknown[];
   sentenceRows?: unknown[];
+  blockRows?: unknown[];
+  optionRows?: unknown[];
 }) => {
   const selectedTables: unknown[] = [];
   const rowsByTable = new Map<unknown, unknown[]>([
@@ -75,14 +77,14 @@ const createTransaction = (overrides?: {
     ],
     [
       questionBlockSentences,
-      [
+      overrides?.blockRows ?? [
         { sentenceVersionId: firstSentenceId },
         { sentenceVersionId: secondSentenceId },
       ],
     ],
     [
       questionOptions,
-      [
+      overrides?.optionRows ?? [
         {
           sentenceVersionId: secondSentenceId,
           spanSentenceVersionId: firstSentenceId,
@@ -141,7 +143,7 @@ describe('생성 문제 TTS scheduler', () => {
         requestedBy: userId,
         requestedAt,
       }),
-    ).resolves.toEqual({ jobId });
+    ).resolves.toEqual({ jobIds: [jobId] });
 
     expect(fixture.selectedTables).toEqual([
       ttsVoicePresets,
@@ -202,6 +204,122 @@ describe('생성 문제 TTS scheduler', () => {
     expect(
       fixture.inserted.some(({ table }) => table === asyncDispatchOutbox),
     ).toBe(false);
+  });
+
+  it('speaker role과 default voice별로 문장을 중복 없이 여러 job에 partition한다', async () => {
+    const thirdSentenceId = '00000000-0000-4000-8000-000000000010';
+    const optionSentenceId = '00000000-0000-4000-8000-000000000011';
+    const roleAPresetId = '00000000-0000-4000-8000-000000000012';
+    const roleBPresetId = '00000000-0000-4000-8000-000000000013';
+    const fixture = createTransaction({
+      presetRows: [
+        preset,
+        { ...preset, id: roleAPresetId, voice: 'thai-role-a' },
+        { ...preset, id: roleBPresetId, voice: 'thai-role-b' },
+      ],
+      blockRows: [
+        { sentenceVersionId: firstSentenceId, speaker: 'A' },
+        { sentenceVersionId: secondSentenceId, speaker: 'B' },
+        { sentenceVersionId: thirdSentenceId, speaker: null },
+      ],
+      optionRows: [
+        { sentenceVersionId: optionSentenceId, spanSentenceVersionId: null },
+      ],
+      sentenceRows: [
+        {
+          id: firstSentenceId,
+          originalText: 'ประโยค A',
+          mediaAssetId: null,
+          frozenAt: null,
+        },
+        {
+          id: secondSentenceId,
+          originalText: 'ประโยค B',
+          mediaAssetId: null,
+          frozenAt: null,
+        },
+        {
+          id: thirdSentenceId,
+          originalText: 'ประโยคหลัก',
+          mediaAssetId: null,
+          frozenAt: null,
+        },
+        {
+          id: optionSentenceId,
+          originalText: 'ตัวเลือก',
+          mediaAssetId: null,
+          frozenAt: null,
+        },
+      ],
+    });
+    const enqueueTts = vi.fn().mockResolvedValue(undefined);
+    const ids = [
+      '00000000-0000-4000-8000-000000000020',
+      '00000000-0000-4000-8000-000000000021',
+      '00000000-0000-4000-8000-000000000022',
+      '00000000-0000-4000-8000-000000000023',
+      '00000000-0000-4000-8000-000000000024',
+      '00000000-0000-4000-8000-000000000025',
+      '00000000-0000-4000-8000-000000000026',
+    ];
+    const scheduler = new DrizzleGeneratedQuestionTtsScheduler(
+      presetId,
+      { enqueueTts, assertTtsDispatch: vi.fn() },
+      () => ids.shift()!,
+    );
+
+    const result = await scheduler.schedule(fixture.transaction as never, {
+      draft: { questionId, questionVersionId },
+      requestedBy: userId,
+      requestedAt,
+      voicePolicy: {
+        defaultVoicePresetId: presetId,
+        speakerVoiceAssignments: [
+          { speakerRole: 'A', voicePresetId: roleAPresetId },
+          { speakerRole: 'B', voicePresetId: roleBPresetId },
+        ],
+      },
+    });
+
+    expect(result.jobIds).toHaveLength(3);
+    const itemBatches = fixture.inserted
+      .filter(({ table }) => table === ttsItems)
+      .flatMap(({ values }) => values as Array<Record<string, unknown>>);
+    expect(itemBatches.map(({ targetId }) => targetId).sort()).toEqual(
+      [
+        firstSentenceId,
+        secondSentenceId,
+        thirdSentenceId,
+        optionSentenceId,
+      ].sort(),
+    );
+    expect(
+      new Set(itemBatches.map(({ targetId }) => targetId).filter(Boolean)).size,
+    ).toBe(4);
+    expect(enqueueTts).toHaveBeenCalledTimes(3);
+  });
+
+  it('같은 문장 참조가 서로 다른 speaker role에 연결되면 실패한다', async () => {
+    const fixture = createTransaction({
+      blockRows: [
+        { sentenceVersionId: firstSentenceId, speaker: 'A' },
+        { sentenceVersionId: firstSentenceId, speaker: 'B' },
+      ],
+      optionRows: [],
+    });
+    const scheduler = new DrizzleGeneratedQuestionTtsScheduler(presetId, {
+      enqueueTts: vi.fn(),
+      assertTtsDispatch: vi.fn(),
+    });
+
+    await expect(
+      scheduler.schedule(fixture.transaction as never, {
+        draft: { questionId, questionVersionId },
+        requestedBy: userId,
+        requestedAt,
+      }),
+    ).rejects.toThrow('GENERATED_QUESTION_TTS_TARGET_MISMATCH');
+    expect(fixture.inserted).toHaveLength(0);
   });
 
   it('설정 preset이 없거나 비활성화되면 graph 뒤 schedule을 fail closed한다', async () => {
