@@ -433,4 +433,28 @@ describe('DrizzleContentProductionPresetCatalog version 운영', () => {
     );
     expect(transaction.update).not.toHaveBeenCalled();
   });
+
+  it('repository 직접 호출도 purpose와 parameters 불일치를 저장하지 않는다', async () => {
+    const transaction = vi.fn();
+    const catalog = new DrizzleContentProductionPresetCatalog({
+      transaction,
+    } as never);
+
+    await expect(
+      catalog.createInitial({
+        requestId: 'd9886994-5b49-46ac-bcd5-3f2024b9c1c6',
+        actorUserId: '8f47b4d5-97d6-4596-af72-16456be51be8',
+        actorSub: 'subject',
+        occurredAt: new Date('2026-07-28T00:01:00.000Z'),
+        name: '잘못된 preset',
+        purpose: 'VOCABULARY_EXTRACTION',
+        parameters: {
+          questionCount: 1,
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: 'CONTENT_PRODUCTION_PRESET_PURPOSE_MISMATCH',
+    });
+    expect(transaction).not.toHaveBeenCalled();
+  });
 });

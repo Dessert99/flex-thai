@@ -4,6 +4,8 @@ import {
   contentProductionJobConfigurationSchema,
   contentProductionJobDetailResponseSchema,
   contentProductionQuestionOptionsSchema,
+  createContentProductionPresetRequestSchema,
+  createContentProductionPresetVersionRequestSchema,
   createContentProductionJobRequestSchema,
   promptPreviewRequestSchema,
   setContentProductionPresetEnabledRequestSchema,
@@ -103,6 +105,46 @@ describe('콘텐츠 제작 공개 계약', () => {
         purpose: 'VOCABULARY_EXTRACTION',
         presetId: '405986f9-e552-4ce1-82d6-70a1fc460f96',
         options: validQuestionOptions,
+      }).success,
+    ).toBe(false);
+  });
+
+  it('preset create와 version은 purpose에 맞는 parameters만 허용한다', () => {
+    expect(
+      createContentProductionPresetRequestSchema.safeParse({
+        requestId: 'dbb22737-6f3d-4112-bb0e-8e4f005c810b',
+        name: '잘못된 어휘 preset',
+        purpose: 'VOCABULARY_EXTRACTION',
+        parameters: {
+          ...validQuestionOptions,
+          commonPrinciples: [],
+          similarQuestions: [],
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      createContentProductionPresetVersionRequestSchema.safeParse({
+        requestId: 'dbb22737-6f3d-4112-bb0e-8e4f005c810b',
+        purpose: 'QUESTION_GENERATION',
+        parameters: {
+          suspectedDuplicateMaxCodePointDistance: 1,
+        },
+      }).success,
+    ).toBe(false);
+  });
+
+  it('한 작업의 upload ID는 100개까지만 허용한다', () => {
+    expect(
+      createContentProductionJobRequestSchema.safeParse({
+        clientRequestId: 'dbb22737-6f3d-4112-bb0e-8e4f005c810b',
+        purpose: 'VOCABULARY_EXTRACTION',
+        presetId: '405986f9-e552-4ce1-82d6-70a1fc460f96',
+        uploadIds: Array.from(
+          { length: 101 },
+          (_, index) =>
+            `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`,
+        ),
+        options: {},
       }).success,
     ).toBe(false);
   });

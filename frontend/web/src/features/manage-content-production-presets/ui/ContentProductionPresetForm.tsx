@@ -1,12 +1,24 @@
 /** 콘텐츠 제작 preset의 최초 어휘 정책 또는 기존 typed snapshot의 다음 version을 입력받는다 */
+/* eslint-disable max-lines, max-lines-per-function */
 import { useState } from 'react';
-import type { ContentProductionPresetVersion } from '@flex-thia/contracts';
+import type {
+  ContentProductionPresetVersion,
+  CreateContentProductionPresetRequest,
+} from '@flex-thia/contracts';
 import { Button } from '@/shared/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/ui/select';
 
 type PresetParameters = ContentProductionPresetVersion['parameters'];
+type PresetPurpose = ContentProductionPresetVersion['purpose'];
 type VocabularyParameters = Extract<
   ContentProductionPresetVersion,
   { purpose: 'VOCABULARY_EXTRACTION' }
@@ -32,12 +44,19 @@ const duplicateDistanceOf = (
 interface ContentProductionPresetFormProps {
   base?: ContentProductionPresetVersion;
   pending?: boolean;
-  onCreate: (input: {
-    name: string;
-    purpose: 'VOCABULARY_EXTRACTION';
-    parameters: VocabularyParameters;
-  }) => void;
-  onCreateVersion: (presetId: string, parameters: PresetParameters) => void;
+  onCreate: (
+    input: {
+      [Purpose in PresetPurpose]: Omit<
+        Extract<CreateContentProductionPresetRequest, { purpose: Purpose }>,
+        'requestId'
+      >;
+    }[PresetPurpose],
+  ) => void;
+  onCreateVersion: (
+    presetId: string,
+    purpose: PresetPurpose,
+    parameters: PresetParameters,
+  ) => void;
 }
 
 interface PolicyFieldsProps {
@@ -109,36 +128,75 @@ const createNextParameters = (
   similarityThreshold: string,
   newVocabularyLimit: string,
 ): PresetParameters => {
+  const next = { ...base.parameters };
   if (hasDuplicateDistance(base.parameters)) {
-    return {
-      ...base.parameters,
+    Object.assign(next, {
       suspectedDuplicateMaxCodePointDistance: Number(distance),
-    };
+    });
   }
-  return {
-    ...base.parameters,
-    similarityThreshold: Number(similarityThreshold),
-    newAuxiliaryVocabularyLimit: Number(newVocabularyLimit),
-  };
+  if (hasQuestionPolicy(base.parameters)) {
+    Object.assign(next, {
+      similarityThreshold: Number(similarityThreshold),
+      newAuxiliaryVocabularyLimit: Number(newVocabularyLimit),
+    });
+  }
+  return next;
 };
 
 function CreatePresetForm(
   props: Omit<ContentProductionPresetFormProps, 'base'>,
 ) {
   const [name, setName] = useState('');
+  const [purpose, setPurpose] = useState<PresetPurpose>(
+    'VOCABULARY_EXTRACTION',
+  );
   const [distance, setDistance] = useState('1');
-  const submit = () =>
+  const [similarityThreshold, setSimilarityThreshold] = useState('0.8');
+  const [newVocabularyLimit, setNewVocabularyLimit] = useState('0');
+  const [questionTypeVersionId, setQuestionTypeVersionId] = useState('');
+  const [defaultVoicePresetId, setDefaultVoicePresetId] = useState('');
+  const submit = () => {
+    if (purpose === 'VOCABULARY_EXTRACTION') {
+      props.onCreate({
+        name: name.trim(),
+        purpose,
+        parameters: {
+          suspectedDuplicateMaxCodePointDistance: Number(distance),
+        },
+      });
+      return;
+    }
+    const questionParameters = {
+      questionCount: 1,
+      questionTypePlan: [{ questionTypeVersionId, count: 1 }],
+      difficultyPlan: [{ difficulty: 1 as const, count: 1 }],
+      targetVocabularyIds: [],
+      requiredVocabularyIds: [],
+      excludedVocabularyIds: [],
+      newAuxiliaryVocabularyLimit: Number(newVocabularyLimit),
+      similarityThreshold: Number(similarityThreshold),
+      defaultVoicePresetId,
+      speakerVoiceAssignments: [],
+      additionalInstructionKo: null,
+      commonPrinciples: [],
+      similarQuestions: [],
+    };
     props.onCreate({
       name: name.trim(),
-      purpose: 'VOCABULARY_EXTRACTION',
-      parameters: {
-        suspectedDuplicateMaxCodePointDistance: Number(distance),
-      },
-    });
+      purpose,
+      parameters:
+        purpose === 'VOCABULARY_THEN_QUESTION_GENERATION'
+          ? {
+              ...questionParameters,
+              suspectedDuplicateMaxCodePointDistance: Number(distance),
+            }
+          : questionParameters,
+    } as Parameters<typeof props.onCreate>[0]);
+  };
   return (
     <Card>
       <CardHeader>
-        <CardTitle>새 어휘 추출 preset</CardTitle>
+        <CardTitle>새 콘텐츠 제작 preset</CardTitle>
       </CardHeader>
       <CardContent className='grid gap-cluster'>
         <Label htmlFor='preset-name'>이름</Label>
@@ -148,16 +206,68 @@ function CreatePresetForm(
           onChange={(event) => setName(event.target.value)}
           value={name}
         />
+        <Label htmlFor='preset-purpose'>목적</Label>
+        <Select
+          onValueChange={(value) => setPurpose(value as PresetPurpose)}
+          value={purpose}
+        >
+          <SelectTrigger id='preset-purpose'>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value='VOCABULARY_EXTRACTION'>어휘 추출</SelectItem>
+            <SelectItem value='QUESTION_GENERATION'>문제 생성</SelectItem>
+            <SelectItem value='VOCABULARY_THEN_QUESTION_GENERATION'>
+              어휘 추출 후 문제 생성
+            </SelectItem>
+          </SelectContent>
+        </Select>
         <PolicyFields
+          {...(purpose === 'VOCABULARY_EXTRACTION'
+            ? {}
+            : {
+                base: {
+                  parameters:
+                    purpose === 'VOCABULARY_THEN_QUESTION_GENERATION'
+                      ? {
+                          similarityThreshold: 0.8,
+                          suspectedDuplicateMaxCodePointDistance: 1,
+                        }
+                      : { similarityThreshold: 0.8 },
+                } as ContentProductionPresetVersion,
+              })}
           distance={distance}
-          newVocabularyLimit='0'
+          newVocabularyLimit={newVocabularyLimit}
           onDistanceChange={setDistance}
-          onNewVocabularyLimitChange={() => undefined}
-          onSimilarityThresholdChange={() => undefined}
-          similarityThreshold='0.8'
+          onNewVocabularyLimitChange={setNewVocabularyLimit}
+          onSimilarityThresholdChange={setSimilarityThreshold}
+          similarityThreshold={similarityThreshold}
         />
+        {purpose !== 'VOCABULARY_EXTRACTION' ? (
+          <>
+            <Label htmlFor='preset-question-type-version'>
+              문제 유형 버전 ID
+            </Label>
+            <Input
+              id='preset-question-type-version'
+              onChange={(event) => setQuestionTypeVersionId(event.target.value)}
+              value={questionTypeVersionId}
+            />
+            <Label htmlFor='preset-default-voice'>기본 음성 preset ID</Label>
+            <Input
+              id='preset-default-voice'
+              onChange={(event) => setDefaultVoicePresetId(event.target.value)}
+              value={defaultVoicePresetId}
+            />
+          </>
+        ) : null}
         <Button
-          disabled={props.pending || name.trim().length === 0}
+          disabled={
+            props.pending ||
+            name.trim().length === 0 ||
+            (purpose !== 'VOCABULARY_EXTRACTION' &&
+              (!questionTypeVersionId || !defaultVoicePresetId))
+          }
           onClick={submit}
           type='button'
         >
@@ -189,6 +299,7 @@ function NextVersionForm(
   const submit = () =>
     props.onCreateVersion(
       props.base.id,
+      props.base.purpose,
       createNextParameters(
         props.base,
         distance,

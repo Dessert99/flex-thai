@@ -73,7 +73,10 @@ export function QuestionCandidateDetailPageView({
         </TableBody>
       </Table>
       <QuestionCandidateActions
-        approveDisabled={candidate.resultGroup === 'FAILED'}
+        approveDisabled={
+          candidate.resultGroup !== 'NORMAL' ||
+          data.validations.some((validation) => validation.status !== 'PASSED')
+        }
         disabled={!reviewable || pending}
         onApprove={onApprove}
         onDiscard={onDiscard}

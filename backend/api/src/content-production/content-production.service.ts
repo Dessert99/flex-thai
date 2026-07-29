@@ -1,12 +1,14 @@
 /** 검증된 upload·preset을 콘텐츠 제작 도메인 명령으로 조립한다 */
 import { Injectable } from '@nestjs/common';
-import type {
-  ContentProductionJobConfiguration,
-  CreateContentProductionJobRequest,
-  CreateContentProductionPresetRequest,
-  CreateContentProductionPresetVersionRequest,
-  PromptPreviewRequest,
-  SetContentProductionPresetEnabledRequest,
+import {
+  createContentProductionPresetRequestSchema,
+  createContentProductionPresetVersionRequestSchema,
+  type ContentProductionJobConfiguration,
+  type CreateContentProductionJobRequest,
+  type CreateContentProductionPresetRequest,
+  type CreateContentProductionPresetVersionRequest,
+  type PromptPreviewRequest,
+  type SetContentProductionPresetEnabledRequest,
 } from '@flex-thia/contracts';
 import {
   buildQuestionGenerationPrompt,
@@ -152,8 +154,9 @@ export class ContentProductionApplicationService {
     actor: { userId: string; sub: string },
     request: CreateContentProductionPresetRequest,
   ) {
+    const parsed = createContentProductionPresetRequestSchema.parse(request);
     return this.presets.createInitial({
-      ...request,
+      ...parsed,
       actorUserId: actor.userId,
       actorSub: actor.sub,
       occurredAt: new Date(),
@@ -166,8 +169,10 @@ export class ContentProductionApplicationService {
     presetId: string,
     request: CreateContentProductionPresetVersionRequest,
   ) {
+    const parsed =
+      createContentProductionPresetVersionRequestSchema.parse(request);
     return this.presets.createNextVersion({
-      ...request,
+      ...parsed,
       presetId,
       actorUserId: actor.userId,
       actorSub: actor.sub,

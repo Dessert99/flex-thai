@@ -230,4 +230,22 @@ describe('ContentProductionApplicationService 입력 조립', () => {
       new ContentProductionApplicationError('QUESTION_PLAN_INDEX_INVALID'),
     );
   });
+
+  it('service 직접 호출도 purpose와 preset parameters 불일치를 거절한다', () => {
+    const { service, presets } = createService();
+
+    expect(() =>
+      service.createPreset({ userId: ownerId, sub: 'admin-sub' }, {
+        requestId: 'dbb22737-6f3d-4112-bb0e-8e4f005c810b',
+        name: '잘못된 preset',
+        purpose: 'VOCABULARY_EXTRACTION',
+        parameters: {
+          ...validOptions,
+          commonPrinciples: [],
+          similarQuestions: [],
+        },
+      } as never),
+    ).toThrow();
+    expect(presets.createInitial).not.toHaveBeenCalled();
+  });
 });

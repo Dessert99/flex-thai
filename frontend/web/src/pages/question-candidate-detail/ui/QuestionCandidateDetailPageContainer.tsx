@@ -25,6 +25,14 @@ export function QuestionCandidateDetailPageContainer({
       client.invalidateQueries({
         queryKey: ['admin', 'content-production', 'candidates', candidateId],
       }),
+      client.invalidateQueries({
+        queryKey: [
+          'admin',
+          'content-production',
+          'jobs',
+          query.data?.candidate.jobId,
+        ],
+      }),
     ]);
   const action = useMutation<
     unknown,

@@ -56,6 +56,7 @@ export interface CreateInitialContentProductionPresetInput extends ContentProduc
 /** 같은 이름·목적의 다음 immutable preset version을 만드는 명령 */
 export interface CreateNextContentProductionPresetVersionInput extends ContentProductionPresetAuditContext {
   presetId: string;
+  purpose: ContentProductionPurpose;
   parameters: Record<string, unknown>;
 }
 
@@ -274,12 +275,37 @@ export class ContentProductionPresetError extends Error {
     readonly code:
       | 'CONTENT_PRODUCTION_PRESET_IDEMPOTENCY_CONFLICT'
       | 'CONTENT_PRODUCTION_PRESET_REVISION_CONFLICT'
-      | 'CONTENT_PRODUCTION_PRESET_NOT_FOUND',
+      | 'CONTENT_PRODUCTION_PRESET_NOT_FOUND'
+      | 'CONTENT_PRODUCTION_PRESET_PURPOSE_MISMATCH',
   ) {
     super(code);
     this.name = 'ContentProductionPresetError';
   }
 }
+
+/** 저장 adapter 직접 호출에서도 목적과 parameter 계열이 엇갈리지 않게 한다 */
+export const assertContentProductionPresetPurposeParameters = (
+  purpose: ContentProductionPurpose,
+  parameters: Record<string, unknown>,
+): void => {
+  const hasVocabularyPolicy =
+    typeof parameters.suspectedDuplicateMaxCodePointDistance === 'number';
+  const hasQuestionPolicy =
+    typeof parameters.questionCount === 'number' &&
+    Array.isArray(parameters.questionTypePlan) &&
+    Array.isArray(parameters.difficultyPlan);
+  const matches =
+    purpose === 'VOCABULARY_EXTRACTION'
+      ? hasVocabularyPolicy && !hasQuestionPolicy
+      : purpose === 'QUESTION_GENERATION'
+        ? hasQuestionPolicy && !hasVocabularyPolicy
+        : hasVocabularyPolicy && hasQuestionPolicy;
+  if (!matches) {
+    throw new ContentProductionPresetError(
+      'CONTENT_PRODUCTION_PRESET_PURPOSE_MISMATCH',
+    );
+  }
+};
 
 /** 콘텐츠 제작 queue port */
 export interface ContentProductionQueue {

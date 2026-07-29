@@ -84,4 +84,22 @@ describe('QuestionCandidateManagementPageView', () => {
     expect(onPageChange).toHaveBeenNthCalledWith(1, 1);
     expect(onPageChange).toHaveBeenNthCalledWith(2, 3);
   });
+
+  it('검토 필요 후보가 선택되면 bulk 승인을 막는다', () => {
+    render(
+      <QuestionCandidateManagementPageView
+        data={data}
+        error={false}
+        loading={false}
+        onAction={vi.fn()}
+        onPageChange={vi.fn()}
+        onRetry={vi.fn()}
+        onSelectionChange={vi.fn()}
+        pending={false}
+        search={{ page: 2, pageSize: 20 }}
+        selectedIds={[id(2)]}
+      />,
+    );
+    expect(screen.getByRole('button', { name: '승인' })).toBeDisabled();
+  });
 });

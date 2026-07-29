@@ -24,7 +24,7 @@ export function QuestionCandidateManagementPageContainer({
   const client = useQueryClient();
   const query = useQuery(questionCandidatesQueryOptions(search));
   const [selected, setSelected] = useState<
-    Array<{ candidateId: string; revision: number }>
+    Array<{ candidateId: string; jobId: string; revision: number }>
   >([]);
   const bulk = useMutation({
     mutationFn: (action: 'APPROVE' | 'DISCARD' | 'REGENERATE') =>
@@ -40,9 +40,26 @@ export function QuestionCandidateManagementPageContainer({
             return target ? [target] : [];
           }),
       );
-      await client.invalidateQueries({
-        queryKey: ['admin', 'content-production', 'candidates'],
-      });
+      await Promise.all([
+        client.invalidateQueries({
+          queryKey: ['admin', 'content-production', 'candidates'],
+        }),
+        ...selected.map(({ candidateId }) =>
+          client.invalidateQueries({
+            queryKey: [
+              'admin',
+              'content-production',
+              'candidates',
+              candidateId,
+            ],
+          }),
+        ),
+        ...[...new Set(selected.map(({ jobId }) => jobId))].map((jobId) =>
+          client.invalidateQueries({
+            queryKey: ['admin', 'content-production', 'jobs', jobId],
+          }),
+        ),
+      ]);
     },
   });
   const toggle = (candidate: QuestionCandidateListItem) => {
@@ -53,6 +70,7 @@ export function QuestionCandidateManagementPageContainer({
             ...current,
             {
               candidateId: candidate.id,
+              jobId: candidate.jobId,
               revision: candidate.review.revision,
             },
           ],

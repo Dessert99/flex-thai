@@ -214,10 +214,15 @@ export const normalizeQuestionProductionValidationRecord = (
 
 /** prompt에 필요한 어휘의 공개 가능한 최소 요약 */
 export interface QuestionPromptVocabulary {
+  id?: string | undefined;
   thai: string;
+  meaningId?: string | undefined;
   meaningKo: string;
   partOfSpeech: string;
   difficulty: number;
+  pronunciationId?: string | undefined;
+  pronunciationKo?: string | undefined;
+  toneMarks?: string | undefined;
 }
 
 /** 기존 게시 문제를 재생성 없이 구분할 제한된 요약 */
@@ -518,10 +523,15 @@ const sortVocabulary = (
 ): QuestionPromptVocabulary[] =>
   vocabulary
     .map((item) => ({
+      id: item.id,
       thai: item.thai,
+      meaningId: item.meaningId,
       meaningKo: item.meaningKo,
       partOfSpeech: item.partOfSpeech,
       difficulty: item.difficulty,
+      pronunciationId: item.pronunciationId,
+      pronunciationKo: item.pronunciationKo,
+      toneMarks: item.toneMarks,
     }))
     .sort(compareStablePromptValue);
 

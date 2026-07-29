@@ -71,6 +71,7 @@ import {
   ContentProductionPresetListResponseDto,
   ContentProductionPresetPathDto,
   ContentProductionPresetVersionListResponseDto,
+  ContentProductionPresetVersionResponseDto,
   ContentProductionUploadPathDto,
   ContentProductionUploadPolicyRequestDto,
   ContentProductionUploadPolicyResponseDto,
@@ -291,7 +292,7 @@ export class ContentProductionController {
   /** 새 이름의 최초 preset version을 생성한다 */
   @ApiOperation({ summary: '콘텐츠 제작 preset을 생성한다' })
   @ApiBody({ type: CreateContentProductionPresetRequestDto })
-  @ApiCreatedResponse({ type: ContentProductionPresetVersionListResponseDto })
+  @ApiCreatedResponse({ type: ContentProductionPresetVersionResponseDto })
   @ApiProblemResponses(400, 401, 403, 409, 500)
   @Post('presets')
   @HttpCode(201)
@@ -313,7 +314,7 @@ export class ContentProductionController {
   @ApiOperation({ summary: '콘텐츠 제작 preset 다음 version을 생성한다' })
   @ApiParam({ name: 'presetId', type: 'string', format: 'uuid' })
   @ApiBody({ type: CreateContentProductionPresetVersionRequestDto })
-  @ApiCreatedResponse({ type: ContentProductionPresetVersionListResponseDto })
+  @ApiCreatedResponse({ type: ContentProductionPresetVersionResponseDto })
   @ApiProblemResponses(400, 401, 403, 409, 500)
   @Post('presets/:presetId/versions')
   @HttpCode(201)

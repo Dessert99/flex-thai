@@ -1,5 +1,5 @@
 /** 활성 문제 taxonomy와 preset의 공개 정책만 AI 생성 prompt 문맥으로 조회한다 */
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, inArray } from 'drizzle-orm';
 import { projectQuestionPromptApprovedExample } from '@flex-thia/domain';
 import type {
   ContentProductionPresetSnapshot,
@@ -18,6 +18,12 @@ import {
   questionTypes,
   questionTypeVersions,
 } from '../schema/questions.schema.js';
+import {
+  vocabularies,
+  vocabularyMeaningPronunciations,
+  vocabularyMeanings,
+  vocabularyPronunciations,
+} from '../schema/vocabulary.schema.js';
 
 type ContextTermRow = { id: string; slug: string; displayName: string };
 type ContextTypeVersionRow = {
@@ -48,6 +54,9 @@ export interface QuestionProductionContextRows {
 
 type QuestionProductionPresetPolicy = {
   commonPrinciples: string[];
+  targetVocabularyIds: string[];
+  requiredVocabularyIds: string[];
+  excludedVocabularyIds: string[];
   targetVocabulary: QuestionPromptVocabulary[];
   requiredVocabulary: QuestionPromptVocabulary[];
   excludedVocabulary: QuestionPromptVocabulary[];
@@ -65,6 +74,10 @@ type QuerySchema = {
   questionTypeDifficultyCriteria: typeof questionTypeDifficultyCriteria;
   questionTypes: typeof questionTypes;
   questionTypeVersions: typeof questionTypeVersions;
+  vocabularies: typeof vocabularies;
+  vocabularyMeaningPronunciations: typeof vocabularyMeaningPronunciations;
+  vocabularyMeanings: typeof vocabularyMeanings;
+  vocabularyPronunciations: typeof vocabularyPronunciations;
 };
 type QueryDatabase = PgDatabase<PgQueryResultHKT, QuerySchema>;
 
@@ -111,6 +124,19 @@ const readTextList = (value: unknown): string[] =>
         .filter((item): item is string => typeof item === 'string')
         .sort(compareText)
     : [];
+
+const readVocabularyIds = (
+  parameters: Record<string, unknown>,
+  key:
+    'targetVocabularyIds' | 'requiredVocabularyIds' | 'excludedVocabularyIds',
+): string[] => {
+  const value = parameters[key];
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.some((item) => typeof item !== 'string')) {
+    throw new Error('QUESTION_VOCABULARY_IDS_INVALID');
+  }
+  return value.map(String).sort(compareText);
+};
 
 /** provider 정책의 유사 문제 요약을 unknown 경계에서 안전하게 좁힌다 */
 const isSimilarQuestion = (
@@ -163,6 +189,15 @@ export const readQuestionProductionPresetPolicy = (
   }
   return {
     commonPrinciples: readTextList(parameters.commonPrinciples),
+    targetVocabularyIds: readVocabularyIds(parameters, 'targetVocabularyIds'),
+    requiredVocabularyIds: readVocabularyIds(
+      parameters,
+      'requiredVocabularyIds',
+    ),
+    excludedVocabularyIds: readVocabularyIds(
+      parameters,
+      'excludedVocabularyIds',
+    ),
     targetVocabulary: readVocabulary(parameters, 'targetVocabulary'),
     requiredVocabulary: readVocabulary(parameters, 'requiredVocabulary'),
     excludedVocabulary: readVocabulary(parameters, 'excludedVocabulary'),
@@ -179,6 +214,43 @@ export const readQuestionProductionPresetPolicy = (
     speakerRoles: readSpeakerRoles(parameters.speakerVoiceAssignments),
   };
 };
+
+type PromptVocabularyRow = QuestionPromptVocabulary & {
+  id: string;
+  meaningId: string;
+  pronunciationId: string;
+  pronunciationKo: string;
+  toneMarks: string;
+};
+
+const resolvePromptVocabulary = (
+  requestedIds: string[],
+  rows: PromptVocabularyRow[],
+): QuestionPromptVocabulary[] =>
+  requestedIds.map((vocabularyId) => {
+    const candidates = rows.filter(({ id }) => id === vocabularyId);
+    if (candidates.length === 0) {
+      throw new Error('QUESTION_VOCABULARY_UNAVAILABLE');
+    }
+    const meaningIds = new Set(candidates.map(({ meaningId }) => meaningId));
+    if (meaningIds.size !== 1) {
+      throw new Error('QUESTION_VOCABULARY_MEANING_AMBIGUOUS');
+    }
+    const [selected] = [...candidates].sort(
+      (left, right) =>
+        compareText(left.pronunciationId, right.pronunciationId) ||
+        compareText(left.id, right.id),
+    );
+    if (
+      !selected ||
+      !Number.isSafeInteger(selected.difficulty) ||
+      selected.difficulty < 1 ||
+      selected.difficulty > 5
+    ) {
+      throw new Error('QUESTION_VOCABULARY_SUMMARY_INVALID');
+    }
+    return selected;
+  });
 
 /** flat taxonomy와 preset 정책을 provider용 public context로 안정 조립한다 */
 export const assembleQuestionProductionContext = (
@@ -289,7 +361,13 @@ export class DrizzleQuestionProductionContextQuery implements QuestionProduction
         ),
       )
       .limit(1);
-    const [difficultyCriteria, approvedExamples, topics, tags] =
+    const policy = readQuestionProductionPresetPolicy(input.preset.parameters);
+    const vocabularyIds = [
+      ...policy.targetVocabularyIds,
+      ...policy.requiredVocabularyIds,
+      ...policy.excludedVocabularyIds,
+    ];
+    const [difficultyCriteria, approvedExamples, topics, tags, vocabularyRows] =
       await Promise.all([
         this.database
           .select({
@@ -331,7 +409,61 @@ export class DrizzleQuestionProductionContextQuery implements QuestionProduction
           .from(questionTags)
           .where(eq(questionTags.status, 'ACTIVE'))
           .orderBy(asc(questionTags.slug), asc(questionTags.id)),
+        vocabularyIds.length === 0
+          ? Promise.resolve([])
+          : this.database
+              .select({
+                id: vocabularies.id,
+                thai: vocabularies.thai,
+                meaningId: vocabularyMeanings.id,
+                meaningKo: vocabularyMeanings.meaningKo,
+                partOfSpeech: vocabularyMeanings.partOfSpeech,
+                difficulty: vocabularyMeanings.difficulty,
+                pronunciationId: vocabularyPronunciations.id,
+                pronunciationKo: vocabularyPronunciations.pronunciationKo,
+                toneMarks: vocabularyPronunciations.toneMarks,
+              })
+              .from(vocabularies)
+              .innerJoin(
+                vocabularyMeanings,
+                eq(vocabularyMeanings.vocabularyId, vocabularies.id),
+              )
+              .innerJoin(
+                vocabularyMeaningPronunciations,
+                and(
+                  eq(
+                    vocabularyMeaningPronunciations.vocabularyId,
+                    vocabularies.id,
+                  ),
+                  eq(
+                    vocabularyMeaningPronunciations.meaningId,
+                    vocabularyMeanings.id,
+                  ),
+                ),
+              )
+              .innerJoin(
+                vocabularyPronunciations,
+                and(
+                  eq(vocabularyPronunciations.vocabularyId, vocabularies.id),
+                  eq(
+                    vocabularyPronunciations.id,
+                    vocabularyMeaningPronunciations.pronunciationId,
+                  ),
+                ),
+              )
+              .where(
+                and(
+                  inArray(vocabularies.id, [...new Set(vocabularyIds)]),
+                  eq(vocabularies.status, 'PUBLISHED'),
+                ),
+              )
+              .orderBy(
+                asc(vocabularies.id),
+                asc(vocabularyMeanings.id),
+                asc(vocabularyPronunciations.id),
+              ),
       ]);
+    const rowsForPrompt = vocabularyRows as PromptVocabularyRow[];
     const context = assembleQuestionProductionContext(
       {
         typeVersion: typeVersion
@@ -345,7 +477,30 @@ export class DrizzleQuestionProductionContextQuery implements QuestionProduction
         topics,
         tags,
       },
-      readQuestionProductionPresetPolicy(input.preset.parameters),
+      {
+        ...policy,
+        targetVocabulary:
+          policy.targetVocabularyIds.length === 0
+            ? policy.targetVocabulary
+            : resolvePromptVocabulary(
+                policy.targetVocabularyIds,
+                rowsForPrompt,
+              ),
+        requiredVocabulary:
+          policy.requiredVocabularyIds.length === 0
+            ? policy.requiredVocabulary
+            : resolvePromptVocabulary(
+                policy.requiredVocabularyIds,
+                rowsForPrompt,
+              ),
+        excludedVocabulary:
+          policy.excludedVocabularyIds.length === 0
+            ? policy.excludedVocabulary
+            : resolvePromptVocabulary(
+                policy.excludedVocabularyIds,
+                rowsForPrompt,
+              ),
+      },
       input.questionPlan,
     );
     if (!context) throw new Error('QUESTION_TYPE_VERSION_UNAVAILABLE');

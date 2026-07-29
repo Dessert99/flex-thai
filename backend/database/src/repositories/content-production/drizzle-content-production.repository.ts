@@ -17,6 +17,7 @@ import {
   CONTENT_PRODUCTION_ITEM_LEASE_MS,
   ContentProductionDomainError,
   ContentProductionPresetError,
+  assertContentProductionPresetPurposeParameters,
 } from '@flex-thia/domain';
 import type {
   ContentProductionItem,
@@ -967,6 +968,10 @@ export class DrizzleContentProductionPresetCatalog implements ContentProductionP
   async createInitial(
     input: CreateInitialContentProductionPresetInput,
   ): Promise<ContentProductionPresetVersion> {
+    assertContentProductionPresetPurposeParameters(
+      input.purpose,
+      input.parameters,
+    );
     return this.database.transaction(async (transaction) => {
       await transaction.execute(
         sql`select pg_advisory_xact_lock(hashtextextended(${input.requestId}, 1))`,
@@ -1045,6 +1050,10 @@ export class DrizzleContentProductionPresetCatalog implements ContentProductionP
   async createNextVersion(
     input: CreateNextContentProductionPresetVersionInput,
   ): Promise<ContentProductionPresetVersion> {
+    assertContentProductionPresetPurposeParameters(
+      input.purpose,
+      input.parameters,
+    );
     return this.database.transaction(async (transaction) => {
       await transaction.execute(
         sql`select pg_advisory_xact_lock(hashtextextended(${input.requestId}, 1))`,
@@ -1069,7 +1078,7 @@ export class DrizzleContentProductionPresetCatalog implements ContentProductionP
         if (
           replay.action === 'CONTENT_PRODUCTION_PRESET_VERSION_CREATED' &&
           replay.summary['previousPresetId'] === input.presetId &&
-          created &&
+          created?.purpose === input.purpose &&
           sameJson(created.parameters, input.parameters)
         ) {
           return { ...created, revision: 0 };
@@ -1086,6 +1095,11 @@ export class DrizzleContentProductionPresetCatalog implements ContentProductionP
       if (!base) {
         throw new ContentProductionPresetError(
           'CONTENT_PRODUCTION_PRESET_NOT_FOUND',
+        );
+      }
+      if (base.purpose !== input.purpose) {
+        throw new ContentProductionPresetError(
+          'CONTENT_PRODUCTION_PRESET_PURPOSE_MISMATCH',
         );
       }
       await transaction.execute(

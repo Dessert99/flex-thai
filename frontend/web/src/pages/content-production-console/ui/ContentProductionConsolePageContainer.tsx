@@ -1,7 +1,6 @@
 /** 콘텐츠 제작 query·upload·preview·create mutation을 console View에 연결한다 */
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { ContentProductionQuestionOptions } from '@flex-thia/contracts';
 import {
   contentProductionJobsQueryOptions,
   contentProductionPresetsQueryOptions,
@@ -32,14 +31,6 @@ export function ContentProductionConsolePageContainer() {
   });
   const presetFor = (presetId: string) =>
     presets.data?.items.find((preset) => preset.id === presetId);
-  const questionOptions = (
-    presetId: string,
-    additionalInstructionKo: string | null,
-  ): ContentProductionQuestionOptions | null => {
-    const preset = presetFor(presetId);
-    if (!preset || preset.purpose === 'VOCABULARY_EXTRACTION') return null;
-    return { ...preset.parameters, additionalInstructionKo };
-  };
   return (
     <ContentProductionConsolePageView
       {...(jobs.data ? { jobs: jobs.data } : {})}
@@ -48,11 +39,9 @@ export function ContentProductionConsolePageContainer() {
       onFile={(file) =>
         uploadContentProductionInput(file, new AbortController().signal)
       }
-      onPreview={({ presetId, additionalInstructionKo, questionPlanIndex }) => {
+      onPreview={({ presetId, options, questionPlanIndex }) => {
         const preset = presetFor(presetId);
         if (!preset || preset.purpose === 'VOCABULARY_EXTRACTION') return;
-        const options = questionOptions(presetId, additionalInstructionKo);
-        if (!options) return;
         previewMutation.mutate({
           purpose: preset.purpose,
           presetId,
@@ -62,10 +51,9 @@ export function ContentProductionConsolePageContainer() {
       }}
       onRetryJobs={() => void jobs.refetch()}
       onRetryPresets={() => void presets.refetch()}
-      onSubmit={({ presetId, uploadId, additionalInstructionKo }) => {
+      onSubmit={({ presetId, uploadId, options }) => {
         const preset = presetFor(presetId);
         if (!preset) return;
-        const options = questionOptions(presetId, additionalInstructionKo);
         if (preset.purpose === 'VOCABULARY_EXTRACTION') {
           createMutation.mutate({
             clientRequestId: crypto.randomUUID(),

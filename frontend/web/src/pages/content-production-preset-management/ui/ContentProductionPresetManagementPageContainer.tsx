@@ -42,9 +42,12 @@ export function ContentProductionPresetManagementPageContainer() {
       onCreate={(input) =>
         mutation.mutate(() => createContentProductionPreset(input))
       }
-      onCreateVersion={(presetId, parameters) =>
+      onCreateVersion={(presetId, purpose, parameters) =>
         mutation.mutate(() =>
-          createContentProductionPresetVersion(presetId, { parameters }),
+          createContentProductionPresetVersion(presetId, {
+            purpose,
+            parameters,
+          }),
         )
       }
       onRetry={() => void query.refetch()}

@@ -123,4 +123,23 @@ describe('QuestionCandidateDetailPageView', () => {
     expect(screen.queryByText('สวัสดีครับ')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '승인' })).toBeDisabled();
   });
+
+  it('검증이 모두 PASSED가 아니면 NORMAL 후보도 승인하지 않는다', () => {
+    render(
+      <QuestionCandidateDetailPageView
+        data={{
+          ...canonical,
+          validations: canonical.validations.map((validation, index) =>
+            index === 0
+              ? { ...validation, status: 'FAILED', code: 'INVALID' }
+              : validation,
+          ),
+        }}
+        onApprove={vi.fn()}
+        onDiscard={vi.fn()}
+        onRegenerate={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('button', { name: '승인' })).toBeDisabled();
+  });
 });

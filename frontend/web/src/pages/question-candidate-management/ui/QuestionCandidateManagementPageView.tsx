@@ -173,7 +173,7 @@ export function QuestionCandidateManagementPageView(
         approveDisabled={props.data.items.some(
           (candidate) =>
             props.selectedIds.includes(candidate.id) &&
-            candidate.resultGroup === 'FAILED',
+            candidate.resultGroup !== 'NORMAL',
         )}
         disabled={props.pending || props.selectedIds.length === 0}
         onApprove={() => props.onAction('APPROVE')}

@@ -8,8 +8,6 @@ import {
   contentProductionJobSummarySchema,
   contentProductionPresetListResponseSchema,
   contentProductionPresetPathSchema,
-  createContentProductionPresetRequestSchema,
-  createContentProductionPresetVersionRequestSchema,
   contentProductionUploadPathSchema,
   promptPreviewResponseSchema,
   setContentProductionPresetEnabledRequestSchema,
@@ -100,15 +98,32 @@ export class ContentProductionPresetVersionListResponseDto {
   items!: unknown[];
 }
 
+/** 단일 preset version 응답 Swagger DTO */
+export class ContentProductionPresetVersionResponseDto {
+  id!: string;
+  name!: string;
+  version!: number;
+  purpose!: string;
+  parameters!: unknown;
+  enabled!: boolean;
+  revision!: number;
+  createdAt!: string;
+}
+
 /** 최초 preset 생성 요청 Swagger DTO */
-export class CreateContentProductionPresetRequestDto extends createZodDto(
-  createContentProductionPresetRequestSchema,
-) {}
+export class CreateContentProductionPresetRequestDto {
+  requestId!: string;
+  name!: string;
+  purpose!: string;
+  parameters!: unknown;
+}
 
 /** 다음 preset version 생성 요청 Swagger DTO */
-export class CreateContentProductionPresetVersionRequestDto extends createZodDto(
-  createContentProductionPresetVersionRequestSchema,
-) {}
+export class CreateContentProductionPresetVersionRequestDto {
+  requestId!: string;
+  purpose!: string;
+  parameters!: unknown;
+}
 
 /** preset enabled 변경 요청 Swagger DTO */
 export class SetContentProductionPresetEnabledRequestDto extends createZodDto(

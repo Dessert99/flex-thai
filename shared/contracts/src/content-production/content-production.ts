@@ -304,7 +304,7 @@ export const contentProductionPresetListResponseSchema = z
 
 const createJobCommonShape = {
   clientRequestId: uuidSchema,
-  uploadIds: z.array(uuidSchema).min(1),
+  uploadIds: z.array(uuidSchema).min(1).max(100),
 };
 
 /** 검증된 입력과 effective preset snapshot으로 작업을 생성하는 요청 */
@@ -438,30 +438,61 @@ export const contentProductionPresetPathSchema = z
   .strict();
 
 /** 최초 content-production preset version 생성 요청 */
-export const createContentProductionPresetRequestSchema = z
-  .object({
-    requestId: uuidSchema,
-    name: z.string().trim().min(1).max(200),
-    purpose: contentProductionPurposeSchema,
-    parameters: z.union([
-      vocabularyExtractionPresetParametersSchema,
-      questionGenerationPresetParametersSchema,
-      combinedProductionPresetParametersSchema,
-    ]),
-  })
-  .strict();
+export const createContentProductionPresetRequestSchema = z.discriminatedUnion(
+  'purpose',
+  [
+    z
+      .object({
+        requestId: uuidSchema,
+        name: z.string().trim().min(1).max(200),
+        purpose: z.literal('VOCABULARY_EXTRACTION'),
+        parameters: vocabularyExtractionPresetParametersSchema,
+      })
+      .strict(),
+    z
+      .object({
+        requestId: uuidSchema,
+        name: z.string().trim().min(1).max(200),
+        purpose: z.literal('QUESTION_GENERATION'),
+        parameters: questionGenerationPresetParametersSchema,
+      })
+      .strict(),
+    z
+      .object({
+        requestId: uuidSchema,
+        name: z.string().trim().min(1).max(200),
+        purpose: z.literal('VOCABULARY_THEN_QUESTION_GENERATION'),
+        parameters: combinedProductionPresetParametersSchema,
+      })
+      .strict(),
+  ],
+);
 
 /** 기존 preset 이름의 다음 immutable version 생성 요청 */
-export const createContentProductionPresetVersionRequestSchema = z
-  .object({
-    requestId: uuidSchema,
-    parameters: z.union([
-      vocabularyExtractionPresetParametersSchema,
-      questionGenerationPresetParametersSchema,
-      combinedProductionPresetParametersSchema,
-    ]),
-  })
-  .strict();
+export const createContentProductionPresetVersionRequestSchema =
+  z.discriminatedUnion('purpose', [
+    z
+      .object({
+        requestId: uuidSchema,
+        purpose: z.literal('VOCABULARY_EXTRACTION'),
+        parameters: vocabularyExtractionPresetParametersSchema,
+      })
+      .strict(),
+    z
+      .object({
+        requestId: uuidSchema,
+        purpose: z.literal('QUESTION_GENERATION'),
+        parameters: questionGenerationPresetParametersSchema,
+      })
+      .strict(),
+    z
+      .object({
+        requestId: uuidSchema,
+        purpose: z.literal('VOCABULARY_THEN_QUESTION_GENERATION'),
+        parameters: combinedProductionPresetParametersSchema,
+      })
+      .strict(),
+  ]);
 
 /** preset enabled 상태의 optimistic revision command */
 export const setContentProductionPresetEnabledRequestSchema = z
