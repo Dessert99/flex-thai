@@ -21,6 +21,24 @@ beforeEach(() => {
 });
 
 describe('문제 상태 변경 확인', () => {
+  it('게시 조건이 충족되지 않으면 이유를 표시하고 action을 막는다', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <QuestionStateAction
+        command={{ action: 'publish', versionId: questionId }}
+        disabled
+        disabledReason='필수 음성이 준비되지 않았습니다.'
+        onConfirmed={vi.fn()}
+      />,
+    );
+
+    const trigger = screen.getByRole('button', { name: '버전 게시' });
+    expect(trigger).toBeDisabled();
+    expect(screen.getByText('필수 음성이 준비되지 않았습니다.')).toBeVisible();
+    await user.click(trigger);
+    expect(mocks.authenticatedRequest).not.toHaveBeenCalled();
+  });
+
   it('Dialog를 취소하면 상태 action trigger로 초점을 돌려준다', async () => {
     const user = userEvent.setup();
     renderWithProviders(

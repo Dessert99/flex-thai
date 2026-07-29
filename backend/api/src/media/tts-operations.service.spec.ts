@@ -13,7 +13,10 @@ const ids = {
   requester: '00000000-0000-4000-8000-000000000003',
   target: '00000000-0000-4000-8000-000000000004',
   preset: '00000000-0000-4000-8000-000000000005',
+  admin: '00000000-0000-4000-8000-000000000006',
+  request: '00000000-0000-4000-8000-000000000007',
 } as const;
+const actor = { userId: ids.admin, sub: 'admin-sub', requestId: ids.request };
 
 const job = {
   id: ids.job,
@@ -75,6 +78,8 @@ const createService = (overrides?: {
       ],
       page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
     }),
+    findAudioItem: vi.fn().mockResolvedValue(null),
+    getPublicationReadiness: vi.fn().mockResolvedValue(null),
   };
   const retryCoordinator = {
     retryAndDispatch:
@@ -161,7 +166,9 @@ describe('TtsOperationsService 재시도', () => {
     const { retryCoordinator, service } = createService();
 
     await expect(
-      service.retryJob(ids.job, [{ itemId: ids.item, expectedAttempt: 2 }]),
+      service.retryJob(actor, ids.job, [
+        { itemId: ids.item, expectedAttempt: 2 },
+      ]),
     ).resolves.toEqual({
       jobId: ids.job,
       itemIds: [ids.item],
@@ -173,6 +180,11 @@ describe('TtsOperationsService 재시도', () => {
       itemIds: [ids.item],
       expectedAttempts: { [ids.item]: 2 },
       requestedAt: new Date('2026-07-27T03:00:00.000Z'),
+      context: {
+        actorSub: 'admin-sub',
+        actorUserId: ids.admin,
+        requestId: ids.request,
+      },
     });
   });
 
@@ -180,7 +192,10 @@ describe('TtsOperationsService 재시도', () => {
     const { retryCoordinator, service } = createService();
 
     await expect(
-      service.retryItem(ids.item, { jobId: ids.job, expectedAttempt: 2 }),
+      service.retryItem(actor, ids.item, {
+        jobId: ids.job,
+        expectedAttempt: 2,
+      }),
     ).resolves.toEqual({
       jobId: ids.job,
       itemIds: [ids.item],
@@ -204,7 +219,10 @@ describe('TtsOperationsService 재시도', () => {
       });
 
       await expect(
-        service.retryItem(ids.item, { jobId: ids.job, expectedAttempt: 2 }),
+        service.retryItem(actor, ids.item, {
+          jobId: ids.job,
+          expectedAttempt: 2,
+        }),
       ).rejects.toMatchObject({
         status: 409,
         response: { code },
@@ -220,7 +238,10 @@ describe('TtsOperationsService 재시도', () => {
     });
 
     await expect(
-      service.retryItem(ids.item, { jobId: ids.job, expectedAttempt: 2 }),
+      service.retryItem(actor, ids.item, {
+        jobId: ids.job,
+        expectedAttempt: 2,
+      }),
     ).rejects.toMatchObject({
       status: 404,
       response: { code: 'TTS_ITEM_NOT_FOUND' },
@@ -233,8 +254,70 @@ describe('TtsOperationsService 재시도', () => {
     const { service } = createService({ retryAndDispatch });
 
     await expect(
-      service.retryJob(ids.job, [{ itemId: ids.item, expectedAttempt: 2 }]),
+      service.retryJob(actor, ids.job, [
+        { itemId: ids.item, expectedAttempt: 2 },
+      ]),
     ).rejects.toBe(dispatchFailure);
     expect(retryAndDispatch).toHaveBeenCalledOnce();
+  });
+});
+
+describe('TtsOperationsService 재생·게시 readiness', () => {
+  it('READY 성공 항목에 5분 만료 read URL만 반환한다', async () => {
+    const query = {
+      findAudioItem: vi.fn().mockResolvedValue({
+        itemId: ids.item,
+        itemStatus: 'SUCCEEDED',
+        mediaStatus: 'READY',
+        storageKey: 'private/tts/runs/audio.wav',
+      }),
+    };
+    const mediaReadUrls = {
+      createReadUrl: vi
+        .fn()
+        .mockResolvedValue('http://127.0.0.1:3000/api/v1/local-media/signed'),
+    };
+    const service = new TtsOperationsService({
+      query: query as never,
+      retryCoordinator: { retryAndDispatch: vi.fn() },
+      mediaReadUrls,
+      now: () => new Date('2026-07-28T00:00:00.000Z'),
+    });
+
+    await expect(service.getItemAudio(ids.item)).resolves.toEqual({
+      url: 'http://127.0.0.1:3000/api/v1/local-media/signed',
+      expiresAt: '2026-07-28T00:05:00.000Z',
+    });
+    expect(mediaReadUrls.createReadUrl).toHaveBeenCalledWith(
+      'private/tts/runs/audio.wav',
+      new Date('2026-07-28T00:05:00.000Z'),
+    );
+  });
+
+  it('미준비 음성과 ownership mismatch를 각각 409·404로 변환한다', async () => {
+    const service = new TtsOperationsService({
+      query: {
+        findAudioItem: vi.fn().mockResolvedValue({
+          itemId: ids.item,
+          itemStatus: 'FAILED',
+          mediaStatus: null,
+          storageKey: null,
+        }),
+        getPublicationReadiness: vi.fn().mockResolvedValue(null),
+      } as never,
+      retryCoordinator: { retryAndDispatch: vi.fn() },
+      mediaReadUrls: { createReadUrl: vi.fn() },
+    });
+
+    await expect(service.getItemAudio(ids.item)).rejects.toMatchObject({
+      status: 409,
+      response: { code: 'TTS_AUDIO_NOT_READY' },
+    });
+    await expect(
+      service.getPublicationReadiness(ids.job, ids.target),
+    ).rejects.toMatchObject({
+      status: 404,
+      response: { code: 'TTS_PUBLICATION_TARGET_MISMATCH' },
+    });
   });
 });

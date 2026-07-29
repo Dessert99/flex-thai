@@ -2,13 +2,15 @@
 import {
   aggregateTtsJobStatus,
   retryTtsItems,
+  type AuditedRetryTtsItemsInput,
   type RetryTtsItemsInput,
   TtsDomainError,
 } from '@flex-thia/domain';
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import * as schema from '../../schema/index.js';
+import { auditLogs } from '../../schema/identity.schema.js';
 import { ttsAudioCache, ttsItems, ttsJobs } from '../../schema/tts.schema.js';
 import {
   createTtsRetryCommandFingerprint,
@@ -100,7 +102,7 @@ export class DrizzleTtsRetryCoordinator {
   }
 
   /** 성공 반환은 상태 전이와 동일 attempt outbox가 함께 commit될 때만 허용한다 */
-  async retryAndDispatch(input: RetryTtsItemsInput): Promise<number> {
+  async retryAndDispatch(input: AuditedRetryTtsItemsInput): Promise<number> {
     const command = assertCommand(input);
     const commandFingerprint = createTtsRetryCommandFingerprint(
       input.jobId,
@@ -142,6 +144,30 @@ export class DrizzleTtsRetryCoordinator {
           attempt: job.dispatchAttempt,
           commandFingerprint,
         });
+        const [audit] = await transaction
+          .select({
+            requestId: auditLogs.requestId,
+            summary: auditLogs.summary,
+          })
+          .from(auditLogs)
+          .where(
+            and(
+              eq(auditLogs.action, 'TTS_ITEMS_RETRIED'),
+              eq(auditLogs.targetType, 'TTS_JOB'),
+              eq(auditLogs.targetId, input.jobId),
+              eq(auditLogs.requestId, input.context.requestId),
+            ),
+          )
+          .orderBy(desc(auditLogs.createdAt), desc(auditLogs.id))
+          .limit(1);
+        const auditSummary = audit?.summary as
+          { commandFingerprint?: unknown } | undefined;
+        if (
+          audit?.requestId !== input.context.requestId ||
+          auditSummary?.commandFingerprint !== commandFingerprint
+        ) {
+          throw new TtsDomainError('TTS_ITEM_STALE_ATTEMPT');
+        }
         return command.itemIds.length;
       }
       const dispatchAttempt = job.dispatchAttempt + 1;
@@ -235,6 +261,24 @@ export class DrizzleTtsRetryCoordinator {
         throw new TtsDomainError('TTS_ITEM_NOT_FOUND');
       }
 
+      await transaction.insert(auditLogs).values({
+        actorSub: input.context.actorSub,
+        actorUserId: input.context.actorUserId,
+        action: 'TTS_ITEMS_RETRIED',
+        target: input.jobId,
+        targetType: 'TTS_JOB',
+        targetId: input.jobId,
+        requestId: input.context.requestId,
+        summary: {
+          itemIds: command.itemIds,
+          expectedAttempts: command.itemIds.map(
+            (itemId) => command.expectedAttempts[itemId]!,
+          ),
+          dispatchAttempt,
+          commandFingerprint,
+        },
+        createdAt: input.requestedAt,
+      });
       await this.dispatchWriter.enqueueTts(transaction, {
         jobId: input.jobId,
         attempt: dispatchAttempt,
