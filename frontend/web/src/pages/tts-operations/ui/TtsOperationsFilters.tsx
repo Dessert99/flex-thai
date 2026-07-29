@@ -9,6 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/select';
+import {
+  fromTtsOperationsDateTimeLocal,
+  toTtsOperationsDateTimeLocal,
+} from '../model/ttsOperationsDateTime';
 import type { TtsOperationsSearch } from '../model/ttsOperationsSearch';
 
 /** TTS 작업 API가 지원하는 상태와 ISO 기간 filter를 표시한다 */
@@ -85,12 +89,13 @@ function DateTimeFilter({
       <Label>{label}</Label>
       <Input
         aria-label={label}
-        defaultValue={value?.slice(0, 16) ?? ''}
+        defaultValue={toTtsOperationsDateTimeLocal(value)}
         key={value ?? 'empty'}
         onBlur={(event) => {
           const next = event.currentTarget.value;
-          onChange(next ? new Date(next).toISOString() : undefined);
+          onChange(fromTtsOperationsDateTimeLocal(next));
         }}
+        step='0.001'
         type='datetime-local'
       />
     </div>

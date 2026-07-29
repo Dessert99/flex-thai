@@ -121,8 +121,11 @@ export function CreateTtsPresetVersionForm({
     form.setValue('expectedUpdatedAt', preset.updatedAt);
   }, [form, preset.updatedAt]);
   const submit = form.handleSubmit(async (body) => {
-    await onCreateVersion(preset.id, body);
-    onCancel();
+    const created = await onCreateVersion(preset.id, body).then(
+      () => true,
+      () => false,
+    );
+    if (created) onCancel();
   });
   return (
     <form

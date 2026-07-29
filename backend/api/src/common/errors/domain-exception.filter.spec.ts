@@ -40,9 +40,7 @@ describe('공개 오류 응답 변환', () => {
   it('CONTENT_TTS_NOT_READY를 blocker 상세 없이 stable 409로 변환한다', () => {
     expect(
       buildErrorResponse(
-        new ContentTtsReadinessError([
-          '00000000-0000-4000-8000-000000000001',
-        ]),
+        new ContentTtsReadinessError(['00000000-0000-4000-8000-000000000001']),
         'request-tts-readiness',
       ),
     ).toEqual({

@@ -76,6 +76,36 @@ const command = (fixture: Awaited<ReturnType<typeof createFixture>>) => ({
   },
 });
 
+const withRejectedAudit = async (
+  pool: Pool,
+  requestId: string,
+  run: () => Promise<unknown>,
+) => {
+  const suffix = requestId.replaceAll('-', '');
+  const functionName = `reject_tts_retry_audit_${suffix}`;
+  const triggerName = `reject_tts_retry_audit_trigger_${suffix}`;
+  await pool.query(`
+    create function "${functionName}"() returns trigger language plpgsql as $$
+    begin
+      if new.request_id = '${requestId}'::uuid
+         and new.action = 'TTS_ITEMS_RETRIED' then
+        raise exception 'AUDIT_TRIGGER_FAILED';
+      end if;
+      return new;
+    end
+    $$`);
+  await pool.query(`
+    create trigger "${triggerName}"
+    before insert on audit_logs
+    for each row execute function "${functionName}"()`);
+  try {
+    await run();
+  } finally {
+    await pool.query(`drop trigger if exists "${triggerName}" on audit_logs`);
+    await pool.query(`drop function if exists "${functionName}"()`);
+  }
+};
+
 describe.runIf(databaseUrl !== undefined)(
   'TTS retry와 outbox PostgreSQL 원자성',
   () => {
@@ -120,6 +150,7 @@ describe.runIf(databaseUrl !== undefined)(
 
       const state = await pool.query<{
         attempt: number;
+        auditCount: string;
         cacheStatus: string;
         itemStatus: string;
         outboxCount: string;
@@ -130,7 +161,10 @@ describe.runIf(databaseUrl !== undefined)(
            tac.status "cacheStatus",
            (select count(*)::text from async_dispatch_outbox
             where payload_kind = 'TTS' and job_id = $1 and attempt = 1)
-             "outboxCount"
+             "outboxCount",
+           (select count(*)::text from audit_logs
+            where request_id = $1 and action = 'TTS_ITEMS_RETRIED')
+             "auditCount"
          from tts_items ti
          join tts_audio_cache tac on tac.cache_key = ti.cache_key
          where ti.id = $2`,
@@ -138,6 +172,7 @@ describe.runIf(databaseUrl !== undefined)(
       );
       expect(state.rows[0]).toEqual({
         attempt: 3,
+        auditCount: '1',
         cacheStatus: 'PENDING',
         itemStatus: 'PENDING',
         outboxCount: '1',
@@ -237,6 +272,7 @@ describe.runIf(databaseUrl !== undefined)(
       const state = await pool.query<{
         attempt: number;
         cacheStatus: string;
+        auditCount: string;
         failedCount: number;
         itemStatus: string;
         jobStatus: string;
@@ -249,7 +285,10 @@ describe.runIf(databaseUrl !== undefined)(
            tj.failed_count "failedCount",
            tac.status "cacheStatus",
            (select count(*)::text from async_dispatch_outbox
-            where payload_kind = 'TTS' and job_id = $1) "outboxCount"
+            where payload_kind = 'TTS' and job_id = $1) "outboxCount",
+           (select count(*)::text from audit_logs
+            where request_id = $1 and action = 'TTS_ITEMS_RETRIED')
+             "auditCount"
          from tts_items ti
          join tts_jobs tj on tj.id = ti.job_id
          join tts_audio_cache tac on tac.cache_key = ti.cache_key
@@ -258,6 +297,53 @@ describe.runIf(databaseUrl !== undefined)(
       );
       expect(state.rows[0]).toEqual({
         attempt: 2,
+        auditCount: '0',
+        cacheStatus: 'FAILED',
+        failedCount: 1,
+        itemStatus: 'FAILED',
+        jobStatus: 'FAILED',
+        outboxCount: '0',
+      });
+    });
+
+    it('audit trigger 실패는 item·cache·job·outbox를 모두 rollback한다', async () => {
+      const fixture = await createFixture(pool);
+
+      await expect(
+        withRejectedAudit(pool, fixture.ids.job, () =>
+          coordinator().retryAndDispatch(command(fixture)),
+        ),
+      ).rejects.toThrow('AUDIT_TRIGGER_FAILED');
+
+      const state = await pool.query<{
+        attempt: number;
+        auditCount: string;
+        cacheStatus: string;
+        failedCount: number;
+        itemStatus: string;
+        jobStatus: string;
+        outboxCount: string;
+      }>(
+        `select
+           ti.attempt,
+           ti.status "itemStatus",
+           tj.status "jobStatus",
+           tj.failed_count "failedCount",
+           tac.status "cacheStatus",
+           (select count(*)::text from async_dispatch_outbox
+            where payload_kind = 'TTS' and job_id = $1) "outboxCount",
+           (select count(*)::text from audit_logs
+            where request_id = $1 and action = 'TTS_ITEMS_RETRIED')
+             "auditCount"
+         from tts_items ti
+         join tts_jobs tj on tj.id = ti.job_id
+         join tts_audio_cache tac on tac.cache_key = ti.cache_key
+         where ti.id = $2`,
+        [fixture.ids.job, fixture.ids.item],
+      );
+      expect(state.rows[0]).toEqual({
+        attempt: 2,
+        auditCount: '0',
         cacheStatus: 'FAILED',
         failedCount: 1,
         itemStatus: 'FAILED',

@@ -2,9 +2,9 @@
 import type {
   CreateTtsVoicePresetRequest,
   CreateTtsVoicePresetVersionRequest,
+  TtsVoicePresetDetailResponse,
   TtsVoicePresetListResponse,
 } from '@flex-thia/contracts';
-import { useState } from 'react';
 import { isApiError } from '@/shared/api';
 import type { TtsPresetSearch } from '../model/ttsPresetSearch';
 import {
@@ -22,6 +22,7 @@ interface Props {
   loading: boolean;
   mutationError: unknown;
   mutationPending: boolean;
+  onCancelVersion: () => void;
   onCreate: (body: CreateTtsVoicePresetRequest) => Promise<void>;
   onCreateVersion: (
     presetId: string,
@@ -30,8 +31,10 @@ interface Props {
   onFilterChange: (patch: Partial<TtsPresetSearch>) => void;
   onPageChange: (page: number) => void;
   onRetry: () => void;
+  onSelectVersion: (preset: Preset) => void;
   onToggle: (preset: Preset) => void;
   search: TtsPresetSearch;
+  versionSource: TtsVoicePresetDetailResponse | null;
 }
 
 /** immutable 생성 form과 catalog server state를 한 화면에 연결한다 */
@@ -41,18 +44,17 @@ export function TtsPresetManagementPageView({
   loading,
   mutationError,
   mutationPending,
+  onCancelVersion,
   onCreate,
   onCreateVersion,
   onFilterChange,
   onPageChange,
   onRetry,
+  onSelectVersion,
   onToggle,
   search,
+  versionSource,
 }: Props) {
-  const [versionSourceId, setVersionSourceId] = useState<string | null>(null);
-  const versionSource =
-    data?.items.find((preset) => preset.id === versionSourceId) ?? null;
-
   return (
     <section className='grid gap-section'>
       <header className='space-y-cluster'>
@@ -69,7 +71,7 @@ export function TtsPresetManagementPageView({
         <CreateTtsPresetVersionForm
           disabled={mutationPending}
           key={versionSource.id}
-          onCancel={() => setVersionSourceId(null)}
+          onCancel={onCancelVersion}
           onCreateVersion={onCreateVersion}
           preset={versionSource}
         />
@@ -91,7 +93,7 @@ export function TtsPresetManagementPageView({
         loading={loading}
         mutationPending={mutationPending}
         onRetry={onRetry}
-        onSelectVersion={(preset) => setVersionSourceId(preset.id)}
+        onSelectVersion={onSelectVersion}
         onToggle={onToggle}
         search={search}
       />

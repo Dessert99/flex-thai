@@ -267,10 +267,26 @@ describe('게시 전 TTS 준비 상태', () => {
           versionId: 'reading-version-1',
         });
         return Promise.resolve([
-          { kind: 'THAI_SENTENCE_VERSION', targetId: 'sentence-3', mediaStatus: 'FAILED' },
-          { kind: 'VOCABULARY_PRONUNCIATION', targetId: 'vocabulary-1', mediaStatus: 'READY' },
-          { kind: 'THAI_SENTENCE_VERSION', targetId: 'sentence-1', mediaStatus: 'UPLOADING' },
-          { kind: 'VOCABULARY_PRONUNCIATION', targetId: 'expression-2', mediaStatus: 'MISSING' },
+          {
+            kind: 'THAI_SENTENCE_VERSION',
+            targetId: 'sentence-3',
+            mediaStatus: 'FAILED',
+          },
+          {
+            kind: 'VOCABULARY_PRONUNCIATION',
+            targetId: 'vocabulary-1',
+            mediaStatus: 'READY',
+          },
+          {
+            kind: 'THAI_SENTENCE_VERSION',
+            targetId: 'sentence-1',
+            mediaStatus: 'UPLOADING',
+          },
+          {
+            kind: 'VOCABULARY_PRONUNCIATION',
+            targetId: 'expression-2',
+            mediaStatus: 'MISSING',
+          },
         ]);
       },
     };
@@ -293,9 +309,21 @@ describe('게시 전 TTS 준비 상태', () => {
   it('듣기 문제의 MISSING·FAILED·UPLOADING target을 차단한다', () => {
     expect(() =>
       assertContentTtsReady([
-        { kind: 'THAI_SENTENCE_VERSION', targetId: 'listening-sentence-1', mediaStatus: 'MISSING' },
-        { kind: 'VOCABULARY_PRONUNCIATION', targetId: 'listening-expression-1', mediaStatus: 'FAILED' },
-        { kind: 'THAI_SENTENCE_VERSION', targetId: 'listening-sentence-2', mediaStatus: 'UPLOADING' },
+        {
+          kind: 'THAI_SENTENCE_VERSION',
+          targetId: 'listening-sentence-1',
+          mediaStatus: 'MISSING',
+        },
+        {
+          kind: 'VOCABULARY_PRONUNCIATION',
+          targetId: 'listening-expression-1',
+          mediaStatus: 'FAILED',
+        },
+        {
+          kind: 'THAI_SENTENCE_VERSION',
+          targetId: 'listening-sentence-2',
+          mediaStatus: 'UPLOADING',
+        },
       ]),
     ).toThrowError(
       expect.objectContaining({
@@ -312,8 +340,16 @@ describe('게시 전 TTS 준비 상태', () => {
   it('모든 필수 target이 READY면 게시를 허용한다', () => {
     expect(() =>
       assertContentTtsReady([
-        { kind: 'VOCABULARY_PRONUNCIATION', targetId: 'expression-1', mediaStatus: 'READY' },
-        { kind: 'THAI_SENTENCE_VERSION', targetId: 'sentence-1', mediaStatus: 'READY' },
+        {
+          kind: 'VOCABULARY_PRONUNCIATION',
+          targetId: 'expression-1',
+          mediaStatus: 'READY',
+        },
+        {
+          kind: 'THAI_SENTENCE_VERSION',
+          targetId: 'sentence-1',
+          mediaStatus: 'READY',
+        },
       ]),
     ).not.toThrow();
   });
@@ -321,8 +357,16 @@ describe('게시 전 TTS 준비 상태', () => {
   it('동일 target은 한 번만 오류에 포함한다', () => {
     try {
       assertContentTtsReady([
-        { kind: 'THAI_SENTENCE_VERSION', targetId: 'sentence-1', mediaStatus: 'FAILED' },
-        { kind: 'THAI_SENTENCE_VERSION', targetId: 'sentence-1', mediaStatus: 'MISSING' },
+        {
+          kind: 'THAI_SENTENCE_VERSION',
+          targetId: 'sentence-1',
+          mediaStatus: 'FAILED',
+        },
+        {
+          kind: 'THAI_SENTENCE_VERSION',
+          targetId: 'sentence-1',
+          mediaStatus: 'MISSING',
+        },
       ]);
       throw new Error('expected readiness error');
     } catch (error) {

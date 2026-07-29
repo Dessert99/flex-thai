@@ -2,15 +2,20 @@
 import type {
   CreateTtsVoicePresetRequest,
   CreateTtsVoicePresetVersionRequest,
+  TtsVoicePresetDetailResponse,
   TtsVoicePresetListResponse,
 } from '@flex-thia/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import {
   changeTtsPresetEnabled,
   createTtsPreset,
   createTtsPresetVersion,
 } from '../api/ttsPresetMutations';
-import { ttsPresetListQueryOptions } from '../api/ttsPresetQueries';
+import {
+  ttsPresetDetailQueryOptions,
+  ttsPresetListQueryOptions,
+} from '../api/ttsPresetQueries';
 import {
   updateTtsPresetSearch,
   type TtsPresetSearch,
@@ -26,7 +31,12 @@ export function TtsPresetManagementPageContainer({
   search: TtsPresetSearch;
 }) {
   const queryClient = useQueryClient();
+  const [versionSourceId, setVersionSourceId] = useState<string | null>(null);
   const query = useQuery(ttsPresetListQueryOptions(search));
+  const versionSourceQuery = useQuery({
+    ...ttsPresetDetailQueryOptions(versionSourceId ?? ''),
+    enabled: versionSourceId !== null,
+  });
   const invalidatePresets = async (presetId?: string) => {
     await queryClient.invalidateQueries({
       queryKey: ['admin', 'tts', 'presets'],
@@ -73,6 +83,7 @@ export function TtsPresetManagementPageContainer({
         versionMutation.isPending ||
         toggleMutation.isPending
       }
+      onCancelVersion={() => setVersionSourceId(null)}
       onCreate={(body: CreateTtsVoicePresetRequest) =>
         createMutation.mutateAsync(body).then(() => undefined)
       }
@@ -84,6 +95,13 @@ export function TtsPresetManagementPageContainer({
       }
       onPageChange={(page) => onSearchChange({ ...search, page })}
       onRetry={() => void query.refetch()}
+      onSelectVersion={(preset) => {
+        queryClient.setQueryData<TtsVoicePresetDetailResponse>(
+          ttsPresetDetailQueryOptions(preset.id).queryKey,
+          preset,
+        );
+        setVersionSourceId(preset.id);
+      }}
       onToggle={(preset) =>
         toggleMutation.mutate({
           enabled: !preset.enabled,
@@ -91,6 +109,7 @@ export function TtsPresetManagementPageContainer({
         })
       }
       search={search}
+      versionSource={versionSourceQuery.data ?? null}
     />
   );
 }

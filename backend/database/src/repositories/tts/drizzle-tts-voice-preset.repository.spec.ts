@@ -24,10 +24,14 @@ const context = {
 };
 
 const createDatabase = (row: typeof source | null = source) => {
-  const inserts: Array<{ table: unknown; values: Record<string, unknown> }> = [];
-  const updates: Array<{ table: unknown; values: Record<string, unknown> }> = [];
+  const inserts: Array<{ table: unknown; values: Record<string, unknown> }> =
+    [];
+  const updates: Array<{ table: unknown; values: Record<string, unknown> }> =
+    [];
   let locked = false;
-  const transaction = async (callback: (session: never) => Promise<unknown>) => {
+  const transaction = async (
+    callback: (session: never) => Promise<unknown>,
+  ) => {
     const session = {
       select: () => {
         const chain = {
@@ -67,7 +71,14 @@ const createDatabase = (row: typeof source | null = source) => {
     };
     return callback(session as never);
   };
-  return { database: { transaction }, inserts, updates, get locked() { return locked; } };
+  return {
+    database: { transaction },
+    inserts,
+    updates,
+    get locked() {
+      return locked;
+    },
+  };
 };
 
 describe('DrizzleTtsVoicePresetRepository', () => {
