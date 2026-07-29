@@ -3,6 +3,7 @@ import type { AdminQuestionDetailResponse } from '@flex-thia/contracts';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { QuestionStateAction } from '@/features/change-question-state';
+import { RetryTtsItemsAction } from '@/features/retry-tts-items';
 import {
   TtsPublicationReadinessPanel,
   ttsPublicationReadinessQueryOptions,
@@ -113,7 +114,22 @@ function DraftVersionTtsState({
   );
   if (readiness.data) {
     readinessPanel = (
-      <TtsPublicationReadinessPanel readiness={readiness.data} />
+      <TtsPublicationReadinessPanel
+        readiness={readiness.data}
+        renderRetry={(operation) => (
+          <RetryTtsItemsAction
+            items={[
+              {
+                id: operation.itemId,
+                status: operation.itemStatus,
+                attempt: operation.attempt,
+                retryable: operation.retryable,
+              },
+            ]}
+            jobId={operation.jobId}
+          />
+        )}
+      />
     );
   } else if (readiness.isError) {
     readinessPanel = (

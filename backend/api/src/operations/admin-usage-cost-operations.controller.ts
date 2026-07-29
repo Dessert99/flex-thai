@@ -63,7 +63,18 @@ export class AdminUsageCostOperationsController {
   ) {
     const query = usageCostOverviewQuerySchema.parse(rawQuery);
     return usageCostOverviewResponseSchema.parse(
-      await this.usageCost.overview({ role: user.role }, query),
+      await this.usageCost.overview(
+        { role: user.role },
+        {
+          ...(query.from === undefined ? {} : { from: query.from }),
+          ...(query.to === undefined ? {} : { to: query.to }),
+          ...(query.source === undefined ? {} : { source: query.source }),
+          ...(query.provider === undefined ? {} : { provider: query.provider }),
+          ...(query.model === undefined ? {} : { model: query.model }),
+          ...(query.voice === undefined ? {} : { voice: query.voice }),
+          ...(query.status === undefined ? {} : { status: query.status }),
+        },
+      ),
     );
   }
 

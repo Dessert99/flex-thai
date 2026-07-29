@@ -59,6 +59,18 @@ describe('역할별 내비게이션', () => {
       'href',
       '/admin/audit-logs',
     );
+    expect(screen.getByRole('link', { name: '콘텐츠 제작' })).toHaveAttribute(
+      'href',
+      '/admin/content-production',
+    );
+    expect(screen.getByRole('link', { name: 'TTS 운영' })).toHaveAttribute(
+      'href',
+      '/admin/tts',
+    );
+    expect(screen.getByRole('link', { name: '사용량·비용' })).toHaveAttribute(
+      'href',
+      '/admin/usage-cost',
+    );
     expect(screen.getByRole('link', { name: '개념 관리' })).toHaveAttribute(
       'href',
       '/admin/concepts',

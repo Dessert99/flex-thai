@@ -2,10 +2,14 @@
 import { eq } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
+import * as schema from '../schema/index.js';
 import { auditLogs } from '../schema/identity.schema.js';
 import { operationsCostSettings } from '../schema/operations-cost.schema.js';
 
-type OperationsCostSettingsDatabase = PgDatabase<PgQueryResultHKT>;
+type OperationsCostSettingsDatabase = PgDatabase<
+  PgQueryResultHKT,
+  typeof schema
+>;
 type OperationsCostSettingsTransaction = Parameters<
   Parameters<OperationsCostSettingsDatabase['transaction']>[0]
 >[0];

@@ -13,6 +13,26 @@ describe('안전한 로그인 redirect', () => {
     ['/admin/users', '/admin/users'],
     ['/admin/audit-logs', '/admin/audit-logs'],
     ['/admin/question-settings', '/admin/question-settings'],
+    ['/admin/content-production', '/admin/content-production'],
+    [
+      '/admin/content-production/jobs/00000000-0000-4000-8000-000000000103',
+      '/admin/content-production/jobs/00000000-0000-4000-8000-000000000103',
+    ],
+    [
+      '/admin/content-production/candidates?page=2&pageSize=20',
+      '/admin/content-production/candidates?page=2&pageSize=20',
+    ],
+    ['/admin/content-production/presets', '/admin/content-production/presets'],
+    [
+      '/admin/tts?status=FAILED&page=1&pageSize=20',
+      '/admin/tts?status=FAILED&page=1&pageSize=20',
+    ],
+    [
+      '/admin/tts/jobs/00000000-0000-4000-8000-000000000104?page=1&pageSize=20',
+      '/admin/tts/jobs/00000000-0000-4000-8000-000000000104?page=1&pageSize=20',
+    ],
+    ['/admin/tts/presets', '/admin/tts/presets'],
+    ['/admin/usage-cost?source=TTS', '/admin/usage-cost?source=TTS'],
     [
       '/questions?difficulty=3&page=2&pageSize=20',
       '/questions?difficulty=3&page=2&pageSize=20',

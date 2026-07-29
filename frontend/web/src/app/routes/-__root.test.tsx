@@ -80,6 +80,21 @@ describe('root route 제목', () => {
     ['/admin/users', '사용자 관리'],
     ['/admin/audit-logs', '감사 기록'],
     ['/admin/question-settings', '문제 유형 설정'],
+    ['/admin/content-production', '콘텐츠 제작'],
+    [
+      '/admin/content-production/jobs/00000000-0000-4000-8000-000000000103',
+      '콘텐츠 제작 작업 상세',
+    ],
+    ['/admin/content-production/candidates', '문제 후보 검수'],
+    [
+      '/admin/content-production/candidates/00000000-0000-4000-8000-000000000104',
+      '문제 후보 상세',
+    ],
+    ['/admin/content-production/presets', '콘텐츠 제작 Preset'],
+    ['/admin/tts', 'TTS 운영'],
+    ['/admin/tts/jobs/00000000-0000-4000-8000-000000000105', 'TTS 작업 상세'],
+    ['/admin/tts/presets', 'TTS Preset'],
+    ['/admin/usage-cost', 'AI·TTS 사용량·비용'],
   ])('%s 경로에 %s 제목을 제공한다', (pathname, title) => {
     expect(getRouteTitle(pathname)).toBe(title);
   });

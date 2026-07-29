@@ -35,6 +35,17 @@ insert into users (
     '2026-07-01T00:00:00Z'
   );
 
+update operations_cost_settings
+set
+  currency = 'USD',
+  warning_usd = '15.000000',
+  critical_usd = '24.000000',
+  updated_at = '2026-07-01T00:00:00Z',
+  updated_by = '00000000-0000-4000-8000-000000000001',
+  last_request_id = null,
+  last_request_fingerprint = null
+where id = 1;
+
 insert into media_assets (
   id,
   storage_key,
@@ -725,10 +736,150 @@ insert into content_production_presets (
     1,
     '{"suspectedDuplicateMaxCodePointDistance":1}'::jsonb,
     true
+  ),
+  (
+    '00000000-0000-4000-8000-000000000904',
+    '기본 문제 생성',
+    'QUESTION_GENERATION',
+    2,
+    '{"promptRevision":"retired-local-v2"}'::jsonb,
+    false
   )
 on conflict (name, version) do update set
   parameters = excluded.parameters,
   enabled = excluded.enabled;
+
+insert into uploads (
+  id,
+  owner_id,
+  input_type,
+  object_key,
+  declared_content_type,
+  size_bytes,
+  status,
+  verified_at,
+  created_at
+) values (
+  '00000000-0000-4000-8000-000000000930',
+  '00000000-0000-4000-8000-000000000001',
+  'TEXT',
+  'local/content-production/source.txt',
+  'text/plain',
+  128,
+  'VERIFIED',
+  '2026-07-01T00:00:00Z',
+  '2026-07-01T00:00:00Z'
+);
+
+insert into jobs (
+  id,
+  requested_by,
+  client_request_id,
+  type,
+  purpose,
+  preset_id,
+  preset_snapshot,
+  status,
+  attempt,
+  enqueued_at,
+  completed_at,
+  created_at,
+  updated_at
+) values (
+  '00000000-0000-4000-8000-000000000931',
+  '00000000-0000-4000-8000-000000000001',
+  '00000000-0000-4000-8000-000000000932',
+  'QUESTION_GENERATION',
+  'QUESTION_GENERATION',
+  '00000000-0000-4000-8000-000000000902',
+  '{"id":"00000000-0000-4000-8000-000000000902","name":"기본 문제 생성","purpose":"QUESTION_GENERATION","version":1,"parameters":{}}'::jsonb,
+  'COMPLETED',
+  0,
+  '2026-07-01T00:00:00Z',
+  '2026-07-01T00:01:00Z',
+  '2026-07-01T00:00:00Z',
+  '2026-07-01T00:01:00Z'
+);
+
+insert into job_inputs (
+  id,
+  job_id,
+  upload_id,
+  ordinal,
+  created_at
+) values (
+  '00000000-0000-4000-8000-000000000933',
+  '00000000-0000-4000-8000-000000000931',
+  '00000000-0000-4000-8000-000000000930',
+  0,
+  '2026-07-01T00:00:00Z'
+);
+
+insert into job_items (
+  id,
+  job_id,
+  job_input_id,
+  operation,
+  status,
+  source_ref,
+  attempt,
+  retryable,
+  result,
+  created_at,
+  updated_at
+) values (
+  '00000000-0000-4000-8000-000000000934',
+  '00000000-0000-4000-8000-000000000931',
+  '00000000-0000-4000-8000-000000000933',
+  'QUESTION_GENERATION',
+  'SUCCEEDED',
+  'local-source-1',
+  0,
+  false,
+  '{"generatedCount":1}'::jsonb,
+  '2026-07-01T00:00:00Z',
+  '2026-07-01T00:01:00Z'
+);
+
+insert into provider_runs (
+  id,
+  job_item_id,
+  operation,
+  sequence,
+  provider,
+  model,
+  prompt_version,
+  item_lease_token,
+  attempt,
+  status,
+  usage,
+  estimated_cost_usd,
+  success,
+  result,
+  retryable,
+  provider_request_id,
+  started_at,
+  finished_at
+) values (
+  '00000000-0000-4000-8000-000000000935',
+  '00000000-0000-4000-8000-000000000934',
+  'QUESTION_GENERATION',
+  0,
+  'LOCAL_FAKE',
+  'deterministic-content-v1',
+  'local-prompt-v1',
+  'local-lease-1',
+  0,
+  'SUCCEEDED',
+  '{"inputTokens":100,"outputTokens":50}'::jsonb,
+  '0.750000',
+  true,
+  '{"generatedCount":1}'::jsonb,
+  false,
+  'local-content-provider-request',
+  '2026-07-01T00:00:00Z',
+  '2026-07-01T00:01:00Z'
+);
 
 insert into tts_voice_presets (
   id,
@@ -753,6 +904,32 @@ insert into tts_voice_presets (
   '2026-07-27',
   true,
   '2026-07-01T00:00:00Z',
+  '2026-07-01T00:00:00Z'
+);
+
+insert into tts_voice_presets (
+  id,
+  name,
+  provider,
+  model,
+  voice,
+  locale,
+  audio_format,
+  generation_revision,
+  enabled,
+  created_at,
+  updated_at
+) values (
+  '00000000-0000-4000-8000-000000000905',
+  '로컬 비활성 음성',
+  'LOCAL_FAKE',
+  'deterministic-v0',
+  'th-TH-standard-b',
+  'th-TH',
+  'audio/wav',
+  '2026-06-30',
+  false,
+  '2026-06-30T00:00:00Z',
   '2026-07-01T00:00:00Z'
 );
 
@@ -816,6 +993,156 @@ insert into tts_items (
   0,
   false,
   '00000000-0000-4000-8000-000000000013',
+  '2026-07-01T00:00:00Z',
+  '2026-07-01T00:01:00Z'
+);
+
+insert into tts_jobs (
+  id,
+  requested_by,
+  voice_snapshot,
+  dispatch_attempt,
+  status,
+  pending_count,
+  processing_count,
+  succeeded_count,
+  failed_count,
+  created_at,
+  started_at,
+  finished_at,
+  updated_at
+) values
+  (
+    '00000000-0000-4000-8000-000000000924',
+    '00000000-0000-4000-8000-000000000001',
+    '{"presetId":"00000000-0000-4000-8000-000000000001","provider":"LOCAL_FAKE","model":"deterministic-v1","voice":"th-TH-standard-a","locale":"th-TH","audioFormat":"audio/wav","generationRevision":"2026-07-27"}',
+    0,
+    'RUNNING',
+    0,
+    1,
+    0,
+    0,
+    '2026-07-02T00:00:00Z',
+    '2026-07-02T00:00:00Z',
+    null,
+    '2026-07-02T00:00:30Z'
+  ),
+  (
+    '00000000-0000-4000-8000-000000000926',
+    '00000000-0000-4000-8000-000000000001',
+    '{"presetId":"00000000-0000-4000-8000-000000000001","provider":"LOCAL_FAKE","model":"deterministic-v1","voice":"th-TH-standard-a","locale":"th-TH","audioFormat":"audio/wav","generationRevision":"2026-07-27"}',
+    0,
+    'FAILED',
+    0,
+    0,
+    0,
+    1,
+    '2026-07-03T00:00:00Z',
+    '2026-07-03T00:00:00Z',
+    '2026-07-03T00:01:00Z',
+    '2026-07-03T00:01:00Z'
+  );
+
+insert into tts_items (
+  id,
+  job_id,
+  target_kind,
+  target_id,
+  target_text,
+  target_required,
+  revision,
+  voice_snapshot,
+  cache_key,
+  status,
+  attempt,
+  lease_token,
+  lease_until,
+  error_code,
+  retryable,
+  created_at,
+  updated_at
+) values
+  (
+    '00000000-0000-4000-8000-000000000925',
+    '00000000-0000-4000-8000-000000000924',
+    'THAI_SENTENCE_VERSION',
+    '00000000-0000-4000-8000-000000000218',
+    'ขอบคุณ',
+    true,
+    'local-running-revision',
+    '{"presetId":"00000000-0000-4000-8000-000000000001","provider":"LOCAL_FAKE","model":"deterministic-v1","voice":"th-TH-standard-a","locale":"th-TH","audioFormat":"audio/wav","generationRevision":"2026-07-27"}',
+    repeat('e', 64),
+    'PROCESSING',
+    1,
+    'local-running-lease',
+    '2026-07-02T00:05:00Z',
+    null,
+    false,
+    '2026-07-02T00:00:00Z',
+    '2026-07-02T00:00:30Z'
+  ),
+  (
+    '00000000-0000-4000-8000-000000000927',
+    '00000000-0000-4000-8000-000000000926',
+    'THAI_SENTENCE_VERSION',
+    '00000000-0000-4000-8000-000000000217',
+    'สวัสดี',
+    true,
+    'local-failed-revision',
+    '{"presetId":"00000000-0000-4000-8000-000000000001","provider":"LOCAL_FAKE","model":"deterministic-v1","voice":"th-TH-standard-a","locale":"th-TH","audioFormat":"audio/wav","generationRevision":"2026-07-27"}',
+    repeat('f', 64),
+    'FAILED',
+    1,
+    null,
+    null,
+    'LOCAL_TTS_TRANSIENT_FAILURE',
+    true,
+    '2026-07-03T00:00:00Z',
+    '2026-07-03T00:01:00Z'
+  );
+
+insert into tts_provider_runs (
+  id,
+  item_id,
+  attempt,
+  cache_key,
+  cache_claim_token,
+  item_lease_token,
+  provider,
+  model,
+  status,
+  usage,
+  estimated_cost_usd,
+  provider_request_id,
+  retryable,
+  storage_key,
+  storage_mime_type,
+  storage_size_bytes,
+  storage_sha256,
+  started_at,
+  finished_at,
+  created_at,
+  updated_at
+) values (
+  '00000000-0000-4000-8000-000000000923',
+  '00000000-0000-4000-8000-000000000921',
+  0,
+  '00db352c5a855781202ea35b7e2264d4ec02c938785e23a7ff7f6dfffebbac4e',
+  'local-cache-claim',
+  'local-item-lease',
+  'LOCAL_FAKE',
+  'deterministic-v1',
+  'SUCCEEDED',
+  '{"characters":6}'::jsonb,
+  '0.25000000',
+  'local-tts-provider-request',
+  false,
+  'private/tts/runs/local-sentence.wav',
+  'audio/wav',
+  2048,
+  repeat('d', 64),
+  '2026-07-01T00:00:00Z',
+  '2026-07-01T00:01:00Z',
   '2026-07-01T00:00:00Z',
   '2026-07-01T00:01:00Z'
 );
@@ -991,6 +1318,42 @@ insert into question_type_versions (
     'DRAFT',
     '{"mode":"single-choice"}'
   );
+
+insert into question_production_candidates (
+  id,
+  job_item_id,
+  job_attempt,
+  ordinal,
+  type_version_id,
+  payload_state,
+  topic_id,
+  difficulty,
+  payload,
+  payload_hash,
+  result_group,
+  review_status,
+  review_code,
+  revision,
+  created_at,
+  updated_at
+) values (
+  '00000000-0000-4000-8000-000000000936',
+  '00000000-0000-4000-8000-000000000934',
+  0,
+  0,
+  '00000000-0000-4000-8000-000000000311',
+  'REDACTED_INVALID',
+  null,
+  null,
+  null,
+  repeat('a', 64),
+  'FAILED',
+  'PENDING',
+  'SCHEMA_VALIDATION_FAILED',
+  0,
+  '2026-07-01T00:00:30Z',
+  '2026-07-01T00:00:30Z'
+);
 
 insert into questions (
   id,

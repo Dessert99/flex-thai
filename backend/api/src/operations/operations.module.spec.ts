@@ -14,7 +14,9 @@ import {
   IDENTITY_USER_REPOSITORY,
 } from '../identity/cognito-authorizer.guard.js';
 import { AdminAuditLogsController } from './admin-audit-logs.controller.js';
+import { AdminUsageCostOperationsController } from './admin-usage-cost-operations.controller.js';
 import { OperationsModule } from './operations.module.js';
+import { UsageCostOperationsService } from './usage-cost-operations.service.js';
 
 describe('OperationsModule', () => {
   it('감사 Controller와 read service 및 관리자 guard를 등록한다', () => {
@@ -27,16 +29,25 @@ describe('OperationsModule', () => {
     } satisfies AuthorizerGuardOptions;
     const module = OperationsModule.register({
       auditLogs,
+      usageCost: { query: {} as never, settings: {} as never },
       users,
       authorizer,
     });
     const providers = module.providers as ValueProvider[];
 
-    expect(module.controllers).toEqual([AdminAuditLogsController]);
+    expect(module.controllers).toEqual([
+      AdminAuditLogsController,
+      AdminUsageCostOperationsController,
+    ]);
     expect(providers).toContainEqual({
       provide: AuditLogService,
       useValue: auditLogs,
     });
+    expect(providers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ provide: UsageCostOperationsService }),
+      ]),
+    );
     expect(providers).toContainEqual({
       provide: IDENTITY_USER_REPOSITORY,
       useValue: users,

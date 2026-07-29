@@ -2,6 +2,11 @@
 import {
   DrizzleContentProductionPresetCatalog,
   DrizzleContentProductionRepository,
+  DrizzleOperationsCostSettingsRepository,
+  DrizzleQuestionProductionContextQuery,
+  DrizzleTtsVoicePresetQuery,
+  DrizzleTtsVoicePresetRepository,
+  DrizzleUsageCostOperationsQuery,
   DrizzleEmailChallengeRepository,
   DrizzleRecommendationQuery,
   DrizzleUploadRepository,
@@ -39,6 +44,9 @@ import {
 } from '@flex-thia/providers';
 import { AdminContentService } from './admin/admin-content.service.js';
 import { ContentProductionApplicationService } from './content-production/content-production.service.js';
+import { TtsOperationsService } from './media/tts-operations.service.js';
+import { TtsVoicePresetsService } from './media/tts-voice-presets.service.js';
+import { UsageCostOperationsService } from './operations/usage-cost-operations.service.js';
 import { AdminUserManagementController } from './identity/admin-user-management.controller.js';
 import { LearnerContentService } from './learning/learner-content.service.js';
 import { LearnerWordbooksService } from './learning/learner-wordbooks.service.js';
@@ -245,6 +253,7 @@ describe('createApplicationModule 조립', () => {
         queue: { repository: unknown; processor: unknown };
       };
       uploadPolicies: { repository: unknown; storage: unknown };
+      questionProductionContext: unknown;
     };
     expect(contentProduction.uploads).toBeInstanceOf(DrizzleUploadRepository);
     expect(contentProduction.presets).toBeInstanceOf(
@@ -270,6 +279,52 @@ describe('createApplicationModule 조립', () => {
     );
     expect(contentProduction.uploadPolicies.storage).toBeInstanceOf(
       FakeUploadProvider,
+    );
+    expect(contentProduction.questionProductionContext).toBeInstanceOf(
+      DrizzleQuestionProductionContextQuery,
+    );
+
+    const mediaModule = application.imports?.[8] as {
+      providers: { provide: unknown; useValue: unknown }[];
+    };
+    const ttsOperations = mediaModule.providers.find(
+      ({ provide }) => provide === TtsOperationsService,
+    )?.useValue as { dependencies: { mediaReadUrls: unknown } };
+    const ttsPresets = mediaModule.providers.find(
+      ({ provide }) => provide === TtsVoicePresetsService,
+    )?.useValue as {
+      dependencies: {
+        query: unknown;
+        repository: unknown;
+        activePresetId: string;
+      };
+    };
+    expect(ttsOperations.dependencies.mediaReadUrls).toBeInstanceOf(
+      LocalFileMediaReadProvider,
+    );
+    expect(ttsPresets.dependencies.query).toBeInstanceOf(
+      DrizzleTtsVoicePresetQuery,
+    );
+    expect(ttsPresets.dependencies.repository).toBeInstanceOf(
+      DrizzleTtsVoicePresetRepository,
+    );
+    expect(ttsPresets.dependencies.activePresetId).toBe(
+      '00000000-0000-4000-8000-000000000001',
+    );
+
+    const operationsModule = application.imports?.[10] as {
+      providers: { provide: unknown; useValue: unknown }[];
+    };
+    const usageCost = operationsModule.providers.find(
+      ({ provide }) => provide === UsageCostOperationsService,
+    )?.useValue as {
+      dependencies: { query: unknown; settings: unknown };
+    };
+    expect(usageCost.dependencies.query).toBeInstanceOf(
+      DrizzleUsageCostOperationsQuery,
+    );
+    expect(usageCost.dependencies.settings).toBeInstanceOf(
+      DrizzleOperationsCostSettingsRepository,
     );
   });
 

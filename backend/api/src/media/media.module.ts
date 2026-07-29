@@ -2,6 +2,7 @@
 import { type DynamicModule, Module } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { IdentityUserRepository } from '@flex-thia/domain';
+import type { MediaReadUrlProvider } from '@flex-thia/domain';
 import { LocalFileMediaReadProvider } from '@flex-thia/providers';
 import { AdminMfaGuard } from '../identity/admin-mfa.guard.js';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
@@ -18,11 +19,24 @@ import {
   type TtsOperationsQueryPort,
   type TtsRetryCoordinator,
 } from './tts-operations.service.js';
+import { TtsVoicePresetsController } from './tts-voice-presets.controller.js';
+import {
+  TtsVoicePresetsService,
+  type TtsVoicePresetQueryPort,
+  type TtsVoicePresetRepositoryPort,
+} from './tts-voice-presets.service.js';
 
 /** root application이 mode별 media adapter를 주입하는 옵션 */
 export interface MediaModuleOptions {
   query: TtsOperationsQueryPort;
   retryCoordinator: TtsRetryCoordinator;
+  mediaReadUrls: MediaReadUrlProvider;
+  voicePresets: {
+    query: TtsVoicePresetQueryPort;
+    repository: TtsVoicePresetRepositoryPort;
+    activePresetId: string;
+    generateId: () => string;
+  };
   users: IdentityUserRepository;
   authorizer: AuthorizerGuardOptions;
   localMedia?: LocalFileMediaReadProvider;
@@ -45,6 +59,7 @@ export class MediaModule {
       module: MediaModule,
       controllers: [
         TtsOperationsController,
+        TtsVoicePresetsController,
         ...(options.localMedia ? [LocalMediaController] : []),
       ],
       providers: [
@@ -53,7 +68,12 @@ export class MediaModule {
           useValue: new TtsOperationsService({
             query: options.query,
             retryCoordinator: options.retryCoordinator,
+            mediaReadUrls: options.mediaReadUrls,
           }),
+        },
+        {
+          provide: TtsVoicePresetsService,
+          useValue: new TtsVoicePresetsService(options.voicePresets),
         },
         ...localProviders,
         { provide: IDENTITY_USER_REPOSITORY, useValue: options.users },
@@ -63,7 +83,7 @@ export class MediaModule {
         ApplicationRoleGuard,
         AdminMfaGuard,
       ],
-      exports: [TtsOperationsService],
+      exports: [TtsOperationsService, TtsVoicePresetsService],
     };
   }
 }

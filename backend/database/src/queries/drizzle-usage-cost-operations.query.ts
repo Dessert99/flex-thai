@@ -45,7 +45,7 @@ export interface UsageCostOperationsQuery {
 }
 
 interface SqlExecutor {
-  execute(query: SQL): Promise<{ rows: unknown[] } | unknown[]>;
+  execute(query: SQL): PromiseLike<unknown>;
 }
 
 const normalizedRuns = sql`
@@ -76,8 +76,18 @@ const normalizedRuns = sql`
   )
 `;
 
-const rowsOf = (result: { rows: unknown[] } | unknown[]): unknown[] =>
-  Array.isArray(result) ? result : result.rows;
+const rowsOf = (result: unknown): unknown[] => {
+  if (Array.isArray(result)) return result;
+  if (
+    result !== null &&
+    typeof result === 'object' &&
+    'rows' in result &&
+    Array.isArray(result.rows)
+  ) {
+    return result.rows;
+  }
+  throw new Error('USAGE_COST_QUERY_RESULT_INVALID');
+};
 
 const readString = (row: unknown, key: string): string => {
   if (row === null || typeof row !== 'object') return '0';

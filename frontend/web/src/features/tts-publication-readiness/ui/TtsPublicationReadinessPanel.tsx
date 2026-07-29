@@ -1,14 +1,20 @@
 /** validation과 독립된 TTS 게시 readiness와 blocker를 표시한다 */
 import type { TtsPublicationReadinessResponse } from '@flex-thia/contracts';
-import { RetryTtsItemsAction } from '@/features/retry-tts-items';
+import type { ReactNode } from 'react';
 
 interface TtsPublicationReadinessPanelProps {
   readiness: TtsPublicationReadinessResponse;
+  renderRetry?: (
+    operation: NonNullable<
+      TtsPublicationReadinessResponse['blockers'][number]['operation']
+    >,
+  ) => ReactNode;
 }
 
 /** 게시 전 필수 음성 준비 수량과 복구 가능한 실패 작업을 안내한다 */
 export function TtsPublicationReadinessPanel({
   readiness,
+  renderRetry,
 }: TtsPublicationReadinessPanelProps) {
   return (
     <section
@@ -45,19 +51,10 @@ export function TtsPublicationReadinessPanel({
                 TTS 작업 보기
               </a>
               {blocker.operation.itemStatus === 'FAILED' &&
-              blocker.operation.retryable ? (
-                <RetryTtsItemsAction
-                  items={[
-                    {
-                      id: blocker.operation.itemId,
-                      status: blocker.operation.itemStatus,
-                      attempt: blocker.operation.attempt,
-                      retryable: blocker.operation.retryable,
-                    },
-                  ]}
-                  jobId={blocker.operation.jobId}
-                />
-              ) : null}
+              blocker.operation.retryable &&
+              renderRetry
+                ? renderRetry(blocker.operation)
+                : null}
             </>
           ) : (
             <p className='text-caption text-subtle'>

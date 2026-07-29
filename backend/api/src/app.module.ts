@@ -36,6 +36,7 @@ import {
   DrizzleMediaAdminRepository,
   DrizzleQuestionAdminRepository,
   DrizzleQuestionCandidateQuery,
+  DrizzleQuestionProductionContextQuery,
   DrizzleQuestionPublicationRepository,
   DrizzleQuestionTaxonomyQuery,
   DrizzleQuestionTaxonomyRepository,
@@ -49,6 +50,10 @@ import {
   DrizzleVocabularyPracticeRepository,
   DrizzleTtsOperationsQuery,
   DrizzleTtsRetryCoordinator,
+  DrizzleTtsVoicePresetQuery,
+  DrizzleTtsVoicePresetRepository,
+  DrizzleUsageCostOperationsQuery,
+  DrizzleOperationsCostSettingsRepository,
   DrizzleWordbookQuery,
   DrizzleWordbookRepository,
 } from '@flex-thia/database';
@@ -422,6 +427,9 @@ export const createApplicationModule = (
         questionCandidateReview: new QuestionCandidateReviewService(
           questionCandidateRepository,
         ),
+        questionProductionContext: new DrizzleQuestionProductionContextQuery(
+          database,
+        ),
         users,
         authorizer,
       }),
@@ -431,6 +439,13 @@ export const createApplicationModule = (
           database,
           dispatchOutbox,
         ),
+        mediaReadUrls,
+        voicePresets: {
+          query: new DrizzleTtsVoicePresetQuery(database),
+          repository: new DrizzleTtsVoicePresetRepository(database),
+          activePresetId: env.TTS_VOICE_PRESET_ID,
+          generateId: randomUUID,
+        },
         users,
         authorizer,
         ...(localMedia ? { localMedia } : {}),
@@ -441,7 +456,15 @@ export const createApplicationModule = (
         users,
         authorizer,
       }),
-      OperationsModule.register({ auditLogs, users, authorizer }),
+      OperationsModule.register({
+        auditLogs,
+        usageCost: {
+          query: new DrizzleUsageCostOperationsQuery(database),
+          settings: new DrizzleOperationsCostSettingsRepository(database),
+        },
+        users,
+        authorizer,
+      }),
     ],
     controllers: [HealthController, ReadinessController],
     providers: [
