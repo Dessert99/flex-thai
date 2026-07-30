@@ -29,7 +29,9 @@ describe('Wave 5 통합 migration', () => {
         /^0016_.+\.sql$/u.test(file),
       ),
     ).toEqual([migrationName]);
-    expect(journal.entries.at(-1)).toMatchObject({
+    expect(
+      journal.entries.find(({ tag }) => tag === '0016_wave5_question_tts'),
+    ).toMatchObject({
       idx: 16,
       tag: '0016_wave5_question_tts',
     });

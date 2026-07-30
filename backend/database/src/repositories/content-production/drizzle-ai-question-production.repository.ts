@@ -173,10 +173,11 @@ const readReviewCandidate = async (
       approvedQuestionVersionId:
         questionProductionCandidates.approvedQuestionVersionId,
       presetSnapshot: sql`(
-        select ${jobs.presetSnapshot}
-        from ${jobItems}
-        inner join ${jobs} on ${jobs.id} = ${jobItems.jobId}
-        where ${jobItems.id} = ${questionProductionCandidates.jobItemId}
+        select "jobs"."preset_snapshot"
+        from "job_items"
+        inner join "jobs" on "jobs"."id" = "job_items"."job_id"
+        where "job_items"."id" =
+          "question_production_candidates"."job_item_id"
       )`,
     })
     .from(questionProductionCandidates)

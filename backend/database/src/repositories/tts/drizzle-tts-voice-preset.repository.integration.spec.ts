@@ -2,14 +2,28 @@
 import { randomUUID } from 'node:crypto';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from 'vitest';
 import { DrizzleTtsVoicePresetRepository } from './drizzle-tts-voice-preset.repository.js';
 
 const databaseUrl = process.env.TTS_PRESET_TEST_DATABASE_URL;
+let fixtureIds = {
+  presetIds: new Set<string>(),
+  requestIds: new Set<string>(),
+  userIds: new Set<string>(),
+};
 
 const createActor = async (pool: Pool) => {
   const userId = randomUUID();
   const actorSub = `preset-${userId}`;
+  fixtureIds.userIds.add(userId);
   await pool.query(
     `insert into users (id, cognito_sub, email, role, status)
      values ($1, $2, $3, 'ADMIN', 'ACTIVE')`,
@@ -28,6 +42,7 @@ const insertPreset = async (
     updatedAt: Date;
   },
 ) => {
+  fixtureIds.presetIds.add(input.id);
   await pool.query(
     `insert into tts_voice_presets (
        id, name, provider, model, voice, locale, audio_format,
@@ -49,28 +64,78 @@ const withRejectedAudit = async (
   requestId: string,
   run: () => Promise<unknown>,
 ) => {
+  fixtureIds.requestIds.add(requestId);
   const suffix = requestId.replaceAll('-', '');
   const functionName = `reject_tts_preset_audit_${suffix}`;
   const triggerName = `reject_tts_preset_audit_trigger_${suffix}`;
   await pool.query(`
     create function "${functionName}"() returns trigger language plpgsql as $$
     begin
-      if new.request_id = '${requestId}'::uuid then
+      if new.request_id = '${requestId}' then
         raise exception 'AUDIT_TRIGGER_FAILED';
       end if;
       return new;
     end
     $$`);
-  await pool.query(`
-    create trigger "${triggerName}"
-    before insert on audit_logs
-    for each row execute function "${functionName}"()`);
   try {
-    await run();
+    await pool.query(`
+      create trigger "${triggerName}"
+      before insert on audit_logs
+      for each row execute function "${functionName}"()`);
+    try {
+      await run();
+    } finally {
+      await pool.query(`drop trigger if exists "${triggerName}" on audit_logs`);
+    }
   } finally {
-    await pool.query(`drop trigger if exists "${triggerName}" on audit_logs`);
     await pool.query(`drop function if exists "${functionName}"()`);
   }
+};
+
+const removePresetFixtures = async (pool: Pool) => {
+  const ids = {
+    presetIds: [...fixtureIds.presetIds],
+    requestIds: [...fixtureIds.requestIds],
+    userIds: [...fixtureIds.userIds],
+  };
+  await pool.query(
+    `delete from audit_logs where request_id = any($1::text[])`,
+    [ids.requestIds],
+  );
+  await pool.query(`delete from tts_voice_presets where id = any($1::uuid[])`, [
+    ids.presetIds,
+  ]);
+  await pool.query(`delete from users where id = any($1::uuid[])`, [
+    ids.userIds,
+  ]);
+  const residue = await pool.query<{
+    auditCount: number;
+    presetCount: number;
+    userCount: number;
+  }>(
+    `select
+       (select count(*)::int from audit_logs
+        where request_id = any($1::text[])) "auditCount",
+       (select count(*)::int from tts_voice_presets
+        where id = any($2::uuid[])) "presetCount",
+       (select count(*)::int from users
+        where id = any($3::uuid[])) "userCount"`,
+    [ids.requestIds, ids.presetIds, ids.userIds],
+  );
+  expect(residue.rows[0]).toEqual({
+    auditCount: 0,
+    presetCount: 0,
+    userCount: 0,
+  });
+};
+
+const expectRejectedAudit = async (operation: Promise<unknown>) => {
+  const failure = await operation.catch((error: unknown) => error);
+  expect(failure).toBeInstanceOf(Error);
+  if (!(failure instanceof Error) || !(failure.cause instanceof Error)) {
+    throw new Error('TTS_PRESET_AUDIT_FAILURE_CAUSE_REQUIRED');
+  }
+  expect(failure.cause.message).toContain('AUDIT_TRIGGER_FAILED');
 };
 
 describe.runIf(databaseUrl !== undefined)(
@@ -88,6 +153,18 @@ describe.runIf(databaseUrl !== undefined)(
       await pool.end();
     });
 
+    beforeEach(() => {
+      fixtureIds = {
+        presetIds: new Set(),
+        requestIds: new Set(),
+        userIds: new Set(),
+      };
+    });
+
+    afterEach(async () => {
+      await removePresetFixtures(pool);
+    });
+
     it('새 version은 source를 바꾸지 않고 감사 한 건과 함께 commit한다', async () => {
       const ids = {
         user: randomUUID(),
@@ -95,6 +172,11 @@ describe.runIf(databaseUrl !== undefined)(
         version: randomUUID(),
         request: randomUUID(),
       };
+      const presetName = `thai-default-${ids.source}`;
+      fixtureIds.userIds.add(ids.user);
+      fixtureIds.presetIds.add(ids.source);
+      fixtureIds.presetIds.add(ids.version);
+      fixtureIds.requestIds.add(ids.request);
       await pool.query(
         `insert into users (id, cognito_sub, email, role, status)
          values ($1, $2, $3, 'ADMIN', 'ACTIVE')`,
@@ -105,9 +187,9 @@ describe.runIf(databaseUrl !== undefined)(
         `insert into tts_voice_presets (
            id, name, provider, model, voice, locale, audio_format,
            generation_revision, enabled, created_at, updated_at
-         ) values ($1, 'thai-default', 'local', 'v1', 'thai', 'th-TH',
+         ) values ($1, $3, 'local', 'v1', 'thai', 'th-TH',
                    'audio/wav', 'r1', true, $2, $2)`,
-        [ids.source, sourceUpdatedAt],
+        [ids.source, sourceUpdatedAt, presetName],
       );
       const repository = new DrizzleTtsVoicePresetRepository(
         drizzle({ client: pool }) as never,
@@ -140,11 +222,11 @@ describe.runIf(databaseUrl !== undefined)(
         `select
            (select model from tts_voice_presets where id = $1) model,
            (select count(*)::text from tts_voice_presets
-            where name = 'thai-default') "versionCount",
+            where name = $3) "versionCount",
            (select count(*)::text from audit_logs
             where request_id = $2 and action = 'TTS_VOICE_PRESET_VERSION_CREATED')
              "auditCount"`,
-        [ids.source, ids.request],
+        [ids.source, ids.request, presetName],
       );
       expect(state.rows[0]).toEqual({
         model: 'v1',
@@ -166,8 +248,10 @@ describe.runIf(databaseUrl !== undefined)(
       const repository = new DrizzleTtsVoicePresetRepository(
         drizzle({ client: pool }) as never,
       );
-      const create = (id: string, requestId: string) =>
-        repository.createVersion({
+      const create = (id: string, requestId: string) => {
+        fixtureIds.presetIds.add(id);
+        fixtureIds.requestIds.add(requestId);
+        return repository.createVersion({
           id,
           sourcePresetId: sourceId,
           expectedUpdatedAt: sourceUpdatedAt,
@@ -185,6 +269,7 @@ describe.runIf(databaseUrl !== undefined)(
           },
           occurredAt: new Date('2026-07-28T02:01:00.000Z'),
         });
+      };
 
       const results = await Promise.allSettled([
         create(randomUUID(), randomUUID()),
@@ -230,6 +315,7 @@ describe.runIf(databaseUrl !== undefined)(
       const actor = await createActor(pool);
       const presetId = randomUUID();
       const requestId = randomUUID();
+      fixtureIds.requestIds.add(requestId);
       const updatedAt = new Date('2026-07-28T03:00:00.000Z');
       await insertPreset(pool, {
         id: presetId,
@@ -278,6 +364,7 @@ describe.runIf(databaseUrl !== undefined)(
       const actor = await createActor(pool);
       const presetId = randomUUID();
       const requestId = randomUUID();
+      fixtureIds.requestIds.add(requestId);
       const updatedAt = new Date('2026-07-28T04:00:00.000Z');
       const occurredAt = new Date('2026-07-28T04:01:00.000Z');
       await insertPreset(pool, {
@@ -289,6 +376,7 @@ describe.runIf(databaseUrl !== undefined)(
       const repository = new DrizzleTtsVoicePresetRepository(
         drizzle({ client: pool }) as never,
       );
+      fixtureIds.presetIds.add(presetId);
 
       await repository.setEnabled({
         presetId,
@@ -329,8 +417,9 @@ describe.runIf(databaseUrl !== undefined)(
       const repository = new DrizzleTtsVoicePresetRepository(
         drizzle({ client: pool }) as never,
       );
+      fixtureIds.presetIds.add(presetId);
 
-      await expect(
+      await expectRejectedAudit(
         withRejectedAudit(pool, requestId, () =>
           repository.createInitial({
             id: presetId,
@@ -350,7 +439,7 @@ describe.runIf(databaseUrl !== undefined)(
             occurredAt: new Date('2026-07-28T05:00:00.000Z'),
           }),
         ),
-      ).rejects.toThrow('AUDIT_TRIGGER_FAILED');
+      );
 
       const state = await pool.query<{
         auditCount: string;
@@ -385,8 +474,9 @@ describe.runIf(databaseUrl !== undefined)(
       const repository = new DrizzleTtsVoicePresetRepository(
         drizzle({ client: pool }) as never,
       );
+      fixtureIds.presetIds.add(versionId);
 
-      await expect(
+      await expectRejectedAudit(
         withRejectedAudit(pool, requestId, () =>
           repository.createVersion({
             id: versionId,
@@ -407,7 +497,7 @@ describe.runIf(databaseUrl !== undefined)(
             occurredAt: new Date('2026-07-28T06:01:00.000Z'),
           }),
         ),
-      ).rejects.toThrow('AUDIT_TRIGGER_FAILED');
+      );
 
       const state = await pool.query<{
         auditCount: string;
@@ -444,7 +534,7 @@ describe.runIf(databaseUrl !== undefined)(
         drizzle({ client: pool }) as never,
       );
 
-      await expect(
+      await expectRejectedAudit(
         withRejectedAudit(pool, requestId, () =>
           repository.setEnabled({
             presetId,
@@ -458,7 +548,7 @@ describe.runIf(databaseUrl !== undefined)(
             occurredAt: new Date('2026-07-28T07:01:00.000Z'),
           }),
         ),
-      ).rejects.toThrow('AUDIT_TRIGGER_FAILED');
+      );
 
       const state = await pool.query<{
         auditCount: string;
