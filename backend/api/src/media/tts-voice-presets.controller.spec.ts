@@ -23,9 +23,14 @@ const route = (method: keyof TtsVoicePresetsController) => {
     TtsVoicePresetsController.prototype,
     method,
   )?.value as object;
+  const requestMethod: unknown = Reflect.getMetadata(METHOD_METADATA, handler);
+  const path: unknown = Reflect.getMetadata(PATH_METADATA, handler);
+  if (typeof requestMethod !== 'number' || typeof path !== 'string') {
+    throw new Error('TTS_VOICE_PRESET_ROUTE_METADATA_REQUIRED');
+  }
   return {
-    method: Reflect.getMetadata(METHOD_METADATA, handler),
-    path: Reflect.getMetadata(PATH_METADATA, handler),
+    method: requestMethod,
+    path,
   };
 };
 

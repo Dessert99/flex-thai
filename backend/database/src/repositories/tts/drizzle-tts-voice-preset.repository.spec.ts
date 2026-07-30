@@ -105,22 +105,16 @@ describe('DrizzleTtsVoicePresetRepository', () => {
 
     expect(fake.locked).toBe(true);
     expect(fake.updates).toHaveLength(0);
-    expect(fake.inserts).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          table: ttsVoicePresets,
-          values: expect.objectContaining({ name: source.name }),
-        }),
-        expect.objectContaining({
-          table: auditLogs,
-          values: expect.objectContaining({
-            action: 'TTS_VOICE_PRESET_VERSION_CREATED',
-            targetType: 'TTS_VOICE_PRESET',
-            requestId: context.requestId,
-          }),
-        }),
-      ]),
+    const presetInsert = fake.inserts.find(
+      ({ table }) => table === ttsVoicePresets,
     );
+    const auditInsert = fake.inserts.find(({ table }) => table === auditLogs);
+    expect(presetInsert?.values).toMatchObject({ name: source.name });
+    expect(auditInsert?.values).toMatchObject({
+      action: 'TTS_VOICE_PRESET_VERSION_CREATED',
+      targetType: 'TTS_VOICE_PRESET',
+      requestId: context.requestId,
+    });
   });
 
   it('stale timestamp는 변경과 audit 전에 거절한다', async () => {

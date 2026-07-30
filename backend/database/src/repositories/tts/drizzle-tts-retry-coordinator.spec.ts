@@ -155,22 +155,22 @@ describe('DrizzleTtsRetryCoordinator', () => {
       commandFingerprint,
       requestedAt,
     });
-    expect(fixture.inserts).toContainEqual({
-      table: auditLogs,
-      values: expect.objectContaining({
-        actorSub: command.context.actorSub,
-        actorUserId: command.context.actorUserId,
-        action: 'TTS_ITEMS_RETRIED',
-        targetType: 'TTS_JOB',
-        targetId: jobId,
-        requestId: command.context.requestId,
-        summary: expect.objectContaining({
-          itemIds: [itemId],
-          expectedAttempts: [2],
-          dispatchAttempt: 1,
-          commandFingerprint,
-        }),
-      }),
+    const auditInsert = fixture.inserts.find(
+      ({ table }) => table === auditLogs,
+    );
+    expect(auditInsert?.values).toMatchObject({
+      actorSub: command.context.actorSub,
+      actorUserId: command.context.actorUserId,
+      action: 'TTS_ITEMS_RETRIED',
+      targetType: 'TTS_JOB',
+      targetId: jobId,
+      requestId: command.context.requestId,
+      summary: {
+        itemIds: [itemId],
+        expectedAttempts: [2],
+        dispatchAttempt: 1,
+        commandFingerprint,
+      },
     });
   });
 
