@@ -312,7 +312,10 @@ production artifact에서 probe 문구와 same-origin `/api/v1` 기본값이
 
 default와 asset behavior에 같은 security response header policy를
 연결한다. HSTS, content type sniffing 차단, frame 차단, referrer policy와
-현재 web/API/media에 필요한 최소 CSP를 둔다.
+현재 web/API/media에 필요한 최소 CSP를 둔다. `style-src`는 Radix와
+Sonner의 runtime inline style을 위해 self와 `unsafe-inline`만 허용하고,
+`connect-src`는 self, `api.<rootDomain>`, 서울 리전의 virtual-hosted S3
+upload endpoint만 허용한다.
 
 TanStack Router의 route auto code splitting을 켜고 route directory의
 일반 test가 route로 스캔되지 않게 파일명을 convention에 맞춘다. build는
@@ -327,8 +330,9 @@ basename과 image/context 포함 여부만 확인한다.
 
 StructuredLogger는 Nest의 optional context, stack, variadic parameter를
 `unknown[]`으로 받고 plain metadata record만 merge한다. 문자열 context와
-Error는 구조화 필드로 제한하고 password, token, authorization, cookie,
-secret 값은 문자 단위로 펼치거나 원문 stack으로 기록하지 않는다.
+Error는 구조화 필드로 제한하고 첫 번째 message 인자가 Error인 경우에도
+name만 기록한다. password, token, authorization, cookie, secret 값은
+문자 단위로 펼치거나 원문 stack으로 기록하지 않는다.
 
 ## 7. 통합 순서와 충돌 정책
 

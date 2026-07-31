@@ -73,7 +73,10 @@ X-Frame-Options: DENY
 Referrer-Policy: strict-origin-when-cross-origin
 ```
 
-CSP `connect-src`는 self와 `https://api.<rootDomain>`만 포함한다.
+CSP는 `script-src 'self'`, `style-src 'self' 'unsafe-inline'`을 사용한다.
+`connect-src`는 self, `https://api.<rootDomain>`,
+`https://*.s3.ap-northeast-2.amazonaws.com`과
+`https://s3.ap-northeast-2.amazonaws.com`만 포함한다.
 
 - [ ] **Step 3: RED 확인**
 
@@ -326,6 +329,8 @@ logger.log('ready', 'NestContext', { requestId: 'request-1' });
 `error('failed', rawStack, 'NestContext', new Error('password=secret'))`는
 raw stack, Error message, password/token/cookie/authorization/secret 값을
 출력하지 않는다. 배열·Date·Error는 plain metadata로 spread하지 않는다.
+`error(new Error('secret=value'))`처럼 Error가 첫 인자인 Nest 호출도
+Error name만 기록해야 한다.
 
 - [ ] **Step 2: RED 확인**
 
