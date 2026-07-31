@@ -233,7 +233,7 @@ describe('콘텐츠 제작 dispatcher', () => {
     ]);
   });
 
-  it('유형·난이도 계획을 총 문항 수만큼 안정적으로 펼치고 입력을 순환 배정한다', async () => {
+  it('유형·난이도 계획을 선언 순서대로 펼치고 입력을 순환 배정한다', async () => {
     const { repository, ensured } = createRepository({
       id: 'job-id',
       attempt: 0,
@@ -303,12 +303,12 @@ describe('콘텐츠 제작 dispatcher', () => {
       }),
     ]);
     expect(ensured[0]?.[0]?.questionPlan).toMatchObject({
-      questionTypeVersionId: 'type-a',
-      difficulty: 2,
-    });
-    expect(ensured[0]?.[2]?.questionPlan).toMatchObject({
       questionTypeVersionId: 'type-b',
       difficulty: 4,
+    });
+    expect(ensured[0]?.[2]?.questionPlan).toMatchObject({
+      questionTypeVersionId: 'type-a',
+      difficulty: 2,
     });
   });
 
