@@ -10,3 +10,8 @@ infra/cdk.out
 .env.*
 !.env.example
 *.tsbuildinfo
+*.pem
+.worktrees
+.pnpm-store
+coverage
+**/coverage
