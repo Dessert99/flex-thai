@@ -233,6 +233,9 @@ Vite config는 수정하지 않는다.
 meaning-pronunciation mapping을 받는다. 중복 분류 후보는 명시적 확인
 없이 새 DRAFT로 만들 수 없다. 기존 어휘 연결은 candidate resolution만
 기록하고 기존 어휘 graph를 암묵적으로 바꾸지 않는다.
+현재 어휘 graph에는 별도 version aggregate가 없으므로 새 DRAFT resolution은
+실제로 생성된 `vocabularyId`만 반환·감사한다. 존재하지 않는 version ID를
+합성하지 않는다.
 
 화면은 pending, validation failure, approved, rejected 상태를 구분하고
 mutation 진행 중 중복 요청을 막는다. API problem은 사용자가 재시도할

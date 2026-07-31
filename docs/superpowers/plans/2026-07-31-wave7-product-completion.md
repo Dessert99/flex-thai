@@ -101,10 +101,14 @@ type VocabularyCandidateApprovalResult = {
   reviewStatus: 'APPROVED';
   revision: number;
   resolution:
-    | { kind: 'DRAFT_CREATED'; vocabularyId: string; versionId: string }
+    | { kind: 'DRAFT_CREATED'; vocabularyId: string }
     | { kind: 'EXISTING_LINKED'; vocabularyId: string };
 };
 ```
+
+현재 vocabulary graph는 별도 version row를 갖지 않으므로
+`DRAFT_CREATED`는 실제 생성된 `vocabularyId`만 반환한다. 존재하지 않는
+version resource ID를 합성하거나 audit resolution에 기록하지 않는다.
 
 - [ ] **Step 6: GREEN과 task commit**
 
