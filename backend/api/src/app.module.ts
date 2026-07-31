@@ -36,6 +36,8 @@ import {
   DrizzleMediaAdminRepository,
   DrizzleQuestionAdminRepository,
   DrizzleQuestionCandidateQuery,
+  DrizzleVocabularyCandidateQuery,
+  DrizzleVocabularyCandidateReviewRepository,
   DrizzleQuestionProductionContextQuery,
   DrizzleQuestionPublicationRepository,
   DrizzleQuestionTaxonomyQuery,
@@ -69,6 +71,7 @@ import {
   QuestionAdminService,
   QuestionAttemptService,
   QuestionCandidateReviewService,
+  VocabularyCandidateReviewService,
   QuestionPublicationService,
   QuestionTaxonomyService,
   SavedContentService,
@@ -341,6 +344,8 @@ export const createApplicationModule = (
       dispatchOutbox,
     ),
   );
+  const vocabularyCandidateRepository =
+    new DrizzleVocabularyCandidateReviewRepository(database);
   const ttsOperationsQuery = new DrizzleTtsOperationsQuery(database);
   const questionTaxonomy = new QuestionTaxonomyService(
     new DrizzleQuestionTaxonomyRepository(database),
@@ -426,6 +431,10 @@ export const createApplicationModule = (
         questionCandidates: new DrizzleQuestionCandidateQuery(database),
         questionCandidateReview: new QuestionCandidateReviewService(
           questionCandidateRepository,
+        ),
+        vocabularyCandidates: new DrizzleVocabularyCandidateQuery(database),
+        vocabularyCandidateReview: new VocabularyCandidateReviewService(
+          vocabularyCandidateRepository,
         ),
         questionProductionContext: new DrizzleQuestionProductionContextQuery(
           database,

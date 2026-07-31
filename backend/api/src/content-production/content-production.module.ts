@@ -25,6 +25,12 @@ import {
   type QuestionCandidateReadRepository,
   type QuestionCandidateReviewOperations,
 } from './question-production.service.js';
+import { VocabularyCandidateController } from './vocabulary-candidates.controller.js';
+import {
+  VocabularyCandidateApplicationService,
+  type VocabularyCandidateReviewOperations,
+} from './vocabulary-candidates.service.js';
+import type { VocabularyCandidateQuery } from '@flex-thia/domain';
 
 /** 환경별 콘텐츠 제작 adapter를 주입하기 위한 module 옵션 */
 export interface ContentProductionModuleOptions {
@@ -34,6 +40,8 @@ export interface ContentProductionModuleOptions {
   contentProduction: ContentProductionService;
   questionCandidates: QuestionCandidateReadRepository;
   questionCandidateReview: QuestionCandidateReviewOperations;
+  vocabularyCandidates: VocabularyCandidateQuery;
+  vocabularyCandidateReview: VocabularyCandidateReviewOperations;
   questionProductionContext?: QuestionProductionContextRepository;
   users: IdentityUserRepository;
   authorizer: AuthorizerGuardOptions;
@@ -46,7 +54,11 @@ export class ContentProductionModule {
   static register(options: ContentProductionModuleOptions): DynamicModule {
     return {
       module: ContentProductionModule,
-      controllers: [ContentProductionController, QuestionCandidateController],
+      controllers: [
+        ContentProductionController,
+        QuestionCandidateController,
+        VocabularyCandidateController,
+      ],
       providers: [
         {
           provide: ContentProductionApplicationService,
@@ -63,6 +75,13 @@ export class ContentProductionModule {
           useValue: new QuestionCandidateApplicationService(
             options.questionCandidates,
             options.questionCandidateReview,
+          ),
+        },
+        {
+          provide: VocabularyCandidateApplicationService,
+          useValue: new VocabularyCandidateApplicationService(
+            options.vocabularyCandidates,
+            options.vocabularyCandidateReview,
           ),
         },
         { provide: IDENTITY_USER_REPOSITORY, useValue: options.users },

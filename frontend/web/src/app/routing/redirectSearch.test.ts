@@ -22,6 +22,14 @@ describe('안전한 로그인 redirect', () => {
       '/admin/content-production/candidates?page=2&pageSize=20',
       '/admin/content-production/candidates?page=2&pageSize=20',
     ],
+    [
+      '/admin/content-production/vocabulary-candidates?reviewStatus=PENDING&page=1&pageSize=20',
+      '/admin/content-production/vocabulary-candidates?reviewStatus=PENDING&page=1&pageSize=20',
+    ],
+    [
+      '/admin/content-production/vocabulary-candidates/00000000-0000-4000-8000-000000000104',
+      '/admin/content-production/vocabulary-candidates/00000000-0000-4000-8000-000000000104',
+    ],
     ['/admin/content-production/presets', '/admin/content-production/presets'],
     [
       '/admin/tts?status=FAILED&page=1&pageSize=20',

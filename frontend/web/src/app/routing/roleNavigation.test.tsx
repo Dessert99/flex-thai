@@ -63,6 +63,12 @@ describe('역할별 내비게이션', () => {
       'href',
       '/admin/content-production',
     );
+    expect(
+      screen.getByRole('link', { name: '어휘 후보 검수' }),
+    ).toHaveAttribute(
+      'href',
+      '/admin/content-production/vocabulary-candidates',
+    );
     expect(screen.getByRole('link', { name: 'TTS 운영' })).toHaveAttribute(
       'href',
       '/admin/tts',
