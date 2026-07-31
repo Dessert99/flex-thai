@@ -122,7 +122,6 @@ describe('AI 어휘 후보 검수 서비스', () => {
     resolution: {
       kind: 'DRAFT_CREATED',
       vocabularyId: 'vocabulary-id',
-      versionId: 'version-id',
     },
   };
 

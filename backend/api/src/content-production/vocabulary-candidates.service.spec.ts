@@ -13,7 +13,6 @@ const ids = {
   actor: '00000000-0000-4000-8000-000000000005',
   media: '00000000-0000-4000-8000-000000000006',
   vocabulary: '00000000-0000-4000-8000-000000000007',
-  version: '00000000-0000-4000-8000-000000000008',
 } as const;
 
 const candidate = {
@@ -112,7 +111,6 @@ const createService = (found: typeof candidate | null = candidate) => {
     resolution: {
       kind: 'DRAFT_CREATED',
       vocabularyId: ids.vocabulary,
-      versionId: ids.version,
     },
   });
   const discardReview = vi.fn().mockResolvedValue({

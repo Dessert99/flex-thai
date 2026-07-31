@@ -100,4 +100,24 @@ describe('어휘 목록 페이지', () => {
       ),
     );
   });
+
+  it('history 이동으로 URL query가 바뀌면 검색 input도 새 값으로 동기화한다', async () => {
+    const { rerender } = renderWithProviders(
+      <VocabularyListPageContainer
+        onSearchChange={vi.fn()}
+        search={{ query: 'โรงเรียน', page: 1, pageSize: 20 }}
+      />,
+    );
+    await screen.findByText('โรงเรียน');
+    expect(screen.getByLabelText('어휘 검색어')).toHaveValue('โรงเรียน');
+
+    rerender(
+      <VocabularyListPageContainer
+        onSearchChange={vi.fn()}
+        search={{ query: '학교', page: 1, pageSize: 20 }}
+      />,
+    );
+
+    expect(screen.getByLabelText('어휘 검색어')).toHaveValue('학교');
+  });
 });

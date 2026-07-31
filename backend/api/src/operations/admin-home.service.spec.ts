@@ -19,20 +19,10 @@ describe('AdminHomeService', () => {
         failedContentJobCount: 2,
         runningTtsJobCount: 5,
         failedTtsJobCount: 1,
+        recentVerificationAt: new Date('2026-07-30T12:00:00.000Z'),
       }),
     };
-    const usageCost = {
-      overview: vi.fn().mockResolvedValue({
-        currentMonthThreshold: {
-          estimatedCostUsd: '16.500000',
-          status: 'WARNING',
-        },
-      }),
-    };
-
-    await expect(
-      new AdminHomeService({ query, usageCost }).get(actor),
-    ).resolves.toEqual({
+    await expect(new AdminHomeService({ query }).get(actor)).resolves.toEqual({
       feedback: { pendingCount: 2 },
       candidates: {
         questionPendingCount: 3,
@@ -40,13 +30,12 @@ describe('AdminHomeService', () => {
       },
       contentProduction: { runningCount: 1, failedCount: 2 },
       tts: { runningCount: 5, failedCount: 1 },
-      usageCost: { estimatedCostUsd: '16.500000', status: 'WARNING' },
       mfa: {
         enrolled: true,
         enrolledAt: '2026-07-01T00:00:00.000Z',
-        recentVerificationAt: null,
+        recentVerificationAt: '2026-07-30T12:00:00.000Z',
       },
     });
-    expect(usageCost.overview).toHaveBeenCalledWith({ role: 'ADMIN' }, {});
+    expect(query.getOperationsSummary).toHaveBeenCalledWith(actor.userId);
   });
 });

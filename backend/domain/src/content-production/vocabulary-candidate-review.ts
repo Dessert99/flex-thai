@@ -7,9 +7,7 @@ import type {
 
 /** 후보 검수 lifecycle 상태 */
 export type VocabularyCandidateReviewStatus =
-  | 'PENDING'
-  | 'APPROVED'
-  | 'DISCARDED';
+  'PENDING' | 'APPROVED' | 'DISCARDED';
 
 /** 후보 검수 전이에 필요한 잠금 상태 */
 export interface VocabularyCandidateReviewState {
@@ -82,7 +80,7 @@ export type VocabularyCandidateApprovalResult = {
   reviewStatus: 'APPROVED';
   revision: number;
   resolution:
-    | { kind: 'DRAFT_CREATED'; vocabularyId: string; versionId: string }
+    | { kind: 'DRAFT_CREATED'; vocabularyId: string }
     | { kind: 'EXISTING_LINKED'; vocabularyId: string };
 };
 
@@ -114,10 +112,7 @@ const assertPendingRevision = (
   state: VocabularyCandidateReviewState,
   expectedRevision: number,
 ) => {
-  if (
-    state.reviewStatus !== 'PENDING' ||
-    state.revision !== expectedRevision
-  ) {
+  if (state.reviewStatus !== 'PENDING' || state.revision !== expectedRevision) {
     throw new VocabularyCandidateReviewError(
       'VOCABULARY_CANDIDATE_REVIEW_CONFLICT',
     );
@@ -167,10 +162,7 @@ type DiscardRepositoryOutcome =
   | { kind: 'APPLIED'; result: VocabularyCandidateDiscardResult }
   | { kind: 'REPLAY'; result: VocabularyCandidateDiscardResult }
   | {
-      kind:
-        | 'NOT_FOUND'
-        | 'IDEMPOTENCY_CONFLICT'
-        | 'REVIEW_CONFLICT';
+      kind: 'NOT_FOUND' | 'IDEMPOTENCY_CONFLICT' | 'REVIEW_CONFLICT';
     };
 
 /** 후보 승인·폐기의 transaction 결과만 도메인에 전달하는 저장 port */
@@ -184,8 +176,7 @@ export interface VocabularyCandidateReviewRepository {
 }
 
 /** 목록 조회에 필요한 공개 가능한 후보 저장 snapshot */
-export interface VocabularyCandidateReadRecord
-  extends VocabularyProductionCandidateRecord {
+export interface VocabularyCandidateReadRecord extends VocabularyProductionCandidateRecord {
   id: string;
   jobId: string;
   jobItemId: string;
@@ -200,7 +191,9 @@ export interface VocabularyCandidateReadRecord
 /** 후보와 ordinal validation을 함께 반환하는 상세 read model */
 export interface VocabularyCandidateReadDetail {
   candidate: VocabularyCandidateReadRecord;
-  validations: Array<VocabularyProductionValidationRecord & { createdAt: Date }>;
+  validations: Array<
+    VocabularyProductionValidationRecord & { createdAt: Date }
+  >;
 }
 
 /** 후보 목록·상세의 DB read adapter port */
@@ -235,7 +228,9 @@ const reviewErrorByOutcome = (
 
 /** 저장소의 원자 결과를 replay-safe 공개 domain 결과로 정규화한다 */
 export class VocabularyCandidateReviewService {
-  constructor(private readonly repository: VocabularyCandidateReviewRepository) {}
+  constructor(
+    private readonly repository: VocabularyCandidateReviewRepository,
+  ) {}
 
   /** 첫 승인과 같은 request replay를 동일한 terminal resolution으로 반환한다 */
   async approve(

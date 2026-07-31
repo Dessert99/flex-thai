@@ -2,11 +2,8 @@
 import { z } from 'zod';
 
 const countSchema = z.number().int().nonnegative();
-const estimatedCostUsdSchema = z
-  .string()
-  .regex(/^(?:0|[1-9]\d*)(?:\.\d{1,8})?$/u);
 
-/** 관리자 홈의 오류 신고·후보·작업·비용·MFA 상태 응답 */
+/** 관리자 홈의 DB 운영 집계와 MFA 상태 응답 */
 export const adminHomeOperationsResponseSchema = z
   .object({
     feedback: z.object({ pendingCount: countSchema }).strict(),
@@ -26,12 +23,6 @@ export const adminHomeOperationsResponseSchema = z
       .object({
         runningCount: countSchema,
         failedCount: countSchema,
-      })
-      .strict(),
-    usageCost: z
-      .object({
-        estimatedCostUsd: estimatedCostUsdSchema,
-        status: z.enum(['NORMAL', 'WARNING', 'CRITICAL']),
       })
       .strict(),
     mfa: z

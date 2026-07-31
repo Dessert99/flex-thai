@@ -1,4 +1,5 @@
 /** 어휘 검색과 태국어 원문 목록 상태를 표현한다 */
+import { useState, type FormEvent } from 'react';
 import type { VocabularyListResponse } from '@flex-thia/contracts';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
@@ -19,28 +20,45 @@ interface VocabularyListPageViewProps {
   search: VocabularyListSearch;
 }
 
+function VocabularySearchForm({
+  initialQuery,
+  onFilterChange,
+}: Pick<VocabularyListPageViewProps, 'onFilterChange'> & {
+  initialQuery: string;
+}) {
+  const [draft, setDraft] = useState(initialQuery);
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    const value = draft.trim();
+    onFilterChange({ query: value === '' ? undefined : value });
+  };
+  return (
+    <form
+      className='flex gap-cluster'
+      onSubmit={submit}
+    >
+      <Input
+        aria-label='어휘 검색어'
+        name='query'
+        onChange={(event) => setDraft(event.target.value)}
+        value={draft}
+      />
+      <Button type='submit'>검색</Button>
+    </form>
+  );
+}
+
 function VocabularyFilters({
   onFilterChange,
   search,
 }: Pick<VocabularyListPageViewProps, 'onFilterChange' | 'search'>) {
   return (
     <div className='grid gap-cluster'>
-      <form
-        className='flex gap-cluster'
-        onSubmit={(event) => {
-          event.preventDefault();
-          const query = new FormData(event.currentTarget).get('query');
-          const value = typeof query === 'string' ? query.trim() : '';
-          onFilterChange({ query: value === '' ? undefined : value });
-        }}
-      >
-        <Input
-          aria-label='어휘 검색어'
-          defaultValue={search.query ?? ''}
-          name='query'
-        />
-        <Button type='submit'>검색</Button>
-      </form>
+      <VocabularySearchForm
+        initialQuery={search.query ?? ''}
+        key={search.query ?? ''}
+        onFilterChange={onFilterChange}
+      />
       <div className='grid gap-cluster md:grid-cols-3'>
         <Label className='grid gap-cluster'>
           어휘 종류

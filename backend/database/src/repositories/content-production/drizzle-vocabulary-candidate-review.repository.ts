@@ -89,8 +89,7 @@ const readCandidate = async (
       reviewStatus: vocabularyProductionCandidates.reviewStatus,
       revision: vocabularyProductionCandidates.revision,
       resolutionKind: vocabularyProductionCandidates.resolutionKind,
-      resolvedVocabularyId:
-        vocabularyProductionCandidates.resolvedVocabularyId,
+      resolvedVocabularyId: vocabularyProductionCandidates.resolvedVocabularyId,
     })
     .from(vocabularyProductionCandidates)
     .where(eq(vocabularyProductionCandidates.id, candidateId))
@@ -188,9 +187,7 @@ const appendAudit = (
     command: ApproveVocabularyCandidateInput | DiscardVocabularyCandidateInput;
     action: string;
     result:
-      | VocabularyCandidateApprovalResult
-      | VocabularyCandidateDiscardResult;
-    versionId?: string | undefined;
+      VocabularyCandidateApprovalResult | VocabularyCandidateDiscardResult;
   },
 ): Promise<unknown> =>
   transaction.insert(auditLogs).values({
@@ -203,7 +200,6 @@ const appendAudit = (
     summary: {
       request: semanticRequest(input.command),
       result: input.result,
-      ...(input.versionId ? { versionId: input.versionId } : {}),
     },
     requestId: input.command.requestId,
     createdAt: input.command.occurredAt,
@@ -217,13 +213,11 @@ const assertCandidateSnapshot = (
   candidate.kind === input.draft.kind &&
   isDeepStrictEqual(
     candidate.meanings,
-    input.draft.meanings.map(
-      ({ meaningKo, partOfSpeech, difficulty }) => ({
-        meaningKo,
-        partOfSpeech,
-        difficulty,
-      }),
-    ),
+    input.draft.meanings.map(({ meaningKo, partOfSpeech, difficulty }) => ({
+      meaningKo,
+      partOfSpeech,
+      difficulty,
+    })),
   );
 
 const readRequiredValidations = async (
@@ -254,9 +248,7 @@ const mapTransitionError = (
   | { kind: 'REVIEW_CONFLICT' }
   | null => {
   if (!(error instanceof VocabularyCandidateReviewError)) return null;
-  if (
-    error.code === 'VOCABULARY_CANDIDATE_DUPLICATE_CONFIRMATION_REQUIRED'
-  ) {
+  if (error.code === 'VOCABULARY_CANDIDATE_DUPLICATE_CONFIRMATION_REQUIRED') {
     return { kind: 'DUPLICATE_CONFIRMATION_REQUIRED' };
   }
   if (error.code === 'VOCABULARY_CANDIDATE_REVIEW_CONFLICT') {
@@ -273,9 +265,7 @@ const toReviewState = (candidate: LockedCandidate) => ({
 });
 
 /** 후보 resolution과 DRAFT graph를 optimistic lock·audit replay 아래 원자 저장한다 */
-export class DrizzleVocabularyCandidateReviewRepository
-  implements VocabularyCandidateReviewRepository
-{
+export class DrizzleVocabularyCandidateReviewRepository implements VocabularyCandidateReviewRepository {
   constructor(
     private readonly database: ReviewDatabase,
     private readonly now: () => Date = () => new Date(),
@@ -293,11 +283,7 @@ export class DrizzleVocabularyCandidateReviewRepository
       const replay = await readReplay(transaction, input.requestId);
       if (
         replay &&
-        !isExactReplay(
-          replay,
-          input,
-          'VOCABULARY_CANDIDATE_APPROVED',
-        )
+        !isExactReplay(replay, input, 'VOCABULARY_CANDIDATE_APPROVED')
       ) {
         return { kind: 'IDEMPOTENCY_CONFLICT' };
       }
@@ -331,11 +317,7 @@ export class DrizzleVocabularyCandidateReviewRepository
       const replay = await readReplay(transaction, input.requestId);
       if (
         replay &&
-        !isExactReplay(
-          replay,
-          input,
-          'VOCABULARY_CANDIDATE_DISCARDED',
-        )
+        !isExactReplay(replay, input, 'VOCABULARY_CANDIDATE_DISCARDED')
       ) {
         return { kind: 'IDEMPOTENCY_CONFLICT' };
       }
@@ -364,10 +346,7 @@ export class DrizzleVocabularyCandidateReviewRepository
           and(
             eq(vocabularyProductionCandidates.id, input.candidateId),
             eq(vocabularyProductionCandidates.reviewStatus, 'PENDING'),
-            eq(
-              vocabularyProductionCandidates.revision,
-              input.expectedRevision,
-            ),
+            eq(vocabularyProductionCandidates.revision, input.expectedRevision),
           ),
         )
         .returning({ id: vocabularyProductionCandidates.id });
@@ -448,7 +427,6 @@ export class DrizzleVocabularyCandidateReviewRepository
     }
 
     const vocabularyId = this.generateId();
-    const versionId = this.generateId();
     const draft = createVocabularyDraft({
       id: vocabularyId,
       thai: input.draft.thai,
@@ -487,9 +465,7 @@ export class DrizzleVocabularyCandidateReviewRepository
       };
     });
     await transaction.insert(vocabularyMeanings).values(meanings);
-    await transaction
-      .insert(vocabularyPronunciations)
-      .values(pronunciations);
+    await transaction.insert(vocabularyPronunciations).values(pronunciations);
     await transaction.insert(vocabularyMeaningPronunciations).values(
       input.draft.meaningPronunciations.map(
         ({ meaningRef, pronunciationRef }) => ({
@@ -503,7 +479,7 @@ export class DrizzleVocabularyCandidateReviewRepository
       candidateId: candidate.id,
       reviewStatus: 'APPROVED',
       revision: candidate.revision + 1,
-      resolution: { kind: 'DRAFT_CREATED', vocabularyId, versionId },
+      resolution: { kind: 'DRAFT_CREATED', vocabularyId },
     };
     const updated = await this.resolveCandidate(transaction, input, result);
     if (!updated) return { kind: 'REVIEW_CONFLICT' } as const;
@@ -511,7 +487,6 @@ export class DrizzleVocabularyCandidateReviewRepository
       command: input,
       action: 'VOCABULARY_CANDIDATE_APPROVED',
       result,
-      versionId,
     });
     return { kind: 'APPLIED', result } as const;
   }
@@ -536,10 +511,7 @@ export class DrizzleVocabularyCandidateReviewRepository
         and(
           eq(vocabularyProductionCandidates.id, input.candidateId),
           eq(vocabularyProductionCandidates.reviewStatus, 'PENDING'),
-          eq(
-            vocabularyProductionCandidates.revision,
-            input.expectedRevision,
-          ),
+          eq(vocabularyProductionCandidates.revision, input.expectedRevision),
         ),
       )
       .returning({ id: vocabularyProductionCandidates.id });

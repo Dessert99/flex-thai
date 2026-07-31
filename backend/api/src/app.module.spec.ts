@@ -331,10 +331,9 @@ describe('createApplicationModule 조립', () => {
     const adminHome = operationsModule.providers.find(
       ({ provide }) => provide === AdminHomeService,
     )?.useValue as {
-      dependencies: { query: unknown; usageCost: unknown };
+      dependencies: { query: unknown };
     };
     expect(adminHome.dependencies.query).toBeInstanceOf(DrizzleAdminHomeQuery);
-    expect(adminHome.dependencies.usageCost).toBe(usageCost);
   });
 
   it('로컬 기본 fake는 upload 요청 직후 선언 metadata로 READY 완료를 지원한다', async () => {

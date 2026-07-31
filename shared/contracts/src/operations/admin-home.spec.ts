@@ -10,7 +10,6 @@ const response = {
   },
   contentProduction: { runningCount: 1, failedCount: 2 },
   tts: { runningCount: 5, failedCount: 1 },
-  usageCost: { estimatedCostUsd: '16.500000', status: 'WARNING' },
   mfa: {
     enrolled: true,
     enrolledAt: '2026-07-01T00:00:00.000Z',
@@ -19,8 +18,14 @@ const response = {
 } as const;
 
 describe('관리자 홈 운영 집계 계약', () => {
-  it('오류 신고·후보·작업·비용 경고·MFA 상태를 허용한다', () => {
+  it('오류 신고·후보·작업·MFA 상태만 허용한다', () => {
     expect(adminHomeOperationsResponseSchema.parse(response)).toEqual(response);
+    expect(() =>
+      adminHomeOperationsResponseSchema.parse({
+        ...response,
+        usageCost: { estimatedCostUsd: '16.500000', status: 'WARNING' },
+      }),
+    ).toThrow();
   });
 
   it('음수 집계와 내부 작업 식별자를 거절한다', () => {

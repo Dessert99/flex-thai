@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   vocabularyCandidateApproveRequestSchema,
+  vocabularyCandidateApproveResponseSchema,
   vocabularyCandidateDetailResponseSchema,
   vocabularyCandidateDiscardRequestSchema,
   vocabularyCandidateListQuerySchema,
@@ -153,6 +154,31 @@ describe('AI 어휘 후보 공개 계약', () => {
       vocabularyCandidateDiscardRequestSchema.parse({
         expectedRevision: 0,
         requestId: 'request-1',
+      }),
+    ).toThrow();
+  });
+
+  it('DRAFT_CREATED 응답은 실제 vocabularyId만 허용한다', () => {
+    const response = {
+      candidateId: ids.candidate,
+      reviewStatus: 'APPROVED',
+      revision: 1,
+      resolution: {
+        kind: 'DRAFT_CREATED',
+        vocabularyId: ids.vocabulary,
+      },
+    } as const;
+
+    expect(vocabularyCandidateApproveResponseSchema.parse(response)).toEqual(
+      response,
+    );
+    expect(() =>
+      vocabularyCandidateApproveResponseSchema.parse({
+        ...response,
+        resolution: {
+          ...response.resolution,
+          versionId: ids.item,
+        },
       }),
     ).toThrow();
   });

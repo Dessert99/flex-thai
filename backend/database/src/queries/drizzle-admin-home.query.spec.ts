@@ -15,13 +15,16 @@ describe('DrizzleAdminHomeQuery', () => {
             failedContentJobCount: '6',
             runningTtsJobCount: '7',
             failedTtsJobCount: '8',
+            recentVerificationAt: new Date('2026-07-30T12:00:00.000Z'),
           },
         ],
       }),
     };
 
     await expect(
-      new DrizzleAdminHomeQuery(database).getOperationsSummary(),
+      new DrizzleAdminHomeQuery(database).getOperationsSummary(
+        '01933b6a-8f13-7a19-b7e5-536d70f57aaa',
+      ),
     ).resolves.toEqual({
       pendingErrorReportCount: 2,
       pendingQuestionCandidateCount: 3,
@@ -30,6 +33,7 @@ describe('DrizzleAdminHomeQuery', () => {
       failedContentJobCount: 6,
       runningTtsJobCount: 7,
       failedTtsJobCount: 8,
+      recentVerificationAt: new Date('2026-07-30T12:00:00.000Z'),
     });
     expect(database.execute).toHaveBeenCalledOnce();
   });
@@ -40,7 +44,9 @@ describe('DrizzleAdminHomeQuery', () => {
     };
 
     await expect(
-      new DrizzleAdminHomeQuery(database).getOperationsSummary(),
+      new DrizzleAdminHomeQuery(database).getOperationsSummary(
+        '01933b6a-8f13-7a19-b7e5-536d70f57aaa',
+      ),
     ).resolves.toEqual({
       pendingErrorReportCount: 0,
       pendingQuestionCandidateCount: 0,
@@ -49,6 +55,7 @@ describe('DrizzleAdminHomeQuery', () => {
       failedContentJobCount: 0,
       runningTtsJobCount: 0,
       failedTtsJobCount: 0,
+      recentVerificationAt: null,
     });
   });
 });

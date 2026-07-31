@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { VocabularyCandidateManagementPageView } from './VocabularyCandidateManagementPageView';
 
@@ -53,8 +53,10 @@ describe('어휘 후보 목록 화면', () => {
         }}
         error={false}
         loading={false}
+        onFilterChange={vi.fn()}
         onPageChange={vi.fn()}
         onRetry={vi.fn()}
+        search={{ page: 1, pageSize: 20 }}
       />,
     );
 
@@ -63,5 +65,33 @@ describe('어휘 후보 목록 화면', () => {
     expect(screen.getByText('승인 완료')).toBeVisible();
     expect(screen.getByText('폐기 완료')).toBeVisible();
     expect(screen.getAllByRole('link', { name: '상세 열기' })).toHaveLength(4);
+  });
+
+  it('job ID와 검수 상태 filter를 접근 가능한 URL 상태 control로 제공한다', () => {
+    const onFilterChange = vi.fn();
+    render(
+      <VocabularyCandidateManagementPageView
+        data={{
+          items: [
+            item('00000000-0000-4000-8000-000000000001', 'PENDING', 'NORMAL'),
+          ],
+          page: { page: 3, pageSize: 20, totalItems: 41, totalPages: 3 },
+        }}
+        error={false}
+        loading={false}
+        onFilterChange={onFilterChange}
+        onPageChange={vi.fn()}
+        onRetry={vi.fn()}
+        search={{ page: 3, pageSize: 20 }}
+      />,
+    );
+
+    const jobId = '00000000-0000-4000-8000-000000000010';
+    fireEvent.change(screen.getByLabelText('생성 job ID'), {
+      target: { value: jobId },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'job 필터 적용' }));
+    expect(onFilterChange).toHaveBeenCalledWith({ jobId });
+    expect(screen.getByRole('combobox', { name: '검수 상태' })).toBeVisible();
   });
 });

@@ -1,28 +1,43 @@
 /** 관리자 홈의 전체 운영 집계를 카드별 상태와 실제 진입 경로로 표현한다 */
-import type { AdminHomeOperationsResponse } from '@flex-thia/contracts';
+import type {
+  AdminHomeOperationsResponse,
+  UsageCostOverviewResponse,
+} from '@flex-thia/contracts';
 import type { ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { PageError, PageLoading } from '@/shared/ui/page-state';
 
 interface AdminHomeOperationsCardsProps {
+  cost: UsageCostOverviewResponse | undefined;
+  costError: boolean;
+  costLoading: boolean;
   data: AdminHomeOperationsResponse | undefined;
   error: boolean;
   loading: boolean;
   onRetry: () => void;
+  onRetryCost: () => void;
 }
 
 type OperationLink = {
   href: string;
   label: string;
 };
+type OperationalStateProps = Pick<
+  AdminHomeOperationsCardsProps,
+  'data' | 'error' | 'loading' | 'onRetry'
+>;
 
 /** 전용 aggregate의 상태를 각 운영 카드에서 명시적으로 보존한다 */
 // eslint-disable-next-line max-lines-per-function -- 여섯 운영 카드는 같은 aggregate 상태와 표현 규칙을 공유한다.
 export function AdminHomeOperationsCards({
+  cost,
+  costError,
+  costLoading,
   data,
   error,
   loading,
   onRetry,
+  onRetryCost,
 }: AdminHomeOperationsCardsProps) {
   const state = { data, error, loading, onRetry };
   return (
@@ -102,11 +117,15 @@ export function AdminHomeOperationsCards({
         title='TTS 작업'
       />
       <OperationalCard
-        content={renderOperationalState({
-          ...state,
-          content: data ? (
+        content={renderCostState({
+          cost,
+          error: costError,
+          loading: costLoading,
+          onRetry: onRetryCost,
+          content: cost ? (
             <p className='text-body text-primary'>
-              {data.usageCost.estimatedCostUsd} USD · {data.usageCost.status}
+              {cost.currentMonthThreshold.estimatedCostUsd} USD ·{' '}
+              {cost.currentMonthThreshold.status}
             </p>
           ) : null,
         })}
@@ -138,12 +157,37 @@ function renderOperationalState({
   error,
   loading,
   onRetry,
-}: AdminHomeOperationsCardsProps & { content: ReactNode }) {
+}: OperationalStateProps & { content: ReactNode }) {
   if (loading) return <PageLoading message='운영 상태를 불러오고 있습니다.' />;
   if (error || !data) {
     return (
       <PageError
         message='운영 상태를 불러오지 못했습니다.'
+        onRetry={onRetry}
+      />
+    );
+  }
+  return content;
+}
+
+function renderCostState({
+  content,
+  cost,
+  error,
+  loading,
+  onRetry,
+}: {
+  content: ReactNode;
+  cost: UsageCostOverviewResponse | undefined;
+  error: boolean;
+  loading: boolean;
+  onRetry: () => void;
+}) {
+  if (loading) return <PageLoading message='비용 상태를 불러오고 있습니다.' />;
+  if (error || !cost) {
+    return (
+      <PageError
+        message='비용 상태를 불러오지 못했습니다.'
         onRetry={onRetry}
       />
     );

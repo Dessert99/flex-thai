@@ -2,6 +2,7 @@
 import type { VocabularyCandidateListQuery } from '@flex-thia/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { vocabularyCandidatesQueryOptions } from '@/features/review-vocabulary-candidate';
+import { changeVocabularyCandidateFilters } from '../model/vocabularyCandidateSearch';
 import { VocabularyCandidateManagementPageView } from './VocabularyCandidateManagementPageView';
 
 interface VocabularyCandidateManagementPageContainerProps {
@@ -20,8 +21,12 @@ export function VocabularyCandidateManagementPageContainer({
       {...(query.data ? { data: query.data } : {})}
       error={query.isError}
       loading={query.isPending}
+      onFilterChange={(patch) =>
+        onSearchChange(changeVocabularyCandidateFilters(search, patch))
+      }
       onPageChange={(page) => onSearchChange({ ...search, page })}
       onRetry={() => void query.refetch()}
+      search={search}
     />
   );
 }

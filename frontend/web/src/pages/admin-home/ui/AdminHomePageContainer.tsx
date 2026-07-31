@@ -5,9 +5,10 @@ import { AdminHomePageView } from './AdminHomePageView';
 
 /** 최근 콘텐츠와 전체 운영 집계를 독립 화면 상태로 조합한다 */
 export function AdminHomePageContainer() {
-  const [questions, vocabularies, auditLogs, operations] = useQueries({
-    queries: adminHomeQueryOptions(),
-  });
+  const [questions, vocabularies, auditLogs, operations, usageCost] =
+    useQueries({
+      queries: adminHomeQueryOptions(),
+    });
 
   return (
     <AdminHomePageView
@@ -23,6 +24,9 @@ export function AdminHomePageContainer() {
       onRetryOperations={() => {
         void operations.refetch();
       }}
+      onRetryUsageCost={() => {
+        void usageCost.refetch();
+      }}
       auditLogs={auditLogs.data?.items ?? []}
       auditLogsError={auditLogs.isError}
       auditLogsLoading={auditLogs.isPending}
@@ -32,6 +36,9 @@ export function AdminHomePageContainer() {
       operations={operations.data}
       operationsError={operations.isError}
       operationsLoading={operations.isPending}
+      usageCost={usageCost.data}
+      usageCostError={usageCost.isError}
+      usageCostLoading={usageCost.isPending}
       vocabularies={vocabularies.data?.items ?? []}
       vocabulariesError={vocabularies.isError}
       vocabulariesLoading={vocabularies.isPending}

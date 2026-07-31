@@ -14,6 +14,7 @@ export interface AdminHomeOperationsProjection {
   failedContentJobCount: number;
   runningTtsJobCount: number;
   failedTtsJobCount: number;
+  recentVerificationAt: Date | null;
 }
 
 type AggregateRow = {
@@ -24,9 +25,10 @@ type AggregateRow = {
   failedContentJobCount?: number | string;
   runningTtsJobCount?: number | string;
   failedTtsJobCount?: number | string;
+  recentVerificationAt?: Date | string | null;
 };
 
-const operationsSummaryQuery = sql`
+const operationsSummaryQuery = (userId: string) => sql`
   select
     (
       select count(*)
@@ -64,7 +66,14 @@ const operationsSummaryQuery = sql`
       select count(*)
       from tts_jobs
       where status in ('FAILED', 'PARTIALLY_FAILED')
-    ) as "failedTtsJobCount"
+    ) as "failedTtsJobCount",
+    (
+      select created_at
+      from step_up_grants
+      where user_id = ${userId}
+      order by created_at desc
+      limit 1
+    ) as "recentVerificationAt"
 `;
 
 const rowsOf = <Row>(result: unknown): Row[] => {
@@ -82,15 +91,19 @@ const rowsOf = <Row>(result: unknown): Row[] => {
 
 const count = (value: number | string | undefined): number =>
   Number(value ?? 0);
+const date = (value: Date | string | null | undefined): Date | null =>
+  value instanceof Date ? value : value ? new Date(value) : null;
 
 /** 전체 운영 테이블을 한 시점의 scalar 집계로 읽는다 */
 export class DrizzleAdminHomeQuery {
   constructor(private readonly database: AdminHomeReadDatabase) {}
 
   /** 미처리·실행·실패 상태를 전체 행 기준으로 반환한다 */
-  async getOperationsSummary(): Promise<AdminHomeOperationsProjection> {
+  async getOperationsSummary(
+    userId: string,
+  ): Promise<AdminHomeOperationsProjection> {
     const [row] = rowsOf<AggregateRow>(
-      await this.database.execute(operationsSummaryQuery),
+      await this.database.execute(operationsSummaryQuery(userId)),
     );
 
     return {
@@ -103,6 +116,7 @@ export class DrizzleAdminHomeQuery {
       failedContentJobCount: count(row?.failedContentJobCount),
       runningTtsJobCount: count(row?.runningTtsJobCount),
       failedTtsJobCount: count(row?.failedTtsJobCount),
+      recentVerificationAt: date(row?.recentVerificationAt),
     };
   }
 }

@@ -4,6 +4,7 @@ import type {
   AdminQuestionListResponse,
   AdminVocabularyListResponse,
   AuditLogListResponse,
+  UsageCostOverviewResponse,
 } from '@flex-thia/contracts';
 import type { ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
@@ -17,6 +18,7 @@ interface AdminHomePageViewProps {
   onRetryAuditLogs: () => void;
   onRetryOperations: () => void;
   onRetryQuestions: () => void;
+  onRetryUsageCost: () => void;
   onRetryVocabularies: () => void;
   operations: AdminHomeOperationsResponse | undefined;
   operationsError: boolean;
@@ -24,6 +26,9 @@ interface AdminHomePageViewProps {
   questions: AdminQuestionListResponse['items'];
   questionsError: boolean;
   questionsLoading: boolean;
+  usageCost: UsageCostOverviewResponse | undefined;
+  usageCostError: boolean;
+  usageCostLoading: boolean;
   vocabularies: AdminVocabularyListResponse['items'];
   vocabulariesError: boolean;
   vocabulariesLoading: boolean;
@@ -37,6 +42,7 @@ export function AdminHomePageView({
   onRetryAuditLogs,
   onRetryOperations,
   onRetryQuestions,
+  onRetryUsageCost,
   onRetryVocabularies,
   operations,
   operationsError,
@@ -44,6 +50,9 @@ export function AdminHomePageView({
   questions,
   questionsError,
   questionsLoading,
+  usageCost,
+  usageCostError,
+  usageCostLoading,
   vocabularies,
   vocabulariesError,
   vocabulariesLoading,
@@ -85,10 +94,14 @@ export function AdminHomePageView({
         />
       </div>
       <AdminHomeOperationsCards
+        cost={usageCost}
+        costError={usageCostError}
+        costLoading={usageCostLoading}
         data={operations}
         error={operationsError}
         loading={operationsLoading}
         onRetry={onRetryOperations}
+        onRetryCost={onRetryUsageCost}
       />
     </section>
   );

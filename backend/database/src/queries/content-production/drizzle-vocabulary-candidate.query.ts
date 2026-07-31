@@ -31,30 +31,16 @@ const candidateSelection = {
   revision: vocabularyProductionCandidates.revision,
   resolutionKind: vocabularyProductionCandidates.resolutionKind,
   resolvedVocabularyId: vocabularyProductionCandidates.resolvedVocabularyId,
-  versionId: sql<string | null>`(
-    select ${schema.auditLogs.summary}->>'versionId'
-    from ${schema.auditLogs}
-    where ${schema.auditLogs.targetType} = 'VOCABULARY_CANDIDATE'
-      and ${schema.auditLogs.targetId} = ${vocabularyProductionCandidates.id}
-      and ${schema.auditLogs.action} = 'VOCABULARY_CANDIDATE_APPROVED'
-    order by ${schema.auditLogs.createdAt} desc
-    limit 1
-  )`,
   createdAt: vocabularyProductionCandidates.createdAt,
   updatedAt: vocabularyProductionCandidates.updatedAt,
 };
 
 type CandidateRow = Omit<
-  Awaited<
-    ReturnType<
-      VocabularyCandidateQuery['list']
-    >
-  >['items'][number],
+  Awaited<ReturnType<VocabularyCandidateQuery['list']>>['items'][number],
   'resolution'
 > & {
   resolutionKind: 'DRAFT_CREATED' | 'EXISTING_LINKED' | null;
   resolvedVocabularyId: string | null;
-  versionId: string | null;
 };
 
 /** 저장된 승인 resolution이 lifecycle과 불일치할 때 fail-closed한다 */
@@ -66,34 +52,27 @@ export class VocabularyCandidateDataIntegrityError extends Error {
 }
 
 const projectCandidate = (row: CandidateRow) => {
-  const { versionId, ...candidate } = row;
-  const { resolutionKind, resolvedVocabularyId } = candidate;
-  if (candidate.reviewStatus !== 'APPROVED') {
-    if (
-      resolutionKind !== null ||
-      resolvedVocabularyId !== null ||
-      versionId != null
-    ) {
+  const { resolutionKind, resolvedVocabularyId } = row;
+  if (row.reviewStatus !== 'APPROVED') {
+    if (resolutionKind !== null || resolvedVocabularyId !== null) {
       throw new VocabularyCandidateDataIntegrityError();
     }
-    return { ...candidate, resolution: null };
+    return { ...row, resolution: null };
   }
   if (resolutionKind === null || resolvedVocabularyId === null) {
     throw new VocabularyCandidateDataIntegrityError();
   }
   if (resolutionKind === 'DRAFT_CREATED') {
-    if (versionId === null) throw new VocabularyCandidateDataIntegrityError();
     return {
-      ...candidate,
+      ...row,
       resolution: {
         kind: 'DRAFT_CREATED' as const,
         vocabularyId: resolvedVocabularyId,
-        versionId,
       },
     };
   }
   return {
-    ...candidate,
+    ...row,
     resolution: {
       kind: 'EXISTING_LINKED' as const,
       vocabularyId: resolvedVocabularyId,
@@ -102,9 +81,7 @@ const projectCandidate = (row: CandidateRow) => {
 };
 
 /** AI 어휘 후보 목록·상세 read model을 PostgreSQL에서 조립한다 */
-export class DrizzleVocabularyCandidateQuery
-  implements VocabularyCandidateQuery
-{
+export class DrizzleVocabularyCandidateQuery implements VocabularyCandidateQuery {
   constructor(private readonly database: CandidateDatabase) {}
 
   /** status와 job filter를 page 계산 전에 동일하게 적용한다 */
@@ -174,7 +151,7 @@ export class DrizzleVocabularyCandidateQuery
           end`,
         ),
       );
-    const candidate = projectCandidate(row as CandidateRow);
+    const candidate = projectCandidate(row);
     return {
       candidate,
       validations: validations.map((validation) => ({

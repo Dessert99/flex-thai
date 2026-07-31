@@ -117,8 +117,7 @@ const assertCompleteDraftGraph = (
     ({ clientRef }) => clientRef,
   );
   const duplicateRef = [...meaningRefs, ...pronunciationRefs].find(
-    (reference, index, references) =>
-      references.indexOf(reference) !== index,
+    (reference, index, references) => references.indexOf(reference) !== index,
   );
   if (duplicateRef) {
     context.addIssue({
@@ -194,9 +193,7 @@ const createDraftApprovalSchema = z
     kind: z.enum(['WORD', 'EXPRESSION']),
     meanings: z.array(vocabularyDraftMeaningSchema).min(1),
     pronunciations: z.array(vocabularyDraftPronunciationSchema).min(1),
-    meaningPronunciations: z
-      .array(vocabularyMeaningPronunciationSchema)
-      .min(1),
+    meaningPronunciations: z.array(vocabularyMeaningPronunciationSchema).min(1),
     confirmDuplicate: z.literal(true).optional(),
   })
   .strict()
@@ -245,7 +242,6 @@ const vocabularyCandidateResolutionSchema = z.discriminatedUnion('kind', [
     .object({
       kind: z.literal('DRAFT_CREATED'),
       vocabularyId: uuidSchema,
-      versionId: uuidSchema,
     })
     .strict(),
   z

@@ -29,11 +29,29 @@ const emptyOperations = {
   },
   contentProduction: { runningCount: 0, failedCount: 0 },
   tts: { runningCount: 0, failedCount: 0 },
-  usageCost: { estimatedCostUsd: '0.000000', status: 'NORMAL' },
   mfa: {
     enrolled: true,
     enrolledAt: '2026-07-01T00:00:00.000Z',
     recentVerificationAt: null,
+  },
+} as const;
+const usageCostOverview = {
+  range: {
+    from: '2026-07-01T00:00:00.000Z',
+    to: '2026-08-01T00:00:00.000Z',
+  },
+  estimatedCostUsd: '16.500000',
+  inProgressJobCount: 0,
+  failedRunCount: 0,
+  pendingReviewCandidateCount: 0,
+  breakdown: [],
+  currentMonthThreshold: {
+    range: {
+      from: '2026-07-01T00:00:00.000Z',
+      to: '2026-08-01T00:00:00.000Z',
+    },
+    estimatedCostUsd: '16.500000',
+    status: 'WARNING',
   },
 } as const;
 
@@ -103,7 +121,6 @@ describe('관리자 홈 페이지', () => {
         },
         contentProduction: { runningCount: 1, failedCount: 2 },
         tts: { runningCount: 5, failedCount: 1 },
-        usageCost: { estimatedCostUsd: '16.500000', status: 'WARNING' },
         mfa: {
           enrolled: true,
           enrolledAt: '2026-07-01T00:00:00.000Z',
@@ -173,7 +190,8 @@ describe('관리자 홈 페이지', () => {
     expect(await screen.findByText('listening-dialogue')).toBeInTheDocument();
     expect(
       screen.getAllByText('운영 상태를 불러오지 못했습니다.'),
-    ).toHaveLength(6);
+    ).toHaveLength(5);
+    expect(screen.getByText('16.500000 USD · WARNING')).toBeInTheDocument();
   });
 
   it('최근 어휘 요청이 실패해도 운영 집계를 유지한다', async () => {
@@ -193,6 +211,29 @@ describe('관리자 홈 페이지', () => {
       await screen.findByText('최근 어휘를 불러오지 못했습니다.'),
     ).toBeInTheDocument();
     expect(screen.getByText('미처리 2건')).toBeInTheDocument();
+  });
+
+  it('비용 endpoint가 실패해도 DB 운영 카드와 별도 비용 재시도를 유지한다', async () => {
+    mockHomeResponses(
+      { items: [], page: emptyPage },
+      { items: [], page: emptyPage },
+      { items: [], page: { ...emptyPage, pageSize: 5 } },
+      {
+        ...emptyOperations,
+        feedback: { pendingCount: 2 },
+      },
+      new Error('usage cost failed'),
+    );
+
+    renderAdminHome();
+
+    expect(await screen.findByText('미처리 2건')).toBeInTheDocument();
+    expect(
+      screen.getByText('비용 상태를 불러오지 못했습니다.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('운영 상태를 불러오지 못했습니다.'),
+    ).not.toBeInTheDocument();
   });
 
   it('집계가 0이어도 빈 상태와 운영 진입점을 카드별로 표시한다', async () => {
@@ -217,6 +258,7 @@ function mockHomeResponses(
   vocabularyResponse: unknown,
   auditResponse: unknown,
   operationsResponse: unknown,
+  usageCostResponse: unknown = usageCostOverview,
 ) {
   mocks.authenticatedRequest.mockImplementation(
     ({ path }: { path: string }) => {
@@ -224,6 +266,7 @@ function mockHomeResponses(
         auditResponse,
         operationsResponse,
         questionResponse,
+        usageCostResponse,
         vocabularyResponse,
       });
       return response instanceof Error
@@ -239,10 +282,12 @@ function resolveHomeResponse(
     auditResponse: unknown;
     operationsResponse: unknown;
     questionResponse: unknown;
+    usageCostResponse: unknown;
     vocabularyResponse: unknown;
   },
 ) {
   if (path.startsWith('/admin/home')) return responses.operationsResponse;
+  if (path.startsWith('/admin/usage-cost')) return responses.usageCostResponse;
   if (path.startsWith('/admin/questions')) return responses.questionResponse;
   if (path.startsWith('/admin/audit-logs')) return responses.auditResponse;
   return responses.vocabularyResponse;

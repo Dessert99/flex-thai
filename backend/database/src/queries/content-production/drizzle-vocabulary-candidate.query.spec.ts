@@ -104,4 +104,29 @@ describe('DrizzleVocabularyCandidateQuery', () => {
     });
     expect(fake.orderBy).toHaveBeenCalledOnce();
   });
+
+  it('승인된 새 DRAFT는 실제 vocabularyId만 resolution으로 반환한다', async () => {
+    const approvedCandidate = {
+      ...candidate,
+      reviewStatus: 'APPROVED' as const,
+      revision: 1,
+      resolutionKind: 'DRAFT_CREATED' as const,
+      resolvedVocabularyId: '00000000-0000-4000-8000-000000000004',
+    };
+    const fake = createDatabase([[{ totalItems: 1 }], [approvedCandidate]]);
+    const query = new DrizzleVocabularyCandidateQuery(fake.database as never);
+
+    await expect(query.list({ page: 1, pageSize: 20 })).resolves.toEqual({
+      items: [
+        {
+          ...approvedCandidate,
+          resolution: {
+            kind: 'DRAFT_CREATED',
+            vocabularyId: approvedCandidate.resolvedVocabularyId,
+          },
+        },
+      ],
+      totalItems: 1,
+    });
+  });
 });

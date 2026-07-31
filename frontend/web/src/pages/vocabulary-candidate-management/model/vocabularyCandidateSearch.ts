@@ -11,3 +11,17 @@ export type VocabularyCandidateSearch = VocabularyCandidateListQuery;
 export const parseVocabularyCandidateSearch = (
   raw: Record<string, unknown>,
 ): VocabularyCandidateSearch => vocabularyCandidateListQuerySchema.parse(raw);
+
+/** filter 변경 시 기존 URL filter를 보존하고 목록을 첫 page로 되돌린다 */
+export const changeVocabularyCandidateFilters = (
+  search: VocabularyCandidateSearch,
+  patch: Pick<Partial<VocabularyCandidateSearch>, 'jobId' | 'reviewStatus'>,
+): VocabularyCandidateSearch => {
+  const next = { ...search, ...patch };
+  return {
+    ...(next.jobId ? { jobId: next.jobId } : {}),
+    ...(next.reviewStatus ? { reviewStatus: next.reviewStatus } : {}),
+    page: 1,
+    pageSize: next.pageSize,
+  };
+};

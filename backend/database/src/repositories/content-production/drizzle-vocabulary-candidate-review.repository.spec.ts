@@ -4,7 +4,6 @@ import {
   vocabularies,
   vocabularyMeaningPronunciations,
   vocabularyMeanings,
-  vocabularyProductionCandidates,
   vocabularyPronunciations,
 } from '../../schema/index.js';
 import { DrizzleVocabularyCandidateReviewRepository } from './drizzle-vocabulary-candidate-review.repository.js';
@@ -165,7 +164,6 @@ describe('DrizzleVocabularyCandidateReviewRepository', () => {
         resolution: {
           kind: 'DRAFT_CREATED',
           vocabularyId: '00000000-0000-4000-8000-000000000010',
-          versionId: '00000000-0000-4000-8000-000000000011',
         },
       },
     });
@@ -188,9 +186,26 @@ describe('DrizzleVocabularyCandidateReviewRepository', () => {
       expect.objectContaining({
         action: 'VOCABULARY_CANDIDATE_APPROVED',
         requestId: commandContext.requestId,
-        summary: expect.objectContaining({
-          versionId: '00000000-0000-4000-8000-000000000011',
-        }),
+        summary: {
+          request: {
+            action: 'CREATE_DRAFT',
+            actorSub: commandContext.actorSub,
+            actorUserId: commandContext.actorUserId,
+            candidateId: commandContext.candidateId,
+            confirmDuplicate: false,
+            draft: createDraftCommand.draft,
+            expectedRevision: commandContext.expectedRevision,
+          },
+          result: {
+            candidateId: commandContext.candidateId,
+            reviewStatus: 'APPROVED',
+            revision: 1,
+            resolution: {
+              kind: 'DRAFT_CREATED',
+              vocabularyId: '00000000-0000-4000-8000-000000000010',
+            },
+          },
+        },
       }),
     );
   });

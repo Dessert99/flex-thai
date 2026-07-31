@@ -53,10 +53,7 @@ export class OperationsModule {
         },
         {
           provide: AdminHomeService,
-          useValue: new AdminHomeService({
-            query: options.homeQuery,
-            usageCost,
-          }),
+          useValue: new AdminHomeService({ query: options.homeQuery }),
         },
         { provide: IDENTITY_USER_REPOSITORY, useValue: options.users },
         { provide: AUTHORIZER_GUARD_OPTIONS, useValue: options.authorizer },
