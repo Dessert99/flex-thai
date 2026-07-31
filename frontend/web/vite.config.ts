@@ -7,8 +7,12 @@ import { defineConfig } from 'vite';
 
 /** React·Tailwind plugin과 프론트엔드 source alias를 연결한다 */
 export default defineConfig({
+  build: {
+    manifest: true,
+  },
   plugins: [
     tanstackRouter({
+      autoCodeSplitting: true,
       generatedRouteTree: './src/routeTree.gen.ts',
       routesDirectory: './src/app/routes',
       target: 'react',

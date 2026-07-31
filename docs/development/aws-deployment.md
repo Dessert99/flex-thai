@@ -12,6 +12,7 @@
 GitHub production 승인
   → 설정 누락 검사
   → format·lint·type·unit test·build·CDK synth
+  → API subdomain Vite build·artifact verifier
   → OIDC로 AWS 임시 권한 획득
   → cdk diff
   → DataStack 배포
@@ -26,6 +27,7 @@ GitHub production 승인
 | --- | --- | --- |
 | GitHub environment 승인 | 사람이 이번 운영 변경을 허용한다. | AWS에는 아무 변화가 없다. |
 | `pnpm check`, `infra:synth` | 코드와 CloudFormation 설계도가 유효한지 검사한다. | AWS에는 아무 변화가 없다. |
+| `node scripts/build-production-web.mjs "$ROOT_DOMAIN"` | `https://api.<ROOT_DOMAIN>/api/v1`을 주입한 Vite dist를 build하고 probe·API URL·chunk 크기를 검증한다. | AWS에는 아무 변화가 없다. |
 | OIDC | 장기 access key 없이 이번 실행용 권한을 받는다. | role trust와 GitHub 설정을 고친다. |
 | `cdk diff` | 현재 AWS와 새 설계도의 차이를 출력한다. | 권한·bootstrap·context를 확인한다. |
 | DataStack | DB, private S3, Secrets Manager를 만든다. | CloudFormation event를 확인한다. |
@@ -52,10 +54,14 @@ column 삭제, type 축소, 대규모 rewrite가 보이면 자동으로 진행�
 pnpm install --frozen-lockfile
 pnpm check
 pnpm infra:synth
+node scripts/build-production-web.mjs example.com
 ```
 
 `infra:synth`는 fixture account와 domain으로 template만 만든다. 실제
-AWS에는 아무것도 생성하지 않는다.
+AWS에는 아무것도 생성하지 않는다. production web build runner는
+`frontend/web/dist`에 실제 Vite application을 만들고, `index.html`, assets,
+API subdomain과 500KB 이하 JavaScript chunk를 확인한다. 이 artifact 뒤에는
+default web build를 다시 실행하지 않아 EdgeStack이 같은 dist를 배포한다.
 
 실제 계정으로 변경 내용만 확인하려면 전용 로컬 환경 파일을 한 번 만든다.
 
@@ -156,8 +162,9 @@ https://www.<ROOT_DOMAIN>
 `https://<ROOT_DOMAIN>`으로 접속하면 path와 query를 유지한 채 위 `www`
 주소로 이동해야 한다.
 
-현재 `frontend/web`은 아직 없으므로 완성된 프론트 화면이 아니라 인프라
-연결 확인용 최소 정적 페이지가 보이는 것이 정상이다.
+`www` 주소에는 infrastructure probe가 아니라 실제 Vite application이
+열려야 한다. browser network에서 API 요청이
+`https://api.<ROOT_DOMAIN>/api/v1`로 향하는지 함께 확인한다.
 
 ### 4. SES와 SNS 확인
 
@@ -241,6 +248,18 @@ DB를 수동으로 초기화하거나 migration 기록을 삭제하지 않는다
 column에 데이터를 썼다면 이전 코드가 그 데이터를 읽을 수 있는지 먼저
 확인한다.
 
+### web artifact 또는 API origin 문제
+
+1. 문제가 없던 commit을 확인하고 해당 commit의 production workflow를 다시 실행한다.
+2. workflow가 다시 만든 검증 완료 Vite dist만 EdgeStack에 배포되는지 확인한다.
+3. `https://www.<ROOT_DOMAIN>`과
+   `https://api.<ROOT_DOMAIN>/health`를 확인해 web과 API origin이 함께
+   정상인지 검증한다.
+
+probe HTML을 임시 fallback으로 배포하거나 CloudFront bucket을 수동으로
+수정하지 않는다. production artifact verifier가 실패하면 원인을 수정한
+commit을 새로 배포한다.
+
 ### migration 문제
 
 운영 migration은 무조건 아래 호환 순서를 따른다.
@@ -277,6 +296,7 @@ column에 데이터를 썼다면 이전 코드가 그 데이터를 읽을 수 �
 - [ ] `https://www.<ROOT_DOMAIN>`이 HTTPS로 열린다.
 - [ ] `https://<ROOT_DOMAIN>`이 같은 path·query의 `www` 주소로 이동한다.
 - [ ] `https://api.<ROOT_DOMAIN>/health`와 재시도 후 `/ready`가 정상이다.
+- [ ] browser API 요청이 `https://api.<ROOT_DOMAIN>/api/v1`로 향하고 Vite 화면이 정상이다.
 - [ ] 예상하지 않은 상시 비용 자원이 없는지 Billing과 Cost Explorer를 확인했다.
 
 ## 현재 의도적으로 하지 않는 것
@@ -285,8 +305,7 @@ column에 데이터를 썼다면 이전 코드가 그 데이터를 읽을 수 �
 - AWS 장기 access key를 GitHub나 `.env`에 저장
 - Lambda 시작 시 자동 migration
 - 브라우저/API E2E test 추가
-- 실제 프론트엔드 배포
-- AI·TTS provider API key 연결
+- 유료 AI·TTS provider API key 연결 — 미구성 production 호출은 fail-closed를 유지
 
 이 항목들은 계정 연결 준비와 기초 인프라 구현의 범위를 넘으므로 각각
 기능과 운영 조건이 확정될 때 별도로 진행한다.

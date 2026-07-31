@@ -1,4 +1,5 @@
 /** 검증된 context로 production CDK Stack 세 개를 조립한다 */
+import { fileURLToPath } from 'node:url';
 import { App } from 'aws-cdk-lib';
 import { ApplicationStack } from './application-stack.js';
 import {
@@ -24,6 +25,12 @@ const fixtureConfig: InfrastructureConfig = readInfrastructureConfig({
 });
 
 const synthFixture = app.node.tryGetContext('synthFixture') === 'true';
+const webAssetPath = fileURLToPath(
+  new URL(
+    synthFixture ? '../assets/web/' : '../../frontend/web/dist/',
+    import.meta.url,
+  ),
+);
 const config = synthFixture
   ? fixtureConfig
   : readInfrastructureConfigFromSources(
@@ -54,6 +61,7 @@ const dataStack = new DataStack(app, 'FlexThiaDataProd', {
 const edgeStack = new EdgeStack(app, 'FlexThiaEdgeProd', {
   config,
   dataStack,
+  webAssetPath,
   env: { account: config.account, region: config.edgeRegion },
   crossRegionReferences: true,
 });

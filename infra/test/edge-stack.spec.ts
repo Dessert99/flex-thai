@@ -1,8 +1,11 @@
 /** 정적 파일과 media가 S3 URL로 직접 공개되지 않게 고정한다 */
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { runInNewContext } from 'node:vm';
 import { App } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { readInfrastructureConfig } from '../src/config.js';
 import { DataStack } from '../src/data-stack.js';
 import { EdgeStack } from '../src/edge-stack.js';
@@ -16,6 +19,13 @@ const config = readInfrastructureConfig({
   ttsVoicePresetId: '00000000-0000-4000-8000-000000000777',
   mediaPublicKeyPem:
     '-----BEGIN PUBLIC KEY-----\ndGVzdA==\n-----END PUBLIC KEY-----',
+});
+
+const webAssetPath = mkdtempSync(join(tmpdir(), 'flex-thia-web-'));
+writeFileSync(join(webAssetPath, 'index.html'), '<main>web fixture</main>');
+
+afterAll(() => {
+  rmSync(webAssetPath, { force: true, recursive: true });
 });
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -44,6 +54,55 @@ const runRedirectFunction = (code: string, request: unknown): unknown =>
     `${code}; handler(${JSON.stringify({ request })});`,
   ) as unknown;
 
+const readDistributionProperties = (
+  template: Template,
+): Record<string, unknown> => {
+  const distributions = template.findResources(
+    'AWS::CloudFront::Distribution',
+  ) as unknown;
+  if (!isRecord(distributions)) {
+    throw new Error('CloudFront Distribution을 읽을 수 없습니다.');
+  }
+  const [distribution] = Object.values(distributions);
+  if (!isRecord(distribution) || !isRecord(distribution.Properties)) {
+    throw new Error('CloudFront Distribution이 생성되지 않았습니다.');
+  }
+  return distribution.Properties;
+};
+
+const readResponseHeadersPolicyProperties = (
+  template: Template,
+): Record<string, unknown> => {
+  const policies = template.findResources(
+    'AWS::CloudFront::ResponseHeadersPolicy',
+  ) as unknown;
+  if (!isRecord(policies)) {
+    throw new Error('CloudFront ResponseHeadersPolicy를 읽을 수 없습니다.');
+  }
+  const [policy] = Object.values(policies);
+  if (!isRecord(policy) || !isRecord(policy.Properties)) {
+    throw new Error('CloudFront ResponseHeadersPolicy가 생성되지 않았습니다.');
+  }
+  return policy.Properties;
+};
+
+const readBucketDeploymentSources = (template: Template): unknown => {
+  const deployments = template.findResources(
+    'Custom::CDKBucketDeployment',
+  ) as unknown;
+  if (!isRecord(deployments)) {
+    throw new Error('Web application 배포 자원을 읽을 수 없습니다.');
+  }
+  const [deployment] = Object.values(deployments);
+  if (!isRecord(deployment) || !isRecord(deployment.Properties)) {
+    throw new Error('Web application 배포 설정이 생성되지 않았습니다.');
+  }
+  return {
+    sourceBucketNames: deployment.Properties.SourceBucketNames,
+    sourceObjectKeys: deployment.Properties.SourceObjectKeys,
+  };
+};
+
 describe('EdgeStack 웹 전송 경계', () => {
   it('Web bucket public access를 막고 CloudFront OAC만 연결한다', () => {
     const app = new App();
@@ -51,6 +110,7 @@ describe('EdgeStack 웹 전송 경계', () => {
     const stack = new EdgeStack(app, 'Edge', {
       config,
       dataStack,
+      webAssetPath,
     });
     const template = Template.fromStack(stack);
 
@@ -79,6 +139,7 @@ describe('EdgeStack 웹 전송 경계', () => {
     const stack = new EdgeStack(app, 'EdgeDns', {
       config,
       dataStack,
+      webAssetPath,
     });
     const template = Template.fromStack(stack);
 
@@ -124,6 +185,7 @@ describe('EdgeStack 웹 전송 경계', () => {
     const stack = new EdgeStack(app, 'EdgeRedirect', {
       config,
       dataStack,
+      webAssetPath,
     });
     const template = Template.fromStack(stack);
     const code = readRedirectFunctionCode(template);
@@ -156,6 +218,124 @@ describe('EdgeStack 웹 전송 경계', () => {
     ).toEqual({
       ...request,
       headers: { host: { value: 'www.example.com' } },
+    });
+  });
+
+  it('명시한 web asset directory를 prune 배포하고 HTML·asset path를 무효화한다', () => {
+    const app = new App();
+    const dataStack = new DataStack(app, 'EdgeDeploymentData');
+    const stack = new EdgeStack(app, 'EdgeDeployment', {
+      config,
+      dataStack,
+      webAssetPath,
+    });
+    const template = Template.fromStack(stack);
+
+    template.hasResourceProperties('Custom::CDKBucketDeployment', {
+      DistributionPaths: ['/index.html', '/assets/*'],
+      Prune: true,
+    });
+  });
+
+  it('주입한 web asset directory의 실제 내용으로 배포 asset을 선택한다', () => {
+    const alternateWebAssetPath = mkdtempSync(
+      join(tmpdir(), 'flex-thia-web-alternate-'),
+    );
+    writeFileSync(
+      join(alternateWebAssetPath, 'index.html'),
+      '<main>alternate web fixture</main>',
+    );
+
+    try {
+      const app = new App();
+      const firstDataStack = new DataStack(app, 'EdgeFirstAssetData');
+      const firstStack = new EdgeStack(app, 'EdgeFirstAsset', {
+        config,
+        dataStack: firstDataStack,
+        webAssetPath,
+      });
+      const secondDataStack = new DataStack(app, 'EdgeSecondAssetData');
+      const secondStack = new EdgeStack(app, 'EdgeSecondAsset', {
+        config,
+        dataStack: secondDataStack,
+        webAssetPath: alternateWebAssetPath,
+      });
+
+      expect(
+        readBucketDeploymentSources(Template.fromStack(firstStack)),
+      ).not.toEqual(
+        readBucketDeploymentSources(Template.fromStack(secondStack)),
+      );
+    } finally {
+      rmSync(alternateWebAssetPath, { force: true, recursive: true });
+    }
+  });
+
+  it('없는 web asset directory는 안정된 설정 오류로 즉시 실패한다', () => {
+    const app = new App();
+    const dataStack = new DataStack(app, 'EdgeMissingAssetData');
+
+    expect(
+      () =>
+        new EdgeStack(app, 'EdgeMissingAsset', {
+          config,
+          dataStack,
+          webAssetPath: join(webAssetPath, 'missing'),
+        }),
+    ).toThrow('Web asset directory does not exist.');
+  });
+
+  it('default와 asset behavior에 같은 최소 보안 응답 정책을 적용한다', () => {
+    const app = new App();
+    const dataStack = new DataStack(app, 'EdgeSecurityData');
+    const stack = new EdgeStack(app, 'EdgeSecurity', {
+      config,
+      dataStack,
+      webAssetPath,
+    });
+    const template = Template.fromStack(stack);
+    const distribution = readDistributionProperties(template);
+    const distributionConfig = distribution.DistributionConfig;
+    if (!isRecord(distributionConfig)) {
+      throw new Error('CloudFront Distribution 설정을 읽을 수 없습니다.');
+    }
+    const defaultBehavior = distributionConfig.DefaultCacheBehavior;
+    const cacheBehaviors = distributionConfig.CacheBehaviors;
+    if (!isRecord(defaultBehavior) || !Array.isArray(cacheBehaviors)) {
+      throw new Error('CloudFront web cache behavior를 읽을 수 없습니다.');
+    }
+    const assetsBehavior = cacheBehaviors.find(
+      (behavior) => isRecord(behavior) && behavior.PathPattern === 'assets/*',
+    );
+    if (!isRecord(assetsBehavior)) {
+      throw new Error('CloudFront asset cache behavior가 생성되지 않았습니다.');
+    }
+
+    expect(assetsBehavior.ResponseHeadersPolicyId).toEqual(
+      defaultBehavior.ResponseHeadersPolicyId,
+    );
+    expect(defaultBehavior.ResponseHeadersPolicyId).toBeDefined();
+
+    const policy = readResponseHeadersPolicyProperties(template);
+    expect(policy.ResponseHeadersPolicyConfig).toMatchObject({
+      SecurityHeadersConfig: {
+        ContentSecurityPolicy: {
+          ContentSecurityPolicy:
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.example.com https://*.s3.ap-northeast-2.amazonaws.com https://s3.ap-northeast-2.amazonaws.com",
+        },
+        ContentTypeOptions: { Override: true },
+        FrameOptions: { FrameOption: 'DENY', Override: true },
+        ReferrerPolicy: {
+          ReferrerPolicy: 'strict-origin-when-cross-origin',
+          Override: true,
+        },
+        StrictTransportSecurity: {
+          AccessControlMaxAgeSec: 31536000,
+          IncludeSubdomains: true,
+          Override: true,
+          Preload: true,
+        },
+      },
     });
   });
 });
