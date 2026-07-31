@@ -1,4 +1,6 @@
 /** 생성 문제 승인 TTS scheduler의 snapshot·대상·outbox 원자성을 고정한다 */
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import { describe, expect, it, vi } from 'vitest';
 import {
   auditLogs,
@@ -11,8 +13,12 @@ import {
   ttsJobs,
   ttsVoicePresets,
 } from '../../schema/index.js';
+import * as schema from '../../schema/index.js';
 import { createTtsInitialCommandFingerprint } from '../dispatch/drizzle-async-dispatch-outbox.repository.js';
-import { DrizzleGeneratedQuestionTtsScheduler } from './drizzle-generated-question-tts.scheduler.js';
+import {
+  createQuestionTtsTargetSentenceLockQuery,
+  DrizzleGeneratedQuestionTtsScheduler,
+} from './drizzle-generated-question-tts.scheduler.js';
 
 const requestedAt = new Date('2026-07-28T00:00:00.000Z');
 const presetId = '00000000-0000-4000-8000-000000000001';
@@ -70,6 +76,9 @@ const createTransaction = (overrides?: {
   blockRows?: unknown[];
   optionRows?: unknown[];
 }) => {
+  const execute = vi.fn<(query: unknown) => Promise<unknown[]>>(() =>
+    Promise.resolve([]),
+  );
   const selectedTables: unknown[] = [];
   const rowsByTable = new Map<unknown, unknown[]>([
     [ttsVoicePresets, overrides?.presetRows ?? [preset]],
@@ -122,6 +131,7 @@ const createTransaction = (overrides?: {
     inserted,
     selectedTables,
     transaction: {
+      execute,
       insert,
       select: createSelect(rowsByTable, selectedTables),
     },
@@ -422,6 +432,55 @@ describe('생성 문제 TTS scheduler', () => {
 });
 
 describe('관리자 문제 버전 TTS 재생성', () => {
+  it('request advisory lock을 version row lock보다 먼저 획득한다', async () => {
+    const fixture = createTransaction();
+    overrideRegenerationReads(fixture, {
+      activeItems: [{ jobId, status: 'PENDING' }],
+    });
+    const database = {
+      transaction: (work: (transaction: unknown) => Promise<unknown>) =>
+        work(fixture.transaction),
+    };
+    const scheduler = new DrizzleGeneratedQuestionTtsScheduler(presetId, {
+      enqueueTts: vi.fn(),
+      assertTtsDispatch: vi.fn(),
+    });
+
+    await expect(
+      scheduler.regenerate(database as never, {
+        questionId,
+        versionId: questionVersionId,
+        actorUserId: userId,
+        actorSub: 'admin-sub',
+        requestId: 'request-lock',
+        requestedAt,
+      }),
+    ).rejects.toThrow('QUESTION_TTS_ALREADY_RUNNING');
+
+    const advisoryQuery: unknown =
+      fixture.transaction.execute.mock.calls[0]?.[0];
+    const compiled = new PgDialect().sqlToQuery(advisoryQuery as never);
+    expect(compiled.sql).toContain(
+      'pg_advisory_xact_lock(hashtextextended($1, 0))',
+    );
+    expect(compiled.params).toEqual(['request-lock']);
+    expect(
+      fixture.transaction.execute.mock.invocationCallOrder[0],
+    ).toBeLessThan(fixture.transaction.select.mock.invocationCallOrder[0]!);
+  });
+
+  it('LEFT JOIN 문장 조회는 nullable media가 아닌 문장 버전만 잠근다', () => {
+    const database = drizzle({ client: {} as never, schema });
+    const compiled = createQuestionTtsTargetSentenceLockQuery(database, [
+      firstSentenceId,
+    ]).toSQL();
+
+    expect(compiled.sql).toContain('for update of "thai_sentence_versions"');
+    expect(compiled.sql).not.toContain(
+      'for update of "thai_sentence_versions", "media_assets"',
+    );
+  });
+
   it('READY 문장은 재사용하고 누락 문장의 job·audit·outbox를 한 transaction에 기록한다', async () => {
     const fixture = createTransaction({
       sentenceRows: [

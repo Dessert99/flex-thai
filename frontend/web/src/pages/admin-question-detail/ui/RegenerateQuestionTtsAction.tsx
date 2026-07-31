@@ -1,5 +1,6 @@
 /** 문제 버전 단위 TTS 재생성과 job 이동 상태를 표현한다 */
 import { useMutation } from '@tanstack/react-query';
+import { useRef } from 'react';
 import { isApiError } from '@/shared/api';
 import { Button } from '@/shared/ui/button';
 import { regenerateQuestionVersionTts } from '../api/questionVersionMutations';
@@ -18,8 +19,11 @@ export function RegenerateQuestionTtsAction({
   questionId,
   versionId,
 }: RegenerateQuestionTtsActionProps) {
+  const requestRef = useRef<{ requestId: string; target: string } | null>(null);
+  const target = `${questionId}:${versionId}`;
   const mutation = useMutation({
-    mutationFn: () => regenerateQuestionVersionTts({ questionId, versionId }),
+    mutationFn: (requestId: string) =>
+      regenerateQuestionVersionTts({ questionId, requestId, versionId }),
     onError: (error) => {
       if (
         isApiError(error) &&
@@ -29,7 +33,10 @@ export function RegenerateQuestionTtsAction({
         void onConflict();
       }
     },
-    onSuccess: () => onSuccess(),
+    onSuccess: () => {
+      requestRef.current = null;
+      return onSuccess();
+    },
     retry: false,
   });
   const firstJobId = mutation.data?.jobIds[0];
@@ -38,7 +45,15 @@ export function RegenerateQuestionTtsAction({
     <div className='grid gap-cluster'>
       <Button
         disabled={mutation.isPending}
-        onClick={() => mutation.mutate()}
+        onClick={() => {
+          if (requestRef.current?.target !== target) {
+            requestRef.current = {
+              requestId: crypto.randomUUID(),
+              target,
+            };
+          }
+          mutation.mutate(requestRef.current.requestId);
+        }}
         type='button'
         variant='outline'
       >

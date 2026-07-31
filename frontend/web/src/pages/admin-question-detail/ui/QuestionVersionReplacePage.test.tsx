@@ -162,7 +162,9 @@ describe('문제 버전 교체 URL', () => {
     );
 
     expect(
-      screen.getByText(/blocks\.0\.sentences\.0\.sentence\.originalText/u),
+      screen.getAllByText(
+        /blocks\.0\.sentences\.0\.sentence\.originalText/u,
+      )[0],
     ).toBeVisible();
     expect(mocks.authenticatedRequest).toHaveBeenCalledOnce();
   });

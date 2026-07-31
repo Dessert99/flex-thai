@@ -1,4 +1,4 @@
-/** 관리자 홈의 DB 집계와 비용·MFA 상태를 공개 응답으로 조립한다 */
+/** 관리자 홈의 DB 집계와 MFA 상태를 공개 응답으로 조립한다 */
 import {
   adminHomeOperationsResponseSchema,
   type AdminHomeOperationsResponse,

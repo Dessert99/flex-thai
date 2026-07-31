@@ -90,7 +90,28 @@ describe('문제 버전 TTS 재생성 결정', () => {
       },
       code: 'QUESTION_TTS_IDEMPOTENCY_CONFLICT',
     },
-  ])('$name stable 오류를 반환한다', ({ input: candidate, code }) => {
+    {
+      name: 'request ID가 다른 version에 사용됐을 때',
+      input: {
+        ...input,
+        replay: {
+          ...actor,
+          questionId,
+          versionId: crypto.randomUUID(),
+          result: {
+            jobIds: [],
+            scheduledSentenceCount: 0,
+            reusedReadySentenceCount: 1,
+          },
+        },
+      },
+      code: 'QUESTION_TTS_IDEMPOTENCY_CONFLICT',
+    },
+  ] satisfies Array<{
+    name: string;
+    input: Parameters<typeof decideQuestionTtsRegeneration>[0];
+    code: ConstructorParameters<typeof QuestionTtsRegenerationError>[0];
+  }>)('$name stable 오류를 반환한다', ({ input: candidate, code }) => {
     expect(() => decideQuestionTtsRegeneration(candidate)).toThrow(
       new QuestionTtsRegenerationError(code),
     );

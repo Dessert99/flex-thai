@@ -102,7 +102,7 @@ export interface ResolvedQuestionSentenceGraph {
     translationKo: string;
     pronunciationKo: string;
     toneMarks: string;
-    mediaAssetId: string;
+    mediaAssetId: string | null;
     frozenAt: null;
   };
   tokens: Array<

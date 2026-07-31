@@ -176,6 +176,30 @@ describe('관리자 문제 path·query·교체 payload 계약', () => {
     ).toThrow();
   });
 
+  it('TTS가 필요한 본문과 보기 문장은 mediaAssetId null로 교체할 수 있다', () => {
+    const pendingSentence = { ...sentenceInput, mediaAssetId: null };
+    const pendingPayload = {
+      ...payload,
+      blocks: [
+        {
+          ...payload.blocks[0],
+          sentences: [{ speaker: null, sentence: pendingSentence }],
+        },
+      ],
+      options: payload.options.map((option) => ({
+        ...option,
+        sentence: pendingSentence,
+      })),
+    };
+
+    const parsed = adminQuestionVersionPayloadSchema.parse(pendingPayload);
+
+    expect(parsed.blocks[0]?.sentences[0]?.sentence.mediaAssetId).toBeNull();
+    expect(
+      parsed.options.map((option) => option.sentence?.mediaAssetId),
+    ).toEqual([null, null]);
+  });
+
   it('inline 교체 option은 sentence null과 span 좌표를 함께 요구한다', () => {
     const inline = {
       ...payload,
@@ -704,7 +728,7 @@ describe('관리자 문제 공개 응답 계약', () => {
 
     expect(adminQuestionTtsJobPathSchema.parse(path)).toEqual(path);
     expect(adminQuestionTtsJobResponseSchema.parse(response)).toEqual(response);
-    expectTypeOf<AdminQuestionTtsJobPath>().toEqualTypeOf(path);
+    expectTypeOf(path).toMatchTypeOf<AdminQuestionTtsJobPath>();
   });
 
   it('검증 실패는 안정적인 path와 code의 200 보고서로 표현한다', () => {

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   VocabularyCandidateApplicationError,
   VocabularyCandidateApplicationService,
+  VocabularyCandidatePublicResponseError,
   type VocabularyCandidateReviewOperations,
 } from './vocabulary-candidates.service.js';
 
@@ -235,5 +236,23 @@ describe('VocabularyCandidateApplicationService 공개 경계', () => {
     await expect(service.get(ids.candidate)).rejects.toEqual(
       new VocabularyCandidateApplicationError('VOCABULARY_CANDIDATE_NOT_FOUND'),
     );
+  });
+
+  it('승인 adapter가 legacy versionId를 남기면 strict 공개 응답을 거절한다', async () => {
+    const { approveReview, service } = createService();
+    approveReview.mockResolvedValue({
+      candidateId: ids.candidate,
+      reviewStatus: 'APPROVED',
+      revision: 1,
+      resolution: {
+        kind: 'DRAFT_CREATED',
+        vocabularyId: ids.vocabulary,
+        versionId: ids.item,
+      },
+    });
+
+    await expect(
+      service.approve(actor, ids.candidate, createDraftRequest),
+    ).rejects.toEqual(new VocabularyCandidatePublicResponseError());
   });
 });

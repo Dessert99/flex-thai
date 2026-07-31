@@ -131,7 +131,7 @@ const createDatabase = (selectResults: unknown[][]) => {
   };
 };
 
-describe('DrizzleVocabularyCandidateReviewRepository', () => {
+describe('어휘 후보 검수 Drizzle 저장소', () => {
   it('CREATE_DRAFT는 후보·DRAFT graph·audit·replay 결과를 한 transaction에서 저장한다', async () => {
     const fake = createDatabase([
       [pendingCandidate],
@@ -265,5 +265,182 @@ describe('DrizzleVocabularyCandidateReviewRepository', () => {
         revision: 1,
       }),
     );
+  });
+
+  it('legacy DRAFT_CREATED replay의 versionId와 extra field를 제거한다', async () => {
+    const approvedCandidate = {
+      ...pendingCandidate,
+      reviewStatus: 'APPROVED',
+      revision: 1,
+      resolutionKind: 'DRAFT_CREATED',
+      resolvedVocabularyId: '00000000-0000-4000-8000-000000000010',
+    };
+    const fake = createDatabase([
+      [approvedCandidate],
+      [
+        {
+          action: 'VOCABULARY_CANDIDATE_APPROVED',
+          targetId: commandContext.candidateId,
+          actorUserId: commandContext.actorUserId,
+          actorSub: commandContext.actorSub,
+          requestId: commandContext.requestId,
+          summary: {
+            request: {
+              action: 'CREATE_DRAFT',
+              actorSub: commandContext.actorSub,
+              actorUserId: commandContext.actorUserId,
+              candidateId: commandContext.candidateId,
+              confirmDuplicate: false,
+              draft: createDraftCommand.draft,
+              expectedRevision: commandContext.expectedRevision,
+            },
+            result: {
+              candidateId: commandContext.candidateId,
+              reviewStatus: 'APPROVED',
+              revision: 1,
+              internal: 'legacy',
+              resolution: {
+                kind: 'DRAFT_CREATED',
+                vocabularyId: approvedCandidate.resolvedVocabularyId,
+                versionId: '00000000-0000-4000-8000-000000000099',
+              },
+            },
+          },
+        },
+      ],
+    ]);
+    const repository = new DrizzleVocabularyCandidateReviewRepository(
+      fake.database as never,
+    );
+
+    const outcome = await repository.approve(createDraftCommand);
+
+    expect(outcome).toEqual({
+      kind: 'REPLAY',
+      result: {
+        candidateId: commandContext.candidateId,
+        reviewStatus: 'APPROVED',
+        revision: 1,
+        resolution: {
+          kind: 'DRAFT_CREATED',
+          vocabularyId: approvedCandidate.resolvedVocabularyId,
+        },
+      },
+    });
+    expect(JSON.stringify(outcome)).not.toContain('versionId');
+    expect(JSON.stringify(outcome)).not.toContain('internal');
+  });
+
+  it.each([
+    {
+      name: '명령과 다른 resolution kind',
+      result: {
+        candidateId: commandContext.candidateId,
+        reviewStatus: 'APPROVED',
+        revision: 1,
+        resolution: {
+          kind: 'EXISTING_LINKED',
+          vocabularyId: '00000000-0000-4000-8000-000000000010',
+        },
+      },
+    },
+    {
+      name: '잘못된 revision',
+      result: {
+        candidateId: commandContext.candidateId,
+        reviewStatus: 'APPROVED',
+        revision: 0,
+        resolution: {
+          kind: 'DRAFT_CREATED',
+          vocabularyId: '00000000-0000-4000-8000-000000000010',
+        },
+      },
+    },
+  ])('$name replay는 멱등 충돌로 닫는다', async ({ result }) => {
+    const fake = createDatabase([
+      [
+        {
+          ...pendingCandidate,
+          reviewStatus: 'APPROVED',
+          revision: 1,
+        },
+      ],
+      [
+        {
+          action: 'VOCABULARY_CANDIDATE_APPROVED',
+          targetId: commandContext.candidateId,
+          actorUserId: commandContext.actorUserId,
+          actorSub: commandContext.actorSub,
+          requestId: commandContext.requestId,
+          summary: {
+            request: {
+              action: 'CREATE_DRAFT',
+              actorSub: commandContext.actorSub,
+              actorUserId: commandContext.actorUserId,
+              candidateId: commandContext.candidateId,
+              confirmDuplicate: false,
+              draft: createDraftCommand.draft,
+              expectedRevision: commandContext.expectedRevision,
+            },
+            result,
+          },
+        },
+      ],
+    ]);
+    const repository = new DrizzleVocabularyCandidateReviewRepository(
+      fake.database as never,
+    );
+
+    await expect(repository.approve(createDraftCommand)).resolves.toEqual({
+      kind: 'IDEMPOTENCY_CONFLICT',
+    });
+  });
+
+  it('legacy 폐기 replay는 allow-list field만 반환한다', async () => {
+    const fake = createDatabase([
+      [
+        {
+          ...pendingCandidate,
+          reviewStatus: 'DISCARDED',
+          revision: 1,
+        },
+      ],
+      [
+        {
+          action: 'VOCABULARY_CANDIDATE_DISCARDED',
+          targetId: commandContext.candidateId,
+          actorUserId: commandContext.actorUserId,
+          actorSub: commandContext.actorSub,
+          requestId: commandContext.requestId,
+          summary: {
+            request: {
+              action: 'DISCARD',
+              actorSub: commandContext.actorSub,
+              actorUserId: commandContext.actorUserId,
+              candidateId: commandContext.candidateId,
+              expectedRevision: commandContext.expectedRevision,
+            },
+            result: {
+              candidateId: commandContext.candidateId,
+              reviewStatus: 'DISCARDED',
+              revision: 1,
+              resolution: { kind: 'DRAFT_CREATED' },
+            },
+          },
+        },
+      ],
+    ]);
+    const repository = new DrizzleVocabularyCandidateReviewRepository(
+      fake.database as never,
+    );
+
+    await expect(repository.discard(commandContext)).resolves.toEqual({
+      kind: 'REPLAY',
+      result: {
+        candidateId: commandContext.candidateId,
+        reviewStatus: 'DISCARDED',
+        revision: 1,
+      },
+    });
   });
 });

@@ -65,6 +65,17 @@ type ReviewAudit = {
   summary: Record<string, unknown>;
 };
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+const NIL_UUID = '00000000-0000-0000-0000-000000000000';
+const MAX_UUID = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const isUuid = (value: string): boolean =>
+  UUID_PATTERN.test(value) || value === NIL_UUID || value === MAX_UUID;
+
 const lockRequest = (
   transaction: ReviewTransaction,
   requestId: string,
@@ -160,25 +171,54 @@ const isExactReplay = (
 
 const approvalFromReplay = (
   replay: ReviewAudit,
+  input: ApproveVocabularyCandidateInput,
 ): VocabularyCandidateApprovalResult | null => {
   const result = replay.summary['result'];
+  const expectedResolutionKind =
+    input.action === 'CREATE_DRAFT' ? 'DRAFT_CREATED' : 'EXISTING_LINKED';
   if (
-    typeof result !== 'object' ||
-    result === null ||
-    !('resolution' in result)
+    !isRecord(result) ||
+    result['candidateId'] !== input.candidateId ||
+    result['reviewStatus'] !== 'APPROVED' ||
+    !Number.isSafeInteger(result['revision']) ||
+    (result['revision'] as number) < 1 ||
+    !isRecord(result['resolution']) ||
+    result['resolution']['kind'] !== expectedResolutionKind ||
+    typeof result['resolution']['vocabularyId'] !== 'string' ||
+    !isUuid(result['resolution']['vocabularyId'])
   ) {
     return null;
   }
-  return result as VocabularyCandidateApprovalResult;
+  return {
+    candidateId: input.candidateId,
+    reviewStatus: 'APPROVED',
+    revision: result['revision'] as number,
+    resolution: {
+      kind: expectedResolutionKind,
+      vocabularyId: result['resolution']['vocabularyId'],
+    },
+  };
 };
 
 const discardFromReplay = (
   replay: ReviewAudit,
+  input: DiscardVocabularyCandidateInput,
 ): VocabularyCandidateDiscardResult | null => {
   const result = replay.summary['result'];
-  return typeof result === 'object' && result !== null
-    ? (result as VocabularyCandidateDiscardResult)
-    : null;
+  if (
+    !isRecord(result) ||
+    result['candidateId'] !== input.candidateId ||
+    result['reviewStatus'] !== 'DISCARDED' ||
+    !Number.isSafeInteger(result['revision']) ||
+    (result['revision'] as number) < 1
+  ) {
+    return null;
+  }
+  return {
+    candidateId: input.candidateId,
+    reviewStatus: 'DISCARDED',
+    revision: result['revision'] as number,
+  };
 };
 
 const appendAudit = (
@@ -288,8 +328,12 @@ export class DrizzleVocabularyCandidateReviewRepository implements VocabularyCan
         return { kind: 'IDEMPOTENCY_CONFLICT' };
       }
       if (replay) {
-        const result = approvalFromReplay(replay);
-        return result && candidate.reviewStatus === 'APPROVED'
+        const result = approvalFromReplay(replay, input);
+        if (!result) return { kind: 'IDEMPOTENCY_CONFLICT' };
+        return candidate.reviewStatus === 'APPROVED' &&
+          candidate.revision === result.revision &&
+          candidate.resolutionKind === result.resolution.kind &&
+          candidate.resolvedVocabularyId === result.resolution.vocabularyId
           ? { kind: 'REPLAY', result }
           : { kind: 'REVIEW_CONFLICT' };
       }
@@ -322,8 +366,10 @@ export class DrizzleVocabularyCandidateReviewRepository implements VocabularyCan
         return { kind: 'IDEMPOTENCY_CONFLICT' };
       }
       if (replay) {
-        const result = discardFromReplay(replay);
-        return result && candidate.reviewStatus === 'DISCARDED'
+        const result = discardFromReplay(replay, input);
+        if (!result) return { kind: 'IDEMPOTENCY_CONFLICT' };
+        return candidate.reviewStatus === 'DISCARDED' &&
+          candidate.revision === result.revision
           ? { kind: 'REPLAY', result }
           : { kind: 'REVIEW_CONFLICT' };
       }

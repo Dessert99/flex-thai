@@ -63,7 +63,7 @@ const createDatabase = (results: Array<Array<Record<string, unknown>>>) => {
   return { database: { select }, where, orderBy, limit, offset };
 };
 
-describe('DrizzleVocabularyCandidateQuery', () => {
+describe('어휘 후보 Drizzle 조회', () => {
   it('status와 jobId를 count와 page 조회 모두에 적용한 뒤 pagination한다', async () => {
     const fake = createDatabase([[{ totalItems: 1 }], [candidate]]);
     const query = new DrizzleVocabularyCandidateQuery(fake.database as never);

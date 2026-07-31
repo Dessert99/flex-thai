@@ -1,6 +1,7 @@
 /** 문제 유형 버전의 불변 lifecycle을 검증한다 */
 import { describe, expect, it, vi } from 'vitest';
 import type {
+  QuestionApprovedExampleSnapshot,
   QuestionTaxonomyRepository,
   QuestionTypeVersionRecord,
 } from './question-taxonomy.repository.js';
@@ -8,6 +9,10 @@ import {
   QuestionTaxonomyError,
   QuestionTaxonomyService,
 } from './question-taxonomy.service.js';
+
+type ApprovedExamplePayload = QuestionApprovedExampleSnapshot['payload'];
+type ApprovedExampleSentence =
+  ApprovedExamplePayload['blocks'][number]['sentences'][number]['sentence'];
 
 const draft = (
   overrides: Partial<QuestionTypeVersionRecord> = {},
@@ -25,7 +30,7 @@ const draft = (
   ...overrides,
 });
 
-const canonicalSentence = {
+const canonicalSentence: ApprovedExampleSentence = {
   originalText: 'ก',
   translationKo: '뜻',
   pronunciationKo: '꺼',
@@ -46,7 +51,7 @@ const canonicalSentence = {
   expressions: [],
 };
 
-const standardPayload = () => ({
+const standardPayload = (): ApprovedExamplePayload => ({
   questionTypeSlug: 'reading-vocabulary',
   questionTypeVersion: 1,
   difficulty: 3,
@@ -128,6 +133,33 @@ describe('QuestionTaxonomyService', () => {
           options: standardPayload().options.slice(0, 3),
           correctOptionRef: 'missing',
         },
+      }),
+    ).rejects.toMatchObject({ code: 'APPROVED_EXAMPLE_INVALID' });
+    expect(repo.addApprovedExample).not.toHaveBeenCalled();
+  });
+
+  it('음성 없는 승인 예시는 게시 가능한 canonical snapshot이 아니므로 거부한다', async () => {
+    const repo = repository();
+    const service = new QuestionTaxonomyService(repo);
+    const sentenceWithoutAudio = { ...canonicalSentence, mediaAssetId: null };
+    const payload = standardPayload();
+    const block = payload.blocks[0];
+    if (!block) throw new Error('승인 예시 block이 필요합니다.');
+    payload.blocks[0] = {
+      ...block,
+      sentences: [{ speaker: null, sentence: sentenceWithoutAudio }],
+    };
+    payload.options = payload.options.map((option) =>
+      option.sentence === null
+        ? option
+        : { ...option, sentence: sentenceWithoutAudio },
+    );
+
+    await expect(
+      service.addApprovedExample('version-1', {
+        title: '음성 없는 읽기 예시',
+        payloadHash: 'hash',
+        payload,
       }),
     ).rejects.toMatchObject({ code: 'APPROVED_EXAMPLE_INVALID' });
     expect(repo.addApprovedExample).not.toHaveBeenCalled();

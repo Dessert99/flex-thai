@@ -16,18 +16,20 @@ describe('문제 버전 구조화 payload 변환', () => {
     });
   });
 
-  it('media가 없는 문장은 해당 field path로 구조화 편집을 막는다', () => {
+  it('media가 없는 문장도 null을 보존해 구조화 편집을 초기화한다', () => {
     const candidate = version();
     const block = candidate.blocks[0];
     const item = block?.sentences[0];
     if (!item) throw new Error('테스트 문장 fixture가 필요합니다.');
     item.sentence.mediaAssetId = null;
 
-    expect(toQuestionVersionPayload(candidate as never)).toEqual({
-      ok: false,
-      path: 'blocks.0.sentences.0.sentence.mediaAssetId',
-      message: 'READY 음성이 있는 문장만 구조화 교체할 수 있습니다.',
-    });
+    const result = toQuestionVersionPayload(candidate as never);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('payload 변환 성공이 필요합니다.');
+    expect(
+      result.payload.blocks[0]?.sentences[0]?.sentence.mediaAssetId,
+    ).toBeNull();
   });
 });
 

@@ -15,6 +15,7 @@ import {
   ApiBody,
   ApiCreatedResponse,
   ApiExtraModels,
+  ApiHeader,
   ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
@@ -126,6 +127,11 @@ export class AdminQuestionsController {
   @ApiOperation({ summary: '문제 버전의 누락된 필수 문장 TTS를 예약한다' })
   @ApiParam({ name: 'questionId', type: 'string', format: 'uuid' })
   @ApiParam({ name: 'versionId', type: 'string', format: 'uuid' })
+  @ApiHeader({
+    name: 'X-Request-ID',
+    required: true,
+    schema: { type: 'string', format: 'uuid' },
+  })
   @ApiCreatedResponse({ type: AdminQuestionTtsJobResponseDto })
   @ApiProblemResponses(400, 401, 403, 404, 409, 500)
   @Post('questions/:questionId/versions/:versionId/tts-jobs')

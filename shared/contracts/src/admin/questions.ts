@@ -93,11 +93,20 @@ const adminQuestionSentenceInputSchema = z
     translationKo: z.string().min(1),
     pronunciationKo: z.string().min(1),
     toneMarks: z.string(),
-    mediaAssetId: uuidSchema,
+    mediaAssetId: uuidSchema.nullable(),
     tokens: z.array(adminQuestionTokenInputSchema),
     expressions: z.array(adminQuestionExpressionInputSchema),
   })
   .strict();
+
+const canonicalMediaPlaceholder = '00000000-0000-4000-8000-000000000000';
+
+const withCanonicalSentenceMedia = (
+  sentence: z.infer<typeof adminQuestionSentenceInputSchema>,
+) => ({
+  ...sentence,
+  mediaAssetId: sentence.mediaAssetId ?? canonicalMediaPlaceholder,
+});
 
 const adminQuestionBlockInputSchema = z
   .object({
@@ -171,7 +180,24 @@ export const adminQuestionVersionPayloadSchema = z
   .strict()
   .superRefine((payload, context) => {
     // import와 공유하는 offset·option 관계 규칙은 한 원본에서 검증한다.
-    const result = canonicalQuestionVersionInputSchema.safeParse(payload);
+    const result = canonicalQuestionVersionInputSchema.safeParse({
+      ...payload,
+      blocks: payload.blocks.map((block) => ({
+        ...block,
+        sentences: block.sentences.map((entry) => ({
+          ...entry,
+          sentence: withCanonicalSentenceMedia(entry.sentence),
+        })),
+      })),
+      options: payload.options.map((option) =>
+        option.sentence === null
+          ? option
+          : {
+              ...option,
+              sentence: withCanonicalSentenceMedia(option.sentence),
+            },
+      ),
+    });
     if (!result.success) {
       result.error.issues.forEach((issue) =>
         context.addIssue({

@@ -7,7 +7,7 @@ import {
   type QuestionTtsRegenerationResult,
   type TtsVoiceSnapshot,
 } from '@flex-thia/domain';
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import {
@@ -41,6 +41,28 @@ const targetMismatch = (): never => {
 };
 
 type QuestionTtsDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
+
+/** nullable media JOIN에서 문장 버전 row만 잠그는 query를 만든다 */
+export const createQuestionTtsTargetSentenceLockQuery = (
+  transaction: Pick<QuestionTtsDatabase, 'select'>,
+  targetIds: string[],
+) =>
+  transaction
+    .select({
+      id: thaiSentenceVersions.id,
+      originalText: thaiSentenceVersions.originalText,
+      mediaAssetId: thaiSentenceVersions.mediaAssetId,
+      mediaStatus: mediaAssets.status,
+      frozenAt: thaiSentenceVersions.frozenAt,
+    })
+    .from(thaiSentenceVersions)
+    .leftJoin(
+      mediaAssets,
+      eq(thaiSentenceVersions.mediaAssetId, mediaAssets.id),
+    )
+    .where(inArray(thaiSentenceVersions.id, targetIds))
+    .orderBy(asc(thaiSentenceVersions.id))
+    .for('update', { of: thaiSentenceVersions });
 
 /** 관리자 문제 버전 TTS 재생성 transaction 입력 */
 export interface QuestionTtsRegenerationInput {
@@ -103,6 +125,9 @@ export class DrizzleGeneratedQuestionTtsScheduler implements GeneratedQuestionTt
     input: QuestionTtsRegenerationInput,
   ): Promise<QuestionTtsRegenerationResult> {
     return database.transaction(async (transaction) => {
+      await transaction.execute(
+        sql`select pg_advisory_xact_lock(hashtextextended(${input.requestId}, 0))`,
+      );
       const [version] = await transaction
         .select({
           id: questionVersions.id,
@@ -295,22 +320,10 @@ export class DrizzleGeneratedQuestionTtsScheduler implements GeneratedQuestionTt
     const targetIds = [...rolesByTarget.keys()].sort();
     if (targetIds.length === 0) return targetMismatch();
 
-    const sentences = await transaction
-      .select({
-        id: thaiSentenceVersions.id,
-        originalText: thaiSentenceVersions.originalText,
-        mediaAssetId: thaiSentenceVersions.mediaAssetId,
-        mediaStatus: mediaAssets.status,
-        frozenAt: thaiSentenceVersions.frozenAt,
-      })
-      .from(thaiSentenceVersions)
-      .leftJoin(
-        mediaAssets,
-        eq(thaiSentenceVersions.mediaAssetId, mediaAssets.id),
-      )
-      .where(inArray(thaiSentenceVersions.id, targetIds))
-      .orderBy(asc(thaiSentenceVersions.id))
-      .for('update');
+    const sentences = await createQuestionTtsTargetSentenceLockQuery(
+      transaction,
+      targetIds,
+    );
     if (
       sentences.length !== targetIds.length ||
       sentences.some(

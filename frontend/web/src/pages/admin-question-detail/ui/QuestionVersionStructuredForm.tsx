@@ -7,6 +7,11 @@ import { useState, type Dispatch, type SetStateAction } from 'react';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
+import { QuestionVersionFormErrorSummary } from './QuestionVersionFormErrorSummary';
+import {
+  QuestionVersionSentenceFields,
+  type QuestionVersionSentenceField,
+} from './QuestionVersionSentenceFields';
 
 interface QuestionVersionStructuredFormProps {
   disabled: boolean;
@@ -14,10 +19,12 @@ interface QuestionVersionStructuredFormProps {
   onReplace: (payload: AdminQuestionVersionPayload) => void;
 }
 
-type SentenceField =
-  'originalText' | 'translationKo' | 'pronunciationKo' | 'toneMarks';
 type SetPayload = Dispatch<SetStateAction<AdminQuestionVersionPayload>>;
 type Errors = Record<string, string>;
+interface ErrorIssue {
+  message: string;
+  path: string;
+}
 
 /** 문장·보기·정답·해설을 field path 단위로 검증해 canonical payload를 만든다 */
 export function QuestionVersionStructuredForm({
@@ -26,21 +33,22 @@ export function QuestionVersionStructuredForm({
   onReplace,
 }: QuestionVersionStructuredFormProps) {
   const [payload, setPayload] = useState(initialPayload);
-  const [errors, setErrors] = useState<Errors>({});
+  const [issues, setIssues] = useState<ErrorIssue[]>([]);
+  const errors = Object.fromEntries(
+    issues.map((issue) => [issue.path, `${issue.path}: ${issue.message}`]),
+  );
   const submit = () => {
     const parsed = adminQuestionVersionPayloadSchema.safeParse(payload);
     if (!parsed.success) {
-      setErrors(
-        Object.fromEntries(
-          parsed.error.issues.map((issue) => [
-            issue.path.join('.'),
-            `${issue.path.join('.')}: ${issue.message}`,
-          ]),
-        ),
+      setIssues(
+        parsed.error.issues.map((issue) => ({
+          message: issue.message,
+          path: issue.path.join('.'),
+        })),
       );
       return;
     }
-    setErrors({});
+    setIssues([]);
     onReplace(parsed.data);
   };
 
@@ -68,6 +76,9 @@ export function QuestionVersionStructuredForm({
         payload={payload}
         setPayload={setPayload}
       />
+      {issues.length > 0 ? (
+        <QuestionVersionFormErrorSummary issues={issues} />
+      ) : null}
       <Button
         disabled={disabled}
         type='submit'
@@ -129,7 +140,7 @@ function BlockFields({
         {block.kind === 'EXPLANATION' ? '해설' : `본문 ${block.kind}`}
       </legend>
       {block.sentences.map((item, sentenceIndex) => (
-        <SentenceFields
+        <QuestionVersionSentenceFields
           errors={errors}
           key={`${blockIndex}-${sentenceIndex}`}
           onChange={(field, value) =>
@@ -171,7 +182,7 @@ function OptionFields({
             {option.span.endTokenIndex}
           </p>
         ) : (
-          <SentenceFields
+          <QuestionVersionSentenceFields
             errors={errors}
             key={option.clientRef}
             onChange={(field, value) =>
@@ -211,59 +222,14 @@ function OptionFields({
   );
 }
 
-function SentenceFields({
-  errors,
-  onChange,
-  path,
-  sentence,
-}: {
-  errors: Errors;
-  onChange: (field: SentenceField, value: string) => void;
-  path: string;
-  sentence: AdminQuestionVersionPayload['blocks'][number]['sentences'][number]['sentence'];
-}) {
-  return (
-    <div className='grid gap-cluster'>
-      {(
-        [
-          ['originalText', '태국어 문장'],
-          ['translationKo', '한국어 번역'],
-          ['pronunciationKo', '한국어 발음'],
-          ['toneMarks', '성조 표기'],
-        ] as const
-      ).map(([field, label]) => {
-        const fieldPath = `${path}.${field}`;
-        const fieldId = fieldPath.replaceAll('.', '-');
-        return (
-          <div
-            className='grid gap-cluster'
-            key={field}
-          >
-            <Label htmlFor={fieldId}>{label}</Label>
-            <Input
-              aria-invalid={errors[fieldPath] !== undefined}
-              id={fieldId}
-              onChange={(event) => onChange(field, event.target.value)}
-              value={sentence[field]}
-            />
-            <FieldError
-              errors={errors}
-              path={fieldPath}
-            />
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 function updateBlockSentence(
   setPayload: SetPayload,
   blockIndex: number,
   sentenceIndex: number,
-  field: SentenceField,
+  field: QuestionVersionSentenceField,
   value: string,
 ) {
+  const invalidatesAudio = field !== 'translationKo';
   setPayload((current) => ({
     ...current,
     blocks: current.blocks.map((block, candidateBlockIndex) => ({
@@ -271,7 +237,14 @@ function updateBlockSentence(
       sentences: block.sentences.map((item, candidateSentenceIndex) =>
         candidateBlockIndex === blockIndex &&
         candidateSentenceIndex === sentenceIndex
-          ? { ...item, sentence: { ...item.sentence, [field]: value } }
+          ? {
+              ...item,
+              sentence: {
+                ...item.sentence,
+                [field]: value,
+                ...(invalidatesAudio ? { mediaAssetId: null } : {}),
+              },
+            }
           : item,
       ),
     })),
@@ -281,14 +254,22 @@ function updateBlockSentence(
 function updateOptionSentence(
   setPayload: SetPayload,
   optionIndex: number,
-  field: SentenceField,
+  field: QuestionVersionSentenceField,
   value: string,
 ) {
+  const invalidatesAudio = field !== 'translationKo';
   setPayload((current) => ({
     ...current,
     options: current.options.map((option, candidateIndex) =>
       candidateIndex === optionIndex && option.sentence !== null
-        ? { ...option, sentence: { ...option.sentence, [field]: value } }
+        ? {
+            ...option,
+            sentence: {
+              ...option.sentence,
+              [field]: value,
+              ...(invalidatesAudio ? { mediaAssetId: null } : {}),
+            },
+          }
         : option,
     ),
   }));

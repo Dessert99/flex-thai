@@ -28,6 +28,18 @@ const readHttpCode = (method: keyof AdminQuestionsController) => {
   return Reflect.getMetadata(HTTP_CODE_METADATA, handler) as number | undefined;
 };
 
+const readApiParameters = (method: keyof AdminQuestionsController) => {
+  const handler = Object.getOwnPropertyDescriptor(
+    AdminQuestionsController.prototype,
+    method,
+  )?.value as object;
+  return Reflect.getMetadata('swagger/apiParameters', handler) as Array<{
+    in?: string;
+    name?: string;
+    required?: boolean;
+  }>;
+};
+
 const service = () => ({
   listQuestions: vi.fn().mockResolvedValue({
     items: [],
@@ -76,6 +88,13 @@ describe('AdminQuestionsController 보호 경계', () => {
     expect(readHttpCode('invalidateQuestionVersion')).toBe(204);
     expect(readHttpCode('hideQuestion')).toBe(204);
     expect(readHttpCode('restoreQuestion')).toBe(204);
+    expect(readApiParameters('regenerateQuestionVersionTts')).toContainEqual(
+      expect.objectContaining({
+        in: 'header',
+        name: 'X-Request-ID',
+        required: true,
+      }),
+    );
   });
 
   it('목록 query와 상세·command UUID path를 parse한다', async () => {

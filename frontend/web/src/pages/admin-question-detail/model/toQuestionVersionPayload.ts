@@ -14,66 +14,46 @@ export type ToQuestionVersionPayloadResult =
 
 const mapSentence = (
   sentence: Sentence,
-  path: string,
-):
-  | {
-      ok: true;
-      sentence: AdminQuestionVersionPayload['blocks'][number]['sentences'][number]['sentence'];
-    }
-  | { ok: false; path: string; message: string } => {
-  if (sentence.mediaAssetId === null) {
-    return {
-      ok: false,
-      path: `${path}.mediaAssetId`,
-      message: 'READY 음성이 있는 문장만 구조화 교체할 수 있습니다.',
-    };
-  }
-  return {
-    ok: true,
-    sentence: {
-      originalText: sentence.originalText,
-      translationKo: sentence.translationKo,
-      pronunciationKo: sentence.pronunciationKo,
-      toneMarks: sentence.toneMarks,
-      mediaAssetId: sentence.mediaAssetId,
-      tokens: sentence.tokens.map((token) => ({
-        surface: token.surface,
-        startOffset: token.startOffset,
-        endOffset: token.endOffset,
-        vocabulary: { id: token.vocabularyId },
-        meaning: { id: token.meaningId },
-        pronunciation: { id: token.pronunciationId },
-        contextMeaningKo: token.contextMeaningKo,
-        role: token.role,
-      })),
-      expressions: sentence.expressions.map((expression) => ({
-        startTokenIndex: expression.startTokenIndex,
-        endTokenIndex: expression.endTokenIndex,
-        vocabulary: { id: expression.vocabularyId },
-        meaning: { id: expression.meaningId },
-        pronunciation: { id: expression.pronunciationId },
-        contextMeaningKo: expression.contextMeaningKo,
-        representative: expression.representative,
-      })),
-    },
-  };
-};
+): AdminQuestionVersionPayload['blocks'][number]['sentences'][number]['sentence'] => ({
+  originalText: sentence.originalText,
+  translationKo: sentence.translationKo,
+  pronunciationKo: sentence.pronunciationKo,
+  toneMarks: sentence.toneMarks,
+  mediaAssetId: sentence.mediaAssetId,
+  tokens: sentence.tokens.map((token) => ({
+    surface: token.surface,
+    startOffset: token.startOffset,
+    endOffset: token.endOffset,
+    vocabulary: { id: token.vocabularyId },
+    meaning: { id: token.meaningId },
+    pronunciation: { id: token.pronunciationId },
+    contextMeaningKo: token.contextMeaningKo,
+    role: token.role,
+  })),
+  expressions: sentence.expressions.map((expression) => ({
+    startTokenIndex: expression.startTokenIndex,
+    endTokenIndex: expression.endTokenIndex,
+    vocabulary: { id: expression.vocabularyId },
+    meaning: { id: expression.meaningId },
+    pronunciation: { id: expression.pronunciationId },
+    contextMeaningKo: expression.contextMeaningKo,
+    representative: expression.representative,
+  })),
+});
 
 /** 현재 immutable graph의 ref를 보존해 구조화 form용 payload를 만든다 */
 export function toQuestionVersionPayload(
   version: Version,
 ): ToQuestionVersionPayloadResult {
   const blocks: AdminQuestionVersionPayload['blocks'] = [];
-  for (const [blockIndex, block] of version.blocks.entries()) {
+  for (const block of version.blocks) {
     const sentences: AdminQuestionVersionPayload['blocks'][number]['sentences'] =
       [];
-    for (const [sentenceIndex, item] of block.sentences.entries()) {
-      const mapped = mapSentence(
-        item.sentence,
-        `blocks.${blockIndex}.sentences.${sentenceIndex}.sentence`,
-      );
-      if (!mapped.ok) return mapped;
-      sentences.push({ speaker: item.speaker, sentence: mapped.sentence });
+    for (const item of block.sentences) {
+      sentences.push({
+        speaker: item.speaker,
+        sentence: mapSentence(item.sentence),
+      });
     }
     blocks.push({
       kind: block.kind,
@@ -85,15 +65,10 @@ export function toQuestionVersionPayload(
   const options: AdminQuestionVersionPayload['options'] = [];
   for (const [optionIndex, option] of version.options.entries()) {
     if (option.sentenceVersionId !== null) {
-      const mapped = mapSentence(
-        option.sentence,
-        `options.${optionIndex}.sentence`,
-      );
-      if (!mapped.ok) return mapped;
       options.push({
         clientRef: option.id,
         position: option.position,
-        sentence: mapped.sentence,
+        sentence: mapSentence(option.sentence),
         span: null,
       });
       continue;

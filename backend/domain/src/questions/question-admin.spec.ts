@@ -499,6 +499,29 @@ describe('QuestionAdminService 문제 버전 전체 교체', () => {
     ]);
   });
 
+  it('media가 없는 관리자 문장은 READY 조회 없이 null snapshot으로 교체한다', async () => {
+    const calls: string[] = [];
+    let replaced: QuestionAdminVersionGraph | undefined;
+    const command = replaceCommand();
+    command.input.blocks[0]!.sentences[0]!.sentence.mediaAssetId = null;
+    requireAdminOptionSentence(command).mediaAssetId = null;
+    const service = createService(
+      createTransaction(calls, {
+        onReplace: (graph) => {
+          replaced = graph;
+        },
+      }),
+      calls,
+    );
+
+    await service.replaceVersion(command);
+
+    expect(
+      replaced?.sentences.map(({ version }) => version.mediaAssetId),
+    ).toEqual([null, null]);
+    expect(calls).not.toContain('findMediaAssetById');
+  });
+
   it('인라인 선택지는 별도 문장 없이 문제 문장의 span만 저장한다', async () => {
     const calls: string[] = [];
     let replaced: QuestionAdminVersionGraph | undefined;
