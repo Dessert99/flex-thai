@@ -31,6 +31,8 @@ export * from './concepts/index.js';
 export * from './recommendations/recommendations.js';
 /** AI 문제 후보 운영 계약을 패키지 공개 경계에 노출한다 */
 export * from './content-production/question-production.js';
+/** AI 어휘 후보 운영 계약을 패키지 공개 경계에 노출한다 */
+export * from './content-production/vocabulary-candidates.js';
 /** 콘텐츠 제작 upload·preset·작업 계약을 패키지 공개 경계에 노출한다 */
 export * from './content-production/content-production.js';
 
