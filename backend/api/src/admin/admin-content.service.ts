@@ -1,8 +1,9 @@
 /** 관리자 use case와 read model을 strict 공개 응답·감사 문맥으로 조립한다 */
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import {
   adminQuestionDetailResponseSchema,
   adminQuestionListResponseSchema,
+  adminQuestionTtsJobResponseSchema,
   adminQuestionValidationReportSchema,
   adminQuestionVersionResponseSchema,
   adminVocabularyDetailResponseSchema,
@@ -18,6 +19,7 @@ import {
   type AdminQuestionDetailResponse,
   type AdminQuestionListQuery,
   type AdminQuestionListResponse,
+  type AdminQuestionTtsJobResponse,
   type AdminQuestionValidationReport,
   type AdminQuestionVersionPayload,
   type AdminQuestionVersionResponse,
@@ -46,14 +48,17 @@ import type {
   DrizzleAdminQuestionQuery,
   DrizzleAdminVocabularyQuery,
   DrizzleContentImportQuery,
+  QuestionTtsRegenerationInput,
 } from '@flex-thia/database';
 import type {
   ContentImportService,
   MediaAdminService,
+  MediaReadUrlProvider,
   QuestionAdminService,
   QuestionPublicationService,
   VocabularyAdminService,
 } from '@flex-thia/domain';
+import { QuestionTtsRegenerationError as QuestionTtsRegenerationDomainError } from '@flex-thia/domain';
 import type { ZodType } from 'zod';
 import type { AuthenticatedUser } from '../common/auth/current-user.decorator.js';
 
@@ -74,6 +79,11 @@ type QuestionPublication = Pick<
   | 'validateVersion'
 >;
 type QuestionQuery = Pick<DrizzleAdminQuestionQuery, 'findById' | 'list'>;
+type QuestionTts = {
+  regenerate(
+    input: QuestionTtsRegenerationInput,
+  ): Promise<AdminQuestionTtsJobResponse>;
+};
 type Vocabularies = Pick<
   VocabularyAdminService,
   | 'createRelation'
@@ -114,6 +124,8 @@ export interface AdminContentDependencies {
   questions: Questions;
   questionPublication: QuestionPublication;
   questionQuery: QuestionQuery;
+  questionTts: QuestionTts;
+  mediaReadUrls: MediaReadUrlProvider;
   vocabularies: Vocabularies;
   vocabularyQuery: VocabularyQuery;
   findQuestionIdByVersionId(versionId: string): Promise<string | null>;
@@ -318,20 +330,107 @@ export class AdminContentService {
     if (!question) {
       throw new NotFoundException({ code: 'QUESTION_NOT_FOUND' });
     }
+    const expiresAt = new Date(this.now().getTime() + 5 * 60 * 1_000);
+    const signedUrls = new Map<string, Promise<string>>();
+    const mapSentence = async (
+      sentence: (typeof question.versions)[number]['blocks'][number]['sentences'][number]['sentence'],
+    ) => {
+      let audio:
+        | { status: 'MISSING'; readUrl: null }
+        | { status: 'UPLOADING' | 'FAILED'; readUrl: null }
+        | { status: 'READY'; readUrl: string };
+      if (sentence.mediaAssetId === null) {
+        audio = { status: 'MISSING', readUrl: null };
+      } else if (sentence.mediaStatus === 'READY') {
+        if (sentence.mediaStorageKey === null) {
+          throw new AdminPublicResponseError();
+        }
+        const pending =
+          signedUrls.get(sentence.mediaStorageKey) ??
+          this.dependencies.mediaReadUrls.createReadUrl(
+            sentence.mediaStorageKey,
+            expiresAt,
+          );
+        signedUrls.set(sentence.mediaStorageKey, pending);
+        audio = { status: 'READY', readUrl: await pending };
+      } else {
+        audio = {
+          status: sentence.mediaStatus === 'REJECTED' ? 'FAILED' : 'UPLOADING',
+          readUrl: null,
+        };
+      }
+      return {
+        id: sentence.id,
+        originalText: sentence.originalText,
+        translationKo: sentence.translationKo,
+        pronunciationKo: sentence.pronunciationKo,
+        toneMarks: sentence.toneMarks,
+        mediaAssetId: sentence.mediaAssetId,
+        audio,
+        tokens: sentence.tokens,
+        expressions: sentence.expressions,
+      };
+    };
     return parseAdminPublicResponse(adminQuestionDetailResponseSchema, {
       ...question,
       createdAt: question.createdAt.toISOString(),
       updatedAt: question.updatedAt.toISOString(),
-      versions: question.versions.map((version) => ({
-        ...version,
-        createdAt: version.createdAt.toISOString(),
-        publishedAt: version.publishedAt?.toISOString() ?? null,
-        validation: {
-          ...version.validation,
-          validatedAt: version.validation.validatedAt?.toISOString() ?? null,
-        },
-      })),
+      versions: await Promise.all(
+        question.versions.map(async (version) => ({
+          ...version,
+          createdAt: version.createdAt.toISOString(),
+          publishedAt: version.publishedAt?.toISOString() ?? null,
+          validation: {
+            ...version.validation,
+            validatedAt: version.validation.validatedAt?.toISOString() ?? null,
+          },
+          blocks: await Promise.all(
+            version.blocks.map(async (block) => ({
+              ...block,
+              sentences: await Promise.all(
+                block.sentences.map(async (sentence) => ({
+                  ...sentence,
+                  sentence: await mapSentence(sentence.sentence),
+                })),
+              ),
+            })),
+          ),
+          options: await Promise.all(
+            version.options.map(async (option) => ({
+              ...option,
+              sentence: await mapSentence(option.sentence),
+            })),
+          ),
+        })),
+      ),
     });
+  }
+
+  /** DRAFT의 누락 문장만 TTS로 예약하고 동일 요청 결과를 재사용한다 */
+  async regenerateQuestionVersionTts(
+    actor: AdminActorContext,
+    questionId: string,
+    versionId: string,
+  ): Promise<AdminQuestionTtsJobResponse> {
+    try {
+      return parseAdminPublicResponse(
+        adminQuestionTtsJobResponseSchema,
+        await this.dependencies.questionTts.regenerate({
+          questionId,
+          versionId,
+          actorUserId: actor.userId,
+          actorSub: actor.sub,
+          requestId: actor.requestId,
+          requestedAt: this.now(),
+        }),
+      );
+    } catch (error) {
+      if (!(error instanceof QuestionTtsRegenerationDomainError)) throw error;
+      if (error.code === 'QUESTION_TTS_VERSION_NOT_FOUND') {
+        throw new NotFoundException({ code: error.code });
+      }
+      throw new ConflictException({ code: error.code });
+    }
   }
 
   /** 현재 게시 또는 latest version을 복제한 새 DRAFT 요약을 반환한다 */

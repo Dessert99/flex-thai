@@ -5,6 +5,8 @@ import { isApiError } from '@/shared/api';
 import { Badge } from '@/shared/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { PageError, PageLoading } from '@/shared/ui/page-state';
+import { QuestionVersionComparison } from './QuestionVersionComparison';
+import { QuestionVersionPreview } from './QuestionVersionPreview';
 
 interface AdminQuestionDetailPageViewProps {
   actions: ReactNode;
@@ -57,6 +59,7 @@ export function AdminQuestionDetailPageView({
         </Badge>
         <div className='flex flex-wrap gap-cluster'>{actions}</div>
       </header>
+      <QuestionVersionComparison versions={data.versions} />
       <div className='grid gap-section'>
         {data.versions.map((version) => (
           <QuestionVersionCard
@@ -124,6 +127,7 @@ function QuestionVersionCard({
             <dd className='break-all'>{version.correctOptionId}</dd>
           </div>
         </dl>
+        <QuestionVersionPreview version={version} />
         {version.validation.status === 'FAILED' ? (
           <ul className='grid gap-cluster'>
             {version.validation.issues.map(({ path, code }) => (

@@ -37,10 +37,14 @@ const ACTIVE_PATHS = [
   '/api/v1/admin/content-production/question-candidates/{candidateId}',
   '/api/v1/admin/content-production/question-candidates/{candidateId}/approve',
   '/api/v1/admin/content-production/question-candidates/{candidateId}/regenerate',
+  '/api/v1/admin/content-production/vocabulary-candidates',
+  '/api/v1/admin/content-production/vocabulary-candidates/{candidateId}',
+  '/api/v1/admin/content-production/vocabulary-candidates/{candidateId}/approve',
   '/api/v1/admin/content-production/uploads/policies',
   '/api/v1/admin/content-production/uploads/{uploadId}/complete',
   '/api/v1/admin/audit-logs',
   '/api/v1/admin/audit-logs/{auditLogId}',
+  '/api/v1/admin/home',
   '/api/v1/admin/media-assets/audio-upload-requests',
   '/api/v1/admin/media-assets/{mediaAssetId}',
   '/api/v1/admin/media-assets/{mediaAssetId}/complete',
@@ -49,6 +53,7 @@ const ACTIVE_PATHS = [
   '/api/v1/admin/questions/{questionId}/hide',
   '/api/v1/admin/questions/{questionId}/restore',
   '/api/v1/admin/questions/{questionId}/versions',
+  '/api/v1/admin/questions/{questionId}/versions/{versionId}/tts-jobs',
   '/api/v1/admin/tts/items/{itemId}/audio',
   '/api/v1/admin/tts/items/{itemId}/retry',
   '/api/v1/admin/tts/jobs',
@@ -414,7 +419,10 @@ const expectProtectedOpenApiOperations = (
     headerParameters.forEach((parameter) => {
       expect(parameter.required).toBe(true);
 
-      if (parameter.name === 'Idempotency-Key') {
+      if (
+        parameter.name === 'Idempotency-Key' ||
+        parameter.name === 'X-Request-ID'
+      ) {
         expect(parameter.schema).toEqual({
           type: 'string',
           format: 'uuid',
@@ -472,6 +480,12 @@ const expectProtectedOpenApiOperations = (
 };
 
 const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
+  {
+    method: 'get',
+    path: '/api/v1/admin/home',
+    success: ['200', 'AdminHomeOperationsResponseDto'],
+    errors: ['401', '403', '500'],
+  },
   {
     method: 'post',
     path: '/api/v1/admin/content-production/prompt-previews',
@@ -600,6 +614,36 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
     ],
     success: ['200', 'QuestionCandidateListResponseDto'],
     errors: ['400', '401', '403', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/admin/content-production/vocabulary-candidates',
+    query: ['jobId', 'reviewStatus', 'page', 'pageSize'],
+    success: ['200', 'VocabularyCandidateListResponseDto'],
+    errors: ['400', '401', '403', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/admin/content-production/vocabulary-candidates/{candidateId}',
+    pathParameters: ['candidateId'],
+    success: ['200', 'VocabularyCandidateDetailResponseDto'],
+    errors: ['400', '401', '403', '404', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/content-production/vocabulary-candidates/{candidateId}/approve',
+    pathParameters: ['candidateId'],
+    body: 'VocabularyCandidateApproveRequestDto',
+    success: ['200', 'VocabularyCandidateApproveResponseDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'delete',
+    path: '/api/v1/admin/content-production/vocabulary-candidates/{candidateId}',
+    pathParameters: ['candidateId'],
+    body: 'VocabularyCandidateDiscardRequestDto',
+    success: ['200', 'VocabularyCandidateDiscardResponseDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
   },
   {
     method: 'get',
@@ -1003,6 +1047,14 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
     errors: ['400', '401', '403', '404', '409', '500'],
   },
   {
+    method: 'post',
+    path: '/api/v1/admin/questions/{questionId}/versions/{versionId}/tts-jobs',
+    pathParameters: ['questionId', 'versionId'],
+    headers: ['X-Request-ID'],
+    success: ['201', 'AdminQuestionTtsJobResponseDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
     method: 'put',
     path: '/api/v1/admin/question-versions/{versionId}',
     pathParameters: ['versionId'],
@@ -1402,7 +1454,7 @@ describe('OpenAPI 문서', () => {
     await app?.close();
   });
 
-  it('현재 활성 endpoint의 서로 다른 path 백두 개만 공개한다', () => {
+  it('현재 활성 endpoint의 서로 다른 path 백스무 개만 공개한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
@@ -1665,12 +1717,12 @@ describe('OpenAPI 문서', () => {
     expectProtectedOpenApiOperations(document, LEARNER_OPERATIONS);
   });
 
-  it('관리자 operation 아흔 개의 입력·성공·Bearer·오류 계약을 모두 고정한다', () => {
+  it('관리자 operation 아흔여섯 개의 입력·성공·Bearer·오류 계약을 모두 고정한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
 
-    expect(ADMIN_OPERATIONS).toHaveLength(90);
+    expect(ADMIN_OPERATIONS).toHaveLength(96);
     expectProtectedOpenApiOperations(document, ADMIN_OPERATIONS);
   });
 
@@ -1690,6 +1742,7 @@ describe('OpenAPI 문서', () => {
     );
     expect(adminComponents).toHaveProperty('ContentImportRequestDto');
     expect(adminComponents).toHaveProperty('AdminQuestionDetailResponseDto');
+    expect(adminComponents).toHaveProperty('AdminQuestionTtsJobResponseDto');
     expect(adminComponents).toHaveProperty('AdminVocabularyDetailResponseDto');
   });
 

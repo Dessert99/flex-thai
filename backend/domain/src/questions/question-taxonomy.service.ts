@@ -170,19 +170,22 @@ const toExampleSentence = (
       adminSelected: expression.representative ?? false,
     })),
   },
-  mediaAsset: {
-    id: sentence.mediaAssetId,
-    kind: 'AUDIO',
-    storageKey: `approved-example/${sentence.mediaAssetId}`,
-    declaredMimeType: 'audio/mpeg',
-    declaredSizeBytes: 1,
-    declaredSha256: '0'.repeat(64),
-    mimeType: 'audio/mpeg',
-    sizeBytes: 1,
-    sha256: '0'.repeat(64),
-    status: 'READY',
-    readyAt: new Date(0),
-  },
+  mediaAsset:
+    sentence.mediaAssetId === null
+      ? null
+      : {
+          id: sentence.mediaAssetId,
+          kind: 'AUDIO',
+          storageKey: `approved-example/${sentence.mediaAssetId}`,
+          declaredMimeType: 'audio/mpeg',
+          declaredSizeBytes: 1,
+          declaredSha256: '0'.repeat(64),
+          mimeType: 'audio/mpeg',
+          sizeBytes: 1,
+          sha256: '0'.repeat(64),
+          status: 'READY',
+          readyAt: new Date(0),
+        },
   referencedVocabularies: sentence.tokens.map(({ vocabulary }) => ({
     id: vocabulary.id,
     status: 'PUBLISHED',

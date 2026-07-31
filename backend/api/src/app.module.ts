@@ -11,6 +11,7 @@ import {
   createDataApiDatabase,
   createLocalDatabase,
   DrizzleAdminConceptQuery,
+  DrizzleAdminHomeQuery,
   DrizzleAdminMediaQuery,
   DrizzleAdminQuestionQuery,
   DrizzleAdminVocabularyQuery,
@@ -36,6 +37,8 @@ import {
   DrizzleMediaAdminRepository,
   DrizzleQuestionAdminRepository,
   DrizzleQuestionCandidateQuery,
+  DrizzleVocabularyCandidateQuery,
+  DrizzleVocabularyCandidateReviewRepository,
   DrizzleQuestionProductionContextQuery,
   DrizzleQuestionPublicationRepository,
   DrizzleQuestionTaxonomyQuery,
@@ -70,6 +73,7 @@ import {
   QuestionAdminService,
   QuestionAttemptService,
   QuestionCandidateReviewService,
+  VocabularyCandidateReviewService,
   QuestionPublicationService,
   QuestionTaxonomyService,
   SavedContentService,
@@ -325,15 +329,16 @@ export const createApplicationModule = (
     database,
   );
   const dispatchOutbox = new DrizzleAsyncDispatchOutboxRepository(database);
+  const questionTtsScheduler = new DrizzleGeneratedQuestionTtsScheduler(
+    env.TTS_VOICE_PRESET_ID,
+    dispatchOutbox,
+  );
   const questionCandidateRepository = new DrizzleAiQuestionProductionRepository(
     database,
     () => new Date(),
     new DrizzleGeneratedQuestionDraftRepository(),
     dispatchOutbox,
-    new DrizzleGeneratedQuestionTtsScheduler(
-      env.TTS_VOICE_PRESET_ID,
-      dispatchOutbox,
-    ),
+    questionTtsScheduler,
   );
   const questionProductionContext = new DrizzleQuestionProductionContextQuery(
     database,
@@ -365,6 +370,8 @@ export const createApplicationModule = (
     contentProductionRepository,
     contentProductionQueue,
   );
+  const vocabularyCandidateRepository =
+    new DrizzleVocabularyCandidateReviewRepository(database);
   const ttsOperationsQuery = new DrizzleTtsOperationsQuery(database);
   const questionTaxonomy = new QuestionTaxonomyService(
     new DrizzleQuestionTaxonomyRepository(database),
@@ -403,6 +410,11 @@ export const createApplicationModule = (
         questions: new QuestionAdminService(questionAdminRepository),
         questionPublication,
         questionQuery: new DrizzleAdminQuestionQuery(database),
+        questionTts: {
+          regenerate: (input) =>
+            questionTtsScheduler.regenerate(database, input),
+        },
+        mediaReadUrls,
         vocabularies: new VocabularyAdminService(vocabularyRepository),
         vocabularyQuery: new DrizzleAdminVocabularyQuery(database),
         findQuestionIdByVersionId: async (versionId) =>
@@ -452,6 +464,10 @@ export const createApplicationModule = (
           questionCandidateRepository,
         ),
         questionProductionContext,
+        vocabularyCandidates: new DrizzleVocabularyCandidateQuery(database),
+        vocabularyCandidateReview: new VocabularyCandidateReviewService(
+          vocabularyCandidateRepository,
+        ),
         users,
         authorizer,
       }),
@@ -481,6 +497,7 @@ export const createApplicationModule = (
       }),
       OperationsModule.register({
         auditLogs,
+        homeQuery: new DrizzleAdminHomeQuery(database),
         usageCost: {
           query: new DrizzleUsageCostOperationsQuery(database),
           settings: new DrizzleOperationsCostSettingsRepository(database),

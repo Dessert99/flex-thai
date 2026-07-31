@@ -13,6 +13,8 @@ import { ContentProductionModule } from './content-production.module.js';
 import { ContentProductionApplicationService } from './content-production.service.js';
 import { QuestionCandidateController } from './question-production.controller.js';
 import { QuestionCandidateApplicationService } from './question-production.service.js';
+import { VocabularyCandidateController } from './vocabulary-candidates.controller.js';
+import { VocabularyCandidateApplicationService } from './vocabulary-candidates.service.js';
 
 describe('ContentProductionModule', () => {
   it('콘텐츠 제작 service와 ADMIN MFA guard 의존성을 독립 조립한다', () => {
@@ -29,6 +31,8 @@ describe('ContentProductionModule', () => {
       contentProduction: {} as never,
       questionCandidates: {} as never,
       questionCandidateReview: {} as never,
+      vocabularyCandidates: {} as never,
+      vocabularyCandidateReview: {} as never,
       users: users as never,
       authorizer,
     });
@@ -36,6 +40,7 @@ describe('ContentProductionModule', () => {
     expect(module.controllers).toEqual([
       ContentProductionController,
       QuestionCandidateController,
+      VocabularyCandidateController,
     ]);
     const service = module.providers?.find(
       (provider) =>
@@ -73,6 +78,17 @@ describe('ContentProductionModule', () => {
     expect(candidateProvider).toHaveProperty(
       'useValue',
       expect.any(QuestionCandidateApplicationService),
+    );
+    const vocabularyCandidateProvider = module.providers?.find(
+      (provider) =>
+        typeof provider === 'object' &&
+        provider !== null &&
+        'provide' in provider &&
+        provider.provide === VocabularyCandidateApplicationService,
+    );
+    expect(vocabularyCandidateProvider).toHaveProperty(
+      'useValue',
+      expect.any(VocabularyCandidateApplicationService),
     );
   });
 });

@@ -35,7 +35,7 @@ interface ApprovedExampleSentence {
   translationKo: string;
   pronunciationKo: string;
   toneMarks: string;
-  mediaAssetId: string;
+  mediaAssetId: string | null;
   tokens: ApprovedExampleToken[];
   expressions: ApprovedExampleExpression[];
 }

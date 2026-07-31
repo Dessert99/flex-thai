@@ -89,6 +89,9 @@ export * from './media/tts-job.js';
 /** 자동 TTS 공급자와 음성 저장소 port를 공개한다 */
 export * from './media/tts-provider.js';
 
+/** 문제 버전 TTS 재생성의 소유권·멱등 결정을 공개한다 */
+export * from './media/question-tts-regeneration.js';
+
 /** 태국어 문장 버전의 Unicode offset·표현·동결 규칙을 공개한다 */
 export * from './thai-content/thai-sentence-version.js';
 

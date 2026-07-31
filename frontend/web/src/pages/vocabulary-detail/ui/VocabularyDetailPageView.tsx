@@ -21,12 +21,15 @@ export function VocabularyDetailPageView({
   return (
     <article className='grid gap-section'>
       <header className='flex flex-wrap items-center justify-between gap-cluster'>
-        <h1
-          className='font-thai text-title'
-          lang='th'
-        >
-          {detail.thai}
-        </h1>
+        <div className='grid gap-cluster'>
+          <h1
+            className='font-thai text-title'
+            lang='th'
+          >
+            {detail.thai}
+          </h1>
+          <p className='text-body text-subtle'>종류: {detail.kind}</p>
+        </div>
         <ContentErrorReportDialog
           origin={{
             kind: 'VOCABULARY',
@@ -140,7 +143,12 @@ function VocabularyDetailTabs({
         <ul>
           {detail.meanings.map((item) => (
             <li key={item.id}>
-              <span>{item.meaningKo}</span>
+              <span>
+                {item.meaningKo} · {item.partOfSpeech} ·{' '}
+                {item.difficulty === null
+                  ? '난이도 미정'
+                  : `난이도 ${item.difficulty}`}
+              </span>
               <ContentErrorReportDialog
                 origin={{
                   kind: 'VOCABULARY',
@@ -159,34 +167,7 @@ function VocabularyDetailTabs({
         </ul>
       </TabsContent>
       <TabsContent value='pronunciations'>
-        <ul>
-          {detail.pronunciations.map((item) => (
-            <li key={item.id}>
-              <span>{item.pronunciationKo}</span>
-              {/* 인접 발음 표기를 제공하며 계약에 VTT URL이 없어 audio 규칙만 제한한다. */}
-              {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-              <audio
-                aria-label={`${detail.thai} 발음`}
-                controls
-                src={item.audioUrl}
-              />
-              <ContentErrorReportDialog
-                origin={{
-                  kind: 'AUDIO',
-                  source: {
-                    kind: 'VOCABULARY',
-                    pronunciationId: item.id,
-                  },
-                }}
-                preview={{
-                  title: detail.thai,
-                  metadata: item.pronunciationKo,
-                }}
-                triggerLabel='발음 오류 신고'
-              />
-            </li>
-          ))}
-        </ul>
+        <VocabularyMeaningPronunciations detail={detail} />
       </TabsContent>
       <TabsContent value='questions'>
         <ul>
@@ -200,5 +181,75 @@ function VocabularyDetailTabs({
         </ul>
       </TabsContent>
     </Tabs>
+  );
+}
+
+function VocabularyMeaningPronunciations({
+  detail,
+}: {
+  detail: VocabularyDetailResponse;
+}) {
+  return (
+    <div className='grid gap-cluster'>
+      {detail.meanings.map((meaning) => {
+        const pronunciationIds = new Set(
+          detail.meaningPronunciations
+            .filter((link) => link.meaningId === meaning.id)
+            .map((link) => link.pronunciationId),
+        );
+        const pronunciations = detail.pronunciations.filter((pronunciation) =>
+          pronunciationIds.has(pronunciation.id),
+        );
+        return (
+          <section
+            aria-label={`${meaning.meaningKo} 발음`}
+            className='grid gap-cluster'
+            key={meaning.id}
+          >
+            <h3 className='text-heading text-primary'>{meaning.meaningKo}</h3>
+            {pronunciations.length === 0 ? (
+              <p className='text-body text-subtle'>
+                연결된 발음 음성이 없습니다.
+              </p>
+            ) : (
+              <ul className='grid gap-cluster'>
+                {pronunciations.map((pronunciation) => (
+                  <li
+                    className='grid gap-cluster'
+                    key={pronunciation.id}
+                  >
+                    <p>
+                      {pronunciation.pronunciationKo} · 성조{' '}
+                      {pronunciation.toneMarks || '정보 없음'}
+                    </p>
+                    {/* 계약에 VTT URL이 없어 audio 규칙만 제한한다. */}
+                    {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                    <audio
+                      aria-label={`${detail.thai} ${meaning.meaningKo} 발음`}
+                      controls
+                      src={pronunciation.audioUrl}
+                    />
+                    <ContentErrorReportDialog
+                      origin={{
+                        kind: 'AUDIO',
+                        source: {
+                          kind: 'VOCABULARY',
+                          pronunciationId: pronunciation.id,
+                        },
+                      }}
+                      preview={{
+                        title: detail.thai,
+                        metadata: pronunciation.pronunciationKo,
+                      }}
+                      triggerLabel='발음 오류 신고'
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        );
+      })}
+    </div>
   );
 }

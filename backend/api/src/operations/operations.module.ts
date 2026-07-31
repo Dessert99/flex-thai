@@ -5,6 +5,7 @@ import {
   AuditLogService,
   type IdentityUserRepository,
 } from '@flex-thia/domain';
+import type { DrizzleAdminHomeQuery } from '@flex-thia/database';
 import { AdminMfaGuard } from '../identity/admin-mfa.guard.js';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
 import {
@@ -14,6 +15,8 @@ import {
   IDENTITY_USER_REPOSITORY,
 } from '../identity/cognito-authorizer.guard.js';
 import { AdminAuditLogsController } from './admin-audit-logs.controller.js';
+import { AdminHomeController } from './admin-home.controller.js';
+import { AdminHomeService } from './admin-home.service.js';
 import { AdminUsageCostOperationsController } from './admin-usage-cost-operations.controller.js';
 import {
   UsageCostOperationsService,
@@ -23,6 +26,7 @@ import {
 /** Operations HTTP 경계의 실행 환경 의존성 */
 export interface OperationsModuleOptions {
   auditLogs: AuditLogService;
+  homeQuery: DrizzleAdminHomeQuery;
   usageCost: UsageCostOperationsServiceDependencies;
   users: IdentityUserRepository;
   authorizer: AuthorizerGuardOptions;
@@ -33,17 +37,23 @@ export interface OperationsModuleOptions {
 export class OperationsModule {
   /** 선택된 감사 read use case를 NestJS 경계에 연결한다 */
   static register(options: OperationsModuleOptions): DynamicModule {
+    const usageCost = new UsageCostOperationsService(options.usageCost);
     return {
       module: OperationsModule,
       controllers: [
         AdminAuditLogsController,
+        AdminHomeController,
         AdminUsageCostOperationsController,
       ],
       providers: [
         { provide: AuditLogService, useValue: options.auditLogs },
         {
           provide: UsageCostOperationsService,
-          useValue: new UsageCostOperationsService(options.usageCost),
+          useValue: usageCost,
+        },
+        {
+          provide: AdminHomeService,
+          useValue: new AdminHomeService({ query: options.homeQuery }),
         },
         { provide: IDENTITY_USER_REPOSITORY, useValue: options.users },
         { provide: AUTHORIZER_GUARD_OPTIONS, useValue: options.authorizer },

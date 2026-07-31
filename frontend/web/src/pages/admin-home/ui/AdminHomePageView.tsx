@@ -1,41 +1,31 @@
-/* eslint-disable max-lines -- 기존 최근 콘텐츠와 Wave 6 운영 카드의 전체 화면 표현을 함께 유지한다. */
 /** 관리자 홈의 최근 콘텐츠와 독립 운영 상태 카드를 표현한다 */
 import type {
+  AdminHomeOperationsResponse,
   AdminQuestionListResponse,
   AdminVocabularyListResponse,
   AuditLogListResponse,
-  ContentProductionJobListResponse,
-  TtsJobListResponse,
   UsageCostOverviewResponse,
 } from '@flex-thia/contracts';
 import type { ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
-import { PageEmpty, PageError, PageLoading } from '@/shared/ui/page-state';
+import { PageError, PageLoading } from '@/shared/ui/page-state';
 import { AdminHomeOperationsCards } from './AdminHomeOperationsCards';
 
 interface AdminHomePageViewProps {
   auditLogs: AuditLogListResponse['items'];
   auditLogsError: boolean;
   auditLogsLoading: boolean;
-  candidatesError: boolean;
-  candidatesLoading: boolean;
-  candidatesPendingCount: number;
-  contentJobs: ContentProductionJobListResponse['items'];
-  contentJobsError: boolean;
-  contentJobsLoading: boolean;
-  onRetryCandidates: () => void;
-  onRetryContentJobs: () => void;
   onRetryAuditLogs: () => void;
+  onRetryOperations: () => void;
   onRetryQuestions: () => void;
-  onRetryTtsJobs: () => void;
   onRetryUsageCost: () => void;
   onRetryVocabularies: () => void;
+  operations: AdminHomeOperationsResponse | undefined;
+  operationsError: boolean;
+  operationsLoading: boolean;
   questions: AdminQuestionListResponse['items'];
   questionsError: boolean;
   questionsLoading: boolean;
-  ttsJobs: TtsJobListResponse['items'];
-  ttsJobsError: boolean;
-  ttsJobsLoading: boolean;
   usageCost: UsageCostOverviewResponse | undefined;
   usageCostError: boolean;
   usageCostLoading: boolean;
@@ -44,31 +34,22 @@ interface AdminHomePageViewProps {
   vocabulariesLoading: boolean;
 }
 
-/** 독립적인 최근 목록 상태를 지우지 않고 관리 시작점을 제공한다 */
-// eslint-disable-next-line complexity, max-lines-per-function -- 일곱 독립 카드의 loading/error/empty 상태 조합을 보존한다.
+/** 독립적인 최근 목록과 운영 집계 상태를 지우지 않고 관리 시작점을 제공한다 */
 export function AdminHomePageView({
   auditLogs,
   auditLogsError,
   auditLogsLoading,
-  candidatesError,
-  candidatesLoading,
-  candidatesPendingCount,
-  contentJobs,
-  contentJobsError,
-  contentJobsLoading,
-  onRetryCandidates,
-  onRetryContentJobs,
   onRetryAuditLogs,
+  onRetryOperations,
   onRetryQuestions,
-  onRetryTtsJobs,
   onRetryUsageCost,
   onRetryVocabularies,
+  operations,
+  operationsError,
+  operationsLoading,
   questions,
   questionsError,
   questionsLoading,
-  ttsJobs,
-  ttsJobsError,
-  ttsJobsLoading,
   usageCost,
   usageCostError,
   usageCostLoading,
@@ -76,47 +57,6 @@ export function AdminHomePageView({
   vocabulariesError,
   vocabulariesLoading,
 }: AdminHomePageViewProps) {
-  if (
-    !questionsLoading &&
-    !vocabulariesLoading &&
-    !auditLogsLoading &&
-    !contentJobsLoading &&
-    !candidatesLoading &&
-    !ttsJobsLoading &&
-    !usageCostLoading &&
-    !questionsError &&
-    !vocabulariesError &&
-    !auditLogsError &&
-    !contentJobsError &&
-    !candidatesError &&
-    !ttsJobsError &&
-    !usageCostError &&
-    questions.length === 0 &&
-    vocabularies.length === 0 &&
-    auditLogs.length === 0 &&
-    contentJobs.length === 0 &&
-    candidatesPendingCount === 0 &&
-    ttsJobs.length === 0 &&
-    (!usageCost ||
-      (usageCost.currentMonthThreshold.estimatedCostUsd === '0.000000' &&
-        usageCost.currentMonthThreshold.status === 'NORMAL'))
-  ) {
-    return (
-      <PageEmpty
-        action={
-          <a
-            className='rounded-control bg-primary px-page py-cluster text-primary-foreground'
-            href='/admin/questions'
-          >
-            문제 관리 열기
-          </a>
-        }
-        description='작성된 문제와 어휘가 생기면 이곳에서 바로 확인할 수 있습니다.'
-        title='아직 표시할 관리 콘텐츠가 없습니다.'
-      />
-    );
-  }
-
   return (
     <section
       aria-labelledby='admin-home-title'
@@ -154,22 +94,14 @@ export function AdminHomePageView({
         />
       </div>
       <AdminHomeOperationsCards
-        candidatesError={candidatesError}
-        candidatesLoading={candidatesLoading}
-        candidatesPendingCount={candidatesPendingCount}
-        contentJobs={contentJobs}
-        contentJobsError={contentJobsError}
-        contentJobsLoading={contentJobsLoading}
-        onRetryCandidates={onRetryCandidates}
-        onRetryContentJobs={onRetryContentJobs}
-        onRetryTtsJobs={onRetryTtsJobs}
-        onRetryUsageCost={onRetryUsageCost}
-        ttsJobs={ttsJobs}
-        ttsJobsError={ttsJobsError}
-        ttsJobsLoading={ttsJobsLoading}
-        usageCost={usageCost}
-        usageCostError={usageCostError}
-        usageCostLoading={usageCostLoading}
+        cost={usageCost}
+        costError={usageCostError}
+        costLoading={usageCostLoading}
+        data={operations}
+        error={operationsError}
+        loading={operationsLoading}
+        onRetry={onRetryOperations}
+        onRetryCost={onRetryUsageCost}
       />
     </section>
   );
