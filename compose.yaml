@@ -37,13 +37,18 @@ services:
       context: .
       dockerfile: Dockerfile.local
       target: workspace
-    command: pnpm --filter @flex-thia/database db:reset-seed:local
+    command:
+      - /bin/sh
+      - -ec
+      - pnpm --filter @flex-thia/database db:reset-seed:local && pnpm --filter @flex-thia/providers seed:local-media
     environment:
       <<: *app-environment
       LOCAL_DATABASE_RESET: 'true'
     depends_on:
       postgres:
         condition: service_healthy
+    volumes:
+      - flex-thia-tts-audio:/var/lib/flex-thia/tts-audio
     restart: 'no'
 
   api:

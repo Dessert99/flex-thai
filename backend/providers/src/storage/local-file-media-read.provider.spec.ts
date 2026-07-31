@@ -6,6 +6,10 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { LocalFileTtsAudioStore } from './local-file-tts-audio.store.js';
 import { LocalFileMediaReadProvider } from './local-file-media-read.provider.js';
+import {
+  localSeedMediaFixtures,
+  seedLocalMedia,
+} from '../commands/seed-local-media.js';
 
 const directories: string[] = [];
 const storageKey = 'private/tts/runs/00000000-0000-4000-8000-000000000001.wav';
@@ -102,5 +106,37 @@ describe('LocalFileMediaReadProvider', () => {
         signature,
       }),
     ).rejects.toThrow('LOCAL_MEDIA_NOT_FOUND');
+  });
+
+  it('fresh seed command가 만든 READY fixture를 audio/wav로 읽는다', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'flex-thia-media-read-'));
+    directories.push(directory);
+    const provider = new LocalFileMediaReadProvider(
+      directory,
+      'http://localhost:5173',
+      secret,
+      () => now,
+    );
+
+    await seedLocalMedia({ directory });
+
+    for (const fixture of localSeedMediaFixtures) {
+      const url = new URL(
+        await provider.createReadUrl(
+          fixture.storageKey,
+          new Date(now.getTime() + 60_000),
+        ),
+      );
+      await expect(
+        provider.read({
+          objectId: url.pathname.split('/').at(-1)!,
+          expires: url.searchParams.get('expires')!,
+          signature: url.searchParams.get('signature')!,
+        }),
+      ).resolves.toMatchObject({
+        mimeType: 'audio/wav',
+        bytes: expect.any(Buffer),
+      });
+    }
   });
 });

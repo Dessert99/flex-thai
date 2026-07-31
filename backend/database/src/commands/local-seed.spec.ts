@@ -49,6 +49,27 @@ const readReadyCacheMediaId = (cacheKey: string) => {
 };
 
 describe('로컬 seed SQL', () => {
+  it('READY media storage key를 local TTS reader의 canonical pattern으로 고정한다', () => {
+    const readyStorageKeys = [
+      ...new Set(
+        Array.from(
+          seedSql.matchAll(/'(?<storageKey>private\/tts\/runs\/[^']+\.wav)'/gu),
+        ).map((match) => match.groups?.storageKey),
+      ),
+    ].sort();
+
+    expect(readyStorageKeys).toEqual([
+      'private/tts/runs/00000000-0000-4000-8000-000000000010.wav',
+      'private/tts/runs/00000000-0000-4000-8000-000000000011.wav',
+      'private/tts/runs/00000000-0000-4000-8000-000000000013.wav',
+    ]);
+    expect(seedSql).not.toContain("'audio/local/vocabulary.mp3'");
+    expect(seedSql).not.toContain("'audio/local/sentence.mp3'");
+    expect(seedSql).toMatch(
+      /'private\/tts\/runs\/00000000-0000-4000-8000-000000000010\.wav',\s*'audio\/wav',\s*44,\s*'8b8fbafe8679076454429756fa72f11d5f442c87381cc6a4285451d826a9e629',\s*'audio\/wav',\s*44,\s*'8b8fbafe8679076454429756fa72f11d5f442c87381cc6a4285451d826a9e629',\s*'READY'/u,
+    );
+  });
+
   it('학교 이메일 사용자와 관리자 MFA 상태를 password 없이 만든다', () => {
     expect(seedSql).toContain("'admin@hufs.ac.kr'");
     expect(seedSql).toContain("'learner@hufs.ac.kr'");

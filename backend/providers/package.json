@@ -8,6 +8,7 @@
     "./*": "./src/*"
   },
   "scripts": {
+    "seed:local-media": "tsx src/commands/seed-local-media.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --root ../.. backend/providers/src",
     "build": "tsc -p tsconfig.json"
