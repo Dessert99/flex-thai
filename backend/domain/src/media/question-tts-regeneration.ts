@@ -49,16 +49,6 @@ export const decideQuestionTtsRegeneration = (input: {
 }):
   | { kind: 'REPLAY'; result: QuestionTtsRegenerationResult }
   | { kind: 'SCHEDULE' } => {
-  if (
-    input.version === null ||
-    input.version.id !== input.versionId ||
-    input.version.questionId !== input.questionId
-  ) {
-    throw new QuestionTtsRegenerationError('QUESTION_TTS_VERSION_NOT_FOUND');
-  }
-  if (input.version.status !== 'DRAFT') {
-    throw new QuestionTtsRegenerationError('QUESTION_TTS_IMMUTABLE_VERSION');
-  }
   if (input.replay !== null) {
     const exact =
       input.replay.questionId === input.questionId &&
@@ -72,6 +62,16 @@ export const decideQuestionTtsRegeneration = (input: {
       );
     }
     return { kind: 'REPLAY', result: input.replay.result };
+  }
+  if (
+    input.version === null ||
+    input.version.id !== input.versionId ||
+    input.version.questionId !== input.questionId
+  ) {
+    throw new QuestionTtsRegenerationError('QUESTION_TTS_VERSION_NOT_FOUND');
+  }
+  if (input.version.status !== 'DRAFT') {
+    throw new QuestionTtsRegenerationError('QUESTION_TTS_IMMUTABLE_VERSION');
   }
   if (input.activeJobIds.length > 0) {
     throw new QuestionTtsRegenerationError('QUESTION_TTS_ALREADY_RUNNING');

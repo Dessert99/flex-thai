@@ -97,6 +97,7 @@ function PronunciationFields({
         disabled={pending}
         id={`pronunciation-${pronunciation.id}`}
         onChange={(event) => onChange('pronunciationKo', event.target.value)}
+        required
         value={pronunciation.pronunciationKo}
       />
       <Label htmlFor={`tone-marks-${pronunciation.id}`}>성조 {suffix}</Label>
@@ -113,6 +114,7 @@ function PronunciationFields({
         disabled={pending}
         id={`media-asset-${pronunciation.id}`}
         onChange={(event) => onChange('mediaAssetId', event.target.value)}
+        required
         value={pronunciation.mediaAssetId}
       />
       <Button
@@ -148,9 +150,8 @@ const useDraftGraph = ({
     candidate.classification !== 'NEW_VOCABULARY';
   const graphComplete =
     pronunciations.every(
-      ({ mediaAssetId, pronunciationKo, toneMarks }) =>
+      ({ mediaAssetId, pronunciationKo }) =>
         pronunciationKo.trim().length > 0 &&
-        toneMarks.trim().length > 0 &&
         uuidSchema.safeParse(mediaAssetId).success,
     ) &&
     candidate.meanings.every((_, meaningIndex) =>

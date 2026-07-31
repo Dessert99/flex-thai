@@ -7,6 +7,13 @@ import { useState, type Dispatch, type SetStateAction } from 'react';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/ui/select';
 import { QuestionVersionFormErrorSummary } from './QuestionVersionFormErrorSummary';
 import {
   QuestionVersionSentenceFields,
@@ -194,26 +201,33 @@ function OptionFields({
         ),
       )}
       <Label htmlFor='question-correct-option'>정답 보기</Label>
-      <select
-        className='rounded-control border border-default bg-surface p-cluster'
-        id='question-correct-option'
-        onChange={(event) =>
+      <Select
+        onValueChange={(value) =>
           setPayload((current) => ({
             ...current,
-            correctOptionRef: event.target.value,
+            correctOptionRef: value,
           }))
         }
         value={payload.correctOptionRef}
       >
-        {payload.options.map((option, index) => (
-          <option
-            key={option.clientRef}
-            value={option.clientRef}
-          >
-            보기 {index + 1}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger
+          aria-label='정답 보기'
+          className='w-full'
+          id='question-correct-option'
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {payload.options.map((option, index) => (
+            <SelectItem
+              key={option.clientRef}
+              value={option.clientRef}
+            >
+              보기 {index + 1}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <FieldError
         errors={errors}
         path='correctOptionRef'

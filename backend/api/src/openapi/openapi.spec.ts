@@ -419,7 +419,10 @@ const expectProtectedOpenApiOperations = (
     headerParameters.forEach((parameter) => {
       expect(parameter.required).toBe(true);
 
-      if (parameter.name === 'Idempotency-Key') {
+      if (
+        parameter.name === 'Idempotency-Key' ||
+        parameter.name === 'X-Request-ID'
+      ) {
         expect(parameter.schema).toEqual({
           type: 'string',
           format: 'uuid',
@@ -1047,6 +1050,7 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
     method: 'post',
     path: '/api/v1/admin/questions/{questionId}/versions/{versionId}/tts-jobs',
     pathParameters: ['questionId', 'versionId'],
+    headers: ['X-Request-ID'],
     success: ['201', 'AdminQuestionTtsJobResponseDto'],
     errors: ['400', '401', '403', '404', '409', '500'],
   },

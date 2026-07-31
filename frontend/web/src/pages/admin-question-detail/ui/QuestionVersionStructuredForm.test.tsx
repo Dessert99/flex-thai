@@ -1,13 +1,25 @@
 /** 구조화 문제 편집의 관계 오류와 음성 무효화 동작을 검증한다 */
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '@/shared/test';
 import { QuestionVersionStructuredForm } from './QuestionVersionStructuredForm';
 
 type ReplacePayload = Parameters<
   Parameters<typeof QuestionVersionStructuredForm>[0]['onReplace']
 >[0];
+
+beforeEach(() => {
+  // jsdom에는 Radix Select가 확인하는 pointer capture API가 없어 실제 선택을 보완한다.
+  Object.defineProperty(HTMLElement.prototype, 'hasPointerCapture', {
+    configurable: true,
+    value: () => false,
+  });
+  Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+    configurable: true,
+    value: () => undefined,
+  });
+});
 
 describe('문제 버전 구조화 편집', () => {
   it('낡은 token offset을 모든 issue path가 있는 접근 가능한 요약으로 표시한다', async () => {
@@ -67,6 +79,36 @@ describe('문제 버전 구조화 편집', () => {
     const sentence = block.sentences[0];
     if (!sentence) throw new Error('교체 문장이 필요합니다.');
     expect(sentence.sentence.mediaAssetId).toBeNull();
+  });
+
+  it('공용 정답 Select에서 선택한 보기를 교체 payload에 반영한다', async () => {
+    const onReplace = vi.fn<(replacement: ReplacePayload) => void>();
+    const initialPayload = payload();
+    const firstOption = initialPayload.options[0];
+    if (!firstOption) throw new Error('첫 번째 보기가 필요합니다.');
+    initialPayload.options.push({
+      ...firstOption,
+      clientRef: 'option-2',
+      position: 1,
+    });
+    const user = userEvent.setup();
+    renderWithProviders(
+      <QuestionVersionStructuredForm
+        disabled={false}
+        initialPayload={initialPayload}
+        onReplace={onReplace}
+      />,
+    );
+
+    await user.click(screen.getByRole('combobox', { name: '정답 보기' }));
+    await user.click(screen.getByRole('option', { name: '보기 2' }));
+    await user.click(
+      screen.getByRole('button', { name: '구조화 내용으로 전체 교체' }),
+    );
+
+    const replacement = onReplace.mock.calls[0]?.[0];
+    if (!replacement) throw new Error('교체 payload가 필요합니다.');
+    expect(replacement.correctOptionRef).toBe('option-2');
   });
 });
 

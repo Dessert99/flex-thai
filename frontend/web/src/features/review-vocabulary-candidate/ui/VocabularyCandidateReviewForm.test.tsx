@@ -1,5 +1,6 @@
 /* eslint-disable max-lines-per-function -- 단일 사용자 흐름에서 graph 입력·mapping·중복 방지를 함께 검증한다. */
 /** 어휘 후보 승인 form의 graph 편집과 mutation 방지를 검증한다 */
+import { vocabularyCandidateApproveRequestSchema } from '@flex-thia/contracts';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { VocabularyCandidateReviewForm } from './VocabularyCandidateReviewForm';
@@ -12,6 +13,10 @@ const candidate = {
     { meaningKo: '안녕하세요', partOfSpeech: '감탄사', difficulty: 1 },
   ],
 };
+
+type CreateDraftInput = Parameters<
+  Parameters<typeof VocabularyCandidateReviewForm>[0]['onCreateDraft']
+>[0];
 
 describe('어휘 후보 검수 form', () => {
   it('발음·성조·sealed media와 뜻 연결이 모두 있어야 CREATE_DRAFT를 제출한다', () => {
@@ -65,6 +70,41 @@ describe('어휘 후보 검수 form', () => {
       ],
       confirmDuplicate: true,
     });
+  });
+
+  it('성조 표기 없이도 필수 발음·audio가 있으면 계약에 맞는 DRAFT를 제출한다', () => {
+    const onCreateDraft = vi.fn<(input: CreateDraftInput) => void>();
+    render(
+      <VocabularyCandidateReviewForm
+        candidate={{ ...candidate, classification: 'NEW_VOCABULARY' }}
+        onCreateDraft={onCreateDraft}
+        onDiscard={vi.fn()}
+        onLinkExisting={vi.fn()}
+      />,
+    );
+
+    const pronunciation = screen.getByLabelText('발음 1');
+    const toneMarks = screen.getByLabelText('성조 1');
+    const mediaAsset = screen.getByLabelText('sealed media asset ID 1');
+    expect(pronunciation).toBeRequired();
+    expect(toneMarks).not.toBeRequired();
+    expect(mediaAsset).toBeRequired();
+    fireEvent.change(pronunciation, { target: { value: '싸왓디' } });
+    fireEvent.change(mediaAsset, {
+      target: { value: '00000000-0000-4000-8000-000000000001' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '새 DRAFT 승인' }));
+
+    const submitted = onCreateDraft.mock.calls[0]?.[0];
+    if (!submitted) throw new Error('DRAFT 승인 payload가 필요합니다.');
+    expect(submitted.pronunciations[0]?.toneMarks).toBe('');
+    expect(() =>
+      vocabularyCandidateApproveRequestSchema.parse({
+        ...submitted,
+        expectedRevision: 0,
+        requestId: '00000000-0000-4000-8000-000000000002',
+      }),
+    ).not.toThrow();
   });
 
   it('발음 행을 추가·삭제하고 뜻마다 여러 발음을 임의로 연결한다', () => {

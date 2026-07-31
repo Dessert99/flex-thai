@@ -28,7 +28,9 @@ describe('문제 버전 TTS 재생성 결정', () => {
       kind: 'SCHEDULE',
     });
   });
+});
 
+describe('문제 버전 TTS 재생성 replay', () => {
   it('같은 actor와 request ID의 완료 기록은 같은 결과로 replay한다', () => {
     const result = {
       jobIds: ['00000000-0000-4000-8000-000000000004'],
@@ -45,6 +47,34 @@ describe('문제 버전 TTS 재생성 결정', () => {
     ).toEqual({ kind: 'REPLAY', result });
   });
 
+  it.each([
+    { name: 'version 조회 결과가 없어도', version: null },
+    {
+      name: 'version이 PUBLISHED여도',
+      version: { ...input.version, status: 'PUBLISHED' as const },
+    },
+    {
+      name: 'version이 INVALIDATED여도',
+      version: { ...input.version, status: 'INVALIDATED' as const },
+    },
+  ])('exact replay는 $name 원래 결과를 반환한다', ({ version }) => {
+    const result = {
+      jobIds: ['00000000-0000-4000-8000-000000000004'],
+      scheduledSentenceCount: 1,
+      reusedReadySentenceCount: 2,
+    };
+
+    expect(
+      decideQuestionTtsRegeneration({
+        ...input,
+        replay: { ...actor, questionId, versionId, result },
+        version,
+      }),
+    ).toEqual({ kind: 'REPLAY', result });
+  });
+});
+
+describe('문제 버전 TTS 재생성 오류', () => {
   it.each([
     {
       name: '문제가 없을 때',
@@ -98,6 +128,25 @@ describe('문제 버전 TTS 재생성 결정', () => {
           ...actor,
           questionId,
           versionId: crypto.randomUUID(),
+          result: {
+            jobIds: [],
+            scheduledSentenceCount: 0,
+            reusedReadySentenceCount: 1,
+          },
+        },
+      },
+      code: 'QUESTION_TTS_IDEMPOTENCY_CONFLICT',
+    },
+    {
+      name: 'version 조회 결과 없이 request ID가 다른 명령에 사용됐을 때',
+      input: {
+        ...input,
+        version: null,
+        replay: {
+          ...actor,
+          actorSub: 'other-admin',
+          questionId,
+          versionId,
           result: {
             jobIds: [],
             scheduledSentenceCount: 0,

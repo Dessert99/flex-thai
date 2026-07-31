@@ -1,3 +1,4 @@
+/** 어휘 후보 상세 snapshot의 의미 단위 projection을 검증한다 */
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { VocabularyCandidateDetailPageView } from './VocabularyCandidateDetailPageView';
@@ -51,7 +52,13 @@ describe('어휘 후보 상세 화면', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'สวัสดี' })).toBeVisible();
-    expect(screen.getByText('안녕하세요')).toBeVisible();
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.tagName === 'DD' &&
+          element.textContent === '안녕하세요 · 감탄사 · 난이도 1',
+      ),
+    ).toBeVisible();
     expect(screen.getByText('POSSIBLE_DUPLICATE')).toBeVisible();
     expect(screen.getByText('SCHEMA')).toBeVisible();
     expect(
