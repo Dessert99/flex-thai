@@ -109,13 +109,13 @@ const command = {
 };
 
 describe('ContentProductionService 콘텐츠 제작 규칙', () => {
-  it('유형과 난이도 계획을 안정 정렬해 문항별 snapshot으로 펼친다', () => {
+  it('유형과 난이도 계획을 선언 순서대로 문항별 snapshot으로 펼친다', () => {
     expect(
       expandQuestionGenerationPlan({
         questionCount: 4,
         questionTypePlan: [
-          { questionTypeVersionId: 'type-b', count: 2 },
-          { questionTypeVersionId: 'type-a', count: 2 },
+          { questionTypeVersionId: 'type-b', count: 1 },
+          { questionTypeVersionId: 'type-a', count: 3 },
         ],
         difficultyPlan: [
           { difficulty: 4, count: 2 },
@@ -125,23 +125,23 @@ describe('ContentProductionService 콘텐츠 제작 규칙', () => {
     ).toEqual([
       {
         questionPlanIndex: 0,
-        questionTypeVersionId: 'type-a',
-        difficulty: 2,
+        questionTypeVersionId: 'type-b',
+        difficulty: 4,
       },
       {
         questionPlanIndex: 1,
         questionTypeVersionId: 'type-a',
-        difficulty: 2,
+        difficulty: 4,
       },
       {
         questionPlanIndex: 2,
-        questionTypeVersionId: 'type-b',
-        difficulty: 4,
+        questionTypeVersionId: 'type-a',
+        difficulty: 2,
       },
       {
         questionPlanIndex: 3,
-        questionTypeVersionId: 'type-b',
-        difficulty: 4,
+        questionTypeVersionId: 'type-a',
+        difficulty: 2,
       },
     ]);
   });

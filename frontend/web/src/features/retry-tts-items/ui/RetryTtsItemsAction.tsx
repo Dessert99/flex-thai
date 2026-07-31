@@ -54,9 +54,14 @@ export function RetryTtsItemsAction({
     },
     onError: async (error) => {
       if (isStaleAttempt(error)) {
-        await queryClient.invalidateQueries({
-          queryKey: ['admin', 'tts', 'jobs', 'detail', jobId],
-        });
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: ['admin', 'tts', 'jobs', 'detail', jobId],
+          }),
+          queryClient.invalidateQueries({
+            queryKey: ['admin', 'tts', 'readiness'],
+          }),
+        ]);
       }
     },
   });

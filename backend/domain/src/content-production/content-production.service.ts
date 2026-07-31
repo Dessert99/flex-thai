@@ -94,22 +94,17 @@ export interface QuestionGenerationItemPlan {
   difficulty: 1 | 2 | 3 | 4 | 5;
 }
 
-/** 배열 입력 순서와 무관하게 유형·난이도 분포를 item snapshot으로 펼친다 */
+/** 선언된 유형·난이도 분포 순서를 보존해 item snapshot으로 펼친다 */
 export const expandQuestionGenerationPlan = (
   parameters: QuestionGenerationParameters,
 ): QuestionGenerationItemPlan[] => {
-  const types = [...parameters.questionTypePlan]
-    .sort((left, right) =>
-      left.questionTypeVersionId.localeCompare(right.questionTypeVersionId),
-    )
-    .flatMap(({ questionTypeVersionId, count }) =>
+  const types = parameters.questionTypePlan.flatMap(
+    ({ questionTypeVersionId, count }) =>
       Array.from({ length: count }, () => questionTypeVersionId),
-    );
-  const difficulties = [...parameters.difficultyPlan]
-    .sort((left, right) => left.difficulty - right.difficulty)
-    .flatMap(({ difficulty, count }) =>
-      Array.from({ length: count }, () => difficulty),
-    );
+  );
+  const difficulties = parameters.difficultyPlan.flatMap(
+    ({ difficulty, count }) => Array.from({ length: count }, () => difficulty),
+  );
   if (
     types.length !== parameters.questionCount ||
     difficulties.length !== parameters.questionCount

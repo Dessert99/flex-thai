@@ -1,5 +1,6 @@
 /** TTS retry selection 자격과 durable command 전송을 검증한다 */
 import { screen, waitFor } from '@testing-library/react';
+import { useQuery } from '@tanstack/react-query';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/shared/api';
@@ -167,5 +168,65 @@ describe('TTS 항목 재시도', () => {
       'false',
     );
     expect(screen.getByRole('button', { name: '선택 재시도' })).toBeDisabled();
+  });
+
+  it('stale attempt 409이면 readiness를 다시 읽어 최신 attempt를 표시한다', async () => {
+    mocks.authenticatedRequest.mockRejectedValue(
+      new ApiError({
+        kind: 'problem',
+        problem: {
+          code: 'TTS_ITEM_STALE_ATTEMPT',
+          fieldErrors: [],
+          requestId: 'request-id',
+          status: 409,
+          title: 'Conflict',
+          type: 'about:blank',
+        },
+      }),
+    );
+    let readinessRequestCount = 0;
+    const readinessQuery = () => {
+      readinessRequestCount += 1;
+      return Promise.resolve({
+        attempt: readinessRequestCount === 1 ? 2 : 3,
+      });
+    };
+
+    function RetryWithReadiness() {
+      const readiness = useQuery({
+        queryKey: [
+          'admin',
+          'tts',
+          'readiness',
+          '00000000-0000-4000-8000-000000000010',
+          '00000000-0000-4000-8000-000000000011',
+        ],
+        queryFn: readinessQuery,
+      });
+      return (
+        <>
+          <p>readiness attempt {readiness.data?.attempt}</p>
+          <RetryTtsItemsAction
+            items={[
+              {
+                id: '00000000-0000-4000-8000-000000000002',
+                status: 'FAILED',
+                attempt: 2,
+                retryable: true,
+              },
+            ]}
+            jobId='00000000-0000-4000-8000-000000000001'
+          />
+        </>
+      );
+    }
+
+    renderWithProviders(<RetryWithReadiness />);
+    expect(await screen.findByText('readiness attempt 2')).toBeVisible();
+
+    await userEvent.click(screen.getByRole('checkbox'));
+    await userEvent.click(screen.getByRole('button', { name: '선택 재시도' }));
+
+    expect(await screen.findByText('readiness attempt 3')).toBeVisible();
   });
 });

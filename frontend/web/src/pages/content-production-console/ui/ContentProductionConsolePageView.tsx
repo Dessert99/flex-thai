@@ -9,6 +9,7 @@ import { Badge } from '@/shared/ui/badge';
 import { PageEmpty, PageError, PageLoading } from '@/shared/ui/page-state';
 
 interface ContentProductionConsolePageViewProps {
+  createError: boolean;
   jobs?: ContentProductionJobListResponse;
   jobsError: boolean;
   jobsLoading: boolean;
@@ -16,11 +17,43 @@ interface ContentProductionConsolePageViewProps {
   presetsError: boolean;
   presetsLoading: boolean;
   preview?: PromptPreviewResponse;
+  previewError: boolean;
+  mutationPending: boolean;
+  onConfigurationChange: () => void;
   onFile: Parameters<typeof ContentProductionForm>[0]['onFile'];
   onPreview: Parameters<typeof ContentProductionForm>[0]['onPreview'];
   onSubmit: Parameters<typeof ContentProductionForm>[0]['onSubmit'];
   onRetryJobs: () => void;
   onRetryPresets: () => void;
+}
+
+function ContentProductionMutationErrors({
+  createError,
+  previewError,
+}: Pick<
+  ContentProductionConsolePageViewProps,
+  'createError' | 'previewError'
+>) {
+  return (
+    <>
+      {previewError ? (
+        <p
+          className='text-body text-danger'
+          role='alert'
+        >
+          Prompt 미리보기를 만들지 못했습니다.
+        </p>
+      ) : null}
+      {createError ? (
+        <p
+          className='text-body text-danger'
+          role='alert'
+        >
+          콘텐츠 제작 작업을 만들지 못했습니다.
+        </p>
+      ) : null}
+    </>
+  );
 }
 
 /** preset과 job query 하나의 실패가 다른 영역을 가리지 않게 렌더링한다 */
@@ -45,13 +78,21 @@ export function ContentProductionConsolePageView(
         />
       ) : null}
       {props.presets ? (
-        <ContentProductionForm
-          onFile={props.onFile}
-          onPreview={props.onPreview}
-          onSubmit={props.onSubmit}
-          presets={props.presets.items}
-          {...(props.preview ? { preview: props.preview } : {})}
-        />
+        <>
+          <ContentProductionMutationErrors
+            createError={props.createError}
+            previewError={props.previewError}
+          />
+          <ContentProductionForm
+            onConfigurationChange={props.onConfigurationChange}
+            onFile={props.onFile}
+            onPreview={props.onPreview}
+            onSubmit={props.onSubmit}
+            pending={props.mutationPending}
+            presets={props.presets.items}
+            {...(props.preview ? { preview: props.preview } : {})}
+          />
+        </>
       ) : null}
       <section className='grid gap-cluster'>
         <h2 className='text-title text-primary'>최근 작업</h2>

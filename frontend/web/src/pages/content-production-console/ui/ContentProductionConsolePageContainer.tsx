@@ -1,5 +1,5 @@
 /** 콘텐츠 제작 query·upload·preview·create mutation을 console View에 연결한다 */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   contentProductionJobsQueryOptions,
@@ -18,9 +18,9 @@ export function ContentProductionConsolePageContainer() {
   const [preview, setPreview] = useState<
     Awaited<ReturnType<typeof previewContentProductionPrompt>> | undefined
   >();
+  const previewRevision = useRef(0);
   const previewMutation = useMutation({
     mutationFn: previewContentProductionPrompt,
-    onSuccess: setPreview,
   });
   const createMutation = useMutation({
     mutationFn: createContentProductionJob,
@@ -36,22 +36,40 @@ export function ContentProductionConsolePageContainer() {
       {...(jobs.data ? { jobs: jobs.data } : {})}
       jobsError={jobs.isError}
       jobsLoading={jobs.isPending}
+      mutationPending={previewMutation.isPending || createMutation.isPending}
+      previewError={previewMutation.isError}
+      createError={createMutation.isError}
+      onConfigurationChange={() => {
+        previewRevision.current += 1;
+        previewMutation.reset();
+        setPreview(undefined);
+      }}
       onFile={(file) =>
         uploadContentProductionInput(file, new AbortController().signal)
       }
       onPreview={({ presetId, options, questionPlanIndex }) => {
+        if (previewMutation.isPending) return;
         const preset = presetFor(presetId);
         if (!preset || preset.purpose === 'VOCABULARY_EXTRACTION') return;
-        previewMutation.mutate({
-          purpose: preset.purpose,
-          presetId,
-          options,
-          questionPlanIndex,
-        });
+        const revision = previewRevision.current + 1;
+        previewRevision.current = revision;
+        setPreview(undefined);
+        void previewMutation
+          .mutateAsync({
+            purpose: preset.purpose,
+            presetId,
+            options,
+            questionPlanIndex,
+          })
+          .then((result) => {
+            if (previewRevision.current === revision) setPreview(result);
+          })
+          .catch(() => undefined);
       }}
       onRetryJobs={() => void jobs.refetch()}
       onRetryPresets={() => void presets.refetch()}
       onSubmit={({ presetId, uploadId, options }) => {
+        if (createMutation.isPending) return;
         const preset = presetFor(presetId);
         if (!preset) return;
         if (preset.purpose === 'VOCABULARY_EXTRACTION') {

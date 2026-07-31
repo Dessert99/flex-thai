@@ -37,6 +37,7 @@ interface ContentProductionFormProps {
   presets: ContentProductionPreset[];
   preview?: PromptPreviewResponse;
   pending?: boolean;
+  onConfigurationChange: () => void;
   onFile: (file: File) => Promise<UploadedContentProductionInput>;
   onPreview: (input: PreviewInput) => void;
   onSubmit: (input: SubmitInput) => void;
@@ -443,6 +444,7 @@ export function ContentProductionForm({
   presets,
   preview,
   pending = false,
+  onConfigurationChange,
   onFile,
   onPreview,
   onSubmit,
@@ -483,6 +485,7 @@ export function ContentProductionForm({
               return result;
             }}
             onPresetChange={(value) => {
+              onConfigurationChange();
               setPresetId(value);
               setQuestionOptions(
                 questionOptionsFrom(
@@ -491,14 +494,20 @@ export function ContentProductionForm({
               );
               setQuestionPlanIndex('0');
             }}
-            onQuestionPlanIndexChange={setQuestionPlanIndex}
+            onQuestionPlanIndexChange={(value) => {
+              onConfigurationChange();
+              setQuestionPlanIndex(value);
+            }}
             presetId={presetId}
             presets={presets}
             questionCount={questionCount}
             questionPlanIndex={questionPlanIndex}
           />
           <AdvancedSettings
-            onChange={setQuestionOptions}
+            onChange={(options) => {
+              onConfigurationChange();
+              setQuestionOptions(options);
+            }}
             options={questionOptions}
           />
         </Tabs>
