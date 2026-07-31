@@ -128,16 +128,13 @@ describe('로컬 파일 미디어 읽기 provider', () => {
           new Date(now.getTime() + 60_000),
         ),
       );
-      await expect(
-        provider.read({
-          objectId: url.pathname.split('/').at(-1)!,
-          expires: url.searchParams.get('expires')!,
-          signature: url.searchParams.get('signature')!,
-        }),
-      ).resolves.toMatchObject({
-        mimeType: 'audio/wav',
-        bytes: expect.any(Buffer),
+      const result = await provider.read({
+        objectId: url.pathname.split('/').at(-1)!,
+        expires: url.searchParams.get('expires')!,
+        signature: url.searchParams.get('signature')!,
       });
+      expect(result.mimeType).toBe('audio/wav');
+      expect(result.bytes).toBeInstanceOf(Buffer);
     }
   });
 

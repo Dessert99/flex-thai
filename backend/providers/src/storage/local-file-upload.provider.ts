@@ -138,6 +138,7 @@ export class LocalFileUploadProvider
   }
 
   /** 콘텐츠 제작 input의 exact key·MIME·declared size를 local token에 고정한다 */
+  // eslint-disable-next-line @typescript-eslint/require-await -- 동기 검증 throw도 storage port의 rejected Promise로 보존한다.
   async createPolicy(
     input: Parameters<UploadStorage['createPolicy']>[0],
   ): Promise<UploadPolicy> {
@@ -182,6 +183,7 @@ export class LocalFileUploadProvider
   }
 
   /** audio temporary key·MIME·exact SHA-256을 same-origin form token에 고정한다 */
+  // eslint-disable-next-line @typescript-eslint/require-await -- 동기 검증 throw도 storage port의 rejected Promise로 보존한다.
   async createUpload(
     input: Parameters<AudioUploadStorage['createUpload']>[0],
   ): Promise<Awaited<ReturnType<AudioUploadStorage['createUpload']>>> {
@@ -496,9 +498,7 @@ export class LocalFileUploadProvider
     object: StoredUploadObject,
   ): Awaited<ReturnType<AudioUploadStorage['inspectAndSeal']>> {
     return {
-      mimeType: object.contentType as Awaited<
-        ReturnType<AudioUploadStorage['inspectAndSeal']>
-      >['mimeType'],
+      mimeType: object.contentType,
       sizeBytes: object.bytes.byteLength,
       sha256: createHash('sha256').update(object.bytes).digest('hex'),
     };

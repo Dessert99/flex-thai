@@ -1,5 +1,6 @@
 /** production API subdomain을 주입한 web artifact build를 실행하고 검증한다 */
 import { spawn } from 'node:child_process';
+import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 import { verifyProductionWebArtifact } from './verify-production-web-artifact.mjs';
 

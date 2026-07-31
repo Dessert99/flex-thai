@@ -1,6 +1,7 @@
 /** local runtime 명령이 reset과 data 보존을 분리하는지 검증한다 */
 import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import process from 'node:process';
+import { fileURLToPath, URL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { runLocalRuntime } from './local-runtime.mjs';
 

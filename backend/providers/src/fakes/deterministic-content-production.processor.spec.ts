@@ -172,41 +172,41 @@ describe('DeterministicContentProductionProcessor local 처리', () => {
       errorCode: null,
       result: { total: 1, normal: 1, needsAttention: 0, failed: 0 },
     });
-    expect(persistedCandidates).toEqual([
-      expect.objectContaining({
+    expect(persistedCandidates).toMatchObject([
+      {
         jobId: '405986f9-e552-4ce1-82d6-70a1fc460f96',
         itemId: 'cbb22737-6f3d-4112-bb0e-8e4f005c810b',
         attempt: 0,
-        artifacts: expect.objectContaining({
+        artifacts: {
           kind: 'QUESTION_CANDIDATES',
           candidates: [
-            expect.objectContaining({
+            {
               resultGroup: 'NORMAL',
               reviewStatus: 'PENDING',
-              candidate: expect.objectContaining({
+              candidate: {
                 payloadState: 'CANONICAL',
                 questionTypeVersionId: 'type-version-id',
                 topicId: 'topic-id',
-              }),
-            }),
+              },
+            },
           ],
           validations: [
-            expect.objectContaining({ stage: 'SCHEMA', status: 'PASSED' }),
-            expect.objectContaining({
+            { stage: 'SCHEMA', status: 'PASSED' },
+            {
               stage: 'DECISION_RULE',
               status: 'PASSED',
-            }),
-            expect.objectContaining({
+            },
+            {
               stage: 'SIMILARITY',
               status: 'PASSED',
-            }),
-            expect.objectContaining({
+            },
+            {
               stage: 'AI_CROSS_VALIDATION',
               status: 'PASSED',
-            }),
+            },
           ],
-        }),
-      }),
+        },
+      },
     ]);
     expect(
       (

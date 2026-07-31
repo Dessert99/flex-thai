@@ -304,7 +304,7 @@ describe('EdgeStack 웹 전송 경계', () => {
     if (!isRecord(defaultBehavior) || !Array.isArray(cacheBehaviors)) {
       throw new Error('CloudFront web cache behavior를 읽을 수 없습니다.');
     }
-    const assetsBehavior = cacheBehaviors.find(
+    const assetsBehavior: unknown = cacheBehaviors.find(
       (behavior) => isRecord(behavior) && behavior.PathPattern === 'assets/*',
     );
     if (!isRecord(assetsBehavior)) {

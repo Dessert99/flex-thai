@@ -64,9 +64,8 @@ const dynamicTargets = [
   {
     build: () =>
       router.buildLocation({
-        // 통합 branch의 routeTree 생성 전에는 runtime 도달성으로 검증한다.
-        params: { candidateId } as never,
-        to: '/admin/content-production/vocabulary-candidates/$candidateId' as never,
+        params: { candidateId },
+        to: '/admin/content-production/vocabulary-candidates/$candidateId',
       }),
     label: '어휘 후보 상세',
   },
@@ -197,7 +196,7 @@ describe('route 도달 가능성', () => {
     expect(
       (router.routesByPath as unknown as Record<string, unknown>)[to],
     ).toBeDefined();
-    expect(() => router.buildLocation({ to: to as never })).not.toThrow();
+    expect(() => router.buildLocation({ to })).not.toThrow();
   });
 
   it.each(dynamicTargets)(

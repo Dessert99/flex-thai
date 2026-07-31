@@ -1,7 +1,9 @@
 /** production Vite artifact가 배포 가능한 web application인지 검증한다 */
+import { Buffer } from 'node:buffer';
 import { readFile, realpath, stat } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import process from 'node:process';
+import { pathToFileURL, URL } from 'node:url';
 
 const infrastructureProbe = 'FLEX THIA infrastructure ready';
 const manifestFile = '.vite/manifest.json';

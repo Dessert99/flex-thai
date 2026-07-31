@@ -1,5 +1,6 @@
 /** local Docker stack의 reset·preserve·stop 명령을 같은 project 범위로 실행한다 */
 import { spawn } from 'node:child_process';
+import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 
