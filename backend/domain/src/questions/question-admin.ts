@@ -74,7 +74,47 @@ export interface CloneQuestionVersionCommand extends QuestionAdminCommandContext
 /** canonical payload로 특정 DRAFT 버전을 전체 교체하는 명령 */
 export interface ReplaceQuestionVersionCommand extends QuestionAdminCommandContext {
   versionId: string;
-  input: Omit<CanonicalDraftQuestionInput, 'clientRef'>;
+  input: QuestionAdminDraftInput;
+}
+
+interface QuestionAdminSentenceInput extends Omit<
+  CanonicalDraftSentenceInput,
+  'mediaAssetId'
+> {
+  mediaAssetId: string | null;
+}
+
+interface QuestionAdminDraftInput extends Omit<
+  CanonicalDraftQuestionInput,
+  'clientRef' | 'blocks' | 'options'
+> {
+  blocks: Array<{
+    kind: CanonicalDraftQuestionInput['blocks'][number]['kind'];
+    displayMode: CanonicalDraftQuestionInput['blocks'][number]['displayMode'];
+    sentences: Array<{
+      speaker?: string | null;
+      sentence: QuestionAdminSentenceInput;
+    }>;
+  }>;
+  options: Array<
+    | {
+        clientRef: string;
+        position: number;
+        sentence: QuestionAdminSentenceInput;
+        span: null;
+      }
+    | {
+        clientRef: string;
+        position: number;
+        sentence: null;
+        span: {
+          blockPosition: number;
+          sentencePosition: number;
+          startTokenIndex: number;
+          endTokenIndex: number;
+        };
+      }
+  >;
 }
 
 /** 복제·교체 성공 뒤 공개 응답으로 변환할 DRAFT 요약 */
@@ -222,7 +262,8 @@ const assertReference = (value: unknown, path: string): void => {
 const assertSentenceInput = (
   value: unknown,
   path: string,
-  mediaRequirement: 'READY_REFERENCE' | 'PENDING_TTS' = 'READY_REFERENCE',
+  mediaRequirement:
+    'READY_REFERENCE' | 'OPTIONAL_TTS' | 'PENDING_TTS' = 'READY_REFERENCE',
 ): void => {
   const sentence = requireRecord(value, path);
   requireExactKeys(
@@ -252,7 +293,10 @@ const assertSentenceInput = (
     if (sentence.mediaAssetId !== null) {
       failInvalidContent(`${path}.mediaAssetId`);
     }
-  } else {
+  } else if (
+    mediaRequirement === 'READY_REFERENCE' ||
+    sentence.mediaAssetId !== null
+  ) {
     requireUuid(sentence.mediaAssetId, `${path}.mediaAssetId`);
   }
 
@@ -439,7 +483,11 @@ const assertQuestionInput = (value: unknown): void => {
       ) {
         failInvalidContent(`${entryPath}.speaker`);
       }
-      assertSentenceInput(entry.sentence, `${entryPath}.sentence`);
+      assertSentenceInput(
+        entry.sentence,
+        `${entryPath}.sentence`,
+        'OPTIONAL_TTS',
+      );
     });
   });
 
@@ -508,7 +556,11 @@ const assertQuestionInput = (value: unknown): void => {
       );
       if (end <= start) failInvalidContent(`${optionPath}.span`);
     } else {
-      assertSentenceInput(option.sentence, `${optionPath}.sentence`);
+      assertSentenceInput(
+        option.sentence,
+        `${optionPath}.sentence`,
+        'OPTIONAL_TTS',
+      );
       if (option.span !== null) {
         failInvalidContent(`${optionPath}.span`);
       }
@@ -592,26 +644,28 @@ const requirePronunciation = async (
 
 const resolveSentence = async (input: {
   transaction: QuestionAdminTransaction;
-  sentence: CanonicalDraftSentenceInput;
+  sentence: QuestionAdminSentenceInput;
   path: string;
   newId: () => string;
 }): Promise<ResolvedQuestionSentenceGraph> => {
-  const mediaAsset = await input.transaction.findMediaAssetById(
-    input.sentence.mediaAssetId,
-  );
-  if (!mediaAsset) {
-    throw new QuestionAdminError(
-      'QUESTION_REFERENCE_NOT_FOUND',
-      `${input.path}.mediaAssetId`,
+  if (input.sentence.mediaAssetId !== null) {
+    const mediaAsset = await input.transaction.findMediaAssetById(
+      input.sentence.mediaAssetId,
     );
-  }
-  try {
-    assertMediaAssetReady(mediaAsset);
-  } catch {
-    throw new QuestionAdminError(
-      'QUESTION_MEDIA_NOT_READY',
-      `${input.path}.mediaAssetId`,
-    );
+    if (!mediaAsset) {
+      throw new QuestionAdminError(
+        'QUESTION_REFERENCE_NOT_FOUND',
+        `${input.path}.mediaAssetId`,
+      );
+    }
+    try {
+      assertMediaAssetReady(mediaAsset);
+    } catch {
+      throw new QuestionAdminError(
+        'QUESTION_MEDIA_NOT_READY',
+        `${input.path}.mediaAssetId`,
+      );
+    }
   }
 
   const sentenceId = input.newId();

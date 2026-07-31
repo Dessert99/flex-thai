@@ -51,6 +51,11 @@ export const adminQuestionVersionIdPathSchema = z
   .object({ versionId: uuidSchema })
   .strict();
 
+/** 문제 소유권과 버전을 함께 검증하는 관리자 TTS 생성 경로 */
+export const adminQuestionTtsJobPathSchema = z
+  .object({ questionId: uuidSchema, versionId: uuidSchema })
+  .strict();
+
 const adminContentReferenceSchema = z
   .object({
     id: uuidSchema,
@@ -88,11 +93,20 @@ const adminQuestionSentenceInputSchema = z
     translationKo: z.string().min(1),
     pronunciationKo: z.string().min(1),
     toneMarks: z.string(),
-    mediaAssetId: uuidSchema,
+    mediaAssetId: uuidSchema.nullable(),
     tokens: z.array(adminQuestionTokenInputSchema),
     expressions: z.array(adminQuestionExpressionInputSchema),
   })
   .strict();
+
+const canonicalMediaPlaceholder = '00000000-0000-4000-8000-000000000000';
+
+const withCanonicalSentenceMedia = (
+  sentence: z.infer<typeof adminQuestionSentenceInputSchema>,
+) => ({
+  ...sentence,
+  mediaAssetId: sentence.mediaAssetId ?? canonicalMediaPlaceholder,
+});
 
 const adminQuestionBlockInputSchema = z
   .object({
@@ -166,7 +180,24 @@ export const adminQuestionVersionPayloadSchema = z
   .strict()
   .superRefine((payload, context) => {
     // import와 공유하는 offset·option 관계 규칙은 한 원본에서 검증한다.
-    const result = canonicalQuestionVersionInputSchema.safeParse(payload);
+    const result = canonicalQuestionVersionInputSchema.safeParse({
+      ...payload,
+      blocks: payload.blocks.map((block) => ({
+        ...block,
+        sentences: block.sentences.map((entry) => ({
+          ...entry,
+          sentence: withCanonicalSentenceMedia(entry.sentence),
+        })),
+      })),
+      options: payload.options.map((option) =>
+        option.sentence === null
+          ? option
+          : {
+              ...option,
+              sentence: withCanonicalSentenceMedia(option.sentence),
+            },
+      ),
+    });
     if (!result.success) {
       result.error.issues.forEach((issue) =>
         context.addIssue({
@@ -266,6 +297,69 @@ const adminQuestionTypeVersionSchema = z
   })
   .strict();
 
+const adminQuestionResolvedAudioSchema = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('MISSING'), readUrl: z.null() }).strict(),
+  z
+    .object({
+      status: z.enum(['UPLOADING', 'FAILED']),
+      readUrl: z.null(),
+    })
+    .strict(),
+  z.object({ status: z.literal('READY'), readUrl: z.url() }).strict(),
+]);
+
+const adminQuestionResolvedSentenceSchema = z
+  .object({
+    id: uuidSchema,
+    originalText: z.string().min(1),
+    translationKo: z.string().min(1),
+    pronunciationKo: z.string().min(1),
+    toneMarks: z.string(),
+    mediaAssetId: uuidSchema.nullable(),
+    audio: adminQuestionResolvedAudioSchema,
+    tokens: z.array(
+      z
+        .object({
+          position: z.number().int().safe().nonnegative(),
+          surface: z.string().min(1),
+          startOffset: z.number().int().safe().nonnegative(),
+          endOffset: positiveIntegerSchema,
+          vocabularyId: uuidSchema,
+          meaningId: uuidSchema,
+          pronunciationId: uuidSchema,
+          contextMeaningKo: z.string().min(1),
+          role: z.enum(['TARGET', 'REQUIRED', 'SUPPORTING', 'INSTRUCTION']),
+        })
+        .strict(),
+    ),
+    expressions: z.array(
+      z
+        .object({
+          startTokenIndex: z.number().int().safe().nonnegative(),
+          endTokenIndex: positiveIntegerSchema,
+          vocabularyId: uuidSchema,
+          meaningId: uuidSchema,
+          pronunciationId: uuidSchema,
+          contextMeaningKo: z.string().min(1),
+          representative: z.boolean(),
+        })
+        .strict(),
+    ),
+  })
+  .strict()
+  .superRefine((sentence, context) => {
+    if (
+      (sentence.audio.status === 'MISSING') !==
+      (sentence.mediaAssetId === null)
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message: '음성 상태와 mediaAssetId가 일치해야 합니다.',
+        path: ['audio'],
+      });
+    }
+  });
+
 const adminQuestionBlockSchema = z
   .object({
     id: uuidSchema,
@@ -289,6 +383,7 @@ const adminQuestionBlockSchema = z
           position: z.number().int().safe().nonnegative(),
           speaker: z.string().min(1).nullable(),
           sentenceVersionId: uuidSchema,
+          sentence: adminQuestionResolvedSentenceSchema,
         })
         .strict(),
     ),
@@ -312,6 +407,8 @@ const adminQuestionOptionSchema = z.union([
       ...adminQuestionOptionBase,
       sentenceVersionId: uuidSchema,
       span: z.null(),
+      displayText: z.string().min(1),
+      sentence: adminQuestionResolvedSentenceSchema,
     })
     .strict(),
   z
@@ -319,6 +416,8 @@ const adminQuestionOptionSchema = z.union([
       ...adminQuestionOptionBase,
       sentenceVersionId: z.null(),
       span: adminQuestionOptionSpanSchema,
+      displayText: z.string().min(1),
+      sentence: adminQuestionResolvedSentenceSchema,
     })
     .strict(),
 ]);
@@ -407,6 +506,15 @@ export const adminQuestionDetailResponseSchema = z
   })
   .strict();
 
+/** 문제 버전 TTS 생성이 새 작업과 READY 재사용 수를 함께 반환한다 */
+export const adminQuestionTtsJobResponseSchema = z
+  .object({
+    jobIds: z.array(uuidSchema),
+    scheduledSentenceCount: z.number().int().safe().nonnegative(),
+    reusedReadySentenceCount: z.number().int().safe().nonnegative(),
+  })
+  .strict();
+
 /** 검증된 관리자 문제 목록 query type */
 export type AdminQuestionListQuery = z.infer<
   typeof adminQuestionListQuerySchema
@@ -418,6 +526,11 @@ export type AdminQuestionIdPath = z.infer<typeof adminQuestionIdPathSchema>;
 /** 검증된 관리자 문제 버전 UUID path type */
 export type AdminQuestionVersionIdPath = z.infer<
   typeof adminQuestionVersionIdPathSchema
+>;
+
+/** 검증된 관리자 문제 버전 TTS 경로 type */
+export type AdminQuestionTtsJobPath = z.infer<
+  typeof adminQuestionTtsJobPathSchema
 >;
 
 /** canonical 관리자 문제 버전 교체 요청 type */
@@ -443,4 +556,9 @@ export type AdminQuestionListResponse = z.infer<
 /** 관리자 문제 상세 응답 type */
 export type AdminQuestionDetailResponse = z.infer<
   typeof adminQuestionDetailResponseSchema
+>;
+
+/** 관리자 문제 버전 TTS 생성 결과 type */
+export type AdminQuestionTtsJobResponse = z.infer<
+  typeof adminQuestionTtsJobResponseSchema
 >;

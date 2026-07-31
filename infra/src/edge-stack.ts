@@ -1,5 +1,5 @@
 /** 버지니아 리전의 CloudFront·인증서·DNS 자원을 소유한다 */
-import { fileURLToPath } from 'node:url';
+import { existsSync, statSync } from 'node:fs';
 import {
   Annotations,
   CfnOutput,
@@ -23,6 +23,7 @@ import type { DataStack } from './data-stack.js';
 export interface EdgeStackProps extends StackProps {
   config: InfrastructureConfig;
   dataStack: DataStack;
+  webAssetPath: string;
 }
 
 /** CloudFront와 정식 Web domain을 배치할 글로벌 경계 Stack */
@@ -32,6 +33,14 @@ export class EdgeStack extends Stack {
 
   constructor(scope: Construct, id: string, props: EdgeStackProps) {
     super(scope, id, props);
+
+    if (
+      !props.webAssetPath ||
+      !existsSync(props.webAssetPath) ||
+      !statSync(props.webAssetPath).isDirectory()
+    ) {
+      throw new Error('Web asset directory does not exist.');
+    }
 
     // Media bucket policy는 순환 참조를 피하려고 DataStack에서 계정 단위로 추가한다.
     Annotations.of(this).acknowledgeWarning(
@@ -111,6 +120,37 @@ export class EdgeStack extends Stack {
         enableAcceptEncodingGzip: true,
       },
     );
+    const webResponseHeadersPolicy = new cloudfront.ResponseHeadersPolicy(
+      this,
+      'WebResponseHeadersPolicy',
+      {
+        securityHeadersBehavior: {
+          contentSecurityPolicy: {
+            contentSecurityPolicy:
+              "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api." +
+              rootDomain +
+              ' https://*.s3.ap-northeast-2.amazonaws.com https://s3.ap-northeast-2.amazonaws.com',
+            override: true,
+          },
+          contentTypeOptions: { override: true },
+          frameOptions: {
+            frameOption: cloudfront.HeadersFrameOption.DENY,
+            override: true,
+          },
+          referrerPolicy: {
+            referrerPolicy:
+              cloudfront.HeadersReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN,
+            override: true,
+          },
+          strictTransportSecurity: {
+            accessControlMaxAge: Duration.seconds(31536000),
+            includeSubdomains: true,
+            override: true,
+            preload: true,
+          },
+        },
+      },
+    );
     const redirectFunction = new cloudfront.Function(this, 'RootRedirect', {
       runtime: cloudfront.FunctionRuntime.JS_2_0,
       comment: 'Redirect the root FLEX THIA domain to the canonical www domain',
@@ -164,6 +204,7 @@ function handler(event) {
         cachePolicy: htmlCachePolicy,
         compress: true,
         functionAssociations: redirectFunctionAssociations,
+        responseHeadersPolicy: webResponseHeadersPolicy,
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
       },
       additionalBehaviors: {
@@ -173,6 +214,7 @@ function handler(event) {
           cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
           compress: true,
           functionAssociations: redirectFunctionAssociations,
+          responseHeadersPolicy: webResponseHeadersPolicy,
           viewerProtocolPolicy:
             cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         },
@@ -204,15 +246,11 @@ function handler(event) {
       priceClass: cloudfront.PriceClass.PRICE_CLASS_200,
     });
 
-    new s3Deployment.BucketDeployment(this, 'DeployProbe', {
-      sources: [
-        s3Deployment.Source.asset(
-          fileURLToPath(new URL('../assets/web/', import.meta.url)),
-        ),
-      ],
+    new s3Deployment.BucketDeployment(this, 'DeployWebApplication', {
+      sources: [s3Deployment.Source.asset(props.webAssetPath)],
       destinationBucket: webBucket,
       distribution,
-      distributionPaths: ['/index.html'],
+      distributionPaths: ['/index.html', '/assets/*'],
       prune: true,
       retainOnDelete: true,
     });

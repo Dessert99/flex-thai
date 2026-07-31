@@ -15,6 +15,7 @@ export interface QuestionRecommendationCandidate {
   skill: 'READING' | 'LISTENING';
   difficulty: number;
   publishedAt: Date | string;
+  publishedToday: boolean;
   saved: boolean;
   firstIncorrect: boolean;
   practiceIncorrectVocabulary: boolean;
@@ -29,6 +30,7 @@ export interface VocabularyRecommendationCandidate {
   thai: string;
   kind: 'WORD' | 'EXPRESSION';
   publishedAt: Date | string;
+  publishedToday: boolean;
   inWordbook: boolean;
   practiceIncorrect: boolean;
   firstIncorrectQuestion: boolean;
@@ -79,8 +81,28 @@ export interface RecommendationProjection {
   mode: 'PERSONALIZED' | 'FALLBACK';
   meaningfulSignalCount: number;
   activationThreshold: number;
+  publishedToday: HomeContentProjection;
+  newContent: HomeContentProjection;
   questions: QuestionRecommendationProjection[];
   vocabularies: VocabularyRecommendationProjection[];
+}
+
+/** 학습자 홈의 문제·어휘 게시 묶음 */
+export interface HomeContentProjection {
+  questions: Array<{
+    questionId: string;
+    questionVersionId: string;
+    questionTypeDisplayName: string;
+    skill: 'READING' | 'LISTENING';
+    difficulty: number;
+    publishedAt: string;
+  }>;
+  vocabularies: Array<{
+    id: string;
+    thai: string;
+    kind: 'WORD' | 'EXPRESSION';
+    publishedAt: string;
+  }>;
 }
 
 /** 결정적 추천 계산 입력 */
@@ -244,6 +266,7 @@ const fallback = (
   mode: 'FALLBACK',
   meaningfulSignalCount: input.meaningfulSignalCount,
   activationThreshold: ACTIVATION_THRESHOLD,
+  ...buildHomeContent(input),
   questions: [...input.questions]
     .sort((left, right) =>
       comparePublishedAtThenId(
@@ -257,6 +280,49 @@ const fallback = (
     .sort(comparePublishedAtThenId)
     .slice(0, RESULT_LIMIT)
     .map((candidate) => toVocabulary(candidate, 'RECENTLY_PUBLISHED')),
+});
+
+const toIsoString = (value: Date | string): string =>
+  (typeof value === 'string' ? new Date(value) : value).toISOString();
+
+const buildHomeContentGroup = (
+  input: RecommendationCalculationInput,
+  publishedToday: boolean,
+): HomeContentProjection => ({
+  questions: input.questions
+    .filter((candidate) => candidate.publishedToday === publishedToday)
+    .sort((left, right) =>
+      comparePublishedAtThenId(
+        { id: left.questionId, publishedAt: left.publishedAt },
+        { id: right.questionId, publishedAt: right.publishedAt },
+      ),
+    )
+    .slice(0, RESULT_LIMIT)
+    .map((candidate) => ({
+      questionId: candidate.questionId,
+      questionVersionId: candidate.questionVersionId,
+      questionTypeDisplayName: candidate.questionTypeDisplayName,
+      skill: candidate.skill,
+      difficulty: candidate.difficulty,
+      publishedAt: toIsoString(candidate.publishedAt),
+    })),
+  vocabularies: input.vocabularies
+    .filter((candidate) => candidate.publishedToday === publishedToday)
+    .sort(comparePublishedAtThenId)
+    .slice(0, RESULT_LIMIT)
+    .map((candidate) => ({
+      id: candidate.id,
+      thai: candidate.thai,
+      kind: candidate.kind,
+      publishedAt: toIsoString(candidate.publishedAt),
+    })),
+});
+
+const buildHomeContent = (
+  input: RecommendationCalculationInput,
+): Pick<RecommendationProjection, 'publishedToday' | 'newContent'> => ({
+  publishedToday: buildHomeContentGroup(input, true),
+  newContent: buildHomeContentGroup(input, false),
 });
 
 /** 활성화 기준과 양수 점수를 적용해 최대 3개씩 추천한다 */
@@ -306,6 +372,7 @@ export const buildRecommendationResult = (
     mode: 'PERSONALIZED',
     meaningfulSignalCount: input.meaningfulSignalCount,
     activationThreshold: ACTIVATION_THRESHOLD,
+    ...buildHomeContent(input),
     questions: [
       ...recommendedQuestions,
       ...questions
@@ -412,6 +479,7 @@ const questionCandidateQuery = (userId: string): SQL => sql`
       q.id as question_id,
       qv.id as question_version_id,
       qv.published_at,
+      qv.published_at::date = current_date as published_today,
       qv.difficulty,
       qt.id as question_type_id,
       qt.slug as question_type_slug,
@@ -529,6 +597,7 @@ const questionCandidateQuery = (userId: string): SQL => sql`
     candidate.skill,
     candidate.difficulty,
     candidate.published_at as "publishedAt",
+    candidate.published_today as "publishedToday",
     exists (
       select 1 from saved_questions saved
       where saved.user_id = ${userId}
@@ -721,6 +790,7 @@ const vocabularyCandidateQuery = (userId: string): SQL => sql`
     vocabulary.thai,
     vocabulary.kind,
     vocabulary.published_at as "publishedAt",
+    vocabulary.published_at::date = current_date as "publishedToday",
     exists (
       select 1
       from wordbook_items item

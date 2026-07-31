@@ -6,6 +6,10 @@ export const adminNavigation = [
   { href: '/admin', label: '관리 홈' },
   { href: '/admin/content-imports', label: '콘텐츠 가져오기' },
   { href: '/admin/content-production', label: '콘텐츠 제작' },
+  {
+    href: '/admin/content-production/vocabulary-candidates',
+    label: '어휘 후보 검수',
+  },
   { href: '/admin/tts', label: 'TTS 운영' },
   { href: '/admin/usage-cost', label: '사용량·비용' },
   { href: '/admin/questions', label: '문제 관리' },

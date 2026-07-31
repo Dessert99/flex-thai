@@ -12,8 +12,11 @@ export default defineConfig({
   test: {
     name: 'web',
     environment: 'jsdom',
+    // coverage 계측 중 UI test file이 CPU를 경합하지 않게 직렬 실행한다.
+    fileParallelism: false,
     include: ['src/**/*.test.{ts,tsx}'],
     setupFiles: ['./src/shared/test/setupTests.ts'],
+    testTimeout: 30_000,
     coverage: {
       // 선언형 file-route 접착부는 routeReachability에서 typed 경로 조립으로 검증한다
       exclude: [

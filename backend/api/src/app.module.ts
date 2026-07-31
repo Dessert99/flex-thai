@@ -11,6 +11,7 @@ import {
   createDataApiDatabase,
   createLocalDatabase,
   DrizzleAdminConceptQuery,
+  DrizzleAdminHomeQuery,
   DrizzleAdminMediaQuery,
   DrizzleAdminQuestionQuery,
   DrizzleAdminVocabularyQuery,
@@ -36,6 +37,8 @@ import {
   DrizzleMediaAdminRepository,
   DrizzleQuestionAdminRepository,
   DrizzleQuestionCandidateQuery,
+  DrizzleVocabularyCandidateQuery,
+  DrizzleVocabularyCandidateReviewRepository,
   DrizzleQuestionProductionContextQuery,
   DrizzleQuestionPublicationRepository,
   DrizzleQuestionTaxonomyQuery,
@@ -48,6 +51,7 @@ import {
   DrizzleVocabularyAdminRepository,
   DrizzleVocabularyPracticeQuery,
   DrizzleVocabularyPracticeRepository,
+  DrizzleVocabularyProductionLookup,
   DrizzleTtsOperationsQuery,
   DrizzleTtsRetryCoordinator,
   DrizzleTtsVoicePresetQuery,
@@ -69,6 +73,7 @@ import {
   QuestionAdminService,
   QuestionAttemptService,
   QuestionCandidateReviewService,
+  VocabularyCandidateReviewService,
   QuestionPublicationService,
   QuestionTaxonomyService,
   SavedContentService,
@@ -84,14 +89,14 @@ import {
   CloudFrontMediaReadUrlProvider,
   CognitoPasswordlessAuthenticationProvider,
   DeterministicContentProductionProcessor,
-  FakeAudioUploadProvider,
   FakeEmailChallengeSender,
   FakeConceptContentValidator,
   FakePasswordlessAuthenticationProvider,
-  FakeUploadProvider,
   LocalContentProductionQueue,
   LocalFileMediaReadProvider,
+  LocalFileUploadProvider,
   resolveLocalTtsAudioDirectory,
+  resolveLocalUploadDirectory,
   S3AudioUploadProvider,
   S3UploadProvider,
   SesEmailChallengeSender,
@@ -230,7 +235,17 @@ export const createApplicationModule = (
       ? undefined
       : new LocalFileMediaReadProvider(
           resolveLocalTtsAudioDirectory(source),
-          env.FLEX_THIA_LOCAL_API_ORIGIN,
+          env.FLEX_THIA_LOCAL_PUBLIC_ORIGIN,
+          env.FLEX_THIA_LOCAL_MEDIA_HMAC_SECRET,
+          undefined,
+          resolveLocalUploadDirectory(source),
+        );
+  const localUploads =
+    env.NODE_ENV === 'production'
+      ? undefined
+      : new LocalFileUploadProvider(
+          resolveLocalUploadDirectory(source),
+          env.FLEX_THIA_LOCAL_PUBLIC_ORIGIN,
           env.FLEX_THIA_LOCAL_MEDIA_HMAC_SECRET,
         );
   const mediaReadUrls =
@@ -266,7 +281,7 @@ export const createApplicationModule = (
           new S3Client({ region: env.AWS_REGION }),
           env.MEDIA_BUCKET_NAME,
         )
-      : new FakeAudioUploadProvider();
+      : localUploads!;
   const media = new MediaAdminService(mediaRepository, audioStorage);
   const questionAdminRepository = new DrizzleQuestionAdminRepository(database);
   const questionPublicationRepository =
@@ -309,9 +324,30 @@ export const createApplicationModule = (
           new S3Client({ region: env.AWS_REGION }),
           requireValue(env.INPUT_BUCKET_NAME, 'INPUT_BUCKET_NAME'),
         )
-      : new FakeUploadProvider();
+      : localUploads!;
   const contentProductionRepository = new DrizzleContentProductionRepository(
     database,
+  );
+  const dispatchOutbox = new DrizzleAsyncDispatchOutboxRepository(database);
+  const questionTtsScheduler = new DrizzleGeneratedQuestionTtsScheduler(
+    env.TTS_VOICE_PRESET_ID,
+    dispatchOutbox,
+  );
+  const questionCandidateRepository = new DrizzleAiQuestionProductionRepository(
+    database,
+    () => new Date(),
+    new DrizzleGeneratedQuestionDraftRepository(),
+    dispatchOutbox,
+    questionTtsScheduler,
+  );
+  const questionProductionContext = new DrizzleQuestionProductionContextQuery(
+    database,
+  );
+  // Drizzle lookup은 schema를 좁히지 않는 port type으로 공개되어 local database를 명시적으로 연결한다.
+  const vocabularyProductionLookup = new DrizzleVocabularyProductionLookup(
+    database as unknown as ConstructorParameters<
+      typeof DrizzleVocabularyProductionLookup
+    >[0],
   );
   const contentProductionQueue =
     env.NODE_ENV === 'production'
@@ -321,7 +357,11 @@ export const createApplicationModule = (
         )
       : new LocalContentProductionQueue(
           contentProductionRepository,
-          new DeterministicContentProductionProcessor(),
+          new DeterministicContentProductionProcessor({
+            vocabularyLookup: vocabularyProductionLookup,
+            questionContext: questionProductionContext,
+            questionCandidates: questionCandidateRepository,
+          }),
         );
   const contentProductionPresets = new DrizzleContentProductionPresetCatalog(
     database,
@@ -330,17 +370,8 @@ export const createApplicationModule = (
     contentProductionRepository,
     contentProductionQueue,
   );
-  const dispatchOutbox = new DrizzleAsyncDispatchOutboxRepository(database);
-  const questionCandidateRepository = new DrizzleAiQuestionProductionRepository(
-    database,
-    () => new Date(),
-    new DrizzleGeneratedQuestionDraftRepository(),
-    dispatchOutbox,
-    new DrizzleGeneratedQuestionTtsScheduler(
-      env.TTS_VOICE_PRESET_ID,
-      dispatchOutbox,
-    ),
-  );
+  const vocabularyCandidateRepository =
+    new DrizzleVocabularyCandidateReviewRepository(database);
   const ttsOperationsQuery = new DrizzleTtsOperationsQuery(database);
   const questionTaxonomy = new QuestionTaxonomyService(
     new DrizzleQuestionTaxonomyRepository(database),
@@ -379,6 +410,11 @@ export const createApplicationModule = (
         questions: new QuestionAdminService(questionAdminRepository),
         questionPublication,
         questionQuery: new DrizzleAdminQuestionQuery(database),
+        questionTts: {
+          regenerate: (input) =>
+            questionTtsScheduler.regenerate(database, input),
+        },
+        mediaReadUrls,
         vocabularies: new VocabularyAdminService(vocabularyRepository),
         vocabularyQuery: new DrizzleAdminVocabularyQuery(database),
         findQuestionIdByVersionId: async (versionId) =>
@@ -427,8 +463,10 @@ export const createApplicationModule = (
         questionCandidateReview: new QuestionCandidateReviewService(
           questionCandidateRepository,
         ),
-        questionProductionContext: new DrizzleQuestionProductionContextQuery(
-          database,
+        questionProductionContext,
+        vocabularyCandidates: new DrizzleVocabularyCandidateQuery(database),
+        vocabularyCandidateReview: new VocabularyCandidateReviewService(
+          vocabularyCandidateRepository,
         ),
         users,
         authorizer,
@@ -449,6 +487,7 @@ export const createApplicationModule = (
         users,
         authorizer,
         ...(localMedia ? { localMedia } : {}),
+        ...(localUploads ? { localUploads } : {}),
       }),
       QuestionTaxonomyModule.register({
         query: new DrizzleQuestionTaxonomyQuery(database),
@@ -458,6 +497,7 @@ export const createApplicationModule = (
       }),
       OperationsModule.register({
         auditLogs,
+        homeQuery: new DrizzleAdminHomeQuery(database),
         usageCost: {
           query: new DrizzleUsageCostOperationsQuery(database),
           settings: new DrizzleOperationsCostSettingsRepository(database),

@@ -1,6 +1,9 @@
 /** 생성 문제 승인 TTS scheduler의 snapshot·대상·outbox 원자성을 고정한다 */
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import { describe, expect, it, vi } from 'vitest';
 import {
+  auditLogs,
   asyncDispatchOutbox,
   questionBlockSentences,
   questionOptions,
@@ -10,8 +13,12 @@ import {
   ttsJobs,
   ttsVoicePresets,
 } from '../../schema/index.js';
+import * as schema from '../../schema/index.js';
 import { createTtsInitialCommandFingerprint } from '../dispatch/drizzle-async-dispatch-outbox.repository.js';
-import { DrizzleGeneratedQuestionTtsScheduler } from './drizzle-generated-question-tts.scheduler.js';
+import {
+  createQuestionTtsTargetSentenceLockQuery,
+  DrizzleGeneratedQuestionTtsScheduler,
+} from './drizzle-generated-question-tts.scheduler.js';
 
 const requestedAt = new Date('2026-07-28T00:00:00.000Z');
 const presetId = '00000000-0000-4000-8000-000000000001';
@@ -50,6 +57,7 @@ const createSelect = (
         return chain;
       }),
       innerJoin: vi.fn(() => chain),
+      leftJoin: vi.fn(() => chain),
       where: vi.fn(() => chain),
       orderBy: vi.fn(() => chain),
       for: vi.fn(() => chain),
@@ -68,6 +76,9 @@ const createTransaction = (overrides?: {
   blockRows?: unknown[];
   optionRows?: unknown[];
 }) => {
+  const execute = vi.fn<(query: unknown) => Promise<unknown[]>>(() =>
+    Promise.resolve([]),
+  );
   const selectedTables: unknown[] = [];
   const rowsByTable = new Map<unknown, unknown[]>([
     [ttsVoicePresets, overrides?.presetRows ?? [preset]],
@@ -120,10 +131,43 @@ const createTransaction = (overrides?: {
     inserted,
     selectedTables,
     transaction: {
+      execute,
       insert,
       select: createSelect(rowsByTable, selectedTables),
     },
   };
+};
+
+const overrideRegenerationReads = (
+  fixture: ReturnType<typeof createTransaction>,
+  input: {
+    audit?: unknown[];
+    activeItems?: unknown[];
+    replayJobs?: unknown[];
+  },
+) => {
+  const originalSelect = fixture.transaction.select as unknown as (
+    fields: Record<string, unknown>,
+  ) => unknown;
+  fixture.transaction.select = vi.fn((fields: Record<string, unknown>) => {
+    let rowsByTable: Map<unknown, unknown[]> | undefined;
+    if (Object.hasOwn(fields, 'action')) {
+      rowsByTable = new Map([[auditLogs, input.audit ?? []]]);
+    } else if (Object.hasOwn(fields, 'commandFingerprint')) {
+      rowsByTable = new Map([[ttsJobs, input.replayJobs ?? []]]);
+    } else if (
+      Object.hasOwn(fields, 'jobId') &&
+      Object.hasOwn(fields, 'status') &&
+      !Object.hasOwn(fields, 'originalText')
+    ) {
+      rowsByTable = new Map([[ttsItems, input.activeItems ?? []]]);
+    }
+    if (rowsByTable === undefined) return originalSelect(fields);
+    const select = createSelect(rowsByTable, []) as unknown as (
+      selected: Record<string, unknown>,
+    ) => unknown;
+    return select(fields);
+  }) as never;
 };
 
 describe('생성 문제 TTS scheduler', () => {
@@ -383,6 +427,230 @@ describe('생성 문제 TTS scheduler', () => {
       ).rejects.toThrow('GENERATED_QUESTION_TTS_TARGET_MISMATCH');
       expect(fixture.inserted).toHaveLength(0);
       expect(enqueueTts).not.toHaveBeenCalled();
+    }
+  });
+});
+
+describe('관리자 문제 버전 TTS 재생성', () => {
+  it('request advisory lock을 version row lock보다 먼저 획득한다', async () => {
+    const fixture = createTransaction();
+    overrideRegenerationReads(fixture, {
+      activeItems: [{ jobId, status: 'PENDING' }],
+    });
+    const database = {
+      transaction: (work: (transaction: unknown) => Promise<unknown>) =>
+        work(fixture.transaction),
+    };
+    const scheduler = new DrizzleGeneratedQuestionTtsScheduler(presetId, {
+      enqueueTts: vi.fn(),
+      assertTtsDispatch: vi.fn(),
+    });
+
+    await expect(
+      scheduler.regenerate(database as never, {
+        questionId,
+        versionId: questionVersionId,
+        actorUserId: userId,
+        actorSub: 'admin-sub',
+        requestId: 'request-lock',
+        requestedAt,
+      }),
+    ).rejects.toThrow('QUESTION_TTS_ALREADY_RUNNING');
+
+    const advisoryQuery: unknown =
+      fixture.transaction.execute.mock.calls[0]?.[0];
+    const compiled = new PgDialect().sqlToQuery(advisoryQuery as never);
+    expect(compiled.sql).toContain(
+      'pg_advisory_xact_lock(hashtextextended($1, 0))',
+    );
+    expect(compiled.params).toEqual(['request-lock']);
+    expect(
+      fixture.transaction.execute.mock.invocationCallOrder[0],
+    ).toBeLessThan(fixture.transaction.select.mock.invocationCallOrder[0]!);
+  });
+
+  it('LEFT JOIN 문장 조회는 nullable media가 아닌 문장 버전만 잠근다', () => {
+    const database = drizzle({ client: {} as never, schema });
+    const compiled = createQuestionTtsTargetSentenceLockQuery(database, [
+      firstSentenceId,
+    ]).toSQL();
+
+    expect(compiled.sql).toContain('for update of "thai_sentence_versions"');
+    expect(compiled.sql).not.toContain(
+      'for update of "thai_sentence_versions", "media_assets"',
+    );
+  });
+
+  it('READY 문장은 재사용하고 누락 문장의 job·audit·outbox를 한 transaction에 기록한다', async () => {
+    const fixture = createTransaction({
+      sentenceRows: [
+        {
+          id: firstSentenceId,
+          originalText: 'สวัสดี',
+          mediaAssetId: '00000000-0000-4000-8000-000000000030',
+          mediaStatus: 'READY',
+          frozenAt: null,
+        },
+        {
+          id: secondSentenceId,
+          originalText: 'ขอบคุณ',
+          mediaAssetId: null,
+          mediaStatus: null,
+          frozenAt: null,
+        },
+      ],
+    });
+    overrideRegenerationReads(fixture, {});
+    const database = {
+      transaction: vi.fn((work: (transaction: unknown) => Promise<unknown>) =>
+        work(fixture.transaction),
+      ),
+    };
+    const enqueueTts = vi.fn().mockResolvedValue(undefined);
+    const ids = [jobId, itemIds[0]!];
+    const scheduler = new DrizzleGeneratedQuestionTtsScheduler(
+      presetId,
+      { enqueueTts, assertTtsDispatch: vi.fn() },
+      () => ids.shift()!,
+    );
+
+    await expect(
+      scheduler.regenerate(database as never, {
+        questionId,
+        versionId: questionVersionId,
+        actorUserId: userId,
+        actorSub: 'admin-sub',
+        requestId: 'request-1',
+        requestedAt,
+      }),
+    ).resolves.toEqual({
+      jobIds: [jobId],
+      scheduledSentenceCount: 1,
+      reusedReadySentenceCount: 1,
+    });
+
+    expect(database.transaction).toHaveBeenCalledTimes(1);
+    expect(
+      fixture.inserted.find(({ table }) => table === ttsItems)?.values,
+    ).toEqual([
+      expect.objectContaining({
+        jobId,
+        targetId: secondSentenceId,
+        targetRequired: true,
+      }),
+    ]);
+    expect(
+      fixture.inserted.find(({ table }) => table === auditLogs)?.values,
+    ).toMatchObject({
+      action: 'QUESTION_VERSION_TTS_REGENERATION_REQUESTED',
+      targetType: 'QUESTION_VERSION',
+      targetId: questionVersionId,
+      requestId: 'request-1',
+      summary: {
+        jobIds: [jobId],
+        scheduledSentenceCount: 1,
+        reusedReadySentenceCount: 1,
+      },
+    });
+    expect(enqueueTts).toHaveBeenCalledWith(
+      fixture.transaction,
+      expect.objectContaining({ jobId }),
+    );
+  });
+
+  it('같은 request ID는 저장된 동일 job을 replay하고 outbox를 재확인한다', async () => {
+    const fixture = createTransaction();
+    const result = {
+      jobIds: [jobId],
+      scheduledSentenceCount: 1,
+      reusedReadySentenceCount: 1,
+    };
+    overrideRegenerationReads(fixture, {
+      audit: [
+        {
+          action: 'QUESTION_VERSION_TTS_REGENERATION_REQUESTED',
+          targetId: questionVersionId,
+          actorUserId: userId,
+          actorSub: 'admin-sub',
+          requestId: 'request-1',
+          summary: result,
+        },
+      ],
+      activeItems: [{ jobId, status: 'PROCESSING' }],
+      replayJobs: [
+        {
+          id: jobId,
+          dispatchAttempt: 0,
+          commandFingerprint: createTtsInitialCommandFingerprint(jobId),
+        },
+      ],
+    });
+    const database = {
+      transaction: (work: (transaction: unknown) => Promise<unknown>) =>
+        work(fixture.transaction),
+    };
+    const assertTtsDispatch = vi.fn().mockResolvedValue(undefined);
+    const scheduler = new DrizzleGeneratedQuestionTtsScheduler(presetId, {
+      enqueueTts: vi.fn(),
+      assertTtsDispatch,
+    });
+
+    await expect(
+      scheduler.regenerate(database as never, {
+        questionId,
+        versionId: questionVersionId,
+        actorUserId: userId,
+        actorSub: 'admin-sub',
+        requestId: 'request-1',
+        requestedAt,
+      }),
+    ).resolves.toEqual(result);
+
+    expect(fixture.inserted).toHaveLength(0);
+    expect(assertTtsDispatch).toHaveBeenCalledWith(fixture.transaction, {
+      jobId,
+      attempt: 0,
+      commandFingerprint: createTtsInitialCommandFingerprint(jobId),
+    });
+  });
+
+  it('다른 진행 중 job과 question-version 소유권 불일치를 schedule 전에 거절한다', async () => {
+    for (const candidate of [
+      {
+        questionId,
+        activeItems: [{ jobId, status: 'PENDING' }],
+        code: 'QUESTION_TTS_ALREADY_RUNNING',
+      },
+      {
+        questionId: '00000000-0000-4000-8000-000000000099',
+        activeItems: [],
+        code: 'QUESTION_TTS_VERSION_NOT_FOUND',
+      },
+    ]) {
+      const fixture = createTransaction();
+      overrideRegenerationReads(fixture, {
+        activeItems: candidate.activeItems,
+      });
+      const database = {
+        transaction: (work: (transaction: unknown) => Promise<unknown>) =>
+          work(fixture.transaction),
+      };
+      const scheduler = new DrizzleGeneratedQuestionTtsScheduler(presetId, {
+        enqueueTts: vi.fn(),
+        assertTtsDispatch: vi.fn(),
+      });
+
+      await expect(
+        scheduler.regenerate(database as never, {
+          questionId: candidate.questionId,
+          versionId: questionVersionId,
+          actorUserId: userId,
+          actorSub: 'admin-sub',
+          requestId: 'request-2',
+          requestedAt,
+        }),
+      ).rejects.toThrow(candidate.code);
+      expect(fixture.inserted).toHaveLength(0);
     }
   });
 });

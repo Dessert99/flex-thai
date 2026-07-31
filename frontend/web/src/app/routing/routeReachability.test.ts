@@ -27,6 +27,7 @@ const approvedTargets = [
   '/admin/content-error-reports',
   '/admin/content-production',
   '/admin/content-production/candidates',
+  '/admin/content-production/vocabulary-candidates',
   '/admin/content-production/presets',
   '/admin/tts',
   '/admin/tts/presets',
@@ -59,6 +60,14 @@ const dynamicTargets = [
         to: '/admin/content-production/candidates/$candidateId',
       }),
     label: '문제 후보 상세',
+  },
+  {
+    build: () =>
+      router.buildLocation({
+        params: { candidateId },
+        to: '/admin/content-production/vocabulary-candidates/$candidateId',
+      }),
+    label: '어휘 후보 상세',
   },
   {
     build: () =>
@@ -211,6 +220,7 @@ describe('route 도달 가능성', () => {
     '/admin/vocabularies/$vocabularyId',
     '/admin/content-production/jobs/$jobId',
     '/admin/content-production/candidates/$candidateId',
+    '/admin/content-production/vocabulary-candidates/$candidateId',
     '/admin/tts/jobs/$jobId',
   ])('%s 동적 경로를 route tree에서 찾을 수 있다', (to) => {
     expect(
@@ -223,6 +233,8 @@ describe('route 도달 가능성', () => {
     '/admin/content-production/jobs/$jobId',
     '/admin/content-production/candidates',
     '/admin/content-production/candidates/$candidateId',
+    '/admin/content-production/vocabulary-candidates',
+    '/admin/content-production/vocabulary-candidates/$candidateId',
     '/admin/content-production/presets',
     '/admin/tts',
     '/admin/tts/jobs/$jobId',

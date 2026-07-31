@@ -35,6 +35,42 @@ describe('AppShell', () => {
     expect(screen.getByRole('button', { name: '프로필' })).toBeInTheDocument();
   });
 
+  it('관리자 email·role과 학습자 portal link를 함께 표시한다', () => {
+    render(
+      <AppShell
+        identity={{ email: 'admin@example.com', role: 'ADMIN' }}
+        navigation={navigation}
+        portalLink={{ href: '/learn', label: '학습자 포털' }}
+      >
+        관리자 본문
+      </AppShell>,
+    );
+
+    expect(screen.getByText('admin@example.com')).toBeVisible();
+    expect(screen.getByText('ADMIN')).toBeVisible();
+    expect(screen.getByRole('link', { name: '학습자 포털' })).toHaveAttribute(
+      'href',
+      '/learn',
+    );
+  });
+
+  it('학습자 email·role을 표시하고 관리자 portal link는 만들지 않는다', () => {
+    render(
+      <AppShell
+        identity={{ email: 'learner@example.com', role: 'LEARNER' }}
+        navigation={navigation}
+      >
+        학습자 본문
+      </AppShell>,
+    );
+
+    expect(screen.getByText('learner@example.com')).toBeVisible();
+    expect(screen.getByText('LEARNER')).toBeVisible();
+    expect(
+      screen.queryByRole('link', { name: '관리자 포털' }),
+    ).not.toBeInTheDocument();
+  });
+
   it.each([360, 768, 1280])(
     '%ipx viewport에서 단일 main과 반응형 navigation 계약을 유지한다',
     (width) => {

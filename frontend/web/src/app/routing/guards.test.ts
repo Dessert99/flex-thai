@@ -59,15 +59,9 @@ describe('route 접근 guard', () => {
     expectRedirect(thrown, '/admin');
   });
 
-  it('관리자가 학습자 portal에 접근하면 올바른 관리자 영역으로 보낸다', () => {
-    expectRedirect(
-      captureThrown(() => requireLearnerPortal(unenrolledAdmin)),
-      '/admin/totp-setup',
-    );
-    expectRedirect(
-      captureThrown(() => requireLearnerPortal(enrolledAdmin)),
-      '/admin',
-    );
+  it('TOTP 등록 여부와 무관하게 관리자가 학습자 portal을 사용할 수 있다', () => {
+    expect(() => requireLearnerPortal(unenrolledAdmin)).not.toThrow();
+    expect(() => requireLearnerPortal(enrolledAdmin)).not.toThrow();
   });
 
   it('부모 guard 실패 뒤 leaf loader를 실행하지 않는다', () => {

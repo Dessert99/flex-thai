@@ -145,6 +145,29 @@ describe('문제 버전 교체 URL', () => {
       await screen.findByText('options.0 · MEDIA_ASSET_NOT_READY'),
     ).toBeInTheDocument();
   });
+
+  it('현재 graph를 구조화 form으로 편집하고 오류 field path를 해당 입력에 표시한다', async () => {
+    mocks.authenticatedRequest.mockResolvedValue(
+      createQuestionDetail([createVersion('DRAFT')]),
+    );
+    const user = userEvent.setup();
+    renderReplacePage();
+
+    const thaiInputs = await screen.findAllByLabelText('태국어 문장');
+    const firstThaiInput = thaiInputs[0];
+    if (!firstThaiInput) throw new Error('태국어 문장 입력이 필요합니다.');
+    await user.clear(firstThaiInput);
+    await user.click(
+      screen.getByRole('button', { name: '구조화 내용으로 전체 교체' }),
+    );
+
+    expect(
+      screen.getAllByText(
+        /blocks\.0\.sentences\.0\.sentence\.originalText/u,
+      )[0],
+    ).toBeVisible();
+    expect(mocks.authenticatedRequest).toHaveBeenCalledOnce();
+  });
 });
 
 function renderReplacePage() {
@@ -169,6 +192,21 @@ function createQuestionDetail(versions: ReturnType<typeof createVersion>[]) {
 
 function createVersion(status: 'DRAFT' | 'PUBLISHED') {
   const optionId = '01933b6a-8f13-7a19-b7e5-536d70f57aac';
+  const sentenceId = '01933b6a-8f13-7a19-b7e5-536d70f57aae';
+  const sentence = {
+    id: sentenceId,
+    originalText: 'สวัสดี',
+    translationKo: '안녕하세요',
+    pronunciationKo: '싸왓디',
+    toneMarks: '',
+    mediaAssetId: questionId,
+    audio: {
+      status: 'READY',
+      readUrl: 'https://media.example.com/question.wav',
+    },
+    tokens: [],
+    expressions: [],
+  } as const;
   return {
     id: versionId,
     version: 3,
@@ -182,12 +220,36 @@ function createVersion(status: 'DRAFT' | 'PUBLISHED') {
       template: 'DIALOGUE_CHOICE',
     },
     difficulty: 4,
-    blocks: [],
+    topic: {
+      id: questionId,
+      slug: 'general',
+      displayName: '일반',
+    },
+    tags: [],
+    blocks: [
+      {
+        id: '01933b6a-8f13-7a19-b7e5-536d70f57aaf',
+        kind: 'QUESTION',
+        displayMode: 'TEXT_AND_AUDIO',
+        position: 0,
+        sentences: [
+          {
+            position: 0,
+            speaker: null,
+            sentenceVersionId: sentenceId,
+            sentence,
+          },
+        ],
+      },
+    ],
     options: [
       {
         id: optionId,
         position: 0,
-        sentenceVersionId: '01933b6a-8f13-7a19-b7e5-536d70f57aae',
+        sentenceVersionId: sentenceId,
+        span: null,
+        displayText: 'สวัสดี',
+        sentence,
       },
     ],
     correctOptionId: optionId,

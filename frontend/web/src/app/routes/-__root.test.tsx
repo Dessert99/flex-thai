@@ -90,6 +90,11 @@ describe('root route 제목', () => {
       '/admin/content-production/candidates/00000000-0000-4000-8000-000000000104',
       '문제 후보 상세',
     ],
+    ['/admin/content-production/vocabulary-candidates', '어휘 후보 검수'],
+    [
+      '/admin/content-production/vocabulary-candidates/00000000-0000-4000-8000-000000000106',
+      '어휘 후보 상세',
+    ],
     ['/admin/content-production/presets', '콘텐츠 제작 Preset'],
     ['/admin/tts', 'TTS 운영'],
     ['/admin/tts/jobs/00000000-0000-4000-8000-000000000105', 'TTS 작업 상세'],

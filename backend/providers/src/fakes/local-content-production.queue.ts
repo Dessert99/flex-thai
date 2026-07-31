@@ -6,8 +6,13 @@ import type {
   ContentProductionRepository,
   ContentProductionWorkItem,
   ContentProductionWorkerJob,
+  QuestionGenerationParameters,
+  VocabularyProductionArtifacts,
 } from '@flex-thia/domain';
-import { createContentProductionWorkItem } from '@flex-thia/domain';
+import {
+  createContentProductionWorkItem,
+  expandQuestionGenerationPlan,
+} from '@flex-thia/domain';
 
 interface LocalContentProductionProcessor {
   process(
@@ -18,51 +23,55 @@ interface LocalContentProductionProcessor {
     retryable: boolean;
     errorCode: string | null;
     result?: Record<string, unknown>;
+    artifacts?: VocabularyProductionArtifacts;
   }>;
 }
 
-const buildItemSeeds = (
+const buildVocabularySeeds = (
   job: Pick<ContentProductionWorkerJob, 'purpose' | 'inputs'>,
 ): ContentProductionItemSeed[] =>
-  job.inputs.flatMap((input) => {
+  job.inputs.map((input) => {
     const index = input.ordinal;
-    if (job.purpose === 'VOCABULARY_EXTRACTION') {
-      return [
-        {
-          sourceRef: `input:${index}:vocabulary`,
-          jobInputId: input.jobInputId,
-          operation: 'VOCABULARY_EXTRACTION',
-          questionPlan: null,
-        },
-      ];
-    }
-
-    if (job.purpose === 'QUESTION_GENERATION') {
-      return [
-        {
-          sourceRef: `input:${index}:question`,
-          jobInputId: input.jobInputId,
-          operation: 'QUESTION_GENERATION',
-          questionPlan: null,
-        },
-      ];
-    }
-
-    return [
-      {
-        sourceRef: `input:${index}:vocabulary`,
-        jobInputId: input.jobInputId,
-        operation: 'VOCABULARY_EXTRACTION',
-        questionPlan: null,
-      },
-      {
-        sourceRef: `input:${index}:question`,
-        jobInputId: input.jobInputId,
-        operation: 'QUESTION_GENERATION',
-        questionPlan: null,
-      },
-    ];
+    return {
+      sourceRef: `input:${index}:vocabulary`,
+      jobInputId: input.jobInputId,
+      operation: 'VOCABULARY_EXTRACTION',
+      questionPlan: null,
+    };
   });
+
+const buildQuestionSeeds = (
+  job: Pick<ContentProductionWorkerJob, 'presetSnapshot' | 'inputs'>,
+): ContentProductionItemSeed[] => {
+  if (job.inputs.length === 0) return [];
+  const plans = expandQuestionGenerationPlan(
+    job.presetSnapshot.parameters as unknown as QuestionGenerationParameters,
+  );
+
+  return plans.map((questionPlan) => {
+    const input =
+      job.inputs[questionPlan.questionPlanIndex % job.inputs.length]!;
+    return {
+      sourceRef: `input:${input.ordinal}:question:${questionPlan.questionPlanIndex}`,
+      jobInputId: input.jobInputId,
+      operation: 'QUESTION_GENERATION',
+      questionPlan,
+    };
+  });
+};
+
+const buildItemSeeds = (
+  job: ContentProductionWorkerJob,
+): ContentProductionItemSeed[] => {
+  if (job.purpose === 'VOCABULARY_EXTRACTION') {
+    return buildVocabularySeeds(job);
+  }
+  if (job.purpose === 'QUESTION_GENERATION') {
+    return buildQuestionSeeds(job);
+  }
+
+  return [...buildVocabularySeeds(job), ...buildQuestionSeeds(job)];
+};
 
 const requireWorkerJob = (
   job: ContentProductionJob,
@@ -166,6 +175,17 @@ export class LocalContentProductionQueue implements ContentProductionQueue {
     ) {
       return;
     }
+    const itemSeed = buildItemSeeds(job).find(
+      (seed) =>
+        seed.sourceRef === claimed.sourceRef &&
+        seed.jobInputId === claimed.jobInputId &&
+        seed.operation === claimed.operation,
+    );
+    if (!itemSeed) {
+      throw new Error(
+        `snapshot에서 콘텐츠 제작 항목을 복원할 수 없습니다: ${claimed.sourceRef}`,
+      );
+    }
 
     let outcome: Awaited<
       ReturnType<LocalContentProductionProcessor['process']>
@@ -177,7 +197,7 @@ export class LocalContentProductionQueue implements ContentProductionQueue {
           ...claimed,
           jobInputId: claimed.jobInputId,
           operation: claimed.operation,
-          questionPlan: null,
+          questionPlan: itemSeed.questionPlan,
           leaseUntil: claimed.leaseUntil,
           leaseToken: claimed.leaseToken,
         }),

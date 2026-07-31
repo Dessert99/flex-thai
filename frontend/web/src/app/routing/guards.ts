@@ -32,15 +32,9 @@ function throwLoginRedirect(preservedPath: string | undefined): never {
   throw new Error('로그인 redirect를 생성하지 못했습니다.');
 }
 
-/** learner portal을 학습자에게만 허용한다 */
+/** 인증된 학습자와 관리자가 learner portal을 함께 사용하게 한다 */
 export function requireLearnerPortal(session: AuthenticatedSession): void {
-  if (session.user.role === 'LEARNER') {
-    return;
-  }
-
-  return throwAccessRedirect(
-    session.user.mfaEnrolled ? '/admin' : '/admin/totp-setup',
-  );
+  void session;
 }
 
 /** 관리자 TOTP enrollment 영역을 미등록 관리자에게만 허용한다 */

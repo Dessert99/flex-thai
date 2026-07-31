@@ -3,7 +3,10 @@ import { type DynamicModule, Module } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { IdentityUserRepository } from '@flex-thia/domain';
 import type { MediaReadUrlProvider } from '@flex-thia/domain';
-import { LocalFileMediaReadProvider } from '@flex-thia/providers';
+import {
+  LocalFileMediaReadProvider,
+  LocalFileUploadProvider,
+} from '@flex-thia/providers';
 import { AdminMfaGuard } from '../identity/admin-mfa.guard.js';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
 import {
@@ -13,6 +16,7 @@ import {
   IDENTITY_USER_REPOSITORY,
 } from '../identity/cognito-authorizer.guard.js';
 import { LocalMediaController } from './local-media.controller.js';
+import { LocalUploadController } from './local-upload.controller.js';
 import { TtsOperationsController } from './tts-operations.controller.js';
 import {
   TtsOperationsService,
@@ -40,6 +44,7 @@ export interface MediaModuleOptions {
   users: IdentityUserRepository;
   authorizer: AuthorizerGuardOptions;
   localMedia?: LocalFileMediaReadProvider;
+  localUploads?: LocalFileUploadProvider;
 }
 
 /** TTS 운영과 local-only media route를 소유하는 Nest module */
@@ -47,20 +52,31 @@ export interface MediaModuleOptions {
 export class MediaModule {
   /** production에는 ADMIN route만, local에는 HMAC reader를 함께 등록한다 */
   static register(options: MediaModuleOptions): DynamicModule {
-    const localProviders = options.localMedia
-      ? [
-          {
-            provide: LocalFileMediaReadProvider,
-            useValue: options.localMedia,
-          },
-        ]
-      : [];
+    const localProviders = [
+      ...(options.localMedia
+        ? [
+            {
+              provide: LocalFileMediaReadProvider,
+              useValue: options.localMedia,
+            },
+          ]
+        : []),
+      ...(options.localUploads
+        ? [
+            {
+              provide: LocalFileUploadProvider,
+              useValue: options.localUploads,
+            },
+          ]
+        : []),
+    ];
     return {
       module: MediaModule,
       controllers: [
         TtsOperationsController,
         TtsVoicePresetsController,
         ...(options.localMedia ? [LocalMediaController] : []),
+        ...(options.localUploads ? [LocalUploadController] : []),
       ],
       providers: [
         {

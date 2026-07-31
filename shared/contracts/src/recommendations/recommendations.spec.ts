@@ -10,6 +10,30 @@ const response = {
   mode: 'PERSONALIZED',
   meaningfulSignalCount: 5,
   activationThreshold: 5,
+  publishedToday: {
+    questions: [
+      {
+        questionId: '01933b6a-8f13-7a19-b7e5-536d70f57aae',
+        questionVersionId: '01933b6a-8f13-7a19-b7e5-536d70f57aaf',
+        questionTypeDisplayName: '오늘 게시 문제',
+        skill: 'READING',
+        difficulty: 1,
+        publishedAt: '2026-07-31T01:00:00.000Z',
+      },
+    ],
+    vocabularies: [
+      {
+        id: '01933b6a-8f13-7a19-b7e5-536d70f57ab0',
+        thai: 'วันนี้',
+        kind: 'WORD',
+        publishedAt: '2026-07-31T02:00:00.000Z',
+      },
+    ],
+  },
+  newContent: {
+    questions: [],
+    vocabularies: [],
+  },
   questions: [
     {
       questionId: '01933b6a-8f13-7a19-b7e5-536d70f57aaa',
@@ -37,7 +61,7 @@ const response = {
 } as const;
 
 describe('개인 추천 공개 계약', () => {
-  it('개인화 모드와 문제·어휘 추천 이유를 허용한다', () => {
+  it('개인화 모드와 오늘·NEW·추천 콘텐츠를 허용한다', () => {
     expect(recommendationResponseSchema.parse(response)).toEqual(response);
   });
 
@@ -47,6 +71,8 @@ describe('개인 추천 공개 계약', () => {
         ...response,
         mode: 'FALLBACK',
         meaningfulSignalCount: 0,
+        publishedToday: { questions: [], vocabularies: [] },
+        newContent: { questions: [], vocabularies: [] },
         questions: [],
         vocabularies: [],
       }),
@@ -58,6 +84,23 @@ describe('개인 추천 공개 계약', () => {
       recommendationResponseSchema.parse({
         ...response,
         questions: [{ ...response.questions[0], score: 40 }],
+      }),
+    ).toThrow();
+  });
+
+  it('오늘 게시와 NEW 콘텐츠에 공개 시각이 없으면 거절한다', () => {
+    expect(() =>
+      recommendationResponseSchema.parse({
+        ...response,
+        publishedToday: {
+          ...response.publishedToday,
+          questions: [
+            {
+              ...response.publishedToday.questions[0],
+              publishedAt: undefined,
+            },
+          ],
+        },
       }),
     ).toThrow();
   });

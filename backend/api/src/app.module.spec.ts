@@ -1,12 +1,15 @@
 /** root가 학습·관리·운영 기능과 환경별 provider를 조립하는지 검증한다 */
 import {
+  DrizzleAdminHomeQuery,
   DrizzleContentProductionPresetCatalog,
   DrizzleContentProductionRepository,
+  DrizzleAiQuestionProductionRepository,
   DrizzleOperationsCostSettingsRepository,
   DrizzleQuestionProductionContextQuery,
   DrizzleTtsVoicePresetQuery,
   DrizzleTtsVoicePresetRepository,
   DrizzleUsageCostOperationsQuery,
+  DrizzleVocabularyProductionLookup,
   DrizzleEmailChallengeRepository,
   DrizzleRecommendationQuery,
   DrizzleUploadRepository,
@@ -15,26 +18,21 @@ import {
   DrizzleWordbookRepository,
 } from '@flex-thia/database';
 import {
-  completeMediaAsset,
   ContentProductionService,
   IdentityAuthenticationService,
-  type MediaAdminRepository,
-  type MediaAsset,
-  type MediaAdminService,
   PasswordlessAuthenticationService,
   UserManagementService,
   WordbookService,
 } from '@flex-thia/domain';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   ChallengeCrypto,
   CloudFrontMediaReadUrlProvider,
   CognitoPasswordlessAuthenticationProvider,
   DeterministicContentProductionProcessor,
-  FakeAudioUploadProvider,
   FakeEmailChallengeSender,
   FakePasswordlessAuthenticationProvider,
-  FakeUploadProvider,
+  LocalFileUploadProvider,
   LocalContentProductionQueue,
   S3AudioUploadProvider,
   S3UploadProvider,
@@ -47,6 +45,7 @@ import { ContentProductionApplicationService } from './content-production/conten
 import { TtsOperationsService } from './media/tts-operations.service.js';
 import { TtsVoicePresetsService } from './media/tts-voice-presets.service.js';
 import { UsageCostOperationsService } from './operations/usage-cost-operations.service.js';
+import { AdminHomeService } from './operations/admin-home.service.js';
 import { AdminUserManagementController } from './identity/admin-user-management.controller.js';
 import { LearnerContentService } from './learning/learner-content.service.js';
 import { LearnerWordbooksService } from './learning/learner-wordbooks.service.js';
@@ -62,6 +61,7 @@ describe('createApplicationModule 조립', () => {
       DATABASE_URL: 'postgres://local/test',
       FLEX_THIA_LOCAL_TTS_AUDIO_DIRECTORY: '/tmp/flex-thia-app-media',
       FLEX_THIA_LOCAL_API_ORIGIN: 'http://127.0.0.1:3000',
+      FLEX_THIA_LOCAL_PUBLIC_ORIGIN: 'http://127.0.0.1:5173',
       FLEX_THIA_LOCAL_MEDIA_HMAC_SECRET:
         'local-media-hmac-secret-that-is-not-production',
     });
@@ -154,7 +154,7 @@ describe('createApplicationModule 조립', () => {
         'private/tts/runs/00000000-0000-4000-8000-000000000001.wav',
         new Date(Date.now() + 60_000),
       ),
-    ).resolves.toMatch(/^http:\/\/127\.0\.0\.1:3000\/api\/v1\/local-media\//u);
+    ).resolves.toMatch(/^http:\/\/127\.0\.0\.1:5173\/api\/v1\/local-media\//u);
     expect(content.dependencies.questionQuery.database).toBe(
       content.dependencies.vocabularyQuery.database,
     );
@@ -208,7 +208,7 @@ describe('createApplicationModule 조립', () => {
       adminContent.dependencies.contentImports.drafts.repository.database,
     ).toBe(adminDatabase);
     expect(adminContent.dependencies.media.storage).toBeInstanceOf(
-      FakeAudioUploadProvider,
+      LocalFileUploadProvider,
     );
     expect(adminContent.dependencies.media.repository.database).toBe(
       adminDatabase,
@@ -250,7 +250,14 @@ describe('createApplicationModule 조립', () => {
       presets: unknown;
       contentProduction: {
         repository: unknown;
-        queue: { repository: unknown; processor: unknown };
+        queue: {
+          repository: unknown;
+          processor: {
+            vocabularyLookup: unknown;
+            questionContext: unknown;
+            questionCandidates: unknown;
+          };
+        };
       };
       uploadPolicies: { repository: unknown; storage: unknown };
       questionProductionContext: unknown;
@@ -274,11 +281,20 @@ describe('createApplicationModule 조립', () => {
     expect(contentProduction.contentProduction.queue.processor).toBeInstanceOf(
       DeterministicContentProductionProcessor,
     );
+    expect(
+      contentProduction.contentProduction.queue.processor.vocabularyLookup,
+    ).toBeInstanceOf(DrizzleVocabularyProductionLookup);
+    expect(
+      contentProduction.contentProduction.queue.processor.questionContext,
+    ).toBe(contentProduction.questionProductionContext);
+    expect(
+      contentProduction.contentProduction.queue.processor.questionCandidates,
+    ).toBeInstanceOf(DrizzleAiQuestionProductionRepository);
     expect(contentProduction.uploadPolicies.repository).toBe(
       contentProduction.uploads,
     );
     expect(contentProduction.uploadPolicies.storage).toBeInstanceOf(
-      FakeUploadProvider,
+      LocalFileUploadProvider,
     );
     expect(contentProduction.questionProductionContext).toBeInstanceOf(
       DrizzleQuestionProductionContextQuery,
@@ -326,80 +342,12 @@ describe('createApplicationModule 조립', () => {
     expect(usageCost.dependencies.settings).toBeInstanceOf(
       DrizzleOperationsCostSettingsRepository,
     );
-  });
-
-  it('로컬 기본 fake는 upload 요청 직후 선언 metadata로 READY 완료를 지원한다', async () => {
-    const application = createApplicationModule({
-      NODE_ENV: 'test',
-      AUTH_MODE: 'fake',
-      DATABASE_MODE: 'local',
-      DATABASE_URL: 'postgres://local/test',
-    });
-    const admin = application.imports?.[2] as {
-      providers: { provide: unknown; useValue: unknown }[];
-    };
-    const adminContent = admin.providers.find(
-      (provider) => provider.provide === AdminContentService,
+    const adminHome = operationsModule.providers.find(
+      ({ provide }) => provide === AdminHomeService,
     )?.useValue as {
-      dependencies: {
-        media: Pick<
-          MediaAdminService,
-          'completeAudioUpload' | 'requestAudioUpload'
-        > & {
-          repository: MediaAdminRepository;
-        };
-      };
+      dependencies: { query: unknown };
     };
-    const media = adminContent.dependencies.media;
-    let storedAsset: MediaAsset | null = null;
-    vi.spyOn(media.repository, 'findReadyByMetadata').mockResolvedValue(null);
-    vi.spyOn(media.repository, 'createUploadingWithAudit').mockImplementation(
-      ({ asset }) => {
-        storedAsset = asset;
-        return Promise.resolve();
-      },
-    );
-    vi.spyOn(media.repository, 'findById').mockImplementation(() => {
-      return Promise.resolve(storedAsset);
-    });
-    vi.spyOn(media.repository, 'finalizeWithAudit').mockImplementation(
-      ({ inspection, readyAt }) => {
-        if (!storedAsset) return Promise.resolve(null);
-        const ready = completeMediaAsset(storedAsset, inspection, readyAt);
-        storedAsset = ready;
-        return Promise.resolve({ outcome: 'READY', asset: ready });
-      },
-    );
-    const declaredSha256 = 'A'.repeat(64);
-
-    const requested = await media.requestAudioUpload({
-      filename: 'voice.mp3',
-      mimeType: 'audio/mpeg',
-      sizeBytes: 3,
-      sha256: declaredSha256,
-      context: {
-        actorSub: 'cognito-sub',
-        actorUserId: '00000000-0000-4000-8000-000000000001',
-        requestId: 'request-id',
-      },
-    });
-    if (!requested.uploadRequired) {
-      throw new Error('새 local upload form이 필요합니다');
-    }
-    const completed = await media.completeAudioUpload(requested.mediaAssetId, {
-      actorSub: 'cognito-sub',
-      actorUserId: '00000000-0000-4000-8000-000000000001',
-      requestId: 'request-id',
-    });
-
-    expect(requested.upload.url).toBe('http://localhost/__fake_audio_upload__');
-    expect(completed).toMatchObject({
-      id: requested.mediaAssetId,
-      status: 'READY',
-      mimeType: 'audio/mpeg',
-      sizeBytes: 3,
-      sha256: declaredSha256.toLowerCase(),
-    });
+    expect(adminHome.dependencies.query).toBeInstanceOf(DrizzleAdminHomeQuery);
   });
 
   it('운영 환경은 같은 Learning 조립에서 CloudFront signer를 선택한다', () => {

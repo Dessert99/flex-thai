@@ -7,7 +7,9 @@ import type {
 import { isApiError } from '@/shared/api';
 import { Button } from '@/shared/ui/button';
 import { PageError, PageLoading } from '@/shared/ui/page-state';
+import { toQuestionVersionPayload } from '../model/toQuestionVersionPayload';
 import { QuestionVersionJsonForm } from './QuestionVersionJsonForm';
+import { QuestionVersionStructuredForm } from './QuestionVersionStructuredForm';
 
 interface QuestionVersionReplacePageViewProps {
   data: AdminQuestionDetailResponse | undefined;
@@ -23,6 +25,7 @@ interface QuestionVersionReplacePageViewProps {
   validating: boolean;
   versionId: string;
 }
+type Version = AdminQuestionDetailResponse['versions'][number];
 
 /** detail에 포함된 DRAFT만 blank canonical form으로 전체 교체한다 */
 export function QuestionVersionReplacePageView({
@@ -65,17 +68,72 @@ export function QuestionVersionReplacePageView({
       </p>
     );
   }
+  return (
+    <DraftVersionEditor
+      onReplace={onReplace}
+      onValidate={onValidate}
+      replaceError={replaceError}
+      replaced={replaced}
+      replacing={replacing}
+      validationReport={validationReport}
+      validating={validating}
+      version={version}
+    />
+  );
+}
 
+function DraftVersionEditor({
+  onReplace,
+  onValidate,
+  replaceError,
+  replacing,
+  replaced,
+  validationReport,
+  validating,
+  version,
+}: Pick<
+  QuestionVersionReplacePageViewProps,
+  | 'onReplace'
+  | 'onValidate'
+  | 'replaceError'
+  | 'replacing'
+  | 'replaced'
+  | 'validationReport'
+  | 'validating'
+> & { version: Version }) {
+  const initialPayload = toQuestionVersionPayload(version);
   return (
     <section className='grid max-w-content gap-section'>
       <header className='space-y-cluster'>
         <h1 className='text-title text-primary'>문제 버전 전체 교체</h1>
         <p className='text-body text-subtle'>버전 {version.version} · DRAFT</p>
       </header>
-      <QuestionVersionJsonForm
-        disabled={replacing}
-        onReplace={onReplace}
-      />
+      {initialPayload.ok ? (
+        <QuestionVersionStructuredForm
+          disabled={replacing}
+          initialPayload={initialPayload.payload}
+          onReplace={onReplace}
+        />
+      ) : (
+        <p className='text-body text-danger'>
+          {initialPayload.path}: {initialPayload.message}
+        </p>
+      )}
+      <details
+        className='grid gap-cluster rounded-panel border border-default p-page'
+        open
+      >
+        <summary className='cursor-pointer text-body text-primary'>
+          고급 JSON 편집
+        </summary>
+        <QuestionVersionJsonForm
+          disabled={replacing}
+          {...(initialPayload.ok
+            ? { initialPayload: initialPayload.payload }
+            : {})}
+          onReplace={onReplace}
+        />
+      </details>
       {toReplaceErrorMessage(replaceError) ? (
         <p className='text-body text-danger'>
           {toReplaceErrorMessage(replaceError)}

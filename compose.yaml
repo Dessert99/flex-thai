@@ -8,10 +8,12 @@ x-app-environment: &app-environment
   FAKE_LEARNER_SUB: local-learner-sub
   FAKE_LEARNER_EMAIL: learner@hufs.ac.kr
   CHALLENGE_HMAC_PEPPER: local-only-email-challenge-pepper
-  EMAIL_LINK_CONFIRMATION_URL: http://localhost:5173/login/confirm
-  ALLOWED_ORIGINS: http://localhost:5173
+  EMAIL_LINK_CONFIRMATION_URL: ${FLEX_THIA_LOCAL_PUBLIC_ORIGIN:-http://localhost:5173}/login/confirm
+  ALLOWED_ORIGINS: ${FLEX_THIA_LOCAL_PUBLIC_ORIGIN:-http://localhost:5173}
   FLEX_THIA_LOCAL_TTS_AUDIO_DIRECTORY: /var/lib/flex-thia/tts-audio
+  FLEX_THIA_LOCAL_UPLOAD_DIRECTORY: /var/lib/flex-thia/uploads
   FLEX_THIA_LOCAL_API_ORIGIN: http://localhost:3000
+  FLEX_THIA_LOCAL_PUBLIC_ORIGIN: ${FLEX_THIA_LOCAL_PUBLIC_ORIGIN:-http://localhost:5173}
   FLEX_THIA_LOCAL_MEDIA_HMAC_SECRET: local-only-media-read-hmac-secret
 
 services:
@@ -22,7 +24,7 @@ services:
       POSTGRES_USER: flex_thia
       POSTGRES_PASSWORD: local_only_password
     ports:
-      - '5432:5432'
+      - '${FLEX_THIA_POSTGRES_HOST_PORT:-55432}:5432'
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U flex_thia -d flex_thia']
       interval: 2s
@@ -30,18 +32,23 @@ services:
       retries: 15
 
   db-setup:
-    profiles: [test, frontend-dev, workers]
+    profiles: [reset]
     build:
       context: .
       dockerfile: Dockerfile.local
       target: workspace
-    command: pnpm --filter @flex-thia/database db:reset-seed:local
+    command:
+      - /bin/sh
+      - -ec
+      - pnpm --filter @flex-thia/database db:reset-seed:local && pnpm --filter @flex-thia/providers seed:local-media
     environment:
       <<: *app-environment
       LOCAL_DATABASE_RESET: 'true'
     depends_on:
       postgres:
         condition: service_healthy
+    volumes:
+      - flex-thia-tts-audio:/var/lib/flex-thia/tts-audio
     restart: 'no'
 
   api:
@@ -55,12 +62,13 @@ services:
       NODE_ENV: development
       PORT: '3000'
     ports:
-      - '3000:3000'
+      - '${FLEX_THIA_API_HOST_PORT:-53000}:3000'
     volumes:
       - flex-thia-tts-audio:/var/lib/flex-thia/tts-audio
+      - flex-thia-uploads:/var/lib/flex-thia/uploads
     depends_on:
-      db-setup:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/ready >/dev/null']
       interval: 2s
@@ -84,9 +92,10 @@ services:
       <<: *app-environment
     volumes:
       - flex-thia-tts-audio:/var/lib/flex-thia/tts-audio
+      - flex-thia-uploads:/var/lib/flex-thia/uploads
     depends_on:
-      db-setup:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
   web:
@@ -96,10 +105,11 @@ services:
       dockerfile: Dockerfile.local
       target: web
     ports:
-      - '5173:80'
+      - '${FLEX_THIA_WEB_HOST_PORT:-5173}:80'
     depends_on:
       api:
         condition: service_healthy
 
 volumes:
   flex-thia-tts-audio:
+  flex-thia-uploads:

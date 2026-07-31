@@ -10,18 +10,47 @@ export interface AppShellNavigationItem {
 /** AppShell의 내비게이션·본문·선택 프로필 슬롯 */
 export interface AppShellProps {
   children: ReactNode;
+  identity?: {
+    email: string;
+    role: 'ADMIN' | 'LEARNER';
+  };
   navigation: readonly AppShellNavigationItem[];
+  portalLink?: AppShellNavigationItem;
   profileMenu?: ReactNode;
 }
 
 /** 모바일 단일 흐름과 데스크톱 사이드 내비게이션을 공유하는 shell */
-export function AppShell({ children, navigation, profileMenu }: AppShellProps) {
+export function AppShell({
+  children,
+  identity,
+  navigation,
+  portalLink,
+  profileMenu,
+}: AppShellProps) {
   return (
     <div className='min-h-screen bg-surface text-primary'>
       <header className='border-b border-default bg-surface'>
         <div className='mx-auto flex w-full max-w-content items-center justify-between gap-cluster p-page'>
           <span className='text-title'>FLEX THIA</span>
-          {profileMenu}
+          <div className='flex flex-wrap items-center justify-end gap-cluster'>
+            {identity ? (
+              <p className='flex flex-wrap items-center gap-cluster'>
+                <span className='text-body'>{identity.email}</span>
+                <span className='text-caption text-subtle'>
+                  {identity.role}
+                </span>
+              </p>
+            ) : null}
+            {portalLink ? (
+              <a
+                className='rounded-control px-cluster py-cluster text-body transition-colors duration-feedback hover:bg-surface-muted focus-visible:ring-focus'
+                href={portalLink.href}
+              >
+                {portalLink.label}
+              </a>
+            ) : null}
+            {profileMenu}
+          </div>
         </div>
       </header>
       <div className='mx-auto grid w-full max-w-content gap-section p-page md:grid-cols-4'>

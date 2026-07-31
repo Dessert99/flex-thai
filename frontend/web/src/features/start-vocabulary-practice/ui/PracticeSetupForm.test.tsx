@@ -157,7 +157,7 @@ describe('단어 연습 설정의 검색 선택', () => {
 
     expect(screen.getByText('선택 100 / 100')).toBeVisible();
     expect(screen.getByRole('button', { name: '단어-101' })).toBeDisabled();
-  }, 15_000);
+  });
 });
 
 describe('단어 연습 생성 요청 상태', () => {

@@ -1,11 +1,19 @@
-/** 공개 root 경로의 최소 route shell을 정의한다 */
-import { createFileRoute } from '@tanstack/react-router';
+/** 공개 root 경로를 현재 session의 기본 portal로 보낸다 */
+import { createFileRoute, redirect } from '@tanstack/react-router';
+import type { AuthSessionState } from '@/shared/api';
 
-/** 제품 Page 연결 전 root 경로를 route tree에 등록한다 */
+const getRootDestination = (
+  state: AuthSessionState,
+): '/admin' | '/learn' | '/login' => {
+  if (state.status !== 'authenticated') return '/login';
+  if (state.user.role === 'LEARNER') return '/learn';
+  return '/admin';
+};
+
+/** 익명은 로그인, 학습자는 학습 홈, 관리자는 관리자 홈으로 결정적으로 보낸다 */
 export const Route = createFileRoute('/')({
-  component: RootIndexRoute,
+  beforeLoad: ({ context }) => {
+    const state = context.authSessionStore.getSnapshot();
+    redirect({ replace: true, throw: true, to: getRootDestination(state) });
+  },
 });
-
-function RootIndexRoute() {
-  return null;
-}

@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest';
 import {
   vocabularyCandidateClassificationEnum,
   vocabularyCandidateGroupEnum,
+  vocabularyCandidateResolutionKindEnum,
+  vocabularyCandidateReviewStatusEnum,
   vocabularyProductionCandidates,
   vocabularyProductionValidations,
   vocabularyValidationStageEnum,
@@ -59,5 +61,24 @@ describe('AI 어휘 제작 schema', () => {
         ({ config }) => config.name,
       ),
     ).toContain('vocabulary_production_validations_candidate_stage_unique');
+  });
+
+  it('후보 검수 lifecycle과 resolution을 revision과 함께 저장한다', () => {
+    expect(vocabularyCandidateReviewStatusEnum.enumValues).toEqual([
+      'PENDING',
+      'APPROVED',
+      'DISCARDED',
+    ]);
+    expect(vocabularyCandidateResolutionKindEnum.enumValues).toEqual([
+      'DRAFT_CREATED',
+      'EXISTING_LINKED',
+    ]);
+    expect(vocabularyProductionCandidates.reviewStatus).toBeDefined();
+    expect(vocabularyProductionCandidates.revision).toBeDefined();
+    expect(vocabularyProductionCandidates.resolutionKind).toBeDefined();
+    expect(vocabularyProductionCandidates.resolvedVocabularyId).toBeDefined();
+    expect(vocabularyProductionCandidates.reviewedBy).toBeDefined();
+    expect(vocabularyProductionCandidates.reviewedAt).toBeDefined();
+    expect(vocabularyProductionCandidates.updatedAt).toBeDefined();
   });
 });

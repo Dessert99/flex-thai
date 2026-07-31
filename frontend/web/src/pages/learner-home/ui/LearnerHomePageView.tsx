@@ -2,7 +2,7 @@
 import type { RecommendationResponse } from '@flex-thia/contracts';
 import type { ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
-import { PageEmpty, PageError, PageLoading } from '@/shared/ui/page-state';
+import { PageError, PageLoading } from '@/shared/ui/page-state';
 
 interface LearnerHomePageViewProps {
   error: boolean;
@@ -27,26 +27,6 @@ export function LearnerHomePageView({
       <PageError
         message='추천 콘텐츠를 불러오지 못했습니다.'
         onRetry={onRetry}
-      />
-    );
-  }
-
-  if (
-    recommendation.questions.length === 0 &&
-    recommendation.vocabularies.length === 0
-  ) {
-    return (
-      <PageEmpty
-        action={
-          <a
-            className='rounded-control bg-primary px-page py-cluster text-primary-foreground'
-            href='/questions'
-          >
-            문제 둘러보기
-          </a>
-        }
-        description='게시된 문제와 어휘가 생기면 이곳에서 바로 확인할 수 있습니다.'
-        title='아직 표시할 학습 콘텐츠가 없습니다.'
       />
     );
   }
@@ -83,6 +63,16 @@ export function LearnerHomePageView({
         )}
       </header>
       <div className='grid gap-section lg:grid-cols-2'>
+        <PublishedContentCard
+          content={recommendation.publishedToday}
+          title='오늘 게시 콘텐츠'
+        />
+        <PublishedContentCard
+          content={recommendation.newContent}
+          title='NEW 콘텐츠'
+        />
+      </div>
+      <div className='grid gap-section lg:grid-cols-2'>
         <RecommendedQuestions
           items={recommendation.questions}
           personalized={personalized}
@@ -92,7 +82,87 @@ export function LearnerHomePageView({
           personalized={personalized}
         />
       </div>
+      <QuickLinks />
     </section>
+  );
+}
+
+function PublishedContentCard({
+  content,
+  title,
+}: {
+  content: RecommendationResponse['publishedToday'];
+  title: string;
+}) {
+  const empty =
+    content.questions.length === 0 && content.vocabularies.length === 0;
+  return (
+    <Card className='rounded-panel border-default bg-surface'>
+      <CardHeader>
+        <CardTitle>
+          <h2 className='text-title'>{title}</h2>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {empty ? (
+          <p className='text-body text-subtle'>표시할 콘텐츠가 없습니다.</p>
+        ) : (
+          <ul className='flex flex-col gap-cluster'>
+            {content.questions.map((question) => (
+              <li key={question.questionId}>
+                <a
+                  className='block rounded-control border border-default p-cluster text-body text-primary'
+                  href={`/questions/${question.questionId}`}
+                >
+                  {question.questionTypeDisplayName}
+                </a>
+              </li>
+            ))}
+            {content.vocabularies.map((vocabulary) => (
+              <li key={vocabulary.id}>
+                <a
+                  className='block rounded-control border border-default p-cluster text-primary'
+                  href={`/vocabularies/${vocabulary.id}`}
+                >
+                  <span
+                    className='font-thai text-title'
+                    lang='th'
+                  >
+                    {vocabulary.thai}
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+const quickLinks = [
+  { href: '/questions', label: '문제' },
+  { href: '/vocabularies', label: '공용 사전' },
+  { href: '/wordbooks', label: '내 단어장' },
+  { href: '/practice', label: '단어 연습' },
+] as const;
+
+function QuickLinks() {
+  return (
+    <nav aria-label='학습 빠른 이동'>
+      <ul className='grid gap-cluster sm:grid-cols-2 lg:grid-cols-4'>
+        {quickLinks.map((link) => (
+          <li key={link.href}>
+            <a
+              className='block rounded-control border border-default bg-surface p-cluster text-body text-primary'
+              href={link.href}
+            >
+              {link.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }
 

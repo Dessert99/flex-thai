@@ -96,6 +96,11 @@ const routeTitles = [
   [/^\/admin\/content-production\/jobs\/[^/]+\/?$/, '콘텐츠 제작 작업 상세'],
   [/^\/admin\/content-production\/candidates\/[^/]+\/?$/, '문제 후보 상세'],
   [/^\/admin\/content-production\/candidates\/?$/, '문제 후보 검수'],
+  [
+    /^\/admin\/content-production\/vocabulary-candidates\/[^/]+\/?$/,
+    '어휘 후보 상세',
+  ],
+  [/^\/admin\/content-production\/vocabulary-candidates\/?$/, '어휘 후보 검수'],
   [/^\/admin\/content-production\/presets\/?$/, '콘텐츠 제작 Preset'],
   [/^\/admin\/content-production\/?$/, '콘텐츠 제작'],
   [/^\/admin\/tts\/jobs\/[^/]+\/?$/, 'TTS 작업 상세'],

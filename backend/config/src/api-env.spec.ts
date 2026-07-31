@@ -237,13 +237,23 @@ describe('readApiEnv가 API 환경 변수를 검증한다', () => {
     });
   });
 
-  it('local media는 project 전용 directory·API origin·HMAC 기본값을 제공한다', () => {
+  it('local media는 project 전용 directory·public origin·HMAC 기본값을 제공한다', () => {
     expect(readApiEnv({ NODE_ENV: 'test' })).toMatchObject({
       FLEX_THIA_LOCAL_TTS_AUDIO_DIRECTORY: undefined,
       FLEX_THIA_LOCAL_API_ORIGIN: 'http://localhost:3000',
+      FLEX_THIA_LOCAL_PUBLIC_ORIGIN: 'http://localhost:5173',
       FLEX_THIA_LOCAL_MEDIA_HMAC_SECRET: 'local-only-media-read-hmac-secret',
       TTS_VOICE_PRESET_ID: '00000000-0000-4000-8000-000000000001',
     });
+  });
+
+  it('local public origin은 브라우저가 접근할 수 있는 HTTP origin만 허용한다', () => {
+    expect(() =>
+      readApiEnv({
+        NODE_ENV: 'test',
+        FLEX_THIA_LOCAL_PUBLIC_ORIGIN: 'https://localhost:5173',
+      }),
+    ).toThrow('local public origin은 HTTP URL이어야 합니다');
   });
 
   it('local fake 관리자와 학생 계정 기본값을 제공한다', () => {

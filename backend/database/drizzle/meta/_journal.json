@@ -127,6 +127,13 @@
       "when": 1785341299464,
       "tag": "0017_wild_dakota_north",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1785480544649,
+      "tag": "0018_stale_black_tom",
+      "breakpoints": true
     }
   ]
 }

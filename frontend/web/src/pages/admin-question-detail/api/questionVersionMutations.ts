@@ -1,6 +1,8 @@
 /** 관리자 문제 버전 복제·교체·검증 mutation 계약을 정의한다 */
 import {
   adminQuestionIdPathSchema,
+  adminQuestionTtsJobPathSchema,
+  adminQuestionTtsJobResponseSchema,
   adminQuestionValidationReportSchema,
   adminQuestionVersionIdPathSchema,
   adminQuestionVersionPayloadSchema,
@@ -45,5 +47,23 @@ export function validateQuestionVersion(versionId: string) {
       kind: 'json',
       schema: adminQuestionValidationReportSchema,
     },
+  });
+}
+
+/** 문제 버전의 누락된 필수 문장 TTS를 예약한다 */
+export function regenerateQuestionVersionTts(command: {
+  questionId: string;
+  requestId: string;
+  versionId: string;
+}) {
+  const path = adminQuestionTtsJobPathSchema.parse({
+    questionId: command.questionId,
+    versionId: command.versionId,
+  });
+  return authenticatedRequest({
+    headers: { 'X-Request-ID': command.requestId },
+    method: 'POST',
+    path: `/admin/questions/${path.questionId}/versions/${path.versionId}/tts-jobs`,
+    response: { kind: 'json', schema: adminQuestionTtsJobResponseSchema },
   });
 }

@@ -5,12 +5,15 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import * as schema from '../schema/index.js';
 import {
+  expressionOccurrences,
   questionBlockSentences,
   questionBlocks,
   questionOptions,
   questionVersionTags,
   questions,
   questionVersions,
+  thaiSentenceVersions,
+  tokenOccurrences,
 } from '../schema/index.js';
 import { DrizzleAdminQuestionQuery } from './drizzle-admin-question.query.js';
 
@@ -35,6 +38,7 @@ const createSelectFake = (input: QueryResult[]) => {
         return chain;
       }),
       innerJoin: vi.fn(() => chain),
+      leftJoin: vi.fn(() => chain),
       where: vi.fn(() => chain),
       groupBy: vi.fn(() => chain),
       as: vi.fn(() => chain),
@@ -254,6 +258,74 @@ describe('DrizzleAdminQuestionQuery 상세', () => {
       ],
       [
         {
+          id: 'sentence-version-id',
+          originalText: 'คำถาม',
+          translationKo: '질문',
+          pronunciationKo: '캄탐',
+          toneMarks: 'M-M',
+          mediaAssetId: null,
+          mediaStatus: null,
+          mediaStorageKey: null,
+        },
+        {
+          id: 'sentence-1',
+          originalText: 'สวัสดี',
+          translationKo: '안녕하세요',
+          pronunciationKo: '싸왓디',
+          toneMarks: 'L-L-M',
+          mediaAssetId: 'media-1',
+          mediaStatus: 'READY',
+          mediaStorageKey: 'private/sentence-1.wav',
+        },
+        {
+          id: 'sentence-2',
+          originalText: 'ลาก่อน',
+          translationKo: '안녕히 가세요',
+          pronunciationKo: '라 꺼언',
+          toneMarks: 'M-L',
+          mediaAssetId: 'media-2',
+          mediaStatus: 'REJECTED',
+          mediaStorageKey: 'private/sentence-2.wav',
+        },
+        {
+          id: 'sentence-3',
+          originalText: 'ขอบคุณ',
+          translationKo: '감사합니다',
+          pronunciationKo: '컵쿤',
+          toneMarks: 'L-M',
+          mediaAssetId: 'media-3',
+          mediaStatus: 'UPLOADING',
+          mediaStorageKey: 'private/sentence-3.wav',
+        },
+      ],
+      [
+        {
+          sentenceVersionId: 'sentence-1',
+          position: 0,
+          surface: 'สวัสดี',
+          startOffset: 0,
+          endOffset: 6,
+          vocabularyId: 'vocabulary-1',
+          meaningId: 'meaning-1',
+          pronunciationId: 'pronunciation-1',
+          contextMeaningKo: '안녕하세요',
+          role: 'TARGET',
+        },
+      ],
+      [
+        {
+          sentenceVersionId: 'sentence-1',
+          startTokenIndex: 0,
+          endTokenIndex: 1,
+          vocabularyId: 'vocabulary-1',
+          meaningId: 'meaning-1',
+          pronunciationId: 'pronunciation-1',
+          contextMeaningKo: '인사',
+          representative: true,
+        },
+      ],
+      [
+        {
           questionVersionId: 'version-2',
           tagId: 'tag-id',
           tagSlug: 'grammar',
@@ -286,6 +358,16 @@ describe('DrizzleAdminQuestionQuery 상세', () => {
                 {
                   sentenceVersionId: 'sentence-version-id',
                   position: 0,
+                  sentence: {
+                    originalText: 'คำถาม',
+                    translationKo: '질문',
+                    pronunciationKo: '캄탐',
+                    toneMarks: 'M-M',
+                    mediaAssetId: null,
+                    mediaStatus: null,
+                    tokens: [],
+                    expressions: [],
+                  },
                 },
               ],
             },
@@ -295,6 +377,25 @@ describe('DrizzleAdminQuestionQuery 상세', () => {
               id: 'correct-option',
               sentenceVersionId: 'sentence-1',
               position: 0,
+              displayText: 'สวัสดี',
+              sentence: {
+                originalText: 'สวัสดี',
+                mediaAssetId: 'media-1',
+                mediaStatus: 'READY',
+                mediaStorageKey: 'private/sentence-1.wav',
+                tokens: [
+                  expect.objectContaining({
+                    surface: 'สวัสดี',
+                    vocabularyId: 'vocabulary-1',
+                  }),
+                ],
+                expressions: [
+                  expect.objectContaining({
+                    contextMeaningKo: '인사',
+                    representative: true,
+                  }),
+                ],
+              },
             },
             {
               id: 'wrong-option',
@@ -332,6 +433,9 @@ describe('DrizzleAdminQuestionQuery 상세', () => {
       questionBlocks,
       questionBlockSentences,
       questionOptions,
+      thaiSentenceVersions,
+      tokenOccurrences,
+      expressionOccurrences,
       questionVersionTags,
     ]);
     for (const call of fake.calls) {
