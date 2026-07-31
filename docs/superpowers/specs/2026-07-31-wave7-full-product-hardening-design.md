@@ -224,9 +224,15 @@ Vite config는 수정하지 않는다.
 - job별 또는 상태별 후보 목록
 - 후보 상세와 validation 결과 확인
 - 후보 폐기
-- 승인 시 기존 공용 어휘 생성·갱신 흐름으로 전달
+- 승인 시 완전한 graph로 DRAFT를 만들거나 기존 공용 어휘에 연결
 - revision 또는 현재 상태가 바뀐 stale mutation 거절
 - 승인·폐기의 actor와 결과를 audit log에 기록
+
+새 DRAFT를 만드는 승인 요청은 후보의 Thai·kind·meaning snapshot과 함께
+관리자가 확정한 `pronunciationKo`, `toneMarks`, sealed audio asset과
+meaning-pronunciation mapping을 받는다. 중복 분류 후보는 명시적 확인
+없이 새 DRAFT로 만들 수 없다. 기존 어휘 연결은 candidate resolution만
+기록하고 기존 어휘 graph를 암묵적으로 바꾸지 않는다.
 
 화면은 pending, validation failure, approved, rejected 상태를 구분하고
 mutation 진행 중 중복 요청을 막는다. API problem은 사용자가 재시도할
@@ -241,7 +247,8 @@ capability의 상위 역할로 취급한다. 두 shell은 현재 이메일·역�
 관리 API 권한을 주지 않는다.
 
 root `/`는 빈 화면을 반환하지 않는다. 세션이 없으면 `/login`, learner면
-`/learn`, admin이면 마지막 선택 portal 또는 `/admin`으로 이동한다.
+`/learn`, admin이면 `/admin`으로 이동한다. 마지막 portal을 위한 새
+browser 저장 상태는 만들지 않는다.
 
 ### 5.4 어휘 학습 정보
 
@@ -259,10 +266,16 @@ primitive를 사용한다.
 단어장·연습 빠른 링크를 둔다. 별도 “오늘 게시” API가 없으면 숫자를
 추측하지 않는다.
 
-관리자 home에는 기존 query가 제공하는 오류 신고, 후보, TTS, 사용량과
-재인증 상태를 빠짐없이 표시한다. 관리자 question detail은 기존 question
-version response로 실제 문제 preview와 두 버전 비교를 제공하고, 기존
-TTS 재생성 operation이 있을 때만 action을 노출한다.
+관리자 home에는 오류 신고, 후보, TTS, 사용량과 재인증 상태를 빠짐없이
+표시한다. 기존 query가 값을 제공하지 않으면 관리자 home 전용 read
+projection을 확장한다.
+
+관리자 question detail response는 sentence·choice·explanation의 실제
+태국어 본문, 번역, 발음과 audio 상태를 안전한 projection으로 확장한다.
+화면은 이 projection으로 실제 문제 preview와 두 버전 비교를 제공한다.
+version 단위 TTS 재생성 command는 현재 version의 필요한 문장 자산만
+기존 TTS scheduler에 다시 등록하며, READY 자산 재사용과 진행 중 job
+중복 차단 규칙을 유지한다.
 
 ## 6. 작업 단위 3: delivery hardening
 
