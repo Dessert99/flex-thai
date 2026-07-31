@@ -14,6 +14,8 @@ import {
   IDENTITY_USER_REPOSITORY,
 } from '../identity/cognito-authorizer.guard.js';
 import { AdminAuditLogsController } from './admin-audit-logs.controller.js';
+import { AdminHomeController } from './admin-home.controller.js';
+import { AdminHomeService } from './admin-home.service.js';
 import { AdminUsageCostOperationsController } from './admin-usage-cost-operations.controller.js';
 import { OperationsModule } from './operations.module.js';
 import { UsageCostOperationsService } from './usage-cost-operations.service.js';
@@ -29,6 +31,7 @@ describe('OperationsModule', () => {
     } satisfies AuthorizerGuardOptions;
     const module = OperationsModule.register({
       auditLogs,
+      homeQuery: {} as never,
       usageCost: { query: {} as never, settings: {} as never },
       users,
       authorizer,
@@ -37,6 +40,7 @@ describe('OperationsModule', () => {
 
     expect(module.controllers).toEqual([
       AdminAuditLogsController,
+      AdminHomeController,
       AdminUsageCostOperationsController,
     ]);
     expect(providers).toContainEqual({
@@ -46,6 +50,7 @@ describe('OperationsModule', () => {
     expect(providers).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ provide: UsageCostOperationsService }),
+        expect.objectContaining({ provide: AdminHomeService }),
       ]),
     );
     expect(providers).toContainEqual({

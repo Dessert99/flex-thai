@@ -11,6 +11,7 @@ import {
   createDataApiDatabase,
   createLocalDatabase,
   DrizzleAdminConceptQuery,
+  DrizzleAdminHomeQuery,
   DrizzleAdminMediaQuery,
   DrizzleAdminQuestionQuery,
   DrizzleAdminVocabularyQuery,
@@ -467,6 +468,7 @@ export const createApplicationModule = (
       }),
       OperationsModule.register({
         auditLogs,
+        homeQuery: new DrizzleAdminHomeQuery(database),
         usageCost: {
           query: new DrizzleUsageCostOperationsQuery(database),
           settings: new DrizzleOperationsCostSettingsRepository(database),

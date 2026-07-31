@@ -9,6 +9,8 @@ const validResult = {
   mode: 'FALLBACK',
   meaningfulSignalCount: 0,
   activationThreshold: 5,
+  publishedToday: { questions: [], vocabularies: [] },
+  newContent: { questions: [], vocabularies: [] },
   questions: [],
   vocabularies: [],
 } satisfies Awaited<

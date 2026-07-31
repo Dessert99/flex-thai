@@ -50,12 +50,41 @@ const vocabularyRecommendationSchema = z
   })
   .strict();
 
+const homeQuestionSchema = z
+  .object({
+    questionId: uuidSchema,
+    questionVersionId: uuidSchema,
+    questionTypeDisplayName: z.string().min(1),
+    skill: z.enum(['READING', 'LISTENING']),
+    difficulty: z.number().int().min(1).max(5),
+    publishedAt: z.iso.datetime(),
+  })
+  .strict();
+
+const homeVocabularySchema = z
+  .object({
+    id: uuidSchema,
+    thai: z.string().min(1),
+    kind: z.enum(['WORD', 'EXPRESSION']),
+    publishedAt: z.iso.datetime(),
+  })
+  .strict();
+
+const homeContentSchema = z
+  .object({
+    questions: z.array(homeQuestionSchema).max(3),
+    vocabularies: z.array(homeVocabularySchema).max(3),
+  })
+  .strict();
+
 /** 개인화 활성화 상태와 문제·어휘 추천을 한 요청으로 반환한다 */
 export const recommendationResponseSchema = z
   .object({
     mode: z.enum(['PERSONALIZED', 'FALLBACK']),
     meaningfulSignalCount: z.number().int().nonnegative(),
     activationThreshold: z.number().int().positive(),
+    publishedToday: homeContentSchema,
+    newContent: homeContentSchema,
     questions: z.array(questionRecommendationSchema).max(3),
     vocabularies: z.array(vocabularyRecommendationSchema).max(3),
   })

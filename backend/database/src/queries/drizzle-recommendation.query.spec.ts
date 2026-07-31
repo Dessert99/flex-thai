@@ -39,6 +39,7 @@ const question = (
   sameIncorrectType: false,
   savedQuestionVocabulary: false,
   firstCorrect: false,
+  publishedToday: false,
   ...signals,
 });
 
@@ -63,6 +64,7 @@ const vocabulary = (
   practiceIncorrect: false,
   firstIncorrectQuestion: false,
   savedQuestion: false,
+  publishedToday: false,
   ...signals,
 });
 
@@ -226,7 +228,7 @@ describe('개인 추천 점수 계산', () => {
 });
 
 describe('DrizzleRecommendationQuery', () => {
-  it('DB가 distinct 계산한 신호와 현재 게시 후보를 하나의 추천 결과로 조립한다', async () => {
+  it('DB가 분리한 오늘 게시와 최근 NEW를 추천 결과와 함께 조립한다', async () => {
     const database = {
       execute: vi
         .fn()
@@ -235,11 +237,19 @@ describe('DrizzleRecommendationQuery', () => {
           question(1, '2026-07-26T00:00:00.000Z', {
             saved: true,
           }),
+          {
+            ...question(3, '2026-07-31T00:00:00.000Z'),
+            publishedToday: true,
+          },
         ])
         .mockResolvedValueOnce([
           vocabulary(2, '2026-07-26T00:00:00.000Z', {
             inWordbook: true,
           }),
+          {
+            ...vocabulary(4, '2026-07-31T00:00:00.000Z'),
+            publishedToday: true,
+          },
         ]),
     };
 
@@ -250,9 +260,17 @@ describe('DrizzleRecommendationQuery', () => {
     expect(result).toMatchObject({
       mode: 'PERSONALIZED',
       meaningfulSignalCount: 5,
-      questions: [{ reasonCode: 'SAVED_QUESTION' }],
-      vocabularies: [{ reasonCode: 'IN_WORDBOOK' }],
+      publishedToday: {
+        questions: [{ questionId: uuid(3) }],
+        vocabularies: [{ id: uuid(4) }],
+      },
+      newContent: {
+        questions: [{ questionId: uuid(1) }],
+        vocabularies: [{ id: uuid(2) }],
+      },
     });
+    expect(result.questions[0]?.reasonCode).toBe('SAVED_QUESTION');
+    expect(result.vocabularies[0]?.reasonCode).toBe('IN_WORDBOOK');
   });
 
   it('한 연결에서 동시에 query할 수 없는 PostgreSQL client도 지원한다', async () => {

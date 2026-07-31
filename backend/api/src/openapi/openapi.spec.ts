@@ -44,6 +44,7 @@ const ACTIVE_PATHS = [
   '/api/v1/admin/content-production/uploads/{uploadId}/complete',
   '/api/v1/admin/audit-logs',
   '/api/v1/admin/audit-logs/{auditLogId}',
+  '/api/v1/admin/home',
   '/api/v1/admin/media-assets/audio-upload-requests',
   '/api/v1/admin/media-assets/{mediaAssetId}',
   '/api/v1/admin/media-assets/{mediaAssetId}/complete',
@@ -475,6 +476,12 @@ const expectProtectedOpenApiOperations = (
 };
 
 const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
+  {
+    method: 'get',
+    path: '/api/v1/admin/home',
+    success: ['200', 'AdminHomeOperationsResponseDto'],
+    errors: ['401', '403', '500'],
+  },
   {
     method: 'post',
     path: '/api/v1/admin/content-production/prompt-previews',
@@ -1435,7 +1442,7 @@ describe('OpenAPI 문서', () => {
     await app?.close();
   });
 
-  it('현재 활성 endpoint의 서로 다른 path 백열여덟 개만 공개한다', () => {
+  it('현재 활성 endpoint의 서로 다른 path 백열아홉 개만 공개한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
@@ -1698,12 +1705,12 @@ describe('OpenAPI 문서', () => {
     expectProtectedOpenApiOperations(document, LEARNER_OPERATIONS);
   });
 
-  it('관리자 operation 아흔네 개의 입력·성공·Bearer·오류 계약을 모두 고정한다', () => {
+  it('관리자 operation 아흔다섯 개의 입력·성공·Bearer·오류 계약을 모두 고정한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
 
-    expect(ADMIN_OPERATIONS).toHaveLength(94);
+    expect(ADMIN_OPERATIONS).toHaveLength(95);
     expectProtectedOpenApiOperations(document, ADMIN_OPERATIONS);
   });
 

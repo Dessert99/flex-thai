@@ -7,6 +7,8 @@ export * from './identity/auth.js';
 export * from './identity/user-management.js';
 
 export * from './operations/audit-logs.js';
+/** 관리자 홈 운영 집계 계약을 패키지 경계에 노출한다 */
+export * from './operations/admin-home.js';
 /** 관리자 AI·TTS 사용량과 비용 경고 계약을 공개한다 */
 export * from './operations/usage-cost.js';
 export * from './learning/questions.js';

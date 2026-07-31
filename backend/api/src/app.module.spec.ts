@@ -1,5 +1,6 @@
 /** root가 학습·관리·운영 기능과 환경별 provider를 조립하는지 검증한다 */
 import {
+  DrizzleAdminHomeQuery,
   DrizzleContentProductionPresetCatalog,
   DrizzleContentProductionRepository,
   DrizzleOperationsCostSettingsRepository,
@@ -47,6 +48,7 @@ import { ContentProductionApplicationService } from './content-production/conten
 import { TtsOperationsService } from './media/tts-operations.service.js';
 import { TtsVoicePresetsService } from './media/tts-voice-presets.service.js';
 import { UsageCostOperationsService } from './operations/usage-cost-operations.service.js';
+import { AdminHomeService } from './operations/admin-home.service.js';
 import { AdminUserManagementController } from './identity/admin-user-management.controller.js';
 import { LearnerContentService } from './learning/learner-content.service.js';
 import { LearnerWordbooksService } from './learning/learner-wordbooks.service.js';
@@ -326,6 +328,13 @@ describe('createApplicationModule 조립', () => {
     expect(usageCost.dependencies.settings).toBeInstanceOf(
       DrizzleOperationsCostSettingsRepository,
     );
+    const adminHome = operationsModule.providers.find(
+      ({ provide }) => provide === AdminHomeService,
+    )?.useValue as {
+      dependencies: { query: unknown; usageCost: unknown };
+    };
+    expect(adminHome.dependencies.query).toBeInstanceOf(DrizzleAdminHomeQuery);
+    expect(adminHome.dependencies.usageCost).toBe(usageCost);
   });
 
   it('로컬 기본 fake는 upload 요청 직후 선언 metadata로 READY 완료를 지원한다', async () => {

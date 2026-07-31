@@ -94,6 +94,9 @@ export * from './queries/drizzle-user-management.query.js';
 /** 관리자 감사 기록 read adapter를 공개한다 */
 export * from './queries/drizzle-audit-log.query.js';
 
+/** 관리자 홈의 전체 운영 상태 aggregate를 공개한다 */
+export * from './queries/drizzle-admin-home.query.js';
+
 /** Cognito sub 기반 user repository adapter를 공개한다 */
 export * from './repositories/drizzle-user.repository.js';
 
