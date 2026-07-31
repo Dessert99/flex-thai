@@ -9,6 +9,7 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   plugins: [
     tanstackRouter({
+      autoCodeSplitting: true,
       generatedRouteTree: './src/routeTree.gen.ts',
       routesDirectory: './src/app/routes',
       target: 'react',
