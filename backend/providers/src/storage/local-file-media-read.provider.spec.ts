@@ -6,6 +6,11 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { LocalFileTtsAudioStore } from './local-file-tts-audio.store.js';
 import { LocalFileMediaReadProvider } from './local-file-media-read.provider.js';
+import { LocalFileUploadProvider } from './local-file-upload.provider.js';
+import {
+  localSeedMediaFixtures,
+  seedLocalMedia,
+} from '../commands/seed-local-media.js';
 
 const directories: string[] = [];
 const storageKey = 'private/tts/runs/00000000-0000-4000-8000-000000000001.wav';
@@ -20,7 +25,7 @@ afterEach(async () => {
   );
 });
 
-describe('LocalFileMediaReadProvider', () => {
+describe('로컬 파일 미디어 읽기 provider', () => {
   it('LocalFileTtsAudioStore의 exact WAV를 storage key 없는 URL로 읽는다', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'flex-thia-media-read-'));
     directories.push(directory);
@@ -102,5 +107,95 @@ describe('LocalFileMediaReadProvider', () => {
         signature,
       }),
     ).rejects.toThrow('LOCAL_MEDIA_NOT_FOUND');
+  });
+
+  it('fresh seed command가 만든 READY fixture를 audio/wav로 읽는다', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'flex-thia-media-read-'));
+    directories.push(directory);
+    const provider = new LocalFileMediaReadProvider(
+      directory,
+      'http://localhost:5173',
+      secret,
+      () => now,
+    );
+
+    await seedLocalMedia({ directory });
+
+    for (const fixture of localSeedMediaFixtures) {
+      const url = new URL(
+        await provider.createReadUrl(
+          fixture.storageKey,
+          new Date(now.getTime() + 60_000),
+        ),
+      );
+      await expect(
+        provider.read({
+          objectId: url.pathname.split('/').at(-1)!,
+          expires: url.searchParams.get('expires')!,
+          signature: url.searchParams.get('signature')!,
+        }),
+      ).resolves.toMatchObject({
+        mimeType: 'audio/wav',
+        bytes: expect.any(Buffer),
+      });
+    }
+  });
+
+  it('브라우저 업로드를 seal한 일반 오디오를 서명 URL로 읽는다', async () => {
+    const ttsDirectory = await mkdtemp(join(tmpdir(), 'flex-thia-media-read-'));
+    const uploadDirectory = await mkdtemp(
+      join(tmpdir(), 'flex-thia-media-upload-'),
+    );
+    directories.push(ttsDirectory, uploadDirectory);
+    const audioId = '00000000-0000-4000-8000-000000000021';
+    const temporaryStorageKey = `audio/uploads/${audioId}`;
+    const finalStorageKey = `audio/${audioId}`;
+    const bytes = Buffer.from('sealed-audio');
+    const upload = new LocalFileUploadProvider(
+      uploadDirectory,
+      'http://localhost:3000',
+      secret,
+      () => now,
+    );
+    const policy = await upload.createUpload({
+      mediaAssetId: audioId,
+      storageKey: temporaryStorageKey,
+      mimeType: 'audio/mpeg',
+      sizeBytes: bytes.byteLength,
+      sha256: createHash('sha256').update(bytes).digest('hex'),
+    });
+    await upload.store({
+      token: policy.url.split('/').at(-1)!,
+      storageKey: policy.fields.key!,
+      contentType: policy.fields['Content-Type']!,
+      bytes,
+      mimeType: 'audio/mpeg',
+    });
+    await upload.inspectAndSeal({
+      temporaryStorageKey,
+      finalStorageKey,
+    });
+    const provider = new LocalFileMediaReadProvider(
+      ttsDirectory,
+      'http://localhost:3000',
+      secret,
+      () => now,
+      uploadDirectory,
+    );
+
+    const url = new URL(
+      await provider.createReadUrl(
+        finalStorageKey,
+        new Date(now.getTime() + 60_000),
+      ),
+    );
+
+    await expect(
+      provider.read({
+        objectId: url.pathname.split('/').at(-1)!,
+        expires: url.searchParams.get('expires')!,
+        signature: url.searchParams.get('signature')!,
+      }),
+    ).resolves.toEqual({ mimeType: 'audio/mpeg', bytes });
   });
 });

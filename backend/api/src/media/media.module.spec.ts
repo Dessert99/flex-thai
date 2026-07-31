@@ -9,6 +9,7 @@ import {
   IDENTITY_USER_REPOSITORY,
 } from '../identity/cognito-authorizer.guard.js';
 import { LocalMediaController } from './local-media.controller.js';
+import { LocalUploadController } from './local-upload.controller.js';
 import { MediaModule } from './media.module.js';
 import { TtsOperationsController } from './tts-operations.controller.js';
 import { TtsOperationsService } from './tts-operations.service.js';
@@ -25,7 +26,7 @@ const mediaDependencies = {
   },
 };
 
-describe('MediaModule', () => {
+describe('미디어 Module', () => {
   it('production은 ADMIN+MFA TTS 운영 경계만 등록한다', () => {
     const users = {};
     const authorizer = {
@@ -73,7 +74,7 @@ describe('MediaModule', () => {
     );
   });
 
-  it('local provider가 있을 때만 private 파일 읽기 Controller를 추가한다', () => {
+  it('local provider가 있을 때만 private 파일 읽기와 upload Controller를 추가한다', () => {
     const module = MediaModule.register({
       query: {} as never,
       retryCoordinator: {} as never,
@@ -85,12 +86,14 @@ describe('MediaModule', () => {
         nodeEnv: 'test',
       },
       localMedia: {} as never,
+      localUploads: {} as never,
     });
 
     expect(module.controllers).toEqual([
       TtsOperationsController,
       TtsVoicePresetsController,
       LocalMediaController,
+      LocalUploadController,
     ]);
   });
 });

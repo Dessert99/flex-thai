@@ -26,6 +26,44 @@ const queuedSelect = (results: unknown[][]) => {
 };
 
 describe('DrizzleContentProductionRepository 조건부 전이', () => {
+  it('questionPlan 없이도 local 복원에 필요한 durable claim 필드를 반환한다', async () => {
+    const returning = vi.fn().mockResolvedValue([
+      {
+        id: '00000000-0000-4000-8000-000000000402',
+        jobId: '00000000-0000-4000-8000-000000000401',
+        sourceRef: 'input:0:question:0',
+        jobInputId: '00000000-0000-4000-8000-000000000403',
+        operation: 'QUESTION_GENERATION',
+        status: 'PROCESSING',
+        attempt: 0,
+        retryable: false,
+        errorCode: null,
+        leaseUntil: new Date('2026-07-31T00:05:00.000Z'),
+        leaseToken: 'lease-token',
+      },
+    ]);
+    const where = vi.fn(() => ({ returning }));
+    const set = vi.fn(() => ({ where }));
+    const update = vi.fn(() => ({ set }));
+    const repository = new DrizzleContentProductionRepository(
+      { update } as never,
+      () => new Date('2026-07-31T00:00:00.000Z'),
+    );
+
+    const claimed = await repository.startItem(
+      '00000000-0000-4000-8000-000000000401',
+      '00000000-0000-4000-8000-000000000402',
+      0,
+    );
+
+    expect(claimed).toMatchObject({
+      sourceRef: 'input:0:question:0',
+      jobInputId: '00000000-0000-4000-8000-000000000403',
+      operation: 'QUESTION_GENERATION',
+    });
+    expect(claimed).not.toHaveProperty('questionPlan');
+  });
+
   it('구조화된 item seed의 input과 operation을 row에 보존한다', async () => {
     const returning = vi.fn().mockResolvedValue([]);
     const limit = vi.fn().mockResolvedValue([{ attempt: 0 }]);
