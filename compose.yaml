@@ -11,6 +11,7 @@ x-app-environment: &app-environment
   EMAIL_LINK_CONFIRMATION_URL: http://localhost:5173/login/confirm
   ALLOWED_ORIGINS: http://localhost:5173
   FLEX_THIA_LOCAL_TTS_AUDIO_DIRECTORY: /var/lib/flex-thia/tts-audio
+  FLEX_THIA_LOCAL_UPLOAD_DIRECTORY: /var/lib/flex-thia/uploads
   FLEX_THIA_LOCAL_API_ORIGIN: http://localhost:3000
   FLEX_THIA_LOCAL_PUBLIC_ORIGIN: ${FLEX_THIA_LOCAL_PUBLIC_ORIGIN:-http://localhost:5173}
   FLEX_THIA_LOCAL_MEDIA_HMAC_SECRET: local-only-media-read-hmac-secret
@@ -59,6 +60,7 @@ services:
       - '${FLEX_THIA_API_HOST_PORT:-53000}:3000'
     volumes:
       - flex-thia-tts-audio:/var/lib/flex-thia/tts-audio
+      - flex-thia-uploads:/var/lib/flex-thia/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -85,6 +87,7 @@ services:
       <<: *app-environment
     volumes:
       - flex-thia-tts-audio:/var/lib/flex-thia/tts-audio
+      - flex-thia-uploads:/var/lib/flex-thia/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -104,3 +107,4 @@ services:
 
 volumes:
   flex-thia-tts-audio:
+  flex-thia-uploads:

@@ -43,6 +43,9 @@ export * from './storage/local-file-tts-audio.store.js';
 /** local filesystem TTS object의 HMAC 읽기 adapter를 공개한다 */
 export * from './storage/local-file-media-read.provider.js';
 
+/** local browser form upload의 filesystem adapter를 공개한다 */
+export * from './storage/local-file-upload.provider.js';
+
 /** production private S3 TTS object store를 공개한다 */
 export * from './storage/s3-tts-audio.store.js';
 

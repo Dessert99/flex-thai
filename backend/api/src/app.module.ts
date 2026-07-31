@@ -84,14 +84,14 @@ import {
   CloudFrontMediaReadUrlProvider,
   CognitoPasswordlessAuthenticationProvider,
   DeterministicContentProductionProcessor,
-  FakeAudioUploadProvider,
   FakeEmailChallengeSender,
   FakeConceptContentValidator,
   FakePasswordlessAuthenticationProvider,
-  FakeUploadProvider,
   LocalContentProductionQueue,
   LocalFileMediaReadProvider,
+  LocalFileUploadProvider,
   resolveLocalTtsAudioDirectory,
+  resolveLocalUploadDirectory,
   S3AudioUploadProvider,
   S3UploadProvider,
   SesEmailChallengeSender,
@@ -230,7 +230,15 @@ export const createApplicationModule = (
       ? undefined
       : new LocalFileMediaReadProvider(
           resolveLocalTtsAudioDirectory(source),
-          env.FLEX_THIA_LOCAL_API_ORIGIN,
+          env.FLEX_THIA_LOCAL_PUBLIC_ORIGIN,
+          env.FLEX_THIA_LOCAL_MEDIA_HMAC_SECRET,
+        );
+  const localUploads =
+    env.NODE_ENV === 'production'
+      ? undefined
+      : new LocalFileUploadProvider(
+          resolveLocalUploadDirectory(source),
+          env.FLEX_THIA_LOCAL_PUBLIC_ORIGIN,
           env.FLEX_THIA_LOCAL_MEDIA_HMAC_SECRET,
         );
   const mediaReadUrls =
@@ -266,7 +274,7 @@ export const createApplicationModule = (
           new S3Client({ region: env.AWS_REGION }),
           env.MEDIA_BUCKET_NAME,
         )
-      : new FakeAudioUploadProvider();
+      : localUploads!;
   const media = new MediaAdminService(mediaRepository, audioStorage);
   const questionAdminRepository = new DrizzleQuestionAdminRepository(database);
   const questionPublicationRepository =
@@ -309,7 +317,7 @@ export const createApplicationModule = (
           new S3Client({ region: env.AWS_REGION }),
           requireValue(env.INPUT_BUCKET_NAME, 'INPUT_BUCKET_NAME'),
         )
-      : new FakeUploadProvider();
+      : localUploads!;
   const contentProductionRepository = new DrizzleContentProductionRepository(
     database,
   );
@@ -449,6 +457,7 @@ export const createApplicationModule = (
         users,
         authorizer,
         ...(localMedia ? { localMedia } : {}),
+        ...(localUploads ? { localUploads } : {}),
       }),
       QuestionTaxonomyModule.register({
         query: new DrizzleQuestionTaxonomyQuery(database),
