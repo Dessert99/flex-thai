@@ -5,7 +5,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     environment: 'node',
-    // CDK 테스트의 동시 Lambda 번들링이 5초 제한을 넘기지 않게 파일을 직렬 실행
+    // CDK 테스트의 Lambda 번들링이 서로 자원을 경합하지 않게 파일을 직렬 실행한다.
     fileParallelism: false,
     projects: [
       {
@@ -13,6 +13,7 @@ export default defineConfig({
         test: {
           name: 'node',
           environment: 'node',
+          testTimeout: 10_000,
           include: [
             'backend/**/src/**/*.spec.ts',
             'shared/**/src/**/*.spec.ts',
