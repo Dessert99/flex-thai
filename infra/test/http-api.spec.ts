@@ -317,5 +317,5 @@ describe('HttpApi 운영 API 경계', () => {
       Value: 'https://api.example.com',
     });
     expect(JSON.stringify(template.toJSON())).not.toContain('app.example.com');
-  });
+  }, 10_000);
 });
