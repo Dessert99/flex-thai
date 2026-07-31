@@ -71,21 +71,23 @@ const sanitize = (value: unknown): unknown => {
   return value;
 };
 
-const isStackLike = (value: string): boolean =>
-  /^(?:[A-Za-z]*Error(?::|\n)|\s*at\s)/u.test(value);
+const isStackTrace = (value: string): boolean => /\n\s+at\s/u.test(value);
 
-const normalizeOptionalParameters = (optionalParams: unknown[]) => {
+const normalizeOptionalParameters = (
+  optionalParams: unknown[],
+  discardFirstStack = false,
+) => {
   const metadata: LogMetadata = {};
   let context: string | undefined;
   let errorName: string | undefined;
 
-  for (const optionalParam of optionalParams) {
+  for (const [index, optionalParam] of optionalParams.entries()) {
     if (isPlainRecord(optionalParam)) {
       Object.assign(metadata, optionalParam);
       continue;
     }
     if (typeof optionalParam === 'string') {
-      if (isStackLike(optionalParam)) {
+      if (discardFirstStack && index === 0 && isStackTrace(optionalParam)) {
         continue;
       }
       // Nest는 마지막 문자열을 context로 전달한다.
@@ -114,7 +116,7 @@ export class StructuredLogger implements LoggerService {
 
   /** 오류 name과 안전한 context만 JSON 한 줄로 기록한다 */
   error(message: unknown, ...optionalParams: unknown[]): void {
-    this.emit('error', message, optionalParams);
+    this.emit('error', message, optionalParams, true);
   }
 
   /** 복구 가능한 경고를 JSON 한 줄로 기록한다 */
@@ -141,12 +143,13 @@ export class StructuredLogger implements LoggerService {
     level: string,
     message: unknown,
     optionalParams: unknown[],
+    discardFirstStack = false,
   ): void {
     const {
       context,
       errorName: optionalErrorName,
       metadata,
-    } = normalizeOptionalParameters(optionalParams);
+    } = normalizeOptionalParameters(optionalParams, discardFirstStack);
     const messageErrorName =
       message instanceof Error ? message.name : undefined;
     const errorName = messageErrorName ?? optionalErrorName;

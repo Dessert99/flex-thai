@@ -65,6 +65,53 @@ describe('StructuredLogger 민감 정보 제거', () => {
     expect(serialized).not.toContain(rawStack);
   });
 
+  it('custom Error stack은 첫 error optional parameter에서 폐기한다', () => {
+    const write = vi.fn();
+    const logger = new StructuredLogger('api', write);
+    const rawStack =
+      'DatabaseFailure: connection password=secret\n    at handler (/srv/app.js:1:2)';
+
+    logger.error('failed', rawStack);
+
+    const serialized = write.mock.calls[0]?.[0] as string;
+    expect(JSON.parse(serialized)).toEqual({
+      level: 'error',
+      message: 'failed',
+      service: 'api',
+    });
+    expect(serialized).not.toContain(rawStack);
+  });
+
+  it('한 줄 Error:Boundary는 error context로 보존한다', () => {
+    const write = vi.fn();
+    const logger = new StructuredLogger('api', write);
+
+    logger.error('failed', 'Error:Boundary');
+
+    expect(JSON.parse(write.mock.calls[0]?.[0] as string)).toEqual({
+      context: 'Error:Boundary',
+      level: 'error',
+      message: 'failed',
+      service: 'api',
+    });
+  });
+
+  it('error가 아닌 level은 stack 형태 문자열도 context로 보존한다', () => {
+    const write = vi.fn();
+    const logger = new StructuredLogger('api', write);
+    const diagnostic =
+      'DatabaseFailure: connection failed\n    at handler (/srv/app.js:1:2)';
+
+    logger.warn('warning', diagnostic);
+
+    expect(JSON.parse(write.mock.calls[0]?.[0] as string)).toEqual({
+      context: diagnostic,
+      level: 'warn',
+      message: 'warning',
+      service: 'api',
+    });
+  });
+
   it('첫 message 인자가 Error여도 name만 기록하고 원문은 버린다', () => {
     const write = vi.fn();
     const logger = new StructuredLogger('api', write);

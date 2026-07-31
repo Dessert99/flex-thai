@@ -32,10 +32,33 @@ const isInside = (parent, child) => {
   );
 };
 
-const readIndexJavaScriptReferences = (source) =>
-  [
-    ...source.matchAll(/\b(?:src|href)=["']([^"']+\.js(?:[?#][^"']*)?)["']/gu),
-  ].map((match) => match[1]);
+const readHtmlAttribute = (attributes, name) =>
+  attributes.match(
+    new RegExp(`(?:^|\\s)${name}\\s*=\\s*["']([^"']+)["']`, 'iu'),
+  )?.[1];
+
+const isJavaScriptReference = (reference) =>
+  typeof reference === 'string' && /\.js(?:[?#].*)?$/u.test(reference);
+
+const readIndexModuleReferences = (source) => {
+  const moduleScripts = [...source.matchAll(/<script\b([^>]*)>/giu)]
+    .filter(
+      ([, attributes]) =>
+        readHtmlAttribute(attributes, 'type')?.toLowerCase() === 'module',
+    )
+    .map(([, attributes]) => readHtmlAttribute(attributes, 'src'))
+    .filter(isJavaScriptReference);
+  const modulePreloads = [...source.matchAll(/<link\b([^>]*)>/giu)]
+    .filter(([, attributes]) =>
+      (readHtmlAttribute(attributes, 'rel') ?? '')
+        .toLowerCase()
+        .split(/\s+/u)
+        .includes('modulepreload'),
+    )
+    .map(([, attributes]) => readHtmlAttribute(attributes, 'href'))
+    .filter(isJavaScriptReference);
+  return { modulePreloads, moduleScripts };
+};
 
 const normalizeLocalReference = (reference) => {
   if (
@@ -50,12 +73,23 @@ const normalizeLocalReference = (reference) => {
 };
 
 const readManifest = async (directory) => {
+  const canonicalDirectory = await realpath(directory);
+  const vitePath = join(directory, '.vite');
   const path = join(directory, manifestFile);
-  if (!(await isFile(path))) {
+  if (!(await isDirectory(vitePath)) || !(await isFile(path))) {
     throw new Error('Production web artifact is missing Vite manifest.');
   }
+  const canonicalVitePath = await realpath(vitePath);
+  const canonicalPath = await realpath(path);
+  if (
+    !isInside(canonicalDirectory, canonicalVitePath) ||
+    !isInside(canonicalVitePath, canonicalPath) ||
+    !(await isFile(canonicalPath))
+  ) {
+    throw new Error('Production web artifact manifest must stay inside .vite.');
+  }
   try {
-    const manifest = JSON.parse(await readFile(path, 'utf8'));
+    const manifest = JSON.parse(await readFile(canonicalPath, 'utf8'));
     if (!isRecord(manifest)) {
       throw new Error();
     }
@@ -80,22 +114,28 @@ const readReachableJavaScript = async ({
     );
   }
 
-  const entryFiles = readIndexJavaScriptReferences(indexSource)
-    .map(normalizeLocalReference)
-    .filter((reference) => reference !== undefined);
-  const pending = Object.entries(manifest)
+  const { modulePreloads, moduleScripts } =
+    readIndexModuleReferences(indexSource);
+  const entryReference = normalizeLocalReference(moduleScripts[0]);
+  const entryRecords = Object.entries(manifest)
     .filter(
       ([, record]) =>
         isRecord(record) &&
+        record.isEntry === true &&
         typeof record.file === 'string' &&
-        entryFiles.includes(normalizeLocalReference(record.file)),
+        normalizeLocalReference(record.file) === entryReference,
     )
     .map(([key]) => key);
-  if (entryFiles.length === 0 || pending.length !== entryFiles.length) {
+  if (
+    moduleScripts.length !== 1 ||
+    entryReference === undefined ||
+    entryRecords.length !== 1
+  ) {
     throw new Error(
-      'Production web artifact manifest does not describe entry JavaScript.',
+      'Production web artifact manifest must describe exactly one entry JavaScript.',
     );
   }
+  const pending = [entryRecords[0]];
 
   const sources = [];
   const visited = new Set();
@@ -152,6 +192,18 @@ const readReachableJavaScript = async ({
     const source = await readFile(path, 'utf8');
     sources.push({ file: reference, source });
     pending.push(...(record.imports ?? []), ...(record.dynamicImports ?? []));
+  }
+
+  const reachableFiles = new Set(sources.map(({ file }) => file));
+  const normalizedPreloads = modulePreloads.map(normalizeLocalReference);
+  if (
+    normalizedPreloads.some(
+      (reference) => reference === undefined || !reachableFiles.has(reference),
+    )
+  ) {
+    throw new Error(
+      'Production web artifact modulepreload must belong to the entry graph.',
+    );
   }
 
   return sources;

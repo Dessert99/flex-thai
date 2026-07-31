@@ -182,6 +182,193 @@ describe('production web artifact 검증', () => {
     });
   });
 
+  it('외부 directory를 가리키는 .vite symlink는 거부한다', async () => {
+    const directory = await createArtifact();
+    const externalDirectory = await mkdtemp(
+      join(tmpdir(), 'flex-thia-manifest-directory-'),
+    );
+    artifactDirectories.push(externalDirectory);
+    await writeFile(
+      join(externalDirectory, 'manifest.json'),
+      JSON.stringify({
+        application: {
+          file: 'assets/application.js',
+          isEntry: true,
+        },
+      }),
+    );
+    await rm(join(directory, '.vite'), { force: true, recursive: true });
+    await symlink(externalDirectory, join(directory, '.vite'));
+    const { verifyProductionWebArtifact } = await loadVerifier();
+
+    await expect(
+      verifyProductionWebArtifact({
+        directory,
+        apiBaseUrl,
+        maximumJavaScriptBytes,
+      }),
+    ).rejects.toThrow(
+      'Production web artifact manifest must stay inside .vite.',
+    );
+  });
+
+  it('외부 file을 가리키는 manifest symlink는 거부한다', async () => {
+    const directory = await createArtifact();
+    const externalDirectory = await mkdtemp(
+      join(tmpdir(), 'flex-thia-manifest-file-'),
+    );
+    artifactDirectories.push(externalDirectory);
+    const externalManifestPath = join(externalDirectory, 'manifest.json');
+    await writeFile(
+      externalManifestPath,
+      JSON.stringify({
+        application: {
+          file: 'assets/application.js',
+          isEntry: true,
+        },
+      }),
+    );
+    await rm(join(directory, '.vite', 'manifest.json'));
+    await symlink(
+      externalManifestPath,
+      join(directory, '.vite', 'manifest.json'),
+    );
+    const { verifyProductionWebArtifact } = await loadVerifier();
+
+    await expect(
+      verifyProductionWebArtifact({
+        directory,
+        apiBaseUrl,
+        maximumJavaScriptBytes,
+      }),
+    ).rejects.toThrow(
+      'Production web artifact manifest must stay inside .vite.',
+    );
+  });
+
+  it('module script와 일치해도 isEntry가 아니면 거부한다', async () => {
+    const directory = await createArtifact({
+      manifest: {
+        application: {
+          file: 'assets/application.js',
+          isEntry: false,
+        },
+      },
+    });
+    const { verifyProductionWebArtifact } = await loadVerifier();
+
+    await expect(
+      verifyProductionWebArtifact({
+        directory,
+        apiBaseUrl,
+        maximumJavaScriptBytes,
+      }),
+    ).rejects.toThrow(
+      'Production web artifact manifest must describe exactly one entry JavaScript.',
+    );
+  });
+
+  it('같은 module script와 일치하는 entry record가 중복되면 거부한다', async () => {
+    const directory = await createArtifact({
+      manifest: {
+        duplicate: {
+          file: 'assets/application.js',
+          isEntry: true,
+        },
+        application: {
+          file: 'assets/application.js',
+          isEntry: true,
+        },
+      },
+    });
+    const { verifyProductionWebArtifact } = await loadVerifier();
+
+    await expect(
+      verifyProductionWebArtifact({
+        directory,
+        apiBaseUrl,
+        maximumJavaScriptBytes,
+      }),
+    ).rejects.toThrow(
+      'Production web artifact manifest must describe exactly one entry JavaScript.',
+    );
+  });
+
+  it('module script와 일치하는 entry record가 없으면 거부한다', async () => {
+    const directory = await createArtifact({
+      manifest: {
+        other: {
+          file: 'assets/other.js',
+          isEntry: true,
+        },
+      },
+    });
+    const { verifyProductionWebArtifact } = await loadVerifier();
+
+    await expect(
+      verifyProductionWebArtifact({
+        directory,
+        apiBaseUrl,
+        maximumJavaScriptBytes,
+      }),
+    ).rejects.toThrow(
+      'Production web artifact manifest must describe exactly one entry JavaScript.',
+    );
+  });
+
+  it('modulepreload가 entry의 reachable graph에 있으면 통과시킨다', async () => {
+    const directory = await createArtifact({
+      additionalJavaScript: { 'api.js': 'export const api=1;' },
+      indexSource:
+        '<link rel="modulepreload" href="/assets/api.js"><script crossorigin type="module" src="/assets/application.js"></script>',
+      manifest: {
+        api: { file: 'assets/api.js' },
+        application: {
+          file: 'assets/application.js',
+          imports: ['api'],
+          isEntry: true,
+        },
+      },
+    });
+    const { verifyProductionWebArtifact } = await loadVerifier();
+
+    await expect(
+      verifyProductionWebArtifact({
+        directory,
+        apiBaseUrl,
+        maximumJavaScriptBytes,
+      }),
+    ).resolves.toMatchObject({
+      javaScriptFiles: ['assets/application.js', 'assets/api.js'],
+    });
+  });
+
+  it('entry graph 밖의 modulepreload는 거부한다', async () => {
+    const directory = await createArtifact({
+      additionalJavaScript: { 'decoy.js': 'export const decoy=1;' },
+      indexSource:
+        '<link rel="modulepreload" href="/assets/decoy.js"><script type="module" src="/assets/application.js"></script>',
+      manifest: {
+        application: {
+          file: 'assets/application.js',
+          isEntry: true,
+        },
+        decoy: { file: 'assets/decoy.js' },
+      },
+    });
+    const { verifyProductionWebArtifact } = await loadVerifier();
+
+    await expect(
+      verifyProductionWebArtifact({
+        directory,
+        apiBaseUrl,
+        maximumJavaScriptBytes,
+      }),
+    ).rejects.toThrow(
+      'Production web artifact modulepreload must belong to the entry graph.',
+    );
+  });
+
   it('../../ reference로 artifact root를 벗어나면 거부한다', async () => {
     const directory = await createArtifact({
       applicationSource: 'import "../../escape.js";',
