@@ -48,6 +48,7 @@ import {
   DrizzleVocabularyAdminRepository,
   DrizzleVocabularyPracticeQuery,
   DrizzleVocabularyPracticeRepository,
+  DrizzleVocabularyProductionLookup,
   DrizzleTtsOperationsQuery,
   DrizzleTtsRetryCoordinator,
   DrizzleTtsVoicePresetQuery,
@@ -321,23 +322,6 @@ export const createApplicationModule = (
   const contentProductionRepository = new DrizzleContentProductionRepository(
     database,
   );
-  const contentProductionQueue =
-    env.NODE_ENV === 'production'
-      ? new SqsJobQueue(
-          new SQSClient({ region: env.AWS_REGION }),
-          requireValue(env.JOB_QUEUE_URL, 'JOB_QUEUE_URL'),
-        )
-      : new LocalContentProductionQueue(
-          contentProductionRepository,
-          new DeterministicContentProductionProcessor(),
-        );
-  const contentProductionPresets = new DrizzleContentProductionPresetCatalog(
-    database,
-  );
-  const contentProduction = new ContentProductionService(
-    contentProductionRepository,
-    contentProductionQueue,
-  );
   const dispatchOutbox = new DrizzleAsyncDispatchOutboxRepository(database);
   const questionCandidateRepository = new DrizzleAiQuestionProductionRepository(
     database,
@@ -348,6 +332,36 @@ export const createApplicationModule = (
       env.TTS_VOICE_PRESET_ID,
       dispatchOutbox,
     ),
+  );
+  const questionProductionContext = new DrizzleQuestionProductionContextQuery(
+    database,
+  );
+  // Drizzle lookup은 schema를 좁히지 않는 port type으로 공개되어 local database를 명시적으로 연결한다.
+  const vocabularyProductionLookup = new DrizzleVocabularyProductionLookup(
+    database as unknown as ConstructorParameters<
+      typeof DrizzleVocabularyProductionLookup
+    >[0],
+  );
+  const contentProductionQueue =
+    env.NODE_ENV === 'production'
+      ? new SqsJobQueue(
+          new SQSClient({ region: env.AWS_REGION }),
+          requireValue(env.JOB_QUEUE_URL, 'JOB_QUEUE_URL'),
+        )
+      : new LocalContentProductionQueue(
+          contentProductionRepository,
+          new DeterministicContentProductionProcessor({
+            vocabularyLookup: vocabularyProductionLookup,
+            questionContext: questionProductionContext,
+            questionCandidates: questionCandidateRepository,
+          }),
+        );
+  const contentProductionPresets = new DrizzleContentProductionPresetCatalog(
+    database,
+  );
+  const contentProduction = new ContentProductionService(
+    contentProductionRepository,
+    contentProductionQueue,
   );
   const ttsOperationsQuery = new DrizzleTtsOperationsQuery(database);
   const questionTaxonomy = new QuestionTaxonomyService(
@@ -435,9 +449,7 @@ export const createApplicationModule = (
         questionCandidateReview: new QuestionCandidateReviewService(
           questionCandidateRepository,
         ),
-        questionProductionContext: new DrizzleQuestionProductionContextQuery(
-          database,
-        ),
+        questionProductionContext,
         users,
         authorizer,
       }),

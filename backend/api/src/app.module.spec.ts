@@ -2,11 +2,13 @@
 import {
   DrizzleContentProductionPresetCatalog,
   DrizzleContentProductionRepository,
+  DrizzleAiQuestionProductionRepository,
   DrizzleOperationsCostSettingsRepository,
   DrizzleQuestionProductionContextQuery,
   DrizzleTtsVoicePresetQuery,
   DrizzleTtsVoicePresetRepository,
   DrizzleUsageCostOperationsQuery,
+  DrizzleVocabularyProductionLookup,
   DrizzleEmailChallengeRepository,
   DrizzleRecommendationQuery,
   DrizzleUploadRepository,
@@ -246,7 +248,14 @@ describe('createApplicationModule 조립', () => {
       presets: unknown;
       contentProduction: {
         repository: unknown;
-        queue: { repository: unknown; processor: unknown };
+        queue: {
+          repository: unknown;
+          processor: {
+            vocabularyLookup: unknown;
+            questionContext: unknown;
+            questionCandidates: unknown;
+          };
+        };
       };
       uploadPolicies: { repository: unknown; storage: unknown };
       questionProductionContext: unknown;
@@ -270,6 +279,15 @@ describe('createApplicationModule 조립', () => {
     expect(contentProduction.contentProduction.queue.processor).toBeInstanceOf(
       DeterministicContentProductionProcessor,
     );
+    expect(
+      contentProduction.contentProduction.queue.processor.vocabularyLookup,
+    ).toBeInstanceOf(DrizzleVocabularyProductionLookup);
+    expect(
+      contentProduction.contentProduction.queue.processor.questionContext,
+    ).toBe(contentProduction.questionProductionContext);
+    expect(
+      contentProduction.contentProduction.queue.processor.questionCandidates,
+    ).toBeInstanceOf(DrizzleAiQuestionProductionRepository);
     expect(contentProduction.uploadPolicies.repository).toBe(
       contentProduction.uploads,
     );
