@@ -4,6 +4,8 @@ import {
   adminQuestionIdPathSchema,
   adminQuestionListQuerySchema,
   adminQuestionListResponseSchema,
+  adminQuestionTtsJobPathSchema,
+  adminQuestionTtsJobResponseSchema,
   adminQuestionValidationReportSchema,
   adminQuestionVersionIdPathSchema,
   adminQuestionVersionPayloadSchema,
@@ -334,6 +336,16 @@ export class AdminQuestionIdPathDto extends createZodDto(
 /** 관리자 문제 버전 UUID path Swagger DTO */
 export class AdminQuestionVersionIdPathDto extends createZodDto(
   adminQuestionVersionIdPathSchema,
+) {}
+
+/** 관리자 문제 버전 TTS 경로 Swagger DTO */
+export class AdminQuestionTtsJobPathDto extends createZodDto(
+  adminQuestionTtsJobPathSchema,
+) {}
+
+/** 관리자 문제 버전 TTS 생성 결과 Swagger DTO */
+export class AdminQuestionTtsJobResponseDto extends createZodDto(
+  adminQuestionTtsJobResponseSchema,
 ) {}
 
 /** 관리자 문제 버전 전체 교체 Swagger DTO */

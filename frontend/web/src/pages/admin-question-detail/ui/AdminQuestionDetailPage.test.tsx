@@ -4,11 +4,14 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/shared/api';
 import { renderWithProviders } from '@/shared/test';
+import {
+  createQuestionDetail,
+  createReadyReadiness,
+  draftVersionId,
+  questionId,
+} from './AdminQuestionDetailPage.fixtures';
 import { AdminQuestionDetailPageContainer } from './AdminQuestionDetailPageContainer';
 
-const questionId = '01933b6a-8f13-7a19-b7e5-536d70f57aaa';
-const draftVersionId = '01933b6a-8f13-7a19-b7e5-536d70f57aab';
-const publishedVersionId = '01933b6a-8f13-7a19-b7e5-536d70f57aac';
 const mocks = vi.hoisted(() => ({
   authenticatedRequest: vi.fn(),
 }));
@@ -174,15 +177,6 @@ function mockDetailAndReadiness(
   );
 }
 
-function createReadyReadiness() {
-  return {
-    ready: true,
-    requiredCount: 1,
-    readyCount: 1,
-    blockers: [],
-  };
-}
-
 function createProblemError(status: number) {
   return new ApiError({
     kind: 'problem',
@@ -195,85 +189,4 @@ function createProblemError(status: number) {
       fieldErrors: [],
     },
   });
-}
-
-function createQuestionDetail({
-  draftValidationStatus = 'FAILED',
-}: {
-  draftValidationStatus?: 'FAILED' | 'PASSED';
-} = {}) {
-  return {
-    questionId,
-    status: 'PUBLISHED',
-    currentPublishedVersionId: publishedVersionId,
-    versions: [
-      createVersion({
-        id: draftVersionId,
-        status: 'DRAFT',
-        validation: {
-          status: draftValidationStatus,
-          issues:
-            draftValidationStatus === 'FAILED'
-              ? [
-                  {
-                    path: 'blocks.0.sentences.0',
-                    code: 'MEDIA_ASSET_NOT_READY',
-                  },
-                ]
-              : [],
-          validatedAt: '2026-07-25T00:00:00.000Z',
-        },
-        version: 3,
-      }),
-      createVersion({
-        id: publishedVersionId,
-        status: 'PUBLISHED',
-        validation: {
-          status: 'PASSED',
-          issues: [],
-          validatedAt: '2026-07-24T00:00:00.000Z',
-        },
-        version: 2,
-      }),
-    ],
-    createdAt: '2026-07-20T00:00:00.000Z',
-    updatedAt: '2026-07-25T00:00:00.000Z',
-  };
-}
-
-function createVersion({
-  id,
-  status,
-  validation,
-  version,
-}: {
-  id: string;
-  status: 'DRAFT' | 'PUBLISHED';
-  validation: {
-    status: 'FAILED' | 'PASSED';
-    issues: Array<{ path: string; code: string }>;
-    validatedAt: string;
-  };
-  version: number;
-}) {
-  const optionId = `${id.slice(0, -1)}d`;
-  return {
-    id,
-    version,
-    status,
-    validation,
-    questionType: {
-      id: `${id.slice(0, -1)}e`,
-      slug: 'dialogue-choice',
-      version: 1,
-      skill: 'LISTENING',
-      template: 'DIALOGUE_CHOICE',
-    },
-    difficulty: 4,
-    blocks: [],
-    options: [{ id: optionId, position: 0, sentenceVersionId: id }],
-    correctOptionId: optionId,
-    createdAt: '2026-07-25T00:00:00.000Z',
-    publishedAt: status === 'PUBLISHED' ? '2026-07-25T00:00:00.000Z' : null,
-  };
 }

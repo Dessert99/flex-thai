@@ -14,6 +14,10 @@ import {
   questionTypeVersions,
   questionVersionTags,
   questionVersions,
+  expressionOccurrences,
+  mediaAssets,
+  thaiSentenceVersions,
+  tokenOccurrences,
 } from '../schema/index.js';
 import * as schema from '../schema/index.js';
 
@@ -74,6 +78,39 @@ export interface AdminQuestionBlockSentenceProjection {
   position: number;
   speaker: string | null;
   sentenceVersionId: string;
+  sentence: AdminQuestionResolvedSentenceProjection;
+}
+
+/** 관리자 preview와 구조화 편집이 공유하는 해석된 문장 graph */
+export interface AdminQuestionResolvedSentenceProjection {
+  id: string;
+  originalText: string;
+  translationKo: string;
+  pronunciationKo: string;
+  toneMarks: string;
+  mediaAssetId: string | null;
+  mediaStatus: 'UPLOADING' | 'READY' | 'REJECTED' | null;
+  mediaStorageKey: string | null;
+  tokens: Array<{
+    position: number;
+    surface: string;
+    startOffset: number;
+    endOffset: number;
+    vocabularyId: string;
+    meaningId: string;
+    pronunciationId: string;
+    contextMeaningKo: string;
+    role: 'TARGET' | 'REQUIRED' | 'SUPPORTING' | 'INSTRUCTION';
+  }>;
+  expressions: Array<{
+    startTokenIndex: number;
+    endTokenIndex: number;
+    vocabularyId: string;
+    meaningId: string;
+    pronunciationId: string;
+    contextMeaningKo: string;
+    representative: boolean;
+  }>;
 }
 
 /** 관리자 상세의 버전 block */
@@ -95,6 +132,8 @@ export type AdminQuestionOptionProjection =
   | (AdminQuestionOptionProjectionBase & {
       sentenceVersionId: string;
       span: null;
+      displayText: string;
+      sentence: AdminQuestionResolvedSentenceProjection;
     })
   | (AdminQuestionOptionProjectionBase & {
       sentenceVersionId: null;
@@ -103,6 +142,8 @@ export type AdminQuestionOptionProjection =
         startTokenIndex: number;
         endTokenIndex: number;
       };
+      displayText: string;
+      sentence: AdminQuestionResolvedSentenceProjection;
     });
 
 /** 문제 유형 version과 템플릿을 고정한 관리자 projection */
@@ -434,6 +475,88 @@ export class DrizzleAdminQuestionQuery {
         asc(questionOptions.position),
         asc(questionOptions.id),
       );
+    const sentenceVersionIds = [
+      ...new Set([
+        ...blockSentenceRows.map(({ sentenceVersionId }) => sentenceVersionId),
+        ...optionRows.flatMap(
+          ({ sentenceVersionId, spanSentenceVersionId }) => [
+            ...(sentenceVersionId === null ? [] : [sentenceVersionId]),
+            ...(spanSentenceVersionId === null ? [] : [spanSentenceVersionId]),
+          ],
+        ),
+      ]),
+    ].sort();
+    const sentenceRows =
+      sentenceVersionIds.length === 0
+        ? []
+        : await this.database
+            .select({
+              id: thaiSentenceVersions.id,
+              originalText: thaiSentenceVersions.originalText,
+              translationKo: thaiSentenceVersions.translationKo,
+              pronunciationKo: thaiSentenceVersions.pronunciationKo,
+              toneMarks: thaiSentenceVersions.toneMarks,
+              mediaAssetId: thaiSentenceVersions.mediaAssetId,
+              mediaStatus: mediaAssets.status,
+              mediaStorageKey: mediaAssets.storageKey,
+            })
+            .from(thaiSentenceVersions)
+            .leftJoin(
+              mediaAssets,
+              eq(thaiSentenceVersions.mediaAssetId, mediaAssets.id),
+            )
+            .where(inArray(thaiSentenceVersions.id, sentenceVersionIds))
+            .orderBy(asc(thaiSentenceVersions.id));
+    const tokenRows =
+      sentenceVersionIds.length === 0
+        ? []
+        : await this.database
+            .select({
+              sentenceVersionId: tokenOccurrences.sentenceVersionId,
+              position: tokenOccurrences.position,
+              surface: tokenOccurrences.surface,
+              startOffset: tokenOccurrences.startOffset,
+              endOffset: tokenOccurrences.endOffset,
+              vocabularyId: tokenOccurrences.vocabularyId,
+              meaningId: tokenOccurrences.meaningId,
+              pronunciationId: tokenOccurrences.pronunciationId,
+              contextMeaningKo: tokenOccurrences.contextMeaningKo,
+              role: tokenOccurrences.role,
+            })
+            .from(tokenOccurrences)
+            .where(
+              inArray(tokenOccurrences.sentenceVersionId, sentenceVersionIds),
+            )
+            .orderBy(
+              asc(tokenOccurrences.sentenceVersionId),
+              asc(tokenOccurrences.position),
+            );
+    const expressionRows =
+      sentenceVersionIds.length === 0
+        ? []
+        : await this.database
+            .select({
+              sentenceVersionId: expressionOccurrences.sentenceVersionId,
+              startTokenIndex: expressionOccurrences.startTokenIndex,
+              endTokenIndex: expressionOccurrences.endTokenIndex,
+              vocabularyId: expressionOccurrences.vocabularyId,
+              meaningId: expressionOccurrences.meaningId,
+              pronunciationId: expressionOccurrences.pronunciationId,
+              contextMeaningKo: expressionOccurrences.contextMeaningKo,
+              representative: expressionOccurrences.representative,
+            })
+            .from(expressionOccurrences)
+            .where(
+              inArray(
+                expressionOccurrences.sentenceVersionId,
+                sentenceVersionIds,
+              ),
+            )
+            .orderBy(
+              asc(expressionOccurrences.sentenceVersionId),
+              asc(expressionOccurrences.startTokenIndex),
+              asc(expressionOccurrences.endTokenIndex),
+            );
     const tagRows = await this.database
       .select({
         questionVersionId: questionVersionTags.questionVersionId,
@@ -449,6 +572,54 @@ export class DrizzleAdminQuestionQuery {
         asc(questionTags.slug),
         asc(questionTags.id),
       );
+    const sentencesById = new Map<
+      string,
+      AdminQuestionResolvedSentenceProjection
+    >(
+      sentenceRows.map((sentence) => [
+        sentence.id,
+        {
+          ...sentence,
+          tokens: tokenRows
+            .filter(
+              ({ sentenceVersionId }) => sentenceVersionId === sentence.id,
+            )
+            .map((token) => ({
+              position: token.position,
+              surface: token.surface,
+              startOffset: token.startOffset,
+              endOffset: token.endOffset,
+              vocabularyId: token.vocabularyId,
+              meaningId: token.meaningId,
+              pronunciationId: token.pronunciationId,
+              contextMeaningKo: token.contextMeaningKo,
+              role: token.role,
+            })),
+          expressions: expressionRows
+            .filter(
+              ({ sentenceVersionId }) => sentenceVersionId === sentence.id,
+            )
+            .map((expression) => ({
+              startTokenIndex: expression.startTokenIndex,
+              endTokenIndex: expression.endTokenIndex,
+              vocabularyId: expression.vocabularyId,
+              meaningId: expression.meaningId,
+              pronunciationId: expression.pronunciationId,
+              contextMeaningKo: expression.contextMeaningKo,
+              representative: expression.representative,
+            })),
+        },
+      ]),
+    );
+    const requireSentence = (
+      sentenceVersionId: string,
+    ): AdminQuestionResolvedSentenceProjection => {
+      const sentence = sentencesById.get(sentenceVersionId);
+      if (!sentence) {
+        throw new AdminQuestionQueryError('findById.sentence');
+      }
+      return sentence;
+    };
 
     return {
       ...question,
@@ -468,6 +639,7 @@ export class DrizzleAdminQuestionQuery {
                 position,
                 speaker,
                 sentenceVersionId,
+                sentence: requireSentence(sentenceVersionId),
               })),
           }));
         const storedOptions = optionRows
@@ -508,11 +680,14 @@ export class DrizzleAdminQuestionQuery {
           options: storedOptions.map(
             (option): AdminQuestionOptionProjection => {
               if (option.sentenceVersionId !== null) {
+                const sentence = requireSentence(option.sentenceVersionId);
                 return {
                   id: option.id,
                   position: option.position,
                   sentenceVersionId: option.sentenceVersionId,
                   span: null,
+                  displayText: sentence.originalText,
+                  sentence,
                 };
               }
               if (
@@ -521,6 +696,14 @@ export class DrizzleAdminQuestionQuery {
                 option.spanEndTokenIndex === null
               ) {
                 throw new AdminQuestionQueryError('findById.option');
+              }
+              const sentence = requireSentence(option.spanSentenceVersionId);
+              const displayText = sentence.tokens
+                .slice(option.spanStartTokenIndex, option.spanEndTokenIndex)
+                .map(({ surface }) => surface)
+                .join('');
+              if (displayText.length === 0) {
+                throw new AdminQuestionQueryError('findById.optionSpan');
               }
               return {
                 id: option.id,
@@ -531,6 +714,8 @@ export class DrizzleAdminQuestionQuery {
                   startTokenIndex: option.spanStartTokenIndex,
                   endTokenIndex: option.spanEndTokenIndex,
                 },
+                displayText,
+                sentence,
               };
             },
           ),

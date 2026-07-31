@@ -26,6 +26,8 @@ describe('AdminModule 조립', () => {
       questions: {} as never,
       questionPublication: {} as never,
       questionQuery: {} as never,
+      questionTts: {} as never,
+      mediaReadUrls: {} as never,
       vocabularies: {} as never,
       vocabularyQuery: {} as never,
       findQuestionIdByVersionId: () => Promise.resolve(null),

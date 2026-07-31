@@ -1,5 +1,6 @@
 /** 관리자 내부 결과를 strict 공개 계약과 감사 문맥으로 조립하는지 검증한다 */
 import { describe, expect, it, vi } from 'vitest';
+import { QuestionTtsRegenerationError } from '@flex-thia/domain';
 import {
   AdminContentService,
   AdminPublicResponseError,
@@ -118,6 +119,18 @@ const dependencies = () => ({
     restoreQuestion: vi.fn(),
   },
   questionQuery: { list: vi.fn(), findById: vi.fn() },
+  questionTts: {
+    regenerate: vi.fn().mockResolvedValue({
+      jobIds: [ids.import],
+      scheduledSentenceCount: 1,
+      reusedReadySentenceCount: 0,
+    }),
+  },
+  mediaReadUrls: {
+    createReadUrl: vi
+      .fn()
+      .mockResolvedValue('https://media.example.com/sentence.wav'),
+  },
   vocabularies: {
     replace: vi.fn(),
     publish: vi.fn(),
@@ -279,4 +292,134 @@ describe('AdminContentService 감사 문맥', () => {
       ).rejects.toBeInstanceOf(AdminPublicResponseError);
     },
   );
+
+  it('관리자 문제 상세의 READY 문장만 read URL을 발급하고 저장 키를 제거한다', async () => {
+    const fakes = dependencies();
+    fakes.questionQuery.findById.mockResolvedValueOnce({
+      questionId: ids.question,
+      status: 'DRAFT',
+      currentPublishedVersionId: null,
+      versions: [
+        {
+          id: ids.version,
+          version: 1,
+          status: 'DRAFT',
+          validation: { status: 'PENDING', issues: [], validatedAt: null },
+          questionType: {
+            id: ids.import,
+            slug: 'reading-standard-choice',
+            version: 1,
+            skill: 'READING',
+            template: 'STANDARD_CHOICE',
+          },
+          difficulty: 2,
+          topic: { id: ids.media, slug: 'general', displayName: '일반' },
+          tags: [],
+          blocks: [
+            {
+              id: ids.vocabulary,
+              kind: 'QUESTION',
+              displayMode: 'TEXT',
+              position: 0,
+              sentences: [
+                {
+                  position: 0,
+                  speaker: null,
+                  sentenceVersionId: ids.question,
+                  sentence: resolvedSentence({
+                    mediaAssetId: ids.media,
+                    mediaStatus: 'READY',
+                    mediaStorageKey: 'private/sentence.wav',
+                  }),
+                },
+              ],
+            },
+          ],
+          options: [
+            {
+              id: ids.import,
+              position: 0,
+              sentenceVersionId: ids.question,
+              span: null,
+              displayText: 'สวัสดี',
+              sentence: resolvedSentence({
+                mediaAssetId: ids.media,
+                mediaStatus: 'READY',
+                mediaStorageKey: 'private/sentence.wav',
+              }),
+            },
+          ],
+          correctOptionId: ids.import,
+          createdAt: occurredAt,
+          publishedAt: null,
+        },
+      ],
+      createdAt: occurredAt,
+      updatedAt: occurredAt,
+    });
+    const service = new AdminContentService(fakes as never);
+
+    const response = await service.getQuestion(ids.question);
+
+    expect(
+      response.versions[0]?.blocks[0]?.sentences[0]?.sentence.audio,
+    ).toEqual({
+      status: 'READY',
+      readUrl: 'https://media.example.com/sentence.wav',
+    });
+    expect(JSON.stringify(response)).not.toContain('private/sentence.wav');
+    expect(fakes.mediaReadUrls.createReadUrl).toHaveBeenCalledTimes(1);
+  });
+
+  it('문제 버전 TTS 문맥을 전달하고 진행 중 중복은 409로 바꾼다', async () => {
+    const fakes = dependencies();
+    const service = new AdminContentService(fakes as never);
+
+    await expect(
+      service.regenerateQuestionVersionTts(actor, ids.question, ids.version),
+    ).resolves.toEqual({
+      jobIds: [ids.import],
+      scheduledSentenceCount: 1,
+      reusedReadySentenceCount: 0,
+    });
+    expect(fakes.questionTts.regenerate).toHaveBeenCalledWith({
+      questionId: ids.question,
+      versionId: ids.version,
+      actorUserId: actor.userId,
+      actorSub: actor.sub,
+      requestId: actor.requestId,
+      requestedAt: occurredAt,
+    });
+
+    fakes.questionTts.regenerate.mockRejectedValueOnce(
+      new QuestionTtsRegenerationError('QUESTION_TTS_ALREADY_RUNNING'),
+    );
+    await expect(
+      service.regenerateQuestionVersionTts(actor, ids.question, ids.version),
+    ).rejects.toMatchObject({ status: 409 });
+
+    fakes.questionTts.regenerate.mockRejectedValueOnce(
+      new QuestionTtsRegenerationError('QUESTION_TTS_VERSION_NOT_FOUND'),
+    );
+    await expect(
+      service.regenerateQuestionVersionTts(actor, ids.question, ids.version),
+    ).rejects.toMatchObject({ status: 404 });
+  });
 });
+
+function resolvedSentence(overrides: {
+  mediaAssetId: string | null;
+  mediaStatus: 'UPLOADING' | 'READY' | 'REJECTED' | null;
+  mediaStorageKey: string | null;
+}) {
+  return {
+    id: ids.question,
+    originalText: 'สวัสดี',
+    translationKo: '안녕하세요',
+    pronunciationKo: '싸왓디',
+    toneMarks: 'L-L-M',
+    ...overrides,
+    tokens: [],
+    expressions: [],
+  };
+}

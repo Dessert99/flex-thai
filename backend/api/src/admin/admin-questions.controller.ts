@@ -27,12 +27,15 @@ import {
   adminQuestionIdPathSchema,
   adminQuestionListQuerySchema,
   adminQuestionListResponseSchema,
+  adminQuestionTtsJobPathSchema,
+  adminQuestionTtsJobResponseSchema,
   adminQuestionValidationReportSchema,
   adminQuestionVersionIdPathSchema,
   adminQuestionVersionPayloadSchema,
   adminQuestionVersionResponseSchema,
   type AdminQuestionDetailResponse,
   type AdminQuestionListResponse,
+  type AdminQuestionTtsJobResponse,
   type AdminQuestionValidationReport,
   type AdminQuestionVersionResponse,
 } from '@flex-thia/contracts';
@@ -51,6 +54,8 @@ import {
   AdminQuestionIdPathDto,
   AdminQuestionListQueryDto,
   AdminQuestionListResponseDto,
+  AdminQuestionTtsJobPathDto,
+  AdminQuestionTtsJobResponseDto,
   AdminQuestionValidationReportDto,
   AdminQuestionVersionIdPathDto,
   AdminQuestionVersionPayloadDto,
@@ -76,6 +81,8 @@ import {
   AdminQuestionVersionPayloadDto,
   AdminQuestionVersionResponseDto,
   AdminQuestionValidationReportDto,
+  AdminQuestionTtsJobPathDto,
+  AdminQuestionTtsJobResponseDto,
 )
 @Controller('admin')
 @UseGuards(CognitoAuthorizerGuard, ApplicationRoleGuard, AdminMfaGuard)
@@ -112,6 +119,30 @@ export class AdminQuestionsController {
     return parseAdminPublicResponse(
       adminQuestionDetailResponseSchema,
       await this.admin.getQuestion(path.questionId),
+    );
+  }
+
+  /** DRAFT 문제 버전의 누락된 필수 문장 음성을 예약한다 */
+  @ApiOperation({ summary: '문제 버전의 누락된 필수 문장 TTS를 예약한다' })
+  @ApiParam({ name: 'questionId', type: 'string', format: 'uuid' })
+  @ApiParam({ name: 'versionId', type: 'string', format: 'uuid' })
+  @ApiCreatedResponse({ type: AdminQuestionTtsJobResponseDto })
+  @ApiProblemResponses(400, 401, 403, 404, 409, 500)
+  @Post('questions/:questionId/versions/:versionId/tts-jobs')
+  @HttpCode(201)
+  async regenerateQuestionVersionTts(
+    @CurrentUser() user: AuthenticatedUser,
+    @AdminRequestId() requestId: string,
+    @Param() rawPath: Record<string, unknown>,
+  ): Promise<AdminQuestionTtsJobResponse> {
+    const path = adminQuestionTtsJobPathSchema.parse(rawPath);
+    return parseAdminPublicResponse(
+      adminQuestionTtsJobResponseSchema,
+      await this.admin.regenerateQuestionVersionTts(
+        createAdminActorContext(user, requestId),
+        path.questionId,
+        path.versionId,
+      ),
     );
   }
 

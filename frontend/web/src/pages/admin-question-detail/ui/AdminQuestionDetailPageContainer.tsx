@@ -12,6 +12,7 @@ import { Button } from '@/shared/ui/button';
 import { adminQuestionDetailQueryOptions } from '../api/adminQuestionDetailQueries';
 import { AdminQuestionDetailPageView } from './AdminQuestionDetailPageView';
 import { CloneQuestionVersionButton } from './CloneQuestionVersionButton';
+import { RegenerateQuestionTtsAction } from './RegenerateQuestionTtsAction';
 
 interface AdminQuestionDetailPageContainerProps {
   onCloned?: (result: { questionId: string; versionId: string }) => void;
@@ -151,6 +152,12 @@ function DraftVersionTtsState({
   return (
     <div className='grid gap-cluster'>
       {readinessPanel}
+      <RegenerateQuestionTtsAction
+        onConflict={() => readiness.refetch()}
+        onSuccess={onConfirmed}
+        questionId={questionId}
+        versionId={version.id}
+      />
       {validationPassed ? (
         <QuestionStateAction
           command={{ action: 'publish', versionId: version.id }}

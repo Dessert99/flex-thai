@@ -2,6 +2,7 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import type {
   AdminQuestionIdPath,
+  AdminQuestionTtsJobPath,
   AdminQuestionVersionIdPath,
   AdminQuestionVersionResponse,
 } from './questions.js';
@@ -10,6 +11,8 @@ import {
   adminQuestionIdPathSchema,
   adminQuestionListQuerySchema,
   adminQuestionListResponseSchema,
+  adminQuestionTtsJobPathSchema,
+  adminQuestionTtsJobResponseSchema,
   adminQuestionValidationReportSchema,
   adminQuestionVersionIdPathSchema,
   adminQuestionVersionPayloadSchema,
@@ -45,6 +48,33 @@ const sentenceInput = {
       vocabulary: { id: ids.vocabulary },
       meaning: { id: ids.meaning },
       pronunciation: { id: ids.pronunciation },
+      contextMeaningKo: '안녕하세요',
+      role: 'TARGET',
+    },
+  ],
+  expressions: [],
+} as const;
+
+const resolvedSentence = {
+  id: ids.sentence,
+  originalText: sentenceInput.originalText,
+  translationKo: sentenceInput.translationKo,
+  pronunciationKo: sentenceInput.pronunciationKo,
+  toneMarks: sentenceInput.toneMarks,
+  mediaAssetId: ids.media,
+  audio: {
+    status: 'READY',
+    readUrl: 'https://media.example.com/sentence.wav',
+  },
+  tokens: [
+    {
+      position: 0,
+      surface: 'สวัสดี',
+      startOffset: 0,
+      endOffset: 6,
+      vocabularyId: ids.vocabulary,
+      meaningId: ids.meaning,
+      pronunciationId: ids.pronunciation,
       contextMeaningKo: '안녕하세요',
       role: 'TARGET',
     },
@@ -348,6 +378,7 @@ describe('관리자 문제 공개 응답 계약', () => {
                   position: 0,
                   speaker: null,
                   sentenceVersionId: ids.sentence,
+                  sentence: resolvedSentence,
                 },
               ],
             },
@@ -358,6 +389,8 @@ describe('관리자 문제 공개 응답 계약', () => {
               position: 0,
               sentenceVersionId: ids.sentence,
               span: null,
+              displayText: 'สวัสดี',
+              sentence: resolvedSentence,
             },
           ],
           correctOptionId: ids.option,
@@ -464,6 +497,8 @@ describe('관리자 문제 공개 응답 계약', () => {
               position: 0,
               sentenceVersionId: ids.sentence,
               span: null,
+              displayText: 'สวัสดี',
+              sentence: resolvedSentence,
             },
           ],
           correctOptionId: ids.option,
@@ -553,6 +588,123 @@ describe('관리자 문제 공개 응답 계약', () => {
         ],
       }),
     ).toThrow();
+  });
+
+  it('해석된 본문·보기·정답·해설과 private storage key 없는 음성을 검증한다', () => {
+    const explanation = {
+      ...resolvedSentence,
+      id: '00000000-0000-4000-8000-000000000013',
+      originalText: 'เพราะเป็นคำทักทาย',
+      translationKo: '인사말이기 때문입니다',
+      mediaAssetId: null,
+      audio: { status: 'MISSING', readUrl: null },
+    } as const;
+    const version = {
+      id: ids.version,
+      version: 1,
+      status: 'DRAFT',
+      validation: { status: 'PENDING', issues: [], validatedAt: null },
+      questionType: {
+        id: ids.type,
+        slug: 'reading-standard-choice',
+        version: 1,
+        skill: 'READING',
+        template: 'STANDARD_CHOICE',
+      },
+      difficulty: 2,
+      topic: { id: ids.topic, slug: 'general', displayName: '일반' },
+      tags: [],
+      blocks: [
+        {
+          id: ids.block,
+          kind: 'QUESTION',
+          displayMode: 'TEXT',
+          position: 0,
+          sentences: [
+            {
+              position: 0,
+              speaker: null,
+              sentenceVersionId: ids.sentence,
+              sentence: resolvedSentence,
+            },
+          ],
+        },
+        {
+          id: '00000000-0000-4000-8000-000000000014',
+          kind: 'EXPLANATION',
+          displayMode: 'TEXT',
+          position: 1,
+          sentences: [
+            {
+              position: 0,
+              speaker: null,
+              sentenceVersionId: explanation.id,
+              sentence: explanation,
+            },
+          ],
+        },
+      ],
+      options: [
+        {
+          id: ids.option,
+          position: 0,
+          sentenceVersionId: ids.sentence,
+          span: null,
+          displayText: 'สวัสดี',
+          sentence: resolvedSentence,
+        },
+      ],
+      correctOptionId: ids.option,
+      createdAt: '2026-07-24T00:00:00.000Z',
+      publishedAt: null,
+    } as const;
+    const response = {
+      questionId: ids.question,
+      status: 'DRAFT',
+      currentPublishedVersionId: null,
+      versions: [version],
+      createdAt: '2026-07-24T00:00:00.000Z',
+      updatedAt: '2026-07-24T00:00:00.000Z',
+    } as const;
+
+    expect(adminQuestionDetailResponseSchema.parse(response)).toEqual(response);
+    expect(() =>
+      adminQuestionDetailResponseSchema.parse({
+        ...response,
+        versions: [
+          {
+            ...version,
+            blocks: [
+              {
+                ...version.blocks[0],
+                sentences: [
+                  {
+                    ...version.blocks[0].sentences[0],
+                    sentence: {
+                      ...resolvedSentence,
+                      storageKey: 'private/sentence.wav',
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+    ).toThrow();
+  });
+
+  it('문제 버전 TTS 생성 path와 빈 job 재사용 결과를 검증한다', () => {
+    const path = { questionId: ids.question, versionId: ids.version } as const;
+    const response = {
+      jobIds: [],
+      scheduledSentenceCount: 0,
+      reusedReadySentenceCount: 1,
+    } as const;
+
+    expect(adminQuestionTtsJobPathSchema.parse(path)).toEqual(path);
+    expect(adminQuestionTtsJobResponseSchema.parse(response)).toEqual(response);
+    expectTypeOf<AdminQuestionTtsJobPath>().toEqualTypeOf(path);
   });
 
   it('검증 실패는 안정적인 path와 code의 200 보고서로 표현한다', () => {

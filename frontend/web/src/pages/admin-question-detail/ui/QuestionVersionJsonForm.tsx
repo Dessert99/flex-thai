@@ -23,18 +23,25 @@ import {
 
 interface QuestionVersionJsonFormProps {
   disabled: boolean;
+  initialPayload?: AdminQuestionVersionPayload;
   onReplace: (payload: AdminQuestionVersionPayload) => void;
 }
 
-/** Query data를 역변환하지 않고 사용자가 입력한 payload만 확인 후 전달한다 */
+/** 고급 편집용 canonical JSON을 확인 후 전체 교체로 전달한다 */
 export function QuestionVersionJsonForm({
   disabled,
+  initialPayload,
   onReplace,
 }: QuestionVersionJsonFormProps) {
   const [pendingPayload, setPendingPayload] =
     useState<AdminQuestionVersionPayload>();
   const form = useForm<QuestionVersionJsonFormValues>({
-    defaultValues: { payloadJson: '' },
+    defaultValues: {
+      payloadJson:
+        initialPayload === undefined
+          ? ''
+          : JSON.stringify(initialPayload, null, 2),
+    },
     resolver: zodResolver(questionVersionJsonFormSchema),
   });
 
@@ -65,8 +72,7 @@ export function QuestionVersionJsonForm({
           {...form.register('payloadJson')}
         />
         <p className='text-caption text-subtle'>
-          기존 문장 payload는 공개 응답으로 재구성할 수 없어 빈 입력으로
-          시작합니다.
+          구조화 form에서 제공하지 않는 토큰·표현까지 직접 편집할 때 사용합니다.
         </p>
         {form.formState.errors.payloadJson?.message ? (
           <p className='text-body text-danger'>

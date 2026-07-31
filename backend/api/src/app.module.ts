@@ -335,15 +335,16 @@ export const createApplicationModule = (
     contentProductionQueue,
   );
   const dispatchOutbox = new DrizzleAsyncDispatchOutboxRepository(database);
+  const questionTtsScheduler = new DrizzleGeneratedQuestionTtsScheduler(
+    env.TTS_VOICE_PRESET_ID,
+    dispatchOutbox,
+  );
   const questionCandidateRepository = new DrizzleAiQuestionProductionRepository(
     database,
     () => new Date(),
     new DrizzleGeneratedQuestionDraftRepository(),
     dispatchOutbox,
-    new DrizzleGeneratedQuestionTtsScheduler(
-      env.TTS_VOICE_PRESET_ID,
-      dispatchOutbox,
-    ),
+    questionTtsScheduler,
   );
   const vocabularyCandidateRepository =
     new DrizzleVocabularyCandidateReviewRepository(database);
@@ -385,6 +386,11 @@ export const createApplicationModule = (
         questions: new QuestionAdminService(questionAdminRepository),
         questionPublication,
         questionQuery: new DrizzleAdminQuestionQuery(database),
+        questionTts: {
+          regenerate: (input) =>
+            questionTtsScheduler.regenerate(database, input),
+        },
+        mediaReadUrls,
         vocabularies: new VocabularyAdminService(vocabularyRepository),
         vocabularyQuery: new DrizzleAdminVocabularyQuery(database),
         findQuestionIdByVersionId: async (versionId) =>

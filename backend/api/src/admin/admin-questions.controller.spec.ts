@@ -39,6 +39,11 @@ const service = () => ({
     },
   }),
   getQuestion: vi.fn().mockResolvedValue({}),
+  regenerateQuestionVersionTts: vi.fn().mockResolvedValue({
+    jobIds: [],
+    scheduledSentenceCount: 0,
+    reusedReadySentenceCount: 1,
+  }),
   cloneQuestionVersion: vi.fn().mockResolvedValue({
     questionId,
     versionId,
@@ -65,6 +70,7 @@ describe('AdminQuestionsController 보호 경계', () => {
       Reflect.getMetadata(REQUIRED_ROLE_KEY, AdminQuestionsController),
     ).toBe('ADMIN');
     expect(readHttpCode('cloneQuestionVersion')).toBe(201);
+    expect(readHttpCode('regenerateQuestionVersionTts')).toBe(201);
     expect(readHttpCode('validateQuestionVersion')).toBe(200);
     expect(readHttpCode('publishQuestionVersion')).toBe(204);
     expect(readHttpCode('invalidateQuestionVersion')).toBe(204);
@@ -79,6 +85,10 @@ describe('AdminQuestionsController 보호 경계', () => {
     await controller.listQuestions({ difficulty: '3', page: '2' });
     await controller.cloneQuestionVersion(user, 'request-1', { questionId });
     await controller.validateQuestionVersion(user, 'request-1', { versionId });
+    await controller.regenerateQuestionVersionTts(user, 'request-1', {
+      questionId,
+      versionId,
+    });
 
     expect(fake.listQuestions).toHaveBeenCalledWith(
       expect.objectContaining({ difficulty: 3, page: 2, pageSize: 20 }),
@@ -92,6 +102,11 @@ describe('AdminQuestionsController 보호 경계', () => {
     );
     expect(fake.validateQuestionVersion).toHaveBeenCalledWith(
       { userId: 'user-1', sub: 'subject-1', requestId: 'request-1' },
+      versionId,
+    );
+    expect(fake.regenerateQuestionVersionTts).toHaveBeenCalledWith(
+      { userId: 'user-1', sub: 'subject-1', requestId: 'request-1' },
+      questionId,
       versionId,
     );
   });

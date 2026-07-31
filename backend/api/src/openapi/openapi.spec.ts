@@ -53,6 +53,7 @@ const ACTIVE_PATHS = [
   '/api/v1/admin/questions/{questionId}/hide',
   '/api/v1/admin/questions/{questionId}/restore',
   '/api/v1/admin/questions/{questionId}/versions',
+  '/api/v1/admin/questions/{questionId}/versions/{versionId}/tts-jobs',
   '/api/v1/admin/tts/items/{itemId}/audio',
   '/api/v1/admin/tts/items/{itemId}/retry',
   '/api/v1/admin/tts/jobs',
@@ -1043,6 +1044,13 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
     errors: ['400', '401', '403', '404', '409', '500'],
   },
   {
+    method: 'post',
+    path: '/api/v1/admin/questions/{questionId}/versions/{versionId}/tts-jobs',
+    pathParameters: ['questionId', 'versionId'],
+    success: ['201', 'AdminQuestionTtsJobResponseDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
     method: 'put',
     path: '/api/v1/admin/question-versions/{versionId}',
     pathParameters: ['versionId'],
@@ -1442,7 +1450,7 @@ describe('OpenAPI 문서', () => {
     await app?.close();
   });
 
-  it('현재 활성 endpoint의 서로 다른 path 백열아홉 개만 공개한다', () => {
+  it('현재 활성 endpoint의 서로 다른 path 백스무 개만 공개한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
@@ -1705,12 +1713,12 @@ describe('OpenAPI 문서', () => {
     expectProtectedOpenApiOperations(document, LEARNER_OPERATIONS);
   });
 
-  it('관리자 operation 아흔다섯 개의 입력·성공·Bearer·오류 계약을 모두 고정한다', () => {
+  it('관리자 operation 아흔여섯 개의 입력·성공·Bearer·오류 계약을 모두 고정한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
 
-    expect(ADMIN_OPERATIONS).toHaveLength(95);
+    expect(ADMIN_OPERATIONS).toHaveLength(96);
     expectProtectedOpenApiOperations(document, ADMIN_OPERATIONS);
   });
 
@@ -1730,6 +1738,7 @@ describe('OpenAPI 문서', () => {
     );
     expect(adminComponents).toHaveProperty('ContentImportRequestDto');
     expect(adminComponents).toHaveProperty('AdminQuestionDetailResponseDto');
+    expect(adminComponents).toHaveProperty('AdminQuestionTtsJobResponseDto');
     expect(adminComponents).toHaveProperty('AdminVocabularyDetailResponseDto');
   });
 
