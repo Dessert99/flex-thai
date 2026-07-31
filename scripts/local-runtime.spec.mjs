@@ -1,6 +1,12 @@
 /** local runtime 명령이 reset과 data 보존을 분리하는지 검증한다 */
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { runLocalRuntime } from './local-runtime.mjs';
+
+const runtimeScript = fileURLToPath(
+  new URL('./local-runtime.mjs', import.meta.url),
+);
 
 const createRunner = () => {
   const recorded = [];
@@ -73,5 +79,18 @@ describe('local runtime 명령', () => {
       ['docker', 'compose', '--project-name', 'flex-thia-local', 'down'],
     ]);
     expect(recorded.flat()).not.toContain('-v');
+  });
+
+  it('도움말은 실행 mode와 reset 영향 및 project 범위를 안내한다', () => {
+    const result = spawnSync(process.execPath, [runtimeScript, '--help'], {
+      encoding: 'utf8',
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('fresh');
+    expect(result.stdout).toContain('preserve');
+    expect(result.stdout).toContain('stop');
+    expect(result.stdout).toContain('Reset local database data');
+    expect(result.stdout).toContain('flex-thia-local');
   });
 });
