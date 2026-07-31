@@ -201,6 +201,7 @@ export class HttpApi extends Construct {
       [apigwv2.HttpMethod.POST, '/api/v1/auth/mfa/totp/setup/verify'],
       [apigwv2.HttpMethod.GET, '/api/v1/admin/audit-logs'],
       [apigwv2.HttpMethod.GET, '/api/v1/admin/audit-logs/{auditLogId}'],
+      [apigwv2.HttpMethod.GET, '/api/v1/admin/home'],
       [apigwv2.HttpMethod.POST, '/api/v1/admin/content-imports'],
       [apigwv2.HttpMethod.GET, '/api/v1/admin/content-imports'],
       [apigwv2.HttpMethod.GET, '/api/v1/admin/content-imports/{importId}'],
@@ -290,6 +291,22 @@ export class HttpApi extends Construct {
         '/api/v1/admin/content-production/question-candidates/{candidateId}/regenerate',
       ],
       [
+        apigwv2.HttpMethod.GET,
+        '/api/v1/admin/content-production/vocabulary-candidates',
+      ],
+      [
+        apigwv2.HttpMethod.GET,
+        '/api/v1/admin/content-production/vocabulary-candidates/{candidateId}',
+      ],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/content-production/vocabulary-candidates/{candidateId}/approve',
+      ],
+      [
+        apigwv2.HttpMethod.DELETE,
+        '/api/v1/admin/content-production/vocabulary-candidates/{candidateId}',
+      ],
+      [
         apigwv2.HttpMethod.POST,
         '/api/v1/admin/media-assets/audio-upload-requests',
       ],
@@ -303,6 +320,10 @@ export class HttpApi extends Construct {
       [
         apigwv2.HttpMethod.POST,
         '/api/v1/admin/questions/{questionId}/versions',
+      ],
+      [
+        apigwv2.HttpMethod.POST,
+        '/api/v1/admin/questions/{questionId}/versions/{versionId}/tts-jobs',
       ],
       [apigwv2.HttpMethod.POST, '/api/v1/admin/questions/{questionId}/hide'],
       [apigwv2.HttpMethod.POST, '/api/v1/admin/questions/{questionId}/restore'],

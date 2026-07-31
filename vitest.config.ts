@@ -13,7 +13,7 @@ export default defineConfig({
         test: {
           name: 'node',
           environment: 'node',
-          testTimeout: 10_000,
+          testTimeout: 30_000,
           include: [
             'backend/**/src/**/*.spec.ts',
             'shared/**/src/**/*.spec.ts',

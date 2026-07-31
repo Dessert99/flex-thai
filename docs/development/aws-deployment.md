@@ -17,6 +17,7 @@ GitHub production 승인
   → cdk diff
   → DataStack 배포
   → Aurora migration
+  → production TTS 음성 preset bootstrap
   → ApplicationStack 배포
   → EdgeStack 배포
 ```
@@ -32,6 +33,7 @@ GitHub production 승인
 | `cdk diff` | 현재 AWS와 새 설계도의 차이를 출력한다. | 권한·bootstrap·context를 확인한다. |
 | DataStack | DB, private S3, Secrets Manager를 만든다. | CloudFormation event를 확인한다. |
 | migration | Aurora에 테이블 변경을 적용한다. | ApplicationStack 배포를 멈추고 migration을 조사한다. |
+| TTS preset bootstrap | 운영 변수가 지정한 활성 음성 preset을 Data API로 멱등 생성한다. | ApplicationStack 배포를 멈추고 변수와 기존 preset 충돌을 확인한다. |
 | ApplicationStack | Cognito, Lambda, API, SQS, Step Functions, 알람을 만든다. | DataStack과 기존 DB는 유지된다. |
 | EdgeStack | CloudFront, 인증서, DNS, private web S3를 만든다. | API와 DB는 유지되고 웹 주소만 미완성일 수 있다. |
 
@@ -41,7 +43,8 @@ Lambda가 켜질 때마다 migration을 자동 실행하면 여러 Lambda가 동
 DB 구조를 바꾸거나, 잘못된 migration이 모든 요청을 막을 수 있다.
 
 이 workflow는 DataStack이 존재하는 것을 확인한 뒤 한 번만 Data API
-migration을 실행한다. migration 성공 후에만 새 API를 배포한다.
+migration을 실행한다. migration 뒤 운영 TTS 음성 preset bootstrap까지
+성공한 경우에만 새 API를 배포한다.
 
 현재 migration은 기존 테이블을 파괴하지 않는지 사람이 검토해야 한다.
 column 삭제, type 축소, 대규모 rewrite가 보이면 자동으로 진행하지 않는다.

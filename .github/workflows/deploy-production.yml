@@ -24,6 +24,12 @@ jobs:
       ALLOWED_EMAIL_DOMAINS: ${{ vars.ALLOWED_EMAIL_DOMAINS }}
       MONTHLY_BUDGET_USD: ${{ vars.MONTHLY_BUDGET_USD }}
       MEDIA_PUBLIC_KEY_PEM: ${{ vars.MEDIA_PUBLIC_KEY_PEM }}
+      TTS_VOICE_PRESET_ID: ${{ vars.TTS_VOICE_PRESET_ID }}
+      TTS_VOICE_PRESET_NAME: ${{ vars.TTS_VOICE_PRESET_NAME }}
+      TTS_PROVIDER_NAME: ${{ vars.TTS_PROVIDER_NAME }}
+      TTS_PROVIDER_MODEL: ${{ vars.TTS_PROVIDER_MODEL }}
+      TTS_PROVIDER_VOICE: ${{ vars.TTS_PROVIDER_VOICE }}
+      TTS_GENERATION_REVISION: ${{ vars.TTS_GENERATION_REVISION }}
       GITHUB_REPOSITORY_CONTEXT: ${{ github.repository }}
     steps:
       - name: 저장소 가져오기
@@ -55,6 +61,12 @@ jobs:
             ALLOWED_EMAIL_DOMAINS
             MONTHLY_BUDGET_USD
             MEDIA_PUBLIC_KEY_PEM
+            TTS_VOICE_PRESET_ID
+            TTS_VOICE_PRESET_NAME
+            TTS_PROVIDER_NAME
+            TTS_PROVIDER_MODEL
+            TTS_PROVIDER_VOICE
+            TTS_GENERATION_REVISION
             AWS_DEPLOY_ROLE_ARN
           )
 
@@ -72,6 +84,11 @@ jobs:
 
           if [[ "$MEDIA_PUBLIC_KEY_PEM" != *"BEGIN PUBLIC KEY"* ]]; then
             echo "::error::MEDIA_PUBLIC_KEY_PEM은 PEM 공개 키여야 합니다."
+            exit 1
+          fi
+
+          if [[ ! "$TTS_VOICE_PRESET_ID" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$ ]]; then
+            echo "::error::TTS_VOICE_PRESET_ID는 UUID여야 합니다."
             exit 1
           fi
 
@@ -96,11 +113,11 @@ jobs:
 
       - name: AWS 변경 내용 확인
         run: >-
-          pnpm --filter @flex-thia/infra exec cdk diff -c "account=$CDK_ACCOUNT" -c "rootDomain=$ROOT_DOMAIN" -c "hostedZoneId=$HOSTED_ZONE_ID" -c "alertEmail=$ALERT_EMAIL" -c "githubRepository=$GITHUB_REPOSITORY_CONTEXT" -c "allowedEmailDomains=$ALLOWED_EMAIL_DOMAINS" -c "monthlyBudgetUsd=$MONTHLY_BUDGET_USD"
+          pnpm --filter @flex-thia/infra exec cdk diff -c "account=$CDK_ACCOUNT" -c "rootDomain=$ROOT_DOMAIN" -c "hostedZoneId=$HOSTED_ZONE_ID" -c "alertEmail=$ALERT_EMAIL" -c "githubRepository=$GITHUB_REPOSITORY_CONTEXT" -c "allowedEmailDomains=$ALLOWED_EMAIL_DOMAINS" -c "monthlyBudgetUsd=$MONTHLY_BUDGET_USD" -c "ttsVoicePresetId=$TTS_VOICE_PRESET_ID"
 
       - name: 데이터 기반 배포
         run: >-
-          pnpm --filter @flex-thia/infra exec cdk deploy FlexThiaDataProd --require-approval never --outputs-file "$GITHUB_WORKSPACE/cdk-outputs.json" -c "account=$CDK_ACCOUNT" -c "rootDomain=$ROOT_DOMAIN" -c "hostedZoneId=$HOSTED_ZONE_ID" -c "alertEmail=$ALERT_EMAIL" -c "githubRepository=$GITHUB_REPOSITORY_CONTEXT" -c "allowedEmailDomains=$ALLOWED_EMAIL_DOMAINS" -c "monthlyBudgetUsd=$MONTHLY_BUDGET_USD"
+          pnpm --filter @flex-thia/infra exec cdk deploy FlexThiaDataProd --require-approval never --outputs-file "$GITHUB_WORKSPACE/cdk-outputs.json" -c "account=$CDK_ACCOUNT" -c "rootDomain=$ROOT_DOMAIN" -c "hostedZoneId=$HOSTED_ZONE_ID" -c "alertEmail=$ALERT_EMAIL" -c "githubRepository=$GITHUB_REPOSITORY_CONTEXT" -c "allowedEmailDomains=$ALLOWED_EMAIL_DOMAINS" -c "monthlyBudgetUsd=$MONTHLY_BUDGET_USD" -c "ttsVoicePresetId=$TTS_VOICE_PRESET_ID"
 
       - name: 데이터베이스 migration 설정 읽기
         run: |
@@ -121,6 +138,9 @@ jobs:
       - name: 운영 데이터베이스 migration
         run: pnpm --filter @flex-thia/database db:migrate:data-api
 
+      - name: 운영 TTS 음성 preset bootstrap
+        run: pnpm --filter @flex-thia/database db:bootstrap:tts-voice:data-api
+
       - name: API와 웹 진입점 배포
         run: >-
-          pnpm --filter @flex-thia/infra exec cdk deploy FlexThiaApplicationProd FlexThiaEdgeProd --require-approval never -c "account=$CDK_ACCOUNT" -c "rootDomain=$ROOT_DOMAIN" -c "hostedZoneId=$HOSTED_ZONE_ID" -c "alertEmail=$ALERT_EMAIL" -c "githubRepository=$GITHUB_REPOSITORY_CONTEXT" -c "allowedEmailDomains=$ALLOWED_EMAIL_DOMAINS" -c "monthlyBudgetUsd=$MONTHLY_BUDGET_USD"
+          pnpm --filter @flex-thia/infra exec cdk deploy FlexThiaApplicationProd FlexThiaEdgeProd --require-approval never -c "account=$CDK_ACCOUNT" -c "rootDomain=$ROOT_DOMAIN" -c "hostedZoneId=$HOSTED_ZONE_ID" -c "alertEmail=$ALERT_EMAIL" -c "githubRepository=$GITHUB_REPOSITORY_CONTEXT" -c "allowedEmailDomains=$ALLOWED_EMAIL_DOMAINS" -c "monthlyBudgetUsd=$MONTHLY_BUDGET_USD" -c "ttsVoicePresetId=$TTS_VOICE_PRESET_ID"

@@ -16,7 +16,7 @@ describe('로컬 compose 인증 설정', () => {
       'CHALLENGE_HMAC_PEPPER: local-only-email-challenge-pepper',
     );
     expect(compose).toContain(
-      'EMAIL_LINK_CONFIRMATION_URL: http://localhost:5173/login/confirm',
+      'EMAIL_LINK_CONFIRMATION_URL: ${FLEX_THIA_LOCAL_PUBLIC_ORIGIN:-http://localhost:5173}/login/confirm',
     );
   });
 

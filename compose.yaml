@@ -8,8 +8,8 @@ x-app-environment: &app-environment
   FAKE_LEARNER_SUB: local-learner-sub
   FAKE_LEARNER_EMAIL: learner@hufs.ac.kr
   CHALLENGE_HMAC_PEPPER: local-only-email-challenge-pepper
-  EMAIL_LINK_CONFIRMATION_URL: http://localhost:5173/login/confirm
-  ALLOWED_ORIGINS: http://localhost:5173
+  EMAIL_LINK_CONFIRMATION_URL: ${FLEX_THIA_LOCAL_PUBLIC_ORIGIN:-http://localhost:5173}/login/confirm
+  ALLOWED_ORIGINS: ${FLEX_THIA_LOCAL_PUBLIC_ORIGIN:-http://localhost:5173}
   FLEX_THIA_LOCAL_TTS_AUDIO_DIRECTORY: /var/lib/flex-thia/tts-audio
   FLEX_THIA_LOCAL_UPLOAD_DIRECTORY: /var/lib/flex-thia/uploads
   FLEX_THIA_LOCAL_API_ORIGIN: http://localhost:3000

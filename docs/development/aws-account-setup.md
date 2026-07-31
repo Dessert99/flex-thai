@@ -313,6 +313,12 @@ ALERT_EMAIL
 ALLOWED_EMAIL_DOMAINS
 MONTHLY_BUDGET_USD
 MEDIA_PUBLIC_KEY_PEM
+TTS_VOICE_PRESET_ID
+TTS_VOICE_PRESET_NAME
+TTS_PROVIDER_NAME
+TTS_PROVIDER_MODEL
+TTS_PROVIDER_VOICE
+TTS_GENERATION_REVISION
 ```
 
 Environment secret에는 다음 하나를 등록한다.
@@ -335,7 +341,7 @@ workflow는 값이 비어 있거나 account ID 형식이 잘못되면 AWS 자격
 - [ ] CloudFront public/private key 쌍을 만들고 private key를 안전하게 보관했다.
 - [ ] GitHub OIDC provider와 정확한 subject의 deploy role을 만들었다.
 - [ ] GitHub `production` environment에 reviewer와 main branch 제한을 걸었다.
-- [ ] production 변수 일곱 개와 secret 하나를 등록했다.
+- [ ] production 변수 열세 개와 secret 하나를 등록했다.
 - [ ] SES와 SNS의 sandbox·운영 승인 절차를 이해했다.
 
 여기까지가 “계정과 키 연결 직전” 준비다. 다음 단계에서만 GitHub

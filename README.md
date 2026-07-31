@@ -27,7 +27,7 @@ pnpm local:stop
 - API readiness: [http://localhost:53000/ready](http://localhost:53000/ready)
 - Swagger: [http://localhost:53000/api/docs](http://localhost:53000/api/docs)
 
-기존 host port와 충돌하면 `FLEX_THIA_POSTGRES_HOST_PORT`, `FLEX_THIA_API_HOST_PORT`, `FLEX_THIA_WEB_HOST_PORT`를 설정해 각각 `55432`, `53000`, `5173` 기본값을 바꿀 수 있습니다. Browser-facing URL을 함께 바꿀 때는 `FLEX_THIA_LOCAL_PUBLIC_ORIGIN`도 같은 web origin으로 설정합니다.
+기존 host port와 충돌하면 `FLEX_THIA_POSTGRES_HOST_PORT`, `FLEX_THIA_API_HOST_PORT`, `FLEX_THIA_WEB_HOST_PORT`를 설정해 각각 `55432`, `53000`, `5173` 기본값을 바꿀 수 있습니다. Web port를 바꿀 때는 `FLEX_THIA_LOCAL_PUBLIC_ORIGIN`도 같은 web origin으로 설정하며, 이 값이 CORS·이메일 확인 링크·upload/media URL에 함께 적용됩니다.
 
 ## Local 로그인
 

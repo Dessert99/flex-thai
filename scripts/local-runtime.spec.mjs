@@ -8,6 +8,7 @@ import { runLocalRuntime } from './local-runtime.mjs';
 const runtimeScript = fileURLToPath(
   new URL('./local-runtime.mjs', import.meta.url),
 );
+const repositoryRoot = fileURLToPath(new URL('..', import.meta.url));
 
 const createRunner = () => {
   const recorded = [];
@@ -93,5 +94,36 @@ describe('local runtime 명령', () => {
     expect(result.stdout).toContain('stop');
     expect(result.stdout).toContain('Reset local database data');
     expect(result.stdout).toContain('flex-thia-local');
+  });
+
+  it('custom web origin은 CORS와 이메일 확인 링크에 함께 반영된다', () => {
+    const result = spawnSync(
+      'docker',
+      ['compose', '--profile', 'test', 'config', '--format', 'json'],
+      {
+        cwd: repositoryRoot,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          FLEX_THIA_LOCAL_PUBLIC_ORIGIN: 'http://localhost:5180',
+          FLEX_THIA_WEB_HOST_PORT: '5180',
+        },
+      },
+    );
+
+    expect(result.status).toBe(0);
+    const compose = JSON.parse(result.stdout);
+
+    expect(compose.services.web.ports).toContainEqual(
+      expect.objectContaining({
+        published: '5180',
+        target: 80,
+      }),
+    );
+    expect(compose.services.api.environment).toMatchObject({
+      ALLOWED_ORIGINS: 'http://localhost:5180',
+      EMAIL_LINK_CONFIRMATION_URL: 'http://localhost:5180/login/confirm',
+      FLEX_THIA_LOCAL_PUBLIC_ORIGIN: 'http://localhost:5180',
+    });
   });
 });
