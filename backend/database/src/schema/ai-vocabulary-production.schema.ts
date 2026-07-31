@@ -1,5 +1,7 @@
 /** AI 어휘 후보와 단계별 검증 결과를 attempt별 불변 snapshot으로 저장한다 */
+import { sql } from 'drizzle-orm';
 import {
+  check,
   integer,
   jsonb,
   pgEnum,
@@ -10,6 +12,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import type { ExtractedVocabularyMeaning } from '@flex-thia/domain';
+import { users } from './identity.schema.js';
 import { jobItems } from './jobs.schema.js';
 import { vocabularies, vocabularyKindEnum } from './vocabulary.schema.js';
 
@@ -28,6 +31,18 @@ export const vocabularyCandidateClassificationEnum = pgEnum(
 export const vocabularyCandidateGroupEnum = pgEnum(
   'vocabulary_candidate_group',
   ['NORMAL', 'NEEDS_ATTENTION', 'FAILED'],
+);
+
+/** AI 어휘 후보의 관리자 검수 상태 */
+export const vocabularyCandidateReviewStatusEnum = pgEnum(
+  'vocabulary_candidate_review_status',
+  ['PENDING', 'APPROVED', 'DISCARDED'],
+);
+
+/** 승인된 AI 어휘 후보의 terminal resolution 종류 */
+export const vocabularyCandidateResolutionKindEnum = pgEnum(
+  'vocabulary_candidate_resolution_kind',
+  ['DRAFT_CREATED', 'EXISTING_LINKED'],
 );
 
 /** AI 어휘 후보의 검증 단계 */
@@ -72,7 +87,23 @@ export const vocabularyProductionCandidates = pgTable(
       >()
       .notNull(),
     reviewCode: text('review_code'),
+    reviewStatus: vocabularyCandidateReviewStatusEnum('review_status')
+      .default('PENDING')
+      .notNull(),
+    revision: integer('revision').default(0).notNull(),
+    resolutionKind: vocabularyCandidateResolutionKindEnum('resolution_kind'),
+    resolvedVocabularyId: uuid('resolved_vocabulary_id').references(
+      () => vocabularies.id,
+      { onDelete: 'restrict' },
+    ),
+    reviewedBy: uuid('reviewed_by').references(() => users.id, {
+      onDelete: 'restrict',
+    }),
+    reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
       .defaultNow()
       .notNull(),
   },
@@ -80,6 +111,14 @@ export const vocabularyProductionCandidates = pgTable(
     uniqueIndex(
       'vocabulary_production_candidates_item_attempt_ordinal_unique',
     ).on(table.jobItemId, table.jobAttempt, table.ordinal),
+    check(
+      'vocabulary_production_candidates_revision_nonnegative',
+      sql`${table.revision} >= 0`,
+    ),
+    check(
+      'vocabulary_production_candidates_review_resolution_consistency',
+      sql`(${table.reviewStatus} = 'PENDING' and ${table.resolutionKind} is null and ${table.resolvedVocabularyId} is null and ${table.reviewedBy} is null and ${table.reviewedAt} is null) or (${table.reviewStatus} = 'APPROVED' and ${table.resolutionKind} is not null and ${table.resolvedVocabularyId} is not null and ${table.reviewedBy} is not null and ${table.reviewedAt} is not null) or (${table.reviewStatus} = 'DISCARDED' and ${table.resolutionKind} is null and ${table.resolvedVocabularyId} is null and ${table.reviewedBy} is not null and ${table.reviewedAt} is not null)`,
+    ),
   ],
 );
 

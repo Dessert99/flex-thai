@@ -142,6 +142,12 @@ export * from './queries/drizzle-published-question-similarity.lookup.js';
 /** AI 문제 후보 운영 목록·상세 read model을 공개한다 */
 export * from './queries/drizzle-question-candidate.query.js';
 
+/** AI 어휘 후보 운영 목록·상세 read model을 공개한다 */
+export * from './queries/content-production/drizzle-vocabulary-candidate.query.js';
+
+/** AI 어휘 후보 resolution과 DRAFT graph transaction adapter를 공개한다 */
+export * from './repositories/content-production/drizzle-vocabulary-candidate-review.repository.js';
+
 /** 생성 문제의 nullable-audio DRAFT graph writer를 공개한다 */
 export * from './repositories/content-production/drizzle-generated-question-draft.repository.js';
 
