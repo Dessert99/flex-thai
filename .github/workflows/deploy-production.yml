@@ -75,10 +75,13 @@ jobs:
             exit 1
           fi
 
-      - name: 코드와 AWS 설계도 검사
+      - name: 코드 검사
         run: |
           pnpm check
           pnpm infra:synth
+
+      - name: production web artifact build
+        run: node scripts/build-production-web.mjs "$ROOT_DOMAIN"
 
       - name: AWS 임시 배포 권한 받기
         uses: aws-actions/configure-aws-credentials@v6.2.2
