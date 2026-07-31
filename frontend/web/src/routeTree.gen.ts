@@ -62,6 +62,8 @@ import { Route as AuthenticatedAdminEnrolledVocabulariesVocabularyIdRouteImport 
 import { Route as AuthenticatedAdminEnrolledContentProductionCandidatesIndexRouteImport } from './app/routes/_authenticated.admin._enrolled.content-production.candidates.index'
 import { Route as AuthenticatedAdminEnrolledContentProductionCandidatesCandidateIdRouteImport } from './app/routes/_authenticated.admin._enrolled.content-production.candidates.$candidateId'
 import { Route as AuthenticatedAdminEnrolledContentProductionJobsJobIdRouteImport } from './app/routes/_authenticated.admin._enrolled.content-production.jobs.$jobId'
+import { Route as AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesIndexRouteImport } from './app/routes/_authenticated.admin._enrolled.content-production.vocabulary-candidates.index'
+import { Route as AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesCandidateIdRouteImport } from './app/routes/_authenticated.admin._enrolled.content-production.vocabulary-candidates.$candidateId'
 import { Route as AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRouteImport } from './app/routes/_authenticated.admin._enrolled.questions.$questionId.index'
 import { Route as AuthenticatedAdminEnrolledTtsJobsJobIdRouteImport } from './app/routes/_authenticated.admin._enrolled.tts.jobs.$jobId'
 import { Route as AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRouteImport } from './app/routes/_authenticated.admin._enrolled.questions.$questionId.versions.$versionId.replace'
@@ -372,6 +374,22 @@ const AuthenticatedAdminEnrolledContentProductionJobsJobIdRoute =
     path: '/content-production/jobs/$jobId',
     getParentRoute: () => AuthenticatedAdminEnrolledRoute,
   } as any)
+const AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesIndexRoute =
+  AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesIndexRouteImport.update(
+    {
+      id: '/content-production/vocabulary-candidates/',
+      path: '/content-production/vocabulary-candidates/',
+      getParentRoute: () => AuthenticatedAdminEnrolledRoute,
+    } as any,
+  )
+const AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesCandidateIdRoute =
+  AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesCandidateIdRouteImport.update(
+    {
+      id: '/content-production/vocabulary-candidates/$candidateId',
+      path: '/content-production/vocabulary-candidates/$candidateId',
+      getParentRoute: () => AuthenticatedAdminEnrolledRoute,
+    } as any,
+  )
 const AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute =
   AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRouteImport.update({
     id: '/',
@@ -442,8 +460,10 @@ export interface FileRoutesByFullPath {
   '/admin/vocabularies/': typeof AuthenticatedAdminEnrolledVocabulariesIndexRoute
   '/admin/content-production/candidates/$candidateId': typeof AuthenticatedAdminEnrolledContentProductionCandidatesCandidateIdRoute
   '/admin/content-production/jobs/$jobId': typeof AuthenticatedAdminEnrolledContentProductionJobsJobIdRoute
+  '/admin/content-production/vocabulary-candidates/$candidateId': typeof AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesCandidateIdRoute
   '/admin/tts/jobs/$jobId': typeof AuthenticatedAdminEnrolledTtsJobsJobIdRoute
   '/admin/content-production/candidates/': typeof AuthenticatedAdminEnrolledContentProductionCandidatesIndexRoute
+  '/admin/content-production/vocabulary-candidates/': typeof AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesIndexRoute
   '/admin/questions/$questionId/': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute
   '/admin/questions/$questionId/versions/$versionId/replace': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRoute
 }
@@ -487,8 +507,10 @@ export interface FileRoutesByTo {
   '/admin/vocabularies': typeof AuthenticatedAdminEnrolledVocabulariesIndexRoute
   '/admin/content-production/candidates/$candidateId': typeof AuthenticatedAdminEnrolledContentProductionCandidatesCandidateIdRoute
   '/admin/content-production/jobs/$jobId': typeof AuthenticatedAdminEnrolledContentProductionJobsJobIdRoute
+  '/admin/content-production/vocabulary-candidates/$candidateId': typeof AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesCandidateIdRoute
   '/admin/tts/jobs/$jobId': typeof AuthenticatedAdminEnrolledTtsJobsJobIdRoute
   '/admin/content-production/candidates': typeof AuthenticatedAdminEnrolledContentProductionCandidatesIndexRoute
+  '/admin/content-production/vocabulary-candidates': typeof AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesIndexRoute
   '/admin/questions/$questionId': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute
   '/admin/questions/$questionId/versions/$versionId/replace': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRoute
 }
@@ -546,8 +568,10 @@ export interface FileRoutesById {
   '/_authenticated/admin/_enrolled/vocabularies/': typeof AuthenticatedAdminEnrolledVocabulariesIndexRoute
   '/_authenticated/admin/_enrolled/content-production/candidates/$candidateId': typeof AuthenticatedAdminEnrolledContentProductionCandidatesCandidateIdRoute
   '/_authenticated/admin/_enrolled/content-production/jobs/$jobId': typeof AuthenticatedAdminEnrolledContentProductionJobsJobIdRoute
+  '/_authenticated/admin/_enrolled/content-production/vocabulary-candidates/$candidateId': typeof AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesCandidateIdRoute
   '/_authenticated/admin/_enrolled/tts/jobs/$jobId': typeof AuthenticatedAdminEnrolledTtsJobsJobIdRoute
   '/_authenticated/admin/_enrolled/content-production/candidates/': typeof AuthenticatedAdminEnrolledContentProductionCandidatesIndexRoute
+  '/_authenticated/admin/_enrolled/content-production/vocabulary-candidates/': typeof AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesIndexRoute
   '/_authenticated/admin/_enrolled/questions/$questionId/': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute
   '/_authenticated/admin/_enrolled/questions/$questionId/versions/$versionId/replace': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRoute
 }
@@ -602,8 +626,10 @@ export interface FileRouteTypes {
     | '/admin/vocabularies/'
     | '/admin/content-production/candidates/$candidateId'
     | '/admin/content-production/jobs/$jobId'
+    | '/admin/content-production/vocabulary-candidates/$candidateId'
     | '/admin/tts/jobs/$jobId'
     | '/admin/content-production/candidates/'
+    | '/admin/content-production/vocabulary-candidates/'
     | '/admin/questions/$questionId/'
     | '/admin/questions/$questionId/versions/$versionId/replace'
   fileRoutesByTo: FileRoutesByTo
@@ -647,8 +673,10 @@ export interface FileRouteTypes {
     | '/admin/vocabularies'
     | '/admin/content-production/candidates/$candidateId'
     | '/admin/content-production/jobs/$jobId'
+    | '/admin/content-production/vocabulary-candidates/$candidateId'
     | '/admin/tts/jobs/$jobId'
     | '/admin/content-production/candidates'
+    | '/admin/content-production/vocabulary-candidates'
     | '/admin/questions/$questionId'
     | '/admin/questions/$questionId/versions/$versionId/replace'
   id:
@@ -705,8 +733,10 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/_enrolled/vocabularies/'
     | '/_authenticated/admin/_enrolled/content-production/candidates/$candidateId'
     | '/_authenticated/admin/_enrolled/content-production/jobs/$jobId'
+    | '/_authenticated/admin/_enrolled/content-production/vocabulary-candidates/$candidateId'
     | '/_authenticated/admin/_enrolled/tts/jobs/$jobId'
     | '/_authenticated/admin/_enrolled/content-production/candidates/'
+    | '/_authenticated/admin/_enrolled/content-production/vocabulary-candidates/'
     | '/_authenticated/admin/_enrolled/questions/$questionId/'
     | '/_authenticated/admin/_enrolled/questions/$questionId/versions/$versionId/replace'
   fileRoutesById: FileRoutesById
@@ -1091,6 +1121,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminEnrolledContentProductionJobsJobIdRouteImport
       parentRoute: typeof AuthenticatedAdminEnrolledRoute
     }
+    '/_authenticated/admin/_enrolled/content-production/vocabulary-candidates/': {
+      id: '/_authenticated/admin/_enrolled/content-production/vocabulary-candidates/'
+      path: '/content-production/vocabulary-candidates'
+      fullPath: '/admin/content-production/vocabulary-candidates/'
+      preLoaderRoute: typeof AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminEnrolledRoute
+    }
+    '/_authenticated/admin/_enrolled/content-production/vocabulary-candidates/$candidateId': {
+      id: '/_authenticated/admin/_enrolled/content-production/vocabulary-candidates/$candidateId'
+      path: '/content-production/vocabulary-candidates/$candidateId'
+      fullPath: '/admin/content-production/vocabulary-candidates/$candidateId'
+      preLoaderRoute: typeof AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesCandidateIdRouteImport
+      parentRoute: typeof AuthenticatedAdminEnrolledRoute
+    }
     '/_authenticated/admin/_enrolled/questions/$questionId/': {
       id: '/_authenticated/admin/_enrolled/questions/$questionId/'
       path: '/'
@@ -1296,8 +1340,10 @@ interface AuthenticatedAdminEnrolledRouteChildren {
   AuthenticatedAdminEnrolledTtsIndexRoute: typeof AuthenticatedAdminEnrolledTtsIndexRoute
   AuthenticatedAdminEnrolledContentProductionCandidatesCandidateIdRoute: typeof AuthenticatedAdminEnrolledContentProductionCandidatesCandidateIdRoute
   AuthenticatedAdminEnrolledContentProductionJobsJobIdRoute: typeof AuthenticatedAdminEnrolledContentProductionJobsJobIdRoute
+  AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesCandidateIdRoute: typeof AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesCandidateIdRoute
   AuthenticatedAdminEnrolledTtsJobsJobIdRoute: typeof AuthenticatedAdminEnrolledTtsJobsJobIdRoute
   AuthenticatedAdminEnrolledContentProductionCandidatesIndexRoute: typeof AuthenticatedAdminEnrolledContentProductionCandidatesIndexRoute
+  AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesIndexRoute: typeof AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesIndexRoute
 }
 
 const AuthenticatedAdminEnrolledRouteChildren: AuthenticatedAdminEnrolledRouteChildren =
@@ -1334,10 +1380,14 @@ const AuthenticatedAdminEnrolledRouteChildren: AuthenticatedAdminEnrolledRouteCh
       AuthenticatedAdminEnrolledContentProductionCandidatesCandidateIdRoute,
     AuthenticatedAdminEnrolledContentProductionJobsJobIdRoute:
       AuthenticatedAdminEnrolledContentProductionJobsJobIdRoute,
+    AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesCandidateIdRoute:
+      AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesCandidateIdRoute,
     AuthenticatedAdminEnrolledTtsJobsJobIdRoute:
       AuthenticatedAdminEnrolledTtsJobsJobIdRoute,
     AuthenticatedAdminEnrolledContentProductionCandidatesIndexRoute:
       AuthenticatedAdminEnrolledContentProductionCandidatesIndexRoute,
+    AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesIndexRoute:
+      AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesIndexRoute,
   }
 
 const AuthenticatedAdminEnrolledRouteWithChildren =
