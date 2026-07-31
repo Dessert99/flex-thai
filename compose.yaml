@@ -12,6 +12,7 @@ x-app-environment: &app-environment
   ALLOWED_ORIGINS: http://localhost:5173
   FLEX_THIA_LOCAL_TTS_AUDIO_DIRECTORY: /var/lib/flex-thia/tts-audio
   FLEX_THIA_LOCAL_API_ORIGIN: http://localhost:3000
+  FLEX_THIA_LOCAL_PUBLIC_ORIGIN: ${FLEX_THIA_LOCAL_PUBLIC_ORIGIN:-http://localhost:5173}
   FLEX_THIA_LOCAL_MEDIA_HMAC_SECRET: local-only-media-read-hmac-secret
 
 services:
@@ -22,7 +23,7 @@ services:
       POSTGRES_USER: flex_thia
       POSTGRES_PASSWORD: local_only_password
     ports:
-      - '5432:5432'
+      - '${FLEX_THIA_POSTGRES_HOST_PORT:-55432}:5432'
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U flex_thia -d flex_thia']
       interval: 2s
@@ -30,7 +31,7 @@ services:
       retries: 15
 
   db-setup:
-    profiles: [test, frontend-dev, workers]
+    profiles: [reset]
     build:
       context: .
       dockerfile: Dockerfile.local
@@ -55,12 +56,12 @@ services:
       NODE_ENV: development
       PORT: '3000'
     ports:
-      - '3000:3000'
+      - '${FLEX_THIA_API_HOST_PORT:-53000}:3000'
     volumes:
       - flex-thia-tts-audio:/var/lib/flex-thia/tts-audio
     depends_on:
-      db-setup:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/ready >/dev/null']
       interval: 2s
@@ -85,8 +86,8 @@ services:
     volumes:
       - flex-thia-tts-audio:/var/lib/flex-thia/tts-audio
     depends_on:
-      db-setup:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
   web:
@@ -96,7 +97,7 @@ services:
       dockerfile: Dockerfile.local
       target: web
     ports:
-      - '5173:80'
+      - '${FLEX_THIA_WEB_HOST_PORT:-5173}:80'
     depends_on:
       api:
         condition: service_healthy

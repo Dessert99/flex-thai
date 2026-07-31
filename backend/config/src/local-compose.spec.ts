@@ -39,4 +39,28 @@ describe('로컬 compose 인증 설정', () => {
     expect(compose).not.toContain('tts-audio-gc:');
     expect(compose).toContain('flex-thia-tts-audio:');
   });
+
+  it('다른 local stack과 충돌하지 않는 host port와 browser public origin을 사용한다', () => {
+    const compose = readFileSync(
+      fileURLToPath(new URL('../../../compose.yaml', import.meta.url)),
+      'utf8',
+    );
+
+    expect(compose).toContain("'${FLEX_THIA_POSTGRES_HOST_PORT:-55432}:5432'");
+    expect(compose).toContain("'${FLEX_THIA_API_HOST_PORT:-53000}:3000'");
+    expect(compose).toContain("'${FLEX_THIA_WEB_HOST_PORT:-5173}:80'");
+    expect(compose).toContain(
+      'FLEX_THIA_LOCAL_PUBLIC_ORIGIN: ${FLEX_THIA_LOCAL_PUBLIC_ORIGIN:-http://localhost:5173}',
+    );
+  });
+
+  it('fresh reset service만 reset profile에 속하고 app service는 seed 완료에 직접 의존하지 않는다', () => {
+    const compose = readFileSync(
+      fileURLToPath(new URL('../../../compose.yaml', import.meta.url)),
+      'utf8',
+    );
+
+    expect(compose).toContain('profiles: [reset]');
+    expect(compose).not.toContain('condition: service_completed_successfully');
+  });
 });

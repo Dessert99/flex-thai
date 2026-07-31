@@ -8,6 +8,9 @@
   "scripts": {
     "swagger": "pnpm --filter @flex-thia/api run swagger",
     "web:dev": "pnpm --filter @flex-thia/web dev",
+    "local:fresh": "node scripts/local-runtime.mjs fresh",
+    "local:preserve": "node scripts/local-runtime.mjs preserve",
+    "local:stop": "node scripts/local-runtime.mjs stop",
     "structure:check": "node scripts/check-project-structure.mjs",
     "architecture:check": "pnpm --filter @flex-thia/web architecture:check",
     "coverage:web": "pnpm --filter @flex-thia/web coverage",

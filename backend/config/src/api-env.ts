@@ -39,6 +39,12 @@ const apiEnvSchema = z
         message: 'local API origin은 HTTP URL이어야 합니다',
       })
       .default('http://localhost:3000'),
+    FLEX_THIA_LOCAL_PUBLIC_ORIGIN: z
+      .url()
+      .refine((value) => new URL(value).protocol === 'http:', {
+        message: 'local public origin은 HTTP URL이어야 합니다',
+      })
+      .default('http://localhost:5173'),
     FLEX_THIA_LOCAL_MEDIA_HMAC_SECRET: z
       .string()
       .min(32)
