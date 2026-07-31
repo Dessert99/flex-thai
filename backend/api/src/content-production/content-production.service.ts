@@ -1,11 +1,27 @@
 /** 검증된 upload·preset을 콘텐츠 제작 도메인 명령으로 조립한다 */
 import { Injectable } from '@nestjs/common';
-import type { CreateContentProductionJobRequest } from '@flex-thia/contracts';
+import {
+  createContentProductionPresetRequestSchema,
+  createContentProductionPresetVersionRequestSchema,
+  type ContentProductionJobConfiguration,
+  type CreateContentProductionJobRequest,
+  type CreateContentProductionPresetRequest,
+  type CreateContentProductionPresetVersionRequest,
+  type PromptPreviewRequest,
+  type SetContentProductionPresetEnabledRequest,
+} from '@flex-thia/contracts';
+import {
+  buildQuestionGenerationPrompt,
+  expandQuestionGenerationPlan,
+  serializeQuestionGenerationPrompt,
+} from '@flex-thia/domain';
 import type {
   ContentProductionJob,
   ContentProductionPresetCatalog,
   ContentProductionPresetSnapshot,
   ContentProductionService,
+  QuestionGenerationParameters,
+  QuestionProductionContextRepository,
   UploadPolicyService,
   UploadRecord,
   UploadRepository,
@@ -20,7 +36,9 @@ export class ContentProductionApplicationError extends Error {
       | 'UPLOAD_NOT_VERIFIED'
       | 'JOB_INPUT_TOO_LARGE'
       | 'PRESET_NOT_AVAILABLE'
-      | 'UPLOAD_SERVICE_NOT_CONFIGURED',
+      | 'UPLOAD_SERVICE_NOT_CONFIGURED'
+      | 'QUESTION_CONTEXT_NOT_CONFIGURED'
+      | 'QUESTION_PLAN_INDEX_INVALID',
   ) {
     super(code);
     this.name = 'ContentProductionApplicationError';
@@ -35,7 +53,22 @@ export class ContentProductionApplicationService {
     private readonly presets: ContentProductionPresetCatalog,
     private readonly contentProduction: ContentProductionService,
     private readonly uploadPolicies?: UploadPolicyService,
+    private readonly questionProductionContext?: QuestionProductionContextRepository,
   ) {}
+
+  private async resolveSnapshot(
+    configuration: ContentProductionJobConfiguration,
+  ): Promise<ContentProductionPresetSnapshot> {
+    const preset = await this.presets.resolveEffectiveSnapshot({
+      purpose: configuration.purpose,
+      presetId: configuration.presetId,
+      options: configuration.options,
+    });
+    if (!preset || preset.purpose !== configuration.purpose) {
+      throw new ContentProductionApplicationError('PRESET_NOT_AVAILABLE');
+    }
+    return preset;
+  }
 
   /** 검증된 동일 형식 입력과 활성 preset snapshot으로 작업을 생성한다 */
   async create(
@@ -64,11 +97,7 @@ export class ContentProductionApplicationService {
       throw new ContentProductionApplicationError('JOB_INPUT_TOO_LARGE');
     }
 
-    const preset = await this.presets.findEnabledById(request.presetId);
-
-    if (!preset || preset.purpose !== request.purpose) {
-      throw new ContentProductionApplicationError('PRESET_NOT_AVAILABLE');
-    }
+    const preset = await this.resolveSnapshot(request);
 
     return this.contentProduction.create({
       requestedBy,
@@ -79,9 +108,91 @@ export class ContentProductionApplicationService {
     });
   }
 
+  /** worker와 같은 effective snapshot·item plan으로 provider 호출 없는 prompt를 만든다 */
+  async preview(request: PromptPreviewRequest) {
+    if (!this.questionProductionContext) {
+      throw new ContentProductionApplicationError(
+        'QUESTION_CONTEXT_NOT_CONFIGURED',
+      );
+    }
+    const preset = await this.resolveSnapshot(request);
+    const questionPlan = expandQuestionGenerationPlan(
+      preset.parameters as unknown as QuestionGenerationParameters,
+    )[request.questionPlanIndex];
+    if (!questionPlan) {
+      throw new ContentProductionApplicationError(
+        'QUESTION_PLAN_INDEX_INVALID',
+      );
+    }
+    const prompt = buildQuestionGenerationPrompt(
+      await this.questionProductionContext.load({
+        preset,
+        operation: 'QUESTION_GENERATION',
+        questionPlan,
+      }),
+    );
+    return {
+      promptVersion: prompt.promptVersion,
+      questionPlanIndex: request.questionPlanIndex,
+      sections: prompt.sections,
+      prompt: serializeQuestionGenerationPrompt(prompt),
+    };
+  }
+
   /** 활성 콘텐츠 제작 preset 목록을 반환한다 */
   listPresets(): Promise<ContentProductionPresetSnapshot[]> {
     return this.presets.listEnabled();
+  }
+
+  /** immutable preset version 운영 목록을 반환한다 */
+  listPresetVersions() {
+    return this.presets.listVersions();
+  }
+
+  /** 새 이름의 최초 preset version을 생성한다 */
+  createPreset(
+    actor: { userId: string; sub: string },
+    request: CreateContentProductionPresetRequest,
+  ) {
+    const parsed = createContentProductionPresetRequestSchema.parse(request);
+    return this.presets.createInitial({
+      ...parsed,
+      actorUserId: actor.userId,
+      actorSub: actor.sub,
+      occurredAt: new Date(),
+    });
+  }
+
+  /** 기존 preset 이름의 다음 immutable version을 생성한다 */
+  createPresetVersion(
+    actor: { userId: string; sub: string },
+    presetId: string,
+    request: CreateContentProductionPresetVersionRequest,
+  ) {
+    const parsed =
+      createContentProductionPresetVersionRequestSchema.parse(request);
+    return this.presets.createNextVersion({
+      ...parsed,
+      presetId,
+      actorUserId: actor.userId,
+      actorSub: actor.sub,
+      occurredAt: new Date(),
+    });
+  }
+
+  /** preset enabled 상태를 현재 revision 기준으로 변경한다 */
+  setPresetEnabled(
+    actor: { userId: string; sub: string },
+    presetId: string,
+    request: SetContentProductionPresetEnabledRequest,
+  ) {
+    return this.presets.setEnabled({
+      ...request,
+      presetId,
+      actorUserId: actor.userId,
+      actorSub: actor.sub,
+      occurredAt: new Date(),
+    });
   }
 
   /** 관리자에게 자신이 만든 작업 목록만 반환한다 */

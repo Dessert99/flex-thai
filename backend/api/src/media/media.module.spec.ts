@@ -12,6 +12,18 @@ import { LocalMediaController } from './local-media.controller.js';
 import { MediaModule } from './media.module.js';
 import { TtsOperationsController } from './tts-operations.controller.js';
 import { TtsOperationsService } from './tts-operations.service.js';
+import { TtsVoicePresetsController } from './tts-voice-presets.controller.js';
+import { TtsVoicePresetsService } from './tts-voice-presets.service.js';
+
+const mediaDependencies = {
+  mediaReadUrls: {} as never,
+  voicePresets: {
+    query: {} as never,
+    repository: {} as never,
+    activePresetId: '00000000-0000-4000-8000-000000000001',
+    generateId: () => '00000000-0000-4000-8000-000000000002',
+  },
+};
 
 describe('MediaModule', () => {
   it('production은 ADMIN+MFA TTS 운영 경계만 등록한다', () => {
@@ -24,11 +36,15 @@ describe('MediaModule', () => {
     const module = MediaModule.register({
       query: {} as never,
       retryCoordinator: {} as never,
+      ...mediaDependencies,
       users: users as never,
       authorizer,
     });
 
-    expect(module.controllers).toEqual([TtsOperationsController]);
+    expect(module.controllers).toEqual([
+      TtsOperationsController,
+      TtsVoicePresetsController,
+    ]);
     expect(module.providers).toEqual(
       expect.arrayContaining([
         { provide: IDENTITY_USER_REPOSITORY, useValue: users },
@@ -50,12 +66,18 @@ describe('MediaModule', () => {
       'useValue',
       expect.any(TtsOperationsService),
     );
+    expect(module.providers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ provide: TtsVoicePresetsService }),
+      ]),
+    );
   });
 
   it('local provider가 있을 때만 private 파일 읽기 Controller를 추가한다', () => {
     const module = MediaModule.register({
       query: {} as never,
       retryCoordinator: {} as never,
+      ...mediaDependencies,
       users: {} as never,
       authorizer: {
         authMode: 'fake',
@@ -67,6 +89,7 @@ describe('MediaModule', () => {
 
     expect(module.controllers).toEqual([
       TtsOperationsController,
+      TtsVoicePresetsController,
       LocalMediaController,
     ]);
   });

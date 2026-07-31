@@ -2,7 +2,10 @@
 import type { CanonicalDraftSentenceInput } from '../content-import/content-import.js';
 import type { QuestionTemplate } from '../questions/question-version.js';
 import { normalizeThaiSearchText } from '../vocabulary/normalize-thai-search-text.js';
-import type { ContentProductionPresetSnapshot } from './content-production.service.js';
+import type {
+  ContentProductionPresetSnapshot,
+  QuestionGenerationItemPlan,
+} from './content-production.service.js';
 
 /** 후보 검토 우선순위를 나타내는 내부 그룹 */
 export type QuestionCandidateGroup = 'NORMAL' | 'NEEDS_ATTENTION' | 'FAILED';
@@ -211,10 +214,15 @@ export const normalizeQuestionProductionValidationRecord = (
 
 /** prompt에 필요한 어휘의 공개 가능한 최소 요약 */
 export interface QuestionPromptVocabulary {
+  id?: string | undefined;
   thai: string;
+  meaningId?: string | undefined;
   meaningKo: string;
   partOfSpeech: string;
   difficulty: number;
+  pronunciationId?: string | undefined;
+  pronunciationKo?: string | undefined;
+  toneMarks?: string | undefined;
 }
 
 /** 기존 게시 문제를 재생성 없이 구분할 제한된 요약 */
@@ -231,6 +239,9 @@ export interface QuestionPromptApprovedExample {
 
 /** processor가 prompt 조립에 사용할 공개 가능한 문제 생성 문맥 */
 export interface QuestionProductionContext {
+  difficulty: 1 | 2 | 3 | 4 | 5;
+  similarityThreshold: number;
+  speakerRoles: string[];
   commonPrinciples: string[];
   typeVersion: {
     id: string;
@@ -512,10 +523,15 @@ const sortVocabulary = (
 ): QuestionPromptVocabulary[] =>
   vocabulary
     .map((item) => ({
+      id: item.id,
       thai: item.thai,
+      meaningId: item.meaningId,
       meaningKo: item.meaningKo,
       partOfSpeech: item.partOfSpeech,
       difficulty: item.difficulty,
+      pronunciationId: item.pronunciationId,
+      pronunciationKo: item.pronunciationKo,
+      toneMarks: item.toneMarks,
     }))
     .sort(compareStablePromptValue);
 
@@ -734,6 +750,7 @@ const questionGenerationOutputSchema: Record<string, unknown> = {
         type: 'object',
       },
       minItems: 1,
+      maxItems: 1,
       type: 'array',
     },
   },
@@ -779,6 +796,14 @@ export const buildQuestionGenerationPrompt = (
         ),
       },
       {
+        name: 'generation-target',
+        content: stablePromptJson({
+          difficulty: context.difficulty,
+          expectedCandidateCount: 1,
+          questionTypeVersionId: context.typeVersion.id,
+        }),
+      },
+      {
         name: 'question-type',
         content: stablePromptJson({
           generationRules: context.typeVersion.generationRules,
@@ -818,6 +843,12 @@ export const buildQuestionGenerationPrompt = (
         content: context.newAuxiliaryVocabularyLimit,
       },
       {
+        name: 'speaker-roles',
+        content: stablePromptJson(
+          [...context.speakerRoles].sort(compareCodeUnitText),
+        ),
+      },
+      {
         name: 'similar-question-summaries',
         content: stablePromptJson(
           [...context.similarQuestions].sort(
@@ -835,6 +866,11 @@ export const buildQuestionGenerationPrompt = (
     outputSchema: questionGenerationOutputSchema,
   };
 };
+
+/** preview와 worker가 같은 최종 prompt bytes를 사용하게 안정 직렬화한다 */
+export const serializeQuestionGenerationPrompt = (
+  prompt: QuestionGenerationPrompt,
+): string => stablePromptJson(prompt);
 
 /** 문제 생성 provider의 입력 */
 export interface QuestionGenerationInput {
@@ -1054,6 +1090,7 @@ export interface QuestionProductionContextRepository {
   load(input: {
     preset: ContentProductionPresetSnapshot;
     operation: 'QUESTION_GENERATION';
+    questionPlan: QuestionGenerationItemPlan;
   }): Promise<QuestionProductionContext>;
 }
 

@@ -154,6 +154,32 @@ describe('로컬 seed SQL', () => {
     expect(seedSql.match(presetPolicy)).toHaveLength(2);
   });
 
+  it('콘텐츠 제작과 AI 비용을 확인할 완료 작업을 고정한다', () => {
+    expect(seedSql).toMatch(/insert into jobs/iu);
+    expect(seedSql).toMatch(/insert into job_items/iu);
+    expect(seedSql).toMatch(/insert into provider_runs/iu);
+    expect(seedSql).toContain("'local-content-provider-request'");
+    expect(seedSql).toContain("'0.750000'");
+    expect(seedSql).toMatch(/insert into question_production_candidates/iu);
+    expect(seedSql).toContain("'REDACTED_INVALID'");
+    expect(seedSql).toMatch(
+      /'기본 문제 생성',\s*'QUESTION_GENERATION',\s*2,[\s\S]*?false/iu,
+    );
+  });
+
+  it('비용 경고 singleton과 TTS 비용 실행을 고정한다', () => {
+    expect(seedSql).toMatch(/update operations_cost_settings/iu);
+    expect(seedSql).not.toMatch(/insert into operations_cost_settings/iu);
+    expect(seedSql).toMatch(
+      /currency = 'USD',[\s\S]*warning_usd = '15.000000',[\s\S]*critical_usd = '24.000000'/iu,
+    );
+    expect(seedSql).toMatch(/insert into tts_provider_runs/iu);
+    expect(seedSql).toContain("'0.25000000'");
+    expect(seedSql).toContain("'로컬 비활성 음성'");
+    expect(seedSql).toMatch(/insert into tts_jobs[\s\S]*?'RUNNING'/iu);
+    expect(seedSql).toMatch(/insert into tts_jobs[\s\S]*?'FAILED'/iu);
+  });
+
   it('API local 기본 UUID에 deterministic TTS 음성 preset을 활성화한다', () => {
     expect(seedSql).toMatch(/insert into tts_voice_presets/iu);
     expect(seedSql).toContain("'00000000-0000-4000-8000-000000000001'");

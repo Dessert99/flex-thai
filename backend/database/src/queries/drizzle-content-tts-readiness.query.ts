@@ -149,24 +149,28 @@ export class DrizzleContentTtsReadinessQuery implements ContentTtsReadinessRepos
     const targets = new Map<string, ContentTtsReadinessTarget>();
     sentenceVersionIds.forEach((targetId) => {
       targets.set(`sentence:${targetId}`, {
+        kind: 'THAI_SENTENCE_VERSION',
         targetId,
         mediaStatus: 'MISSING',
       });
     });
     pronunciationIds.forEach((targetId) => {
       targets.set(`pronunciation:${targetId}`, {
+        kind: 'VOCABULARY_PRONUNCIATION',
         targetId,
         mediaStatus: 'MISSING',
       });
     });
     sentenceRows.forEach((row) => {
       targets.set(`sentence:${row.targetId}`, {
+        kind: 'THAI_SENTENCE_VERSION',
         targetId: row.targetId,
         mediaStatus: toReadinessStatus(row.mediaAssetId, row.mediaStatus),
       });
     });
     pronunciationRows.forEach((row) => {
       targets.set(`pronunciation:${row.targetId}`, {
+        kind: 'VOCABULARY_PRONUNCIATION',
         targetId: row.targetId,
         mediaStatus: toReadinessStatus(row.mediaAssetId, row.mediaStatus),
       });

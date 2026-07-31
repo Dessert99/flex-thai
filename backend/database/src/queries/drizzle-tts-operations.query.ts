@@ -1,17 +1,25 @@
 /** TTS 운영 작업·항목을 stable page와 민감하지 않은 projection으로 조회한다 */
 import type {
+  ContentTtsReadinessRepository,
   TtsItemListInput,
   TtsItemPage,
   TtsJob,
   TtsJobDetail,
   TtsJobListInput,
   TtsJobPage,
+  TtsPublicationReadinessProjection,
 } from '@flex-thia/domain';
-import { and, count, desc, eq, gte, lte } from 'drizzle-orm';
+import { and, count, desc, eq, gte, inArray, lte } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import * as schema from '../schema/index.js';
-import { ttsItems, ttsJobs } from '../schema/tts.schema.js';
+import {
+  mediaAssets,
+  questionVersions,
+  ttsItems,
+  ttsJobs,
+} from '../schema/index.js';
+import { DrizzleContentTtsReadinessQuery } from './drizzle-content-tts-readiness.query.js';
 
 type TtsOperationsDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 
@@ -31,6 +39,16 @@ export interface TtsOperationsQuery {
   listJobs(input: TtsOperationsJobListInput): Promise<TtsJobPage>;
   findJob(jobId: string): Promise<TtsJobDetail | null>;
   listItems(input: TtsOperationsItemListInput): Promise<TtsItemPage>;
+  findAudioItem(itemId: string): Promise<{
+    itemId: string;
+    itemStatus: TtsItemPage['items'][number]['status'];
+    mediaStatus: 'UPLOADING' | 'READY' | 'REJECTED' | null;
+    storageKey: string | null;
+  } | null>;
+  getPublicationReadiness(input: {
+    questionId: string;
+    versionId: string;
+  }): Promise<TtsPublicationReadinessProjection | null>;
 }
 
 const jobSelection = {
@@ -90,7 +108,14 @@ const toJob = (row: JobRow): TtsJob => ({
 
 /** TTS 운영 목록·상세 projection을 storage/provider 비밀값 없이 조립한다 */
 export class DrizzleTtsOperationsQuery implements TtsOperationsQuery {
-  constructor(private readonly database: TtsOperationsDatabase) {}
+  private readonly readiness: ContentTtsReadinessRepository;
+
+  constructor(
+    private readonly database: TtsOperationsDatabase,
+    readiness?: ContentTtsReadinessRepository,
+  ) {
+    this.readiness = readiness ?? new DrizzleContentTtsReadinessQuery(database);
+  }
 
   /** 상태·생성 기간을 함께 적용한 최신 job page를 반환한다 */
   async listJobs(input: TtsOperationsJobListInput): Promise<TtsJobPage> {
@@ -175,6 +200,107 @@ export class DrizzleTtsOperationsQuery implements TtsOperationsQuery {
         totalItems,
         totalPages: Math.ceil(totalItems / input.pageSize),
       },
+    };
+  }
+
+  /** 항목 상태와 연결 media의 내부 storage key를 재생 서비스에만 제공한다 */
+  async findAudioItem(itemId: string) {
+    const [row] = await this.database
+      .select({
+        itemId: ttsItems.id,
+        itemStatus: ttsItems.status,
+        mediaStatus: mediaAssets.status,
+        storageKey: mediaAssets.storageKey,
+      })
+      .from(ttsItems)
+      .leftJoin(mediaAssets, eq(ttsItems.mediaAssetId, mediaAssets.id))
+      .where(eq(ttsItems.id, itemId))
+      .limit(1);
+    return row ?? null;
+  }
+
+  /** 문제/version ownership과 필수 media truth를 최신 TTS 작업 metadata로 보강한다 */
+  async getPublicationReadiness(input: {
+    questionId: string;
+    versionId: string;
+  }): Promise<TtsPublicationReadinessProjection | null> {
+    const [version] = await this.database
+      .select({ id: questionVersions.id })
+      .from(questionVersions)
+      .where(
+        and(
+          eq(questionVersions.id, input.versionId),
+          eq(questionVersions.questionId, input.questionId),
+        ),
+      )
+      .limit(1);
+    if (!version) return null;
+
+    const targets = await this.readiness.listRequiredTargets(input);
+    const blockers = targets.filter(
+      (
+        target,
+      ): target is typeof target & {
+        mediaStatus: 'MISSING' | 'UPLOADING' | 'FAILED';
+      } => target.mediaStatus !== 'READY',
+    );
+    const targetIds = blockers.map((target) => target.targetId);
+    const rows =
+      targetIds.length === 0
+        ? []
+        : await this.database
+            .select({
+              jobId: ttsItems.jobId,
+              itemId: ttsItems.id,
+              targetKind: ttsItems.targetKind,
+              targetId: ttsItems.targetId,
+              itemStatus: ttsItems.status,
+              attempt: ttsItems.attempt,
+              errorCode: ttsItems.errorCode,
+              retryable: ttsItems.retryable,
+            })
+            .from(ttsItems)
+            .where(
+              and(
+                inArray(ttsItems.targetId, targetIds),
+                inArray(ttsItems.targetKind, [
+                  'THAI_SENTENCE_VERSION',
+                  'VOCABULARY_PRONUNCIATION',
+                ]),
+                eq(ttsItems.revision, input.versionId),
+              ),
+            )
+            .orderBy(desc(ttsItems.updatedAt), desc(ttsItems.id));
+    const operationByTarget = new Map<string, (typeof rows)[number]>();
+    for (const row of rows) {
+      const key = `${row.targetKind}:${row.targetId}`;
+      if (!operationByTarget.has(key)) operationByTarget.set(key, row);
+    }
+
+    return {
+      ready: blockers.length === 0,
+      requiredCount: targets.length,
+      readyCount: targets.length - blockers.length,
+      blockers: blockers.map((target) => {
+        const operation = operationByTarget.get(
+          `${target.kind}:${target.targetId}`,
+        );
+        return {
+          kind: target.kind,
+          targetId: target.targetId,
+          mediaStatus: target.mediaStatus,
+          operation: operation
+            ? {
+                jobId: operation.jobId,
+                itemId: operation.itemId,
+                itemStatus: operation.itemStatus,
+                attempt: operation.attempt,
+                errorCode: operation.errorCode,
+                retryable: operation.retryable,
+              }
+            : null,
+        };
+      }),
     };
   }
 }

@@ -257,7 +257,13 @@ describe('DrizzleQuestionPublicationRepository가 문제 게시 생명주기를 
           questionId: 'question-id',
           versionId: 'version-id',
         }),
-      ).resolves.toEqual([{ targetId: 'sentence-id', mediaStatus: 'READY' }]);
+      ).resolves.toEqual([
+        {
+          kind: 'THAI_SENTENCE_VERSION',
+          targetId: 'sentence-id',
+          mediaStatus: 'READY',
+        },
+      ]);
     });
     expect(fake.database.transaction).toHaveBeenCalledTimes(1);
   });

@@ -42,3 +42,6 @@ export * from './content-import.schema.js';
 
 /** 콘텐츠 제작·TTS durable handoff 공용 outbox schema를 공개한다 */
 export * from './async-dispatch-outbox.schema.js';
+
+/** 관리자 운영 비용 경고 singleton schema를 공개한다 */
+export * from './operations-cost.schema.js';

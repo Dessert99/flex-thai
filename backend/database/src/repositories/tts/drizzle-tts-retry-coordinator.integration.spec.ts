@@ -2,7 +2,15 @@
 import { randomUUID } from 'node:crypto';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from 'vitest';
 import { DrizzleAsyncDispatchOutboxRepository } from '../dispatch/drizzle-async-dispatch-outbox.repository.js';
 import { DrizzleTtsRetryCoordinator } from './drizzle-tts-retry-coordinator.js';
 
@@ -11,6 +19,11 @@ const databaseUrl =
   process.env.TTS_TEST_DATABASE_URL ??
   process.env.WAVE5_TTS_TEST_DATABASE_URL;
 const requestedAt = new Date('2026-07-28T01:00:00.000Z');
+let retryFixtureIds = {
+  cacheKeys: new Set<string>(),
+  jobIds: new Set<string>(),
+  userIds: new Set<string>(),
+};
 
 const voiceSnapshot = {
   presetId: '00000000-0000-4000-8000-000000000001',
@@ -32,6 +45,9 @@ const createFixture = async (pool: Pool) => {
     cache: randomUUID(),
   };
   const cacheKey = `retry-${ids.item}`;
+  retryFixtureIds.userIds.add(ids.user);
+  retryFixtureIds.jobIds.add(ids.job);
+  retryFixtureIds.cacheKeys.add(cacheKey);
   await pool.query(
     `insert into users (id, cognito_sub, email, role, status)
      values ($1, $2, $3, 'ADMIN', 'ACTIVE')`,
@@ -69,7 +85,121 @@ const command = (fixture: Awaited<ReturnType<typeof createFixture>>) => ({
   itemIds: [fixture.ids.item],
   expectedAttempts: { [fixture.ids.item]: 2 },
   requestedAt,
+  context: {
+    actorSub: `retry-${fixture.ids.user}`,
+    actorUserId: fixture.ids.user,
+    requestId: fixture.ids.job,
+  },
 });
+
+const withRejectedAudit = async (
+  pool: Pool,
+  requestId: string,
+  run: () => Promise<unknown>,
+) => {
+  const suffix = requestId.replaceAll('-', '');
+  const functionName = `reject_tts_retry_audit_${suffix}`;
+  const triggerName = `reject_tts_retry_audit_trigger_${suffix}`;
+  await pool.query(`
+    create function "${functionName}"() returns trigger language plpgsql as $$
+    begin
+      if new.request_id = '${requestId}'
+         and new.action = 'TTS_ITEMS_RETRIED' then
+        raise exception 'AUDIT_TRIGGER_FAILED';
+      end if;
+      return new;
+    end
+    $$`);
+  try {
+    await pool.query(`
+      create trigger "${triggerName}"
+      before insert on audit_logs
+      for each row execute function "${functionName}"()`);
+    try {
+      await run();
+    } finally {
+      await pool.query(`drop trigger if exists "${triggerName}" on audit_logs`);
+    }
+  } finally {
+    await pool.query(`drop function if exists "${functionName}"()`);
+  }
+};
+
+const removeRetryFixtures = async (pool: Pool) => {
+  const ids = {
+    cacheKeys: [...retryFixtureIds.cacheKeys],
+    jobIds: [...retryFixtureIds.jobIds],
+    userIds: [...retryFixtureIds.userIds],
+  };
+  await pool.query(
+    `delete from async_dispatch_outbox where job_id = any($1::uuid[])`,
+    [ids.jobIds],
+  );
+  await pool.query(
+    `delete from audit_logs where actor_user_id = any($1::uuid[])`,
+    [ids.userIds],
+  );
+  await pool.query(
+    `delete from tts_provider_runs
+     where item_id in (
+       select id from tts_items where job_id = any($1::uuid[])
+     )`,
+    [ids.jobIds],
+  );
+  await pool.query(`delete from tts_items where job_id = any($1::uuid[])`, [
+    ids.jobIds,
+  ]);
+  await pool.query(
+    `delete from tts_audio_cache where cache_key = any($1::text[])`,
+    [ids.cacheKeys],
+  );
+  await pool.query(`delete from tts_jobs where id = any($1::uuid[])`, [
+    ids.jobIds,
+  ]);
+  await pool.query(`delete from users where id = any($1::uuid[])`, [
+    ids.userIds,
+  ]);
+  const residue = await pool.query<{
+    auditCount: number;
+    cacheCount: number;
+    itemCount: number;
+    jobCount: number;
+    outboxCount: number;
+    userCount: number;
+  }>(
+    `select
+       (select count(*)::int from audit_logs
+        where actor_user_id = any($1::uuid[])) "auditCount",
+       (select count(*)::int from async_dispatch_outbox
+        where job_id = any($2::uuid[])) "outboxCount",
+       (select count(*)::int from tts_items
+        where job_id = any($2::uuid[])) "itemCount",
+       (select count(*)::int from tts_jobs
+        where id = any($2::uuid[])) "jobCount",
+       (select count(*)::int from tts_audio_cache
+        where cache_key = any($3::text[])) "cacheCount",
+       (select count(*)::int from users
+        where id = any($1::uuid[])) "userCount"`,
+    [ids.userIds, ids.jobIds, ids.cacheKeys],
+  );
+  expect(residue.rows[0]).toEqual({
+    auditCount: 0,
+    cacheCount: 0,
+    itemCount: 0,
+    jobCount: 0,
+    outboxCount: 0,
+    userCount: 0,
+  });
+};
+
+const expectRejectedAudit = async (operation: Promise<unknown>) => {
+  const failure = await operation.catch((error: unknown) => error);
+  expect(failure).toBeInstanceOf(Error);
+  if (!(failure instanceof Error) || !(failure.cause instanceof Error)) {
+    throw new Error('TTS_RETRY_AUDIT_FAILURE_CAUSE_REQUIRED');
+  }
+  expect(failure.cause.message).toContain('AUDIT_TRIGGER_FAILED');
+};
 
 describe.runIf(databaseUrl !== undefined)(
   'TTS retry와 outbox PostgreSQL 원자성',
@@ -96,6 +226,18 @@ describe.runIf(databaseUrl !== undefined)(
       await pool.end();
     });
 
+    beforeEach(() => {
+      retryFixtureIds = {
+        cacheKeys: new Set(),
+        jobIds: new Set(),
+        userIds: new Set(),
+      };
+    });
+
+    afterEach(async () => {
+      await removeRetryFixtures(pool);
+    });
+
     const coordinator = () => {
       const database = drizzle({ client: pool }) as never;
       return new DrizzleTtsRetryCoordinator(
@@ -115,6 +257,7 @@ describe.runIf(databaseUrl !== undefined)(
 
       const state = await pool.query<{
         attempt: number;
+        auditCount: string;
         cacheStatus: string;
         itemStatus: string;
         outboxCount: string;
@@ -125,7 +268,10 @@ describe.runIf(databaseUrl !== undefined)(
            tac.status "cacheStatus",
            (select count(*)::text from async_dispatch_outbox
             where payload_kind = 'TTS' and job_id = $1 and attempt = 1)
-             "outboxCount"
+             "outboxCount",
+           (select count(*)::text from audit_logs
+            where request_id = $1::text and action = 'TTS_ITEMS_RETRIED')
+             "auditCount"
          from tts_items ti
          join tts_audio_cache tac on tac.cache_key = ti.cache_key
          where ti.id = $2`,
@@ -133,6 +279,7 @@ describe.runIf(databaseUrl !== undefined)(
       );
       expect(state.rows[0]).toEqual({
         attempt: 3,
+        auditCount: '1',
         cacheStatus: 'PENDING',
         itemStatus: 'PENDING',
         outboxCount: '1',
@@ -146,6 +293,7 @@ describe.runIf(databaseUrl !== undefined)(
       const secondRevision = randomUUID();
       const secondCacheId = randomUUID();
       const secondCacheKey = `retry-${secondItemId}`;
+      retryFixtureIds.cacheKeys.add(secondCacheKey);
       await pool.query(
         `insert into tts_items (
            id, job_id, target_kind, target_id, target_text, target_required,
@@ -180,6 +328,11 @@ describe.runIf(databaseUrl !== undefined)(
             [secondItemId]: 5,
           },
           requestedAt,
+          context: {
+            actorSub: `retry-${fixture.ids.user}`,
+            actorUserId: fixture.ids.user,
+            requestId: fixture.ids.job,
+          },
         }),
       ).resolves.toBe(2);
       const state = await pool.query<{
@@ -227,6 +380,7 @@ describe.runIf(databaseUrl !== undefined)(
       const state = await pool.query<{
         attempt: number;
         cacheStatus: string;
+        auditCount: string;
         failedCount: number;
         itemStatus: string;
         jobStatus: string;
@@ -239,7 +393,10 @@ describe.runIf(databaseUrl !== undefined)(
            tj.failed_count "failedCount",
            tac.status "cacheStatus",
            (select count(*)::text from async_dispatch_outbox
-            where payload_kind = 'TTS' and job_id = $1) "outboxCount"
+            where payload_kind = 'TTS' and job_id = $1) "outboxCount",
+           (select count(*)::text from audit_logs
+            where request_id = $1::text and action = 'TTS_ITEMS_RETRIED')
+             "auditCount"
          from tts_items ti
          join tts_jobs tj on tj.id = ti.job_id
          join tts_audio_cache tac on tac.cache_key = ti.cache_key
@@ -248,6 +405,53 @@ describe.runIf(databaseUrl !== undefined)(
       );
       expect(state.rows[0]).toEqual({
         attempt: 2,
+        auditCount: '0',
+        cacheStatus: 'FAILED',
+        failedCount: 1,
+        itemStatus: 'FAILED',
+        jobStatus: 'FAILED',
+        outboxCount: '0',
+      });
+    });
+
+    it('audit trigger 실패는 item·cache·job·outbox를 모두 rollback한다', async () => {
+      const fixture = await createFixture(pool);
+
+      await expectRejectedAudit(
+        withRejectedAudit(pool, fixture.ids.job, () =>
+          coordinator().retryAndDispatch(command(fixture)),
+        ),
+      );
+
+      const state = await pool.query<{
+        attempt: number;
+        auditCount: string;
+        cacheStatus: string;
+        failedCount: number;
+        itemStatus: string;
+        jobStatus: string;
+        outboxCount: string;
+      }>(
+        `select
+           ti.attempt,
+           ti.status "itemStatus",
+           tj.status "jobStatus",
+           tj.failed_count "failedCount",
+           tac.status "cacheStatus",
+           (select count(*)::text from async_dispatch_outbox
+            where payload_kind = 'TTS' and job_id = $1) "outboxCount",
+           (select count(*)::text from audit_logs
+            where request_id = $1::text and action = 'TTS_ITEMS_RETRIED')
+             "auditCount"
+         from tts_items ti
+         join tts_jobs tj on tj.id = ti.job_id
+         join tts_audio_cache tac on tac.cache_key = ti.cache_key
+         where ti.id = $2`,
+        [fixture.ids.job, fixture.ids.item],
+      );
+      expect(state.rows[0]).toEqual({
+        attempt: 2,
+        auditCount: '0',
         cacheStatus: 'FAILED',
         failedCount: 1,
         itemStatus: 'FAILED',

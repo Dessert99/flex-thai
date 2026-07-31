@@ -1,6 +1,11 @@
 /** 로그인 redirect를 승인된 same-origin route와 search 계약으로 제한한다 */
 import {
+  questionCandidateListQuerySchema,
   questionListQuerySchema,
+  ttsJobItemsQuerySchema,
+  ttsJobListQuerySchema,
+  ttsVoicePresetListQuerySchema,
+  usageCostOverviewQuerySchema,
   wordbookIdPathSchema,
   wordbookItemListQuerySchema,
 } from '@flex-thia/contracts';
@@ -20,6 +25,12 @@ const approvedStaticPaths = new Set([
   '/admin/question-settings',
   '/admin/totp-setup',
   '/admin/content-imports',
+  '/admin/content-production',
+  '/admin/content-production/candidates',
+  '/admin/content-production/presets',
+  '/admin/tts',
+  '/admin/tts/presets',
+  '/admin/usage-cost',
   '/admin/questions',
   '/admin/vocabularies',
   '/forbidden',
@@ -30,6 +41,9 @@ const approvedDynamicPaths = [
   /^\/vocabularies\/[0-9a-f-]+$/u,
   /^\/wordbooks\/[0-9a-f-]+$/u,
   /^\/admin\/content-imports\/[0-9a-f-]+$/u,
+  /^\/admin\/content-production\/jobs\/[0-9a-f-]+$/u,
+  /^\/admin\/content-production\/candidates\/[0-9a-f-]+$/u,
+  /^\/admin\/tts\/jobs\/[0-9a-f-]+$/u,
   /^\/admin\/questions\/[0-9a-f-]+$/u,
   /^\/admin\/questions\/[0-9a-f-]+\/versions\/[0-9a-f-]+\/replace$/u,
   /^\/admin\/vocabularies\/[0-9a-f-]+$/u,
@@ -73,6 +87,30 @@ function hasValidSearch(url: URL): boolean {
   }
   if (isValidWordbookPath(url.pathname)) {
     return wordbookItemListQuerySchema.safeParse(
+      Object.fromEntries(url.searchParams),
+    ).success;
+  }
+  if (url.pathname === '/admin/content-production/candidates') {
+    return questionCandidateListQuerySchema.safeParse(
+      Object.fromEntries(url.searchParams),
+    ).success;
+  }
+  if (url.pathname === '/admin/tts') {
+    return ttsJobListQuerySchema.safeParse(Object.fromEntries(url.searchParams))
+      .success;
+  }
+  if (/^\/admin\/tts\/jobs\/[0-9a-f-]+$/u.test(url.pathname)) {
+    return ttsJobItemsQuerySchema.safeParse(
+      Object.fromEntries(url.searchParams),
+    ).success;
+  }
+  if (url.pathname === '/admin/tts/presets') {
+    return ttsVoicePresetListQuerySchema.safeParse(
+      Object.fromEntries(url.searchParams),
+    ).success;
+  }
+  if (url.pathname === '/admin/usage-cost') {
+    return usageCostOverviewQuerySchema.safeParse(
       Object.fromEntries(url.searchParams),
     ).success;
   }

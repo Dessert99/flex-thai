@@ -7,8 +7,10 @@ import {
   contentProductionJobPathSchema,
   contentProductionJobSummarySchema,
   contentProductionPresetListResponseSchema,
+  contentProductionPresetPathSchema,
   contentProductionUploadPathSchema,
-  createContentProductionJobRequestSchema,
+  promptPreviewResponseSchema,
+  setContentProductionPresetEnabledRequestSchema,
   uploadPolicyRequestSchema,
   uploadPolicyResponseSchema,
 } from '@flex-thia/contracts';
@@ -40,9 +42,13 @@ export class ContentProductionPresetListResponseDto extends createZodDto(
 ) {}
 
 /** 작업 생성 요청 Swagger DTO */
-export class CreateContentProductionJobRequestDto extends createZodDto(
-  createContentProductionJobRequestSchema,
-) {}
+export class CreateContentProductionJobRequestDto {
+  clientRequestId!: string;
+  uploadIds!: string[];
+  purpose!: string;
+  presetId!: string;
+  options!: unknown;
+}
 
 /** 작업 요약 응답 Swagger DTO */
 export class ContentProductionJobSummaryDto extends createZodDto(
@@ -67,4 +73,59 @@ export class ContentProductionJobPathDto extends createZodDto(
 /** 작업 상세 응답 Swagger DTO */
 export class ContentProductionJobDetailResponseDto extends createZodDto(
   contentProductionJobDetailResponseSchema,
+) {}
+
+/** prompt preview 요청 Swagger DTO */
+export class PromptPreviewRequestDto {
+  purpose!: string;
+  presetId!: string;
+  options!: unknown;
+  questionPlanIndex!: number;
+}
+
+/** prompt preview 응답 Swagger DTO */
+export class PromptPreviewResponseDto extends createZodDto(
+  promptPreviewResponseSchema,
+) {}
+
+/** preset path Swagger DTO */
+export class ContentProductionPresetPathDto extends createZodDto(
+  contentProductionPresetPathSchema,
+) {}
+
+/** preset version 목록 응답 Swagger DTO */
+export class ContentProductionPresetVersionListResponseDto {
+  items!: unknown[];
+}
+
+/** 단일 preset version 응답 Swagger DTO */
+export class ContentProductionPresetVersionResponseDto {
+  id!: string;
+  name!: string;
+  version!: number;
+  purpose!: string;
+  parameters!: unknown;
+  enabled!: boolean;
+  revision!: number;
+  createdAt!: string;
+}
+
+/** 최초 preset 생성 요청 Swagger DTO */
+export class CreateContentProductionPresetRequestDto {
+  requestId!: string;
+  name!: string;
+  purpose!: string;
+  parameters!: unknown;
+}
+
+/** 다음 preset version 생성 요청 Swagger DTO */
+export class CreateContentProductionPresetVersionRequestDto {
+  requestId!: string;
+  purpose!: string;
+  parameters!: unknown;
+}
+
+/** preset enabled 변경 요청 Swagger DTO */
+export class SetContentProductionPresetEnabledRequestDto extends createZodDto(
+  setContentProductionPresetEnabledRequestSchema,
 ) {}

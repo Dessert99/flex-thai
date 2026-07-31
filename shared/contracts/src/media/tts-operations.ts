@@ -26,6 +26,11 @@ const pageMetadataSchema = z
   })
   .strict();
 
+const httpBooleanSchema = z.union([
+  z.boolean(),
+  z.enum(['true', 'false']).transform((value) => value === 'true'),
+]);
+
 const ttsJobStatusSchema = z.enum([
   'QUEUED',
   'RUNNING',
@@ -249,6 +254,142 @@ export const ttsRetryResponseSchema = z
     }
   });
 
+const ttsVoicePresetResponseSchema = z
+  .object({
+    id: z.uuid(),
+    name: z.string().trim().min(1).max(100),
+    provider: z.string().trim().min(1).max(100),
+    model: z.string().trim().min(1).max(100),
+    voice: z.string().trim().min(1).max(100),
+    locale: z.literal('th-TH'),
+    audioFormat: z.literal('audio/wav'),
+    generationRevision: z.string().trim().min(1).max(200),
+    enabled: z.boolean(),
+    active: z.boolean(),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
+  })
+  .strict();
+
+/** TTS voice preset 목록 query */
+export const ttsVoicePresetListQuerySchema = z
+  .object({
+    query: z.string().trim().min(1).max(100).optional(),
+    enabled: httpBooleanSchema.optional(),
+    ...pageQueryShape,
+  })
+  .strict();
+
+/** TTS voice preset UUID path */
+export const ttsVoicePresetPathSchema = z
+  .object({ presetId: z.uuid() })
+  .strict();
+
+/** 최초 TTS voice preset 생성 요청 */
+export const createTtsVoicePresetRequestSchema = z
+  .object({
+    name: z.string().trim().min(1).max(100),
+    provider: z.string().trim().min(1).max(100),
+    model: z.string().trim().min(1).max(100),
+    voice: z.string().trim().min(1).max(100),
+    locale: z.literal('th-TH'),
+    audioFormat: z.literal('audio/wav'),
+    generationRevision: z.string().trim().min(1).max(200),
+    enabled: z.boolean(),
+  })
+  .strict();
+
+/** 기존 이름을 유지하는 새 TTS voice preset version 생성 요청 */
+export const createTtsVoicePresetVersionRequestSchema = z
+  .object({
+    expectedUpdatedAt: z.iso.datetime(),
+    provider: z.string().trim().min(1).max(100),
+    model: z.string().trim().min(1).max(100),
+    voice: z.string().trim().min(1).max(100),
+    locale: z.literal('th-TH'),
+    audioFormat: z.literal('audio/wav'),
+    generationRevision: z.string().trim().min(1).max(200),
+    enabled: z.boolean(),
+  })
+  .strict();
+
+/** TTS voice preset enabled optimistic 변경 요청 */
+export const changeTtsVoicePresetEnabledRequestSchema = z
+  .object({ expectedUpdatedAt: z.iso.datetime() })
+  .strict();
+
+/** TTS voice preset 목록 응답 */
+export const ttsVoicePresetListResponseSchema = z
+  .object({
+    items: z.array(ttsVoicePresetResponseSchema),
+    page: pageMetadataSchema,
+  })
+  .strict();
+
+/** TTS voice preset 상세 응답 */
+export const ttsVoicePresetDetailResponseSchema = ttsVoicePresetResponseSchema;
+
+/** 클릭 시 발급하는 TTS 음성 재생 응답 */
+export const ttsItemAudioResponseSchema = z
+  .object({
+    url: z.url(),
+    expiresAt: z.iso.datetime(),
+  })
+  .strict();
+
+/** 게시 readiness 질문·version path */
+export const ttsPublicationReadinessPathSchema = z
+  .object({ questionId: z.uuid(), versionId: z.uuid() })
+  .strict();
+
+const ttsPublicationBlockerSchema = z
+  .object({
+    kind: z.enum(['THAI_SENTENCE_VERSION', 'VOCABULARY_PRONUNCIATION']),
+    targetId: z.uuid(),
+    mediaStatus: z.enum(['MISSING', 'UPLOADING', 'FAILED']),
+    operation: z
+      .object({
+        jobId: z.uuid(),
+        itemId: z.uuid(),
+        itemStatus: ttsItemStatusSchema,
+        attempt: z.number().int().safe().nonnegative(),
+        errorCode: stableErrorCodeSchema.nullable(),
+        retryable: z.boolean(),
+      })
+      .strict()
+      .nullable(),
+  })
+  .strict();
+
+/** 문제 version의 TTS 게시 readiness 응답 */
+export const ttsPublicationReadinessResponseSchema = z
+  .object({
+    ready: z.boolean(),
+    requiredCount: z.number().int().safe().nonnegative(),
+    readyCount: z.number().int().safe().nonnegative(),
+    blockers: z.array(ttsPublicationBlockerSchema),
+  })
+  .strict()
+  .superRefine((response, context) => {
+    if (response.ready !== (response.blockers.length === 0)) {
+      context.addIssue({
+        code: 'custom',
+        message: 'ready와 blocker 유무가 일치해야 합니다',
+        path: ['ready'],
+      });
+    }
+    if (
+      response.requiredCount !==
+      response.readyCount + response.blockers.length
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message: '필수 수량은 준비 수량과 blocker 수의 합이어야 합니다',
+        path: ['requiredCount'],
+      });
+    }
+  });
+
 /** TTS 작업 목록 query */
 export type TtsJobListQuery = z.infer<typeof ttsJobListQuerySchema>;
 
@@ -269,3 +410,41 @@ export type TtsJobDetailResponse = z.infer<typeof ttsJobDetailResponseSchema>;
 
 /** TTS 재시도 접수 응답 */
 export type TtsRetryResponse = z.infer<typeof ttsRetryResponseSchema>;
+
+/** TTS voice preset 목록 query */
+export type TtsVoicePresetListQuery = z.infer<
+  typeof ttsVoicePresetListQuerySchema
+>;
+
+/** 최초 TTS voice preset 생성 요청 */
+export type CreateTtsVoicePresetRequest = z.infer<
+  typeof createTtsVoicePresetRequestSchema
+>;
+
+/** 새 TTS voice preset version 생성 요청 */
+export type CreateTtsVoicePresetVersionRequest = z.infer<
+  typeof createTtsVoicePresetVersionRequestSchema
+>;
+
+/** TTS voice preset enabled 변경 요청 */
+export type ChangeTtsVoicePresetEnabledRequest = z.infer<
+  typeof changeTtsVoicePresetEnabledRequestSchema
+>;
+
+/** TTS voice preset 목록 응답 */
+export type TtsVoicePresetListResponse = z.infer<
+  typeof ttsVoicePresetListResponseSchema
+>;
+
+/** TTS voice preset 상세 응답 */
+export type TtsVoicePresetDetailResponse = z.infer<
+  typeof ttsVoicePresetDetailResponseSchema
+>;
+
+/** TTS 음성 재생 응답 */
+export type TtsItemAudioResponse = z.infer<typeof ttsItemAudioResponseSchema>;
+
+/** 문제 version의 TTS 게시 readiness 응답 */
+export type TtsPublicationReadinessResponse = z.infer<
+  typeof ttsPublicationReadinessResponseSchema
+>;

@@ -33,7 +33,7 @@ const createRepository = (startAttemptResult: WorkerJobFixture | null) => {
   const items = [
     {
       id: 'item-1',
-      sourceRef: 'input:0:question',
+      sourceRef: 'input:0:question:0',
       status: 'PENDING' as const,
       attempt: 0,
       retryable: false,
@@ -43,7 +43,7 @@ const createRepository = (startAttemptResult: WorkerJobFixture | null) => {
     },
     {
       id: 'item-2',
-      sourceRef: 'input:1:question',
+      sourceRef: 'input:1:question:1',
       status: 'PENDING' as const,
       attempt: 0,
       retryable: false,
@@ -65,7 +65,16 @@ const createRepository = (startAttemptResult: WorkerJobFixture | null) => {
             name: '테스트 preset',
             purpose: startAttemptResult.purpose,
             version: 1,
-            parameters: {},
+            parameters:
+              startAttemptResult.purpose === 'VOCABULARY_EXTRACTION'
+                ? {}
+                : {
+                    questionCount: 2,
+                    questionTypePlan: [
+                      { questionTypeVersionId: 'type-version-id', count: 2 },
+                    ],
+                    difficultyPlan: [{ difficulty: 3, count: 2 }],
+                  },
           } satisfies ContentProductionPresetSnapshot),
         inputs: startAttemptResult.inputs.map((input, ordinal) => ({
           ...input,
@@ -80,6 +89,7 @@ const createRepository = (startAttemptResult: WorkerJobFixture | null) => {
       ensured.push(seeds);
       return Promise.resolve();
     },
+    areOperationItemsSuccessful: () => Promise.resolve(true),
     listAttemptItems: () => Promise.resolve(items),
     startItem: (_jobId, itemId) => {
       const item = items.find((candidate) => candidate.id === itemId);
@@ -164,6 +174,19 @@ describe('콘텐츠 제작 dispatcher', () => {
       attempt: 0,
       status: 'RUNNING',
       purpose: 'VOCABULARY_THEN_QUESTION_GENERATION',
+      presetSnapshot: {
+        id: 'preset-id',
+        name: '연결 생성',
+        purpose: 'VOCABULARY_THEN_QUESTION_GENERATION',
+        version: 1,
+        parameters: {
+          questionCount: 1,
+          questionTypePlan: [
+            { questionTypeVersionId: 'type-version-id', count: 1 },
+          ],
+          difficultyPlan: [{ difficulty: 3, count: 1 }],
+        },
+      },
       inputs: [
         {
           jobInputId: 'job-input-1',
@@ -192,14 +215,146 @@ describe('콘텐츠 제작 dispatcher', () => {
           jobInputId: 'job-input-1',
           operation: 'VOCABULARY_EXTRACTION',
           sourceRef: 'input:0:vocabulary',
+          questionPlan: null,
         },
+      ],
+      [
         {
           jobInputId: 'job-input-1',
           operation: 'QUESTION_GENERATION',
-          sourceRef: 'input:0:question',
+          sourceRef: 'input:0:question:0',
+          questionPlan: {
+            questionPlanIndex: 0,
+            questionTypeVersionId: 'type-version-id',
+            difficulty: 3,
+          },
         },
       ],
     ]);
+  });
+
+  it('유형·난이도 계획을 선언 순서대로 펼치고 입력을 순환 배정한다', async () => {
+    const { repository, ensured } = createRepository({
+      id: 'job-id',
+      attempt: 0,
+      status: 'RUNNING',
+      purpose: 'QUESTION_GENERATION',
+      presetSnapshot: {
+        id: 'preset-id',
+        name: '문제 생성',
+        purpose: 'QUESTION_GENERATION',
+        version: 1,
+        parameters: {
+          questionCount: 4,
+          questionTypePlan: [
+            { questionTypeVersionId: 'type-b', count: 2 },
+            { questionTypeVersionId: 'type-a', count: 2 },
+          ],
+          difficultyPlan: [
+            { difficulty: 4, count: 2 },
+            { difficulty: 2, count: 2 },
+          ],
+        },
+      },
+      inputs: [
+        {
+          jobInputId: 'input-a',
+          ordinal: 0,
+          uploadId: 'upload-a',
+          inputType: 'TEXT',
+          inputKey: 'a',
+          sizeBytes: 1,
+        },
+        {
+          jobInputId: 'input-b',
+          ordinal: 1,
+          uploadId: 'upload-b',
+          inputType: 'TEXT',
+          inputKey: 'b',
+          sizeBytes: 1,
+        },
+      ],
+    });
+    await createContentProductionDispatcher(repository, {
+      process: () =>
+        Promise.resolve({
+          status: 'SUCCEEDED',
+          retryable: false,
+          errorCode: null,
+        }),
+    })({ jobId: 'job-id', attempt: 0 });
+
+    expect(ensured[0]).toEqual([
+      expect.objectContaining({
+        sourceRef: 'input:0:question:0',
+        jobInputId: 'input-a',
+      }),
+      expect.objectContaining({
+        sourceRef: 'input:1:question:1',
+        jobInputId: 'input-b',
+      }),
+      expect.objectContaining({
+        sourceRef: 'input:0:question:2',
+        jobInputId: 'input-a',
+      }),
+      expect.objectContaining({
+        sourceRef: 'input:1:question:3',
+        jobInputId: 'input-b',
+      }),
+    ]);
+    expect(ensured[0]?.[0]?.questionPlan).toMatchObject({
+      questionTypeVersionId: 'type-b',
+      difficulty: 4,
+    });
+    expect(ensured[0]?.[2]?.questionPlan).toMatchObject({
+      questionTypeVersionId: 'type-a',
+      difficulty: 2,
+    });
+  });
+
+  it('복합 목적은 어휘 항목이 모두 성공하기 전 문제 항목을 만들지 않는다', async () => {
+    const { repository, ensured } = createRepository({
+      id: 'job-id',
+      attempt: 0,
+      status: 'RUNNING',
+      purpose: 'VOCABULARY_THEN_QUESTION_GENERATION',
+      presetSnapshot: {
+        id: 'preset-id',
+        name: '연결 생성',
+        purpose: 'VOCABULARY_THEN_QUESTION_GENERATION',
+        version: 1,
+        parameters: {
+          questionCount: 1,
+          questionTypePlan: [
+            { questionTypeVersionId: 'type-version-id', count: 1 },
+          ],
+          difficultyPlan: [{ difficulty: 3, count: 1 }],
+        },
+      },
+      inputs: [
+        {
+          jobInputId: 'input-a',
+          ordinal: 0,
+          uploadId: 'upload-a',
+          inputType: 'TEXT',
+          inputKey: 'a',
+          sizeBytes: 1,
+        },
+      ],
+    });
+    repository.areOperationItemsSuccessful = () => Promise.resolve(false);
+
+    await createContentProductionDispatcher(repository, {
+      process: () =>
+        Promise.resolve({
+          status: 'FAILED',
+          retryable: true,
+          errorCode: 'VOCABULARY_FAILED',
+        }),
+    })({ jobId: 'job-id', attempt: 0 });
+
+    expect(ensured).toHaveLength(1);
+    expect(ensured[0]?.[0]?.operation).toBe('VOCABULARY_EXTRACTION');
   });
 
   it('processor에 exact input과 작업 snapshot을 구조화해 전달한다', async () => {
@@ -569,6 +724,7 @@ describe('콘텐츠 제작 processor routing', () => {
         sourceRef: 'input:0:vocabulary',
         jobInputId: 'job-input-id',
         operation: 'VOCABULARY_EXTRACTION' as const,
+        questionPlan: null,
         status: 'PROCESSING' as const,
         attempt: 0,
         retryable: false,
@@ -584,6 +740,11 @@ describe('콘텐츠 제작 processor routing', () => {
         id: 'question-item',
         sourceRef: 'input:0:question',
         operation: 'QUESTION_GENERATION' as const,
+        questionPlan: {
+          questionPlanIndex: 0,
+          questionTypeVersionId: 'type-version-id',
+          difficulty: 1 as const,
+        },
         leaseToken: 'question-lease',
       },
     };

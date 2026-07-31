@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ContentProductionDomainError,
   ContentProductionService,
+  expandQuestionGenerationPlan,
   type ContentProductionJob,
   type ContentProductionRepository,
 } from './content-production.service.js';
@@ -108,6 +109,43 @@ const command = {
 };
 
 describe('ContentProductionService 콘텐츠 제작 규칙', () => {
+  it('유형과 난이도 계획을 선언 순서대로 문항별 snapshot으로 펼친다', () => {
+    expect(
+      expandQuestionGenerationPlan({
+        questionCount: 4,
+        questionTypePlan: [
+          { questionTypeVersionId: 'type-b', count: 1 },
+          { questionTypeVersionId: 'type-a', count: 3 },
+        ],
+        difficultyPlan: [
+          { difficulty: 4, count: 2 },
+          { difficulty: 2, count: 2 },
+        ],
+      }),
+    ).toEqual([
+      {
+        questionPlanIndex: 0,
+        questionTypeVersionId: 'type-b',
+        difficulty: 4,
+      },
+      {
+        questionPlanIndex: 1,
+        questionTypeVersionId: 'type-a',
+        difficulty: 4,
+      },
+      {
+        questionPlanIndex: 2,
+        questionTypeVersionId: 'type-a',
+        difficulty: 2,
+      },
+      {
+        questionPlanIndex: 3,
+        questionTypeVersionId: 'type-a',
+        difficulty: 2,
+      },
+    ]);
+  });
+
   it('서로 다른 입력 타입을 한 작업에 섞지 않는다', async () => {
     const service = new ContentProductionService(
       createRepository(),
@@ -171,6 +209,26 @@ describe('ContentProductionService 콘텐츠 제작 규칙', () => {
 
     expect(replay.id).toBe(first.id);
     expect(messages).toEqual([{ jobId: first.id, attempt: 0 }]);
+  });
+
+  it('같은 clientRequestId라도 effective option이 달라지면 충돌한다', async () => {
+    const repository = createRepository();
+    const service = new ContentProductionService(repository, {
+      send: () => Promise.resolve(),
+    });
+    await service.create(command);
+
+    await expect(
+      service.create({
+        ...command,
+        presetSnapshot: {
+          ...preset,
+          parameters: { ...preset.parameters, questionCount: 2 },
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: 'CONTENT_PRODUCTION_IDEMPOTENCY_CONFLICT',
+    });
   });
 
   it('실패 항목이 없는 작업과 3회 도달 작업은 재시도하지 않는다', async () => {

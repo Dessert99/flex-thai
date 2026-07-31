@@ -136,8 +136,16 @@ const createTransaction = (
     calls.push('listRequiredTargets');
     return Promise.resolve(
       overrides.ttsTargets ?? [
-        { targetId: 'sentence-1', mediaStatus: 'READY' },
-        { targetId: 'sentence-2', mediaStatus: 'READY' },
+        {
+          kind: 'THAI_SENTENCE_VERSION',
+          targetId: 'sentence-1',
+          mediaStatus: 'READY',
+        },
+        {
+          kind: 'THAI_SENTENCE_VERSION',
+          targetId: 'sentence-2',
+          mediaStatus: 'READY',
+        },
       ],
     );
   },
@@ -366,8 +374,16 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
       const service = createService(
         createTransaction(calls, {
           ttsTargets: [
-            { targetId: 'ready-target', mediaStatus: 'READY' },
-            { targetId: 'blocked-target', mediaStatus },
+            {
+              kind: 'THAI_SENTENCE_VERSION',
+              targetId: 'ready-target',
+              mediaStatus: 'READY',
+            },
+            {
+              kind: 'VOCABULARY_PRONUNCIATION',
+              targetId: 'blocked-target',
+              mediaStatus,
+            },
           ],
         }),
         calls,

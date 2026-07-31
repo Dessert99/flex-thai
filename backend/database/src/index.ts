@@ -159,3 +159,15 @@ export * from './queries/drizzle-content-tts-readiness.query.js';
 
 /** TTS retry 상태와 durable dispatch를 원자화하는 coordinator를 공개한다 */
 export * from './repositories/tts/drizzle-tts-retry-coordinator.js';
+
+/** TTS voice preset 목록·상세 read model을 공개한다 */
+export * from './queries/drizzle-tts-voice-preset.query.js';
+
+/** immutable TTS voice preset command repository를 공개한다 */
+export * from './repositories/tts/drizzle-tts-voice-preset.repository.js';
+
+/** AI·TTS 운영 비용 aggregate read model을 공개한다 */
+export * from './queries/drizzle-usage-cost-operations.query.js';
+
+/** 운영 비용 경고 singleton repository를 공개한다 */
+export * from './repositories/drizzle-operations-cost-settings.repository.js';

@@ -32,6 +32,7 @@ const buildItemSeeds = (
           sourceRef: `input:${index}:vocabulary`,
           jobInputId: input.jobInputId,
           operation: 'VOCABULARY_EXTRACTION',
+          questionPlan: null,
         },
       ];
     }
@@ -42,6 +43,7 @@ const buildItemSeeds = (
           sourceRef: `input:${index}:question`,
           jobInputId: input.jobInputId,
           operation: 'QUESTION_GENERATION',
+          questionPlan: null,
         },
       ];
     }
@@ -51,11 +53,13 @@ const buildItemSeeds = (
         sourceRef: `input:${index}:vocabulary`,
         jobInputId: input.jobInputId,
         operation: 'VOCABULARY_EXTRACTION',
+        questionPlan: null,
       },
       {
         sourceRef: `input:${index}:question`,
         jobInputId: input.jobInputId,
         operation: 'QUESTION_GENERATION',
+        questionPlan: null,
       },
     ];
   });
@@ -173,6 +177,7 @@ export class LocalContentProductionQueue implements ContentProductionQueue {
           ...claimed,
           jobInputId: claimed.jobInputId,
           operation: claimed.operation,
+          questionPlan: null,
           leaseUntil: claimed.leaseUntil,
           leaseToken: claimed.leaseToken,
         }),

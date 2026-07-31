@@ -182,14 +182,25 @@ describe('AI 문제 생성 문맥 조립', () => {
 
     await query.load({
       operation: 'QUESTION_GENERATION',
+      questionPlan: {
+        questionPlanIndex: 0,
+        questionTypeVersionId: 'type-version-id',
+        difficulty: 3,
+      },
       preset: {
         id: 'preset-id',
         name: '문제 생성',
         purpose: 'QUESTION_GENERATION',
         version: 1,
         parameters: {
-          questionTypeVersionId: 'type-version-id',
           newAuxiliaryVocabularyLimit: 0,
+          similarityThreshold: 0.7,
+          speakerVoiceAssignments: [
+            {
+              speakerRole: ' 진행자 ',
+              voicePresetId: '00000000-0000-4000-8000-000000000001',
+            },
+          ],
         },
       },
     });
@@ -200,4 +211,167 @@ describe('AI 문제 생성 문맥 조립', () => {
     expect(compiled.sql).toContain('"question_type_versions"."status" =');
     expect(compiled.params).toContain('ACTIVE');
   });
+
+  it('item 난이도와 trim된 speaker role을 문맥에 고정한다', () => {
+    expect(
+      assembleQuestionProductionContext(
+        rows,
+        {
+          newAuxiliaryVocabularyLimit: 0,
+          similarityThreshold: 0.75,
+          speakerRoles: [' 학습자 ', '진행자'],
+        },
+        {
+          questionPlanIndex: 0,
+          questionTypeVersionId: 'type-version-id',
+          difficulty: 4,
+        },
+      ),
+    ).toMatchObject({
+      difficulty: 4,
+      similarityThreshold: 0.75,
+      speakerRoles: ['진행자', '학습자'],
+    });
+  });
+
+  it('preset의 게시 어휘 ID를 뜻·발음이 포함된 prompt 요약으로 확장한다', async () => {
+    const vocabularyId = '00000000-0000-4000-8000-000000000010';
+    const meaningId = '00000000-0000-4000-8000-000000000011';
+    const pronunciationId = '00000000-0000-4000-8000-000000000012';
+    const query = new DrizzleQuestionProductionContextQuery({
+      select: queuedContextSelect([
+        [rows.typeVersion],
+        rows.difficultyCriteria,
+        rows.approvedExamples,
+        rows.topics,
+        rows.tags,
+        [
+          {
+            id: vocabularyId,
+            thai: 'ไป',
+            meaningId,
+            meaningKo: '가다',
+            partOfSpeech: '동사',
+            difficulty: 1,
+            pronunciationId,
+            pronunciationKo: '빠이',
+            toneMarks: 'M',
+          },
+        ],
+      ]),
+    } as never);
+
+    await expect(
+      query.load({
+        operation: 'QUESTION_GENERATION',
+        questionPlan: {
+          questionPlanIndex: 0,
+          questionTypeVersionId: rows.typeVersion!.id,
+          difficulty: 2,
+        },
+        preset: questionPreset({
+          targetVocabularyIds: [vocabularyId],
+          requiredVocabularyIds: [],
+          excludedVocabularyIds: [],
+        }),
+      }),
+    ).resolves.toMatchObject({
+      targetVocabulary: [
+        {
+          id: vocabularyId,
+          thai: 'ไป',
+          meaningId,
+          meaningKo: '가다',
+          partOfSpeech: '동사',
+          difficulty: 1,
+          pronunciationId,
+          pronunciationKo: '빠이',
+          toneMarks: 'M',
+        },
+      ],
+    });
+  });
+
+  it('게시 어휘 ID에 뜻이 둘이면 prompt 생성을 fail-closed한다', async () => {
+    const vocabularyId = '00000000-0000-4000-8000-000000000010';
+    const query = new DrizzleQuestionProductionContextQuery({
+      select: queuedContextSelect([
+        [rows.typeVersion],
+        rows.difficultyCriteria,
+        rows.approvedExamples,
+        rows.topics,
+        rows.tags,
+        [
+          promptVocabularyRow(
+            vocabularyId,
+            '00000000-0000-4000-8000-000000000011',
+          ),
+          promptVocabularyRow(
+            vocabularyId,
+            '00000000-0000-4000-8000-000000000013',
+          ),
+        ],
+      ]),
+    } as never);
+
+    await expect(
+      query.load({
+        operation: 'QUESTION_GENERATION',
+        questionPlan: {
+          questionPlanIndex: 0,
+          questionTypeVersionId: rows.typeVersion!.id,
+          difficulty: 2,
+        },
+        preset: questionPreset({
+          targetVocabularyIds: [vocabularyId],
+          requiredVocabularyIds: [],
+          excludedVocabularyIds: [],
+        }),
+      }),
+    ).rejects.toThrow('QUESTION_VOCABULARY_MEANING_AMBIGUOUS');
+  });
+});
+
+const queuedContextSelect = (results: unknown[][]) => {
+  const queue = [...results];
+  return vi.fn(() => {
+    const rows = queue.shift() ?? [];
+    const chain = {
+      from: vi.fn(() => chain),
+      innerJoin: vi.fn(() => chain),
+      where: vi.fn(() => chain),
+      orderBy: vi.fn(() => Promise.resolve(rows)),
+      limit: vi.fn(() => Promise.resolve(rows)),
+      then: (
+        resolve: (value: unknown[]) => unknown,
+        reject?: (error: unknown) => unknown,
+      ) => Promise.resolve(rows).then(resolve, reject),
+    };
+    return chain;
+  });
+};
+
+const questionPreset = (parameters: Record<string, unknown>) => ({
+  id: '00000000-0000-4000-8000-000000000020',
+  name: '문제 생성',
+  purpose: 'QUESTION_GENERATION' as const,
+  version: 1,
+  parameters: {
+    newAuxiliaryVocabularyLimit: 0,
+    similarityThreshold: 0.7,
+    speakerVoiceAssignments: [],
+    ...parameters,
+  },
+});
+
+const promptVocabularyRow = (id: string, meaningId: string) => ({
+  id,
+  thai: 'ไป',
+  meaningId,
+  meaningKo: meaningId.endsWith('11') ? '가다' : '떠나다',
+  partOfSpeech: '동사',
+  difficulty: 1,
+  pronunciationId: '00000000-0000-4000-8000-000000000012',
+  pronunciationKo: '빠이',
+  toneMarks: 'M',
 });

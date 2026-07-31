@@ -28,7 +28,11 @@ const ACTIVE_PATHS = [
   '/api/v1/admin/content-production/jobs',
   '/api/v1/admin/content-production/jobs/{jobId}',
   '/api/v1/admin/content-production/jobs/{jobId}/retry',
+  '/api/v1/admin/content-production/preset-versions',
   '/api/v1/admin/content-production/presets',
+  '/api/v1/admin/content-production/presets/{presetId}/enabled',
+  '/api/v1/admin/content-production/presets/{presetId}/versions',
+  '/api/v1/admin/content-production/prompt-previews',
   '/api/v1/admin/content-production/question-candidates',
   '/api/v1/admin/content-production/question-candidates/{candidateId}',
   '/api/v1/admin/content-production/question-candidates/{candidateId}/approve',
@@ -45,10 +49,19 @@ const ACTIVE_PATHS = [
   '/api/v1/admin/questions/{questionId}/hide',
   '/api/v1/admin/questions/{questionId}/restore',
   '/api/v1/admin/questions/{questionId}/versions',
+  '/api/v1/admin/tts/items/{itemId}/audio',
   '/api/v1/admin/tts/items/{itemId}/retry',
   '/api/v1/admin/tts/jobs',
   '/api/v1/admin/tts/jobs/{jobId}',
   '/api/v1/admin/tts/jobs/{jobId}/retry',
+  '/api/v1/admin/tts/presets',
+  '/api/v1/admin/tts/presets/{presetId}',
+  '/api/v1/admin/tts/presets/{presetId}/disable',
+  '/api/v1/admin/tts/presets/{presetId}/enable',
+  '/api/v1/admin/tts/presets/{presetId}/versions',
+  '/api/v1/admin/tts/questions/{questionId}/versions/{versionId}/readiness',
+  '/api/v1/admin/usage-cost',
+  '/api/v1/admin/usage-cost/settings',
   '/api/v1/admin/question-versions/{versionId}',
   '/api/v1/admin/question-versions/{versionId}/invalidate',
   '/api/v1/admin/question-versions/{versionId}/publish',
@@ -460,9 +473,131 @@ const expectProtectedOpenApiOperations = (
 
 const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
   {
+    method: 'post',
+    path: '/api/v1/admin/content-production/prompt-previews',
+    body: 'PromptPreviewRequestDto',
+    success: ['200', 'PromptPreviewResponseDto'],
+    errors: ['400', '401', '403', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/admin/content-production/preset-versions',
+    success: ['200', 'ContentProductionPresetVersionListResponseDto'],
+    errors: ['401', '403', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/content-production/presets',
+    body: 'CreateContentProductionPresetRequestDto',
+    success: ['201', 'ContentProductionPresetVersionResponseDto'],
+    errors: ['400', '401', '403', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/content-production/presets/{presetId}/versions',
+    pathParameters: ['presetId'],
+    body: 'CreateContentProductionPresetVersionRequestDto',
+    success: ['201', 'ContentProductionPresetVersionResponseDto'],
+    errors: ['400', '401', '403', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/content-production/presets/{presetId}/enabled',
+    pathParameters: ['presetId'],
+    body: 'SetContentProductionPresetEnabledRequestDto',
+    success: ['200', 'ContentProductionPresetVersionListResponseDto'],
+    errors: ['400', '401', '403', '409', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/admin/tts/items/{itemId}/audio',
+    pathParameters: ['itemId'],
+    success: ['200', 'TtsItemAudioResponseDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/admin/tts/questions/{questionId}/versions/{versionId}/readiness',
+    pathParameters: ['questionId', 'versionId'],
+    success: ['200', 'TtsPublicationReadinessResponseDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/admin/tts/presets',
+    query: ['query', 'enabled', 'page', 'pageSize'],
+    success: ['200', 'TtsVoicePresetListResponseDto'],
+    errors: ['400', '401', '403', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/tts/presets',
+    body: 'CreateTtsVoicePresetRequestDto',
+    success: ['201', 'TtsVoicePresetDetailResponseDto'],
+    errors: ['400', '401', '403', '409', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/admin/tts/presets/{presetId}',
+    pathParameters: ['presetId'],
+    success: ['200', 'TtsVoicePresetDetailResponseDto'],
+    errors: ['400', '401', '403', '404', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/tts/presets/{presetId}/versions',
+    pathParameters: ['presetId'],
+    body: 'CreateTtsVoicePresetVersionRequestDto',
+    success: ['201', 'TtsVoicePresetDetailResponseDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/tts/presets/{presetId}/enable',
+    pathParameters: ['presetId'],
+    body: 'ChangeTtsVoicePresetEnabledRequestDto',
+    success: ['200', 'TtsVoicePresetDetailResponseDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'post',
+    path: '/api/v1/admin/tts/presets/{presetId}/disable',
+    pathParameters: ['presetId'],
+    body: 'ChangeTtsVoicePresetEnabledRequestDto',
+    success: ['200', 'TtsVoicePresetDetailResponseDto'],
+    errors: ['400', '401', '403', '404', '409', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/admin/usage-cost',
+    query: ['from', 'to', 'source', 'provider', 'model', 'voice', 'status'],
+    success: ['200', 'UsageCostOverviewResponseDto'],
+    errors: ['400', '401', '403', '500'],
+  },
+  {
+    method: 'get',
+    path: '/api/v1/admin/usage-cost/settings',
+    success: ['200', 'OperationsCostSettingsResponseDto'],
+    errors: ['401', '403', '500'],
+  },
+  {
+    method: 'put',
+    path: '/api/v1/admin/usage-cost/settings',
+    body: 'UpdateOperationsCostSettingsRequestDto',
+    success: ['200', 'OperationsCostSettingsResponseDto'],
+    errors: ['400', '401', '403', '409', '500'],
+  },
+  {
     method: 'get',
     path: '/api/v1/admin/content-production/question-candidates',
-    query: ['jobItemId', 'resultGroup', 'reviewStatus', 'page', 'pageSize'],
+    query: [
+      'jobId',
+      'jobItemId',
+      'resultGroup',
+      'reviewStatus',
+      'page',
+      'pageSize',
+    ],
     success: ['200', 'QuestionCandidateListResponseDto'],
     errors: ['400', '401', '403', '500'],
   },
@@ -1530,12 +1665,12 @@ describe('OpenAPI 문서', () => {
     expectProtectedOpenApiOperations(document, LEARNER_OPERATIONS);
   });
 
-  it('관리자 operation 일흔네 개의 입력·성공·Bearer·오류 계약을 모두 고정한다', () => {
+  it('관리자 operation 아흔 개의 입력·성공·Bearer·오류 계약을 모두 고정한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
 
-    expect(ADMIN_OPERATIONS).toHaveLength(74);
+    expect(ADMIN_OPERATIONS).toHaveLength(90);
     expectProtectedOpenApiOperations(document, ADMIN_OPERATIONS);
   });
 

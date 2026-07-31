@@ -14,10 +14,16 @@ import {
   IDENTITY_USER_REPOSITORY,
 } from '../identity/cognito-authorizer.guard.js';
 import { AdminAuditLogsController } from './admin-audit-logs.controller.js';
+import { AdminUsageCostOperationsController } from './admin-usage-cost-operations.controller.js';
+import {
+  UsageCostOperationsService,
+  type UsageCostOperationsServiceDependencies,
+} from './usage-cost-operations.service.js';
 
 /** Operations HTTP 경계의 실행 환경 의존성 */
 export interface OperationsModuleOptions {
   auditLogs: AuditLogService;
+  usageCost: UsageCostOperationsServiceDependencies;
   users: IdentityUserRepository;
   authorizer: AuthorizerGuardOptions;
 }
@@ -29,9 +35,16 @@ export class OperationsModule {
   static register(options: OperationsModuleOptions): DynamicModule {
     return {
       module: OperationsModule,
-      controllers: [AdminAuditLogsController],
+      controllers: [
+        AdminAuditLogsController,
+        AdminUsageCostOperationsController,
+      ],
       providers: [
         { provide: AuditLogService, useValue: options.auditLogs },
+        {
+          provide: UsageCostOperationsService,
+          useValue: new UsageCostOperationsService(options.usageCost),
+        },
         { provide: IDENTITY_USER_REPOSITORY, useValue: options.users },
         { provide: AUTHORIZER_GUARD_OPTIONS, useValue: options.authorizer },
         Reflector,

@@ -17,6 +17,7 @@ const candidateId = '405986f9-e552-4ce1-82d6-70a1fc460f96';
 const questionId = 'a9979e5d-515d-43ab-a380-e88b78513c38';
 const questionVersionId = '77a1e8ff-7c85-4739-9004-647e12e34b65';
 const jobItemId = 'dbb22737-6f3d-4112-bb0e-8e4f005c810b';
+const jobId = '2cefa7b0-2bb9-4be2-b767-d3308886f5d5';
 const typeVersionId = 'cbb22737-6f3d-4112-bb0e-8e4f005c810b';
 const topicId = 'eb16b18a-8d19-4c83-9cdb-c36a5d59c4d6';
 
@@ -77,6 +78,7 @@ const payload = {
 const detail = {
   candidate: {
     id: candidateId,
+    jobId,
     jobItemId,
     jobAttempt: 1,
     ordinal: 0,
@@ -132,6 +134,7 @@ const detail = {
 
 const summary = {
   id: candidateId,
+  jobId,
   jobItemId,
   jobAttempt: 1,
   ordinal: 0,
@@ -349,10 +352,11 @@ describe('AI 문제 후보 관리자 검수 계약', () => {
       questionCandidateListQuerySchema.parse({
         page: '2',
         pageSize: '50',
+        jobId,
         jobItemId,
         resultGroup: 'NEEDS_ATTENTION',
       }),
-    ).toMatchObject({ page: 2, pageSize: 50, jobItemId });
+    ).toMatchObject({ page: 2, pageSize: 50, jobId, jobItemId });
     expect(
       questionCandidateListQuerySchema.safeParse({ page: 0 }).success,
     ).toBe(false);

@@ -1,7 +1,29 @@
 /** Drizzle 콘텐츠 제작 adapter가 stale 상태 전이를 성공처럼 처리하지 않는지 검증한다 */
 import { describe, expect, it, vi } from 'vitest';
 import { PgDialect } from 'drizzle-orm/pg-core';
-import { DrizzleContentProductionRepository } from './drizzle-content-production.repository.js';
+import { ContentProductionPresetError } from '@flex-thia/domain';
+import {
+  DrizzleContentProductionPresetCatalog,
+  DrizzleContentProductionRepository,
+} from './drizzle-content-production.repository.js';
+
+const queuedSelect = (results: unknown[][]) => {
+  const queue = [...results];
+  return vi.fn(() => {
+    const consume = () => Promise.resolve(queue.shift() ?? []);
+    const chain = {
+      from: vi.fn(() => chain),
+      where: vi.fn(() => chain),
+      orderBy: vi.fn(() => chain),
+      limit: vi.fn(() => consume()),
+      then: (
+        resolve: (value: unknown[]) => unknown,
+        reject?: (error: unknown) => unknown,
+      ) => consume().then(resolve, reject),
+    };
+    return chain;
+  });
+};
 
 describe('DrizzleContentProductionRepository 조건부 전이', () => {
   it('구조화된 item seed의 input과 operation을 row에 보존한다', async () => {
@@ -23,6 +45,7 @@ describe('DrizzleContentProductionRepository 조건부 전이', () => {
         sourceRef: 'opaque',
         jobInputId: 'input-id',
         operation: 'VOCABULARY_EXTRACTION',
+        questionPlan: null,
       },
     ]);
 
@@ -261,5 +284,177 @@ describe('DrizzleContentProductionRepository 조건부 전이', () => {
         leaseToken: null,
       }),
     );
+  });
+});
+
+describe('DrizzleContentProductionPresetCatalog version 운영', () => {
+  const preset = {
+    id: '405986f9-e552-4ce1-82d6-70a1fc460f96',
+    name: '문제 생성',
+    purpose: 'QUESTION_GENERATION' as const,
+    version: 2,
+    parameters: { commonPrinciples: ['FLEX'] },
+    enabled: true,
+    createdAt: new Date('2026-07-28T00:00:00.000Z'),
+  };
+
+  it('enable audit row 수를 immutable preset revision으로 계산한다', async () => {
+    const select = queuedSelect([
+      [preset],
+      [{ targetId: preset.id }, { targetId: preset.id }],
+    ]);
+    const catalog = new DrizzleContentProductionPresetCatalog({
+      select,
+    } as never);
+
+    await expect(catalog.listVersions()).resolves.toEqual([
+      { ...preset, revision: 2 },
+    ]);
+  });
+
+  it('활성 taxonomy·어휘·voice 참조가 모두 유효할 때만 job options를 overlay한다', async () => {
+    const typeVersionId = 'cbb22737-6f3d-4112-bb0e-8e4f005c810b';
+    const vocabularyId = '77a1e8ff-7c85-4739-9004-647e12e34b65';
+    const voicePresetId = 'a9979e5d-515d-43ab-a380-e88b78513c38';
+    const select = queuedSelect([
+      [preset],
+      [{ id: typeVersionId }],
+      [{ id: vocabularyId }],
+      [{ id: voicePresetId }],
+    ]);
+    const catalog = new DrizzleContentProductionPresetCatalog({
+      select,
+    } as never);
+    const options = {
+      questionCount: 1,
+      questionTypePlan: [{ questionTypeVersionId: typeVersionId, count: 1 }],
+      difficultyPlan: [{ difficulty: 2, count: 1 }],
+      targetVocabularyIds: [vocabularyId],
+      requiredVocabularyIds: [],
+      excludedVocabularyIds: [],
+      newAuxiliaryVocabularyLimit: 0,
+      similarityThreshold: 0.7,
+      defaultVoicePresetId: voicePresetId,
+      speakerVoiceAssignments: [],
+      additionalInstructionKo: null,
+    };
+
+    await expect(
+      catalog.resolveEffectiveSnapshot({
+        purpose: 'QUESTION_GENERATION',
+        presetId: preset.id,
+        options,
+      }),
+    ).resolves.toMatchObject({
+      id: preset.id,
+      parameters: {
+        commonPrinciples: ['FLEX'],
+        ...options,
+      },
+    });
+  });
+
+  it('enabled command exact replay는 같은 결과를 반환하고 다른 command는 충돌한다', async () => {
+    const replayAudit = {
+      action: 'CONTENT_PRODUCTION_PRESET_ENABLED_CHANGED',
+      targetId: preset.id,
+      summary: {
+        presetId: preset.id,
+        enabled: false,
+        expectedRevision: 0,
+      },
+    };
+    const command = {
+      presetId: preset.id,
+      enabled: false,
+      expectedRevision: 0,
+      requestId: 'd9886994-5b49-46ac-bcd5-3f2024b9c1c6',
+      actorUserId: '8f47b4d5-97d6-4596-af72-16456be51be8',
+      actorSub: 'subject',
+      occurredAt: new Date('2026-07-28T00:01:00.000Z'),
+    };
+    const createDatabase = () => {
+      const select = queuedSelect([[replayAudit], [preset]]);
+      return {
+        execute: vi.fn(),
+        select,
+      };
+    };
+    const exactTransaction = createDatabase();
+    const exact = new DrizzleContentProductionPresetCatalog({
+      transaction: (operation: (transaction: unknown) => Promise<unknown>) =>
+        operation(exactTransaction),
+    } as never);
+    await expect(exact.setEnabled(command)).resolves.toEqual({
+      ...preset,
+      enabled: false,
+      revision: 1,
+    });
+
+    const conflictTransaction = createDatabase();
+    const conflict = new DrizzleContentProductionPresetCatalog({
+      transaction: (operation: (transaction: unknown) => Promise<unknown>) =>
+        operation(conflictTransaction),
+    } as never);
+    await expect(
+      conflict.setEnabled({ ...command, enabled: true }),
+    ).rejects.toEqual(
+      new ContentProductionPresetError(
+        'CONTENT_PRODUCTION_PRESET_IDEMPOTENCY_CONFLICT',
+      ),
+    );
+  });
+
+  it('현재 enable audit revision과 expected revision이 다르면 갱신하지 않는다', async () => {
+    const transaction = {
+      execute: vi.fn(),
+      select: queuedSelect([[], [preset], [{ id: 'audit-id' }]]),
+      update: vi.fn(),
+    };
+    const catalog = new DrizzleContentProductionPresetCatalog({
+      transaction: (operation: (input: unknown) => Promise<unknown>) =>
+        operation(transaction),
+    } as never);
+
+    await expect(
+      catalog.setEnabled({
+        presetId: preset.id,
+        enabled: false,
+        expectedRevision: 0,
+        requestId: 'd9886994-5b49-46ac-bcd5-3f2024b9c1c6',
+        actorUserId: '8f47b4d5-97d6-4596-af72-16456be51be8',
+        actorSub: 'subject',
+        occurredAt: new Date('2026-07-28T00:01:00.000Z'),
+      }),
+    ).rejects.toEqual(
+      new ContentProductionPresetError(
+        'CONTENT_PRODUCTION_PRESET_REVISION_CONFLICT',
+      ),
+    );
+    expect(transaction.update).not.toHaveBeenCalled();
+  });
+
+  it('repository 직접 호출도 purpose와 parameters 불일치를 저장하지 않는다', async () => {
+    const transaction = vi.fn();
+    const catalog = new DrizzleContentProductionPresetCatalog({
+      transaction,
+    } as never);
+
+    await expect(
+      catalog.createInitial({
+        requestId: 'd9886994-5b49-46ac-bcd5-3f2024b9c1c6',
+        actorUserId: '8f47b4d5-97d6-4596-af72-16456be51be8',
+        actorSub: 'subject',
+        occurredAt: new Date('2026-07-28T00:01:00.000Z'),
+        name: '잘못된 preset',
+        purpose: 'VOCABULARY_EXTRACTION',
+        parameters: {
+          questionCount: 1,
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: 'CONTENT_PRODUCTION_PRESET_PURPOSE_MISMATCH',
+    });
+    expect(transaction).not.toHaveBeenCalled();
   });
 });

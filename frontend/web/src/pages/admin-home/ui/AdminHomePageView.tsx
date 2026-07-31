@@ -1,50 +1,105 @@
-/** 관리자 홈의 최근 문제·어휘·감사 기록을 통계나 추천 없이 표현한다 */
+/* eslint-disable max-lines -- 기존 최근 콘텐츠와 Wave 6 운영 카드의 전체 화면 표현을 함께 유지한다. */
+/** 관리자 홈의 최근 콘텐츠와 독립 운영 상태 카드를 표현한다 */
 import type {
   AdminQuestionListResponse,
   AdminVocabularyListResponse,
   AuditLogListResponse,
+  ContentProductionJobListResponse,
+  TtsJobListResponse,
+  UsageCostOverviewResponse,
 } from '@flex-thia/contracts';
 import type { ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { PageEmpty, PageError, PageLoading } from '@/shared/ui/page-state';
+import { AdminHomeOperationsCards } from './AdminHomeOperationsCards';
 
 interface AdminHomePageViewProps {
   auditLogs: AuditLogListResponse['items'];
   auditLogsError: boolean;
+  auditLogsLoading: boolean;
+  candidatesError: boolean;
+  candidatesLoading: boolean;
+  candidatesPendingCount: number;
+  contentJobs: ContentProductionJobListResponse['items'];
+  contentJobsError: boolean;
+  contentJobsLoading: boolean;
+  onRetryCandidates: () => void;
+  onRetryContentJobs: () => void;
   onRetryAuditLogs: () => void;
   onRetryQuestions: () => void;
+  onRetryTtsJobs: () => void;
+  onRetryUsageCost: () => void;
   onRetryVocabularies: () => void;
   questions: AdminQuestionListResponse['items'];
   questionsError: boolean;
+  questionsLoading: boolean;
+  ttsJobs: TtsJobListResponse['items'];
+  ttsJobsError: boolean;
+  ttsJobsLoading: boolean;
+  usageCost: UsageCostOverviewResponse | undefined;
+  usageCostError: boolean;
+  usageCostLoading: boolean;
   vocabularies: AdminVocabularyListResponse['items'];
   vocabulariesError: boolean;
-  waiting: boolean;
+  vocabulariesLoading: boolean;
 }
 
 /** 독립적인 최근 목록 상태를 지우지 않고 관리 시작점을 제공한다 */
+// eslint-disable-next-line complexity, max-lines-per-function -- 일곱 독립 카드의 loading/error/empty 상태 조합을 보존한다.
 export function AdminHomePageView({
   auditLogs,
   auditLogsError,
+  auditLogsLoading,
+  candidatesError,
+  candidatesLoading,
+  candidatesPendingCount,
+  contentJobs,
+  contentJobsError,
+  contentJobsLoading,
+  onRetryCandidates,
+  onRetryContentJobs,
   onRetryAuditLogs,
   onRetryQuestions,
+  onRetryTtsJobs,
+  onRetryUsageCost,
   onRetryVocabularies,
   questions,
   questionsError,
+  questionsLoading,
+  ttsJobs,
+  ttsJobsError,
+  ttsJobsLoading,
+  usageCost,
+  usageCostError,
+  usageCostLoading,
   vocabularies,
   vocabulariesError,
-  waiting,
+  vocabulariesLoading,
 }: AdminHomePageViewProps) {
-  if (waiting) {
-    return <PageLoading message='관리 홈을 불러오고 있습니다.' />;
-  }
-
   if (
+    !questionsLoading &&
+    !vocabulariesLoading &&
+    !auditLogsLoading &&
+    !contentJobsLoading &&
+    !candidatesLoading &&
+    !ttsJobsLoading &&
+    !usageCostLoading &&
     !questionsError &&
     !vocabulariesError &&
     !auditLogsError &&
+    !contentJobsError &&
+    !candidatesError &&
+    !ttsJobsError &&
+    !usageCostError &&
     questions.length === 0 &&
     vocabularies.length === 0 &&
-    auditLogs.length === 0
+    auditLogs.length === 0 &&
+    contentJobs.length === 0 &&
+    candidatesPendingCount === 0 &&
+    ttsJobs.length === 0 &&
+    (!usageCost ||
+      (usageCost.currentMonthThreshold.estimatedCostUsd === '0.000000' &&
+        usageCost.currentMonthThreshold.status === 'NORMAL'))
   ) {
     return (
       <PageEmpty
@@ -75,26 +130,47 @@ export function AdminHomePageView({
           관리 홈
         </h1>
         <p className='text-body text-subtle'>
-          최근 수정된 문제와 어휘, 감사 기록을 확인하세요.
+          최근 콘텐츠와 자동화 작업의 운영 상태를 확인하세요.
         </p>
       </header>
       <div className='grid gap-section lg:grid-cols-3'>
         <RecentAdminQuestions
           error={questionsError}
           items={questions}
+          loading={questionsLoading}
           onRetry={onRetryQuestions}
         />
         <RecentAdminVocabularies
           error={vocabulariesError}
           items={vocabularies}
+          loading={vocabulariesLoading}
           onRetry={onRetryVocabularies}
         />
         <RecentAuditLogs
           error={auditLogsError}
           items={auditLogs}
+          loading={auditLogsLoading}
           onRetry={onRetryAuditLogs}
         />
       </div>
+      <AdminHomeOperationsCards
+        candidatesError={candidatesError}
+        candidatesLoading={candidatesLoading}
+        candidatesPendingCount={candidatesPendingCount}
+        contentJobs={contentJobs}
+        contentJobsError={contentJobsError}
+        contentJobsLoading={contentJobsLoading}
+        onRetryCandidates={onRetryCandidates}
+        onRetryContentJobs={onRetryContentJobs}
+        onRetryTtsJobs={onRetryTtsJobs}
+        onRetryUsageCost={onRetryUsageCost}
+        ttsJobs={ttsJobs}
+        ttsJobsError={ttsJobsError}
+        ttsJobsLoading={ttsJobsLoading}
+        usageCost={usageCost}
+        usageCostError={usageCostError}
+        usageCostLoading={usageCostLoading}
+      />
     </section>
   );
 }
@@ -102,14 +178,18 @@ export function AdminHomePageView({
 function RecentAuditLogs({
   error,
   items,
+  loading,
   onRetry,
 }: {
   error: boolean;
   items: AuditLogListResponse['items'];
+  loading: boolean;
   onRetry: () => void;
 }) {
   let content: ReactNode;
-  if (error) {
+  if (loading) {
+    content = <PageLoading message='최근 감사 기록을 불러오고 있습니다.' />;
+  } else if (error) {
     content = (
       <PageError
         message='최근 감사 기록을 불러오지 못했습니다.'
@@ -160,14 +240,18 @@ function RecentAuditLogs({
 function RecentAdminQuestions({
   error,
   items,
+  loading,
   onRetry,
 }: {
   error: boolean;
   items: AdminQuestionListResponse['items'];
+  loading: boolean;
   onRetry: () => void;
 }) {
   let content: ReactNode;
-  if (error) {
+  if (loading) {
+    content = <PageLoading message='최근 문제를 불러오고 있습니다.' />;
+  } else if (error) {
     content = (
       <PageError
         message='최근 문제를 불러오지 못했습니다.'
@@ -212,14 +296,18 @@ function RecentAdminQuestions({
 function RecentAdminVocabularies({
   error,
   items,
+  loading,
   onRetry,
 }: {
   error: boolean;
   items: AdminVocabularyListResponse['items'];
+  loading: boolean;
   onRetry: () => void;
 }) {
   let content: ReactNode;
-  if (error) {
+  if (loading) {
+    content = <PageLoading message='최근 어휘를 불러오고 있습니다.' />;
+  } else if (error) {
     content = (
       <PageError
         message='최근 어휘를 불러오지 못했습니다.'

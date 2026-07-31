@@ -9,6 +9,7 @@ import {
 } from './question-production.service.js';
 
 const candidateId = '405986f9-e552-4ce1-82d6-70a1fc460f96';
+const jobId = '7cd69d0d-6d40-4ac4-a87a-bec70be80478';
 const jobItemId = 'dbb22737-6f3d-4112-bb0e-8e4f005c810b';
 const typeVersionId = 'cbb22737-6f3d-4112-bb0e-8e4f005c810b';
 const topicId = 'eb16b18a-8d19-4c83-9cdb-c36a5d59c4d6';
@@ -30,6 +31,7 @@ const payload = {
 
 const candidate: QuestionCandidateReadRecord = {
   id: candidateId,
+  jobId,
   jobItemId,
   jobAttempt: 1,
   ordinal: 0,
@@ -196,12 +198,14 @@ describe('QuestionCandidateApplicationService 공개 경계', () => {
     const response = await service.list({
       page: 2,
       pageSize: 20,
+      jobId,
       resultGroup: 'NORMAL',
     });
 
     expect(query.list).toHaveBeenCalledWith({
       page: 2,
       pageSize: 20,
+      jobId,
       resultGroup: 'NORMAL',
     });
     expect(response.page).toEqual({
@@ -210,6 +214,7 @@ describe('QuestionCandidateApplicationService 공개 경계', () => {
       totalItems: 1,
       totalPages: 1,
     });
+    expect(response.items[0]?.jobId).toBe(jobId);
     expect(JSON.stringify(response)).not.toContain('"payload":');
     expect(JSON.stringify(response)).not.toContain('providerRaw');
     expect(JSON.stringify(response)).not.toContain('prompt');

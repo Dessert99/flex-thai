@@ -6,6 +6,8 @@ import {
   ttsJobItemsQuerySchema,
   ttsJobListQuerySchema,
   ttsJobListResponseSchema,
+  ttsItemAudioResponseSchema,
+  ttsPublicationReadinessResponseSchema,
   ttsRetryResponseSchema,
 } from '@flex-thia/contracts';
 import { createZodDto } from 'nestjs-zod';
@@ -38,3 +40,13 @@ export class RetryTtsItemRequestDto extends createZodDto(
 
 /** TTS 재시도 접수 응답 DTO */
 export class TtsRetryResponseDto extends createZodDto(ttsRetryResponseSchema) {}
+
+/** TTS 음성 재생 응답 DTO */
+export class TtsItemAudioResponseDto extends createZodDto(
+  ttsItemAudioResponseSchema,
+) {}
+
+/** TTS 게시 readiness 응답 DTO */
+export class TtsPublicationReadinessResponseDto extends createZodDto(
+  ttsPublicationReadinessResponseSchema,
+) {}
