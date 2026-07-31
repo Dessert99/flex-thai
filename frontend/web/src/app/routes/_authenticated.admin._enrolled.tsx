@@ -14,9 +14,15 @@ export const Route = createFileRoute('/_authenticated/admin/_enrolled')({
 });
 
 function AdminPortalRoute() {
+  const { session } = Route.useRouteContext();
   return (
     <AppShell
+      identity={{
+        email: session.user.email,
+        role: session.user.role,
+      }}
       navigation={adminNavigation}
+      portalLink={{ href: '/learn', label: '학습자 포털' }}
       profileMenu={<LogoutButton />}
     >
       <Outlet />

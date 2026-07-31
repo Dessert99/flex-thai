@@ -14,9 +14,22 @@ export const Route = createFileRoute('/_authenticated/_learner')({
 });
 
 function LearnerPortalRoute() {
+  const { session } = Route.useRouteContext();
   return (
     <AppShell
+      identity={{
+        email: session.user.email,
+        role: session.user.role,
+      }}
       navigation={learnerNavigation}
+      {...(session.user.role === 'ADMIN'
+        ? {
+            portalLink: {
+              href: '/admin',
+              label: '관리자 포털',
+            },
+          }
+        : {})}
       profileMenu={<LogoutButton />}
     >
       <Outlet />
