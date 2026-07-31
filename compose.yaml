@@ -25,6 +25,8 @@ services:
       POSTGRES_PASSWORD: local_only_password
     ports:
       - '${FLEX_THIA_POSTGRES_HOST_PORT:-55432}:5432'
+    volumes:
+      - flex-thia-postgres-data:/var/lib/postgresql/data
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U flex_thia -d flex_thia']
       interval: 2s
@@ -111,5 +113,6 @@ services:
         condition: service_healthy
 
 volumes:
+  flex-thia-postgres-data:
   flex-thia-tts-audio:
   flex-thia-uploads:

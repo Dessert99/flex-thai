@@ -40,6 +40,18 @@ describe('로컬 compose 인증 설정', () => {
     expect(compose).toContain('flex-thia-tts-audio:');
   });
 
+  it('stop 후에도 로컬 DB를 재사용하도록 postgres data를 named volume에 보존한다', () => {
+    const compose = readFileSync(
+      fileURLToPath(new URL('../../../compose.yaml', import.meta.url)),
+      'utf8',
+    );
+
+    expect(compose).toContain(
+      'flex-thia-postgres-data:/var/lib/postgresql/data',
+    );
+    expect(compose).toContain('flex-thia-postgres-data:');
+  });
+
   it('다른 local stack과 충돌하지 않는 host port와 browser public origin을 사용한다', () => {
     const compose = readFileSync(
       fileURLToPath(new URL('../../../compose.yaml', import.meta.url)),
