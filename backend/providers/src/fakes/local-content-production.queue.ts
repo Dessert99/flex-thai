@@ -175,6 +175,17 @@ export class LocalContentProductionQueue implements ContentProductionQueue {
     ) {
       return;
     }
+    const itemSeed = buildItemSeeds(job).find(
+      (seed) =>
+        seed.sourceRef === claimed.sourceRef &&
+        seed.jobInputId === claimed.jobInputId &&
+        seed.operation === claimed.operation,
+    );
+    if (!itemSeed) {
+      throw new Error(
+        `snapshot에서 콘텐츠 제작 항목을 복원할 수 없습니다: ${claimed.sourceRef}`,
+      );
+    }
 
     let outcome: Awaited<
       ReturnType<LocalContentProductionProcessor['process']>
@@ -186,8 +197,7 @@ export class LocalContentProductionQueue implements ContentProductionQueue {
           ...claimed,
           jobInputId: claimed.jobInputId,
           operation: claimed.operation,
-          questionPlan: (claimed as ContentProductionWorkItem['item'])
-            .questionPlan,
+          questionPlan: itemSeed.questionPlan,
           leaseUntil: claimed.leaseUntil,
           leaseToken: claimed.leaseToken,
         }),

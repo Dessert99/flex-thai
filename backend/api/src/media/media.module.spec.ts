@@ -26,7 +26,7 @@ const mediaDependencies = {
   },
 };
 
-describe('MediaModule', () => {
+describe('미디어 Module', () => {
   it('production은 ADMIN+MFA TTS 운영 경계만 등록한다', () => {
     const users = {};
     const authorizer = {

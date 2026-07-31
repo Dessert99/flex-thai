@@ -233,6 +233,8 @@ export const createApplicationModule = (
           resolveLocalTtsAudioDirectory(source),
           env.FLEX_THIA_LOCAL_PUBLIC_ORIGIN,
           env.FLEX_THIA_LOCAL_MEDIA_HMAC_SECRET,
+          undefined,
+          resolveLocalUploadDirectory(source),
         );
   const localUploads =
     env.NODE_ENV === 'production'

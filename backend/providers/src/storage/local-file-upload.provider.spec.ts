@@ -34,7 +34,7 @@ afterEach(async () => {
   );
 });
 
-describe('LocalFileUploadProvider', () => {
+describe('로컬 파일 업로드 provider', () => {
   it('same-origin policy로 저장한 실제 text bytes를 inspection한다', async () => {
     const storage = await createStorage();
     const bytes = Buffer.from('태국어 학습', 'utf8');

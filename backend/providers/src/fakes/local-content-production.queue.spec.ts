@@ -217,6 +217,50 @@ describe('LocalContentProductionQueue', () => {
     ]);
   });
 
+  it('Drizzle claim처럼 questionPlan이 없어도 snapshot에서 정확한 계획을 복원한다', async () => {
+    const repository = new FakeContentProductionRepository();
+    const startItem = repository.startItem.bind(repository);
+    vi.spyOn(repository, 'startItem').mockImplementation(
+      async (jobId, itemId, attempt) => {
+        const claimed = await startItem(jobId, itemId, attempt);
+        if (!claimed) return null;
+        const drizzleShape = {
+          ...claimed,
+        } as typeof claimed & { questionPlan?: unknown };
+        delete drizzleShape.questionPlan;
+        return drizzleShape;
+      },
+    );
+    const persistedCandidates: unknown[] = [];
+    const queue = new LocalContentProductionQueue(
+      repository,
+      createProcessor({ persistedCandidates }),
+    );
+    const service = new ContentProductionService(repository, queue);
+
+    await service.create(
+      createCommand({
+        purpose: 'QUESTION_GENERATION',
+        inputs: [0],
+        parameters: {
+          questionCount: 1,
+          questionTypePlan: [
+            {
+              questionTypeVersionId: '00000000-0000-4000-8000-000000000311',
+              count: 1,
+            },
+          ],
+          difficultyPlan: [{ difficulty: 1, count: 1 }],
+          newAuxiliaryVocabularyLimit: 0,
+        },
+      }),
+    );
+    await queue.waitForIdle();
+
+    expect(queue.errors).toEqual([]);
+    expect(persistedCandidates).toHaveLength(1);
+  });
+
   it('어휘 artifact와 같은 question item 재전달의 후보를 각각 한 번만 저장한다', async () => {
     const repository = new FakeContentProductionRepository();
     const persistedCandidates: unknown[] = [];

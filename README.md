@@ -46,7 +46,50 @@ pnpm local:stop
 6. `admin/tts`에서 local worker가 만든 READY audio를 확인합니다. 필요하면 TTS retry endpoint로 재요청합니다.
 7. `admin/question-versions/{versionId}/validate` 후 `publish`로 검증된 DRAFT를 게시합니다.
 
-질문 생성 API의 request shape와 활성 seed ID는 Swagger가 현재 실행 중인 계약을 보여 주므로, 해당 화면의 schema를 기준으로 입력합니다.
+활성 ID는 로그인한 관리자 세션으로 다음 endpoint에서 확인합니다.
+
+- `GET /api/v1/admin/content-production/presets`: `presetId`
+- `GET /api/v1/admin/question-taxonomy`: ACTIVE `questionTypeVersionId`
+- `GET /api/v1/admin/vocabularies?status=PUBLISHED&pageSize=20`: 게시 어휘 ID
+- `GET /api/v1/admin/tts/presets?enabled=true&pageSize=20`: enabled `defaultVoicePresetId`
+
+fresh seed의 ID를 터미널에서 직접 확인하려면 다음 명령도 사용할 수 있습니다.
+
+```bash
+docker compose --project-name flex-thia-local exec postgres psql -U flex_thia -d flex_thia -c \
+  "select 'preset' as kind,id,name from content_production_presets where enabled union all select 'question_type_version',id,status::text from question_type_versions where status='ACTIVE' union all select 'voice_preset',id,name from tts_voice_presets where enabled union all select 'vocabulary',id,thai from vocabularies where status='PUBLISHED' order by kind,id;"
+```
+
+fresh seed에 포함된 VERIFIED upload `00000000-0000-4000-8000-000000000930`으로 문제 생성 job을 만들 때의 실제 request body는 다음과 같습니다. `clientRequestId`는 재호출할 때 새 UUID로 바꿉니다.
+
+```json
+{
+  "clientRequestId": "11111111-1111-4111-8111-111111111111",
+  "uploadIds": ["00000000-0000-4000-8000-000000000930"],
+  "purpose": "QUESTION_GENERATION",
+  "presetId": "00000000-0000-4000-8000-000000000902",
+  "options": {
+    "questionCount": 1,
+    "questionTypePlan": [
+      {
+        "questionTypeVersionId": "00000000-0000-4000-8000-000000000311",
+        "count": 1
+      }
+    ],
+    "difficultyPlan": [{ "difficulty": 1, "count": 1 }],
+    "targetVocabularyIds": ["00000000-0000-4000-8000-000000000101"],
+    "requiredVocabularyIds": [],
+    "excludedVocabularyIds": [],
+    "newAuxiliaryVocabularyLimit": 0,
+    "similarityThreshold": 0.7,
+    "defaultVoicePresetId": "00000000-0000-4000-8000-000000000001",
+    "speakerVoiceAssignments": [],
+    "additionalInstructionKo": null
+  }
+}
+```
+
+이 body를 `POST /api/v1/admin/content-production/jobs`에 전송합니다.
 
 ## Local 범위
 

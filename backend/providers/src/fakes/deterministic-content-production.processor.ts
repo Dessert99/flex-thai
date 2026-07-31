@@ -52,22 +52,26 @@ const readAllowedTopic = (
 };
 
 const candidateSentence = (
-  thai: string,
-  meaningKo: string,
+  vocabulary: QuestionProductionContext['targetVocabulary'][number],
+  references: {
+    vocabularyId: string;
+    meaningId: string;
+    pronunciationId: string;
+  },
 ): GeneratedQuestionSentenceInput => ({
-  originalText: thai,
-  translationKo: meaningKo,
-  pronunciationKo: '로컬 발음',
+  originalText: vocabulary.thai,
+  translationKo: vocabulary.meaningKo,
+  pronunciationKo: vocabulary.pronunciationKo ?? '로컬 발음',
   toneMarks: 'LOCAL',
   tokens: [
     {
-      surface: thai,
+      surface: vocabulary.thai,
       startOffset: 0,
-      endOffset: Array.from(thai).length,
-      vocabulary: { clientRef: 'local-vocabulary' },
-      meaning: { clientRef: 'local-meaning' },
-      pronunciation: { clientRef: 'local-pronunciation' },
-      contextMeaningKo: meaningKo,
+      endOffset: Array.from(vocabulary.thai).length,
+      vocabulary: { id: references.vocabularyId },
+      meaning: { id: references.meaningId },
+      pronunciation: { id: references.pronunciationId },
+      contextMeaningKo: vocabulary.meaningKo,
       role: 'TARGET',
     },
   ],
@@ -83,6 +87,9 @@ const buildQuestionCandidate = (
   if (
     !topic ||
     !vocabulary ||
+    !vocabulary.id ||
+    !vocabulary.meaningId ||
+    !vocabulary.pronunciationId ||
     context.typeVersion.template !== 'STANDARD_CHOICE' ||
     typeof optionCount !== 'number' ||
     !Number.isInteger(optionCount) ||
@@ -91,7 +98,11 @@ const buildQuestionCandidate = (
     return null;
   }
 
-  const sentence = candidateSentence(vocabulary.thai, vocabulary.meaningKo);
+  const sentence = candidateSentence(vocabulary, {
+    vocabularyId: vocabulary.id,
+    meaningId: vocabulary.meaningId,
+    pronunciationId: vocabulary.pronunciationId,
+  });
   return {
     questionTypeVersionId: context.typeVersion.id,
     topicId: topic.id,

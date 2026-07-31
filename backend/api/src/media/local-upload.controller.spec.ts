@@ -5,7 +5,10 @@ import { join } from 'node:path';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { LocalFileUploadProvider } from '@flex-thia/providers';
 import { afterEach, describe, expect, it } from 'vitest';
-import { LocalUploadController } from './local-upload.controller.js';
+import {
+  localUploadMultipartLimits,
+  LocalUploadController,
+} from './local-upload.controller.js';
 
 const directories: string[] = [];
 const now = new Date('2026-07-31T00:00:00.000Z');
@@ -35,7 +38,17 @@ afterEach(async () => {
   );
 });
 
-describe('LocalUploadController', () => {
+describe('로컬 업로드 Controller', () => {
+  it('multipart field와 part 수도 최소 계약으로 제한한다', () => {
+    expect(localUploadMultipartLimits).toEqual({
+      files: 1,
+      fields: 2,
+      parts: 3,
+      fieldSize: 1024,
+      fileSize: 25 * 1024 * 1024,
+    });
+  });
+
   it('유효한 multipart file을 204로 저장한다', async () => {
     const { controller, storage } = await createController();
     const bytes = Buffer.from('abc');

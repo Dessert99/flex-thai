@@ -26,10 +26,13 @@ const questionContext = (): QuestionProductionContext => ({
   approvedExamples: [],
   targetVocabulary: [
     {
+      id: '00000000-0000-4000-8000-000000000101',
       thai: 'สวัสดี',
+      meaningId: '00000000-0000-4000-8000-000000000102',
       meaningKo: '안녕하세요',
       partOfSpeech: '감탄사',
       difficulty: 1,
+      pronunciationId: '00000000-0000-4000-8000-000000000103',
     },
   ],
   requiredVocabulary: [],
@@ -205,5 +208,35 @@ describe('DeterministicContentProductionProcessor local 처리', () => {
         }),
       }),
     ]);
+    expect(
+      (
+        persistedCandidates[0] as {
+          artifacts: {
+            candidates: Array<{
+              candidate: {
+                payload: {
+                  blocks: Array<{
+                    sentences: Array<{
+                      sentence: {
+                        tokens: Array<{
+                          vocabulary: unknown;
+                          meaning: unknown;
+                          pronunciation: unknown;
+                        }>;
+                      };
+                    }>;
+                  }>;
+                };
+              };
+            }>;
+          };
+        }
+      ).artifacts.candidates[0]!.candidate.payload.blocks[0]!.sentences[0]!
+        .sentence.tokens[0],
+    ).toMatchObject({
+      vocabulary: { id: '00000000-0000-4000-8000-000000000101' },
+      meaning: { id: '00000000-0000-4000-8000-000000000102' },
+      pronunciation: { id: '00000000-0000-4000-8000-000000000103' },
+    });
   });
 });

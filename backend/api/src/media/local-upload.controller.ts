@@ -25,6 +25,15 @@ type MultipartFile = {
 
 const maximumUploadBytes = 25 * 1024 * 1024;
 
+/** local multipart parser가 수락할 정확한 file·field 예산 */
+export const localUploadMultipartLimits = {
+  files: 1,
+  fields: 2,
+  parts: 3,
+  fieldSize: 1024,
+  fileSize: maximumUploadBytes,
+} as const;
+
 /** production OpenAPI와 gateway에 등록하지 않는 local same-origin upload 경계 */
 @ApiExcludeController()
 @Controller('local-uploads')
@@ -36,7 +45,7 @@ export class LocalUploadController {
   @HttpCode(204)
   @UseInterceptors(
     FileInterceptor('file', {
-      limits: { files: 1, fileSize: maximumUploadBytes },
+      limits: localUploadMultipartLimits,
     }),
   )
   async upload(

@@ -372,7 +372,11 @@ export class LocalFileUploadProvider
         temporaryPath,
         Buffer.concat([
           Buffer.from(
-            `${JSON.stringify({ contentType: object.contentType })}\n`,
+            `${JSON.stringify({
+              contentType: object.contentType,
+              sizeBytes: object.bytes.byteLength,
+              sha256: createHash('sha256').update(object.bytes).digest('hex'),
+            })}\n`,
             'utf8',
           ),
           object.bytes,
@@ -405,9 +409,21 @@ export class LocalFileUploadProvider
       ) {
         throw new LocalFileUploadError('LOCAL_UPLOAD_INVALID');
       }
+      const bytes = content.subarray(separator + 1);
+      if (
+        ('sizeBytes' in metadata || 'sha256' in metadata) &&
+        (!('sizeBytes' in metadata) ||
+          metadata.sizeBytes !== bytes.byteLength ||
+          !('sha256' in metadata) ||
+          typeof metadata.sha256 !== 'string' ||
+          !sha256Pattern.test(metadata.sha256) ||
+          createHash('sha256').update(bytes).digest('hex') !== metadata.sha256)
+      ) {
+        throw new LocalFileUploadError('LOCAL_UPLOAD_INVALID');
+      }
       return {
         contentType: metadata.contentType,
-        bytes: content.subarray(separator + 1),
+        bytes,
       };
     } catch (error) {
       if (isFileSystemError(error, 'ENOENT')) return null;
