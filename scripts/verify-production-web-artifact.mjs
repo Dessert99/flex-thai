@@ -1,9 +1,10 @@
 /** production Vite artifact가 배포 가능한 web application인지 검증한다 */
-import { readdir, readFile, stat } from 'node:fs/promises';
-import { dirname, join, relative, resolve } from 'node:path';
+import { readFile, realpath, stat } from 'node:fs/promises';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const infrastructureProbe = 'FLEX THIA infrastructure ready';
+const manifestFile = '.vite/manifest.json';
 
 const isDirectory = async (path) => {
   try {
@@ -21,29 +22,22 @@ const isFile = async (path) => {
   }
 };
 
-const readJavaScriptFiles = async (directory) => {
-  const entries = await readdir(directory, { withFileTypes: true });
-  const paths = await Promise.all(
-    entries.map(async (entry) => {
-      const path = join(directory, entry.name);
-      if (entry.isDirectory()) {
-        return readJavaScriptFiles(path);
-      }
-      return entry.isFile() && path.endsWith('.js') ? [path] : [];
-    }),
+const isRecord = (value) =>
+  value !== null && typeof value === 'object' && !Array.isArray(value);
+
+const isInside = (parent, child) => {
+  const childPath = relative(parent, child);
+  return (
+    childPath === '' || (!childPath.startsWith('..') && !isAbsolute(childPath))
   );
-  return paths.flat();
 };
 
-const readReferencedJavaScript = (source) =>
+const readIndexJavaScriptReferences = (source) =>
   [
-    ...source.matchAll(
-      /\b(?:import|export)\s*(?:\(\s*)?(?:[^'"]*?\sfrom\s*)?["']([^"']+\.js(?:[?#][^"']*)?)["']/gu,
-    ),
     ...source.matchAll(/\b(?:src|href)=["']([^"']+\.js(?:[?#][^"']*)?)["']/gu),
   ].map((match) => match[1]);
 
-const resolveArtifactReference = ({ directory, importer, reference }) => {
+const normalizeLocalReference = (reference) => {
   if (
     typeof reference !== 'string' ||
     reference.startsWith('http://') ||
@@ -52,48 +46,112 @@ const resolveArtifactReference = ({ directory, importer, reference }) => {
   ) {
     return undefined;
   }
-  const cleanReference = reference.split(/[?#]/u, 1)[0];
-  const path = reference.startsWith('/')
-    ? resolve(directory, cleanReference.slice(1))
-    : resolve(dirname(importer), cleanReference);
-  return relative(directory, path).startsWith('..') ? undefined : path;
+  return reference.split(/[?#]/u, 1)[0].replace(/^\/+/u, '');
+};
+
+const readManifest = async (directory) => {
+  const path = join(directory, manifestFile);
+  if (!(await isFile(path))) {
+    throw new Error('Production web artifact is missing Vite manifest.');
+  }
+  try {
+    const manifest = JSON.parse(await readFile(path, 'utf8'));
+    if (!isRecord(manifest)) {
+      throw new Error();
+    }
+    return manifest;
+  } catch {
+    throw new Error('Production web artifact has an invalid Vite manifest.');
+  }
 };
 
 const readReachableJavaScript = async ({
+  assetsPath,
   directory,
-  indexPath,
   indexSource,
 }) => {
-  const pending = readReferencedJavaScript(indexSource)
-    .map((reference) =>
-      resolveArtifactReference({
-        directory,
-        importer: indexPath,
-        reference,
-      }),
+  // Minified source 문법 대신 Vite가 생성한 manifest를 module graph의 단일 기준으로 사용한다.
+  const manifest = await readManifest(directory);
+  const canonicalDirectory = await realpath(directory);
+  const canonicalAssetsPath = await realpath(assetsPath);
+  if (!isInside(canonicalDirectory, canonicalAssetsPath)) {
+    throw new Error(
+      'Production web artifact JavaScript must stay inside assets.',
+    );
+  }
+
+  const entryFiles = readIndexJavaScriptReferences(indexSource)
+    .map(normalizeLocalReference)
+    .filter((reference) => reference !== undefined);
+  const pending = Object.entries(manifest)
+    .filter(
+      ([, record]) =>
+        isRecord(record) &&
+        typeof record.file === 'string' &&
+        entryFiles.includes(normalizeLocalReference(record.file)),
     )
-    .filter((path) => path !== undefined);
+    .map(([key]) => key);
+  if (entryFiles.length === 0 || pending.length !== entryFiles.length) {
+    throw new Error(
+      'Production web artifact manifest does not describe entry JavaScript.',
+    );
+  }
+
   const sources = [];
   const visited = new Set();
 
   while (pending.length > 0) {
-    const path = pending.shift();
-    if (visited.has(path)) {
+    const key = pending.shift();
+    if (visited.has(key)) {
       continue;
     }
-    visited.add(path);
-    if (!(await isFile(path))) {
+    visited.add(key);
+    const record = manifest[key];
+    if (
+      !isRecord(record) ||
+      typeof record.file !== 'string' ||
+      (record.imports !== undefined &&
+        (!Array.isArray(record.imports) ||
+          record.imports.some((child) => typeof child !== 'string'))) ||
+      (record.dynamicImports !== undefined &&
+        (!Array.isArray(record.dynamicImports) ||
+          record.dynamicImports.some((child) => typeof child !== 'string')))
+    ) {
+      throw new Error('Production web artifact has an invalid Vite manifest.');
+    }
+
+    const reference = normalizeLocalReference(record.file);
+    if (reference === undefined) {
+      throw new Error(
+        'Production web artifact JavaScript must stay inside assets.',
+      );
+    }
+    const unresolvedPath = resolve(directory, reference);
+    // Lexical traversal과 symlink traversal을 각각 차단한다.
+    if (!isInside(resolve(assetsPath), unresolvedPath)) {
+      throw new Error(
+        'Production web artifact JavaScript must stay inside assets.',
+      );
+    }
+    let path;
+    try {
+      path = await realpath(unresolvedPath);
+    } catch {
       throw new Error('Production web artifact references missing JavaScript.');
     }
+    if (
+      !isInside(canonicalDirectory, path) ||
+      !isInside(canonicalAssetsPath, path) ||
+      !(await isFile(path))
+    ) {
+      throw new Error(
+        'Production web artifact JavaScript must stay inside assets.',
+      );
+    }
+
     const source = await readFile(path, 'utf8');
-    sources.push({ path, source });
-    pending.push(
-      ...readReferencedJavaScript(source)
-        .map((reference) =>
-          resolveArtifactReference({ directory, importer: path, reference }),
-        )
-        .filter((childPath) => childPath !== undefined),
-    );
+    sources.push({ file: reference, source });
+    pending.push(...(record.imports ?? []), ...(record.dynamicImports ?? []));
   }
 
   return sources;
@@ -119,16 +177,9 @@ export const verifyProductionWebArtifact = async ({
     throw new Error('Production web artifact contains infrastructure probe.');
   }
 
-  const javaScriptPaths = await readJavaScriptFiles(assetsPath);
-  const javaScriptSources = await Promise.all(
-    javaScriptPaths.map(async (path) => ({
-      path,
-      source: await readFile(path, 'utf8'),
-    })),
-  );
   const reachableJavaScriptSources = await readReachableJavaScript({
+    assetsPath,
     directory,
-    indexPath,
     indexSource,
   });
   if (
@@ -141,7 +192,7 @@ export const verifyProductionWebArtifact = async ({
     );
   }
   if (
-    javaScriptSources.some(
+    reachableJavaScriptSources.some(
       ({ source }) => Buffer.byteLength(source) > maximumJavaScriptBytes,
     )
   ) {
@@ -152,9 +203,7 @@ export const verifyProductionWebArtifact = async ({
 
   return {
     indexFile: relative(directory, indexPath),
-    javaScriptFiles: reachableJavaScriptSources.map(({ path }) =>
-      relative(directory, path),
-    ),
+    javaScriptFiles: reachableJavaScriptSources.map(({ file }) => file),
   };
 };
 

@@ -26,7 +26,7 @@ describe('StructuredLogger 민감 정보 제거', () => {
   it('Nest error stack과 Error message를 버리고 context와 Error name만 남긴다', () => {
     const write = vi.fn();
     const logger = new StructuredLogger('api', write);
-    const rawStack = 'Error: request stack';
+    const rawStack = 'Error: password=secret\n at handler';
 
     logger.error(
       'failed',
@@ -47,6 +47,22 @@ describe('StructuredLogger 민감 정보 제거', () => {
     });
     expect(serialized).not.toContain(rawStack);
     expect(serialized).not.toContain('password=secret');
+  });
+
+  it('단독 stack-like optional string은 context로 기록하지 않는다', () => {
+    const write = vi.fn();
+    const logger = new StructuredLogger('api', write);
+    const rawStack = 'Error: password=secret\n at handler';
+
+    logger.error('failed', rawStack);
+
+    const serialized = write.mock.calls[0]?.[0] as string;
+    expect(JSON.parse(serialized)).toEqual({
+      level: 'error',
+      message: 'failed',
+      service: 'api',
+    });
+    expect(serialized).not.toContain(rawStack);
   });
 
   it('첫 message 인자가 Error여도 name만 기록하고 원문은 버린다', () => {
@@ -135,6 +151,28 @@ describe('StructuredLogger 민감 정보 제거', () => {
     });
     expect(normalized).not.toMatch(
       /authorization|cookie|password|totp|rawjson|storagekey|email|phonenumber|otp|token|secret|123456/u,
+    );
+  });
+
+  it('구분자·camelCase 민감 key를 제거하고 nested Error는 name만 남긴다', () => {
+    const write = vi.fn();
+    const logger = new StructuredLogger('api', write);
+
+    logger.error('요청 실패', {
+      access_token: 'access-token-value',
+      clientSecret: 'client-secret-value',
+      nestedError: new Error('password=nested-error-secret'),
+      secretary: '운영 담당자',
+      'set-cookie': 'session=cookie-value',
+    });
+
+    const serialized = write.mock.calls[0]?.[0] as string;
+    expect(JSON.parse(serialized)).toMatchObject({
+      nestedError: { name: 'Error' },
+      secretary: '운영 담당자',
+    });
+    expect(serialized).not.toMatch(
+      /access-token-value|client-secret-value|cookie-value|nested-error-secret/u,
     );
   });
 });

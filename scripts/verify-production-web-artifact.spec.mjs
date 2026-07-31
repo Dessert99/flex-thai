@@ -1,5 +1,5 @@
 /** production web artifact가 배포에 필요한 실행 경계를 지키는지 검증한다 */
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -13,6 +13,12 @@ const loadVerifier = () => import('./verify-production-web-artifact.mjs');
 const createArtifact = async ({
   applicationSource = apiBaseUrl,
   additionalJavaScript = {},
+  manifest = {
+    application: {
+      file: 'assets/application.js',
+      isEntry: true,
+    },
+  },
   hasAssets = true,
   hasIndex = true,
   indexSource = '<main>FLEX THIA</main><script type="module" src="/assets/application.js"></script>',
@@ -32,6 +38,11 @@ const createArtifact = async ({
       Object.entries(additionalJavaScript).map(([name, source]) =>
         writeFile(join(directory, 'assets', name), source),
       ),
+    );
+    await mkdir(join(directory, '.vite'));
+    await writeFile(
+      join(directory, '.vite', 'manifest.json'),
+      JSON.stringify(manifest),
     );
   }
   return directory;
@@ -113,6 +124,14 @@ describe('production web artifact 검증', () => {
     const directory = await createArtifact({
       additionalJavaScript: { 'api.js': apiBaseUrl },
       applicationSource: 'import "./api.js";',
+      manifest: {
+        api: { file: 'assets/api.js' },
+        application: {
+          file: 'assets/application.js',
+          imports: ['api'],
+          isEntry: true,
+        },
+      },
     });
     const { verifyProductionWebArtifact } = await loadVerifier();
 
@@ -126,6 +145,152 @@ describe('production web artifact 검증', () => {
       indexFile: 'index.html',
       javaScriptFiles: ['assets/application.js', 'assets/api.js'],
     });
+  });
+
+  it('공백 없는 Rollup import·export도 manifest module graph로 추적한다', async () => {
+    const directory = await createArtifact({
+      additionalJavaScript: {
+        'api.js': 'export const api=1;',
+        'endpoint.js': apiBaseUrl,
+      },
+      applicationSource:
+        'import{api as value}from"./api.js";export*from"./endpoint.js";',
+      manifest: {
+        api: { file: 'assets/api.js' },
+        application: {
+          file: 'assets/application.js',
+          imports: ['api', 'endpoint'],
+          isEntry: true,
+        },
+        endpoint: { file: 'assets/endpoint.js' },
+      },
+    });
+    const { verifyProductionWebArtifact } = await loadVerifier();
+
+    await expect(
+      verifyProductionWebArtifact({
+        directory,
+        apiBaseUrl,
+        maximumJavaScriptBytes,
+      }),
+    ).resolves.toMatchObject({
+      javaScriptFiles: [
+        'assets/application.js',
+        'assets/api.js',
+        'assets/endpoint.js',
+      ],
+    });
+  });
+
+  it('../../ reference로 artifact root를 벗어나면 거부한다', async () => {
+    const directory = await createArtifact({
+      applicationSource: 'import "../../escape.js";',
+      manifest: {
+        application: {
+          file: 'assets/application.js',
+          imports: ['escape'],
+          isEntry: true,
+        },
+        escape: { file: '../../escape.js' },
+      },
+    });
+    const { verifyProductionWebArtifact } = await loadVerifier();
+
+    await expect(
+      verifyProductionWebArtifact({
+        directory,
+        apiBaseUrl,
+        maximumJavaScriptBytes,
+      }),
+    ).rejects.toThrow(
+      'Production web artifact JavaScript must stay inside assets.',
+    );
+  });
+
+  it('artifact root 안이어도 assets 밖의 JavaScript는 거부한다', async () => {
+    const directory = await createArtifact({
+      applicationSource: 'import "../root.js";',
+      manifest: {
+        application: {
+          file: 'assets/application.js',
+          imports: ['root'],
+          isEntry: true,
+        },
+        root: { file: 'root.js' },
+      },
+    });
+    await writeFile(join(directory, 'root.js'), apiBaseUrl);
+    const { verifyProductionWebArtifact } = await loadVerifier();
+
+    await expect(
+      verifyProductionWebArtifact({
+        directory,
+        apiBaseUrl,
+        maximumJavaScriptBytes,
+      }),
+    ).rejects.toThrow(
+      'Production web artifact JavaScript must stay inside assets.',
+    );
+  });
+
+  it('assets symlink가 외부 JavaScript를 가리키면 거부한다', async () => {
+    const directory = await createArtifact({
+      applicationSource: 'import "./external.js";',
+      manifest: {
+        application: {
+          file: 'assets/application.js',
+          imports: ['external'],
+          isEntry: true,
+        },
+        external: { file: 'assets/external.js' },
+      },
+    });
+    const externalDirectory = await mkdtemp(
+      join(tmpdir(), 'flex-thia-external-'),
+    );
+    artifactDirectories.push(externalDirectory);
+    const externalPath = join(externalDirectory, 'external.js');
+    await writeFile(externalPath, apiBaseUrl);
+    await symlink(externalPath, join(directory, 'assets', 'external.js'));
+    const { verifyProductionWebArtifact } = await loadVerifier();
+
+    await expect(
+      verifyProductionWebArtifact({
+        directory,
+        apiBaseUrl,
+        maximumJavaScriptBytes,
+      }),
+    ).rejects.toThrow(
+      'Production web artifact JavaScript must stay inside assets.',
+    );
+  });
+
+  it('scan에서 빠지는 symlink module도 reachable 크기 제한을 적용한다', async () => {
+    const directory = await createArtifact({
+      applicationSource: `${apiBaseUrl};import "./large.js";`,
+      manifest: {
+        application: {
+          file: 'assets/application.js',
+          imports: ['large'],
+          isEntry: true,
+        },
+        large: { file: 'assets/large.js' },
+      },
+    });
+    const payloadPath = join(directory, 'assets', 'large.payload');
+    await writeFile(payloadPath, 'x'.repeat(maximumJavaScriptBytes + 1));
+    await symlink(payloadPath, join(directory, 'assets', 'large.js'));
+    const { verifyProductionWebArtifact } = await loadVerifier();
+
+    await expect(
+      verifyProductionWebArtifact({
+        directory,
+        apiBaseUrl,
+        maximumJavaScriptBytes,
+      }),
+    ).rejects.toThrow(
+      'Production web artifact exceeds the maximum JavaScript size.',
+    );
   });
 
   it('500KB를 넘는 application JavaScript artifact를 거부한다', async () => {

@@ -17,6 +17,16 @@ const SENSITIVE_KEYS = new Set([
   'rawjson',
   'storagekey',
 ]);
+const SENSITIVE_KEY_PARTS = new Set([
+  'authorization',
+  'cookie',
+  'email',
+  'otp',
+  'password',
+  'secret',
+  'token',
+  'totp',
+]);
 
 type LogMetadata = Record<string, unknown>;
 type LogWriter = (line: string) => void;
@@ -29,21 +39,40 @@ const isPlainRecord = (value: unknown): value is LogMetadata => {
   return prototype === Object.prototype || prototype === null;
 };
 
+const isSensitiveKey = (key: string): boolean => {
+  const parts = key
+    .replace(/([a-z0-9])([A-Z])/gu, '$1 $2')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/u)
+    .filter(Boolean);
+  return (
+    SENSITIVE_KEYS.has(parts.join('')) ||
+    parts.some((part) => SENSITIVE_KEY_PARTS.has(part))
+  );
+};
+
 const sanitize = (value: unknown): unknown => {
   if (Array.isArray(value)) {
     return value.map(sanitize);
   }
 
+  if (value instanceof Error) {
+    return { name: value.name };
+  }
+
   if (isPlainRecord(value)) {
     return Object.fromEntries(
       Object.entries(value)
-        .filter(([key]) => !SENSITIVE_KEYS.has(key.toLowerCase()))
+        .filter(([key]) => !isSensitiveKey(key))
         .map(([key, child]) => [key, sanitize(child)]),
     );
   }
 
   return value;
 };
+
+const isStackLike = (value: string): boolean =>
+  /^(?:[A-Za-z]*Error(?::|\n)|\s*at\s)/u.test(value);
 
 const normalizeOptionalParameters = (optionalParams: unknown[]) => {
   const metadata: LogMetadata = {};
@@ -56,6 +85,9 @@ const normalizeOptionalParameters = (optionalParams: unknown[]) => {
       continue;
     }
     if (typeof optionalParam === 'string') {
+      if (isStackLike(optionalParam)) {
+        continue;
+      }
       // Nest는 마지막 문자열을 context로 전달한다.
       context = optionalParam;
       continue;
