@@ -12,9 +12,10 @@ const loadVerifier = () => import('./verify-production-web-artifact.mjs');
 
 const createArtifact = async ({
   applicationSource = apiBaseUrl,
+  additionalJavaScript = {},
   hasAssets = true,
   hasIndex = true,
-  indexSource = '<main>FLEX THIA</main>',
+  indexSource = '<main>FLEX THIA</main><script type="module" src="/assets/application.js"></script>',
 } = {}) => {
   const directory = await mkdtemp(join(tmpdir(), 'flex-thia-artifact-'));
   artifactDirectories.push(directory);
@@ -26,6 +27,11 @@ const createArtifact = async ({
     await writeFile(
       join(directory, 'assets', 'application.js'),
       applicationSource,
+    );
+    await Promise.all(
+      Object.entries(additionalJavaScript).map(([name, source]) =>
+        writeFile(join(directory, 'assets', name), source),
+      ),
     );
   }
   return directory;
@@ -83,6 +89,43 @@ describe('production web artifact 검증', () => {
     ).rejects.toThrow(
       'Production web artifact does not contain the configured API URL.',
     );
+  });
+
+  it('index에서 참조하지 않은 decoy JavaScript의 API URL은 인정하지 않는다', async () => {
+    const directory = await createArtifact({
+      additionalJavaScript: { 'decoy.js': apiBaseUrl },
+      applicationSource: 'console.log("entry");',
+    });
+    const { verifyProductionWebArtifact } = await loadVerifier();
+
+    await expect(
+      verifyProductionWebArtifact({
+        directory,
+        apiBaseUrl,
+        maximumJavaScriptBytes,
+      }),
+    ).rejects.toThrow(
+      'Production web artifact does not contain the configured API URL.',
+    );
+  });
+
+  it('index entry가 import한 module graph의 API URL은 인정한다', async () => {
+    const directory = await createArtifact({
+      additionalJavaScript: { 'api.js': apiBaseUrl },
+      applicationSource: 'import "./api.js";',
+    });
+    const { verifyProductionWebArtifact } = await loadVerifier();
+
+    await expect(
+      verifyProductionWebArtifact({
+        directory,
+        apiBaseUrl,
+        maximumJavaScriptBytes,
+      }),
+    ).resolves.toMatchObject({
+      indexFile: 'index.html',
+      javaScriptFiles: ['assets/application.js', 'assets/api.js'],
+    });
   });
 
   it('500KB를 넘는 application JavaScript artifact를 거부한다', async () => {

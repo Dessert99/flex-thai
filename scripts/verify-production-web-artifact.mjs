@@ -1,6 +1,6 @@
 /** production Vite artifact가 배포 가능한 web application인지 검증한다 */
 import { readdir, readFile, stat } from 'node:fs/promises';
-import { join, relative } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const infrastructureProbe = 'FLEX THIA infrastructure ready';
@@ -35,6 +35,70 @@ const readJavaScriptFiles = async (directory) => {
   return paths.flat();
 };
 
+const readReferencedJavaScript = (source) =>
+  [
+    ...source.matchAll(
+      /\b(?:import|export)\s*(?:\(\s*)?(?:[^'"]*?\sfrom\s*)?["']([^"']+\.js(?:[?#][^"']*)?)["']/gu,
+    ),
+    ...source.matchAll(/\b(?:src|href)=["']([^"']+\.js(?:[?#][^"']*)?)["']/gu),
+  ].map((match) => match[1]);
+
+const resolveArtifactReference = ({ directory, importer, reference }) => {
+  if (
+    typeof reference !== 'string' ||
+    reference.startsWith('http://') ||
+    reference.startsWith('https://') ||
+    reference.startsWith('//')
+  ) {
+    return undefined;
+  }
+  const cleanReference = reference.split(/[?#]/u, 1)[0];
+  const path = reference.startsWith('/')
+    ? resolve(directory, cleanReference.slice(1))
+    : resolve(dirname(importer), cleanReference);
+  return relative(directory, path).startsWith('..') ? undefined : path;
+};
+
+const readReachableJavaScript = async ({
+  directory,
+  indexPath,
+  indexSource,
+}) => {
+  const pending = readReferencedJavaScript(indexSource)
+    .map((reference) =>
+      resolveArtifactReference({
+        directory,
+        importer: indexPath,
+        reference,
+      }),
+    )
+    .filter((path) => path !== undefined);
+  const sources = [];
+  const visited = new Set();
+
+  while (pending.length > 0) {
+    const path = pending.shift();
+    if (visited.has(path)) {
+      continue;
+    }
+    visited.add(path);
+    if (!(await isFile(path))) {
+      throw new Error('Production web artifact references missing JavaScript.');
+    }
+    const source = await readFile(path, 'utf8');
+    sources.push({ path, source });
+    pending.push(
+      ...readReferencedJavaScript(source)
+        .map((reference) =>
+          resolveArtifactReference({ directory, importer: path, reference }),
+        )
+        .filter((childPath) => childPath !== undefined),
+    );
+  }
+
+  return sources;
+};
+
 /** deployment 전에 production web bundle의 필수 파일·API URL·chunk 크기를 확인한다 */
 export const verifyProductionWebArtifact = async ({
   directory,
@@ -62,7 +126,16 @@ export const verifyProductionWebArtifact = async ({
       source: await readFile(path, 'utf8'),
     })),
   );
-  if (!javaScriptSources.some(({ source }) => source.includes(apiBaseUrl))) {
+  const reachableJavaScriptSources = await readReachableJavaScript({
+    directory,
+    indexPath,
+    indexSource,
+  });
+  if (
+    !reachableJavaScriptSources.some(({ source }) =>
+      source.includes(apiBaseUrl),
+    )
+  ) {
     throw new Error(
       'Production web artifact does not contain the configured API URL.',
     );
@@ -79,7 +152,9 @@ export const verifyProductionWebArtifact = async ({
 
   return {
     indexFile: relative(directory, indexPath),
-    javaScriptFiles: javaScriptPaths.map((path) => relative(directory, path)),
+    javaScriptFiles: reachableJavaScriptSources.map(({ path }) =>
+      relative(directory, path),
+    ),
   };
 };
 

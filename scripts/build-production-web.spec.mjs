@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 const apiBaseUrl = 'https://api.example.com/api/v1';
 const loadBuildRunner = () => import('./build-production-web.mjs');
 
-describe('production web build runner', () => {
+describe('production web 빌드 실행기', () => {
   it('API subdomain으로 web을 build한 뒤 같은 dist를 검증한다', async () => {
     const events = [];
     const run = vi.fn(async (invocation) => {

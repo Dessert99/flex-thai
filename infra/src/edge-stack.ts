@@ -127,8 +127,9 @@ export class EdgeStack extends Stack {
         securityHeadersBehavior: {
           contentSecurityPolicy: {
             contentSecurityPolicy:
-              "default-src 'self'; connect-src 'self' https://api." +
-              rootDomain,
+              "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api." +
+              rootDomain +
+              ' https://*.s3.ap-northeast-2.amazonaws.com https://s3.ap-northeast-2.amazonaws.com',
             override: true,
           },
           contentTypeOptions: { override: true },
@@ -246,9 +247,7 @@ function handler(event) {
     });
 
     new s3Deployment.BucketDeployment(this, 'DeployWebApplication', {
-      sources: [
-        s3Deployment.Source.asset(props.webAssetPath),
-      ],
+      sources: [s3Deployment.Source.asset(props.webAssetPath)],
       destinationBucket: webBucket,
       distribution,
       distributionPaths: ['/index.html', '/assets/*'],

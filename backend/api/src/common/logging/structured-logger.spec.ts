@@ -49,6 +49,22 @@ describe('StructuredLogger 민감 정보 제거', () => {
     expect(serialized).not.toContain('password=secret');
   });
 
+  it('첫 message 인자가 Error여도 name만 기록하고 원문은 버린다', () => {
+    const write = vi.fn();
+    const logger = new StructuredLogger('api', write);
+
+    logger.error(new Error('secret=first-message-value'), 'NestContext');
+
+    const serialized = write.mock.calls[0]?.[0] as string;
+    expect(JSON.parse(serialized)).toEqual({
+      context: 'NestContext',
+      errorName: 'Error',
+      level: 'error',
+      service: 'api',
+    });
+    expect(serialized).not.toContain('secret=first-message-value');
+  });
+
   it('array·Date·Error optional parameter를 plain metadata로 펼치지 않는다', () => {
     const write = vi.fn();
     const logger = new StructuredLogger('api', write);
@@ -85,12 +101,14 @@ describe('StructuredLogger 민감 정보 제거', () => {
       COOKIE: 'refresh_token=cookie-secret',
       PassWord: 'password-secret',
       tOtP: 'totp-secret',
+      SeCrEt: 'direct-secret',
       rawJSON: { answer: 'raw-json-secret' },
       nested: {
         email: 'admin@hufs.ac.kr',
         phoneNumber: '+821012345678',
         otp: '123456',
         token: 'secret',
+        secret: 'nested-secret',
         StorageKey: 'private/storage-key-secret.mp3',
         sensitive: {
           PassWord: 'nested-password-secret',

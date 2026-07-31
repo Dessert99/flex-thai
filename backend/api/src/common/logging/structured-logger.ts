@@ -9,6 +9,7 @@ const SENSITIVE_KEYS = new Set([
   'otp',
   'totp',
   'password',
+  'secret',
   'token',
   'accesstoken',
   'refreshtoken',
@@ -109,8 +110,14 @@ export class StructuredLogger implements LoggerService {
     message: unknown,
     optionalParams: unknown[],
   ): void {
-    const { context, errorName, metadata } =
-      normalizeOptionalParameters(optionalParams);
+    const {
+      context,
+      errorName: optionalErrorName,
+      metadata,
+    } = normalizeOptionalParameters(optionalParams);
+    const messageErrorName =
+      message instanceof Error ? message.name : undefined;
+    const errorName = messageErrorName ?? optionalErrorName;
     this.write(
       JSON.stringify(
         sanitize({
@@ -119,7 +126,7 @@ export class StructuredLogger implements LoggerService {
           ...(errorName === undefined ? {} : { errorName }),
           level,
           service: this.service,
-          message: String(message),
+          ...(message instanceof Error ? {} : { message: String(message) }),
         }),
       ),
     );

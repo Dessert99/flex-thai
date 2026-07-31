@@ -86,6 +86,23 @@ const readResponseHeadersPolicyProperties = (
   return policy.Properties;
 };
 
+const readBucketDeploymentSources = (template: Template): unknown => {
+  const deployments = template.findResources(
+    'Custom::CDKBucketDeployment',
+  ) as unknown;
+  if (!isRecord(deployments)) {
+    throw new Error('Web application 배포 자원을 읽을 수 없습니다.');
+  }
+  const [deployment] = Object.values(deployments);
+  if (!isRecord(deployment) || !isRecord(deployment.Properties)) {
+    throw new Error('Web application 배포 설정이 생성되지 않았습니다.');
+  }
+  return {
+    sourceBucketNames: deployment.Properties.SourceBucketNames,
+    sourceObjectKeys: deployment.Properties.SourceObjectKeys,
+  };
+};
+
 describe('EdgeStack 웹 전송 경계', () => {
   it('Web bucket public access를 막고 CloudFront OAC만 연결한다', () => {
     const app = new App();
@@ -220,6 +237,40 @@ describe('EdgeStack 웹 전송 경계', () => {
     });
   });
 
+  it('주입한 web asset directory의 실제 내용으로 배포 asset을 선택한다', () => {
+    const alternateWebAssetPath = mkdtempSync(
+      join(tmpdir(), 'flex-thia-web-alternate-'),
+    );
+    writeFileSync(
+      join(alternateWebAssetPath, 'index.html'),
+      '<main>alternate web fixture</main>',
+    );
+
+    try {
+      const app = new App();
+      const firstDataStack = new DataStack(app, 'EdgeFirstAssetData');
+      const firstStack = new EdgeStack(app, 'EdgeFirstAsset', {
+        config,
+        dataStack: firstDataStack,
+        webAssetPath,
+      });
+      const secondDataStack = new DataStack(app, 'EdgeSecondAssetData');
+      const secondStack = new EdgeStack(app, 'EdgeSecondAsset', {
+        config,
+        dataStack: secondDataStack,
+        webAssetPath: alternateWebAssetPath,
+      });
+
+      expect(
+        readBucketDeploymentSources(Template.fromStack(firstStack)),
+      ).not.toEqual(
+        readBucketDeploymentSources(Template.fromStack(secondStack)),
+      );
+    } finally {
+      rmSync(alternateWebAssetPath, { force: true, recursive: true });
+    }
+  });
+
   it('없는 web asset directory는 안정된 설정 오류로 즉시 실패한다', () => {
     const app = new App();
     const dataStack = new DataStack(app, 'EdgeMissingAssetData');
@@ -270,7 +321,7 @@ describe('EdgeStack 웹 전송 경계', () => {
       SecurityHeadersConfig: {
         ContentSecurityPolicy: {
           ContentSecurityPolicy:
-            "default-src 'self'; connect-src 'self' https://api.example.com",
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.example.com https://*.s3.ap-northeast-2.amazonaws.com https://s3.ap-northeast-2.amazonaws.com",
         },
         ContentTypeOptions: { Override: true },
         FrameOptions: { FrameOption: 'DENY', Override: true },
