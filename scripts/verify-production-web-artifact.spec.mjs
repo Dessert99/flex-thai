@@ -85,6 +85,161 @@ describe('production web artifact 검증', () => {
     ).rejects.toThrow('Production web artifact contains infrastructure probe.');
   });
 
+  it('classic external script는 거부한다', async () => {
+    const directory = await createArtifact({
+      indexSource: '<script src="/assets/application.js"></script>',
+    });
+    const { verifyProductionWebArtifact } = await loadVerifier();
+
+    await expect(
+      verifyProductionWebArtifact({
+        directory,
+        apiBaseUrl,
+        maximumJavaScriptBytes,
+      }),
+    ).rejects.toThrow(
+      'Production web artifact must contain exactly one tracked module script.',
+    );
+  });
+
+  it('nomodule 속성이 있는 module script는 거부한다', async () => {
+    const directory = await createArtifact({
+      indexSource:
+        '<script type="module" nomodule src="/assets/application.js"></script>',
+    });
+    const { verifyProductionWebArtifact } = await loadVerifier();
+
+    await expect(
+      verifyProductionWebArtifact({
+        directory,
+        apiBaseUrl,
+        maximumJavaScriptBytes,
+      }),
+    ).rejects.toThrow(
+      'Production web artifact must contain exactly one tracked module script.',
+    );
+  });
+
+  it('inline module script는 거부한다', async () => {
+    const directory = await createArtifact({
+      indexSource: '<script type="module">console.log("inline")</script>',
+    });
+    const { verifyProductionWebArtifact } = await loadVerifier();
+
+    await expect(
+      verifyProductionWebArtifact({
+        directory,
+        apiBaseUrl,
+        maximumJavaScriptBytes,
+      }),
+    ).rejects.toThrow(
+      'Production web artifact must contain exactly one tracked module script.',
+    );
+  });
+
+  it('inline classic script는 거부한다', async () => {
+    const directory = await createArtifact({
+      indexSource: '<script>console.log("inline")</script>',
+    });
+    const { verifyProductionWebArtifact } = await loadVerifier();
+
+    await expect(
+      verifyProductionWebArtifact({
+        directory,
+        apiBaseUrl,
+        maximumJavaScriptBytes,
+      }),
+    ).rejects.toThrow(
+      'Production web artifact must contain exactly one tracked module script.',
+    );
+  });
+
+  it('.mjs module script는 거부한다', async () => {
+    const directory = await createArtifact({
+      indexSource:
+        '<script type="module" src="/assets/application.mjs"></script>',
+    });
+    const { verifyProductionWebArtifact } = await loadVerifier();
+
+    await expect(
+      verifyProductionWebArtifact({
+        directory,
+        apiBaseUrl,
+        maximumJavaScriptBytes,
+      }),
+    ).rejects.toThrow(
+      'Production web artifact must contain exactly one tracked module script.',
+    );
+  });
+
+  it('추적하지 않는 600KB classic script가 두 번째로 있으면 거부한다', async () => {
+    const directory = await createArtifact({
+      additionalJavaScript: {
+        'unverified.js': 'x'.repeat(600_000),
+      },
+      indexSource:
+        '<script type="module" src="/assets/application.js"></script><script src="/assets/unverified.js"></script>',
+    });
+    const { verifyProductionWebArtifact } = await loadVerifier();
+
+    await expect(
+      verifyProductionWebArtifact({
+        directory,
+        apiBaseUrl,
+        maximumJavaScriptBytes,
+      }),
+    ).rejects.toThrow(
+      'Production web artifact must contain exactly one tracked module script.',
+    );
+  });
+
+  it.each([
+    ['빈 값', ''],
+    ['HTTP URL', 'http://api.example.com/api/v1'],
+    ['잘못된 URL', 'not-a-url'],
+    ['API subdomain이 아닌 URL', 'https://example.com/api/v1'],
+    ['잘못된 pathname', 'https://api.example.com/v1'],
+    ['trailing slash URL', 'https://api.example.com/api/v1/'],
+    ['query 포함 URL', 'https://api.example.com/api/v1?mode=prod'],
+    ['hash 포함 URL', 'https://api.example.com/api/v1#prod'],
+  ])('유효하지 않은 API base URL(%s)은 즉시 거부한다', async (_case, value) => {
+    const directory = await createArtifact();
+    const { verifyProductionWebArtifact } = await loadVerifier();
+
+    await expect(
+      verifyProductionWebArtifact({
+        directory,
+        apiBaseUrl: value,
+        maximumJavaScriptBytes,
+      }),
+    ).rejects.toThrow(
+      'Production web artifact requires a valid HTTPS API base URL.',
+    );
+  });
+
+  it.each([
+    ['0', 0],
+    ['음수', -1],
+    ['소수', 1.5],
+    ['safe integer 초과', Number.MAX_SAFE_INTEGER + 1],
+  ])(
+    '유효하지 않은 JavaScript 크기 제한(%s)은 즉시 거부한다',
+    async (_case, value) => {
+      const directory = await createArtifact();
+      const { verifyProductionWebArtifact } = await loadVerifier();
+
+      await expect(
+        verifyProductionWebArtifact({
+          directory,
+          apiBaseUrl,
+          maximumJavaScriptBytes: value,
+        }),
+      ).rejects.toThrow(
+        'Production web artifact requires a positive JavaScript size limit.',
+      );
+    },
+  );
+
   it('API subdomain이 없는 artifact를 거부한다', async () => {
     const directory = await createArtifact({
       applicationSource: 'console.log(1);',

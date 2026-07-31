@@ -37,17 +37,32 @@ const readHtmlAttribute = (attributes, name) =>
     new RegExp(`(?:^|\\s)${name}\\s*=\\s*["']([^"']+)["']`, 'iu'),
   )?.[1];
 
+const hasHtmlAttribute = (attributes, name) =>
+  new RegExp(`(?:^|\\s)${name}(?:\\s|=|$)`, 'iu').test(attributes);
+
 const isJavaScriptReference = (reference) =>
   typeof reference === 'string' && /\.js(?:[?#].*)?$/u.test(reference);
 
 const readIndexModuleReferences = (source) => {
-  const moduleScripts = [...source.matchAll(/<script\b([^>]*)>/giu)]
-    .filter(
-      ([, attributes]) =>
-        readHtmlAttribute(attributes, 'type')?.toLowerCase() === 'module',
-    )
-    .map(([, attributes]) => readHtmlAttribute(attributes, 'src'))
-    .filter(isJavaScriptReference);
+  const scripts = [
+    ...source.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/giu),
+  ];
+  const script = scripts[0];
+  const attributes = script?.[1] ?? '';
+  const body = script?.[2] ?? '';
+  const sourceReference = readHtmlAttribute(attributes, 'src');
+  if (
+    scripts.length !== 1 ||
+    readHtmlAttribute(attributes, 'type')?.toLowerCase() !== 'module' ||
+    hasHtmlAttribute(attributes, 'nomodule') ||
+    !isJavaScriptReference(sourceReference) ||
+    normalizeLocalReference(sourceReference) === undefined ||
+    body.trim() !== ''
+  ) {
+    throw new Error(
+      'Production web artifact must contain exactly one tracked module script.',
+    );
+  }
   const modulePreloads = [...source.matchAll(/<link\b([^>]*)>/giu)]
     .filter(([, attributes]) =>
       (readHtmlAttribute(attributes, 'rel') ?? '')
@@ -57,7 +72,7 @@ const readIndexModuleReferences = (source) => {
     )
     .map(([, attributes]) => readHtmlAttribute(attributes, 'href'))
     .filter(isJavaScriptReference);
-  return { modulePreloads, moduleScripts };
+  return { modulePreloads, moduleScripts: [sourceReference] };
 };
 
 const normalizeLocalReference = (reference) => {
@@ -70,6 +85,27 @@ const normalizeLocalReference = (reference) => {
     return undefined;
   }
   return reference.split(/[?#]/u, 1)[0].replace(/^\/+/u, '');
+};
+
+const isValidApiBaseUrl = (value) => {
+  if (typeof value !== 'string' || value === '' || value.trim() !== value) {
+    return false;
+  }
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === 'https:' &&
+      url.hostname.startsWith('api.') &&
+      url.hostname.length > 4 &&
+      url.pathname === '/api/v1' &&
+      url.search === '' &&
+      url.hash === '' &&
+      url.username === '' &&
+      url.password === ''
+    );
+  } catch {
+    return false;
+  }
 };
 
 const readManifest = async (directory) => {
@@ -215,6 +251,20 @@ export const verifyProductionWebArtifact = async ({
   apiBaseUrl,
   maximumJavaScriptBytes = 500_000,
 }) => {
+  if (!isValidApiBaseUrl(apiBaseUrl)) {
+    throw new Error(
+      'Production web artifact requires a valid HTTPS API base URL.',
+    );
+  }
+  if (
+    !Number.isSafeInteger(maximumJavaScriptBytes) ||
+    maximumJavaScriptBytes <= 0
+  ) {
+    throw new Error(
+      'Production web artifact requires a positive JavaScript size limit.',
+    );
+  }
+
   const indexPath = join(directory, 'index.html');
   const assetsPath = join(directory, 'assets');
   if (!(await isFile(indexPath))) {
