@@ -1,9 +1,12 @@
 /** 어휘 상세의 발음 음성·원문·관련 문제 링크를 검증한다 */
-import type { VocabularyDetailResponse } from '@flex-thia/contracts';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '@/shared/test';
+import {
+  createDetail,
+  createRelatedQuestions,
+} from './VocabularyDetailPage.fixtures';
 import { VocabularyDetailPageContainer } from './VocabularyDetailPageContainer';
 import { VocabularyDetailPageView } from './VocabularyDetailPageView';
 
@@ -73,8 +76,10 @@ describe('어휘 상세 페이지', () => {
 
     expect(await screen.findByText('สวัสดี')).toHaveAttribute('lang', 'th');
     await user.click(screen.getByRole('tab', { name: '발음' }));
-    expect(screen.getByText('싸왓디')).toBeInTheDocument();
-    expect(screen.getByLabelText('สวัสดี 발음')).toHaveAttribute(
+    expect(
+      await screen.findByRole('region', { name: '안녕하세요 발음' }),
+    ).toHaveTextContent('싸왓디');
+    expect(screen.getByLabelText('สวัสดี 안녕하세요 발음')).toHaveAttribute(
       'src',
       'https://example.com/hello.mp3',
     );
@@ -159,6 +164,36 @@ describe('어휘 상세 페이지', () => {
   });
 });
 
+describe('어휘 상세 학습 정보', () => {
+  it('종류·난이도와 뜻별 연결 발음·성조·audio 누락 상태를 표시한다', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <VocabularyDetailPageView
+        detail={createDetail()}
+        onWordbookMembershipConfirmed={vi.fn()}
+        relatedQuestions={[]}
+      />,
+    );
+
+    expect(screen.getByText('종류: WORD')).toBeVisible();
+    expect(screen.getByText(/난이도 1/)).toBeVisible();
+    await user.click(screen.getByRole('tab', { name: '발음' }));
+    expect(
+      screen.getByRole('region', { name: '안녕하세요 발음' }),
+    ).toHaveTextContent('싸왓디');
+    expect(
+      screen.getByRole('region', { name: '안녕하세요 발음' }),
+    ).toHaveTextContent('성조 L-L-M');
+    expect(screen.getByLabelText('สวัสดี 안녕하세요 발음')).toHaveAttribute(
+      'src',
+      'https://example.com/hello.mp3',
+    );
+    expect(screen.getByRole('region', { name: '인사 발음' })).toHaveTextContent(
+      '연결된 발음 음성이 없습니다.',
+    );
+  });
+});
+
 describe('어휘 오류 신고 연결', () => {
   it('어휘 하위 콘텐츠별 식별자를 오류 신고 origin에 명시한다', async () => {
     const user = userEvent.setup();
@@ -193,7 +228,7 @@ describe('어휘 오류 신고 연결', () => {
       }),
     );
     expect(
-      screen.getByRole('button', { name: '뜻 오류 신고' }),
+      screen.getAllByRole('button', { name: '뜻 오류 신고' })[0],
     ).toHaveAttribute(
       'data-origin',
       JSON.stringify({
@@ -218,93 +253,3 @@ describe('어휘 오류 신고 연결', () => {
     );
   });
 });
-
-function createDetail(
-  id: string = firstVocabularyId,
-): VocabularyDetailResponse {
-  return {
-    id,
-    thai: 'สวัสดี',
-    kind: 'WORD',
-    meanings: [
-      {
-        id: '01933b6a-8f13-7a19-b7e5-536d70f57aac',
-        meaningKo: '안녕하세요',
-        partOfSpeech: '감탄사',
-        difficulty: 1,
-        contextNote: null,
-      },
-    ],
-    pronunciations: [
-      {
-        id: '01933b6a-8f13-7a19-b7e5-536d70f57aad',
-        pronunciationKo: '싸왓디',
-        toneMarks: '',
-        audioUrl: 'https://example.com/hello.mp3',
-      },
-    ],
-    audioEligibleMeaningCount: 1,
-    meaningPronunciations: [],
-    relations: [
-      {
-        id: '01933b6a-8f13-7a19-b7e5-536d70f57ac0',
-        type: 'SYNONYM',
-        direction: 'BIDIRECTIONAL',
-        meaningId: '01933b6a-8f13-7a19-b7e5-536d70f57aac',
-        relatedVocabularyId: '01933b6a-8f13-7a19-b7e5-536d70f57ac1',
-        relatedThai: 'หวัดดี',
-        relatedMeaningId: '01933b6a-8f13-7a19-b7e5-536d70f57ac2',
-        relatedMeaningKo: '안녕',
-      },
-    ],
-    exampleSentences: [
-      {
-        sentenceVersionId: '01933b6a-8f13-7a19-b7e5-536d70f57ab5',
-        originalText: 'ฉันมา',
-        translationKo: '나는 온다',
-        pronunciationKo: '찬 마',
-        toneMarks: 'R M',
-        audioUrl: 'https://example.com/sentence.mp3',
-        tokens: [
-          {
-            position: 0,
-            surface: 'ฉัน',
-            startOffset: 0,
-            endOffset: 3,
-            vocabularyId: '01933b6a-8f13-7a19-b7e5-536d70f57ab6',
-            meaningId: '01933b6a-8f13-7a19-b7e5-536d70f57ab7',
-            pronunciationId: '01933b6a-8f13-7a19-b7e5-536d70f57ab8',
-            contextMeaningKo: '나',
-            pronunciationKo: '찬',
-            toneMarks: 'R',
-            audioUrl: 'https://example.com/token.mp3',
-            role: 'TARGET',
-          },
-        ],
-        expressions: [],
-      },
-    ],
-    saved: false,
-  };
-}
-
-function createRelatedQuestions() {
-  return {
-    items: [
-      {
-        questionId: '01933b6a-8f13-7a19-b7e5-536d70f57ab1',
-        questionVersionId: '01933b6a-8f13-7a19-b7e5-536d70f57ab2',
-        questionType: {
-          id: '01933b6a-8f13-7a19-b7e5-536d70f57ab3',
-          slug: 'greeting',
-          displayName: '인사 표현',
-        },
-        skill: 'READING',
-        difficulty: 1,
-        saved: false,
-        firstResult: 'UNANSWERED',
-      },
-    ],
-    page: { page: 1, pageSize: 10, totalItems: 1, totalPages: 1 },
-  };
-}

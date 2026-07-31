@@ -2,36 +2,36 @@
 import type { VocabularyListResponse } from '@flex-thia/contracts';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
+import { Label } from '@/shared/ui/label';
 import { PageEmpty, PageError, PageLoading } from '@/shared/ui/page-state';
-import type { VocabularyListSearch } from '../model/vocabularyListSearch';
+import type {
+  VocabularyListFilterPatch,
+  VocabularyListSearch,
+} from '../model/vocabularyListSearch';
 
 interface VocabularyListPageViewProps {
   data: VocabularyListResponse | undefined;
   error: boolean;
   loading: boolean;
-  onQueryChange: (query: string) => void;
+  onFilterChange: (patch: VocabularyListFilterPatch) => void;
+  onPageChange: (page: number) => void;
   onRetry: () => void;
   search: VocabularyListSearch;
 }
 
-/** 서버 원문을 재구성하지 않고 상세 링크로 렌더링한다 */
-export function VocabularyListPageView({
-  data,
-  error,
-  loading,
-  onQueryChange,
-  onRetry,
+function VocabularyFilters({
+  onFilterChange,
   search,
-}: VocabularyListPageViewProps) {
+}: Pick<VocabularyListPageViewProps, 'onFilterChange' | 'search'>) {
   return (
-    <section className='grid gap-section'>
-      <h1 className='text-title text-primary'>어휘 찾기</h1>
+    <div className='grid gap-cluster'>
       <form
         className='flex gap-cluster'
         onSubmit={(event) => {
           event.preventDefault();
           const query = new FormData(event.currentTarget).get('query');
-          onQueryChange(typeof query === 'string' ? query.trim() : '');
+          const value = typeof query === 'string' ? query.trim() : '';
+          onFilterChange({ query: value === '' ? undefined : value });
         }}
       >
         <Input
@@ -41,35 +41,162 @@ export function VocabularyListPageView({
         />
         <Button type='submit'>검색</Button>
       </form>
-      {loading ? <PageLoading message='어휘를 불러오고 있습니다.' /> : null}
-      {error ? (
-        <PageError
-          message='어휘 목록을 불러오지 못했습니다.'
-          onRetry={onRetry}
-        />
-      ) : null}
-      {!loading && !error && data?.items.length === 0 ? (
-        <PageEmpty title='조건에 맞는 어휘가 없습니다.' />
-      ) : null}
-      {data?.items.length ? (
-        <ul className='grid gap-cluster'>
-          {data.items.map((item) => (
-            <li key={item.id}>
-              <a
-                className='block rounded-panel border border-default p-page'
-                href={`/vocabularies/${item.id}`}
+      <div className='grid gap-cluster md:grid-cols-3'>
+        <Label className='grid gap-cluster'>
+          어휘 종류
+          <select
+            className='h-control rounded-control border border-default bg-surface px-cluster'
+            onChange={(event) =>
+              onFilterChange({
+                kind:
+                  event.target.value === ''
+                    ? undefined
+                    : (event.target.value as VocabularyListSearch['kind']),
+              })
+            }
+            value={search.kind ?? ''}
+          >
+            <option value=''>전체</option>
+            <option value='WORD'>단어</option>
+            <option value='EXPRESSION'>표현</option>
+          </select>
+        </Label>
+        <Label
+          className='grid gap-cluster'
+          htmlFor='vocabulary-part-of-speech'
+        >
+          품사
+          <Input
+            id='vocabulary-part-of-speech'
+            onChange={(event) =>
+              onFilterChange({
+                partOfSpeech:
+                  event.target.value === '' ? undefined : event.target.value,
+              })
+            }
+            value={search.partOfSpeech ?? ''}
+          />
+        </Label>
+        <Label className='grid gap-cluster'>
+          난이도
+          <select
+            className='h-control rounded-control border border-default bg-surface px-cluster'
+            onChange={(event) =>
+              onFilterChange({
+                difficulty:
+                  event.target.value === ''
+                    ? undefined
+                    : Number(event.target.value),
+              })
+            }
+            value={search.difficulty ?? ''}
+          >
+            <option value=''>전체</option>
+            {[1, 2, 3, 4, 5].map((difficulty) => (
+              <option
+                key={difficulty}
+                value={difficulty}
               >
-                <span
-                  className='font-thai text-title'
-                  lang='th'
-                >
-                  {item.thai}
-                </span>
-              </a>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+                {difficulty}
+              </option>
+            ))}
+          </select>
+        </Label>
+      </div>
+    </div>
+  );
+}
+
+function VocabularyResults({
+  data,
+  error,
+  loading,
+  onPageChange,
+  onRetry,
+}: Omit<VocabularyListPageViewProps, 'onFilterChange' | 'search'>) {
+  if (loading) return <PageLoading message='어휘를 불러오고 있습니다.' />;
+  if (error || !data) {
+    return (
+      <PageError
+        message='어휘 목록을 불러오지 못했습니다.'
+        onRetry={onRetry}
+      />
+    );
+  }
+  if (data.items.length === 0) {
+    return <PageEmpty title='조건에 맞는 어휘가 없습니다.' />;
+  }
+  return (
+    <>
+      <ul className='grid gap-cluster'>
+        {data.items.map((item) => (
+          <li key={item.id}>
+            <a
+              className='block rounded-panel border border-default p-page'
+              href={`/vocabularies/${item.id}`}
+            >
+              <span
+                className='font-thai text-title'
+                lang='th'
+              >
+                {item.thai}
+              </span>
+            </a>
+          </li>
+        ))}
+      </ul>
+      <nav
+        aria-label='어휘 목록 페이지'
+        className='flex items-center justify-between gap-cluster'
+      >
+        <Button
+          disabled={data.page.page <= 1}
+          onClick={() => onPageChange(data.page.page - 1)}
+          type='button'
+          variant='outline'
+        >
+          이전
+        </Button>
+        <span className='text-body text-subtle'>
+          {data.page.page} / {data.page.totalPages}
+        </span>
+        <Button
+          disabled={data.page.page >= data.page.totalPages}
+          onClick={() => onPageChange(data.page.page + 1)}
+          type='button'
+          variant='outline'
+        >
+          다음
+        </Button>
+      </nav>
+    </>
+  );
+}
+
+/** 서버 원문을 재구성하지 않고 URL filter·page와 상세 링크를 렌더링한다 */
+export function VocabularyListPageView({
+  data,
+  error,
+  loading,
+  onFilterChange,
+  onPageChange,
+  onRetry,
+  search,
+}: VocabularyListPageViewProps) {
+  return (
+    <section className='grid gap-section'>
+      <h1 className='text-title text-primary'>어휘 찾기</h1>
+      <VocabularyFilters
+        onFilterChange={onFilterChange}
+        search={search}
+      />
+      <VocabularyResults
+        data={data}
+        error={error}
+        loading={loading}
+        onPageChange={onPageChange}
+        onRetry={onRetry}
+      />
     </section>
   );
 }
