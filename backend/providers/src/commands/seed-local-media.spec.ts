@@ -1,7 +1,9 @@
 /** local seed media command가 READY object만 재현 가능한 WAV container로 쓰는지 검증한다 */
+import { readFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import { LocalFileMediaReadProvider } from '../storage/local-file-media-read.provider.js';
 import { localSeedMediaFixtures, seedLocalMedia } from './seed-local-media.js';
@@ -19,6 +21,19 @@ afterEach(async () => {
 });
 
 describe('seedLocalMedia', () => {
+  it('격리된 workspace에서도 command 실행에 필요한 tsx를 직접 소유한다', () => {
+    const packageJson = JSON.parse(
+      readFileSync(
+        fileURLToPath(new URL('../../package.json', import.meta.url)),
+        'utf8',
+      ),
+    ) as {
+      devDependencies?: Record<string, string>;
+    };
+
+    expect(packageJson.devDependencies?.tsx).toBeDefined();
+  });
+
   it('모든 READY seed key의 deterministic WAV를 반복 실행해도 같은 signed reader bytes로 제공한다', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'flex-thia-seed-media-'));
     directories.push(directory);

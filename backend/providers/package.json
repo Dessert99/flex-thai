@@ -24,5 +24,8 @@
     "@aws-sdk/s3-presigned-post": "^3.900.0",
     "@flex-thia/domain": "workspace:*",
     "pdf-lib": "^1.17.1"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.0"
   }
 }
