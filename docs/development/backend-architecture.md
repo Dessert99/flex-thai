@@ -350,12 +350,10 @@ backend/worker ────┬──> backend/domain
 ## 10. 문서 우선순위
 
 - 이 문서: 새 백엔드 코드의 목표 구조와 배치 규칙
-- `docs/superpowers/specs/2026-07-23-backend-mvp-domain-erd-api-design.md`:
-  MVP 도메인, 상태 전이, ERD와 API 계약
 - `docs/development/project-structure.md`: 현재 저장소를 이해하기 위한
   설명
-- `docs/superpowers/specs`: 기능과 설계 결정의 배경
+- `shared/contracts`: 현재 공개 API의 요청·응답 계약
 - 현재 코드와 테스트: 실제 구현 여부
 
-기능 요구사항과 이 문서가 충돌하면 임의로 한쪽을 적용하지 않고 설계
-결정을 먼저 갱신한다.
+기능 요구사항이 명시되지 않았거나 이 문서와 충돌하면 기존 구현에서
+의도를 추론하지 않고 사용자 결정을 먼저 확인한다.
