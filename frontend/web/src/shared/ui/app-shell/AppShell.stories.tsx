@@ -1,22 +1,63 @@
 /** AppShell의 학습자·관리자 내비게이션과 선택 슬롯을 전체 화면에서 검수한다 */
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { Button } from '@/shared/ui/button';
+import {
+  BookOpenText,
+  FileQuestion,
+  History,
+  House,
+  Library,
+  LogOut,
+  Search,
+  Users,
+  WandSparkles,
+} from 'lucide-react';
+import { SidebarMenuButton, SidebarMenuItem } from '@/shared/ui/sidebar';
 import { AppShell } from './AppShell';
 
 const learnerNavigation = [
-  { href: '#learn', label: '오늘의 학습' },
-  { href: '#practice', label: '문제 풀이' },
-  { href: '#vocabularies', label: '어휘' },
-  { href: '#wordbooks', label: '단어장' },
-  { href: '#history', label: '학습 기록' },
+  { group: '학습', href: '/learn', icon: House, label: '오늘의 학습' },
+  { group: '학습', href: '/questions', icon: Search, label: '문제 풀이' },
+  {
+    group: '콘텐츠',
+    href: '/vocabularies',
+    icon: BookOpenText,
+    label: '어휘',
+  },
+  {
+    group: '콘텐츠',
+    href: '/wordbooks',
+    icon: Library,
+    label: '단어장',
+  },
+  { group: '학습', href: '/history', icon: History, label: '학습 기록' },
 ] as const;
 
 const adminNavigation = [
-  { href: '#dashboard', label: '운영 현황' },
-  { href: '#questions', label: '문제 관리' },
-  { href: '#vocabularies', label: '어휘 관리' },
-  { href: '#contents', label: '콘텐츠 제작' },
-  { href: '#users', label: '사용자 관리' },
+  { group: '개요', href: '/admin', icon: House, label: '운영 현황' },
+  {
+    group: '콘텐츠',
+    href: '/admin/questions',
+    icon: FileQuestion,
+    label: '문제 관리',
+  },
+  {
+    group: '콘텐츠',
+    href: '/admin/vocabularies',
+    icon: BookOpenText,
+    label: '어휘 관리',
+  },
+  {
+    group: '콘텐츠',
+    href: '/admin/content-production',
+    icon: WandSparkles,
+    label: '콘텐츠 제작',
+  },
+  {
+    group: '시스템',
+    href: '/admin/users',
+    icon: Users,
+    label: '사용자 관리',
+  },
 ] as const;
 
 const meta = {
@@ -33,8 +74,16 @@ const meta = {
       email: 'learner@example.com',
       role: 'LEARNER',
     },
+    currentPath: '/learn',
     navigation: learnerNavigation,
-    profileMenu: <Button variant='outline'>로그아웃</Button>,
+    profileMenu: (
+      <SidebarMenuItem>
+        <SidebarMenuButton tooltip='로그아웃'>
+          <LogOut />
+          <span>로그아웃</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    ),
   },
   argTypes: {
     children: { control: false },
@@ -72,6 +121,7 @@ export const Admin: Story = {
       email: 'admin@example.com',
       role: 'ADMIN',
     },
+    currentPath: '/admin',
     navigation: adminNavigation,
     portalLink: {
       href: '#learner-portal',

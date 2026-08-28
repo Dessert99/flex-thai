@@ -13,6 +13,21 @@ class TestResizeObserver implements ResizeObserver {
 
 globalThis.ResizeObserver ??= TestResizeObserver;
 
+globalThis.matchMedia ??= (query: string): MediaQueryList => {
+  const maxWidth = /max-width:\s*(\d+)px/.exec(query)?.[1];
+  return {
+    matches:
+      maxWidth === undefined || window.innerWidth <= Number.parseInt(maxWidth),
+    media: query,
+    onchange: null,
+    addEventListener() {},
+    removeEventListener() {},
+    addListener() {},
+    removeListener() {},
+    dispatchEvent: () => false,
+  };
+};
+
 beforeAll(() => {
   server.listen({ onUnhandledRequest: 'error' });
 });

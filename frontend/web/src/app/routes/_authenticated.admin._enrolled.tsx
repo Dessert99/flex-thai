@@ -1,5 +1,9 @@
 /** TOTP 등록 관리자 전용 pathless 접근 경계와 역할 shell을 정의한다 */
-import { createFileRoute, Outlet } from '@tanstack/react-router';
+import {
+  createFileRoute,
+  Outlet,
+  useRouterState,
+} from '@tanstack/react-router';
 import { LogoutButton } from '@/features/logout';
 import { AppShell } from '@/shared/ui/app-shell';
 import { adminNavigation } from '../routing/adminNavigation';
@@ -15,15 +19,19 @@ export const Route = createFileRoute('/_authenticated/admin/_enrolled')({
 
 function AdminPortalRoute() {
   const { session } = Route.useRouteContext();
+  const currentPath = useRouterState({
+    select: (state) => state.location.pathname,
+  });
   return (
     <AppShell
+      currentPath={currentPath}
       identity={{
         email: session.user.email,
         role: session.user.role,
       }}
       navigation={adminNavigation}
       portalLink={{ href: '/learn', label: '학습자 포털' }}
-      profileMenu={<LogoutButton />}
+      profileMenu={<LogoutButton appearance='sidebar' />}
     >
       <Outlet />
     </AppShell>

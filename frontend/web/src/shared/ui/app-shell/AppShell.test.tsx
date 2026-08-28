@@ -1,26 +1,76 @@
-/** AppShell의 landmark와 도메인 중립 내비게이션 경계를 검증한다 */
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+/** AppShell의 landmark와 shadcn Sidebar 내비게이션 경계를 검증한다 */
+import { fireEvent, render, screen } from '@testing-library/react';
+import { House, Search } from 'lucide-react';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { AppShell } from './AppShell';
 
 const navigation = [
-  { href: '/dashboard', label: '대시보드' },
-  { href: '/study', label: '학습' },
+  { group: '메뉴', href: '/dashboard', icon: House, label: '대시보드' },
+  { group: '메뉴', href: '/study', icon: Search, label: '학습' },
 ];
 
+beforeEach(() => {
+  setViewportWidth(1280);
+});
+
 describe('AppShell', () => {
-  it('모바일에서 내비게이션 이름과 본문 landmark를 제공한다', () => {
-    render(<AppShell navigation={navigation}>본문</AppShell>);
+  it('주요 메뉴와 단일 main landmark를 제공한다', () => {
+    render(
+      <AppShell
+        currentPath='/dashboard'
+        navigation={navigation}
+      >
+        본문
+      </AppShell>,
+    );
 
     expect(
       screen.getByRole('navigation', { name: '주요 메뉴' }),
     ).toBeInTheDocument();
+    expect(screen.getAllByRole('main')).toHaveLength(1);
     expect(screen.getByRole('main')).toHaveTextContent('본문');
+  });
+
+  it('가장 구체적인 현재 경로를 활성 메뉴로 표시한다', () => {
+    render(
+      <AppShell
+        currentPath='/study/session-1'
+        navigation={navigation}
+      >
+        본문
+      </AppShell>,
+    );
+
+    expect(screen.getByRole('link', { name: '학습' })).toHaveAttribute(
+      'data-active',
+      'true',
+    );
+    expect(screen.getByRole('link', { name: '대시보드' })).toHaveAttribute(
+      'data-active',
+      'false',
+    );
+  });
+
+  it('트리거로 데스크톱 Sidebar를 아이콘 형태로 접는다', () => {
+    render(
+      <AppShell
+        currentPath='/dashboard'
+        navigation={navigation}
+      >
+        본문
+      </AppShell>,
+    );
+
+    expect(desktopSidebar()).toHaveAttribute('data-state', 'expanded');
+    fireEvent.click(sidebarTrigger());
+    expect(desktopSidebar()).toHaveAttribute('data-state', 'collapsed');
+    expect(desktopSidebar()).toHaveAttribute('data-collapsible', 'icon');
   });
 
   it('내비게이션 링크와 선택적인 프로필 메뉴를 노출한다', () => {
     render(
       <AppShell
+        currentPath='/study'
         navigation={navigation}
         profileMenu={<button type='button'>프로필</button>}
       >
@@ -34,10 +84,13 @@ describe('AppShell', () => {
     );
     expect(screen.getByRole('button', { name: '프로필' })).toBeInTheDocument();
   });
+});
 
-  it('관리자 email·role과 학습자 portal link를 함께 표시한다', () => {
+describe('AppShell 계정 영역', () => {
+  it('관리자 계정과 학습자 portal link를 Sidebar Footer에 표시한다', () => {
     render(
       <AppShell
+        currentPath='/dashboard'
         identity={{ email: 'admin@example.com', role: 'ADMIN' }}
         navigation={navigation}
         portalLink={{ href: '/learn', label: '학습자 포털' }}
@@ -47,16 +100,17 @@ describe('AppShell', () => {
     );
 
     expect(screen.getByText('admin@example.com')).toBeVisible();
-    expect(screen.getByText('ADMIN')).toBeVisible();
+    expect(screen.getByText('관리자')).toBeVisible();
     expect(screen.getByRole('link', { name: '학습자 포털' })).toHaveAttribute(
       'href',
       '/learn',
     );
   });
 
-  it('학습자 email·role을 표시하고 관리자 portal link는 만들지 않는다', () => {
+  it('학습자 계정을 표시하고 관리자 portal link는 만들지 않는다', () => {
     render(
       <AppShell
+        currentPath='/dashboard'
         identity={{ email: 'learner@example.com', role: 'LEARNER' }}
         navigation={navigation}
       >
@@ -65,32 +119,28 @@ describe('AppShell', () => {
     );
 
     expect(screen.getByText('learner@example.com')).toBeVisible();
-    expect(screen.getByText('LEARNER')).toBeVisible();
+    expect(screen.getByText('학습자')).toBeVisible();
     expect(
       screen.queryByRole('link', { name: '관리자 포털' }),
     ).not.toBeInTheDocument();
   });
-
-  it.each([360, 768, 1280])(
-    '%ipx viewport에서 단일 main과 반응형 navigation 계약을 유지한다',
-    (width) => {
-      setViewportWidth(width);
-      render(<AppShell navigation={navigation}>반응형 본문</AppShell>);
-
-      const navigationLandmark = screen.getByRole('navigation', {
-        name: '주요 메뉴',
-      });
-      const main = screen.getByRole('main');
-
-      expect(screen.getAllByRole('main')).toHaveLength(1);
-      expect(navigationLandmark.querySelector('ul')).toHaveClass(
-        'overflow-auto',
-        'md:flex-col',
-      );
-      expect(main.parentElement).toHaveClass('md:grid-cols-4');
-    },
-  );
 });
+
+function desktopSidebar(): HTMLElement {
+  const sidebar = document.querySelector<HTMLElement>(
+    '[data-slot="sidebar"][data-state]',
+  );
+  if (!sidebar) throw new Error('데스크톱 Sidebar가 필요합니다.');
+  return sidebar;
+}
+
+function sidebarTrigger(): HTMLElement {
+  const trigger = screen
+    .getAllByRole('button', { name: '사이드바 열기 또는 접기' })
+    .at(0);
+  if (!trigger) throw new Error('Sidebar trigger가 필요합니다.');
+  return trigger;
+}
 
 function setViewportWidth(width: number): void {
   Object.defineProperty(window, 'innerWidth', {

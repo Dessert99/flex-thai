@@ -7,7 +7,14 @@ import { learnerNavigation } from './learnerNavigation';
 
 describe('역할별 내비게이션', () => {
   it('학습자 전용 주요 메뉴와 main landmark를 제공한다', () => {
-    render(<AppShell navigation={learnerNavigation}>학습자 본문</AppShell>);
+    render(
+      <AppShell
+        currentPath='/learn'
+        navigation={learnerNavigation}
+      >
+        학습자 본문
+      </AppShell>,
+    );
 
     expect(
       screen.getByRole('navigation', { name: '주요 메뉴' }),
@@ -38,7 +45,14 @@ describe('역할별 내비게이션', () => {
   });
 
   it('관리자 전용 주요 메뉴와 main landmark를 제공한다', () => {
-    render(<AppShell navigation={adminNavigation}>관리자 본문</AppShell>);
+    render(
+      <AppShell
+        currentPath='/admin'
+        navigation={adminNavigation}
+      >
+        관리자 본문
+      </AppShell>,
+    );
 
     expect(screen.getByRole('main')).toHaveTextContent('관리자 본문');
     expect(screen.getByRole('link', { name: '관리 홈' })).toHaveAttribute(
