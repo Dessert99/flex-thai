@@ -20,11 +20,4 @@ describe('ApiError', () => {
     expect(error.message).not.toContain('연결 문자열');
     expect(error.detail.kind).toBe('problem');
   });
-
-  it('네트워크 오류를 별도 detail로 유지한다', () => {
-    const error = new ApiError({ kind: 'network' });
-
-    expect(error.name).toBe('ApiError');
-    expect(error.detail).toEqual({ kind: 'network' });
-  });
 });

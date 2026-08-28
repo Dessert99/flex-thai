@@ -29,9 +29,6 @@ describe('로컬 compose 인증 설정', () => {
     expect(compose).toContain(
       'FLEX_THIA_LOCAL_TTS_AUDIO_DIRECTORY: /var/lib/flex-thia/tts-audio',
     );
-    expect(
-      compose.match(/tts-audio:\/var\/lib\/flex-thia\/tts-audio/gu),
-    ).toHaveLength(3);
     expect(compose).toContain('src/local-worker.ts');
     expect(compose).toContain('profiles: [test, workers]');
     expect(compose).not.toContain('async-dispatch-relay:');

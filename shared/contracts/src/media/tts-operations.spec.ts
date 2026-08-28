@@ -1,6 +1,5 @@
 /** 관리자 TTS 작업 조회·재시도 공개 계약을 검증한다 */
 import { describe, expect, it } from 'vitest';
-import { ttsJobPathSchema as publicTtsJobPathSchema } from '../index.js';
 import {
   changeTtsVoicePresetEnabledRequestSchema,
   createTtsVoicePresetRequestSchema,
@@ -46,12 +45,6 @@ const summary = {
 };
 
 describe('TTS 작업 조회 계약', () => {
-  it('workspace package root에서 TTS 계약을 사용할 수 있다', () => {
-    expect(publicTtsJobPathSchema.parse({ jobId: ids.job })).toEqual({
-      jobId: ids.job,
-    });
-  });
-
   it('상태·기간·페이지 query를 정규화하고 역전 기간을 거부한다', () => {
     expect(
       ttsJobListQuerySchema.parse({

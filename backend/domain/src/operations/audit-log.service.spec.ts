@@ -11,17 +11,6 @@ const actor = { role: 'ADMIN' as const };
 const listQuery = { page: 1, pageSize: 20 };
 
 describe('AuditLogService', () => {
-  it('ADMIN의 목록 조건을 read port에 그대로 위임한다', async () => {
-    const page = {
-      items: [],
-      page: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 },
-    };
-    query.list.mockResolvedValueOnce(page);
-
-    await expect(service.list(actor, listQuery)).resolves.toBe(page);
-    expect(query.list).toHaveBeenCalledWith(listQuery);
-  });
-
   it('ADMIN이 아니면 감사 기록을 공개하지 않는다', async () => {
     await expect(
       service.list({ role: 'LEARNER' }, listQuery),

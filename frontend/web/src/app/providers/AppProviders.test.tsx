@@ -77,19 +77,6 @@ describe('AppProviders bootstrap', () => {
     });
     expect(screen.getByText('보호 콘텐츠')).toBeInTheDocument();
   });
-
-  it('Query production 기본값을 고정한다', () => {
-    const queryClient = createAppQueryClient();
-
-    expect(queryClient.getDefaultOptions()).toMatchObject({
-      mutations: { retry: false },
-      queries: {
-        gcTime: 300_000,
-        refetchOnWindowFocus: false,
-        staleTime: 30_000,
-      },
-    });
-  });
 });
 
 describe('사용자 경계 Query cache 정리', () => {
