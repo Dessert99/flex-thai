@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "bootstrap-admin": "tsx src/commands/bootstrap-admin.ts",
-    "dev": "tsx watch src/main.ts",
+    "dev": "nest start --watch --exec tsx",
     "swagger": "tsx src/swagger.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --root ../.. backend/api/src",

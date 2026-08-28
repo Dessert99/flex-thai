@@ -4,8 +4,18 @@
 FROM node:22-alpine AS workspace
 WORKDIR /workspace
 RUN corepack enable
-COPY . .
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY backend/api/package.json backend/api/package.json
+COPY backend/config/package.json backend/config/package.json
+COPY backend/database/package.json backend/database/package.json
+COPY backend/domain/package.json backend/domain/package.json
+COPY backend/providers/package.json backend/providers/package.json
+COPY backend/worker/package.json backend/worker/package.json
+COPY frontend/web/package.json frontend/web/package.json
+COPY infra/package.json infra/package.json
+COPY shared/contracts/package.json shared/contracts/package.json
 RUN pnpm install --frozen-lockfile
+COPY . .
 
 # tsc 출력의 Nest decorator metadata를 보존해 로컬 API DI를 안정화한다.
 FROM workspace AS api

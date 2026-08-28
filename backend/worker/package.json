@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "tsx watch src/local-worker.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --root ../.. backend/worker/src",
     "build": "tsc -p tsconfig.json",

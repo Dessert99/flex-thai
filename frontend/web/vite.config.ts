@@ -5,6 +5,9 @@ import react from '@vitejs/plugin-react';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import { defineConfig } from 'vite';
 
+const apiProxyTarget =
+  process.env.FLEX_THIA_API_PROXY_TARGET ?? 'http://localhost:3000';
+
 /** React·Tailwind plugin과 프론트엔드 source alias를 연결한다 */
 export default defineConfig({
   build: {
@@ -29,7 +32,7 @@ export default defineConfig({
     proxy: {
       '/api': {
         changeOrigin: true,
-        target: 'http://localhost:3000',
+        target: apiProxyTarget,
       },
     },
   },

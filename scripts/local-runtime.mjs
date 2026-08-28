@@ -8,8 +8,9 @@ import { resolve } from 'node:path';
 export const localRuntimeProjectName = 'flex-thia-local';
 
 /** 사람이 reset 영향과 각 runtime mode를 실행 전에 확인하는 도움말 */
-export const localRuntimeHelp = `Usage: pnpm local:<fresh|preserve|stop>
+export const localRuntimeHelp = `Usage: pnpm local:<dev|fresh|preserve|stop>
 
+dev       Start the hot-reload full stack with existing database data.
 fresh     Reset local database data, seed fixtures, then start the test profile.
 preserve  Start the test profile with existing database data.
 stop      Stop only the ${localRuntimeProjectName} project and preserve volumes.
@@ -42,6 +43,10 @@ export const runLocalRuntime = async (mode, run = runCommand) => {
     '--project-name',
     localRuntimeProjectName,
   ];
+  if (mode === 'dev') {
+    await run([...compose, '--profile', 'dev', 'up', '--build']);
+    return;
+  }
   if (mode === 'fresh') {
     await run([
       ...compose,

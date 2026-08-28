@@ -77,6 +77,41 @@ services:
       timeout: 2s
       retries: 30
 
+  api-dev:
+    profiles: [dev]
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+      target: workspace
+    command:
+      - pnpm
+      - --filter
+      - '@flex-thia/api'
+      - dev
+    environment:
+      <<: *app-environment
+      NODE_ENV: development
+      PORT: '3000'
+    ports:
+      - '${FLEX_THIA_API_HOST_PORT:-53000}:3000'
+    volumes:
+      - ./backend/api/src:/workspace/backend/api/src
+      - ./backend/config/src:/workspace/backend/config/src
+      - ./backend/database/src:/workspace/backend/database/src
+      - ./backend/domain/src:/workspace/backend/domain/src
+      - ./backend/providers/src:/workspace/backend/providers/src
+      - ./shared/contracts/src:/workspace/shared/contracts/src
+      - flex-thia-tts-audio:/var/lib/flex-thia/tts-audio
+      - flex-thia-uploads:/var/lib/flex-thia/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/ready >/dev/null']
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
   local-worker:
     profiles: [test, workers]
     build:
@@ -100,6 +135,32 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  local-worker-dev:
+    profiles: [dev]
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+      target: workspace
+    command:
+      - pnpm
+      - --filter
+      - '@flex-thia/worker'
+      - dev
+    environment:
+      <<: *app-environment
+    volumes:
+      - ./backend/config/src:/workspace/backend/config/src
+      - ./backend/database/src:/workspace/backend/database/src
+      - ./backend/domain/src:/workspace/backend/domain/src
+      - ./backend/providers/src:/workspace/backend/providers/src
+      - ./backend/worker/src:/workspace/backend/worker/src
+      - ./shared/contracts/src:/workspace/shared/contracts/src
+      - flex-thia-tts-audio:/var/lib/flex-thia/tts-audio
+      - flex-thia-uploads:/var/lib/flex-thia/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   web:
     profiles: [test]
     build:
@@ -110,6 +171,30 @@ services:
       - '${FLEX_THIA_WEB_HOST_PORT:-5173}:80'
     depends_on:
       api:
+        condition: service_healthy
+
+  web-dev:
+    profiles: [dev]
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+      target: workspace
+    command:
+      - pnpm
+      - --filter
+      - '@flex-thia/web'
+      - dev
+      - --host
+      - 0.0.0.0
+    environment:
+      FLEX_THIA_API_PROXY_TARGET: http://api-dev:3000
+    ports:
+      - '${FLEX_THIA_WEB_HOST_PORT:-5173}:5173'
+    volumes:
+      - ./frontend/web/src:/workspace/frontend/web/src
+      - ./shared/contracts/src:/workspace/shared/contracts/src
+    depends_on:
+      api-dev:
         condition: service_healthy
 
 volumes:

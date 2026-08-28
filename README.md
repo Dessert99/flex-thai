@@ -4,6 +4,18 @@ FLEX THIA를 외부 유료 AI·OCR·TTS provider 없이 로컬에서 수동 확�
 
 ## 시작과 종료
 
+개발 중에는 Web HMR과 API·worker 자동 재시작을 사용하는 dev profile을 실행합니다. PostgreSQL data는 유지됩니다.
+
+```bash
+pnpm local:dev
+```
+
+React와 backend workspace의 `src` 변경은 실행 중인 컨테이너에 바로 반영됩니다. 의존성이나 Docker 설정을 바꾼 경우에는 명령을 다시 실행해 image를 갱신합니다.
+
+아직 로컬 database를 만든 적이 없다면 아래 `pnpm local:fresh`를 한 번 실행해 초기 데이터를 준비한 뒤 `pnpm local:dev`를 사용합니다.
+
+배포와 유사한 build 결과를 처음부터 확인하려면 다음 명령을 사용합니다.
+
 ```bash
 pnpm local:fresh
 ```

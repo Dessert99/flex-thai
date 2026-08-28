@@ -21,6 +21,26 @@ const createRunner = () => {
 };
 
 describe('local runtime 명령', () => {
+  it('dev는 기존 데이터를 유지하며 핫 리로드 프로필을 시작한다', async () => {
+    const { recorded, run } = createRunner();
+
+    await runLocalRuntime('dev', run);
+
+    expect(recorded).toEqual([
+      [
+        'docker',
+        'compose',
+        '--project-name',
+        'flex-thia-local',
+        '--profile',
+        'dev',
+        'up',
+        '--build',
+      ],
+    ]);
+    expect(recorded.flat()).not.toContain('db-setup');
+  });
+
   it('fresh는 schema reset을 완료한 뒤 전체 test profile을 시작한다', async () => {
     const { recorded, run } = createRunner();
 
@@ -89,11 +109,57 @@ describe('local runtime 명령', () => {
     });
 
     expect(result.status).toBe(0);
+    expect(result.stdout).toContain('dev');
     expect(result.stdout).toContain('fresh');
     expect(result.stdout).toContain('preserve');
     expect(result.stdout).toContain('stop');
     expect(result.stdout).toContain('Reset local database data');
     expect(result.stdout).toContain('flex-thia-local');
+  });
+
+  it('dev 프로필은 소스 마운트와 감시 서버로 풀스택을 실행한다', () => {
+    const result = spawnSync(
+      'docker',
+      ['compose', '--profile', 'dev', 'config', '--format', 'json'],
+      {
+        cwd: repositoryRoot,
+        encoding: 'utf8',
+      },
+    );
+
+    expect(result.status).toBe(0);
+    const compose = JSON.parse(result.stdout);
+
+    expect(compose.services['api-dev'].command).toEqual([
+      'pnpm',
+      '--filter',
+      '@flex-thia/api',
+      'dev',
+    ]);
+    expect(compose.services['local-worker-dev'].command).toEqual([
+      'pnpm',
+      '--filter',
+      '@flex-thia/worker',
+      'dev',
+    ]);
+    expect(compose.services['web-dev'].command).toEqual([
+      'pnpm',
+      '--filter',
+      '@flex-thia/web',
+      'dev',
+      '--host',
+      '0.0.0.0',
+    ]);
+    expect(compose.services['web-dev'].environment).toMatchObject({
+      FLEX_THIA_API_PROXY_TARGET: 'http://api-dev:3000',
+    });
+    expect(compose.services['web-dev'].volumes).toContainEqual(
+      expect.objectContaining({
+        source: `${repositoryRoot}frontend/web/src`,
+        target: '/workspace/frontend/web/src',
+        type: 'bind',
+      }),
+    );
   });
 
   it('custom web origin은 CORS와 이메일 확인 링크에 함께 반영된다', () => {
