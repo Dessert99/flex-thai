@@ -9,7 +9,8 @@ const typescriptFiles = ['**/*.{ts,tsx}'];
 const frontendFiles = ['frontend/web/src/**/*.{ts,tsx}'];
 const generatedFrontendFiles = [
   'frontend/web/src/routeTree.gen.ts',
-  'frontend/web/src/shared/ui/*.{ts,tsx}',
+  'frontend/web/src/shared/ui/*.ts',
+  'frontend/web/src/shared/ui/!(*.stories).tsx',
 ];
 
 /** 타입 정보를 사용하는 저장소 공통 ESLint 설정 */
@@ -20,6 +21,7 @@ export default tseslint.config(
       '.worktrees/**',
       '**/dist/**',
       '**/coverage/**',
+      '**/storybook-static/**',
       '**/node_modules/**',
       '**/cdk.out/**',
       'backend/database/drizzle/**',
@@ -101,6 +103,18 @@ export default tseslint.config(
         },
       ],
       'no-useless-catch': 'error',
+    },
+  },
+  {
+    files: ['frontend/web/src/**/*.stories.tsx'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          message: 'enum 대신 const object와 union type을 사용하세요.',
+          selector: 'TSEnumDeclaration',
+        },
+      ],
     },
   },
 );

@@ -8,6 +8,8 @@
   "scripts": {
     "swagger": "pnpm --filter @flex-thia/api run swagger",
     "web:dev": "pnpm --filter @flex-thia/web dev",
+    "storybook": "pnpm --filter @flex-thia/web storybook",
+    "storybook:build": "pnpm --filter @flex-thia/web build-storybook",
     "local:dev": "node scripts/local-runtime.mjs dev",
     "local:fresh": "node scripts/local-runtime.mjs fresh",
     "local:preserve": "node scripts/local-runtime.mjs preserve",
@@ -26,7 +28,7 @@
     "infra:synth": "pnpm --filter @flex-thia/infra synth",
     "infra:diff": "pnpm --filter @flex-thia/infra exec cdk diff",
     "infra:diff:prod": "pnpm --filter @flex-thia/infra diff:prod",
-    "check": "pnpm structure:check && pnpm format:check && pnpm architecture:check && pnpm lint && pnpm typecheck && pnpm test && pnpm coverage:web && pnpm build"
+    "check": "pnpm structure:check && pnpm format:check && pnpm architecture:check && pnpm lint && pnpm typecheck && pnpm test && pnpm coverage:web && pnpm storybook:build && pnpm build"
   },
   "devDependencies": {
     "@typescript/native": "npm:typescript@7.0.2",
