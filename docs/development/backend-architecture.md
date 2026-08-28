@@ -304,9 +304,6 @@ backend/worker ────┬──> backend/domain
 
 ## 8. 코드 품질 규칙
 
-- 모든 새 코드와 변경 코드는
-  `conventions/comment-convention.md`의 파일 헤더, export JSDoc과 내부 주석
-  규칙을 준수한다.
 - 파일과 export 이름은 소유 기능과 책임이 드러나게 작성한다.
 - 하나의 유스케이스는 한 가지 사용자 행동만 수행한다.
 - Controller와 worker handler는 얇게 유지한다.
@@ -350,8 +347,6 @@ backend/worker ────┬──> backend/domain
 ## 10. 문서 우선순위
 
 - 이 문서: 새 백엔드 코드의 목표 구조와 배치 규칙
-- `docs/development/project-structure.md`: 현재 저장소를 이해하기 위한
-  설명
 - `shared/contracts`: 현재 공개 API의 요청·응답 계약
 - 현재 코드와 테스트: 실제 구현 여부
 

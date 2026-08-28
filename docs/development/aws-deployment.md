@@ -169,12 +169,10 @@ https://www.<ROOT_DOMAIN>
 열려야 한다. browser network에서 API 요청이
 `https://api.<ROOT_DOMAIN>/api/v1`로 향하는지 함께 확인한다.
 
-### 4. SES와 SNS 확인
+### 4. SES 확인
 
 - SES domain identity와 DKIM이 `Verified`인지 확인한다.
 - SES sandbox 상태라면 production access를 신청한다.
-- SNS sandbox에 자기 전화번호를 등록하고 검증 문자를 테스트한다.
-- 실제 한국 SMS 운영 조건과 지출 한도를 확인한다.
 
 ### 5. API와 DB 확인
 
@@ -295,7 +293,6 @@ commit을 새로 배포한다.
 - [ ] alarm SNS 구독 이메일을 확인했다.
 - [ ] Budget 알림 수신 주소를 확인했다.
 - [ ] SES identity와 DKIM 상태가 `Verified`다.
-- [ ] SMS sandbox 또는 운영 승인을 확인했다.
 - [ ] `https://www.<ROOT_DOMAIN>`이 HTTPS로 열린다.
 - [ ] `https://<ROOT_DOMAIN>`이 같은 path·query의 `www` 주소로 이동한다.
 - [ ] `https://api.<ROOT_DOMAIN>/health`와 재시도 후 `/ready`가 정상이다.

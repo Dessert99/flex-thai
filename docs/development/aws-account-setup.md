@@ -15,7 +15,7 @@ CDK가 남의 계정에 마음대로 들어갈 수는 없으므로 아래 네 �
 | AWS 계정과 로그인 수단 | 결제와 계정 소유권이 걸려 있다. |
 | 사용할 도메인 | 도메인의 실제 소유자만 DNS를 위임할 수 있다. |
 | GitHub의 배포 승인과 OIDC role | 어떤 저장소에 AWS 권한을 줄지 계정 소유자가 결정해야 한다. |
-| SMS·이메일 운영 승인 | AWS가 스팸과 오용 방지를 위해 사용 목적을 심사한다. |
+| 이메일 운영 승인 | AWS가 스팸과 오용 방지를 위해 사용 목적을 심사한다. |
 
 AWS의 access key를 `.env`에 넣는 방식은 사용하지 않는다. 사람은
 IAM Identity Center 등의 임시 자격 증명으로 작업하고, GitHub Actions는
@@ -100,7 +100,7 @@ AWS_PROFILE=flex-thia-admin aws sts get-caller-identity
 - `www.<ROOT_DOMAIN>`: CloudFront가 제공하는 정식 웹 주소
 - `<ROOT_DOMAIN>`: 정식 `www` 주소로 이동시키는 보조 주소
 - `api.<ROOT_DOMAIN>`: API Gateway가 제공하는 API 주소
-- `no-reply@<ROOT_DOMAIN>`: 가입·비밀번호 재설정 인증 코드 발신 주소
+- `no-reply@<ROOT_DOMAIN>`: passwordless 로그인 코드·링크 발신 주소
 
 AWS Route 53의 public hosted zone은 이 도메인의 DNS 주소록이다. 이미
 hosted zone이 있다면 새로 만들지 않고 해당 `HOSTED_ZONE_ID`를 사용한다.
@@ -116,7 +116,7 @@ hosted zone이 있다면 새로 만들지 않고 해당 `HOSTED_ZONE_ID`를 사�
 2. 도메인 등록 업체의 NS가 hosted zone의 NS와 같은가
 3. 같은 도메인의 public hosted zone이 중복으로 존재하지 않는가
 
-## 4. 이메일과 SMS 운영 조건 확인
+## 4. 이메일 운영 조건 확인
 
 ### SES 이메일
 
@@ -136,24 +136,6 @@ identity와 DKIM DNS 레코드를 만든다. 따라서 SES identity를 콘솔에
 3. 사용 목적, 예상 발송량, 반송·수신 거부 처리 방식을 적어 production
    access를 신청한다.
 4. 승인 전 테스트는 검증한 수신 주소로만 한다.
-
-### SNS SMS
-
-관리자 전화번호 검증과 step-up OTP는 SMS를 사용한다. 인프라는 Cognito가
-전화번호 검증 문자를 보낼 전용 IAM role과 API Lambda의 SNS 발송 권한을
-만든다.
-
-새 계정은 SMS sandbox이므로 검증한 전화번호로만 보낼 수 있다. 한국
-번호는 `+8210...` 형태의 E.164 형식을 사용한다. 실제 운영 전에 서울
-리전에서 다음을 확인한다.
-
-1. sandbox 테스트용 전화번호를 등록하고 검증한다.
-2. 월 SMS 지출 한도를 낮게 설정한다.
-3. 한국 발송에 필요한 발신자·회사 등록 조건을 AWS Support와 확인한다.
-4. 운영 전환 승인을 받은 뒤 자기 번호로 수신 테스트를 한다.
-
-SMS 가능 여부는 국가와 통신사 규정에 따라 바뀔 수 있다. 코드 배포가
-성공했다는 사실과 실제 문자가 도착한다는 사실은 별도로 확인해야 한다.
 
 ## 5. CloudFront media 키 쌍 준비
 
@@ -342,7 +324,7 @@ workflow는 값이 비어 있거나 account ID 형식이 잘못되면 AWS 자격
 - [ ] GitHub OIDC provider와 정확한 subject의 deploy role을 만들었다.
 - [ ] GitHub `production` environment에 reviewer와 main branch 제한을 걸었다.
 - [ ] production 변수 열세 개와 secret 하나를 등록했다.
-- [ ] SES와 SNS의 sandbox·운영 승인 절차를 이해했다.
+- [ ] SES sandbox와 production access 절차를 이해했다.
 
 여기까지가 “계정과 키 연결 직전” 준비다. 다음 단계에서만 GitHub
 `deploy-production` workflow를 수동 실행한다.
@@ -354,5 +336,4 @@ workflow는 값이 비어 있거나 account ID 형식이 잘못되면 AWS 자격
 - [GitHub Actions에서 AWS OIDC 구성](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws)
 - [GitHub OIDC subject 형식](https://docs.github.com/en/actions/reference/security/oidc)
 - [SES production access](https://docs.aws.amazon.com/ses/latest/dg/request-production-access.html)
-- [SNS SMS sandbox](https://docs.aws.amazon.com/sns/latest/dg/sns-sms-sandbox.html)
 - [Route 53 DNS 위임](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/dns-configuring-new-domain.html)

@@ -4,9 +4,7 @@
 방향을 정의하는 **단일 기준 문서**다. `AGENTS.md`, `CLAUDE.md` 또는 다른
 문서에 구조 규칙을 복제하지 않고 이 문서를 참조한다.
 
-현재 폴더의 설명은
-[프로젝트 폴더 구조](../docs/development/project-structure.md), 백엔드
-기능 모듈의 세부 경계는
+백엔드 기능 모듈의 세부 경계는
 [백엔드 목표 아키텍처](../docs/development/backend-architecture.md)를
 함께 참고한다. 내용이 충돌하면 코드 위치와 의존성 방향은 이 문서를
 우선한다.
@@ -23,7 +21,7 @@ flex-thia/
 │   ├── providers/              # AWS·암호화·local fake adapter
 │   └── config/                 # 환경 변수 schema와 검증
 ├── frontend/
-│   └── web/                    # Vite React 앱을 만들 때 생성
+│   └── web/                    # Vite React 애플리케이션
 ├── shared/
 │   └── contracts/              # 프론트·백엔드가 공유하는 공개 API 계약
 ├── infra/                      # AWS CDK
@@ -35,8 +33,7 @@ flex-thia/
   `frontend`, 양쪽의 공유 코드는 `shared`에 둔다.
 - 과거 최상위 분류인 `apps`, `packages`는 다시 만들지 않는다.
 - 실제 기능 없이 미래를 예상한 빈 workspace나 하위 폴더를 만들지
-  않는다. 따라서 프론트엔드 구현 전에는 빈 `frontend/web` scaffold도
-  만들지 않는다.
+  않는다.
 - 생성 결과인 `dist`, `cdk.out`, `node_modules`에는 소스 코드를 두지
   않는다.
 
@@ -120,7 +117,7 @@ infra ─────────────────> backend 실행 산출
 
 ## 프론트엔드 내부 구조
 
-`frontend/web`을 만들 때는 Vite + React 앱으로 구성하고
+`frontend/web`은 Vite + React 앱으로 구성하고
 `app -> pages -> features -> shared` 방향으로 의존한다. 여기의
 `frontend/web/src/shared`는 프론트엔드 내부 공용 코드이며, 최상위
 `shared/contracts`와 역할이 다르다.
@@ -161,6 +158,15 @@ frontend/web/src/
 - 프론트엔드 테스트는 대상 옆에 `*.test.ts` 또는 `*.test.tsx`로 두고,
   백엔드 테스트의 `*.spec.ts` 규칙은 유지한다.
 
-주석 규칙은 [comment-convention.md](comment-convention.md), 프론트엔드
-컴포넌트 규칙은
-[component-convention.md](frontend/component-convention.md)를 따른다.
+## 프론트엔드 UI 규칙
+
+- 새 UI primitive는 shadcn 레지스트리를 먼저 확인하고, 생성물은 vendored
+  코드로 취급해 직접 수정하지 않는다. 프로젝트 확장은 상위 컴포넌트로
+  조합한다.
+- 화면에서는 동일 primitive를 직접 반복 구현하지 않고 `shared/ui`의
+  공개 컴포넌트를 사용한다.
+- 색상과 반경은 `frontend/web/src/app/styles/theme.css`의 semantic token을
+  참조하며 리터럴 색상을 추가하지 않는다.
+- 직접 작성한 컴포넌트 파일은 `PascalCase.tsx`, hook과 로직 파일은
+  `camelCase.ts`를 사용한다. 여러 파일을 공개하는 폴더에만 `index.ts`를
+  둔다.
