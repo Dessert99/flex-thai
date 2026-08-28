@@ -34,7 +34,7 @@ export function LoginTotpPageView({
   requestId,
 }: LoginTotpPageViewProps) {
   return (
-    <main className='grid min-h-screen place-items-center bg-surface p-page'>
+    <main className='grid min-h-screen place-items-center bg-background p-page'>
       <Card className='w-full max-w-form border-default bg-surface shadow-overlay'>
         <CardHeader>
           <h1 className='text-title text-primary'>2단계 인증</h1>

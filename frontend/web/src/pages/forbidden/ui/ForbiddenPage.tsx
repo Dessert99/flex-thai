@@ -10,7 +10,7 @@ export interface ForbiddenPageProps {
 /** 현재 인증 세션을 유지한 채 허용된 홈으로 돌아갈 수 있게 한다 */
 export function ForbiddenPage({ onNavigateHome }: ForbiddenPageProps) {
   return (
-    <main className='grid min-h-screen place-items-center bg-surface p-page'>
+    <main className='grid min-h-screen place-items-center bg-background p-page'>
       <div className='w-full max-w-content'>
         <PageEmpty
           action={

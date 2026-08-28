@@ -63,11 +63,12 @@ export function AppShell({
   return (
     <SidebarProvider>
       <Sidebar collapsible='icon'>
-        <SidebarHeader>
+        <SidebarHeader className='border-b border-sidebar-border'>
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
+                className='[&>svg]:text-sidebar-primary'
                 size='lg'
                 tooltip='FLEX THIA'
               >
@@ -87,7 +88,7 @@ export function AppShell({
           />
         </SidebarContent>
 
-        <SidebarFooter>
+        <SidebarFooter className='border-t border-sidebar-border'>
           <SidebarMenu>
             {identity ? <IdentityItem identity={identity} /> : null}
             {portalLink ? <PortalItem portalLink={portalLink} /> : null}
@@ -98,7 +99,7 @@ export function AppShell({
       </Sidebar>
 
       <SidebarInset id='app-main'>
-        <header className='flex h-control shrink-0 items-center gap-cluster border-b border-default px-page'>
+        <header className='flex h-control shrink-0 items-center gap-cluster border-b border-default bg-surface/90 px-page backdrop-blur'>
           <SidebarTrigger aria-label='사이드바 열기 또는 접기' />
           <Separator
             className='mr-cluster h-icon'
@@ -134,6 +135,7 @@ function AppNavigation({
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
                     asChild
+                    className='data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground data-[active=true]:hover:bg-sidebar-primary/90'
                     isActive={item.href === activeHref}
                     tooltip={item.label}
                   >

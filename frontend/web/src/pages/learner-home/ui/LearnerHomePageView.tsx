@@ -1,8 +1,28 @@
 /** 학습자 홈에서 개인화 또는 최근 게시 추천과 이유를 표현한다 */
 import type { RecommendationResponse } from '@flex-thia/contracts';
+import {
+  BookOpenCheck,
+  CalendarDays,
+  ChevronRight,
+  Languages,
+  LibraryBig,
+  NotebookTabs,
+  Sparkles,
+  Target,
+  type LucideIcon,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
+import { Badge } from '@/shared/ui/badge';
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+} from '@/shared/ui/item';
 import { PageError, PageLoading } from '@/shared/ui/page-state';
+import { HomeCard, HomeLinkItem } from './LearnerHomeContent';
 
 interface LearnerHomePageViewProps {
   error: boolean;
@@ -39,12 +59,17 @@ export function LearnerHomePageView({
       className='flex flex-col gap-section'
     >
       <header className='space-y-cluster'>
-        <h1
-          className='text-title text-primary'
-          id='learner-home-title'
-        >
-          학습 홈
-        </h1>
+        <div className='flex flex-wrap items-center gap-cluster'>
+          <h1
+            className='text-heading text-primary'
+            id='learner-home-title'
+          >
+            학습 홈
+          </h1>
+          <Badge variant='secondary'>
+            {personalized ? '맞춤 추천' : '추천 준비 중'}
+          </Badge>
+        </div>
         {personalized ? (
           <p className='text-body text-subtle'>
             학습 기록을 바탕으로 지금 다시 보면 좋은 콘텐츠를 골랐어요.
@@ -62,16 +87,20 @@ export function LearnerHomePageView({
           </div>
         )}
       </header>
+
       <div className='grid gap-section lg:grid-cols-2'>
         <PublishedContentCard
           content={recommendation.publishedToday}
+          icon={CalendarDays}
           title='오늘 게시 콘텐츠'
         />
         <PublishedContentCard
           content={recommendation.newContent}
+          icon={Sparkles}
           title='NEW 콘텐츠'
         />
       </div>
+
       <div className='grid gap-section lg:grid-cols-2'>
         <RecommendedQuestions
           items={recommendation.questions}
@@ -82,6 +111,7 @@ export function LearnerHomePageView({
           personalized={personalized}
         />
       </div>
+
       <QuickLinks />
     </section>
   );
@@ -89,79 +119,93 @@ export function LearnerHomePageView({
 
 function PublishedContentCard({
   content,
+  icon,
   title,
 }: {
   content: RecommendationResponse['publishedToday'];
+  icon: LucideIcon;
   title: string;
 }) {
   const empty =
     content.questions.length === 0 && content.vocabularies.length === 0;
+
   return (
-    <Card className='rounded-panel border-default bg-surface'>
-      <CardHeader>
-        <CardTitle>
-          <h2 className='text-title'>{title}</h2>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {empty ? (
-          <p className='text-body text-subtle'>표시할 콘텐츠가 없습니다.</p>
-        ) : (
-          <ul className='flex flex-col gap-cluster'>
-            {content.questions.map((question) => (
-              <li key={question.questionId}>
-                <a
-                  className='block rounded-control border border-default p-cluster text-body text-primary'
-                  href={`/questions/${question.questionId}`}
+    <HomeCard
+      icon={icon}
+      title={title}
+    >
+      {empty ? (
+        <p className='text-body text-subtle'>표시할 콘텐츠가 없습니다.</p>
+      ) : (
+        <ItemGroup className='gap-cluster'>
+          {content.questions.map((question) => (
+            <HomeLinkItem
+              href={`/questions/${question.questionId}`}
+              icon={BookOpenCheck}
+              key={question.questionId}
+              title={question.questionTypeDisplayName}
+            />
+          ))}
+          {content.vocabularies.map((vocabulary) => (
+            <HomeLinkItem
+              href={`/vocabularies/${vocabulary.id}`}
+              icon={Languages}
+              key={vocabulary.id}
+              title={
+                <span
+                  className='font-thai text-title'
+                  lang='th'
                 >
-                  {question.questionTypeDisplayName}
-                </a>
-              </li>
-            ))}
-            {content.vocabularies.map((vocabulary) => (
-              <li key={vocabulary.id}>
-                <a
-                  className='block rounded-control border border-default p-cluster text-primary'
-                  href={`/vocabularies/${vocabulary.id}`}
-                >
-                  <span
-                    className='font-thai text-title'
-                    lang='th'
-                  >
-                    {vocabulary.thai}
-                  </span>
-                </a>
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
+                  {vocabulary.thai}
+                </span>
+              }
+            />
+          ))}
+        </ItemGroup>
+      )}
+    </HomeCard>
   );
 }
 
 const quickLinks = [
-  { href: '/questions', label: '문제' },
-  { href: '/vocabularies', label: '공용 사전' },
-  { href: '/wordbooks', label: '내 단어장' },
-  { href: '/practice', label: '단어 연습' },
+  { href: '/questions', icon: BookOpenCheck, label: '문제' },
+  { href: '/vocabularies', icon: LibraryBig, label: '공용 사전' },
+  { href: '/wordbooks', icon: NotebookTabs, label: '내 단어장' },
+  { href: '/practice', icon: Target, label: '단어 연습' },
 ] as const;
 
 function QuickLinks() {
   return (
     <nav aria-label='학습 빠른 이동'>
-      <ul className='grid gap-cluster sm:grid-cols-2 lg:grid-cols-4'>
+      <ItemGroup className='grid gap-cluster sm:grid-cols-2 lg:grid-cols-4'>
         {quickLinks.map((link) => (
-          <li key={link.href}>
+          <Item
+            asChild
+            key={link.href}
+            variant='outline'
+          >
             <a
-              className='block rounded-control border border-default bg-surface p-cluster text-body text-primary'
+              className='bg-surface'
               href={link.href}
             >
-              {link.label}
+              <ItemMedia variant='icon'>
+                <link.icon aria-hidden='true' />
+              </ItemMedia>
+              <ItemContent>
+                <ItemTitle className='text-body text-primary'>
+                  {link.label}
+                </ItemTitle>
+              </ItemContent>
+              <ItemActions>
+                <ChevronRight
+                  aria-hidden='true'
+                  className='text-subtle'
+                />
+              </ItemActions>
             </a>
-          </li>
+          </Item>
         ))}
-      </ul>
+      </ItemGroup>
     </nav>
   );
 }
@@ -178,39 +222,28 @@ function RecommendedQuestions({
     content = <p className='text-body text-subtle'>표시할 문제가 없습니다.</p>;
   } else {
     content = (
-      <ul className='flex flex-col gap-cluster'>
+      <ItemGroup className='gap-cluster'>
         {items.map((question) => (
-          <li key={question.questionId}>
-            <a
-              className='block rounded-control border border-default p-cluster text-body text-primary'
-              href={`/questions/${question.questionId}`}
-            >
-              <span>{question.questionType.displayName}</span>
-              <span className='block text-caption text-subtle'>
-                {question.skill === 'READING' ? '읽기' : '듣기'} · 난이도{' '}
-                {question.difficulty}
-              </span>
-              <span className='mt-cluster block text-caption text-subtle'>
-                {question.reason}
-              </span>
-            </a>
-          </li>
+          <HomeLinkItem
+            description={`${question.skill === 'READING' ? '읽기' : '듣기'} · 난이도 ${question.difficulty}`}
+            href={`/questions/${question.questionId}`}
+            icon={BookOpenCheck}
+            key={question.questionId}
+            secondaryDescription={question.reason}
+            title={question.questionType.displayName}
+          />
         ))}
-      </ul>
+      </ItemGroup>
     );
   }
 
   return (
-    <Card className='rounded-panel border-default bg-surface'>
-      <CardHeader>
-        <CardTitle>
-          <h2 className='text-title'>
-            {personalized ? '추천 문제' : '최근 문제'}
-          </h2>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>{content}</CardContent>
-    </Card>
+    <HomeCard
+      icon={Target}
+      title={personalized ? '추천 문제' : '최근 문제'}
+    >
+      {content}
+    </HomeCard>
   );
 }
 
@@ -226,39 +259,33 @@ function RecommendedVocabularies({
     content = <p className='text-body text-subtle'>표시할 어휘가 없습니다.</p>;
   } else {
     content = (
-      <ul className='flex flex-col gap-cluster'>
+      <ItemGroup className='gap-cluster'>
         {items.map((vocabulary) => (
-          <li key={vocabulary.id}>
-            <a
-              className='block rounded-control border border-default p-cluster'
-              href={`/vocabularies/${vocabulary.id}`}
-            >
+          <HomeLinkItem
+            href={`/vocabularies/${vocabulary.id}`}
+            icon={Languages}
+            key={vocabulary.id}
+            secondaryDescription={vocabulary.reason}
+            title={
               <span
-                className='font-thai text-title text-primary'
+                className='font-thai text-title'
                 lang='th'
               >
                 {vocabulary.thai}
               </span>
-              <span className='mt-cluster block text-caption text-subtle'>
-                {vocabulary.reason}
-              </span>
-            </a>
-          </li>
+            }
+          />
         ))}
-      </ul>
+      </ItemGroup>
     );
   }
 
   return (
-    <Card className='rounded-panel border-default bg-surface'>
-      <CardHeader>
-        <CardTitle>
-          <h2 className='text-title'>
-            {personalized ? '추천 어휘' : '최근 어휘'}
-          </h2>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>{content}</CardContent>
-    </Card>
+    <HomeCard
+      icon={Languages}
+      title={personalized ? '추천 어휘' : '최근 어휘'}
+    >
+      {content}
+    </HomeCard>
   );
 }

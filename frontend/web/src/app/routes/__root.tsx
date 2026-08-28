@@ -48,7 +48,7 @@ export function RootRouteError({ error, reset }: RootRouteErrorProps) {
   }
 
   return (
-    <main className='grid min-h-screen place-items-center bg-surface p-page'>
+    <main className='grid min-h-screen place-items-center bg-background p-page'>
       <div className='w-full max-w-content'>
         <PageError
           message={userMessage.message}

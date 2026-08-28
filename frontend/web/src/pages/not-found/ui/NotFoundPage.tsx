@@ -10,7 +10,7 @@ export interface NotFoundPageProps {
 /** 잘못된 경로를 노출하지 않고 애플리케이션 홈 복귀를 안내한다 */
 export function NotFoundPage({ onNavigateHome }: NotFoundPageProps) {
   return (
-    <main className='grid min-h-screen place-items-center bg-surface p-page'>
+    <main className='grid min-h-screen place-items-center bg-background p-page'>
       <div className='w-full max-w-content'>
         <PageEmpty
           action={
