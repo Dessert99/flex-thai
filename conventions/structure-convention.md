@@ -4,11 +4,6 @@
 방향을 정의하는 **단일 기준 문서**다. `AGENTS.md`, `CLAUDE.md` 또는 다른
 문서에 구조 규칙을 복제하지 않고 이 문서를 참조한다.
 
-백엔드 기능 모듈의 세부 경계는
-[백엔드 목표 아키텍처](../docs/development/backend-architecture.md)를
-함께 참고한다. 내용이 충돌하면 코드 위치와 의존성 방향은 이 문서를
-우선한다.
-
 ## 최상위 구조
 
 ```text
@@ -71,8 +66,7 @@ flex-thia/
 | 실행법·설계·운영 설명 | `docs` |
 
 백엔드의 모든 workspace에서는 `identity`, `questions`, `learning`처럼 같은
-기능 이름을 사용한다. 기능별 세부 책임과 목표 모듈 지도는
-`docs/development/backend-architecture.md`를 따른다.
+기능 이름을 사용한다.
 
 ## 의존성 방향
 

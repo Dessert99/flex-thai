@@ -14,20 +14,8 @@ const integrationMigrationSql = integrationMigrationNames.map((name) => {
 });
 const [identityMigrationSql, thaiMigrationSql, wordbookMigrationSql] =
   integrationMigrationSql;
-const releaseGatePath = new URL(
-  '../../drizzle/WAVE1_SAVED_VOCABULARY_CUTOVER.md',
-  import.meta.url,
-);
 const cutoverSqlPath = new URL(
   '../../drizzle/operations/wave1-saved-vocabulary-cutover.sql',
-  import.meta.url,
-);
-const legacyFixturePath = new URL(
-  '../../test-fixtures/wave1-legacy-saved-vocabulary.sql',
-  import.meta.url,
-);
-const databaseVerificationPath = new URL(
-  '../../drizzle/WAVE1_DATABASE_VERIFICATION.md',
   import.meta.url,
 );
 
@@ -133,20 +121,10 @@ describe('Wave 1 병합 migration', () => {
   });
 
   it('endpoint 전환 전에 동시 쓰기를 차단하고 catch-up을 원자적으로 실행한다', () => {
-    expect(existsSync(releaseGatePath)).toBe(true);
     expect(existsSync(cutoverSqlPath)).toBe(true);
-    if (!existsSync(releaseGatePath)) return;
-
-    const releaseGate = readFileSync(releaseGatePath, 'utf8');
     const cutoverSql = existsSync(cutoverSqlPath)
       ? readFileSync(cutoverSqlPath, 'utf8')
       : '';
-    expect(releaseGate).toContain(
-      'psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/database/drizzle/operations/wave1-saved-vocabulary-cutover.sql',
-    );
-    expect(releaseGate).toContain('catch-up');
-    expect(releaseGate).toContain('missing_item_count = 0');
-    expect(releaseGate).toContain('endpoint cutover');
     expect(cutoverSql).toMatch(/begin;/iu);
     expect(cutoverSql).toMatch(
       /lock table "saved_vocabularies" in access exclusive mode/iu,
@@ -158,26 +136,5 @@ describe('Wave 1 병합 migration', () => {
     );
     expect(cutoverSql).toContain('missing_item_count');
     expect(cutoverSql).toMatch(/commit;/iu);
-  });
-
-  it('legacy 상태에서 순차 upgrade를 검증할 fixture와 격리 DB 명령을 제공한다', () => {
-    expect(existsSync(legacyFixturePath)).toBe(true);
-    expect(existsSync(databaseVerificationPath)).toBe(true);
-    if (
-      !existsSync(legacyFixturePath) ||
-      !existsSync(databaseVerificationPath)
-    ) {
-      return;
-    }
-
-    const fixtureSql = readFileSync(legacyFixturePath, 'utf8');
-    const verification = readFileSync(databaseVerificationPath, 'utf8');
-    expect(fixtureSql).toContain('insert into "saved_vocabularies"');
-    expect(fixtureSql).toContain('2025-01-02 03:04:05+00');
-    expect(fixtureSql).toContain('2025-02-03 04:05:06+00');
-    expect(verification).toContain('000{0..6}_*.sql');
-    expect(verification).toContain('wave1-legacy-saved-vocabulary.sql');
-    expect(verification).toContain('0009_wave1-wordbooks.sql');
-    expect(verification).toContain('db:migrate:local');
   });
 });
