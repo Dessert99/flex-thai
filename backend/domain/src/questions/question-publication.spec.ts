@@ -1,20 +1,16 @@
 /** 문제 게시의 원자적 상태 전이와 최신 콘텐츠 재검증을 검증한다 */
 import { describe, expect, it } from 'vitest';
+import {
+  QuestionPublicationError,
+  QuestionPublicationService,
+  type QuestionPublicationErrorCode,
+} from './question-publication.js';
 import type {
   QuestionPublicationRepository,
   QuestionPublicationTransaction,
   QuestionRecord,
   QuestionVersionRecord,
 } from './question-publication.repository.js';
-import {
-  QuestionPublicationError,
-  QuestionPublicationService,
-  type QuestionPublicationErrorCode,
-} from './question-publication.js';
-import {
-  ContentTtsReadinessError,
-  type ContentTtsReadinessTarget,
-} from '../media/tts-job.js';
 import type { QuestionVersionValidationCandidate } from './question-version.js';
 
 const occurredAt = new Date('2026-07-24T00:00:00.000Z');
@@ -51,7 +47,6 @@ const candidate = (): QuestionVersionValidationCandidate => ({
     {
       id: 'question-block',
       kind: 'QUESTION',
-      displayMode: 'TEXT',
       position: 0,
       sentences: [],
     },
@@ -69,13 +64,10 @@ const candidate = (): QuestionVersionValidationCandidate => ({
           translationKo: '정답',
           pronunciationKo: '꼬 커',
           toneMarks: '- -',
-          mediaAssetId: 'audio-1',
           tokens: [],
           expressions: [],
         },
-        mediaAsset: readyAudio('audio-1'),
         referencedVocabularies: [],
-        pronunciationMediaAssets: [],
       },
     },
     {
@@ -90,30 +82,13 @@ const candidate = (): QuestionVersionValidationCandidate => ({
           translationKo: '오답',
           pronunciationKo: '커 응어',
           toneMarks: '- -',
-          mediaAssetId: 'audio-2',
           tokens: [],
           expressions: [],
         },
-        mediaAsset: readyAudio('audio-2'),
         referencedVocabularies: [],
-        pronunciationMediaAssets: [],
       },
     },
   ],
-});
-
-const readyAudio = (id: string) => ({
-  id,
-  kind: 'AUDIO' as const,
-  storageKey: `audio/${id}`,
-  declaredMimeType: 'audio/mpeg',
-  declaredSizeBytes: 1,
-  declaredSha256: 'a'.repeat(64),
-  mimeType: 'audio/mpeg',
-  sizeBytes: 1,
-  sha256: 'a'.repeat(64),
-  status: 'READY' as const,
-  readyAt: occurredAt,
 });
 
 interface TransactionOverrides {
@@ -121,7 +96,6 @@ interface TransactionOverrides {
   version?: QuestionVersionRecord | null;
   versions?: Record<string, QuestionVersionRecord | null>;
   candidate?: QuestionVersionValidationCandidate | null;
-  ttsTargets?: ContentTtsReadinessTarget[];
   onRetireVersion?: (versionId: string, questionId: string) => void;
   onAudit?: (
     input: Parameters<QuestionPublicationTransaction['appendAuditLog']>[0],
@@ -132,23 +106,6 @@ const createTransaction = (
   calls: string[],
   overrides: TransactionOverrides = {},
 ): QuestionPublicationTransaction => ({
-  listRequiredTargets: () => {
-    calls.push('listRequiredTargets');
-    return Promise.resolve(
-      overrides.ttsTargets ?? [
-        {
-          kind: 'THAI_SENTENCE_VERSION',
-          targetId: 'sentence-1',
-          mediaStatus: 'READY',
-        },
-        {
-          kind: 'THAI_SENTENCE_VERSION',
-          targetId: 'sentence-2',
-          mediaStatus: 'READY',
-        },
-      ],
-    );
-  },
   loadQuestion: () => {
     calls.push('loadQuestion');
     return Promise.resolve(
@@ -285,7 +242,6 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
     expect(calls).toEqual([
       'loadQuestion',
       'loadVersion',
-      'listRequiredTargets',
       'loadValidationCandidate',
       'saveValidation',
       'loadVersion',
@@ -339,7 +295,6 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
     expect(calls).toEqual([
       'loadQuestion',
       'loadVersion',
-      'listRequiredTargets',
       'loadValidationCandidate',
       'saveValidation',
       'loadVersion',
@@ -361,45 +316,10 @@ describe('QuestionPublicationService 문제 게시 수명', () => {
     expect(calls).toEqual([
       'loadQuestion',
       'loadVersion',
-      'listRequiredTargets',
       'loadValidationCandidate',
       'saveValidation',
     ]);
   });
-
-  it.each(['MISSING', 'UPLOADING', 'FAILED'] as const)(
-    '%s 필수 음성은 CONTENT_TTS_NOT_READY로 게시를 닫는다',
-    async (mediaStatus) => {
-      const calls: string[] = [];
-      const service = createService(
-        createTransaction(calls, {
-          ttsTargets: [
-            {
-              kind: 'THAI_SENTENCE_VERSION',
-              targetId: 'ready-target',
-              mediaStatus: 'READY',
-            },
-            {
-              kind: 'VOCABULARY_PRONUNCIATION',
-              targetId: 'blocked-target',
-              mediaStatus,
-            },
-          ],
-        }),
-        calls,
-      );
-
-      await expect(service.publishVersion(publishCommand)).rejects.toEqual(
-        new ContentTtsReadinessError(['blocked-target']),
-      );
-      expect(calls).toEqual([
-        'loadQuestion',
-        'loadVersion',
-        'listRequiredTargets',
-      ]);
-      expect(calls).not.toContain('transactionCommitted');
-    },
-  );
 
   it('숨긴 문제의 초안 버전은 검증과 저장 없이 게시를 거절한다', async () => {
     const calls: string[] = [];

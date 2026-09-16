@@ -1,8 +1,7 @@
 /** 단어 연습 source 조회·snapshot 저장·멱등 답안 transaction port를 정의한다 */
 
 /** 단어 연습 출제 방식 */
-export type PracticeMode =
-  'THAI_TO_MEANING' | 'MEANING_TO_THAI' | 'AUDIO_TO_THAI' | 'AUDIO_TO_MEANING';
+export type PracticeMode = 'THAI_TO_MEANING' | 'MEANING_TO_THAI';
 
 /** 단어 연습 생성 입력 */
 export interface CreateVocabularyPracticeInput {
@@ -15,13 +14,10 @@ export interface CreateVocabularyPracticeInput {
   order: 'RANDOM' | 'SOURCE';
 }
 
-/** 응답 시 signed URL로 바꿀 발음 snapshot */
 export interface PracticePronunciationSnapshot {
   id: string;
   pronunciationKo: string;
   toneMarks: string;
-  mediaAssetId: string;
-  storageKey: string;
 }
 
 /** 콘텐츠 변경 뒤에도 학습 당시 표시를 보존하는 카드 snapshot */
@@ -53,7 +49,6 @@ export interface PracticeMeaningCandidate {
   card: PracticeCardSnapshot;
 }
 
-/** 소유권과 공개·음성 상태를 검증한 연습 source */
 export interface PracticeSourceRecord {
   label: string;
   candidates: PracticeMeaningCandidate[];
@@ -72,11 +67,8 @@ export interface MaterializedPracticeQuestion {
   position: number;
   vocabularyId: string;
   meaningId: string;
-  pronunciationId: string | null;
-  mediaAssetId: string | null;
   mode: PracticeMode;
-  prompt:
-    { type: 'TEXT'; text: string } | { type: 'AUDIO'; storageKey: string };
+  prompt: { type: 'TEXT'; text: string };
   options: MaterializedPracticeOption[];
   correctOptionId: string;
   card: PracticeCardSnapshot;

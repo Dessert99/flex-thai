@@ -40,7 +40,7 @@ flex-thia/
 | `backend/worker` | SQS·Step Functions 등 비동기 이벤트 진입점 |
 | `backend/domain` | 프레임워크 독립 모델·업무 규칙·use case·port |
 | `backend/database` | Drizzle schema·migration·repository·query |
-| `backend/providers` | Cognito·S3·AI·TTS·queue·암호화·local fake adapter |
+| `backend/providers` | Cognito·S3·AI·queue·암호화·local fake adapter |
 | `backend/config` | 환경 변수 읽기와 런타임 설정 검증 |
 | `frontend/web` | Vite React 애플리케이션 |
 | `shared/contracts` | 공개 API 요청·응답 Zod schema와 공유 TypeScript 타입 |

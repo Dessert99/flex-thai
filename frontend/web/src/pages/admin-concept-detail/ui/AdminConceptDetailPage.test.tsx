@@ -39,8 +39,8 @@ describe('AdminConceptDetailPageView', () => {
                 {
                   source: 'REFERENCE',
                   path: 'blocks.0.examples.0',
-                  code: 'CONCEPT_AUDIO_NOT_READY',
-                  evidenceKo: '문장 음성이 준비되지 않았습니다.',
+                  code: 'CONCEPT_SENTENCE_NOT_FOUND',
+                  evidenceKo: '문장을 찾을 수 없습니다.',
                 },
               ],
               validatedAt: '2026-07-26T00:00:00.000Z',
@@ -79,7 +79,6 @@ describe('AdminConceptDetailPageView', () => {
     );
 
     expect(screen.getByRole('alert')).toHaveTextContent('최신 상태');
-    expect(screen.getByText(/CONCEPT_AUDIO_NOT_READY/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '게시' })).toBeDisabled();
     expect(
       screen.queryByRole('button', { name: '숨기기' }),

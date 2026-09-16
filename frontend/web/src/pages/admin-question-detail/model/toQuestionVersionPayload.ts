@@ -19,7 +19,6 @@ const mapSentence = (
   translationKo: sentence.translationKo,
   pronunciationKo: sentence.pronunciationKo,
   toneMarks: sentence.toneMarks,
-  mediaAssetId: sentence.mediaAssetId,
   tokens: sentence.tokens.map((token) => ({
     surface: token.surface,
     startOffset: token.startOffset,
@@ -57,7 +56,6 @@ export function toQuestionVersionPayload(
     }
     blocks.push({
       kind: block.kind,
-      displayMode: block.displayMode,
       sentences,
     });
   }

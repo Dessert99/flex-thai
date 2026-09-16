@@ -1,7 +1,7 @@
 /** 단어 연습 세션·문항·답안 schema의 snapshot과 원자성 제약을 검증한다 */
-import { readFileSync } from 'node:fs';
 import { getTableColumns, getTableName } from 'drizzle-orm';
 import { getTableConfig } from 'drizzle-orm/pg-core';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   vocabularyPracticeAnswers,
@@ -155,16 +155,11 @@ describe('단어 연습 데이터베이스 schema', () => {
 
   it('문항은 선택지·정답·전체 카드 snapshot column을 보존한다', () => {
     expect(Object.keys(vocabularyPracticeQuestions)).toEqual(
-      expect.arrayContaining([
-        'options',
-        'correctOptionId',
-        'cardSnapshot',
-        'audioStorageKey',
-      ]),
+      expect.arrayContaining(['options', 'correctOptionId', 'cardSnapshot']),
     );
   });
 
-  it('질문 수·상태·audio와 source 조합 check를 제공한다', () => {
+  it('질문 수·상태와 source 조합 check를 제공한다', () => {
     expect(
       [
         ...getTableConfig(vocabularyPracticeSessions).checks,
@@ -175,7 +170,6 @@ describe('단어 연습 데이터베이스 schema', () => {
         'vocabulary_practice_sessions_question_count_range',
         'vocabulary_practice_sessions_status_completed_at_match',
         'vocabulary_practice_sessions_source_match',
-        'vocabulary_practice_questions_audio_fields_match',
       ]),
     );
   });

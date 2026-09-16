@@ -10,9 +10,6 @@ export * from '../identity/fake-passwordless-authentication.provider.js';
 /** fake Cognito 전화번호 검증 provider를 공개한다 */
 export * from './fake-phone-verification.provider.js';
 
-/** private storage key를 감추는 deterministic media URL fake를 공개한다 */
-export * from './fake-media-read-url.provider.js';
-
 /** 로컬 개념 콘텐츠 검증 adapter를 공개한다 */
 export * from './fake-concept-content.validator.js';
 
@@ -27,9 +24,6 @@ export * from './fake-upload.repository.js';
 
 /** fake upload policy와 inspection provider를 공개한다 */
 export * from './fake-upload.provider.js';
-
-/** deterministic audio form과 inspection fake를 공개한다 */
-export * from './fake-audio-upload.provider.js';
 
 /** fake SMS sender를 공개한다 */
 export * from './fake-sms-sender.js';

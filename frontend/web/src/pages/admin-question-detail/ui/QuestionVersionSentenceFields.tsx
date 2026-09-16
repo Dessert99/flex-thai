@@ -1,9 +1,8 @@
 /** 구조화 문제 편집의 문장 표시 필드를 경로 기반 오류와 함께 렌더링한다 */
-import type { AdminQuestionVersionPayload } from '@flex-thia/contracts';
 import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
+import type { AdminQuestionVersionPayload } from '@flex-thia/contracts';
 
-/** 음성 유효성에 영향을 줄 수 있는 구조화 문장 필드 */
 export type QuestionVersionSentenceField =
   'originalText' | 'translationKo' | 'pronunciationKo' | 'toneMarks';
 

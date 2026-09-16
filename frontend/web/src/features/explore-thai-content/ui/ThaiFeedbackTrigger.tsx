@@ -6,7 +6,6 @@ export interface ThaiFeedback {
   contextMeaningKo: string;
   pronunciationKo: string;
   toneMarks: string;
-  audioUrl: string | null;
 }
 
 interface ThaiFeedbackTriggerProps {
@@ -17,7 +16,6 @@ interface ThaiFeedbackTriggerProps {
   onSelect: (feedback: ThaiFeedback) => void;
 }
 
-/** focus·hover로 설명을 열고 activation으로 음성을 재생한다 */
 export function ThaiFeedbackTrigger({
   label,
   surface,

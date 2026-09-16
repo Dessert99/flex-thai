@@ -19,7 +19,6 @@ import {
 
 const ids = {
   import: '00000000-0000-4000-8000-000000000001',
-  media: '00000000-0000-4000-8000-000000000002',
   target: '00000000-0000-4000-8000-000000000003',
 } as const;
 
@@ -39,7 +38,6 @@ const vocabulary = {
       clientRef: 'pronunciation.greeting',
       pronunciationKo: '싸왓디',
       toneMarks: 'L-L-M',
-      mediaAssetId: ids.media,
     },
   ],
 } as const;
@@ -49,7 +47,6 @@ const sentence = {
   translationKo: '안녕하세요',
   pronunciationKo: '싸왓디',
   toneMarks: 'L-L-M',
-  mediaAssetId: ids.media,
   tokens: [
     {
       surface: 'สวัสดี',
@@ -73,7 +70,6 @@ const question = {
   blocks: [
     {
       kind: 'QUESTION',
-      displayMode: 'TEXT',
       sentences: [{ speaker: null, sentence }],
     },
   ],

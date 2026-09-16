@@ -9,9 +9,9 @@ import {
   pgTable,
   text,
   timestamp,
-  type AnyPgColumn,
   uniqueIndex,
   uuid,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { jobItems } from './jobs.schema.js';
 import {

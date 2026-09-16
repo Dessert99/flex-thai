@@ -1,9 +1,12 @@
-/** 관리자에게 기간별 AI·TTS 비용과 월간 경고 설정을 함께 보여준다 */
-import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+/** 관리자에게 기간별 AI 비용과 월간 경고 설정을 함께 보여준다 */
 import { isApiError } from '@/shared/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
+import { Skeleton } from '@/shared/ui/skeleton';
 import {
   updateOperationsCostSettings,
   usageCostOverviewQueryOptions,
@@ -14,9 +17,6 @@ import {
 import type { UsageCostSearch } from '../model/usageCostSearch';
 import { UsageCostFilters } from './UsageCostFilters';
 import { UsageCostSettingsCard } from './UsageCostSettingsCard';
-import { Skeleton } from '@/shared/ui/skeleton';
-import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
-import { Button } from '@/shared/ui/button';
 
 interface UsageCostOperationsPageProps {
   search: UsageCostSearch;
@@ -116,7 +116,7 @@ export function UsageCostOperationsPage({
     <div className='mx-auto w-full max-w-content flex-1 p-page'>
       <section className='grid gap-section'>
         <header className='space-y-cluster'>
-          <h1 className='text-title text-primary'>AI·TTS 사용량·비용</h1>
+          <h1 className='text-title text-primary'>AI 사용량·비용</h1>
           <p className='text-body text-subtle'>
             provider 실행 기록을 기준으로 예상 비용과 운영 대기 상태를
             확인합니다.
@@ -194,15 +194,14 @@ function MetricCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** provider/model/voice 비용 breakdown을 표로 표현한다 */
+/** provider/model 비용 breakdown을 표로 표현한다 */
 function BreakdownTable({
   breakdown,
 }: {
   breakdown: Array<{
-    source: 'AI' | 'TTS';
+    source: 'AI';
     provider: string;
     model: string;
-    voice: string | null;
     runCount: number;
     estimatedCostUsd: string;
   }>;
@@ -225,20 +224,16 @@ function BreakdownTable({
                   <th scope='col'>출처</th>
                   <th scope='col'>Provider</th>
                   <th scope='col'>Model</th>
-                  <th scope='col'>Voice</th>
                   <th scope='col'>실행 수</th>
                   <th scope='col'>예상 비용(USD)</th>
                 </tr>
               </thead>
               <tbody>
                 {breakdown.map((item) => (
-                  <tr
-                    key={`${item.source}:${item.provider}:${item.model}:${item.voice ?? ''}`}
-                  >
+                  <tr key={`${item.source}:${item.provider}:${item.model}:`}>
                     <td>{item.source}</td>
                     <td>{item.provider}</td>
                     <td>{item.model}</td>
-                    <td>{item.voice ?? '없음'}</td>
                     <td>{item.runCount}</td>
                     <td>{item.estimatedCostUsd} USD</td>
                   </tr>

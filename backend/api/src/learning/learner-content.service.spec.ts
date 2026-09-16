@@ -27,7 +27,6 @@ const sentence = {
   translationKo: '안녕하세요',
   pronunciationKo: '싸왓디',
   toneMarks: 'L-L-M',
-  media: { storageKey: 'private/shared.mp3' },
   tokens: [
     {
       position: 0,
@@ -40,7 +39,6 @@ const sentence = {
       contextMeaningKo: '안녕하세요',
       pronunciationKo: '싸왓디',
       toneMarks: 'L-L-M',
-      media: { storageKey: 'private/shared.mp3' },
       role: 'TARGET',
     },
   ],
@@ -54,7 +52,6 @@ const sentence = {
       contextMeaningKo: '안녕하세요',
       pronunciationKo: '싸왓디',
       toneMarks: 'L-L-M',
-      media: { storageKey: 'private/shared.mp3' },
       representative: true,
     },
   ],
@@ -129,7 +126,6 @@ const dependencies = () => ({
         {
           id: ids.block,
           kind: 'QUESTION',
-          displayMode: 'TEXT_AND_AUDIO',
           position: 0,
           sentences: [{ position: 0, speaker: null, sentence }],
         },
@@ -141,7 +137,6 @@ const dependencies = () => ({
       {
         id: ids.block,
         kind: 'EXPLANATION',
-        displayMode: 'TEXT',
         position: 0,
         sentences: [{ position: 0, speaker: null, sentence }],
       },
@@ -184,10 +179,8 @@ const dependencies = () => ({
               id: ids.pronunciation,
               pronunciationKo: '싸왓디',
               toneMarks: 'L-L-M',
-              media: { storageKey: 'private/shared.mp3' },
             },
           ],
-          audioEligibleMeaningCount: 1,
           saved: true,
         },
       ],
@@ -211,10 +204,8 @@ const dependencies = () => ({
           id: ids.pronunciation,
           pronunciationKo: '싸왓디',
           toneMarks: 'L-L-M',
-          media: { storageKey: 'private/shared.mp3' },
         },
       ],
-      audioEligibleMeaningCount: 1,
       saved: true,
       meaningPronunciations: [
         { meaningId: ids.meaning, pronunciationId: ids.pronunciation },
@@ -238,7 +229,6 @@ const dependencies = () => ({
           translationKo: '그는 안녕하세요라고 말했다',
           pronunciationKo: '카오 풋 와 싸왓디',
           toneMarks: 'R-F-F-L-L-M',
-          media: { storageKey: 'private/shared.mp3' },
           tokens: sentence.tokens,
           expressions: sentence.expressions,
         },
@@ -279,11 +269,6 @@ const dependencies = () => ({
   savedContent: {
     saveQuestion: vi.fn().mockResolvedValue(undefined),
     removeQuestion: vi.fn().mockResolvedValue(undefined),
-  },
-  mediaReadUrls: {
-    createReadUrl: vi
-      .fn()
-      .mockResolvedValue('https://media.example.com/signed'),
   },
 });
 
@@ -348,24 +333,6 @@ describe('LearnerContentService 문제 응답', () => {
     });
 
     const result = await service.getQuestionDetail('user-1', ids.question);
-
-    expect(fakes.mediaReadUrls.createReadUrl).toHaveBeenCalledTimes(1);
-    expect(fakes.mediaReadUrls.createReadUrl).toHaveBeenCalledWith(
-      'private/shared.mp3',
-      new Date('2026-07-24T00:05:00.000Z'),
-    );
-    expect(result.blocks[0]?.sentences[0]?.sentence.audioUrl).toBe(
-      'https://media.example.com/signed',
-    );
-    expect(result.options[0]?.sentence?.audioUrl).toBe(
-      'https://media.example.com/signed',
-    );
-    expect(result.blocks[0]?.sentences[0]?.sentence.tokens[0]?.audioUrl).toBe(
-      'https://media.example.com/signed',
-    );
-    expect(
-      result.blocks[0]?.sentences[0]?.sentence.expressions[0]?.audioUrl,
-    ).toBe('https://media.example.com/signed');
     expect(JSON.stringify(result)).not.toContain('storageKey');
     expect(JSON.stringify(result)).not.toContain('EXPLANATION');
     expect(JSON.stringify(result)).not.toContain('isCorrect');
@@ -434,26 +401,6 @@ describe('LearnerContentService 문제 응답', () => {
 });
 
 describe('LearnerContentService 어휘 응답', () => {
-  it('발음과 예문의 같은 media key를 한 번만 서명하고 내부 key를 제거한다', async () => {
-    const fakes = dependencies();
-    const service = new LearnerContentService({
-      ...fakes,
-      now: () => new Date('2026-07-24T00:00:00.000Z'),
-    });
-
-    const result = await service.getVocabularyDetail('user-1', ids.vocabulary);
-
-    expect(fakes.mediaReadUrls.createReadUrl).toHaveBeenCalledTimes(1);
-    expect(result.pronunciations[0]?.audioUrl).toBe(
-      'https://media.example.com/signed',
-    );
-    expect(result.exampleSentences[0]?.audioUrl).toBe(
-      'https://media.example.com/signed',
-    );
-    expect(result.relations[0]?.relatedMeaningKo).toBe('안녕');
-    expect(JSON.stringify(result)).not.toContain('storageKey');
-  });
-
   it('관련 문제에서도 비공개 어휘를 404로 숨긴다', async () => {
     const fakes = dependencies();
     fakes.vocabularyQuery.getVocabularyDetail.mockResolvedValueOnce(null);
@@ -497,10 +444,7 @@ describe('LearnerContentService 어휘 응답', () => {
       page: 1,
       pageSize: 20,
     });
-    const vocabularies = await service.listVocabularies('user-1', {
-      page: 1,
-      pageSize: 20,
-    });
+
     const related = await service.listRelatedQuestions(
       'user-1',
       ids.vocabulary,
@@ -511,10 +455,6 @@ describe('LearnerContentService 어휘 응답', () => {
 
     expect(questions.items).toHaveLength(1);
     expect(attempts.items[0]?.submittedAt).toBe('2026-07-24T00:00:00.000Z');
-    expect(vocabularies.items[0]?.pronunciations[0]?.audioUrl).toBe(
-      'https://media.example.com/signed',
-    );
-    expect(vocabularies.items[0]?.audioEligibleMeaningCount).toBe(1);
     expect(related.items).toHaveLength(1);
     expect(fakes.savedContent.saveQuestion).toHaveBeenCalledWith(
       'user-1',

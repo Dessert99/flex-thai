@@ -1,5 +1,15 @@
 /** ADMIN+MFA AI 어휘 후보 조회·승인·폐기 HTTP 경계를 제공한다 */
 import {
+  vocabularyCandidateApproveRequestSchema,
+  vocabularyCandidateApproveResponseSchema,
+  vocabularyCandidateDetailResponseSchema,
+  vocabularyCandidateDiscardRequestSchema,
+  vocabularyCandidateDiscardResponseSchema,
+  vocabularyCandidateListQuerySchema,
+  vocabularyCandidateListResponseSchema,
+  vocabularyCandidatePathSchema,
+} from '@flex-thia/contracts';
+import {
   BadRequestException,
   Body,
   ConflictException,
@@ -23,16 +33,6 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
-import {
-  vocabularyCandidateApproveRequestSchema,
-  vocabularyCandidateApproveResponseSchema,
-  vocabularyCandidateDetailResponseSchema,
-  vocabularyCandidateDiscardRequestSchema,
-  vocabularyCandidateDiscardResponseSchema,
-  vocabularyCandidateListQuerySchema,
-  vocabularyCandidateListResponseSchema,
-  vocabularyCandidatePathSchema,
-} from '@flex-thia/contracts';
 import { createZodDto } from 'nestjs-zod';
 import {
   CurrentUser,
@@ -110,17 +110,13 @@ const executeVocabularyCandidateOperation = async <Result>(
       throw new NotFoundException({ code });
     }
     if (
-      code === 'VOCABULARY_CANDIDATE_NOT_APPROVABLE' ||
-      code === 'VOCABULARY_CANDIDATE_DUPLICATE_CONFIRMATION_REQUIRED' ||
-      code === 'VOCABULARY_CANDIDATE_AUDIO_NOT_READY'
-    ) {
-      throw new BadRequestException({ code });
-    }
-    if (
       code === 'VOCABULARY_CANDIDATE_IDEMPOTENCY_CONFLICT' ||
       code === 'VOCABULARY_CANDIDATE_REVIEW_CONFLICT'
     ) {
       throw new ConflictException({ code });
+    }
+    if (code === 'VOCABULARY_CANDIDATE_NOT_APPROVABLE') {
+      throw new BadRequestException({ code });
     }
     throw error;
   }

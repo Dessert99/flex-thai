@@ -1,5 +1,4 @@
 /** 학습 답안 transaction과 저장 연결의 SQL 경계·실제 동시성을 검증한다 */
-import { randomUUID } from 'node:crypto';
 import {
   LearningDomainError,
   QuestionAttemptService,
@@ -7,6 +6,7 @@ import {
 } from '@flex-thia/domain';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { PgDialect } from 'drizzle-orm/pg-core';
+import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import * as schema from '../schema/index.js';
@@ -494,7 +494,6 @@ const createIntegrationFixture = async (
 ): Promise<IntegrationFixture> => {
   const ids = {
     userId: randomUUID(),
-    mediaId: randomUUID(),
     sentenceId: randomUUID(),
     sentenceVersionId: randomUUID(),
     questionTypeId: randomUUID(),
@@ -507,19 +506,11 @@ const createIntegrationFixture = async (
     otherVersionOptionId: randomUUID(),
     vocabularyId: randomUUID(),
   };
-  const sha256 = 'a'.repeat(64);
 
   await pool.query(
     `insert into users (id, cognito_sub, email, status)
      values ($1, $2, $3, 'ACTIVE')`,
     [ids.userId, `sub-${ids.userId}`, `${ids.userId}@example.com`],
-  );
-  await pool.query(
-    `insert into media_assets (
-       id, storage_key, declared_mime_type, declared_size_bytes,
-       declared_sha256, mime_type, size_bytes, sha256, status, ready_at
-     ) values ($1, $2, 'audio/mpeg', 1, $3, 'audio/mpeg', 1, $3, 'READY', now())`,
-    [ids.mediaId, `audio/${ids.mediaId}`, sha256],
   );
   await pool.query(`insert into thai_sentences (id) values ($1)`, [
     ids.sentenceId,
@@ -527,9 +518,8 @@ const createIntegrationFixture = async (
   await pool.query(
     `insert into thai_sentence_versions (
        id, sentence_id, version, original_text, translation_ko,
-       pronunciation_ko, tone_marks, media_asset_id
-     ) values ($1, $2, 1, 'ก', '뜻', '꼬', '-', $3)`,
-    [ids.sentenceVersionId, ids.sentenceId, ids.mediaId],
+       pronunciation_ko, tone_marks) values ($1, $2, 1, 'ก', '뜻', '꼬', '-')`,
+    [ids.sentenceVersionId, ids.sentenceId],
   );
   await pool.query(
     `insert into question_types (id, slug, display_name, skill)

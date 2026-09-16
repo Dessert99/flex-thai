@@ -1,7 +1,7 @@
 /** LearningModule이 Controller와 공개 mapper만 조립하는지 검증한다 */
 import type { Provider, ValueProvider } from '@nestjs/common';
-import { describe, expect, it, vi } from 'vitest';
 import { Reflector } from '@nestjs/core';
+import { describe, expect, it } from 'vitest';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
 import {
   AUTHORIZER_GUARD_OPTIONS,
@@ -24,7 +24,6 @@ describe('LearningModule 조립', () => {
       savedContent: {} as never,
       wordbookQuery: {} as never,
       wordbooks: {} as never,
-      mediaReadUrls: { createReadUrl: vi.fn() },
       users: {} as never,
       authorizer: {
         authMode: 'fake',

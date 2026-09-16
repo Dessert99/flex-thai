@@ -1,9 +1,4 @@
 /** 현재 문제 graph를 보존하는 기본 구조화 전체 교체 form을 제공한다 */
-import {
-  adminQuestionVersionPayloadSchema,
-  type AdminQuestionVersionPayload,
-} from '@flex-thia/contracts';
-import { useState, type Dispatch, type SetStateAction } from 'react';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
@@ -14,6 +9,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/select';
+import {
+  adminQuestionVersionPayloadSchema,
+  type AdminQuestionVersionPayload,
+} from '@flex-thia/contracts';
+import { useState, type Dispatch, type SetStateAction } from 'react';
 import { QuestionVersionFormErrorSummary } from './QuestionVersionFormErrorSummary';
 import {
   QuestionVersionSentenceFields,
@@ -243,7 +243,6 @@ function updateBlockSentence(
   field: QuestionVersionSentenceField,
   value: string,
 ) {
-  const invalidatesAudio = field !== 'translationKo';
   setPayload((current) => ({
     ...current,
     blocks: current.blocks.map((block, candidateBlockIndex) => ({
@@ -256,7 +255,6 @@ function updateBlockSentence(
               sentence: {
                 ...item.sentence,
                 [field]: value,
-                ...(invalidatesAudio ? { mediaAssetId: null } : {}),
               },
             }
           : item,
@@ -271,7 +269,6 @@ function updateOptionSentence(
   field: QuestionVersionSentenceField,
   value: string,
 ) {
-  const invalidatesAudio = field !== 'translationKo';
   setPayload((current) => ({
     ...current,
     options: current.options.map((option, candidateIndex) =>
@@ -281,7 +278,6 @@ function updateOptionSentence(
             sentence: {
               ...option.sentence,
               [field]: value,
-              ...(invalidatesAudio ? { mediaAssetId: null } : {}),
             },
           }
         : option,

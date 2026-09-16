@@ -1,6 +1,3 @@
-/** 선택형 문제 버전의 구조와 최신 콘텐츠 게시 조건을 검증한다 */
-import type { MediaAsset } from '../media/media-asset.js';
-import { assertMediaAssetReady } from '../media/media-asset.js';
 import type { ThaiSentenceVersionInput } from '../thai-content/thai-sentence-version.js';
 import { validateThaiSentenceVersion } from '../thai-content/thai-sentence-version.js';
 
@@ -22,10 +19,6 @@ export interface QuestionOptionSpan {
 export type QuestionBlockKind =
   'INSTRUCTION' | 'PASSAGE' | 'DIALOGUE' | 'QUESTION' | 'EXPLANATION';
 
-/** 문장 텍스트와 음성의 초기 표시 방식 */
-export type QuestionDisplayMode =
-  'TEXT' | 'AUDIO' | 'TEXT_AND_AUDIO' | 'AUDIO_THEN_REVEAL';
-
 /** 게시 검증이 확인할 공용 어휘 현재 상태 */
 export interface ReferencedVocabularyState {
   id: string;
@@ -36,9 +29,7 @@ export interface ReferencedVocabularyState {
 export interface QuestionSentenceCandidate {
   id: string;
   input: ThaiSentenceVersionInput;
-  mediaAsset: MediaAsset | null;
   referencedVocabularies: ReferencedVocabularyState[];
-  pronunciationMediaAssets: Array<MediaAsset | null>;
 }
 
 interface QuestionOptionCandidateBase {
@@ -71,7 +62,6 @@ export interface QuestionVersionValidationCandidate {
   blocks: Array<{
     id: string;
     kind: QuestionBlockKind;
-    displayMode: QuestionDisplayMode;
     position: number;
     sentences: Array<{
       speaker: string | null;
@@ -94,8 +84,7 @@ export interface QuestionValidationIssue {
     | 'QUESTION_TEMPLATE_INVALID'
     | 'DIALOGUE_SPEAKER_REQUIRED'
     | 'THAI_CONTENT_INVALID'
-    | 'VOCABULARY_NOT_PUBLISHED'
-    | 'MEDIA_ASSET_NOT_READY';
+    | 'VOCABULARY_NOT_PUBLISHED';
 }
 
 /** 관리자 검증 응답과 DB 저장이 공유하는 결정 규칙 보고서 */
@@ -153,37 +142,6 @@ const validateSentence = (
     path: `${path}.${issue.path}`,
     code: 'THAI_CONTENT_INVALID',
   }));
-
-  if (sentence.mediaAsset === null) {
-    issues.push({ path: `${path}.mediaAsset`, code: 'MEDIA_ASSET_NOT_READY' });
-  } else {
-    try {
-      assertMediaAssetReady(sentence.mediaAsset);
-    } catch {
-      issues.push({
-        path: `${path}.mediaAsset`,
-        code: 'MEDIA_ASSET_NOT_READY',
-      });
-    }
-  }
-
-  sentence.pronunciationMediaAssets.forEach((mediaAsset, index) => {
-    if (mediaAsset === null) {
-      issues.push({
-        path: `${path}.pronunciationMediaAssets.${index}`,
-        code: 'MEDIA_ASSET_NOT_READY',
-      });
-      return;
-    }
-    try {
-      assertMediaAssetReady(mediaAsset);
-    } catch {
-      issues.push({
-        path: `${path}.pronunciationMediaAssets.${index}`,
-        code: 'MEDIA_ASSET_NOT_READY',
-      });
-    }
-  });
 
   sentence.referencedVocabularies.forEach((vocabulary, index) => {
     if (vocabulary.status !== 'PUBLISHED') {

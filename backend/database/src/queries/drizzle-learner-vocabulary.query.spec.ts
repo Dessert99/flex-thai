@@ -1,6 +1,6 @@
 /** 학습자 어휘 read model의 검색·사용처·게시 무결성을 검증한다 */
-import { PgDialect } from 'drizzle-orm/pg-core';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import * as schema from '../schema/index.js';
@@ -87,14 +87,12 @@ const summaryRows = {
       id: 'vocabulary-2',
       thai: 'ขอบคุณ',
       kind: 'WORD',
-      audioEligibleMeaningCount: 1,
       saved: false,
     },
     {
       id: 'vocabulary-1',
       thai: 'สวัสดี',
       kind: 'WORD',
-      audioEligibleMeaningCount: 2,
       saved: true,
     },
   ],
@@ -133,9 +131,6 @@ const summaryRows = {
       vocabularyId: 'vocabulary-1',
       pronunciationKo: '싸왓디',
       toneMarks: 'L-L-M',
-      mediaAssetId: 'media-2',
-      mediaStatus: 'READY',
-      mediaStorageKey: 'private/vocabulary-2.mp3',
       createdAt: new Date('2026-07-24T00:00:00.000Z'),
     },
     {
@@ -143,9 +138,6 @@ const summaryRows = {
       vocabularyId: 'vocabulary-1',
       pronunciationKo: '사왓디',
       toneMarks: 'L-L-M',
-      mediaAssetId: 'media-1',
-      mediaStatus: 'READY',
-      mediaStorageKey: 'private/vocabulary-1.mp3',
       createdAt: new Date('2026-07-24T00:00:00.000Z'),
     },
     {
@@ -153,9 +145,6 @@ const summaryRows = {
       vocabularyId: 'vocabulary-2',
       pronunciationKo: '컵쿤',
       toneMarks: 'L-M',
-      mediaAssetId: 'media-3',
-      mediaStatus: 'READY',
-      mediaStorageKey: 'private/vocabulary-3.mp3',
       createdAt: new Date('2026-07-24T00:00:00.000Z'),
     },
   ],
@@ -170,10 +159,6 @@ describe('DrizzleLearnerVocabularyQuery 공용 어휘 검색', () => {
 
     expect(capture.queries[1]).toContain('saved_items.vocabulary_id');
     expect(capture.queries[1]).toContain('saved_wordbooks.user_id');
-    expect(capture.queries[1]).toContain('eligible_links.vocabulary_id');
-    expect(capture.queries[1]).toContain(
-      'eligible_pronunciations.vocabulary_id',
-    );
     expect(capture.queries[1]).toContain('"vocabularies"."id"');
   });
 
@@ -213,20 +198,9 @@ describe('DrizzleLearnerVocabularyQuery 공용 어휘 검색', () => {
 
     const createdAt = new Date('2026-07-27T00:00:00.000Z');
     const detailCapture = createSqlCaptureDatabase([
-      [['vocabulary-id', 'สวัสดี', 'WORD', 0, false]],
+      [['vocabulary-id', 'สวัสดี', 'WORD', false]],
       [],
-      [
-        [
-          'pronunciation-id',
-          'vocabulary-id',
-          '싸왓디',
-          '-',
-          'media-id',
-          'READY',
-          'private/vocabulary.mp3',
-          createdAt,
-        ],
-      ],
+      [['pronunciation-id', 'vocabulary-id', '싸왓디', '-', createdAt]],
       [],
       [],
     ]);
@@ -257,26 +231,13 @@ describe('DrizzleLearnerVocabularyQuery 공용 어휘 검색', () => {
     });
 
     expect(result.items.map(({ saved }) => saved)).toEqual([false, true]);
-    expect(
-      result.items.map(({ audioEligibleMeaningCount }) => ({
-        audioEligibleMeaningCount,
-      })),
-    ).toEqual([
-      { audioEligibleMeaningCount: 1 },
-      { audioEligibleMeaningCount: 2 },
-    ]);
     const savedSql = toSql(fake.selectCalls[1]?.fields.saved);
     expect(savedSql.sql).toContain('exists');
     expect(savedSql.sql).toContain('wordbooks');
     expect(savedSql.sql).toContain('wordbook_items');
     expect(savedSql.sql).not.toContain('saved_vocabularies');
     expect(savedSql.params).toContain('user-id');
-    const eligibleSql = toSql(
-      fake.selectCalls[1]?.fields.audioEligibleMeaningCount,
-    );
-    expect(eligibleSql.sql).toContain('count(distinct');
-    expect(eligibleSql.sql).toContain('vocabulary_meaning_pronunciations');
-    expect(eligibleSql.params).toContain('READY');
+
     expect(fake.selectCalls[1]?.joins).toHaveLength(0);
   });
 
@@ -315,9 +276,6 @@ describe('DrizzleLearnerVocabularyQuery 공용 어휘 검색', () => {
     expect(
       result.items[1]?.pronunciations.map((pronunciation) => pronunciation.id),
     ).toEqual(['pronunciation-1', 'pronunciation-2']);
-    expect(result.items[1]?.pronunciations[0]?.media).toEqual({
-      storageKey: 'private/vocabulary-1.mp3',
-    });
 
     expect(fake.selectCalls[0]?.from).toBe(vocabularies);
     expect(fake.selectCalls[1]?.from).toBe(vocabularies);
@@ -362,29 +320,6 @@ describe('DrizzleLearnerVocabularyQuery 공용 어휘 검색', () => {
     expect(result.items[0]?.meanings).toHaveLength(2);
     expect(result.items[0]?.pronunciations).toHaveLength(2);
   });
-
-  it('게시 어휘 발음의 음성이 없거나 READY가 아니면 stable 오류로 실패한다', async () => {
-    const fake = createSelectFake([
-      [{ totalItems: 1 }],
-      [summaryRows.bases[1]],
-      [...summaryRows.meanings],
-      [
-        {
-          ...summaryRows.pronunciations[0],
-          mediaAssetId: null,
-          mediaStatus: null,
-          mediaStorageKey: null,
-        },
-      ],
-    ]);
-    const query = new DrizzleLearnerVocabularyQuery(fake.database as never);
-
-    await expect(
-      query.listVocabularies('user-id', { page: 1, pageSize: 20 }),
-    ).rejects.toMatchObject({
-      code: 'PUBLISHED_VOCABULARY_MEDIA_INVALID',
-    });
-  });
 });
 
 describe('DrizzleLearnerVocabularyQuery 상세와 예문', () => {
@@ -411,9 +346,6 @@ describe('DrizzleLearnerVocabularyQuery 상세와 예문', () => {
           pronunciationKo: '싸왓디 익 크랑',
           toneMarks: '-',
           frozenAt: new Date('2026-07-24T00:00:00.000Z'),
-          mediaAssetId: 'sentence-media-2',
-          mediaStatus: 'READY',
-          mediaStorageKey: 'private/sentence-2.mp3',
         },
         {
           sentenceVersionId: 'sentence-1',
@@ -422,9 +354,6 @@ describe('DrizzleLearnerVocabularyQuery 상세와 예문', () => {
           pronunciationKo: '싸왓디',
           toneMarks: '-',
           frozenAt: new Date('2026-07-24T00:00:00.000Z'),
-          mediaAssetId: 'sentence-media-1',
-          mediaStatus: 'READY',
-          mediaStorageKey: 'private/sentence-1.mp3',
         },
       ],
       [
@@ -440,7 +369,6 @@ describe('DrizzleLearnerVocabularyQuery 상세와 예문', () => {
           contextMeaningKo: '안녕하세요',
           pronunciationKo: '싸왓디',
           toneMarks: '-',
-          mediaStorageKey: 'private/pronunciation-1.mp3',
           role: 'TARGET',
         },
       ],
@@ -455,7 +383,6 @@ describe('DrizzleLearnerVocabularyQuery 상세와 예문', () => {
           contextMeaningKo: '인사 표현',
           pronunciationKo: '싸왓디',
           toneMarks: '-',
-          mediaStorageKey: 'private/expression-1.mp3',
           representative: true,
         },
       ],
@@ -486,12 +413,8 @@ describe('DrizzleLearnerVocabularyQuery 상세와 예문', () => {
     expect(
       detail?.exampleSentences.map((sentence) => sentence.sentenceVersionId),
     ).toEqual(['sentence-1', 'sentence-2']);
-    expect(detail?.exampleSentences[0]?.media).toEqual({
-      storageKey: 'private/sentence-1.mp3',
-    });
     expect(detail?.exampleSentences[0]?.tokens[0]).toMatchObject({
       contextMeaningKo: '안녕하세요',
-      media: { storageKey: 'private/pronunciation-1.mp3' },
     });
     expect(detail?.exampleSentences[0]?.expressions[0]).toMatchObject({
       contextMeaningKo: '인사 표현',
@@ -644,11 +567,6 @@ const integrationDatabaseUrl =
 
 const ids = {
   user: '11000000-0000-4000-8000-000000000001',
-  media: [
-    '21000000-0000-4000-8000-000000000001',
-    '21000000-0000-4000-8000-000000000002',
-    '21000000-0000-4000-8000-000000000003',
-  ],
   vocabulary: [
     '31000000-0000-4000-8000-000000000001',
     '31000000-0000-4000-8000-000000000002',
@@ -728,31 +646,14 @@ const cleanupVocabularyQueryFixture = async (pool: Pool): Promise<void> => {
   await pool.query(`delete from vocabularies where id = any($1::uuid[])`, [
     [...ids.vocabulary, ids.invalidVocabulary],
   ]);
-  await pool.query(`delete from media_assets where id = any($1::uuid[])`, [
-    [...ids.media],
-  ]);
   await pool.query(`delete from users where id = $1`, [ids.user]);
 };
 
 const createVocabularyQueryFixture = async (pool: Pool): Promise<void> => {
-  const sha256 = 'b'.repeat(64);
   await pool.query(
     `insert into users (id, cognito_sub, email, status)
      values ($1, 'vocabulary-query-user', 'vocabulary-query@example.com', 'ACTIVE')`,
     [ids.user],
-  );
-  await pool.query(
-    `insert into media_assets (
-       id, storage_key, declared_mime_type, declared_size_bytes,
-       declared_sha256, mime_type, size_bytes, sha256, status, ready_at
-     ) values
-       ($1, 'private/vocabulary-word.mp3', 'audio/mpeg', 1, $4,
-        'audio/mpeg', 1, $4, 'READY', now()),
-       ($2, 'private/vocabulary-expression.mp3', 'audio/mpeg', 1, $4,
-        'audio/mpeg', 1, $4, 'READY', now()),
-       ($3, 'private/sentence-example.mp3', 'audio/mpeg', 1, $4,
-        'audio/mpeg', 1, $4, 'READY', now())`,
-    [...ids.media, sha256],
   );
   await pool.query(
     `insert into vocabularies (id, thai, normalized_thai, kind, status)
@@ -773,18 +674,12 @@ const createVocabularyQueryFixture = async (pool: Pool): Promise<void> => {
   );
   await pool.query(
     `insert into vocabulary_pronunciations
-       (id, vocabulary_id, pronunciation_ko, tone_marks, media_asset_id)
+       (id, vocabulary_id, pronunciation_ko, tone_marks)
      values
-       ($1, $4, '싸왓디', '-', $6),
-       ($2, $4, '사왓디', '-', $6),
-       ($3, $5, '컵쿤 막', '-', $7)`,
-    [
-      ...ids.pronunciation,
-      ids.vocabulary[0],
-      ids.vocabulary[1],
-      ids.media[0],
-      ids.media[1],
-    ],
+       ($1, $4, '싸왓디', '-'),
+       ($2, $4, '사왓디', '-'),
+       ($3, $5, '컵쿤 막', '-')`,
+    [...ids.pronunciation, ids.vocabulary[0], ids.vocabulary[1]],
   );
   await pool.query(
     `insert into vocabulary_meaning_pronunciations
@@ -807,10 +702,10 @@ const createVocabularyQueryFixture = async (pool: Pool): Promise<void> => {
   await pool.query(
     `insert into thai_sentence_versions (
        id, sentence_id, version, original_text, translation_ko,
-       pronunciation_ko, tone_marks, media_asset_id, frozen_at
+       pronunciation_ko, tone_marks, frozen_at
      ) values ($1, $2, 1, 'ศัพท์ทดสอบอัลฟา วลีทดสอบเบตา', '안녕하세요, 매우 감사합니다',
-               '싸왓디 컵쿤 막', '-', $3, now())`,
-    [ids.sentenceVersion, ids.sentence, ids.media[2]],
+               '싸왓디 컵쿤 막', '-', now())`,
+    [ids.sentenceVersion, ids.sentence],
   );
   await pool.query(
     `insert into token_occurrences (
@@ -865,8 +760,8 @@ const createVocabularyQueryFixture = async (pool: Pool): Promise<void> => {
   );
   await pool.query(
     `insert into question_blocks
-       (id, question_version_id, kind, display_mode, position)
-     values ($1, $2, 'QUESTION', 'TEXT', 0)`,
+       (id, question_version_id, kind, position)
+     values ($1, $2, 'QUESTION', 0)`,
     [ids.block, ids.questionVersion],
   );
   await pool.query(
@@ -936,7 +831,6 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       expect(result.page).toMatchObject({ totalItems: 1, totalPages: 1 });
       expect(result.items[0]).toMatchObject({
         id: ids.vocabulary[0],
-        audioEligibleMeaningCount: 2,
         saved: true,
       });
       expect(result.items[0]?.meanings).toHaveLength(2);
@@ -975,7 +869,6 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       expect(summaries[0]?.itemCount).toBe(1);
       expect(result?.items[0]).toMatchObject({
         id: ids.vocabulary[0],
-        audioEligibleMeaningCount: 2,
       });
     });
 
@@ -990,33 +883,6 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
           ids.question,
         ]);
       }
-    });
-
-    it('게시 어휘의 발음 media 불변식 손상을 stable 오류로 전달한다', async () => {
-      await pool.query(
-        `insert into vocabularies
-           (id, thai, normalized_thai, kind, status)
-         values ($1, 'ศัพท์ทดสอบเสียหาย', 'ศัพท์ทดสอบเสียหาย', 'WORD', 'PUBLISHED')`,
-        [ids.invalidVocabulary],
-      );
-      await pool.query(
-        `insert into vocabulary_meanings
-         (id, vocabulary_id, meaning_ko, part_of_speech, difficulty)
-         values ($1, $2, '손상', '명사', 1)`,
-        [ids.invalidMeaning, ids.invalidVocabulary],
-      );
-      await pool.query(
-        `insert into vocabulary_pronunciations
-         (id, vocabulary_id, pronunciation_ko, tone_marks)
-         values ($1, $2, '씨아', '-')`,
-        [ids.invalidPronunciation, ids.invalidVocabulary],
-      );
-
-      await expect(
-        query.getVocabularyDetail(ids.user, ids.invalidVocabulary),
-      ).rejects.toMatchObject({
-        code: 'PUBLISHED_VOCABULARY_MEDIA_INVALID',
-      });
     });
   },
 );

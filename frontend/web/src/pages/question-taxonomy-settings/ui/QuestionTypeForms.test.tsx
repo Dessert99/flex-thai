@@ -21,13 +21,13 @@ describe('세부 문제 유형 생성 form', () => {
     await user.type(screen.getByLabelText('세부 유형 이름'), '대화 세부');
     screen.getByRole('combobox', { name: 'FLEX 대분류' }).focus();
     await user.keyboard('{Enter}');
-    await user.click(await screen.findByRole('option', { name: '대화문' }));
+    await user.click(await screen.findByRole('option', { name: '지문 독해' }));
     await user.click(screen.getByRole('button', { name: '세부 유형 만들기' }));
 
     expect(onCreate).toHaveBeenCalledWith({
       slug: 'dialogue-detail',
       displayName: '대화 세부',
-      majorCategory: 'LISTENING_DIALOGUE',
+      majorCategory: 'READING_PASSAGE',
     });
   });
 });

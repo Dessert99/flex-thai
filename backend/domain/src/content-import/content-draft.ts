@@ -1,6 +1,5 @@
 /** canonical 입력을 current 참조로 해석해 어휘·문제 초안을 원자 저장한다 */
 import { randomUUID } from 'node:crypto';
-import { assertMediaAssetReady } from '../media/media-asset.js';
 import {
   resolveRepresentativeExpressions,
   validateThaiSentenceVersion,
@@ -42,7 +41,6 @@ export class ContentDraftError extends Error {
     readonly code:
       | 'IMPORT_REFERENCE_NOT_FOUND'
       | 'IMPORT_REFERENCE_MISMATCH'
-      | 'IMPORT_MEDIA_NOT_READY'
       | 'IMPORT_QUESTION_TYPE_NOT_FOUND'
       | 'IMPORT_DUPLICATE_VOCABULARY'
       | 'IMPORT_CONTENT_INVALID',
@@ -362,24 +360,6 @@ const resolveSentence = async (input: {
   path: string;
   newId: () => string;
 }): Promise<ResolvedQuestionSentenceGraph> => {
-  const mediaAsset = await input.transaction.findMediaAssetById(
-    input.sentence.mediaAssetId,
-  );
-  if (!mediaAsset) {
-    throw new ContentDraftError(
-      'IMPORT_REFERENCE_NOT_FOUND',
-      `${input.path}.mediaAssetId`,
-    );
-  }
-  try {
-    assertMediaAssetReady(mediaAsset);
-  } catch {
-    throw new ContentDraftError(
-      'IMPORT_MEDIA_NOT_READY',
-      `${input.path}.mediaAssetId`,
-    );
-  }
-
   const sentenceId = input.newId();
   const sentenceVersionId = input.newId();
   const tokens = [];
@@ -452,7 +432,6 @@ const resolveSentence = async (input: {
     translationKo: input.sentence.translationKo,
     pronunciationKo: input.sentence.pronunciationKo,
     toneMarks: input.sentence.toneMarks,
-    mediaAssetId: input.sentence.mediaAssetId,
     tokens,
     expressions: expressionCandidates,
   };
@@ -488,7 +467,6 @@ const resolveSentence = async (input: {
       translationKo: input.sentence.translationKo,
       pronunciationKo: input.sentence.pronunciationKo,
       toneMarks: input.sentence.toneMarks,
-      mediaAssetId: input.sentence.mediaAssetId,
       frozenAt: null,
     },
     tokens,
@@ -507,7 +485,6 @@ export class ContentDraftService {
     this.newId = createIdFactory(generateId);
   }
 
-  /** 어휘 정규화·media 존재·all-to-all mapping을 검증해 한 item으로 저장한다 */
   async createVocabularyItem(
     command: CreateVocabularyDraftCommand,
   ): Promise<ContentDraftItemResult> {
@@ -536,19 +513,6 @@ export class ContentDraftService {
       ) {
         throw new ContentDraftError('IMPORT_DUPLICATE_VOCABULARY', 'thai');
       }
-      for (const [
-        index,
-        pronunciation,
-      ] of command.input.pronunciations.entries()) {
-        if (
-          !(await transaction.findMediaAssetById(pronunciation.mediaAssetId))
-        ) {
-          throw new ContentDraftError(
-            'IMPORT_REFERENCE_NOT_FOUND',
-            `pronunciations.${index}.mediaAssetId`,
-          );
-        }
-      }
 
       const meanings = command.input.meanings.map((meaning) => ({
         id: this.newId(),
@@ -564,7 +528,6 @@ export class ContentDraftService {
           vocabularyId,
           pronunciationKo: pronunciation.pronunciationKo,
           toneMarks: pronunciation.toneMarks,
-          mediaAssetId: pronunciation.mediaAssetId,
         }),
       );
       const graph: ResolvedVocabularyDraftGraph = {
@@ -677,7 +640,6 @@ export class ContentDraftService {
           id: blockId,
           questionVersionId,
           kind: block.kind,
-          displayMode: block.displayMode,
           position: blockIndex,
           sentences: blockSentences,
         });

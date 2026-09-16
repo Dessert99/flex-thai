@@ -1,10 +1,5 @@
 /** 콘텐츠 제작 preset의 최초 어휘 정책 또는 기존 typed snapshot의 다음 version을 입력받는다 */
 /* eslint-disable max-lines, max-lines-per-function */
-import { useState } from 'react';
-import type {
-  ContentProductionPresetVersion,
-  CreateContentProductionPresetRequest,
-} from '@flex-thia/contracts';
 import { Button } from '@/shared/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { Input } from '@/shared/ui/input';
@@ -16,6 +11,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/select';
+import type {
+  ContentProductionPresetVersion,
+  CreateContentProductionPresetRequest,
+} from '@flex-thia/contracts';
+import { useState } from 'react';
 
 type PresetParameters = ContentProductionPresetVersion['parameters'];
 type PresetPurpose = ContentProductionPresetVersion['purpose'];
@@ -154,7 +154,6 @@ function CreatePresetForm(
   const [similarityThreshold, setSimilarityThreshold] = useState('0.8');
   const [newVocabularyLimit, setNewVocabularyLimit] = useState('0');
   const [questionTypeVersionId, setQuestionTypeVersionId] = useState('');
-  const [defaultVoicePresetId, setDefaultVoicePresetId] = useState('');
   const submit = () => {
     if (purpose === 'VOCABULARY_EXTRACTION') {
       props.onCreate({
@@ -175,8 +174,6 @@ function CreatePresetForm(
       excludedVocabularyIds: [],
       newAuxiliaryVocabularyLimit: Number(newVocabularyLimit),
       similarityThreshold: Number(similarityThreshold),
-      defaultVoicePresetId,
-      speakerVoiceAssignments: [],
       additionalInstructionKo: null,
       commonPrinciples: [],
       similarQuestions: [],
@@ -253,20 +250,13 @@ function CreatePresetForm(
               onChange={(event) => setQuestionTypeVersionId(event.target.value)}
               value={questionTypeVersionId}
             />
-            <Label htmlFor='preset-default-voice'>기본 음성 preset ID</Label>
-            <Input
-              id='preset-default-voice'
-              onChange={(event) => setDefaultVoicePresetId(event.target.value)}
-              value={defaultVoicePresetId}
-            />
           </>
         ) : null}
         <Button
           disabled={
             props.pending ||
             name.trim().length === 0 ||
-            (purpose !== 'VOCABULARY_EXTRACTION' &&
-              (!questionTypeVersionId || !defaultVoicePresetId))
+            (purpose !== 'VOCABULARY_EXTRACTION' && !questionTypeVersionId)
           }
           onClick={submit}
           type='button'

@@ -172,12 +172,12 @@ describe('StructuredLogger 민감 정보 제거', () => {
         otp: '123456',
         token: 'secret',
         secret: 'nested-secret',
-        StorageKey: 'private/storage-key-secret.mp3',
+        StorageKey: 'private/storage-key-secret.bin',
         sensitive: {
           PassWord: 'nested-password-secret',
           tOtP: 'nested-totp-secret',
           rawJSON: { answer: 'nested-raw-json-secret' },
-          StorageKey: 'private/nested-storage-key-secret.mp3',
+          StorageKey: 'private/nested-storage-key-secret.bin',
         },
       },
     });

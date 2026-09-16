@@ -14,9 +14,9 @@ import {
 } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
+import * as schema from '../schema/index.js';
 import {
   expressionOccurrences,
-  mediaAssets,
   questionBlocks,
   questionBlockSentences,
   questionOptions,
@@ -28,7 +28,6 @@ import {
   vocabularyPronunciations,
 } from '../schema/index.js';
 import { vocabularyMeaningRelations } from '../schema/vocabulary.schema.js';
-import * as schema from '../schema/index.js';
 
 type AdminVocabularyDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 
@@ -81,8 +80,6 @@ export interface AdminVocabularyPronunciationProjection {
   id: string;
   pronunciationKo: string;
   toneMarks: string;
-  mediaAssetId: string;
-  mediaStatus: 'UPLOADING' | 'READY' | 'REJECTED';
 }
 
 /** 관리자 어휘 뜻·발음 명시 mapping projection */
@@ -239,29 +236,18 @@ export class DrizzleAdminVocabularyQuery {
         id: vocabularyPronunciations.id,
         pronunciationKo: vocabularyPronunciations.pronunciationKo,
         toneMarks: vocabularyPronunciations.toneMarks,
-        mediaAssetId: vocabularyPronunciations.mediaAssetId,
-        mediaStatus: mediaAssets.status,
       })
       .from(vocabularyPronunciations)
-      .leftJoin(
-        mediaAssets,
-        eq(vocabularyPronunciations.mediaAssetId, mediaAssets.id),
-      )
       .where(eq(vocabularyPronunciations.vocabularyId, vocabularyId))
       .orderBy(
         asc(vocabularyPronunciations.createdAt),
         asc(vocabularyPronunciations.id),
       );
     const pronunciations = storedPronunciations.map((row) => {
-      if (row.mediaAssetId === null || row.mediaStatus === null) {
-        throw new AdminVocabularyQueryError('findById.pronunciationMedia');
-      }
       return {
         id: row.id,
         pronunciationKo: row.pronunciationKo,
         toneMarks: row.toneMarks,
-        mediaAssetId: row.mediaAssetId,
-        mediaStatus: row.mediaStatus,
       };
     });
     const meaningPronunciations = await this.database

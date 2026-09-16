@@ -139,26 +139,6 @@ describe('DrizzleWordbookQuery 목록과 membership', () => {
 });
 
 describe('DrizzleWordbookQuery 검색·필터·페이지', () => {
-  it('항목 SELECT의 음성 가능 뜻 count 컬럼을 명시적으로 한정한다', async () => {
-    const capture = createSqlCaptureDatabase([
-      [['wordbook-id', 'FLEX 어휘', 1, createdAt, updatedAt]],
-      [[0]],
-      [],
-    ]);
-    const query = new DrizzleWordbookQuery(capture.database);
-
-    await query.listItems('user-id', 'wordbook-id', {
-      page: 1,
-      pageSize: 20,
-    });
-
-    expect(capture.queries[2]).toContain('eligible_links.vocabulary_id');
-    expect(capture.queries[2]).toContain(
-      'eligible_pronunciations.vocabulary_id',
-    );
-    expect(capture.queries[2]).toContain('"vocabularies"."id"');
-  });
-
   it('타 사용자 단어장은 상세 대신 null을 반환한다', async () => {
     const fake = createSelectFake([[]]);
     const query = new DrizzleWordbookQuery(fake.database as never);
@@ -186,7 +166,6 @@ describe('DrizzleWordbookQuery 검색·필터·페이지', () => {
           id: 'vocabulary-id',
           thai: 'สวัสดี',
           kind: 'WORD',
-          audioEligibleMeaningCount: 1,
           addedAt,
         },
       ],
@@ -216,9 +195,6 @@ describe('DrizzleWordbookQuery 검색·필터·페이지', () => {
           vocabularyId: 'vocabulary-id',
           pronunciationKo: '싸왓디',
           toneMarks: 'L-L-M',
-          mediaAssetId: 'media-id',
-          mediaStatus: 'READY',
-          mediaStorageKey: 'private/vocabulary.mp3',
           createdAt,
         },
       ],
@@ -266,10 +242,8 @@ describe('DrizzleWordbookQuery 검색·필터·페이지', () => {
             id: 'pronunciation-id',
             pronunciationKo: '싸왓디',
             toneMarks: 'L-L-M',
-            media: { storageKey: 'private/vocabulary.mp3' },
           },
         ],
-        audioEligibleMeaningCount: 1,
         saved: true,
         addedAt,
       },

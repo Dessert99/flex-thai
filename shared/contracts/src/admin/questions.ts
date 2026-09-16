@@ -34,7 +34,7 @@ export const adminQuestionListQuerySchema = z
     versionStatus: questionVersionStatusSchema.optional(),
     validationStatus: questionValidationStatusSchema.optional(),
     questionTypeSlug: z.string().trim().min(1).optional(),
-    skill: z.enum(['READING', 'LISTENING']).optional(),
+    skill: z.enum(['READING']).optional(),
     difficulty: httpIntegerSchema(1, 5).optional(),
     page: httpIntegerSchema(1, Number.MAX_SAFE_INTEGER).default(1),
     pageSize: httpIntegerSchema(1, 100).default(20),
@@ -49,11 +49,6 @@ export const adminQuestionIdPathSchema = z
 /** 문제 버전 교체·검증·게시·무효화 경로의 UUID parameter */
 export const adminQuestionVersionIdPathSchema = z
   .object({ versionId: uuidSchema })
-  .strict();
-
-/** 문제 소유권과 버전을 함께 검증하는 관리자 TTS 생성 경로 */
-export const adminQuestionTtsJobPathSchema = z
-  .object({ questionId: uuidSchema, versionId: uuidSchema })
   .strict();
 
 const adminContentReferenceSchema = z
@@ -93,20 +88,10 @@ const adminQuestionSentenceInputSchema = z
     translationKo: z.string().min(1),
     pronunciationKo: z.string().min(1),
     toneMarks: z.string(),
-    mediaAssetId: uuidSchema.nullable(),
     tokens: z.array(adminQuestionTokenInputSchema),
     expressions: z.array(adminQuestionExpressionInputSchema),
   })
   .strict();
-
-const canonicalMediaPlaceholder = '00000000-0000-4000-8000-000000000000';
-
-const withCanonicalSentenceMedia = (
-  sentence: z.infer<typeof adminQuestionSentenceInputSchema>,
-) => ({
-  ...sentence,
-  mediaAssetId: sentence.mediaAssetId ?? canonicalMediaPlaceholder,
-});
 
 const adminQuestionBlockInputSchema = z
   .object({
@@ -116,12 +101,6 @@ const adminQuestionBlockInputSchema = z
       'DIALOGUE',
       'QUESTION',
       'EXPLANATION',
-    ]),
-    displayMode: z.enum([
-      'TEXT',
-      'AUDIO',
-      'TEXT_AND_AUDIO',
-      'AUDIO_THEN_REVEAL',
     ]),
     sentences: z
       .array(
@@ -186,7 +165,7 @@ export const adminQuestionVersionPayloadSchema = z
         ...block,
         sentences: block.sentences.map((entry) => ({
           ...entry,
-          sentence: withCanonicalSentenceMedia(entry.sentence),
+          sentence: entry.sentence,
         })),
       })),
       options: payload.options.map((option) =>
@@ -194,7 +173,7 @@ export const adminQuestionVersionPayloadSchema = z
           ? option
           : {
               ...option,
-              sentence: withCanonicalSentenceMedia(option.sentence),
+              sentence: option.sentence,
             },
       ),
     });
@@ -222,7 +201,6 @@ const questionValidationIssueSchema = z
       'DIALOGUE_SPEAKER_REQUIRED',
       'THAI_CONTENT_INVALID',
       'VOCABULARY_NOT_PUBLISHED',
-      'MEDIA_ASSET_NOT_READY',
       'INLINE_SPAN_INVALID',
     ]),
   })
@@ -287,7 +265,7 @@ const adminQuestionTypeVersionSchema = z
     id: uuidSchema,
     slug: z.string().min(1),
     version: positiveIntegerSchema,
-    skill: z.enum(['READING', 'LISTENING']),
+    skill: z.enum(['READING']),
     template: z.enum([
       'STANDARD_CHOICE',
       'PASSAGE_CHOICE',
@@ -297,17 +275,6 @@ const adminQuestionTypeVersionSchema = z
   })
   .strict();
 
-const adminQuestionResolvedAudioSchema = z.discriminatedUnion('status', [
-  z.object({ status: z.literal('MISSING'), readUrl: z.null() }).strict(),
-  z
-    .object({
-      status: z.enum(['UPLOADING', 'FAILED']),
-      readUrl: z.null(),
-    })
-    .strict(),
-  z.object({ status: z.literal('READY'), readUrl: z.url() }).strict(),
-]);
-
 const adminQuestionResolvedSentenceSchema = z
   .object({
     id: uuidSchema,
@@ -315,8 +282,6 @@ const adminQuestionResolvedSentenceSchema = z
     translationKo: z.string().min(1),
     pronunciationKo: z.string().min(1),
     toneMarks: z.string(),
-    mediaAssetId: uuidSchema.nullable(),
-    audio: adminQuestionResolvedAudioSchema,
     tokens: z.array(
       z
         .object({
@@ -346,19 +311,7 @@ const adminQuestionResolvedSentenceSchema = z
         .strict(),
     ),
   })
-  .strict()
-  .superRefine((sentence, context) => {
-    if (
-      (sentence.audio.status === 'MISSING') !==
-      (sentence.mediaAssetId === null)
-    ) {
-      context.addIssue({
-        code: 'custom',
-        message: '음성 상태와 mediaAssetId가 일치해야 합니다.',
-        path: ['audio'],
-      });
-    }
-  });
+  .strict();
 
 const adminQuestionBlockSchema = z
   .object({
@@ -369,12 +322,6 @@ const adminQuestionBlockSchema = z
       'DIALOGUE',
       'QUESTION',
       'EXPLANATION',
-    ]),
-    displayMode: z.enum([
-      'TEXT',
-      'AUDIO',
-      'TEXT_AND_AUDIO',
-      'AUDIO_THEN_REVEAL',
     ]),
     position: z.number().int().safe().nonnegative(),
     sentences: z.array(
@@ -506,15 +453,6 @@ export const adminQuestionDetailResponseSchema = z
   })
   .strict();
 
-/** 문제 버전 TTS 생성이 새 작업과 READY 재사용 수를 함께 반환한다 */
-export const adminQuestionTtsJobResponseSchema = z
-  .object({
-    jobIds: z.array(uuidSchema),
-    scheduledSentenceCount: z.number().int().safe().nonnegative(),
-    reusedReadySentenceCount: z.number().int().safe().nonnegative(),
-  })
-  .strict();
-
 /** 검증된 관리자 문제 목록 query type */
 export type AdminQuestionListQuery = z.infer<
   typeof adminQuestionListQuerySchema
@@ -526,11 +464,6 @@ export type AdminQuestionIdPath = z.infer<typeof adminQuestionIdPathSchema>;
 /** 검증된 관리자 문제 버전 UUID path type */
 export type AdminQuestionVersionIdPath = z.infer<
   typeof adminQuestionVersionIdPathSchema
->;
-
-/** 검증된 관리자 문제 버전 TTS 경로 type */
-export type AdminQuestionTtsJobPath = z.infer<
-  typeof adminQuestionTtsJobPathSchema
 >;
 
 /** canonical 관리자 문제 버전 교체 요청 type */
@@ -556,9 +489,4 @@ export type AdminQuestionListResponse = z.infer<
 /** 관리자 문제 상세 응답 type */
 export type AdminQuestionDetailResponse = z.infer<
   typeof adminQuestionDetailResponseSchema
->;
-
-/** 관리자 문제 버전 TTS 생성 결과 type */
-export type AdminQuestionTtsJobResponse = z.infer<
-  typeof adminQuestionTtsJobResponseSchema
 >;

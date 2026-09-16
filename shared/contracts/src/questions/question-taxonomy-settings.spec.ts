@@ -9,13 +9,11 @@ import {
   replaceDifficultyCriteriaRequestSchema,
 } from './question-taxonomy-settings.js';
 
-const id = '00000000-0000-4000-8000-000000000001';
 const sentence = {
   originalText: 'สวัสดี',
   translationKo: '안녕하세요',
   pronunciationKo: '싸왓디',
   toneMarks: 'L-L-M',
-  mediaAssetId: id,
   tokens: [],
   expressions: [],
 } as const;
@@ -26,7 +24,6 @@ const canonicalExample = {
   blocks: [
     {
       kind: 'QUESTION',
-      displayMode: 'TEXT',
       sentences: [{ speaker: null, sentence }],
     },
   ],
@@ -40,11 +37,11 @@ const canonicalExample = {
 } as const;
 
 describe('문제 분류 설정 계약', () => {
-  it('FLEX 7대 분류와 세 단계 lifecycle만 허용한다', () => {
-    expect(questionMajorCategorySchema.options).toHaveLength(7);
-    expect(questionMajorCategorySchema.parse('LISTENING_RESPONSE')).toBe(
-      'LISTENING_RESPONSE',
-    );
+  it('FLEX 4대 분류와 세 단계 lifecycle만 허용한다', () => {
+    expect(questionMajorCategorySchema.options).toHaveLength(4);
+    expect(
+      questionMajorCategorySchema.parse('READING_VOCABULARY_GRAMMAR'),
+    ).toBe('READING_VOCABULARY_GRAMMAR');
     expect(questionTypeVersionStatusSchema.options).toEqual([
       'DRAFT',
       'ACTIVE',
@@ -56,14 +53,14 @@ describe('문제 분류 설정 계약', () => {
   it('세부 유형 생성 시 대분류에서 skill을 파생한다', () => {
     expect(
       createQuestionTypeRequestSchema.parse({
-        slug: 'listening-response',
+        slug: 'reading-response',
         displayName: '반응 테스트',
-        majorCategory: 'LISTENING_RESPONSE',
+        majorCategory: 'READING_VOCABULARY_GRAMMAR',
       }),
     ).toEqual({
-      slug: 'listening-response',
+      slug: 'reading-response',
       displayName: '반응 테스트',
-      majorCategory: 'LISTENING_RESPONSE',
+      majorCategory: 'READING_VOCABULARY_GRAMMAR',
     });
   });
 

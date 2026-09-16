@@ -1,8 +1,8 @@
 /** 단어 연습 설정의 필수 출처·방식과 생성 요청 조립을 검증한다 */
+import { renderWithProviders } from '@/shared/test';
 import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '@/shared/test';
 import { PracticeSetupForm } from './PracticeSetupForm';
 
 const vocabulary = {
@@ -26,7 +26,6 @@ const vocabulary = {
     },
   ],
   pronunciations: [],
-  audioEligibleMeaningCount: 1,
   saved: false,
 };
 
@@ -113,8 +112,7 @@ describe('단어 연습 설정의 검색 선택', () => {
     await user.click(screen.getByRole('button', { name: 'ไป' }));
     expect(screen.getByText('선택 1 / 100')).toBeVisible();
     expect(screen.getByText('연습 가능 어의 2개')).toBeVisible();
-    await user.click(screen.getByRole('button', { name: '음성 → 태국어' }));
-    expect(screen.getByText('연습 가능 어의 1개')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: '태국어 → 뜻' }));
     await user.click(screen.getByRole('button', { name: '연습 시작' }));
 
     expect(onStart).toHaveBeenCalledWith({
@@ -122,7 +120,7 @@ describe('단어 연습 설정의 검색 선택', () => {
         type: 'SEARCH_SELECTION',
         vocabularyIds: [vocabulary.id],
       },
-      modes: ['AUDIO_TO_THAI'],
+      modes: ['THAI_TO_MEANING'],
       questionCount: 10,
       order: 'SOURCE',
     });

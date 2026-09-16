@@ -1,6 +1,6 @@
 /** 콘텐츠 제작 API의 UUID command와 query key 경계를 검증한다 */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { authenticatedRequest } from '@/shared/api';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   contentProductionJobQueryOptions,
   contentProductionJobsQueryOptions,
@@ -85,8 +85,6 @@ describe('콘텐츠 제작 API', () => {
         excludedVocabularyIds: [],
         newAuxiliaryVocabularyLimit: 1,
         similarityThreshold: 0.7,
-        defaultVoicePresetId: id(7),
-        speakerVoiceAssignments: [],
         additionalInstructionKo: null,
       },
     });

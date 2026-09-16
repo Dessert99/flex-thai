@@ -1,7 +1,7 @@
 /** 관리자 use case·read model과 인증 guard를 네 HTTP Controller에 조립한다 */
+import type { IdentityUserRepository } from '@flex-thia/domain';
 import { type DynamicModule, Module } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import type { IdentityUserRepository } from '@flex-thia/domain';
 import { AdminMfaGuard } from '../identity/admin-mfa.guard.js';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
 import {
@@ -12,10 +12,9 @@ import {
 } from '../identity/cognito-authorizer.guard.js';
 import { AdminContentImportsController } from './admin-content-imports.controller.js';
 import {
-  AdminContentService,
   type AdminContentDependencies,
+  AdminContentService,
 } from './admin-content.service.js';
-import { AdminMediaAssetsController } from './admin-media-assets.controller.js';
 import { AdminQuestionsController } from './admin-questions.controller.js';
 import { AdminVocabulariesController } from './admin-vocabularies.controller.js';
 
@@ -34,7 +33,6 @@ export class AdminModule {
       module: AdminModule,
       controllers: [
         AdminContentImportsController,
-        AdminMediaAssetsController,
         AdminQuestionsController,
         AdminVocabulariesController,
       ],

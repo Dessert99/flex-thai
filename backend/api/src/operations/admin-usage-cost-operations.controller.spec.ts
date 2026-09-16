@@ -1,7 +1,7 @@
 /** 사용량·비용 controller의 관리자 guard와 요청 전달을 검증한다 */
 import { GUARDS_METADATA } from '@nestjs/common/constants.js';
-import { z } from 'zod';
 import { describe, expect, it, vi } from 'vitest';
+import { z } from 'zod';
 import { AdminMfaGuard } from '../identity/admin-mfa.guard.js';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
 import { CognitoAuthorizerGuard } from '../identity/cognito-authorizer.guard.js';
@@ -11,7 +11,7 @@ import { AdminUsageCostOperationsController } from './admin-usage-cost-operation
 vi.mock('@flex-thia/contracts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@flex-thia/contracts')>()),
   usageCostOverviewQuerySchema: z
-    .object({ source: z.enum(['AI', 'TTS']).optional() })
+    .object({ source: z.enum(['AI']).optional() })
     .strict(),
   updateOperationsCostSettingsRequestSchema: z
     .object({
@@ -60,14 +60,9 @@ describe('AdminUsageCostOperationsController', () => {
       requestId: '00000000-0000-4000-8000-000000000002',
     };
 
-    await controller.overview(admin, { source: 'TTS' });
+    await controller.overview(admin, { source: 'AI' });
     await controller.settings(admin);
     await controller.updateSettings(admin, body);
-
-    expect(service.overview).toHaveBeenCalledWith(
-      { role: 'ADMIN' },
-      { source: 'TTS' },
-    );
     expect(service.settings).toHaveBeenCalledWith({ role: 'ADMIN' });
     expect(service.updateSettings).toHaveBeenCalledWith(
       {

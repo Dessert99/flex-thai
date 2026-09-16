@@ -1,15 +1,11 @@
 /** 개념 query·command·guard를 독립 NestJS module로 조립한다 */
-import { type DynamicModule, Module } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
 import type {
   DrizzleAdminConceptQuery,
   DrizzleLearnerConceptQuery,
 } from '@flex-thia/database';
-import type {
-  ConceptService,
-  IdentityUserRepository,
-  MediaReadUrlProvider,
-} from '@flex-thia/domain';
+import type { ConceptService, IdentityUserRepository } from '@flex-thia/domain';
+import { type DynamicModule, Module } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { AdminMfaGuard } from '../identity/admin-mfa.guard.js';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
 import {
@@ -27,7 +23,6 @@ export interface ConceptsModuleOptions {
   learnerQuery: DrizzleLearnerConceptQuery;
   adminQuery: DrizzleAdminConceptQuery;
   adminService: ConceptService;
-  mediaReadUrls: MediaReadUrlProvider;
   users: IdentityUserRepository;
   authorizer: AuthorizerGuardOptions;
 }

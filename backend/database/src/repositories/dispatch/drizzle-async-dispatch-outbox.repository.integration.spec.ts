@@ -1,6 +1,6 @@
 /** 실제 PostgreSQL에서 공유 outbox의 transaction·동시 claim·lease redelivery를 검증한다 */
-import { randomUUID } from 'node:crypto';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { DrizzleAsyncDispatchOutboxRepository } from './drizzle-async-dispatch-outbox.repository.js';
@@ -39,7 +39,7 @@ describe.runIf(databaseUrl !== undefined)(
       await pool.end();
     });
 
-    const enqueueTts = async (
+    const enqueueContent = async (
       repository: DrizzleAsyncDispatchOutboxRepository,
       database: ReturnType<typeof drizzle>,
       jobId = randomUUID(),
@@ -47,10 +47,11 @@ describe.runIf(databaseUrl !== undefined)(
     ) => {
       createdJobIds.push(jobId);
       await database.transaction((transaction) =>
-        repository.enqueueTts(transaction as never, {
+        repository.enqueue(transaction as never, {
+          destination: 'CONTENT_PRODUCTION',
           jobId,
           attempt,
-          commandFingerprint: 'a'.repeat(64),
+
           requestedAt: new Date('2026-07-28T00:00:00.000Z'),
         }),
       );
@@ -67,10 +68,11 @@ describe.runIf(databaseUrl !== undefined)(
 
       await expect(
         database.transaction(async (transaction) => {
-          await repository.enqueueTts(transaction as never, {
+          await repository.enqueue(transaction as never, {
+            destination: 'CONTENT_PRODUCTION',
             jobId,
             attempt: 0,
-            commandFingerprint: 'a'.repeat(64),
+
             requestedAt: new Date('2026-07-28T00:00:00.000Z'),
           });
           throw new Error('ROLLBACK');
@@ -98,7 +100,7 @@ describe.runIf(databaseUrl !== undefined)(
         () => clock,
         () => 'lease-b',
       );
-      await enqueueTts(first, database);
+      await enqueueContent(first, database);
 
       const results = await Promise.all([
         first.claimBatch({
@@ -127,7 +129,7 @@ describe.runIf(databaseUrl !== undefined)(
         () => clock,
         () => lease,
       );
-      await enqueueTts(repository, database);
+      await enqueueContent(repository, database);
       const [first] = await repository.claimBatch({
         workerId: 'worker-a',
         batchSize: 1,
@@ -169,7 +171,7 @@ describe.runIf(databaseUrl !== undefined)(
         () => clock,
         () => lease,
       );
-      await enqueueTts(repository, database);
+      await enqueueContent(repository, database);
       const [claimed] = await repository.claimBatch({
         workerId: 'worker-a',
         batchSize: 1,
@@ -214,7 +216,7 @@ describe.runIf(databaseUrl !== undefined)(
         () => clock,
         () => 'lease-a',
       );
-      await enqueueTts(repository, database);
+      await enqueueContent(repository, database);
       const [claimed] = await repository.claimBatch({
         workerId: 'worker-a',
         batchSize: 1,

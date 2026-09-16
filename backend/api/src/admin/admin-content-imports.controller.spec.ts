@@ -84,7 +84,6 @@ describe('AdminContentImportsController 공개 계약', () => {
               clientRef: 'pronunciation',
               pronunciationKo: '꺼',
               toneMarks: 'L',
-              mediaAssetId: '00000000-0000-4000-8000-000000000004',
             },
           ],
         },

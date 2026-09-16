@@ -1,9 +1,9 @@
 /** canonical JSON 가져오기의 사전 검증과 멱등 제출 경계를 검증한다 */
+import { ApiError } from '@/shared/api';
+import { renderWithProviders } from '@/shared/test';
 import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError } from '@/shared/api';
-import { renderWithProviders } from '@/shared/test';
 import { ContentImportListPageContainer } from './ContentImportListPageContainer';
 
 interface CapturedRequest {
@@ -218,7 +218,6 @@ function createValidRequest() {
             clientRef: 'pronunciation-1',
             pronunciationKo: '싸왓디',
             toneMarks: '',
-            mediaAssetId: '01933b6a-8f13-7a19-b7e5-536d70f57aaa',
           },
         ],
       },

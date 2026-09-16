@@ -1,14 +1,14 @@
 /** 결정적 문제 생성 fake가 canonical fixture와 고정 사용량을 안전하게 반환하는지 검증한다 */
-import { describe, expect, it } from 'vitest';
-import {
-  validateGeneratedQuestionSchema,
-  validateQuestionDecisionRules,
-} from '@flex-thia/domain';
 import type {
   GeneratedQuestionCandidate,
   QuestionGenerationInput,
   QuestionProductionContext,
 } from '@flex-thia/domain';
+import {
+  validateGeneratedQuestionSchema,
+  validateQuestionDecisionRules,
+} from '@flex-thia/domain';
+import { describe, expect, it } from 'vitest';
 import { FakeQuestionGenerationProvider } from './fake-question-generation.provider.js';
 
 const sentence = {
@@ -45,7 +45,6 @@ const candidate: GeneratedQuestionCandidate = {
     blocks: [
       {
         kind: 'QUESTION',
-        displayMode: 'TEXT',
         sentences: [{ speaker: null, sentence }],
       },
     ],

@@ -12,24 +12,12 @@ const config = readInfrastructureConfig({
   hostedZoneId: 'Z0123456789EXAMPLE',
   alertEmail: 'owner@example.com',
   githubRepository: 'Dessert99/flex-thai',
-  ttsVoicePresetId: '00000000-0000-4000-8000-000000000777',
-  mediaPublicKeyPem:
-    '-----BEGIN PUBLIC KEY-----\ndGVzdA==\n-----END PUBLIC KEY-----',
 });
 
 type SynthesizedRoute = {
   Properties: {
     AuthorizationType: string;
     RouteKey: string;
-  };
-};
-
-type SynthesizedLambda = {
-  Properties: {
-    Environment?: {
-      Variables?: Record<string, unknown>;
-    };
-    Handler?: string;
   };
 };
 
@@ -71,16 +59,9 @@ const protectedRouteKeys = [
   'GET /api/v1/admin/content-production/vocabulary-candidates',
   'GET /api/v1/admin/content-production/vocabulary-candidates/{candidateId}',
   'GET /api/v1/admin/home',
-  'GET /api/v1/admin/media-assets/{mediaAssetId}',
   'GET /api/v1/admin/questions',
   'GET /api/v1/admin/questions/{questionId}',
   'GET /api/v1/admin/question-taxonomy',
-  'GET /api/v1/admin/tts/jobs',
-  'GET /api/v1/admin/tts/jobs/{jobId}',
-  'GET /api/v1/admin/tts/items/{itemId}/audio',
-  'GET /api/v1/admin/tts/presets',
-  'GET /api/v1/admin/tts/presets/{presetId}',
-  'GET /api/v1/admin/tts/questions/{questionId}/versions/{versionId}/readiness',
   'GET /api/v1/admin/usage-cost',
   'GET /api/v1/admin/usage-cost/settings',
   'GET /api/v1/admin/users',
@@ -121,12 +102,9 @@ const protectedRouteKeys = [
   'POST /api/v1/admin/concepts/{conceptId}/hide',
   'POST /api/v1/admin/concepts/{conceptId}/restore',
   'POST /api/v1/admin/concepts/{conceptId}/versions',
-  'POST /api/v1/admin/media-assets/audio-upload-requests',
-  'POST /api/v1/admin/media-assets/{mediaAssetId}/complete',
   'POST /api/v1/admin/questions/{questionId}/hide',
   'POST /api/v1/admin/questions/{questionId}/restore',
   'POST /api/v1/admin/questions/{questionId}/versions',
-  'POST /api/v1/admin/questions/{questionId}/versions/{versionId}/tts-jobs',
   'POST /api/v1/admin/question-tags',
   'POST /api/v1/admin/question-tags/{id}/archive',
   'POST /api/v1/admin/question-topics',
@@ -139,12 +117,6 @@ const protectedRouteKeys = [
   'POST /api/v1/admin/question-versions/{versionId}/invalidate',
   'POST /api/v1/admin/question-versions/{versionId}/publish',
   'POST /api/v1/admin/question-versions/{versionId}/validate',
-  'POST /api/v1/admin/tts/items/{itemId}/retry',
-  'POST /api/v1/admin/tts/jobs/{jobId}/retry',
-  'POST /api/v1/admin/tts/presets',
-  'POST /api/v1/admin/tts/presets/{presetId}/disable',
-  'POST /api/v1/admin/tts/presets/{presetId}/enable',
-  'POST /api/v1/admin/tts/presets/{presetId}/versions',
   'POST /api/v1/admin/users/invitations',
   'POST /api/v1/admin/vocabularies/{vocabularyId}/hide',
   'POST /api/v1/admin/vocabularies/{vocabularyId}/merge',
@@ -181,7 +153,6 @@ describe('HttpApi 운영 API 경계', () => {
     const stack = new ApplicationStack(app, 'HttpApplication', {
       config,
       dataStack,
-      mediaKeyPairId: 'KTESTMEDIAKEY',
     });
     const template = Template.fromStack(stack);
 
@@ -200,7 +171,6 @@ describe('HttpApi 운영 API 경계', () => {
     const stack = new ApplicationStack(app, 'HttpRoutes', {
       config,
       dataStack,
-      mediaKeyPairId: 'KTESTMEDIAKEY',
     });
     const template = Template.fromStack(stack);
 
@@ -236,57 +206,12 @@ describe('HttpApi 운영 API 경계', () => {
     });
   });
 
-  it('production runtime에 값 대신 secret ARN과 media 설정을 전달한다', () => {
-    const app = new App();
-    const dataStack = new DataStack(app, 'HttpRuntimeData');
-    const stack = new ApplicationStack(app, 'HttpRuntimeApplication', {
-      config,
-      dataStack,
-      mediaKeyPairId: 'KTESTMEDIAKEY',
-    });
-    const template = Template.fromStack(stack);
-
-    template.hasResourceProperties('AWS::Lambda::Function', {
-      Handler: 'lambda.handler',
-      Environment: {
-        Variables: Match.objectLike({
-          CHALLENGE_HMAC_PEPPER_SECRET_ARN: Match.anyValue(),
-          CUSTOM_AUTH_SECRET_ARN: Match.anyValue(),
-          EMAIL_LINK_CONFIRMATION_URL: 'https://www.example.com/login/confirm',
-          MEDIA_BUCKET_NAME: Match.anyValue(),
-          MEDIA_CDN_BASE_URL: 'https://www.example.com/media',
-          MEDIA_KEY_PAIR_ID: 'KTESTMEDIAKEY',
-          MEDIA_PRIVATE_KEY_SECRET_ARN: Match.anyValue(),
-          TTS_VOICE_PRESET_ID: '00000000-0000-4000-8000-000000000777',
-        }),
-      },
-    });
-    const apiFunctions = Object.values(
-      template.findResources('AWS::Lambda::Function') as Record<
-        string,
-        SynthesizedLambda
-      >,
-    ).filter(({ Properties }) => Properties.Handler === 'lambda.handler');
-    expect(apiFunctions).toHaveLength(1);
-    expect(
-      apiFunctions[0]?.Properties.Environment?.Variables?.CUSTOM_AUTH_SECRET,
-    ).toBe(undefined);
-    expect(
-      apiFunctions[0]?.Properties.Environment?.Variables?.CHALLENGE_HMAC_PEPPER,
-    ).toBe(undefined);
-    expect(
-      apiFunctions[0]?.Properties.Environment?.Variables
-        ?.AUTH_LIMIT_PARAMETER_PREFIX,
-    ).toBe(undefined);
-  });
-
   it('api custom domain과 www CORS origin을 사용한다', () => {
     const app = new App();
     const dataStack = new DataStack(app, 'HttpDomainData');
     const stack = new ApplicationStack(app, 'HttpDomainApplication', {
       config,
       dataStack,
-      mediaKeyPairId: 'KTESTMEDIAKEY',
     });
     const template = Template.fromStack(stack);
 

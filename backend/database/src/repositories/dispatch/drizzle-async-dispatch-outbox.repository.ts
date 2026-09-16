@@ -1,6 +1,4 @@
 /** 공유 dispatch outbox의 exact insert와 lease 기반 claim·ack·release를 구현한다 */
-import { createHash } from 'node:crypto';
-import { isDeepStrictEqual } from 'node:util';
 import type {
   QuestionRegenerationDispatchInput,
   QuestionRegenerationDispatchWriter,
@@ -8,12 +6,13 @@ import type {
 import { and, asc, eq, gt, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
+import { isDeepStrictEqual } from 'node:util';
 import {
   asyncDispatchOutbox,
   type asyncDispatchPayloadKindEnum,
 } from '../../schema/async-dispatch-outbox.schema.js';
-import { jobs } from '../../schema/jobs.schema.js';
 import * as schema from '../../schema/index.js';
+import { jobs } from '../../schema/jobs.schema.js';
 
 type AsyncDispatchPayloadKind =
   (typeof asyncDispatchPayloadKindEnum.enumValues)[number];
@@ -24,23 +23,12 @@ export type AsyncDispatchTransaction = Parameters<
 >[0];
 
 /** outbox에 저장하는 queue별 최소 실행 payload */
-export type AsyncDispatchPayload =
-  | {
-      payloadKind: 'CONTENT_PRODUCTION';
-      jobId: string;
-      attempt: number;
-      payload: { jobId: string; attempt: number };
-    }
-  | {
-      payloadKind: 'TTS';
-      jobId: string;
-      attempt: number;
-      payload: {
-        jobId: string;
-        attempt: number;
-        commandFingerprint: string;
-      };
-    };
+export type AsyncDispatchPayload = {
+  payloadKind: 'CONTENT_PRODUCTION';
+  jobId: string;
+  attempt: number;
+  payload: { jobId: string; attempt: number };
+};
 
 /** relay가 소유권과 결정적 delivery identity를 함께 받는 claim 결과 */
 export interface ClaimedAsyncDispatchOutboxRow {
@@ -54,44 +42,6 @@ export interface ClaimedAsyncDispatchOutboxRow {
   leaseExpiresAt: Date;
   deliveryAttempts: number;
 }
-
-/** 호출 transaction 안에 TTS 실행 intent를 exact-once로 기록하는 writer */
-export interface TtsDispatchOutboxWriter<
-  Transaction = AsyncDispatchTransaction,
-> {
-  enqueueTts(
-    transaction: Transaction,
-    input: {
-      jobId: string;
-      attempt: number;
-      commandFingerprint: string;
-      requestedAt: Date;
-    },
-  ): Promise<void>;
-  assertTtsDispatch(
-    transaction: Transaction,
-    input: { jobId: string; attempt: number; commandFingerprint: string },
-  ): Promise<void>;
-}
-
-const sha256 = (canonicalCommand: string): string =>
-  createHash('sha256').update(canonicalCommand).digest('hex');
-
-/** 최초 TTS dispatch를 retry 선택과 겹치지 않는 command identity로 만든다 */
-export const createTtsInitialCommandFingerprint = (jobId: string): string =>
-  sha256(`tts-initial:${jobId}`);
-
-/** item별 기대 attempt를 정렬해 순서와 무관한 retry command identity로 만든다 */
-export const createTtsRetryCommandFingerprint = (
-  jobId: string,
-  expectedAttempts: Readonly<Record<string, number>>,
-): string =>
-  sha256(
-    `tts-retry:${jobId}:${Object.entries(expectedAttempts)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([itemId, expectedAttempt]) => `${itemId}:${expectedAttempt}`)
-      .join(',')}`,
-  );
 
 /** outbox 저장 불변식 위반을 stable 내부 code로 전달한다 */
 export class AsyncDispatchOutboxError extends Error {
@@ -140,8 +90,7 @@ const idempotencyKeyFor = (
   payloadKind: AsyncDispatchPayloadKind,
   jobId: string,
   attempt: number,
-): string =>
-  `${payloadKind === 'CONTENT_PRODUCTION' ? 'content-production' : 'tts'}:${jobId}:${attempt}`;
+): string => `content-production:${jobId}:${attempt}`;
 
 const normalizeWorkerId = (workerId: string): string => {
   if (!/^[A-Za-z0-9._:-]{1,80}$/.test(workerId)) {
@@ -197,11 +146,7 @@ const mapClaimed = (
 };
 
 /** 공용 outbox writer와 lease repository를 한 PostgreSQL adapter로 제공한다 */
-export class DrizzleAsyncDispatchOutboxRepository
-  implements
-    QuestionRegenerationDispatchWriter<AsyncDispatchTransaction>,
-    TtsDispatchOutboxWriter<AsyncDispatchTransaction>
-{
+export class DrizzleAsyncDispatchOutboxRepository implements QuestionRegenerationDispatchWriter<AsyncDispatchTransaction> {
   constructor(
     private readonly database: AsyncDispatchDatabase,
     private readonly now: () => Date = () => new Date(),
@@ -223,61 +168,6 @@ export class DrizzleAsyncDispatchOutboxRepository
       },
       input.requestedAt,
     );
-  }
-
-  /** TTS 조립 단계가 같은 공용 lease relay를 재사용할 typed writer 경계 */
-  async enqueueTts(
-    transaction: AsyncDispatchTransaction,
-    input: {
-      jobId: string;
-      attempt: number;
-      commandFingerprint: string;
-      requestedAt: Date;
-    },
-  ): Promise<void> {
-    await this.enqueuePayload(
-      transaction,
-      {
-        payloadKind: 'TTS',
-        jobId: input.jobId,
-        attempt: input.attempt,
-        payload: {
-          jobId: input.jobId,
-          attempt: input.attempt,
-          commandFingerprint: input.commandFingerprint,
-        },
-      },
-      input.requestedAt,
-    );
-  }
-
-  /** 상태 replay는 이미 commit된 동일 TTS outbox가 있을 때만 성공시킨다 */
-  async assertTtsDispatch(
-    transaction: Pick<AsyncDispatchTransaction, 'select'>,
-    input: { jobId: string; attempt: number; commandFingerprint: string },
-  ): Promise<void> {
-    const idempotencyKey = idempotencyKeyFor('TTS', input.jobId, input.attempt);
-    const rows = await transaction
-      .select(storedSelection)
-      .from(asyncDispatchOutbox)
-      .where(eq(asyncDispatchOutbox.idempotencyKey, idempotencyKey))
-      .limit(2);
-    if (rows.length !== 1 || !rows[0]) {
-      throw new AsyncDispatchOutboxError(
-        'ASYNC_DISPATCH_OUTBOX_IDEMPOTENCY_CONFLICT',
-      );
-    }
-    assertExactReplay(rows[0], {
-      payloadKind: 'TTS',
-      jobId: input.jobId,
-      attempt: input.attempt,
-      idempotencyKey,
-      payload: {
-        jobId: input.jobId,
-        attempt: input.attempt,
-        commandFingerprint: input.commandFingerprint,
-      },
-    });
   }
 
   private async enqueuePayload(

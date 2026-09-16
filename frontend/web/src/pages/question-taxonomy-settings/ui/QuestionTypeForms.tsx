@@ -1,12 +1,4 @@
 /** 세부 문제 유형과 다음 DRAFT 버전 생성 입력을 분리해 관리한다 */
-import {
-  createQuestionTypeVersionRequestSchema,
-  questionMajorCategoryMetadata,
-  type CreateQuestionTypeRequest,
-  type CreateQuestionTypeVersionRequest,
-  type QuestionTaxonomySettingsResponse,
-} from '@flex-thia/contracts';
-import { useState } from 'react';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import {
@@ -17,6 +9,14 @@ import {
   SelectValue,
 } from '@/shared/ui/select';
 import { Textarea } from '@/shared/ui/textarea';
+import {
+  createQuestionTypeVersionRequestSchema,
+  questionMajorCategoryMetadata,
+  type CreateQuestionTypeRequest,
+  type CreateQuestionTypeVersionRequest,
+  type QuestionTaxonomySettingsResponse,
+} from '@flex-thia/contracts';
+import { useState } from 'react';
 import { questionTypeFormSchema } from '../model/questionTaxonomyFormSchema';
 
 type QuestionTypeVersion =

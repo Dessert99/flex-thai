@@ -1,9 +1,11 @@
 /** 콘텐츠 제작 console의 독립 query 상태를 검증한다 */
-import { renderWithProviders as render } from '@/shared/test';
+import {
+  renderWithProviders as render,
+  renderWithProviders,
+} from '@/shared/test';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '@/shared/test';
 import { ContentProductionConsolePageContainer } from './ContentProductionConsolePageContainer';
 import { ContentProductionConsolePageView } from './ContentProductionConsolePageView';
 
@@ -41,8 +43,6 @@ const questionPreset = {
     excludedVocabularyIds: [],
     newAuxiliaryVocabularyLimit: 3,
     similarityThreshold: 0.7,
-    defaultVoicePresetId: '00000000-0000-4000-8000-000000000012',
-    speakerVoiceAssignments: [],
     additionalInstructionKo: null,
     commonPrinciples: [],
     similarQuestions: [],

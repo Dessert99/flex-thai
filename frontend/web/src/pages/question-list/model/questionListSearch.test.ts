@@ -55,7 +55,7 @@ describe('문제 목록 검색값', () => {
 
   it.each([
     { skill: 'SPEAKING' },
-    { majorCategory: 'LISTENING' },
+    { majorCategory: 'READING' },
     { questionTypeId: 'not-a-uuid' },
     { difficulty: '6' },
     { saved: 'yes' },

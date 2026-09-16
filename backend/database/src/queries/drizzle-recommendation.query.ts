@@ -12,7 +12,7 @@ export interface QuestionRecommendationCandidate {
   questionTypeId: string;
   questionTypeSlug: string;
   questionTypeDisplayName: string;
-  skill: 'READING' | 'LISTENING';
+  skill: 'READING';
   difficulty: number;
   publishedAt: Date | string;
   publishedToday: boolean;
@@ -61,7 +61,7 @@ export interface QuestionRecommendationProjection {
     slug: string;
     displayName: string;
   };
-  skill: 'READING' | 'LISTENING';
+  skill: 'READING';
   difficulty: number;
   reasonCode: QuestionReasonCode;
   reason: string;
@@ -93,7 +93,7 @@ export interface HomeContentProjection {
     questionId: string;
     questionVersionId: string;
     questionTypeDisplayName: string;
-    skill: 'READING' | 'LISTENING';
+    skill: 'READING';
     difficulty: number;
     publishedAt: string;
   }>;

@@ -1,15 +1,4 @@
 /** 콘텐츠 제작 work item을 멱등한 AI 문제 후보 pipeline으로 처리한다 */
-import { createHash } from 'node:crypto';
-import {
-  assertDistinctValidationModels,
-  buildQuestionGenerationPrompt,
-  classifyQuestionCandidate,
-  hasTrustedQuestionCandidateReferences,
-  normalizeQuestionProductionValidationRecord,
-  normalizeQuestionProductionProviderResult,
-  validateGeneratedQuestionSchema,
-  validateQuestionDecisionRules,
-} from '@flex-thia/domain';
 import type {
   ContentProductionWorkItem,
   GeneratedQuestionCandidate,
@@ -20,14 +9,25 @@ import type {
   QuestionProductionCandidateRepository,
   QuestionProductionContext,
   QuestionProductionContextRepository,
+  QuestionProductionProviderCandidate,
   QuestionProductionProviderExecution,
   QuestionProductionProviderFailure,
   QuestionProductionProviderResult,
-  QuestionProductionProviderCandidate,
   QuestionProductionProviderRunRepository,
   QuestionProductionValidationRecord,
   QuestionSimilarityLookup,
 } from '@flex-thia/domain';
+import {
+  assertDistinctValidationModels,
+  buildQuestionGenerationPrompt,
+  classifyQuestionCandidate,
+  hasTrustedQuestionCandidateReferences,
+  normalizeQuestionProductionProviderResult,
+  normalizeQuestionProductionValidationRecord,
+  validateGeneratedQuestionSchema,
+  validateQuestionDecisionRules,
+} from '@flex-thia/domain';
+import { createHash } from 'node:crypto';
 
 type QuestionWorkItem = ContentProductionWorkItem & {
   item: ContentProductionWorkItem['item'] & {

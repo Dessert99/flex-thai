@@ -1,13 +1,4 @@
 /** ADMIN·MFA로 보호한 감사 기록 목록·상세 HTTP 경계를 제공한다 */
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOkResponse,
-  ApiOperation,
-  ApiParam,
-  ApiQuery,
-  ApiTags,
-} from '@nestjs/swagger';
 import {
   auditLogDetailResponseSchema,
   auditLogIdPathSchema,
@@ -21,15 +12,24 @@ import {
   type AuditLogDetail,
   type AuditLogListItem,
 } from '@flex-thia/domain';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import {
   CurrentUser,
   type AuthenticatedUser,
 } from '../common/auth/current-user.decorator.js';
-import { ApiProblemResponses } from '../openapi/openapi.decorators.js';
 import { AdminMfaGuard } from '../identity/admin-mfa.guard.js';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
 import { CognitoAuthorizerGuard } from '../identity/cognito-authorizer.guard.js';
 import { RequireRole } from '../identity/require-role.decorator.js';
+import { ApiProblemResponses } from '../openapi/openapi.decorators.js';
 import {
   AuditLogDetailResponseDto,
   AuditLogListQueryDto,

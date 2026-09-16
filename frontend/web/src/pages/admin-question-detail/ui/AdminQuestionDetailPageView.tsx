@@ -1,16 +1,16 @@
 /** 관리자 문제의 공개 구조·버전·검증 결과만 계약 그대로 표현한다 */
-import { Link } from '@tanstack/react-router';
-import type { AdminQuestionDetailResponse } from '@flex-thia/contracts';
-import type { ReactNode } from 'react';
 import { isApiError } from '@/shared/api';
 import { Badge } from '@/shared/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
+import type { AdminQuestionDetailResponse } from '@flex-thia/contracts';
+import { Link } from '@tanstack/react-router';
+import type { ReactNode } from 'react';
 
-import { QuestionVersionComparison } from './QuestionVersionComparison';
-import { QuestionVersionPreview } from './QuestionVersionPreview';
-import { Skeleton } from '@/shared/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
 import { Button } from '@/shared/ui/button';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { QuestionVersionComparison } from './QuestionVersionComparison';
+import { QuestionVersionPreview } from './QuestionVersionPreview';
 
 interface AdminQuestionDetailPageViewProps {
   actions: ReactNode;
@@ -134,9 +134,7 @@ function QuestionVersionCard({
           </div>
           <div>
             <dt className='text-subtle'>영역</dt>
-            <dd>
-              {version.questionType.skill === 'READING' ? '읽기' : '듣기'}
-            </dd>
+            <dd>{version.questionType.skill === 'READING' ? '읽기' : ''}</dd>
           </div>
           <div>
             <dt className='text-subtle'>난이도</dt>

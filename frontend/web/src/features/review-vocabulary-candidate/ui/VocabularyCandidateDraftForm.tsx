@@ -1,11 +1,10 @@
 /** 어휘 후보의 발음 행과 뜻-발음 graph를 편집해 새 DRAFT 승인을 만든다 */
-import { useState, type FormEvent } from 'react';
-import type { VocabularyCandidateListResponse } from '@flex-thia/contracts';
-import { z } from 'zod';
-import type { VocabularyCandidateApprovalInput } from '../api/vocabularyCandidateApi';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
+import type { VocabularyCandidateListResponse } from '@flex-thia/contracts';
+import { useState, type FormEvent } from 'react';
+import type { VocabularyCandidateApprovalInput } from '../api/vocabularyCandidateApi';
 
 type VocabularyCandidate = VocabularyCandidateListResponse['items'][number];
 type CreateDraftInput = Extract<
@@ -18,7 +17,6 @@ type CandidateSnapshot = Pick<
 >;
 type PronunciationInput = {
   id: number;
-  mediaAssetId: string;
   pronunciationKo: string;
   toneMarks: string;
 };
@@ -30,10 +28,8 @@ export interface VocabularyCandidateDraftFormProps {
   onCreateDraft: (input: CreateDraftInput) => void;
 }
 
-const uuidSchema = z.uuid();
 const emptyPronunciation = (id: number): PronunciationInput => ({
   id,
-  mediaAssetId: '',
   pronunciationKo: '',
   toneMarks: '',
 });
@@ -57,7 +53,6 @@ const toCreateDraftInput = (
     clientRef: `pronunciation.${pronunciation.id}`,
     pronunciationKo: pronunciation.pronunciationKo.trim(),
     toneMarks: pronunciation.toneMarks.trim(),
-    mediaAssetId: pronunciation.mediaAssetId,
   })),
   meaningPronunciations: candidate.meanings.flatMap((_, meaningIndex) =>
     pronunciations
@@ -107,16 +102,7 @@ function PronunciationFields({
         onChange={(event) => onChange('toneMarks', event.target.value)}
         value={pronunciation.toneMarks}
       />
-      <Label htmlFor={`media-asset-${pronunciation.id}`}>
-        sealed media asset ID {suffix}
-      </Label>
-      <Input
-        disabled={pending}
-        id={`media-asset-${pronunciation.id}`}
-        onChange={(event) => onChange('mediaAssetId', event.target.value)}
-        required
-        value={pronunciation.mediaAssetId}
-      />
+
       <Button
         disabled={pending || !removable}
         onClick={onRemove}
@@ -150,9 +136,7 @@ const useDraftGraph = ({
     candidate.classification !== 'NEW_VOCABULARY';
   const graphComplete =
     pronunciations.every(
-      ({ mediaAssetId, pronunciationKo }) =>
-        pronunciationKo.trim().length > 0 &&
-        uuidSchema.safeParse(mediaAssetId).success,
+      ({ pronunciationKo }) => pronunciationKo.trim().length > 0,
     ) &&
     candidate.meanings.every((_, meaningIndex) =>
       pronunciations.some(({ id }) =>

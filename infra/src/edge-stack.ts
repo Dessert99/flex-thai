@@ -1,5 +1,4 @@
 /** 버지니아 리전의 CloudFront·인증서·DNS 자원을 소유한다 */
-import { existsSync, statSync } from 'node:fs';
 import {
   Annotations,
   CfnOutput,
@@ -16,10 +15,10 @@ import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3Deployment from 'aws-cdk-lib/aws-s3-deployment';
 import type { Construct } from 'constructs';
+import { existsSync, statSync } from 'node:fs';
 import type { InfrastructureConfig } from './config.js';
 import type { DataStack } from './data-stack.js';
 
-/** EdgeStack이 Web과 media origin을 연결할 설정 */
 export interface EdgeStackProps extends StackProps {
   config: InfrastructureConfig;
   dataStack: DataStack;
@@ -28,9 +27,6 @@ export interface EdgeStackProps extends StackProps {
 
 /** CloudFront와 정식 Web domain을 배치할 글로벌 경계 Stack */
 export class EdgeStack extends Stack {
-  /** signed media URL 생성 시 사용하는 CloudFront 공개키 ID */
-  readonly mediaKeyPairId: string;
-
   constructor(scope: Construct, id: string, props: EdgeStackProps) {
     super(scope, id, props);
 
@@ -42,7 +38,6 @@ export class EdgeStack extends Stack {
       throw new Error('Web asset directory does not exist.');
     }
 
-    // Media bucket policy는 순환 참조를 피하려고 DataStack에서 계정 단위로 추가한다.
     Annotations.of(this).acknowledgeWarning(
       '@aws-cdk/aws-cloudfront-origins:updateImportedBucketPolicyOac',
       'DataStack이 같은 계정의 CloudFront OAC 읽기 정책을 소유한다.',
@@ -71,42 +66,14 @@ export class EdgeStack extends Stack {
       removalPolicy: RemovalPolicy.RETAIN,
       autoDeleteObjects: false,
     });
-
-    const publicKey = new cloudfront.PublicKey(this, 'MediaPublicKey', {
-      encodedKey: props.config.mediaPublicKeyPem,
-      comment: 'FLEX THIA private media signed URL public key',
-    });
-    this.mediaKeyPairId = publicKey.publicKeyId;
-    const mediaKeyGroup = new cloudfront.KeyGroup(this, 'MediaKeyGroup', {
-      items: [publicKey],
-      comment: 'FLEX THIA private media signed URL key group',
-    });
     const webOriginAccessControl = new cloudfront.S3OriginAccessControl(
       this,
       'WebOriginAccessControl',
-    );
-    const mediaOriginAccessControl = new cloudfront.S3OriginAccessControl(
-      this,
-      'MediaOriginAccessControl',
-    );
-    const mediaOriginBucket = s3.Bucket.fromBucketAttributes(
-      this,
-      'MediaOriginBucket',
-      {
-        bucketName: props.dataStack.mediaBucket.bucketName,
-        region: props.config.appRegion,
-      },
     );
     const webOrigin = origins.S3BucketOrigin.withOriginAccessControl(
       webBucket,
       {
         originAccessControl: webOriginAccessControl,
-      },
-    );
-    const mediaOrigin = origins.S3BucketOrigin.withOriginAccessControl(
-      mediaOriginBucket,
-      {
-        originAccessControl: mediaOriginAccessControl,
       },
     );
     const htmlCachePolicy = new cloudfront.CachePolicy(
@@ -215,16 +182,6 @@ function handler(event) {
           compress: true,
           functionAssociations: redirectFunctionAssociations,
           responseHeadersPolicy: webResponseHeadersPolicy,
-          viewerProtocolPolicy:
-            cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-        },
-        '/media/*': {
-          origin: mediaOrigin,
-          allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
-          cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
-          compress: true,
-          functionAssociations: redirectFunctionAssociations,
-          trustedKeyGroups: [mediaKeyGroup],
           viewerProtocolPolicy:
             cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         },

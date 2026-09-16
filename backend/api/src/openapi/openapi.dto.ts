@@ -4,8 +4,6 @@ import {
   adminQuestionIdPathSchema,
   adminQuestionListQuerySchema,
   adminQuestionListResponseSchema,
-  adminQuestionTtsJobPathSchema,
-  adminQuestionTtsJobResponseSchema,
   adminQuestionValidationReportSchema,
   adminQuestionVersionIdPathSchema,
   adminQuestionVersionPayloadSchema,
@@ -14,7 +12,6 @@ import {
   adminVocabularyIdPathSchema,
   adminVocabularyListQuerySchema,
   adminVocabularyListResponseSchema,
-  adminVocabularyReplaceRequestSchema,
   adminVocabularyMergeExecuteRequestSchema,
   adminVocabularyMergePreviewRequestSchema,
   adminVocabularyMergePreviewResponseSchema,
@@ -23,12 +20,10 @@ import {
   adminVocabularyRelationPathSchema,
   adminVocabularyRelationSchema,
   adminVocabularyRelationUpdateRequestSchema,
-  audioUploadRequestSchema,
-  audioUploadResponseSchema,
+  adminVocabularyReplaceRequestSchema,
   authenticatedResponseSchema,
   betaInvitationRequestSchema,
   betaInvitationResponseSchema,
-  completeMediaAssetResponseSchema,
   confirmEmailLinkRequestSchema,
   contentImportDetailResponseSchema,
   contentImportIdPathSchema,
@@ -38,17 +33,15 @@ import {
   emailAuthenticationChallengeResponseSchema,
   healthResponseSchema,
   managedIdentityUserResponseSchema,
-  mediaAssetDetailResponseSchema,
-  mediaAssetIdPathSchema,
   meResponseSchema,
   mfaRequiredResponseSchema,
+  problemDetailsSchema,
   questionAttemptListQuerySchema,
   questionAttemptListResponseSchema,
   questionDetailResponseSchema,
   questionIdPathSchema,
   questionListQuerySchema,
   questionListResponseSchema,
-  problemDetailsSchema,
   readinessResponseSchema,
   startEmailAuthenticationRequestSchema,
   submitQuestionAttemptRequestSchema,
@@ -58,6 +51,7 @@ import {
   totpSetupVerifyRequestSchema,
   userManagementListResponseSchema,
   userStatusUpdateRequestSchema,
+  verifyEmailCodeRequestSchema,
   vocabularyDetailResponseSchema,
   vocabularyIdPathSchema,
   vocabularyListQuerySchema,
@@ -65,7 +59,6 @@ import {
   vocabularyRelatedQuestionsQuerySchema,
   vocabularyRelatedQuestionsResponseSchema,
   vocabularyWordbookMembershipResponseSchema,
-  verifyEmailCodeRequestSchema,
   wordbookBulkItemsRequestSchema,
   wordbookItemListQuerySchema,
   wordbookItemListResponseSchema,
@@ -75,7 +68,6 @@ import {
   wordbookResponseSchema,
 } from '@flex-thia/contracts';
 import { createZodDto } from 'nestjs-zod';
-import type { ZodObject } from 'zod';
 
 /** 이메일 challenge 시작 요청 Swagger DTO */
 export class StartEmailAuthenticationRequestDto extends createZodDto(
@@ -290,29 +282,6 @@ export class ContentImportListResponseDto extends createZodDto(
   contentImportListResponseSchema,
 ) {}
 
-/** audio upload 선언 요청 Swagger DTO */
-export class AudioUploadRequestDto extends createZodDto(
-  audioUploadRequestSchema,
-) {}
-
-/** audio upload 준비 또는 재사용 응답 Swagger DTO */
-export class AudioUploadResponseDto extends createZodDto(
-  audioUploadResponseSchema as unknown as ZodObject,
-) {}
-
-/** media asset UUID path Swagger DTO */
-export class MediaAssetIdPathDto extends createZodDto(mediaAssetIdPathSchema) {}
-
-/** media asset 완료 응답 Swagger DTO */
-export class CompleteMediaAssetResponseDto extends createZodDto(
-  completeMediaAssetResponseSchema,
-) {}
-
-/** media asset 상태·사용처 상세 Swagger DTO */
-export class MediaAssetDetailResponseDto extends createZodDto(
-  mediaAssetDetailResponseSchema as unknown as ZodObject,
-) {}
-
 /** 관리자 문제 목록 query Swagger DTO */
 export class AdminQuestionListQueryDto extends createZodDto(
   adminQuestionListQuerySchema,
@@ -336,16 +305,6 @@ export class AdminQuestionIdPathDto extends createZodDto(
 /** 관리자 문제 버전 UUID path Swagger DTO */
 export class AdminQuestionVersionIdPathDto extends createZodDto(
   adminQuestionVersionIdPathSchema,
-) {}
-
-/** 관리자 문제 버전 TTS 경로 Swagger DTO */
-export class AdminQuestionTtsJobPathDto extends createZodDto(
-  adminQuestionTtsJobPathSchema,
-) {}
-
-/** 관리자 문제 버전 TTS 생성 결과 Swagger DTO */
-export class AdminQuestionTtsJobResponseDto extends createZodDto(
-  adminQuestionTtsJobResponseSchema,
 ) {}
 
 /** 관리자 문제 버전 전체 교체 Swagger DTO */

@@ -1,7 +1,7 @@
 /** Drizzle 콘텐츠 제작 adapter가 stale 상태 전이를 성공처럼 처리하지 않는지 검증한다 */
-import { describe, expect, it, vi } from 'vitest';
-import { PgDialect } from 'drizzle-orm/pg-core';
 import { ContentProductionPresetError } from '@flex-thia/domain';
+import { PgDialect } from 'drizzle-orm/pg-core';
+import { describe, expect, it, vi } from 'vitest';
 import {
   DrizzleContentProductionPresetCatalog,
   DrizzleContentProductionRepository,
@@ -348,48 +348,6 @@ describe('DrizzleContentProductionPresetCatalog version 운영', () => {
     await expect(catalog.listVersions()).resolves.toEqual([
       { ...preset, revision: 2 },
     ]);
-  });
-
-  it('활성 taxonomy·어휘·voice 참조가 모두 유효할 때만 job options를 overlay한다', async () => {
-    const typeVersionId = 'cbb22737-6f3d-4112-bb0e-8e4f005c810b';
-    const vocabularyId = '77a1e8ff-7c85-4739-9004-647e12e34b65';
-    const voicePresetId = 'a9979e5d-515d-43ab-a380-e88b78513c38';
-    const select = queuedSelect([
-      [preset],
-      [{ id: typeVersionId }],
-      [{ id: vocabularyId }],
-      [{ id: voicePresetId }],
-    ]);
-    const catalog = new DrizzleContentProductionPresetCatalog({
-      select,
-    } as never);
-    const options = {
-      questionCount: 1,
-      questionTypePlan: [{ questionTypeVersionId: typeVersionId, count: 1 }],
-      difficultyPlan: [{ difficulty: 2, count: 1 }],
-      targetVocabularyIds: [vocabularyId],
-      requiredVocabularyIds: [],
-      excludedVocabularyIds: [],
-      newAuxiliaryVocabularyLimit: 0,
-      similarityThreshold: 0.7,
-      defaultVoicePresetId: voicePresetId,
-      speakerVoiceAssignments: [],
-      additionalInstructionKo: null,
-    };
-
-    await expect(
-      catalog.resolveEffectiveSnapshot({
-        purpose: 'QUESTION_GENERATION',
-        presetId: preset.id,
-        options,
-      }),
-    ).resolves.toMatchObject({
-      id: preset.id,
-      parameters: {
-        commonPrinciples: ['FLEX'],
-        ...options,
-      },
-    });
   });
 
   it('enabled command exact replay는 같은 결과를 반환하고 다른 command는 충돌한다', async () => {

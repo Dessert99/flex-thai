@@ -1,14 +1,14 @@
 /** 관리자 홈의 전체 운영 집계를 카드별 상태와 실제 진입 경로로 표현한다 */
-import { Link } from '@tanstack/react-router';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
+import { Skeleton } from '@/shared/ui/skeleton';
 import type {
   AdminHomeOperationsResponse,
   UsageCostOverviewResponse,
 } from '@flex-thia/contracts';
+import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
-import { Skeleton } from '@/shared/ui/skeleton';
-import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
-import { Button } from '@/shared/ui/button';
 
 interface AdminHomeOperationsCardsProps {
   cost: UsageCostOverviewResponse | undefined;
@@ -104,24 +104,6 @@ export function AdminHomeOperationsCards({
         title='AI 생성 작업'
       />
       <OperationalCard
-        content={renderOperationalState({
-          ...state,
-          content: data ? (
-            <p className='text-body text-primary'>
-              실행 중 {data.tts.runningCount}건 · 실패 {data.tts.failedCount}건
-            </p>
-          ) : null,
-        })}
-        links={[
-          {
-            href: '/admin/tts',
-            search: { status: 'FAILED', page: 1, pageSize: 20 },
-            label: 'TTS retry 열기',
-          },
-        ]}
-        title='TTS 작업'
-      />
-      <OperationalCard
         content={renderCostState({
           cost,
           error: costError,
@@ -135,8 +117,9 @@ export function AdminHomeOperationsCards({
           ) : null,
         })}
         links={[{ href: '/admin/usage-cost', label: '비용 화면 열기' }]}
-        title='현재 월 AI·TTS 예상 비용'
+        title='현재 월 AI 예상 비용'
       />
+
       <OperationalCard
         content={renderOperationalState({
           ...state,

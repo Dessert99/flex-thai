@@ -1,5 +1,11 @@
 /** ADMIN·MFA 사용량·비용 overview와 경고 설정 HTTP 경계를 제공한다 */
 import {
+  operationsCostSettingsResponseSchema,
+  updateOperationsCostSettingsRequestSchema,
+  usageCostOverviewQuerySchema,
+  usageCostOverviewResponseSchema,
+} from '@flex-thia/contracts';
+import {
   Body,
   ConflictException,
   Controller,
@@ -16,12 +22,6 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
-import {
-  operationsCostSettingsResponseSchema,
-  updateOperationsCostSettingsRequestSchema,
-  usageCostOverviewQuerySchema,
-  usageCostOverviewResponseSchema,
-} from '@flex-thia/contracts';
 import {
   CurrentUser,
   type AuthenticatedUser,
@@ -51,8 +51,8 @@ import {
 export class AdminUsageCostOperationsController {
   constructor(private readonly usageCost: UsageCostOperationsService) {}
 
-  /** 기간별 AI·TTS 비용과 운영 aggregate를 반환한다 */
-  @ApiOperation({ summary: 'AI·TTS 사용량과 예상 비용을 조회한다' })
+  /** 기간별 AI 비용과 운영 aggregate를 반환한다 */
+  @ApiOperation({ summary: 'AI 사용량과 예상 비용을 조회한다' })
   @ApiQuery({ type: UsageCostOverviewQueryDto })
   @ApiOkResponse({ type: UsageCostOverviewResponseDto })
   @ApiProblemResponses(400, 401, 403, 500)
@@ -71,7 +71,6 @@ export class AdminUsageCostOperationsController {
           ...(query.source === undefined ? {} : { source: query.source }),
           ...(query.provider === undefined ? {} : { provider: query.provider }),
           ...(query.model === undefined ? {} : { model: query.model }),
-          ...(query.voice === undefined ? {} : { voice: query.voice }),
           ...(query.status === undefined ? {} : { status: query.status }),
         },
       ),

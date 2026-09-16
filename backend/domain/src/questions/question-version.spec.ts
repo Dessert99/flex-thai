@@ -1,38 +1,9 @@
 /** 문제 버전의 구조와 최신 게시 의존성을 검증한다 */
 import { describe, expect, it } from 'vitest';
-import type { MediaAsset, ReadyMediaAsset } from '../media/media-asset.js';
 import {
   validateQuestionVersion,
   type QuestionVersionValidationCandidate,
 } from './question-version.js';
-
-const readyAudio = (id: string): ReadyMediaAsset => ({
-  id,
-  kind: 'AUDIO',
-  storageKey: `audio/${id}`,
-  declaredMimeType: 'audio/mpeg',
-  declaredSizeBytes: 1,
-  declaredSha256: 'a'.repeat(64),
-  mimeType: 'audio/mpeg',
-  sizeBytes: 1,
-  sha256: 'a'.repeat(64),
-  status: 'READY',
-  readyAt: new Date('2026-07-24T00:00:00.000Z'),
-});
-
-const notReadyAudio = (id: string): MediaAsset => ({
-  id,
-  kind: 'AUDIO',
-  storageKey: `audio/${id}`,
-  declaredMimeType: 'audio/mpeg',
-  declaredSizeBytes: 1,
-  declaredSha256: 'a'.repeat(64),
-  mimeType: null,
-  sizeBytes: null,
-  sha256: null,
-  status: 'UPLOADING',
-  readyAt: null,
-});
 
 const candidate = (): QuestionVersionValidationCandidate => ({
   id: 'version-id',
@@ -47,7 +18,6 @@ const candidate = (): QuestionVersionValidationCandidate => ({
     {
       id: 'question-block',
       kind: 'QUESTION',
-      displayMode: 'TEXT',
       position: 0,
       sentences: [],
     },
@@ -65,13 +35,10 @@ const candidate = (): QuestionVersionValidationCandidate => ({
           translationKo: '정답',
           pronunciationKo: '꼬 커',
           toneMarks: '- -',
-          mediaAssetId: 'audio-1',
           tokens: [],
           expressions: [],
         },
-        mediaAsset: readyAudio('audio-1'),
         referencedVocabularies: [],
-        pronunciationMediaAssets: [],
       },
     },
     {
@@ -86,13 +53,10 @@ const candidate = (): QuestionVersionValidationCandidate => ({
           translationKo: '오답',
           pronunciationKo: '커 응어',
           toneMarks: '- -',
-          mediaAssetId: 'audio-2',
           tokens: [],
           expressions: [],
         },
-        mediaAsset: readyAudio('audio-2'),
         referencedVocabularies: [],
-        pronunciationMediaAssets: [],
       },
     },
   ],
@@ -248,7 +212,6 @@ describe('QuestionVersion 문제 버전 게시 검증', () => {
       {
         id: 'dialogue-block',
         kind: 'DIALOGUE',
-        displayMode: 'TEXT',
         position: 0,
         sentences: [{ speaker: ' ', sentence: requireOptionSentence(input) }],
       },
@@ -292,55 +255,6 @@ describe('QuestionVersion 문제 버전 게시 검증', () => {
     expect(validateQuestionVersion(input).issues).toContainEqual({
       path: 'options.0.sentence.referencedVocabularies.0',
       code: 'VOCABULARY_NOT_PUBLISHED',
-    });
-  });
-
-  it('문장 음성이 READY가 아니면 게시 검증을 실패한다', () => {
-    const input = candidate();
-    requireOptionSentence(input).mediaAsset = notReadyAudio('audio-1');
-
-    expect(validateQuestionVersion(input).issues).toContainEqual({
-      path: 'options.0.sentence.mediaAsset',
-      code: 'MEDIA_ASSET_NOT_READY',
-    });
-  });
-
-  it('생성 DRAFT 문장 음성이 아직 없으면 게시 검증을 실패한다', () => {
-    const input = candidate();
-    const sentence = requireOptionSentence(input);
-    sentence.input.mediaAssetId = null;
-    sentence.mediaAsset = null;
-
-    expect(validateQuestionVersion(input).issues).toContainEqual({
-      path: 'options.0.sentence.mediaAsset',
-      code: 'MEDIA_ASSET_NOT_READY',
-    });
-  });
-
-  it('발음 음성 중 READY가 아닌 자산이 있으면 게시 검증을 실패한다', () => {
-    const input = candidate();
-    requireOptionSentence(input).pronunciationMediaAssets = [
-      notReadyAudio('pronunciation-audio'),
-    ];
-
-    expect(validateQuestionVersion(input).issues).toContainEqual({
-      path: 'options.0.sentence.pronunciationMediaAssets.0',
-      code: 'MEDIA_ASSET_NOT_READY',
-    });
-  });
-
-  it('선택한 발음 음성이 아직 없으면 해당 index의 게시 검증을 실패한다', () => {
-    const input = candidate();
-    requireOptionSentence(input).pronunciationMediaAssets = [null];
-
-    expect(validateQuestionVersion(input)).toMatchObject({
-      status: 'FAILED',
-      issues: [
-        {
-          path: 'options.0.sentence.pronunciationMediaAssets.0',
-          code: 'MEDIA_ASSET_NOT_READY',
-        },
-      ],
     });
   });
 });

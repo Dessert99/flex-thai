@@ -1,5 +1,10 @@
 /** 관리자 문제 초안의 복제·전체 교체와 transaction 경계를 검증한다 */
 import { describe, expect, it } from 'vitest';
+import {
+  QuestionAdminError,
+  QuestionAdminService,
+  type ReplaceQuestionVersionCommand,
+} from './question-admin.js';
 import type {
   QuestionAdminRepository,
   QuestionAdminTransaction,
@@ -7,13 +12,6 @@ import type {
   QuestionAdminVersionGraph,
   QuestionAdminVersionSource,
 } from './question-admin.repository.js';
-import {
-  assertGeneratedDraftSentenceInput,
-  QuestionAdminError,
-  QuestionAdminService,
-  type ReplaceQuestionVersionCommand,
-} from './question-admin.js';
-import type { GeneratedDraftSentenceInput } from '../content-import/content-import.js';
 
 const occurredAt = new Date('2026-07-24T00:00:00.000Z');
 const generatedIds = Array.from(
@@ -38,7 +36,6 @@ const sourceVersion = (
   blocks: [
     {
       kind: 'QUESTION',
-      displayMode: 'TEXT',
       position: 0,
       sentences: [
         {
@@ -75,7 +72,6 @@ interface TransactionOverrides {
   latestVersion?: QuestionAdminVersionSource | null;
   versionById?: Record<string, QuestionAdminVersionSource | null>;
   typeVersion?: QuestionAdminTypeVersion;
-  mediaReady?: boolean;
   onCreate?: (graph: QuestionAdminVersionGraph) => void;
   onReplace?: (graph: QuestionAdminVersionGraph) => void;
   onAudit?: (
@@ -130,36 +126,6 @@ const createTransaction = (
   findActiveQuestionTopic: () =>
     Promise.resolve({ id: '00000000-0000-4000-8000-000000000121' }),
   findActiveQuestionTags: () => Promise.resolve([]),
-  findMediaAssetById: (mediaAssetId) => {
-    calls.push('findMediaAssetById');
-    const base = {
-      id: mediaAssetId,
-      kind: 'AUDIO' as const,
-      storageKey: `audio/${mediaAssetId}`,
-      declaredMimeType: 'audio/mpeg',
-      declaredSizeBytes: 1,
-      declaredSha256: 'a'.repeat(64),
-    };
-    return Promise.resolve(
-      overrides.mediaReady === false
-        ? {
-            ...base,
-            mimeType: null,
-            sizeBytes: null,
-            sha256: null,
-            status: 'UPLOADING' as const,
-            readyAt: null,
-          }
-        : {
-            ...base,
-            mimeType: 'audio/mpeg',
-            sizeBytes: 1,
-            sha256: 'a'.repeat(64),
-            status: 'READY' as const,
-            readyAt: occurredAt,
-          },
-    );
-  },
   findVocabularyById: (id) => {
     calls.push('findVocabularyById');
     return Promise.resolve({ id, kind: 'WORD', status: 'DRAFT' });
@@ -176,7 +142,6 @@ const createTransaction = (
     return Promise.resolve({
       id,
       vocabularyId: '00000000-0000-4000-8000-000000000108',
-      mediaAssetId: '00000000-0000-4000-8000-000000000110',
     });
   },
   createVersion: (graph) => {
@@ -228,7 +193,6 @@ const replaceCommand = (): ReplaceQuestionVersionCommand => ({
     blocks: [
       {
         kind: 'QUESTION',
-        displayMode: 'TEXT_AND_AUDIO',
         sentences: [
           {
             speaker: null,
@@ -237,7 +201,6 @@ const replaceCommand = (): ReplaceQuestionVersionCommand => ({
               translationKo: '뜻',
               pronunciationKo: '꺼',
               toneMarks: '-',
-              mediaAssetId: '00000000-0000-4000-8000-000000000107',
               tokens: [
                 {
                   surface: 'ก',
@@ -271,7 +234,6 @@ const replaceCommand = (): ReplaceQuestionVersionCommand => ({
           translationKo: '정답',
           pronunciationKo: '커',
           toneMarks: '-',
-          mediaAssetId: '00000000-0000-4000-8000-000000000107',
           tokens: [],
           expressions: [],
         },
@@ -414,17 +376,6 @@ describe('QuestionAdminService 문제 버전 복제', () => {
 });
 
 describe('QuestionAdminService 문제 버전 전체 교체', () => {
-  it('내부 생성 DRAFT 문장은 TTS 전 mediaAssetId null을 허용한다', () => {
-    const generatedSentence: GeneratedDraftSentenceInput = {
-      ...replaceCommand().input.blocks[0]!.sentences[0]!.sentence,
-      mediaAssetId: null,
-    };
-
-    expect(() =>
-      assertGeneratedDraftSentenceInput(generatedSentence, 'sentence'),
-    ).not.toThrow();
-  });
-
   it('DRAFT의 canonical payload를 새 sentence graph로 교체하고 검증을 초기화한다', async () => {
     const calls: string[] = [];
     let replaced: QuestionAdminVersionGraph | undefined;
@@ -485,41 +436,6 @@ describe('QuestionAdminService 문제 버전 전체 교체', () => {
       blocks: [{ position: 0 }],
       options: [{ position: 0, isCorrect: true }],
     });
-    expect(calls).toEqual([
-      'loadVersionSource:00000000-0000-4000-8000-000000000105',
-      'findQuestionTypeVersion',
-      'findMediaAssetById',
-      'findVocabularyById',
-      'findVocabularyMeaningById',
-      'findVocabularyPronunciationById',
-      'findMediaAssetById',
-      'replaceVersion',
-      'appendAuditLog',
-      'transactionCommitted',
-    ]);
-  });
-
-  it('media가 없는 관리자 문장은 READY 조회 없이 null snapshot으로 교체한다', async () => {
-    const calls: string[] = [];
-    let replaced: QuestionAdminVersionGraph | undefined;
-    const command = replaceCommand();
-    command.input.blocks[0]!.sentences[0]!.sentence.mediaAssetId = null;
-    requireAdminOptionSentence(command).mediaAssetId = null;
-    const service = createService(
-      createTransaction(calls, {
-        onReplace: (graph) => {
-          replaced = graph;
-        },
-      }),
-      calls,
-    );
-
-    await service.replaceVersion(command);
-
-    expect(
-      replaced?.sentences.map(({ version }) => version.mediaAssetId),
-    ).toEqual([null, null]);
-    expect(calls).not.toContain('findMediaAssetById');
   });
 
   it('인라인 선택지는 별도 문장 없이 문제 문장의 span만 저장한다', async () => {
@@ -581,34 +497,6 @@ describe('QuestionAdminService 문제 버전 전체 교체', () => {
     });
   });
 
-  it('공개 계약이 허용하는 lowercase nil/max UUID를 media와 직접 참조에 허용한다', async () => {
-    const nilUuid = '00000000-0000-0000-0000-000000000000';
-    const maxUuid = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
-    const calls: string[] = [];
-    const command = replaceCommand();
-    const sentence = command.input.blocks[0]!.sentences[0]!.sentence;
-    sentence.mediaAssetId = nilUuid;
-    sentence.tokens[0]!.vocabulary = { id: nilUuid };
-    sentence.tokens[0]!.meaning = { id: maxUuid };
-    sentence.tokens[0]!.pronunciation = { id: maxUuid };
-    requireAdminOptionSentence(command).mediaAssetId = maxUuid;
-    const transaction = createTransaction(calls);
-    transaction.findVocabularyMeaningById = (id) =>
-      Promise.resolve({ id, vocabularyId: nilUuid });
-    transaction.findVocabularyPronunciationById = (id) =>
-      Promise.resolve({
-        id,
-        vocabularyId: nilUuid,
-        mediaAssetId: maxUuid,
-      });
-    const service = createService(transaction, calls);
-
-    await expect(service.replaceVersion(command)).resolves.toMatchObject({
-      status: 'DRAFT',
-      validationStatus: 'PENDING',
-    });
-  });
-
   it.each(['PUBLISHED', 'RETIRED', 'INVALIDATED'] as const)(
     '%s 버전은 IMMUTABLE_VERSION으로 교체를 거절한다',
     async (status) => {
@@ -649,39 +537,6 @@ describe('QuestionAdminService 문제 버전 전체 교체', () => {
       path: 'blocks.0.sentences.0.sentence.tokens.0.meaning',
     });
     expect(calls).not.toContain('replaceVersion');
-  });
-
-  it('READY가 아닌 sentence media는 저장 전에 거절한다', async () => {
-    const calls: string[] = [];
-    const service = createService(
-      createTransaction(calls, { mediaReady: false }),
-      calls,
-    );
-
-    await expect(
-      service.replaceVersion(replaceCommand()),
-    ).rejects.toMatchObject({
-      code: 'QUESTION_MEDIA_NOT_READY',
-      path: 'blocks.0.sentences.0.sentence.mediaAssetId',
-    });
-    expect(calls).not.toContain('replaceVersion');
-  });
-
-  it('관리자 교체 문장에서 mediaAssetId를 생략하면 DB 호출 전에 거절한다', async () => {
-    const calls: string[] = [];
-    const command = replaceCommand();
-    delete (
-      command.input.blocks[0]!.sentences[0]!.sentence as unknown as Partial<
-        (typeof command.input.blocks)[number]['sentences'][number]['sentence']
-      >
-    ).mediaAssetId;
-    const service = createService(createTransaction(calls), calls);
-
-    await expect(service.replaceVersion(command)).rejects.toMatchObject({
-      code: 'QUESTION_CONTENT_INVALID',
-      path: 'blocks.0.sentences.0.sentence',
-    });
-    expect(calls).toEqual([]);
   });
 
   it('clientRef 콘텐츠 참조는 import 문맥으로 추측하지 않고 거절한다', async () => {
@@ -787,20 +642,6 @@ describe('QuestionAdminService 문제 버전 전체 교체', () => {
           command.input.blocks[0]!.sentences[0]!.sentence
             .tokens[0] as unknown as { role: unknown }
         ).role = 'UNKNOWN';
-      },
-    },
-    {
-      name: 'sentence media ID가 UUID가 아님',
-      mutate: (command: ReplaceQuestionVersionCommand) => {
-        command.input.blocks[0]!.sentences[0]!.sentence.mediaAssetId =
-          'not-a-uuid';
-      },
-    },
-    {
-      name: 'uppercase max UUID',
-      mutate: (command: ReplaceQuestionVersionCommand) => {
-        command.input.blocks[0]!.sentences[0]!.sentence.mediaAssetId =
-          'FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF';
       },
     },
     {

@@ -15,7 +15,6 @@ const sentence = {
   translationKo: '나는 태국어를 사랑한다',
   pronunciationKo: '찬 락 파싸 타이',
   toneMarks: 'R H M M',
-  audioUrl: 'https://media.example/sentence',
   tokens: [
     {
       position: 0,
@@ -28,7 +27,6 @@ const sentence = {
       contextMeaningKo: '나',
       pronunciationKo: '찬',
       toneMarks: 'R',
-      audioUrl: 'https://media.example/token',
       role: 'TARGET',
     },
   ],
@@ -42,7 +40,6 @@ const sentence = {
       contextMeaningKo: '나',
       pronunciationKo: '찬',
       toneMarks: 'R',
-      audioUrl: 'https://media.example/expression',
       representative: true,
     },
   ],
@@ -54,15 +51,6 @@ describe('공개 태국어 문장 계약', () => {
 
     expect(parsed.tokens[0]?.contextMeaningKo).toBe('나');
     expect(parsed.expressions[0]?.representative).toBe(true);
-  });
-
-  it('내부 media storage key를 거부한다', () => {
-    expect(() =>
-      publicThaiSentenceSchema.parse({
-        ...sentence,
-        mediaStorageKey: 'private/sentence.mp3',
-      }),
-    ).toThrow();
   });
 
   it('token과 표현의 fractional 좌표를 거부한다', () => {

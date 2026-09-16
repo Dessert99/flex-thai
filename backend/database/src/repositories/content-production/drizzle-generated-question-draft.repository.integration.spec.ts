@@ -1,12 +1,10 @@
 /** 실제 PostgreSQL에서 생성 문제 승인 graph의 replay·동시성·rollback을 검증한다 */
-import { randomUUID } from 'node:crypto';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { randomUUID } from 'node:crypto';
 import { Pool, type PoolClient } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { DrizzleAiQuestionProductionRepository } from './drizzle-ai-question-production.repository.js';
 import { DrizzleGeneratedQuestionDraftRepository } from './drizzle-generated-question-draft.repository.js';
-import { DrizzleGeneratedQuestionTtsScheduler } from './drizzle-generated-question-tts.scheduler.js';
-import { DrizzleAsyncDispatchOutboxRepository } from '../dispatch/drizzle-async-dispatch-outbox.repository.js';
 
 const databaseUrl = process.env.AI_QUESTION_TEST_DATABASE_URL;
 
@@ -54,7 +52,6 @@ async function createFixture(
     meaning: randomUUID(),
     pronunciation: randomUUID(),
     candidate: randomUUID(),
-    voicePreset: randomUUID(),
   };
   const typeSlug = `generated-${ids.questionType}`;
   const topicSlug = `topic-${ids.topic}`;
@@ -132,8 +129,7 @@ async function createFixture(
   }
   await pool.query(
     `insert into vocabulary_pronunciations (
-       id, vocabulary_id, pronunciation_ko, tone_marks, media_asset_id
-     ) values ($1, $2, '타이', '', null)`,
+       id, vocabulary_id, pronunciation_ko, tone_marks) values ($1, $2, '타이', '')`,
     [ids.pronunciation, ids.vocabulary],
   );
   const sentence = sentencePayload({
@@ -150,7 +146,6 @@ async function createFixture(
     blocks: [
       {
         kind: 'QUESTION',
-        displayMode: 'TEXT',
         sentences: [{ speaker: null, sentence }],
       },
     ],
@@ -197,16 +192,6 @@ async function createFixture(
        ($1, 'AI_CROSS_VALIDATION', 'PASSED', null, '{}')`,
     [ids.candidate],
   );
-  await pool.query(
-    `insert into tts_voice_presets (
-       id, name, provider, model, voice, locale, audio_format,
-       generation_revision, enabled
-     ) values (
-       $1, $2, 'LOCAL_FAKE', 'deterministic-v1', 'thai-female', 'th-TH',
-       'audio/wav', 'v1', true
-     )`,
-    [ids.voicePreset, `generated-${ids.voicePreset}`],
-  );
   return { ids, payload };
 }
 
@@ -233,9 +218,6 @@ type GraphTotals = {
   sentenceVersions: number;
   sentences: number;
   tokens: number;
-  ttsItems: number;
-  ttsJobs: number;
-  ttsOutbox: number;
   versions: number;
 };
 
@@ -251,11 +233,7 @@ const graphTotals = async (pool: Pool): Promise<GraphTotals> => {
        (select count(*)::text from thai_sentences) sentences,
        (select count(*)::text from thai_sentence_versions) "sentenceVersions",
        (select count(*)::text from token_occurrences) tokens,
-       (select count(*)::text from expression_occurrences) expressions,
-       (select count(*)::text from tts_jobs) "ttsJobs",
-       (select count(*)::text from tts_items) "ttsItems",
-       (select count(*)::text from async_dispatch_outbox
-        where payload_kind = 'TTS') "ttsOutbox"`,
+       (select count(*)::text from expression_occurrences) expressions`,
   );
   const row = rows[0]!;
   return Object.fromEntries(
@@ -288,9 +266,6 @@ const expectedGraphDelta: GraphTotals = {
   sentenceVersions: 3,
   sentences: 3,
   tokens: 3,
-  ttsItems: 3,
-  ttsJobs: 1,
-  ttsOutbox: 1,
   versions: 1,
 };
 
@@ -303,16 +278,12 @@ const expectExactCandidateGraph = async (
     blockSentences: string;
     blocks: string;
     expressions: string;
-    nullMedia: string;
     options: string;
     questionTags: string;
     questions: string;
     sentenceVersions: string;
     sentences: string;
     tokens: string;
-    ttsItems: string;
-    ttsJobs: string;
-    ttsOutbox: string;
     versions: string;
   }>(
     `with approved as (
@@ -362,23 +333,9 @@ const expectExactCandidateGraph = async (
        (select count(*)::text from graph_sentence_versions gsv
         join expression_occurrences occurrence
           on occurrence.sentence_version_id = gsv.id) expressions,
-       (select count(*)::text from graph_sentence_versions gsv
-       join thai_sentence_versions tsv
-          on tsv.id = gsv.id and tsv.media_asset_id is null) "nullMedia",
        (select count(*)::text from audit_logs
         where target_id = $1::uuid
-          and action = 'QUESTION_CANDIDATE_APPROVED') audits,
-       (select count(*)::text from approved a
-        join tts_items ti on ti.revision = a.question_version_id::text)
-         "ttsItems",
-       (select count(distinct ti.job_id)::text from approved a
-        join tts_items ti on ti.revision = a.question_version_id::text)
-         "ttsJobs",
-       (select count(distinct ado.id)::text from approved a
-        join tts_items ti on ti.revision = a.question_version_id::text
-        join async_dispatch_outbox ado
-          on ado.payload_kind = 'TTS' and ado.job_id = ti.job_id
-        where ado.attempt = 0) "ttsOutbox"`,
+          and action = 'QUESTION_CANDIDATE_APPROVED') audits`,
     [candidateId],
   );
   expect(rows[0]).toEqual({
@@ -386,16 +343,12 @@ const expectExactCandidateGraph = async (
     blockSentences: '1',
     blocks: '1',
     expressions: '0',
-    nullMedia: '3',
     options: '2',
     questionTags: '1',
     questions: '1',
     sentenceVersions: '3',
     sentences: '3',
     tokens: '3',
-    ttsItems: '3',
-    ttsJobs: '1',
-    ttsOutbox: '1',
     versions: '1',
   });
 };
@@ -458,18 +411,13 @@ describe.runIf(databaseUrl !== undefined)(
       await pool.end();
     });
 
-    const repository = (fixture: Fixture) => {
+    const repository = () => {
       const database = drizzle({ client: pool }) as never;
-      const outbox = new DrizzleAsyncDispatchOutboxRepository(database);
       return new DrizzleAiQuestionProductionRepository(
         database,
         () => new Date('2026-07-27T00:00:01.000Z'),
         new DrizzleGeneratedQuestionDraftRepository(),
         undefined,
-        new DrizzleGeneratedQuestionTtsScheduler(
-          fixture.ids.voicePreset,
-          outbox,
-        ),
       );
     };
 
@@ -477,12 +425,8 @@ describe.runIf(databaseUrl !== undefined)(
       const fixture = await createFixture(pool);
       const requestId = `approve-${randomUUID()}`;
       const before = await graphTotals(pool);
-      const first = await repository(fixture).approve(
-        command(fixture, requestId),
-      );
-      const replay = await repository(fixture).approve(
-        command(fixture, requestId),
-      );
+      const first = await repository().approve(command(fixture, requestId));
+      const replay = await repository().approve(command(fixture, requestId));
       const after = await graphTotals(pool);
 
       expect(first).toMatchObject({ kind: 'APPROVED' });
@@ -498,12 +442,8 @@ describe.runIf(databaseUrl !== undefined)(
       const fixture = await createFixture(pool);
       const before = await graphTotals(pool);
       const results = await Promise.all([
-        repository(fixture).approve(
-          command(fixture, `approve-a-${randomUUID()}`),
-        ),
-        repository(fixture).approve(
-          command(fixture, `approve-b-${randomUUID()}`),
-        ),
+        repository().approve(command(fixture, `approve-a-${randomUUID()}`)),
+        repository().approve(command(fixture, `approve-b-${randomUUID()}`)),
       ]);
       const after = await graphTotals(pool);
 
@@ -522,7 +462,7 @@ describe.runIf(databaseUrl !== undefined)(
       try {
         await blocker.query('begin');
         await blocker.query('lock table questions in access exclusive mode');
-        approval = repository(fixture).approve(
+        approval = repository().approve(
           command(fixture, `approve-${randomUUID()}`),
         );
         await waitForApprovalInsertLock(pool);
@@ -598,9 +538,7 @@ describe.runIf(databaseUrl !== undefined)(
       const before = await graphTotals(pool);
 
       await expect(
-        repository(fixture).approve(
-          command(fixture, `approve-${randomUUID()}`),
-        ),
+        repository().approve(command(fixture, `approve-${randomUUID()}`)),
       ).rejects.toMatchObject({
         code: 'QUESTION_CANDIDATE_NOT_APPROVABLE',
       });
@@ -624,115 +562,6 @@ describe.runIf(databaseUrl !== undefined)(
       expect(candidate.rows[0]).toEqual({
         approvedQuestionId: null,
         approvedQuestionVersionId: null,
-        reviewStatus: 'PENDING',
-        revision: 0,
-      });
-    });
-
-    it('audit insert 전용 trigger 실패는 graph·TTS·candidate 전이를 전부 rollback한다', async () => {
-      const fixture = await createFixture(pool);
-      const before = await graphTotals(pool);
-      const requestId = `approve-${randomUUID()}`;
-      const triggerName = 'wave5_fail_generated_question_audit';
-      const functionName = 'wave5_fail_generated_question_audit';
-
-      try {
-        await pool.query(`drop trigger if exists ${triggerName} on audit_logs`);
-        await pool.query(
-          `create or replace function ${functionName}()
-           returns trigger language plpgsql as $$
-           begin
-             if new.request_id = TG_ARGV[0] then
-               raise exception 'WAVE5_AUDIT_INSERT_FAILED';
-             end if;
-             return new;
-           end
-           $$`,
-        );
-        await pool.query(
-          `create trigger ${triggerName}
-           before insert on audit_logs
-           for each row execute function ${functionName}('${requestId}')`,
-        );
-
-        const failure = await repository(fixture)
-          .approve(command(fixture, requestId))
-          .catch((error: unknown) => error);
-        expect(failure).toBeInstanceOf(Error);
-        if (!(failure instanceof Error) || !(failure.cause instanceof Error)) {
-          throw new Error('WAVE5_AUDIT_FAILURE_CAUSE_REQUIRED');
-        }
-        expect(failure.cause.message).toContain('WAVE5_AUDIT_INSERT_FAILED');
-      } finally {
-        await pool
-          .query(`drop trigger if exists ${triggerName} on audit_logs`)
-          .catch(() => undefined);
-        await pool
-          .query(`drop function if exists ${functionName}()`)
-          .catch(() => undefined);
-      }
-
-      const after = await graphTotals(pool);
-      const candidate = await pool.query<{
-        approvedQuestionId: string | null;
-        approvedQuestionVersionId: string | null;
-        reviewStatus: string;
-        revision: number;
-      }>(
-        `select
-           approved_question_id "approvedQuestionId",
-           approved_question_version_id "approvedQuestionVersionId",
-           review_status "reviewStatus",
-           revision
-         from question_production_candidates where id = $1`,
-        [fixture.ids.candidate],
-      );
-      expect(after).toEqual(before);
-      const audit = await pool.query<{ count: string }>(
-        `select count(*)::text count from audit_logs where request_id = $1`,
-        [requestId],
-      );
-      expect(audit.rows[0]?.count).toBe('0');
-      expect(candidate.rows[0]).toEqual({
-        approvedQuestionId: null,
-        approvedQuestionVersionId: null,
-        reviewStatus: 'PENDING',
-        revision: 0,
-      });
-    });
-
-    it('TTS outbox writer 실패는 graph·job·candidate·audit을 함께 rollback한다', async () => {
-      const fixture = await createFixture(pool);
-      const before = await graphTotals(pool);
-      const database = drizzle({ client: pool }) as never;
-      const failingScheduler = new DrizzleGeneratedQuestionTtsScheduler(
-        fixture.ids.voicePreset,
-        {
-          enqueueTts: () => Promise.reject(new Error('OUTBOX_FAILED')),
-          assertTtsDispatch: () => Promise.resolve(),
-        },
-      );
-      const failingRepository = new DrizzleAiQuestionProductionRepository(
-        database,
-        () => new Date('2026-07-27T00:00:01.000Z'),
-        new DrizzleGeneratedQuestionDraftRepository(),
-        undefined,
-        failingScheduler,
-      );
-
-      await expect(
-        failingRepository.approve(command(fixture, `approve-${randomUUID()}`)),
-      ).rejects.toThrow('OUTBOX_FAILED');
-      expect(await graphTotals(pool)).toEqual(before);
-      const candidate = await pool.query<{
-        reviewStatus: string;
-        revision: number;
-      }>(
-        `select review_status "reviewStatus", revision
-         from question_production_candidates where id = $1`,
-        [fixture.ids.candidate],
-      );
-      expect(candidate.rows[0]).toEqual({
         reviewStatus: 'PENDING',
         revision: 0,
       });

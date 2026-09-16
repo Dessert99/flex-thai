@@ -28,10 +28,9 @@ const selectResults = [
   [{ currentPublishedVersionId: 'old-version' }],
   [{ id: 'version-1', conceptId: 'concept-1' }],
   [{ sentenceVersionId: 'sentence-1' }],
-  [{ id: 'sentence-1', mediaAssetId: 'sentence-media-1' }],
+  [{ id: 'sentence-1' }],
   [],
   [],
-  [{ id: 'sentence-media-1' }],
   [candidateVersion],
   [
     {
@@ -51,8 +50,6 @@ const selectResults = [
       sentenceVersionId: 'sentence-1',
       noteKo: null,
       sentenceId: 'sentence-1',
-      mediaAssetId: 'sentence-media-1',
-      audioAssetStatus: 'READY',
     },
   ],
   [],
@@ -153,7 +150,6 @@ describe('DrizzleConceptAdminRepository 게시 transaction', () => {
         'lock:4',
         'lock:5',
         'lock:6',
-        'lock:7',
         'update:RETIRED',
         'update:PUBLISHED',
         'update:PUBLISHED',
@@ -161,7 +157,7 @@ describe('DrizzleConceptAdminRepository 게시 transaction', () => {
         'audit:CONCEPT_VERSION_PUBLISHED',
       ]),
     );
-    expect(events.indexOf('lock:7')).toBeLessThan(
+    expect(events.indexOf('lock:6')).toBeLessThan(
       events.indexOf('update:RETIRED'),
     );
     expect(events.at(-1)).toBe('audit:CONCEPT_VERSION_PUBLISHED');

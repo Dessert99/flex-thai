@@ -38,7 +38,6 @@ function createValidPayload() {
     blocks: [
       {
         kind: 'QUESTION',
-        displayMode: 'TEXT_AND_AUDIO',
         sentences: [
           {
             speaker: null,
@@ -65,7 +64,6 @@ function createSentence(translationKo: string) {
     translationKo,
     pronunciationKo: '싸왓디',
     toneMarks: '',
-    mediaAssetId: '01933b6a-8f13-7a19-b7e5-536d70f57aaa',
     tokens: [],
     expressions: [],
   };

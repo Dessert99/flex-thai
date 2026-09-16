@@ -14,11 +14,12 @@ import { ContentErrorReportDomainError } from '@flex-thia/domain';
 import { and, asc, eq, isNull, ne, or, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
-import * as baseSchema from '../schema/index.js';
 import {
   contentErrorReportHistory,
   contentErrorReports,
 } from '../schema/feedback.schema.js';
+import { users } from '../schema/identity.schema.js';
+import * as baseSchema from '../schema/index.js';
 import {
   questionBlocks,
   questionBlockSentences,
@@ -26,12 +27,10 @@ import {
   questions,
   questionVersions,
 } from '../schema/questions.schema.js';
-import { mediaAssets } from '../schema/media.schema.js';
 import {
   thaiSentenceVersions,
   tokenOccurrences,
 } from '../schema/thai-content.schema.js';
-import { users } from '../schema/identity.schema.js';
 import {
   vocabularies,
   vocabularyMeaningPronunciations,
@@ -56,9 +55,6 @@ export interface ConceptErrorReportTargetLookup {
     sentenceVersionId: string;
     tokenPosition: number | null;
   }): Promise<ResolvedContentErrorReportTarget | null>;
-  resolveSentenceAudio(
-    sentenceVersionId: string,
-  ): Promise<ResolvedContentErrorReportTarget | null>;
 }
 
 const mapReport = (
@@ -83,7 +79,6 @@ const referenceKeys = [
   'contentVersionId',
   'questionVersionId',
   'sentenceVersionId',
-  'mediaAssetId',
   'locationId',
 ] as const;
 const snapshotKeys = [
@@ -92,7 +87,6 @@ const snapshotKeys = [
   'secondaryText',
   'versionLabel',
   'locationLabel',
-  'audioAssetId',
 ] as const;
 
 const hasExactKeys = (
@@ -133,7 +127,7 @@ const strictResolvedTarget = (
   }
   const referenceRecord = reference as Record<string, unknown>;
   const snapshotRecord = snapshot as Record<string, unknown>;
-  const kinds = ['QUESTION', 'VOCABULARY', 'SENTENCE', 'AUDIO', 'CONCEPT'];
+  const kinds = ['QUESTION', 'VOCABULARY', 'SENTENCE', 'CONCEPT'];
   if (
     !kinds.includes(String(referenceRecord.kind)) ||
     typeof referenceRecord.contentId !== 'string' ||
@@ -148,9 +142,7 @@ const strictResolvedTarget = (
     !isNullableString(snapshotRecord.secondaryText) ||
     !isNullableString(snapshotRecord.versionLabel) ||
     typeof snapshotRecord.locationLabel !== 'string' ||
-    snapshotRecord.locationLabel.length === 0 ||
-    !isNullableString(snapshotRecord.audioAssetId) ||
-    snapshotRecord.audioAssetId !== referenceRecord.mediaAssetId
+    snapshotRecord.locationLabel.length === 0
   ) {
     return null;
   }
@@ -167,10 +159,8 @@ interface QuestionContextRow {
   sentenceVersionId: string;
   originalText: string;
   translationKo: string;
-  mediaAssetId: string | null;
 }
 
-/** DB 관계를 검증해 signed URL 없는 immutable target을 생성한다 */
 export class DrizzleContentErrorReportRepository
   implements
     ContentErrorReportRepository,
@@ -196,10 +186,6 @@ export class DrizzleContentErrorReportRepository
           origin.sentenceVersionId,
           origin.tokenPosition,
         );
-      case 'AUDIO':
-        return origin.source.kind === 'VOCABULARY'
-          ? this.resolveVocabularyAudio(origin.source.pronunciationId)
-          : this.resolveSentenceAudio(origin.source.sentenceVersionId);
       case 'CONCEPT':
         return this.resolveConcept(origin);
     }
@@ -414,7 +400,6 @@ export class DrizzleContentErrorReportRepository
           contentVersionId: origin.questionVersionId,
           questionVersionId: origin.questionVersionId,
           sentenceVersionId: null,
-          mediaAssetId: null,
           locationId: null,
         },
         snapshot: {
@@ -423,7 +408,6 @@ export class DrizzleContentErrorReportRepository
           secondaryText: null,
           versionLabel: `버전 ${row.version}`,
           locationLabel: '문제 전체',
-          audioAssetId: null,
         },
       };
     }
@@ -465,7 +449,6 @@ export class DrizzleContentErrorReportRepository
         sentenceVersionId: questionBlockSentences.sentenceVersionId,
         originalText: thaiSentenceVersions.originalText,
         translationKo: thaiSentenceVersions.translationKo,
-        mediaAssetId: thaiSentenceVersions.mediaAssetId,
       })
       .from(questionBlocks)
       .innerJoin(
@@ -511,7 +494,6 @@ export class DrizzleContentErrorReportRepository
         sentenceVersionId: thaiSentenceVersions.id,
         originalText: thaiSentenceVersions.originalText,
         translationKo: thaiSentenceVersions.translationKo,
-        mediaAssetId: thaiSentenceVersions.mediaAssetId,
       })
       .from(questionOptions)
       .innerJoin(
@@ -546,7 +528,6 @@ export class DrizzleContentErrorReportRepository
         contentVersionId: origin.questionVersionId,
         questionVersionId: origin.questionVersionId,
         sentenceVersionId: null,
-        mediaAssetId: null,
         locationId: origin.blockId,
       },
       snapshot: {
@@ -557,7 +538,6 @@ export class DrizzleContentErrorReportRepository
         secondaryText: null,
         versionLabel: `버전 ${version}`,
         locationLabel: `${first.kind} 블록 ${(first.blockPosition ?? 0) + 1}`,
-        audioAssetId: null,
       },
     };
   }
@@ -596,7 +576,6 @@ export class DrizzleContentErrorReportRepository
     context: {
       originalText: string;
       translationKo: string;
-      mediaAssetId: string | null;
     },
     locationId: string | null,
     locationLabel: string,
@@ -608,7 +587,6 @@ export class DrizzleContentErrorReportRepository
         contentVersionId: origin.questionVersionId,
         questionVersionId: origin.questionVersionId,
         sentenceVersionId: origin.sentenceVersionId,
-        mediaAssetId: context.mediaAssetId,
         locationId,
       },
       snapshot: {
@@ -617,7 +595,6 @@ export class DrizzleContentErrorReportRepository
         secondaryText: null,
         versionLabel: `버전 ${version}`,
         locationLabel,
-        audioAssetId: context.mediaAssetId,
       },
     };
   }
@@ -674,14 +651,8 @@ export class DrizzleContentErrorReportRepository
           await this.database
             .select({
               value: vocabularyPronunciations.pronunciationKo,
-              mediaAssetId: vocabularyPronunciations.mediaAssetId,
-              mediaStatus: mediaAssets.status,
             })
             .from(vocabularyPronunciations)
-            .leftJoin(
-              mediaAssets,
-              eq(mediaAssets.id, vocabularyPronunciations.mediaAssetId),
-            )
             .where(
               and(
                 eq(vocabularyPronunciations.id, origin.pronunciationId),
@@ -691,11 +662,7 @@ export class DrizzleContentErrorReportRepository
             .limit(1)
         )[0]
       : null;
-    if (
-      origin.pronunciationId &&
-      (!pronunciation?.mediaAssetId || pronunciation.mediaStatus !== 'READY')
-    )
-      return null;
+    if (origin.pronunciationId && !pronunciation) return null;
     if (origin.meaningId && origin.pronunciationId) {
       const links = await this.database
         .select({ vocabularyId: vocabularyMeaningPronunciations.vocabularyId })
@@ -723,7 +690,6 @@ export class DrizzleContentErrorReportRepository
         contentVersionId: null,
         questionVersionId: null,
         sentenceVersionId: null,
-        mediaAssetId: pronunciation?.mediaAssetId ?? null,
         locationId: origin.meaningId ?? origin.pronunciationId,
       },
       snapshot: {
@@ -732,7 +698,6 @@ export class DrizzleContentErrorReportRepository
         secondaryText: pronunciation?.value ?? null,
         versionLabel: null,
         locationLabel: '어휘 상세',
-        audioAssetId: pronunciation?.mediaAssetId ?? null,
       },
     };
   }
@@ -840,7 +805,6 @@ export class DrizzleContentErrorReportRepository
         contentVersionId: row.id,
         questionVersionId: null,
         sentenceVersionId: row.id,
-        mediaAssetId: row.mediaAssetId,
         locationId: null,
       },
       snapshot: {
@@ -850,98 +814,6 @@ export class DrizzleContentErrorReportRepository
         versionLabel: `버전 ${row.version}`,
         locationLabel:
           tokenPosition === null ? '문장' : `토큰 ${tokenPosition}`,
-        audioAssetId: row.mediaAssetId,
-      },
-    };
-  }
-
-  private async resolveVocabularyAudio(
-    pronunciationId: string,
-  ): Promise<ResolvedContentErrorReportTarget | null> {
-    const rows = await this.database
-      .select({
-        vocabularyId: vocabularies.id,
-        thai: vocabularies.thai,
-        pronunciation: vocabularyPronunciations.pronunciationKo,
-        mediaAssetId: vocabularyPronunciations.mediaAssetId,
-        mediaStatus: mediaAssets.status,
-      })
-      .from(vocabularyPronunciations)
-      .innerJoin(
-        vocabularies,
-        eq(vocabularies.id, vocabularyPronunciations.vocabularyId),
-      )
-      .innerJoin(
-        mediaAssets,
-        eq(mediaAssets.id, vocabularyPronunciations.mediaAssetId),
-      )
-      .where(
-        and(
-          eq(vocabularyPronunciations.id, pronunciationId),
-          eq(vocabularies.status, 'PUBLISHED'),
-        ),
-      )
-      .limit(1);
-    const row = rows[0];
-    if (!row?.mediaAssetId || row.mediaStatus !== 'READY') return null;
-    return {
-      reference: {
-        kind: 'AUDIO',
-        contentId: row.mediaAssetId,
-        contentVersionId: null,
-        questionVersionId: null,
-        sentenceVersionId: null,
-        mediaAssetId: row.mediaAssetId,
-        locationId: pronunciationId,
-      },
-      snapshot: {
-        title: `${row.thai} 음성`,
-        primaryText: row.pronunciation,
-        secondaryText: null,
-        versionLabel: null,
-        locationLabel: '어휘 발음',
-        audioAssetId: row.mediaAssetId,
-      },
-    };
-  }
-
-  private async resolveSentenceAudio(
-    sentenceVersionId: string,
-  ): Promise<ResolvedContentErrorReportTarget | null> {
-    const sentence = await this.resolveSentence(sentenceVersionId, null);
-    if (!sentence) {
-      const target = strictResolvedTarget(
-        await this.conceptLookup?.resolveSentenceAudio(sentenceVersionId),
-      );
-      return target?.reference.kind === 'AUDIO' &&
-        target.reference.contentVersionId === sentenceVersionId &&
-        target.reference.sentenceVersionId === sentenceVersionId &&
-        target.reference.mediaAssetId !== null &&
-        target.reference.contentId === target.reference.mediaAssetId
-        ? target
-        : null;
-    }
-    if (!sentence.reference.mediaAssetId) return null;
-    const ready = await this.database
-      .select({ id: mediaAssets.id })
-      .from(mediaAssets)
-      .where(
-        and(
-          eq(mediaAssets.id, sentence.reference.mediaAssetId),
-          eq(mediaAssets.status, 'READY'),
-        ),
-      )
-      .limit(1);
-    if (!ready[0]) return null;
-    return {
-      reference: {
-        ...sentence.reference,
-        kind: 'AUDIO',
-        contentId: sentence.reference.mediaAssetId,
-      },
-      snapshot: {
-        ...sentence.snapshot,
-        title: `${sentence.snapshot.title} 음성`,
       },
     };
   }

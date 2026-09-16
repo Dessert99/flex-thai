@@ -1,8 +1,8 @@
 /** 사용량·비용 기간과 provider 실행 필터를 안전한 URL 상태로 적용한다 */
-import { useState } from 'react';
 import { Button } from '@/shared/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { Input } from '@/shared/ui/input';
+import { useState } from 'react';
 import type { UsageCostSearch } from '../model/usageCostSearch';
 
 interface UsageCostFiltersProps {
@@ -87,33 +87,19 @@ export function UsageCostFilters({ onChange, search }: UsageCostFiltersProps) {
           placeholder='Model'
           value={search.model ?? ''}
         />
-        <Input
-          aria-label='Voice'
-          disabled={search.source === 'AI'}
-          onChange={(event) =>
-            onChange({ voice: event.target.value || undefined })
-          }
-          placeholder='Voice'
-          value={search.voice ?? ''}
-        />
+
         <div className='flex gap-control'>
           <Button
-            onClick={() => onChange({ source: undefined, voice: undefined })}
+            onClick={() => onChange({ source: undefined })}
             variant={search.source === undefined ? 'default' : 'outline'}
           >
             전체
           </Button>
           <Button
-            onClick={() => onChange({ source: 'AI', voice: undefined })}
+            onClick={() => onChange({ source: 'AI' })}
             variant={search.source === 'AI' ? 'default' : 'outline'}
           >
             AI
-          </Button>
-          <Button
-            onClick={() => onChange({ source: 'TTS' })}
-            variant={search.source === 'TTS' ? 'default' : 'outline'}
-          >
-            TTS
           </Button>
         </div>
         <div className='flex flex-wrap gap-control'>

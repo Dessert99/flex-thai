@@ -6,7 +6,6 @@ import type {
 
 const defaultVocabularyId = '01933b6a-8f13-7a19-b7e5-536d70f57aaa';
 
-/** 뜻별 발음 연결과 audio 누락을 함께 포함한 상세 fixture */
 export function createDetail(
   id: string = defaultVocabularyId,
 ): VocabularyDetailResponse {
@@ -35,10 +34,8 @@ export function createDetail(
         id: '01933b6a-8f13-7a19-b7e5-536d70f57aad',
         pronunciationKo: '싸왓디',
         toneMarks: 'L-L-M',
-        audioUrl: 'https://example.com/hello.mp3',
       },
     ],
-    audioEligibleMeaningCount: 1,
     meaningPronunciations: [
       {
         meaningId: '01933b6a-8f13-7a19-b7e5-536d70f57aac',
@@ -64,7 +61,6 @@ export function createDetail(
         translationKo: '나는 온다',
         pronunciationKo: '찬 마',
         toneMarks: 'R M',
-        audioUrl: 'https://example.com/sentence.mp3',
         tokens: [
           {
             position: 0,
@@ -77,7 +73,6 @@ export function createDetail(
             contextMeaningKo: '나',
             pronunciationKo: '찬',
             toneMarks: 'R',
-            audioUrl: 'https://example.com/token.mp3',
             role: 'TARGET',
           },
         ],

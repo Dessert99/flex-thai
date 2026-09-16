@@ -1,6 +1,6 @@
 /** 콘텐츠 오류 신고 HTTP facade의 공개 응답과 workflow 위임을 검증한다 */
-import { describe, expect, it, vi } from 'vitest';
 import { ContentErrorReportDomainError } from '@flex-thia/domain';
+import { describe, expect, it, vi } from 'vitest';
 import { buildErrorResponse } from '../common/errors/domain-exception.filter.js';
 import { ContentErrorReportHttpService } from './content-error-report.service.js';
 
@@ -19,7 +19,6 @@ const report = {
     contentVersionId: null,
     questionVersionId: null,
     sentenceVersionId: null,
-    mediaAssetId: null,
     locationId: null,
   },
   snapshot: {
@@ -28,7 +27,6 @@ const report = {
     secondaryText: null,
     versionLabel: null,
     locationLabel: '어휘 상세',
-    audioAssetId: null,
   },
   createdAt: now,
   updatedAt: now,

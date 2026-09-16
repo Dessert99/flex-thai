@@ -2,30 +2,24 @@
 import { randomUUID } from 'node:crypto';
 import {
   type VocabularyAdminAuditInput,
+  type VocabularyAdminReplacementGraph,
   type VocabularyAdminRepository,
   VocabularyAdminRepositoryError,
-  type VocabularyAdminReplacementGraph,
-  type VocabularyAdminTransaction,
 } from './vocabulary-admin.repository.js';
-import {
-  createVocabularyDraft,
-  type Vocabulary,
-  VocabularyDomainError,
-} from './vocabulary.js';
 import type { VocabularyRelationsMergeRepository } from './vocabulary-relations-merge.repository.js';
 import {
   type CreateVocabularyRelationCommand,
   type UpdateVocabularyRelationCommand,
   VocabularyRelationsMergeService,
 } from './vocabulary-relations-merge.service.js';
+import {
+  createVocabularyDraft,
+  type Vocabulary,
+  VocabularyDomainError,
+} from './vocabulary.js';
 
 const STANDARD_UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
-const NIL_UUID = '00000000-0000-0000-0000-000000000000';
-const MAX_UUID = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
-
-const isContractUuid = (value: string): boolean =>
-  STANDARD_UUID_PATTERN.test(value) || value === NIL_UUID || value === MAX_UUID;
 
 /** 관리자 어휘 command가 받는 뜻 입력 */
 export interface VocabularyAdminMeaningInput {
@@ -41,7 +35,6 @@ export interface VocabularyAdminPronunciationInput {
   clientRef: string;
   pronunciationKo: string;
   toneMarks: string;
-  mediaAssetId: string;
 }
 
 /** 관리자 어휘 command가 받는 뜻·발음 연결 입력 */
@@ -90,8 +83,6 @@ export type VocabularyAdminErrorCode =
   | 'VOCABULARY_DUPLICATE'
   | 'VOCABULARY_IN_USE'
   | 'VOCABULARY_CONTENT_INVALID'
-  | 'VOCABULARY_MEDIA_NOT_FOUND'
-  | 'VOCABULARY_AUDIO_NOT_READY'
   | 'VOCABULARY_STATE_CONFLICT';
 
 /** 관리자 어휘 실패의 안정적인 code와 선택적 공개 입력 path */
@@ -155,13 +146,6 @@ const requireArray = (value: unknown, path: string, minimum = 1): unknown[] => {
     if (!Object.hasOwn(value, index)) {
       failInvalidContent(`${path}.${index}`);
     }
-  }
-  return value;
-};
-
-const requireContractUuid = (value: unknown, path: string): string => {
-  if (typeof value !== 'string' || !isContractUuid(value)) {
-    return failInvalidContent(path);
   }
   return value;
 };
@@ -248,7 +232,7 @@ const assertReplaceInput = (value: unknown): VocabularyAdminReplaceInput => {
     const pronunciation = requireRecord(value, path);
     requireExactKeys(
       pronunciation,
-      ['clientRef', 'pronunciationKo', 'toneMarks', 'mediaAssetId'],
+      ['clientRef', 'pronunciationKo', 'toneMarks'],
       [],
       path,
     );
@@ -262,10 +246,6 @@ const assertReplaceInput = (value: unknown): VocabularyAdminReplaceInput => {
         `${path}.pronunciationKo`,
       ),
       toneMarks: requireString(pronunciation.toneMarks, `${path}.toneMarks`),
-      mediaAssetId: requireContractUuid(
-        pronunciation.mediaAssetId,
-        `${path}.mediaAssetId`,
-      ),
     };
   });
   assertUnique(
@@ -343,31 +323,6 @@ const createAudit = (
   occurredAt: command.occurredAt,
 });
 
-const unique = (values: readonly string[]): string[] => [...new Set(values)];
-
-const requireAllMedia = async (
-  transaction: VocabularyAdminTransaction,
-  mediaAssetIds: string[],
-  requirement: 'EXISTS' | 'READY',
-): Promise<void> => {
-  const expectedIds = unique(mediaAssetIds);
-  const media = await transaction.findMediaAssetsByIds(expectedIds);
-  const mediaById = new Map(media.map((asset) => [asset.id, asset]));
-  if (expectedIds.some((id) => !mediaById.has(id))) {
-    throw new VocabularyAdminError(
-      requirement === 'EXISTS'
-        ? 'VOCABULARY_MEDIA_NOT_FOUND'
-        : 'VOCABULARY_AUDIO_NOT_READY',
-    );
-  }
-  if (
-    requirement === 'READY' &&
-    expectedIds.some((id) => mediaById.get(id)?.status !== 'READY')
-  ) {
-    throw new VocabularyAdminError('VOCABULARY_AUDIO_NOT_READY');
-  }
-};
-
 const toResult = (
   id: string,
   status: Vocabulary['status'],
@@ -435,11 +390,6 @@ export class VocabularyAdminService {
         ) {
           throw new VocabularyAdminError('VOCABULARY_DUPLICATE', 'thai');
         }
-        await requireAllMedia(
-          transaction,
-          input.pronunciations.map(({ mediaAssetId }) => mediaAssetId),
-          'EXISTS',
-        );
 
         const meaningIds = new Map<string, string>();
         const pronunciationIds = new Map<string, string>();
@@ -465,7 +415,6 @@ export class VocabularyAdminService {
               vocabularyId: current.vocabulary.id,
               pronunciationKo: pronunciation.pronunciationKo,
               toneMarks: pronunciation.toneMarks,
-              mediaAssetId: pronunciation.mediaAssetId,
             };
           }),
           meaningPronunciations: [],
@@ -525,7 +474,6 @@ export class VocabularyAdminService {
       expectedStatus: 'DRAFT',
       nextStatus: 'PUBLISHED',
       action: 'VOCABULARY_PUBLISHED',
-      requireReadyMedia: true,
     });
   }
 
@@ -537,7 +485,6 @@ export class VocabularyAdminService {
       expectedStatus: 'PUBLISHED',
       nextStatus: 'HIDDEN',
       action: 'VOCABULARY_HIDDEN',
-      requireReadyMedia: false,
     });
   }
 
@@ -549,7 +496,6 @@ export class VocabularyAdminService {
       expectedStatus: 'HIDDEN',
       nextStatus: 'PUBLISHED',
       action: 'VOCABULARY_RESTORED',
-      requireReadyMedia: false,
     });
   }
 
@@ -595,7 +541,6 @@ export class VocabularyAdminService {
       expectedStatus: Vocabulary['status'];
       nextStatus: Vocabulary['status'];
       action: VocabularyAdminAuditInput['action'];
-      requireReadyMedia: boolean;
     },
   ): Promise<VocabularyAdminResult> {
     try {
@@ -608,22 +553,6 @@ export class VocabularyAdminService {
         }
         if (current.vocabulary.status !== rule.expectedStatus) {
           throw new VocabularyAdminError('VOCABULARY_STATE_CONFLICT');
-        }
-        if (rule.requireReadyMedia) {
-          if (current.pronunciations.length === 0) {
-            throw new VocabularyAdminError('VOCABULARY_AUDIO_NOT_READY');
-          }
-          const mediaAssetIds = current.pronunciations.map(
-            ({ mediaAssetId }) => mediaAssetId,
-          );
-          if (mediaAssetIds.some((id) => id === null)) {
-            throw new VocabularyAdminError('VOCABULARY_AUDIO_NOT_READY');
-          }
-          await requireAllMedia(
-            transaction,
-            mediaAssetIds as string[],
-            'READY',
-          );
         }
         await transaction.transitionVocabularyStatus({
           vocabularyId: current.vocabulary.id,
@@ -653,15 +582,15 @@ export class VocabularyAdminService {
   }
 }
 
-export { VocabularyRelationsMergeAdminError } from './vocabulary-relations-merge.service.js';
-export { VocabularyRelationsMergeService };
 export {
   assertVocabularyMergePair,
   createVocabularyMergeFingerprint,
 } from './vocabulary-relations-merge.js';
+export type { VocabularyMergeGraph } from './vocabulary-relations-merge.js';
+export { VocabularyRelationsMergeAdminError } from './vocabulary-relations-merge.service.js';
 export type {
   CreateVocabularyRelationCommand,
   UpdateVocabularyRelationCommand,
   VocabularyRelationsMergeContext,
 } from './vocabulary-relations-merge.service.js';
-export type { VocabularyMergeGraph } from './vocabulary-relations-merge.js';
+export { VocabularyRelationsMergeService };

@@ -40,17 +40,6 @@ const questionPreset = {
     excludedVocabularyIds: [],
     newAuxiliaryVocabularyLimit: 3,
     similarityThreshold: 0.7,
-    defaultVoicePresetId: '00000000-0000-4000-8000-000000000013',
-    speakerVoiceAssignments: [
-      {
-        speakerRole: '진행자',
-        voicePresetId: '00000000-0000-4000-8000-000000000014',
-      },
-      {
-        speakerRole: '응시자',
-        voicePresetId: '00000000-0000-4000-8000-000000000016',
-      },
-    ],
     additionalInstructionKo: null,
     commonPrinciples: [],
     similarQuestions: [],
@@ -200,9 +189,6 @@ describe('콘텐츠 제작 form', () => {
       '제외 어휘 IDs',
       '신규 보조 어휘 한도',
       '유사도 기준',
-      '기본 음성 preset ID',
-      'speaker role 1',
-      'speaker 음성 preset ID 1',
       '추가 지시',
     ]) {
       expect(screen.getByLabelText(label)).toBeInTheDocument();
@@ -240,15 +226,6 @@ describe('콘텐츠 제작 form', () => {
     fireEvent.change(screen.getByLabelText('유사도 기준'), {
       target: { value: '0.85' },
     });
-    fireEvent.change(screen.getByLabelText('기본 음성 preset ID'), {
-      target: { value: '00000000-0000-4000-8000-000000000026' },
-    });
-    fireEvent.change(screen.getByLabelText('speaker role 1'), {
-      target: { value: '해설자' },
-    });
-    fireEvent.change(screen.getByLabelText('speaker 음성 preset ID 1'), {
-      target: { value: '00000000-0000-4000-8000-000000000027' },
-    });
     fireEvent.change(screen.getByLabelText('추가 지시'), {
       target: { value: '   ' },
     });
@@ -285,17 +262,6 @@ describe('콘텐츠 제작 form', () => {
         ],
         requiredVocabularyIds: ['00000000-0000-4000-8000-000000000024'],
         excludedVocabularyIds: ['00000000-0000-4000-8000-000000000025'],
-        defaultVoicePresetId: '00000000-0000-4000-8000-000000000026',
-        speakerVoiceAssignments: [
-          {
-            speakerRole: '해설자',
-            voicePresetId: '00000000-0000-4000-8000-000000000027',
-          },
-          {
-            speakerRole: '응시자',
-            voicePresetId: '00000000-0000-4000-8000-000000000016',
-          },
-        ],
         additionalInstructionKo: '문법 함정을 포함해 주세요.',
       },
     });

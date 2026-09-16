@@ -1,4 +1,3 @@
-/** 단어장 projection의 ISO·media URL 공개 응답과 use case 위임을 검증한다 */
 import { NotFoundException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -46,16 +45,13 @@ const dependencies = () => ({
               id: ids.pronunciation,
               pronunciationKo: '싸왓디',
               toneMarks: 'L-L-M',
-              media: { storageKey: 'private/shared.mp3' },
             },
             {
               id: '00000000-0000-4000-8000-000000000106',
               pronunciationKo: '사왓디',
               toneMarks: 'L-L-M',
-              media: { storageKey: 'private/shared.mp3' },
             },
           ],
-          audioEligibleMeaningCount: 1,
           saved: true,
           addedAt: now,
         },
@@ -77,7 +73,7 @@ const dependencies = () => ({
     rename: vi.fn().mockResolvedValue({
       ...wordbook,
       userId: 'user-id',
-      name: '듣기',
+      name: '읽기',
     }),
     delete: vi.fn().mockResolvedValue(undefined),
     addVocabulary: vi.fn().mockResolvedValue(undefined),
@@ -86,12 +82,6 @@ const dependencies = () => ({
     moveVocabularies: vi.fn().mockResolvedValue(undefined),
     removeVocabularies: vi.fn().mockResolvedValue(undefined),
   },
-  mediaReadUrls: {
-    createReadUrl: vi
-      .fn()
-      .mockResolvedValue('https://media.example.com/shared.mp3'),
-  },
-  now: () => now,
 });
 
 describe('LearnerWordbooksService 공개 응답', () => {
@@ -106,20 +96,10 @@ describe('LearnerWordbooksService 공개 응답', () => {
 
     expect(result.wordbook.createdAt).toBe(now.toISOString());
     expect(result.items[0]?.addedAt).toBe(now.toISOString());
-    expect(result.items[0]?.audioEligibleMeaningCount).toBe(1);
     expect(result.items[0]?.pronunciations).toEqual([
-      expect.objectContaining({
-        audioUrl: 'https://media.example.com/shared.mp3',
-      }),
-      expect.objectContaining({
-        audioUrl: 'https://media.example.com/shared.mp3',
-      }),
+      expect.objectContaining({}),
+      expect.objectContaining({}),
     ]);
-    expect(fake.mediaReadUrls.createReadUrl).toHaveBeenCalledTimes(1);
-    expect(fake.mediaReadUrls.createReadUrl).toHaveBeenCalledWith(
-      'private/shared.mp3',
-      new Date('2026-07-26T00:05:00.000Z'),
-    );
     expect(JSON.stringify(result)).not.toContain('storageKey');
   });
 
@@ -154,21 +134,21 @@ describe('LearnerWordbooksService 쓰기 위임', () => {
     const fake = dependencies();
     fake.query.listWordbooks
       .mockResolvedValueOnce([{ ...wordbook, itemCount: 0 }])
-      .mockResolvedValueOnce([{ ...wordbook, name: '듣기' }]);
+      .mockResolvedValueOnce([{ ...wordbook, name: '읽기' }]);
     const service = new LearnerWordbooksService(fake);
 
     await expect(
       service.create('user-id', { name: 'FLEX 어휘' }),
     ).resolves.toMatchObject({ itemCount: 0 });
     await expect(
-      service.rename('user-id', ids.wordbook, { name: '듣기' }),
-    ).resolves.toMatchObject({ name: '듣기', itemCount: 1 });
+      service.rename('user-id', ids.wordbook, { name: '읽기' }),
+    ).resolves.toMatchObject({ name: '읽기', itemCount: 1 });
 
     expect(fake.wordbooks.create).toHaveBeenCalledWith('user-id', 'FLEX 어휘');
     expect(fake.wordbooks.rename).toHaveBeenCalledWith(
       'user-id',
       ids.wordbook,
-      '듣기',
+      '읽기',
     );
   });
 

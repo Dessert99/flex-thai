@@ -9,8 +9,8 @@ import {
 import {
   defaultSearch,
   emptyQuestionListResponse,
-  QuestionListPageTestView,
   questionListIds,
+  QuestionListPageTestView,
   renderQuestionList,
 } from './QuestionListPage.test-support';
 
@@ -104,12 +104,12 @@ it('대분류 변경은 호환되지 않는 유형을 해제하고 route 기본 
     throw new Error('데스크톱 대분류 선택지가 필요합니다.');
   }
   await user.click(desktopCategory);
-  await user.click(await screen.findByRole('option', { name: '듣기 대화' }));
+  await user.click(await screen.findByRole('option', { name: '어휘·문법' }));
 
   const [nextSearch] = onSearchChange.mock.lastCall as [QuestionListSearch];
   expect(nextSearch).toMatchObject({
     ...defaultSearch,
-    majorCategory: 'LISTENING_DIALOGUE',
+    majorCategory: 'READING_VOCABULARY_GRAMMAR',
     page: undefined,
   });
   expect(nextSearch).not.toHaveProperty('questionTypeId');
@@ -119,7 +119,7 @@ it('대분류 변경은 호환되지 않는 유형을 해제하고 route 기본 
       onSearchChange={onSearchChange}
       search={{
         ...defaultSearch,
-        majorCategory: 'LISTENING_DIALOGUE',
+        majorCategory: 'READING_VOCABULARY_GRAMMAR',
         page: 1,
       }}
     />,
@@ -133,7 +133,7 @@ it('대분류 변경은 호환되지 않는 유형을 해제하고 route 기본 
   await user.click(desktopQuestionType);
 
   expect(
-    await screen.findByRole('option', { name: '듣기 대화 유형' }),
+    await screen.findByRole('option', { name: '읽기 대화 유형' }),
   ).toBeInTheDocument();
   expect(
     screen.queryByRole('option', { name: '읽기 지문 유형' }),

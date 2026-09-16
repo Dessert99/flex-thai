@@ -37,7 +37,6 @@ const card = {
       id: ids.pronunciation,
       pronunciationKo: '리안',
       toneMarks: 'M',
-      audioUrl: 'https://media.example.com/practice/learn.mp3?Expires=300',
     },
   ],
   meaningPronunciations: [
@@ -68,7 +67,7 @@ describe('단어 연습 생성 요청 계약', () => {
           type: 'SEARCH_SELECTION',
           vocabularyIds: [ids.vocabulary],
         },
-        modes: ['THAI_TO_MEANING', 'AUDIO_TO_MEANING'],
+        modes: ['THAI_TO_MEANING'],
         questionCount: 10,
         order: 'RANDOM',
       }),
@@ -77,7 +76,7 @@ describe('단어 연습 생성 요청 계약', () => {
         type: 'SEARCH_SELECTION',
         vocabularyIds: [ids.vocabulary],
       },
-      modes: ['THAI_TO_MEANING', 'AUDIO_TO_MEANING'],
+      modes: ['THAI_TO_MEANING'],
       questionCount: 10,
       order: 'RANDOM',
     });
@@ -247,7 +246,7 @@ describe('단어 연습 공개 응답 계약', () => {
         card: {
           ...card,
           pronunciations: [
-            { ...card.pronunciations[0], storageKey: 'private/learn.mp3' },
+            { ...card.pronunciations[0], storageKey: 'private/learn.bin' },
           ],
         },
         sessionCompleted: false,

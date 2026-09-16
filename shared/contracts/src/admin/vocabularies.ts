@@ -13,7 +13,6 @@ const vocabularyStatusSchema = z.enum([
   'HIDDEN',
   'MERGED',
 ]);
-const mediaStatusSchema = z.enum(['UPLOADING', 'READY', 'REJECTED']);
 
 const httpIntegerSchema = (minimum: number, maximum: number) =>
   z
@@ -60,7 +59,6 @@ const adminVocabularyPronunciationInputSchema = z
     clientRef: z.string().min(1),
     pronunciationKo: z.string().min(1),
     toneMarks: z.string(),
-    mediaAssetId: uuidSchema,
   })
   .strict();
 
@@ -159,8 +157,6 @@ const adminVocabularyPronunciationSchema = z
     id: uuidSchema,
     pronunciationKo: z.string().min(1),
     toneMarks: z.string(),
-    mediaAssetId: uuidSchema,
-    mediaStatus: mediaStatusSchema,
   })
   .strict();
 

@@ -5,10 +5,9 @@ import { createHash } from 'node:crypto';
 export interface UsageCostOverviewQueryInput {
   from?: string;
   to?: string;
-  source?: 'AI' | 'TTS';
+  source?: 'AI';
   provider?: string;
   model?: string;
-  voice?: string;
   status?: 'STARTED' | 'SUCCEEDED' | 'FAILED' | 'OUTCOME_UNKNOWN';
 }
 
@@ -18,12 +17,11 @@ export interface UsageCostDateRangeInput {
   to: Date;
 }
 
-/** API가 노출해도 되는 provider/model/voice 비용 행 */
+/** API가 노출해도 되는 provider/model 비용 행 */
 export interface UsageCostBreakdownInput {
-  source: 'AI' | 'TTS';
+  source: 'AI';
   provider: string;
   model: string;
-  voice: string | null;
   runCount: number;
   estimatedCostUsd: string;
 }
@@ -41,10 +39,9 @@ export interface UsageCostOverviewReadResult {
 export interface UsageCostOperationsQueryPort {
   getOverview(input: {
     range: UsageCostDateRangeInput;
-    source?: 'AI' | 'TTS';
+    source?: 'AI';
     provider?: string;
     model?: string;
-    voice?: string;
     status?: 'STARTED' | 'SUCCEEDED' | 'FAILED' | 'OUTCOME_UNKNOWN';
   }): Promise<UsageCostOverviewReadResult>;
   getCurrentMonthEstimatedCost(range: UsageCostDateRangeInput): Promise<string>;
@@ -195,7 +192,6 @@ const hasProviderRunFilter = (query: UsageCostOverviewQueryInput): boolean =>
   query.source !== undefined ||
   query.provider !== undefined ||
   query.model !== undefined ||
-  query.voice !== undefined ||
   query.status !== undefined;
 
 const requestFingerprint = (input: {
@@ -235,7 +231,6 @@ export class UsageCostOperationsService {
         ...(query.source ? { source: query.source } : {}),
         ...(query.provider ? { provider: query.provider } : {}),
         ...(query.model ? { model: query.model } : {}),
-        ...(query.voice ? { voice: query.voice } : {}),
         ...(query.status ? { status: query.status } : {}),
       }),
       this.dependencies.settings.find(),

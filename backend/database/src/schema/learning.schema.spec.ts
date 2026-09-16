@@ -1,7 +1,7 @@
 /** 학습 기록 schema의 append-only 수명과 교차 참조 방지 제약을 검증한다 */
-import { readFileSync } from 'node:fs';
 import { getTableColumns, getTableName } from 'drizzle-orm';
 import { getTableConfig } from 'drizzle-orm/pg-core';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   questionAttempts,

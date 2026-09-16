@@ -13,12 +13,10 @@ export interface CanonicalDraftVocabularyMeaningInput {
   contextNote?: string | null;
 }
 
-/** 어휘 초안에 저장할 발음과 음성 참조 입력 */
 export interface CanonicalDraftVocabularyPronunciationInput {
   clientRef: string;
   pronunciationKo: string;
   toneMarks: string;
-  mediaAssetId: string;
 }
 
 /** 한 import item이 생성할 canonical 어휘 입력 */
@@ -59,23 +57,15 @@ export interface CanonicalDraftSentenceInput {
   translationKo: string;
   pronunciationKo: string;
   toneMarks: string;
-  mediaAssetId: string;
   tokens: CanonicalDraftTokenInput[];
   expressions: CanonicalDraftExpressionInput[];
 }
 
-/** TTS 연결 전 생성 문제 DRAFT만 사용하는 nullable 음성 문장 입력 */
-export interface GeneratedDraftSentenceInput extends Omit<
-  CanonicalDraftSentenceInput,
-  'mediaAssetId'
-> {
-  mediaAssetId: null;
-}
+export type GeneratedDraftSentenceInput = CanonicalDraftSentenceInput;
 
 /** 문제 화면을 순서대로 구성할 block 입력 */
 export interface CanonicalDraftQuestionBlockInput {
   kind: 'INSTRUCTION' | 'PASSAGE' | 'DIALOGUE' | 'QUESTION' | 'EXPLANATION';
-  displayMode: 'TEXT' | 'AUDIO' | 'TEXT_AND_AUDIO' | 'AUDIO_THEN_REVEAL';
   sentences: Array<{
     speaker?: string | null;
     sentence: CanonicalDraftSentenceInput;

@@ -6,7 +6,7 @@ import { Label } from './label';
 const meta = {
   args: {
     id: 'learning-goal',
-    placeholder: '예: FLEX 듣기 300점',
+    placeholder: '예: FLEX 읽기 300점',
     type: 'text',
   },
   component: Input,
@@ -35,7 +35,7 @@ export const Default: Story = {
 /** 수정할 수 없는 입력의 상태를 제공한다 */
 export const Disabled: Story = {
   args: {
-    defaultValue: 'FLEX 듣기 300점',
+    defaultValue: 'FLEX 읽기 300점',
     disabled: true,
   },
   name: '비활성',
@@ -54,7 +54,7 @@ export const Invalid: Story = {
 export const LongContent: Story = {
   args: {
     defaultValue:
-      '다음 FLEX 시험까지 듣기와 읽기 영역의 취약 유형을 집중적으로 학습하기',
+      '다음 FLEX 시험까지 읽기 영역의 취약 유형을 집중적으로 학습하기',
   },
   name: '긴 내용',
 };

@@ -1,9 +1,9 @@
 /** 공개 인증과 보호 API를 Lambda·HTTP API로 연결한다 */
 import { CfnOutput, Duration, RemovalPolicy, Stack } from 'aws-cdk-lib';
-import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import * as apigwv2 from 'aws-cdk-lib/aws-apigatewayv2';
 import * as authorizers from 'aws-cdk-lib/aws-apigatewayv2-authorizers';
 import * as integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
+import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import type * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
@@ -33,11 +33,6 @@ export interface HttpApiProps {
   fromEmail: string;
   inputBucket: s3.IBucket;
   jobQueue: sqs.IQueue;
-  ttsVoicePresetId: string;
-  mediaBucket: s3.IBucket;
-  mediaCdnBaseUrl: string;
-  mediaKeyPairId: string;
-  mediaPrivateKey: secretsmanager.ISecret;
   userPool: cognito.IUserPool;
   userPoolClient: cognito.IUserPoolClient;
 }
@@ -77,16 +72,11 @@ export class HttpApi extends Construct {
         COGNITO_CLIENT_ID: props.userPoolClient.userPoolClientId,
         INPUT_BUCKET_NAME: props.inputBucket.bucketName,
         JOB_QUEUE_URL: props.jobQueue.queueUrl,
-        TTS_VOICE_PRESET_ID: props.ttsVoicePresetId,
         CHALLENGE_HMAC_PEPPER_SECRET_ARN: props.challengeHmacPepper.secretArn,
         CUSTOM_AUTH_SECRET_ARN: props.customAuthSecret.secretArn,
         SCHOOL_EMAIL_DOMAINS: props.allowedEmailDomains,
         EMAIL_LINK_CONFIRMATION_URL: props.emailLinkConfirmationUrl,
         FROM_EMAIL: props.fromEmail,
-        MEDIA_BUCKET_NAME: props.mediaBucket.bucketName,
-        MEDIA_CDN_BASE_URL: props.mediaCdnBaseUrl,
-        MEDIA_KEY_PAIR_ID: props.mediaKeyPairId,
-        MEDIA_PRIVATE_KEY_SECRET_ARN: props.mediaPrivateKey.secretArn,
         ALLOWED_ORIGINS: props.allowedOrigins.join(','),
       },
     });
@@ -94,10 +84,8 @@ export class HttpApi extends Construct {
     props.clusterSecret.grantRead(this.apiFunction);
     props.challengeHmacPepper.grantRead(this.apiFunction);
     props.customAuthSecret.grantRead(this.apiFunction);
-    props.mediaPrivateKey.grantRead(this.apiFunction);
     props.emailIdentity.grant(this.apiFunction, 'ses:SendEmail');
     props.inputBucket.grantReadWrite(this.apiFunction, 'inputs/*');
-    props.mediaBucket.grantReadWrite(this.apiFunction);
     props.jobQueue.grantSendMessages(this.apiFunction);
     this.apiFunction.addToRolePolicy(
       new iam.PolicyStatement({
@@ -306,25 +294,14 @@ export class HttpApi extends Construct {
         apigwv2.HttpMethod.DELETE,
         '/api/v1/admin/content-production/vocabulary-candidates/{candidateId}',
       ],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/admin/media-assets/audio-upload-requests',
-      ],
-      [apigwv2.HttpMethod.GET, '/api/v1/admin/media-assets/{mediaAssetId}'],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/admin/media-assets/{mediaAssetId}/complete',
-      ],
+
       [apigwv2.HttpMethod.GET, '/api/v1/admin/questions'],
       [apigwv2.HttpMethod.GET, '/api/v1/admin/questions/{questionId}'],
       [
         apigwv2.HttpMethod.POST,
         '/api/v1/admin/questions/{questionId}/versions',
       ],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/admin/questions/{questionId}/versions/{versionId}/tts-jobs',
-      ],
+
       [apigwv2.HttpMethod.POST, '/api/v1/admin/questions/{questionId}/hide'],
       [apigwv2.HttpMethod.POST, '/api/v1/admin/questions/{questionId}/restore'],
       [apigwv2.HttpMethod.PUT, '/api/v1/admin/question-versions/{versionId}'],
@@ -341,24 +318,7 @@ export class HttpApi extends Construct {
         '/api/v1/admin/question-versions/{versionId}/invalidate',
       ],
       [apigwv2.HttpMethod.GET, '/api/v1/admin/question-taxonomy'],
-      [apigwv2.HttpMethod.GET, '/api/v1/admin/tts/jobs'],
-      [apigwv2.HttpMethod.GET, '/api/v1/admin/tts/jobs/{jobId}'],
-      [apigwv2.HttpMethod.GET, '/api/v1/admin/tts/items/{itemId}/audio'],
-      [
-        apigwv2.HttpMethod.GET,
-        '/api/v1/admin/tts/questions/{questionId}/versions/{versionId}/readiness',
-      ],
-      [apigwv2.HttpMethod.POST, '/api/v1/admin/tts/jobs/{jobId}/retry'],
-      [apigwv2.HttpMethod.POST, '/api/v1/admin/tts/items/{itemId}/retry'],
-      [apigwv2.HttpMethod.GET, '/api/v1/admin/tts/presets'],
-      [apigwv2.HttpMethod.POST, '/api/v1/admin/tts/presets'],
-      [apigwv2.HttpMethod.GET, '/api/v1/admin/tts/presets/{presetId}'],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/admin/tts/presets/{presetId}/versions',
-      ],
-      [apigwv2.HttpMethod.POST, '/api/v1/admin/tts/presets/{presetId}/enable'],
-      [apigwv2.HttpMethod.POST, '/api/v1/admin/tts/presets/{presetId}/disable'],
+
       [apigwv2.HttpMethod.GET, '/api/v1/admin/usage-cost'],
       [apigwv2.HttpMethod.GET, '/api/v1/admin/usage-cost/settings'],
       [apigwv2.HttpMethod.PUT, '/api/v1/admin/usage-cost/settings'],

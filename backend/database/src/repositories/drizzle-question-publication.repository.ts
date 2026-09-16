@@ -1,19 +1,17 @@
 /** 문제 검증 후보 조회와 게시 상태 전이를 한 Drizzle transaction으로 구현한다 */
 import {
-  MediaAssetDomainError,
-  type MediaAsset,
   type QuestionPublicationRepository,
   type QuestionPublicationTransaction,
   type QuestionSentenceCandidate,
   type QuestionVersionValidationCandidate,
 } from '@flex-thia/domain';
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
-import { alias, type PgDatabase } from 'drizzle-orm/pg-core';
+import { type PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
+import * as schema from '../schema/index.js';
 import {
   auditLogs,
   expressionOccurrences,
-  mediaAssets,
   questionBlocks,
   questionBlockSentences,
   questionOptions,
@@ -25,42 +23,12 @@ import {
   vocabularies,
   vocabularyPronunciations,
 } from '../schema/index.js';
-import * as schema from '../schema/index.js';
-import { DrizzleContentTtsReadinessQuery } from '../queries/drizzle-content-tts-readiness.query.js';
 
 type QuestionPublicationDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 type QuestionPublicationSession = Pick<
   QuestionPublicationDatabase,
   'insert' | 'select' | 'update'
 >;
-
-interface MediaProjection {
-  mediaId: string;
-  mediaKind: 'AUDIO';
-  mediaStorageKey: string;
-  mediaDeclaredMimeType: string;
-  mediaDeclaredSizeBytes: number;
-  mediaDeclaredSha256: string;
-  mediaMimeType: string | null;
-  mediaSizeBytes: number | null;
-  mediaSha256: string | null;
-  mediaStatus: 'UPLOADING' | 'READY' | 'REJECTED';
-  mediaReadyAt: Date | null;
-}
-
-interface NullableMediaProjection {
-  mediaId: string | null;
-  mediaKind: 'AUDIO' | null;
-  mediaStorageKey: string | null;
-  mediaDeclaredMimeType: string | null;
-  mediaDeclaredSizeBytes: number | null;
-  mediaDeclaredSha256: string | null;
-  mediaMimeType: string | null;
-  mediaSizeBytes: number | null;
-  mediaSha256: string | null;
-  mediaStatus: 'UPLOADING' | 'READY' | 'REJECTED' | null;
-  mediaReadyAt: Date | null;
-}
 
 /** 게시 상태의 동시 변경이나 예상하지 못한 저장 결과를 안정적인 code로 전달한다 */
 export class QuestionPublicationPersistenceError extends Error {
@@ -93,95 +61,10 @@ const compareExpressionPosition = (
   left.startTokenIndex - right.startTokenIndex ||
   left.endTokenIndex - right.endTokenIndex;
 
-const toMediaAsset = (row: MediaProjection): MediaAsset => {
-  const base = {
-    id: row.mediaId,
-    kind: row.mediaKind,
-    storageKey: row.mediaStorageKey,
-    declaredMimeType: row.mediaDeclaredMimeType,
-    declaredSizeBytes: row.mediaDeclaredSizeBytes,
-    declaredSha256: row.mediaDeclaredSha256,
-  };
-  if (row.mediaStatus === 'READY') {
-    if (
-      row.mediaMimeType === null ||
-      row.mediaSizeBytes === null ||
-      row.mediaSha256 === null ||
-      row.mediaReadyAt === null
-    ) {
-      throw new MediaAssetDomainError('MEDIA_ASSET_NOT_READY');
-    }
-    return {
-      ...base,
-      mimeType: row.mediaMimeType,
-      sizeBytes: row.mediaSizeBytes,
-      sha256: row.mediaSha256,
-      status: 'READY',
-      readyAt: row.mediaReadyAt,
-    };
-  }
-  if (row.mediaStatus === 'REJECTED') {
-    if (
-      row.mediaMimeType === null ||
-      row.mediaSizeBytes === null ||
-      row.mediaSha256 === null
-    ) {
-      throw new MediaAssetDomainError('MEDIA_ASSET_NOT_READY');
-    }
-    return {
-      ...base,
-      mimeType: row.mediaMimeType,
-      sizeBytes: row.mediaSizeBytes,
-      sha256: row.mediaSha256,
-      status: 'REJECTED',
-      readyAt: null,
-    };
-  }
-  return {
-    ...base,
-    mimeType: null,
-    sizeBytes: null,
-    sha256: null,
-    status: row.mediaStatus,
-    readyAt: null,
-  };
-};
-
-const toOptionalMediaAsset = (
-  row: NullableMediaProjection,
-): MediaAsset | null => {
-  if (
-    row.mediaId === null ||
-    row.mediaKind === null ||
-    row.mediaStorageKey === null ||
-    row.mediaDeclaredMimeType === null ||
-    row.mediaDeclaredSizeBytes === null ||
-    row.mediaDeclaredSha256 === null ||
-    row.mediaStatus === null
-  ) {
-    return null;
-  }
-  return toMediaAsset({
-    ...row,
-    mediaId: row.mediaId,
-    mediaKind: row.mediaKind,
-    mediaStorageKey: row.mediaStorageKey,
-    mediaDeclaredMimeType: row.mediaDeclaredMimeType,
-    mediaDeclaredSizeBytes: row.mediaDeclaredSizeBytes,
-    mediaDeclaredSha256: row.mediaDeclaredSha256,
-    mediaStatus: row.mediaStatus,
-  });
-};
-
 const createQuestionPublicationTransaction = (
   transaction: QuestionPublicationSession,
 ): QuestionPublicationTransaction => {
-  const pronunciationMedia = alias(mediaAssets, 'pronunciation_media_assets');
-  const ttsReadiness = new DrizzleContentTtsReadinessQuery(transaction);
-
   return {
-    listRequiredTargets: (content) => ttsReadiness.listRequiredTargets(content),
-
     async loadQuestion(questionId) {
       const [row] = await transaction
         .select({
@@ -238,7 +121,6 @@ const createQuestionPublicationTransaction = (
         .select({
           id: questionBlocks.id,
           kind: questionBlocks.kind,
-          displayMode: questionBlocks.displayMode,
           position: questionBlocks.position,
         })
         .from(questionBlocks)
@@ -310,24 +192,8 @@ const createQuestionPublicationTransaction = (
           translationKo: thaiSentenceVersions.translationKo,
           pronunciationKo: thaiSentenceVersions.pronunciationKo,
           toneMarks: thaiSentenceVersions.toneMarks,
-          sentenceMediaAssetId: thaiSentenceVersions.mediaAssetId,
-          mediaId: mediaAssets.id,
-          mediaKind: mediaAssets.kind,
-          mediaStorageKey: mediaAssets.storageKey,
-          mediaDeclaredMimeType: mediaAssets.declaredMimeType,
-          mediaDeclaredSizeBytes: mediaAssets.declaredSizeBytes,
-          mediaDeclaredSha256: mediaAssets.declaredSha256,
-          mediaMimeType: mediaAssets.mimeType,
-          mediaSizeBytes: mediaAssets.sizeBytes,
-          mediaSha256: mediaAssets.sha256,
-          mediaStatus: mediaAssets.status,
-          mediaReadyAt: mediaAssets.readyAt,
         })
         .from(thaiSentenceVersions)
-        .leftJoin(
-          mediaAssets,
-          eq(thaiSentenceVersions.mediaAssetId, mediaAssets.id),
-        )
         .where(inArray(thaiSentenceVersions.id, sentenceVersionIds))
         .orderBy(asc(thaiSentenceVersions.id));
       const tokenRows = await transaction
@@ -343,20 +209,6 @@ const createQuestionPublicationTransaction = (
           contextMeaningKo: tokenOccurrences.contextMeaningKo,
           role: tokenOccurrences.role,
           vocabularyStatus: vocabularies.status,
-          pronunciationMediaAssetId: vocabularyPronunciations.mediaAssetId,
-          pronunciationMediaId: pronunciationMedia.id,
-          pronunciationMediaKind: pronunciationMedia.kind,
-          pronunciationMediaStorageKey: pronunciationMedia.storageKey,
-          pronunciationMediaDeclaredMimeType:
-            pronunciationMedia.declaredMimeType,
-          pronunciationMediaDeclaredSizeBytes:
-            pronunciationMedia.declaredSizeBytes,
-          pronunciationMediaDeclaredSha256: pronunciationMedia.declaredSha256,
-          pronunciationMediaMimeType: pronunciationMedia.mimeType,
-          pronunciationMediaSizeBytes: pronunciationMedia.sizeBytes,
-          pronunciationMediaSha256: pronunciationMedia.sha256,
-          pronunciationMediaStatus: pronunciationMedia.status,
-          pronunciationMediaReadyAt: pronunciationMedia.readyAt,
         })
         .from(tokenOccurrences)
         .innerJoin(
@@ -372,10 +224,6 @@ const createQuestionPublicationTransaction = (
               vocabularyPronunciations.vocabularyId,
             ),
           ),
-        )
-        .leftJoin(
-          pronunciationMedia,
-          eq(vocabularyPronunciations.mediaAssetId, pronunciationMedia.id),
         )
         .where(inArray(tokenOccurrences.sentenceVersionId, sentenceVersionIds))
         .orderBy(
@@ -423,35 +271,6 @@ const createQuestionPublicationTransaction = (
               expression.sentenceVersionId === row.sentenceVersionId,
           )
           .sort(compareExpressionPosition);
-        const pronunciationMediaAssets = sentenceTokens.map((token) => {
-          if (token.pronunciationMediaAssetId === null) {
-            return null;
-          }
-          if (
-            token.pronunciationMediaId === null ||
-            token.pronunciationMediaKind === null ||
-            token.pronunciationMediaStorageKey === null ||
-            token.pronunciationMediaDeclaredMimeType === null ||
-            token.pronunciationMediaDeclaredSizeBytes === null ||
-            token.pronunciationMediaDeclaredSha256 === null ||
-            token.pronunciationMediaStatus === null
-          ) {
-            throw new MediaAssetDomainError('MEDIA_ASSET_NOT_READY');
-          }
-          return toMediaAsset({
-            mediaId: token.pronunciationMediaId,
-            mediaKind: token.pronunciationMediaKind,
-            mediaStorageKey: token.pronunciationMediaStorageKey,
-            mediaDeclaredMimeType: token.pronunciationMediaDeclaredMimeType,
-            mediaDeclaredSizeBytes: token.pronunciationMediaDeclaredSizeBytes,
-            mediaDeclaredSha256: token.pronunciationMediaDeclaredSha256,
-            mediaMimeType: token.pronunciationMediaMimeType,
-            mediaSizeBytes: token.pronunciationMediaSizeBytes,
-            mediaSha256: token.pronunciationMediaSha256,
-            mediaStatus: token.pronunciationMediaStatus,
-            mediaReadyAt: token.pronunciationMediaReadyAt,
-          });
-        });
         sentences.set(row.sentenceVersionId, {
           id: row.sentenceVersionId,
           input: {
@@ -459,7 +278,6 @@ const createQuestionPublicationTransaction = (
             translationKo: row.translationKo,
             pronunciationKo: row.pronunciationKo,
             toneMarks: row.toneMarks,
-            mediaAssetId: row.sentenceMediaAssetId,
             tokens: sentenceTokens.map((token) => ({
               position: token.position,
               surface: token.surface,
@@ -482,7 +300,6 @@ const createQuestionPublicationTransaction = (
               adminSelected: expression.representative,
             })),
           },
-          mediaAsset: toOptionalMediaAsset(row),
           referencedVocabularies: [
             ...sentenceTokens.map((token) => ({
               id: token.vocabularyId,
@@ -493,7 +310,6 @@ const createQuestionPublicationTransaction = (
               status: expression.vocabularyStatus,
             })),
           ],
-          pronunciationMediaAssets,
         });
       });
 

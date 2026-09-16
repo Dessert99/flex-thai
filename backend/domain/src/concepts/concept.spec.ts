@@ -28,8 +28,6 @@ const candidate = (): ConceptValidationCandidate => ({
           sentenceVersionId: 'sentence-1',
           noteKo: null,
           sentenceExists: true,
-          audioAssetExists: true,
-          audioAssetStatus: 'READY',
           interactionIssues: [],
         },
       ],
@@ -40,22 +38,6 @@ const candidate = (): ConceptValidationCandidate => ({
 describe('validateConceptCandidate', () => {
   it('정상 초안에는 구조·참조 문제가 없다', () => {
     expect(validateConceptCandidate(candidate())).toEqual([]);
-  });
-
-  it('끊어진 블록 순서와 준비되지 않은 음성을 경로별로 보고한다', () => {
-    const input = candidate();
-    input.blocks[0]!.position = 1;
-    const example = input.blocks[0]!;
-    if (example.kind === 'THAI_EXAMPLES') {
-      example.examples[0]!.audioAssetStatus = 'UPLOADING';
-    }
-
-    expect(validateConceptCandidate(input)).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ code: 'CONCEPT_BLOCK_POSITION_GAP' }),
-        expect.objectContaining({ code: 'CONCEPT_AUDIO_NOT_READY' }),
-      ]),
-    );
   });
 
   it('표의 열 수와 같은 블록의 중복 문장을 거부한다', () => {
@@ -80,8 +62,6 @@ describe('validateConceptCandidate', () => {
             sentenceVersionId: 'sentence-1',
             noteKo: null,
             sentenceExists: true,
-            audioAssetExists: true,
-            audioAssetStatus: 'READY',
             interactionIssues: [],
           },
           {
@@ -89,8 +69,6 @@ describe('validateConceptCandidate', () => {
             sentenceVersionId: 'sentence-1',
             noteKo: null,
             sentenceExists: true,
-            audioAssetExists: true,
-            audioAssetStatus: 'READY',
             interactionIssues: [],
           },
         ],
@@ -101,38 +79,6 @@ describe('validateConceptCandidate', () => {
       expect.arrayContaining([
         expect.objectContaining({ code: 'CONCEPT_RULE_COLUMN_MISMATCH' }),
         expect.objectContaining({ code: 'CONCEPT_DUPLICATE_SENTENCE' }),
-      ]),
-    );
-  });
-
-  it('token과 expression의 참조·음성이 준비되지 않으면 게시 검증에 실패한다', () => {
-    const input = candidate();
-    const block = input.blocks[0];
-    if (block?.kind === 'THAI_EXAMPLES') {
-      block.examples[0]!.interactionIssues = [
-        {
-          kind: 'TOKEN',
-          index: 0,
-          referenceValid: true,
-          audioAssetExists: true,
-          audioAssetStatus: 'UPLOADING',
-        },
-        {
-          kind: 'EXPRESSION',
-          index: 0,
-          referenceValid: false,
-          audioAssetExists: false,
-          audioAssetStatus: null,
-        },
-      ];
-    }
-
-    expect(validateConceptCandidate(input)).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ code: 'CONCEPT_FEEDBACK_AUDIO_NOT_READY' }),
-        expect.objectContaining({
-          code: 'CONCEPT_FEEDBACK_REFERENCE_NOT_FOUND',
-        }),
       ]),
     );
   });

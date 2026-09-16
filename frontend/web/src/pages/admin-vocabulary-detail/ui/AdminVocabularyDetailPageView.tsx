@@ -1,21 +1,19 @@
-/** 관리자 어휘의 usage·audio readiness·DRAFT form 상태를 표현한다 */
 import type {
-  AdminVocabularyMergePreviewResponse,
   AdminVocabularyDetailResponse,
+  AdminVocabularyMergePreviewResponse,
   AdminVocabularyRelationCreateRequest,
   AdminVocabularyRelationUpdateRequest,
   AdminVocabularyReplaceRequest,
 } from '@flex-thia/contracts';
 import type { ReactNode } from 'react';
-import { Badge } from '@/shared/ui/badge';
 
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
+import { Skeleton } from '@/shared/ui/skeleton';
 import { mapVocabularyDetailToForm } from '../model/mapVocabularyForm';
 import { VocabularyForm } from './VocabularyForm';
 import { VocabularyMergePanel } from './VocabularyMergePanel';
 import { VocabularyRelationManager } from './VocabularyRelationManager';
-import { Skeleton } from '@/shared/ui/skeleton';
-import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
-import { Button } from '@/shared/ui/button';
 
 interface Props {
   actions: ReactNode;
@@ -103,20 +101,7 @@ export function AdminVocabularyDetailPageView({
       </header>
       <div className='grid gap-cluster'>
         {data.pronunciations.map((pronunciation) => (
-          <p key={pronunciation.id}>
-            {pronunciation.pronunciationKo} ·{' '}
-            <Badge
-              variant={
-                pronunciation.mediaStatus === 'READY'
-                  ? 'secondary'
-                  : 'destructive'
-              }
-            >
-              {pronunciation.mediaStatus === 'READY'
-                ? '음성 준비 완료'
-                : `음성 ${pronunciation.mediaStatus}`}
-            </Badge>
-          </p>
+          <p key={pronunciation.id}>{pronunciation.pronunciationKo} · </p>
         ))}
         <p>문장 버전 사용처 {data.usage.sentenceVersionIds.length}개</p>
         <p>문제 버전 사용처 {data.usage.questionVersionIds.length}개</p>

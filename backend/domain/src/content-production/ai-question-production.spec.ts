@@ -3,15 +3,15 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 import {
   assertDistinctValidationModels,
   buildQuestionGenerationPrompt,
-  serializeQuestionGenerationPrompt,
   classifyQuestionCandidate,
   normalizeQuestionProductionValidationRecord,
   projectQuestionPromptApprovedExample,
   QuestionCandidateReviewService,
+  serializeQuestionGenerationPrompt,
   validateGeneratedQuestionSchema,
   validateQuestionDecisionRules,
-  type GeneratedQuestionDraftRepository,
   type GeneratedQuestionCandidate,
+  type GeneratedQuestionDraftRepository,
   type QuestionProductionCandidateRecord,
   type QuestionProductionCandidateRepository,
   type QuestionProductionContext,
@@ -99,7 +99,6 @@ const candidate: GeneratedQuestionCandidate = {
     blocks: [
       {
         kind: 'QUESTION',
-        displayMode: 'TEXT',
         sentences: [],
       },
     ],
@@ -277,7 +276,6 @@ const inlineCandidate: GeneratedQuestionCandidate = {
     blocks: [
       {
         kind: 'QUESTION',
-        displayMode: 'TEXT',
         sentences: [{ speaker: null, sentence: tokenizedSentence }],
       },
     ],
@@ -636,7 +634,6 @@ describe('AI 문제 후보 검증 규칙', () => {
             blocks: [
               {
                 kind: 'QUESTION',
-                displayMode: 'TEXT',
                 sentences: [{ speaker, sentence: singleTokenSentence }],
               },
             ],
@@ -660,7 +657,6 @@ describe('AI 문제 후보 검증 규칙', () => {
             blocks: [
               {
                 kind: 'QUESTION',
-                displayMode: 'TEXT',
                 sentences: [{ speaker, sentence: singleTokenSentence }],
               },
             ],
@@ -1211,7 +1207,6 @@ describe('AI 문제 후보 검증 규칙', () => {
             blocks: [
               {
                 kind: 'INSTRUCTION',
-                displayMode: 'TEXT',
                 sentences: [{ speaker: null, sentence: instructionSentence }],
               },
               ...candidate.payload.blocks,
@@ -1236,7 +1231,6 @@ describe('AI 문제 후보 검증 규칙', () => {
             blocks: [
               {
                 kind: 'INSTRUCTION',
-                displayMode: 'TEXT',
                 sentences: [{ speaker: null, sentence: instructionSentence }],
               },
               ...candidate.payload.blocks,
@@ -1307,7 +1301,6 @@ describe('AI 문제 후보 검증 규칙', () => {
             blocks: [
               {
                 kind: 'INSTRUCTION',
-                displayMode: 'TEXT',
                 sentences: [
                   {
                     speaker: null,
@@ -1350,7 +1343,6 @@ describe('AI 문제 후보 검증 규칙', () => {
             blocks: [
               {
                 kind: 'INSTRUCTION',
-                displayMode: 'TEXT',
                 sentences: [
                   {
                     speaker: null,
@@ -1608,7 +1600,7 @@ describe('AI 문제 생성 prompt 조립', () => {
                 properties: {
                   blocks: {
                     items: {
-                      required: ['kind', 'displayMode', 'sentences'],
+                      required: ['kind', 'sentences'],
                       properties: {
                         sentences: {
                           items: {

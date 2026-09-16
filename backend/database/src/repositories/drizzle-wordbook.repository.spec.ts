@@ -1,7 +1,7 @@
 /** 단어장 repository의 소유권·멱등 추가·고정 lock ordering을 검증한다 */
-import { randomUUID } from 'node:crypto';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { PgDialect } from 'drizzle-orm/pg-core';
+import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import * as schema from '../schema/index.js';
@@ -160,7 +160,7 @@ describe('DrizzleWordbookRepository 단어장', () => {
       repository.create(row.userId, row.name, row.createdAt),
     ).resolves.toEqual(row);
     await expect(
-      repository.rename(row.userId, row.id, '듣기', row.updatedAt),
+      repository.rename(row.userId, row.id, '읽기', row.updatedAt),
     ).resolves.toEqual(row);
 
     expect(fake.writeCalls[0]).toMatchObject({

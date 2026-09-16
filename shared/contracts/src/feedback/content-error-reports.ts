@@ -19,7 +19,6 @@ export const contentErrorReportTargetKindSchema = z.enum([
   'QUESTION',
   'VOCABULARY',
   'SENTENCE',
-  'AUDIO',
   'CONCEPT',
 ]);
 
@@ -27,7 +26,6 @@ export const contentErrorReportTargetKindSchema = z.enum([
 export const contentErrorReportCategorySchema = z.enum([
   'MEANING_TRANSLATION',
   'PRONUNCIATION_TONE',
-  'AUDIO',
   'ANSWER_EXPLANATION',
   'TOKENIZATION',
   'OTHER',
@@ -67,25 +65,6 @@ export const contentErrorReportOriginSchema = z.discriminatedUnion('kind', [
       kind: z.literal('SENTENCE'),
       sentenceVersionId: uuidSchema,
       tokenPosition: z.number().int().safe().nonnegative().nullable(),
-    })
-    .strict(),
-  z
-    .object({
-      kind: z.literal('AUDIO'),
-      source: z.discriminatedUnion('kind', [
-        z
-          .object({
-            kind: z.literal('VOCABULARY'),
-            pronunciationId: uuidSchema,
-          })
-          .strict(),
-        z
-          .object({
-            kind: z.literal('SENTENCE'),
-            sentenceVersionId: uuidSchema,
-          })
-          .strict(),
-      ]),
     })
     .strict(),
   z
@@ -151,7 +130,6 @@ export const contentErrorReportCanonicalReferenceSchema = z
     contentVersionId: nullableUuidSchema,
     questionVersionId: nullableUuidSchema,
     sentenceVersionId: nullableUuidSchema,
-    mediaAssetId: nullableUuidSchema,
     locationId: nullableUuidSchema,
   })
   .strict();
@@ -164,7 +142,6 @@ export const contentErrorReportSnapshotSchema = z
     secondaryText: z.string().nullable(),
     versionLabel: z.string().nullable(),
     locationLabel: z.string().min(1),
-    audioAssetId: nullableUuidSchema,
   })
   .strict();
 

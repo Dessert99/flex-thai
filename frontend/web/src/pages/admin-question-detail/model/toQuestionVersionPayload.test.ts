@@ -15,22 +15,6 @@ describe('문제 버전 구조화 payload 변환', () => {
       },
     });
   });
-
-  it('media가 없는 문장도 null을 보존해 구조화 편집을 초기화한다', () => {
-    const candidate = version();
-    const block = candidate.blocks[0];
-    const item = block?.sentences[0];
-    if (!item) throw new Error('테스트 문장 fixture가 필요합니다.');
-    item.sentence.mediaAssetId = null;
-
-    const result = toQuestionVersionPayload(candidate as never);
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error('payload 변환 성공이 필요합니다.');
-    expect(
-      result.payload.blocks[0]?.sentences[0]?.sentence.mediaAssetId,
-    ).toBeNull();
-  });
 });
 
 function version() {
@@ -40,7 +24,6 @@ function version() {
     translationKo: '안녕하세요',
     pronunciationKo: '싸왓디',
     toneMarks: '',
-    mediaAssetId: 'media-1' as string | null,
     tokens: [
       {
         position: 0,
@@ -64,12 +47,10 @@ function version() {
     blocks: [
       {
         kind: 'QUESTION',
-        displayMode: 'TEXT',
         sentences: [{ speaker: null, sentence: { ...sentence } }],
       },
       {
         kind: 'EXPLANATION',
-        displayMode: 'TEXT',
         sentences: [{ speaker: null, sentence: { ...sentence } }],
       },
     ],

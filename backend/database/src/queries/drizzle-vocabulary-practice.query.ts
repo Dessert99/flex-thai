@@ -37,10 +37,8 @@ interface QuestionRow {
   vocabularyId: string;
   meaningId: string;
   pronunciationId: string | null;
-  mediaAssetId: string | null;
   mode: PracticeSessionRecord['modes'][number];
   promptText: string | null;
-  audioStorageKey: string | null;
   options: PracticeSessionRecord['questions'][number]['options'];
   correctOptionId: string;
   cardSnapshot: PracticeSessionRecord['questions'][number]['card'];
@@ -75,15 +73,13 @@ const candidateSelect = (
       select jsonb_agg(jsonb_build_object(
         'id', p.id,
         'pronunciationKo', p.pronunciation_ko,
-        'toneMarks', p.tone_marks,
-        'mediaAssetId', a.id,
-        'storageKey', a.storage_key
+        'toneMarks', p.tone_marks
       ) order by p.id)
       from vocabulary_meaning_pronunciations mp
       join vocabulary_pronunciations p
         on p.id = mp.pronunciation_id
        and p.vocabulary_id = mp.vocabulary_id
-      join media_assets a on a.id = p.media_asset_id and a.status = 'READY'
+
       where mp.meaning_id = m.id
     ), '[]'::jsonb) as "pronunciations",
     jsonb_build_object(
@@ -105,12 +101,10 @@ const candidateSelect = (
         select jsonb_agg(jsonb_build_object(
           'id', cp.id,
           'pronunciationKo', cp.pronunciation_ko,
-          'toneMarks', cp.tone_marks,
-          'mediaAssetId', ca.id,
-          'storageKey', ca.storage_key
+          'toneMarks', cp.tone_marks
         ) order by cp.id)
         from vocabulary_pronunciations cp
-        join media_assets ca on ca.id = cp.media_asset_id and ca.status = 'READY'
+
         where cp.vocabulary_id = v.id
       ),
       'meaningPronunciations', (
@@ -122,9 +116,7 @@ const candidateSelect = (
         join vocabulary_pronunciations cpp
           on cpp.id = cmp.pronunciation_id
          and cpp.vocabulary_id = cmp.vocabulary_id
-        join media_assets cpa
-          on cpa.id = cpp.media_asset_id
-         and cpa.status = 'READY'
+
         where cmp.vocabulary_id = v.id
       )
     ) as "card"
@@ -137,7 +129,7 @@ const candidateSelect = (
     and exists (
       select 1
       from vocabulary_pronunciations ep
-      join media_assets ea on ea.id = ep.media_asset_id and ea.status = 'READY'
+
       where ep.vocabulary_id = v.id
     )
   order by
@@ -223,10 +215,8 @@ export class DrizzleVocabularyPracticeQuery {
         vocabulary_id as "vocabularyId",
         meaning_id as "meaningId",
         pronunciation_id as "pronunciationId",
-        media_asset_id as "mediaAssetId",
         mode,
         prompt_text as "promptText",
-        audio_storage_key as "audioStorageKey",
         options,
         correct_option_id as "correctOptionId",
         card_snapshot as "cardSnapshot"
@@ -270,13 +260,8 @@ export class DrizzleVocabularyPracticeQuery {
         position: question.position,
         vocabularyId: question.vocabularyId,
         meaningId: question.meaningId,
-        pronunciationId: question.pronunciationId,
-        mediaAssetId: question.mediaAssetId,
         mode: question.mode,
-        prompt:
-          question.audioStorageKey === null
-            ? { type: 'TEXT', text: question.promptText ?? '' }
-            : { type: 'AUDIO', storageKey: question.audioStorageKey },
+        prompt: { type: 'TEXT', text: question.promptText ?? '' },
         options: question.options,
         correctOptionId: question.correctOptionId,
         card: question.cardSnapshot,

@@ -7,14 +7,12 @@ import type {
   VocabularyPronunciationReferenceRecord,
   VocabularyReferenceRecord,
 } from '../content-import/content-draft.repository.js';
-import type { MediaAsset } from '../media/media-asset.js';
 import type {
   QuestionRecord,
   QuestionVersionRecord,
 } from './question-publication.repository.js';
 import type {
   QuestionBlockKind,
-  QuestionDisplayMode,
   QuestionTemplate,
 } from './question-version.js';
 
@@ -26,7 +24,6 @@ export interface QuestionAdminVersionSource extends QuestionVersionRecord {
   difficulty: number;
   blocks: Array<{
     kind: QuestionBlockKind;
-    displayMode: QuestionDisplayMode;
     position: number;
     sentences: Array<{
       sentenceVersionId: string;
@@ -101,7 +98,6 @@ export interface QuestionAdminTransaction {
   ): Promise<QuestionAdminTypeVersion | null>;
   findActiveQuestionTopic(slug: string): Promise<{ id: string } | null>;
   findActiveQuestionTags(slugs: string[]): Promise<Array<{ id: string }>>;
-  findMediaAssetById(mediaAssetId: string): Promise<MediaAsset | null>;
   findVocabularyById(
     vocabularyId: string,
   ): Promise<VocabularyReferenceRecord | null>;

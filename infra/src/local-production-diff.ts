@@ -13,9 +13,7 @@ const localProductionDiffEnvironmentSchema = z.object({
   ALERT_EMAIL: z.email(),
   ALLOWED_EMAIL_DOMAINS: z.string().trim().min(1),
   GITHUB_REPOSITORY_CONTEXT: z.string().regex(/^[^/]+\/[^/]+$/u),
-  TTS_VOICE_PRESET_ID: z.uuid(),
   MONTHLY_BUDGET_USD: z.coerce.number().positive(),
-  MEDIA_PUBLIC_KEY_PATH: z.string().trim().min(1),
 });
 
 /** 로컬 실행기가 사용하는 production 설정 */
@@ -27,9 +25,7 @@ export type LocalProductionDiffEnvironment = {
   alertEmail: string;
   allowedEmailDomains: string;
   githubRepository: string;
-  ttsVoicePresetId: string;
   monthlyBudgetUsd: number;
-  mediaPublicKeyPath: string;
 };
 
 /** 전용 환경 파일의 문자열을 검증된 로컬 production 설정으로 변환한다 */
@@ -46,16 +42,13 @@ export const readLocalProductionDiffEnvironment = (
     alertEmail: parsed.ALERT_EMAIL,
     allowedEmailDomains: parsed.ALLOWED_EMAIL_DOMAINS,
     githubRepository: parsed.GITHUB_REPOSITORY_CONTEXT,
-    ttsVoicePresetId: parsed.TTS_VOICE_PRESET_ID,
     monthlyBudgetUsd: parsed.MONTHLY_BUDGET_USD,
-    mediaPublicKeyPath: parsed.MEDIA_PUBLIC_KEY_PATH,
   };
 };
 
 /** 공개 키를 합쳐 기존 production 인프라 설정 계약을 재사용한다 */
 export const createProductionInfrastructureConfig = (
   environment: LocalProductionDiffEnvironment,
-  mediaPublicKeyPem: string,
 ): InfrastructureConfig =>
   readInfrastructureConfig({
     account: environment.account,
@@ -63,8 +56,6 @@ export const createProductionInfrastructureConfig = (
     hostedZoneId: environment.hostedZoneId,
     alertEmail: environment.alertEmail,
     githubRepository: environment.githubRepository,
-    ttsVoicePresetId: environment.ttsVoicePresetId,
-    mediaPublicKeyPem,
     allowedEmailDomains: environment.allowedEmailDomains,
     monthlyBudgetUsd: environment.monthlyBudgetUsd,
   });
@@ -101,7 +92,6 @@ export const createProductionDiffArguments = (
   '-c',
   `githubRepository=${config.githubRepository}`,
   '-c',
-  `ttsVoicePresetId=${config.ttsVoicePresetId}`,
   '-c',
   `allowedEmailDomains=${config.allowedEmailDomains}`,
   '-c',

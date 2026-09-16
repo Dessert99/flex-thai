@@ -7,14 +7,6 @@ const infrastructureConfigSchema = z.object({
   hostedZoneId: z.string().min(2),
   alertEmail: z.email(),
   githubRepository: z.string().regex(/^[^/]+\/[^/]+$/u),
-  ttsVoicePresetId: z.uuid(),
-  mediaPublicKeyPem: z
-    .string()
-    .trim()
-    .regex(
-      /^-----BEGIN PUBLIC KEY-----[\s\S]+-----END PUBLIC KEY-----$/u,
-      'CloudFront media public key는 PEM 형식이어야 한다',
-    ),
   allowedEmailDomains: z.string().default('hufs.ac.kr'),
   appRegion: z.literal('ap-northeast-2').default('ap-northeast-2'),
   edgeRegion: z.literal('us-east-1').default('us-east-1'),
@@ -28,16 +20,3 @@ export type InfrastructureConfig = z.infer<typeof infrastructureConfigSchema>;
 export const readInfrastructureConfig = (
   context: Record<string, unknown>,
 ): InfrastructureConfig => infrastructureConfigSchema.parse(context);
-
-/** CDK context와 실행 환경을 합쳐 production 설정을 검증한다 */
-export const readInfrastructureConfigFromSources = (
-  context: Record<string, unknown>,
-  environment: Record<string, string | undefined>,
-): InfrastructureConfig =>
-  readInfrastructureConfig({
-    ...context,
-    mediaPublicKeyPem:
-      context.mediaPublicKeyPem ?? environment.MEDIA_PUBLIC_KEY_PEM,
-    ttsVoicePresetId:
-      context.ttsVoicePresetId ?? environment.TTS_VOICE_PRESET_ID,
-  });

@@ -17,7 +17,6 @@ const target = {
     contentVersionId: null,
     questionVersionId: null,
     sentenceVersionId: null,
-    mediaAssetId: null,
     locationId: null,
   },
   snapshot: {
@@ -26,7 +25,6 @@ const target = {
     secondaryText: null,
     versionLabel: null,
     locationLabel: '어휘 상세',
-    audioAssetId: null,
   },
 };
 const report: ContentErrorReport = {

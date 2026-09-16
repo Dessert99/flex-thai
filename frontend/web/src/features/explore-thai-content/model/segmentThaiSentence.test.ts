@@ -9,7 +9,6 @@ const sentence = {
   translationKo: '이모지 꺼',
   pronunciationKo: '꺼',
   toneMarks: '-',
-  audioUrl: null,
   tokens: [
     {
       position: 0,
@@ -22,7 +21,6 @@ const sentence = {
       contextMeaningKo: '표정',
       pronunciationKo: '이모지',
       toneMarks: '-',
-      audioUrl: null,
       role: 'TARGET',
     },
     {
@@ -36,7 +34,6 @@ const sentence = {
       contextMeaningKo: '꺼',
       pronunciationKo: '꺼',
       toneMarks: '-',
-      audioUrl: null,
       role: 'SUPPORTING',
     },
   ],

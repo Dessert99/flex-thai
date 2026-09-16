@@ -1,6 +1,4 @@
 /** 활성 문제 taxonomy와 preset의 공개 정책만 AI 생성 prompt 문맥으로 조회한다 */
-import { and, asc, eq, inArray } from 'drizzle-orm';
-import { projectQuestionPromptApprovedExample } from '@flex-thia/domain';
 import type {
   ContentProductionPresetSnapshot,
   QuestionGenerationItemPlan,
@@ -8,6 +6,8 @@ import type {
   QuestionProductionContextRepository,
   QuestionPromptVocabulary,
 } from '@flex-thia/domain';
+import { projectQuestionPromptApprovedExample } from '@flex-thia/domain';
+import { and, asc, eq, inArray } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import {
@@ -163,18 +163,6 @@ const readSimilarQuestions = (
         )
     : [];
 
-const readSpeakerRoles = (value: unknown): string[] => {
-  const assignments: unknown[] = Array.isArray(value) ? value : [];
-  return assignments.flatMap((assignment) => {
-    if (!assignment || typeof assignment !== 'object') return [];
-    const record = assignment as Record<string, unknown>;
-    const speakerRole = record['speakerRole'];
-    return typeof speakerRole === 'string' && speakerRole.trim().length > 0
-      ? [speakerRole.trim()]
-      : [];
-  });
-};
-
 /** preset snapshot에서 prompt에 안전한 정책만 선택한다 */
 export const readQuestionProductionPresetPolicy = (
   parameters: Record<string, unknown>,
@@ -211,7 +199,7 @@ export const readQuestionProductionPresetPolicy = (
       typeof parameters.similarityThreshold === 'number'
         ? parameters.similarityThreshold
         : 0,
-    speakerRoles: readSpeakerRoles(parameters.speakerVoiceAssignments),
+    speakerRoles: readTextList(parameters.speakerRoles),
   };
 };
 

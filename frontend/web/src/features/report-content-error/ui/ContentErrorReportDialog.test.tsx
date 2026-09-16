@@ -29,7 +29,7 @@ describe('ContentErrorReportDialog', () => {
     expect(screen.getByText('เข้าใจ')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '신고 제출' })).toBeDisabled();
     fireEvent.click(screen.getByLabelText('신고 분류'));
-    expect(await screen.findAllByRole('option')).toHaveLength(6);
+    expect(await screen.findAllByRole('option')).toHaveLength(5);
     fireEvent.click(await screen.findByRole('option', { name: '뜻·해석' }));
     expect(screen.getByLabelText('추가 설명')).toHaveAttribute(
       'maxlength',

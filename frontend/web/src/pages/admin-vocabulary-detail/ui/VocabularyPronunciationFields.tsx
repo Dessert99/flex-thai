@@ -1,15 +1,11 @@
-/** 관리자 어휘 발음 배열과 READY audio ID를 RHF에 연결한다 */
-import type { AdminVocabularyReplaceRequest } from '@flex-thia/contracts';
-import type { UseFormRegister, UseFormSetValue } from 'react-hook-form';
-import { AudioUploadField } from '@/features/upload-audio';
 import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
+import type { AdminVocabularyReplaceRequest } from '@flex-thia/contracts';
+import type { UseFormRegister, UseFormSetValue } from 'react-hook-form';
 
-/** 기존 media ID 표시와 새 READY ID 교체를 발음 field에 한정한다 */
 export function VocabularyPronunciationFields({
   count,
   register,
-  setValue,
 }: {
   count: number;
   register: UseFormRegister<AdminVocabularyReplaceRequest>;
@@ -30,11 +26,6 @@ export function VocabularyPronunciationFields({
       <Input
         id={`tone-${index}`}
         {...register(`pronunciations.${index}.toneMarks`)}
-      />
-      <AudioUploadField
-        onReady={(mediaAssetId) =>
-          setValue(`pronunciations.${index}.mediaAssetId`, mediaAssetId)
-        }
       />
     </fieldset>
   ));

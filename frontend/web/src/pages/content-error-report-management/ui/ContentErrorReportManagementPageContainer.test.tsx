@@ -1,4 +1,5 @@
 /** 관리자 오류 신고 Container의 query·선택·command 연결을 검증한다 */
+import { createTestQueryClient, renderWithProviders } from '@/shared/test';
 import type {
   AdminContentErrorReportDetailResponse,
   AdminContentErrorReportListResponse,
@@ -6,7 +7,6 @@ import type {
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createTestQueryClient, renderWithProviders } from '@/shared/test';
 import { ContentErrorReportManagementPageContainer } from './ContentErrorReportManagementPageContainer';
 
 interface CapturedRequest {
@@ -219,7 +219,6 @@ function createSummary() {
       contentVersionId: ids.content,
       questionVersionId: ids.content,
       sentenceVersionId: null,
-      mediaAssetId: null,
       locationId: null,
     },
     snapshot: {
@@ -228,7 +227,6 @@ function createSummary() {
       secondaryText: null,
       versionLabel: '버전 1',
       locationLabel: '문제 전체',
-      audioAssetId: null,
     },
     createdAt: '2026-07-26T00:00:00.000Z',
     updatedAt: '2026-07-26T00:00:00.000Z',

@@ -1,4 +1,8 @@
 /** 문제 유형 설정 container의 사용자 명령 연결을 검증한다 */
+import type {
+  AdminQuestionVersionPayload,
+  QuestionTaxonomySettingsResponse,
+} from '@flex-thia/contracts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   fireEvent,
@@ -7,10 +11,6 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
-import type {
-  AdminQuestionVersionPayload,
-  QuestionTaxonomySettingsResponse,
-} from '@flex-thia/contracts';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuestionTaxonomySettingsPageContainer } from './QuestionTaxonomySettingsPageContainer';
@@ -39,7 +39,6 @@ const sentencePayload = {
   translationKo: '안녕하세요',
   pronunciationKo: '싸왓디',
   toneMarks: 'L-L-M',
-  mediaAssetId: '00000000-0000-4000-8000-000000000005',
   tokens: [],
   expressions: [],
 };
@@ -52,7 +51,6 @@ const examplePayload: AdminQuestionVersionPayload = {
   blocks: [
     {
       kind: 'QUESTION',
-      displayMode: 'TEXT',
       sentences: [{ speaker: null, sentence: sentencePayload }],
     },
   ],

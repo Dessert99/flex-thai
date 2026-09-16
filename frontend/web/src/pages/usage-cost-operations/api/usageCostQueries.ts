@@ -1,4 +1,5 @@
 /** 사용량·비용 overview와 경고 설정의 인증 query를 정의한다 */
+import { authenticatedRequest } from '@/shared/api';
 import {
   operationsCostSettingsResponseSchema,
   updateOperationsCostSettingsRequestSchema,
@@ -6,7 +7,6 @@ import {
   type UpdateOperationsCostSettingsRequest,
 } from '@flex-thia/contracts';
 import { queryOptions } from '@tanstack/react-query';
-import { authenticatedRequest } from '@/shared/api';
 import {
   serializeUsageCostSearch,
   type UsageCostSearch,

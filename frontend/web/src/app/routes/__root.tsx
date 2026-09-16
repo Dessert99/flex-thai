@@ -1,17 +1,17 @@
 /** 모든 file route가 공유하는 root Outlet과 복구 경계를 정의한다 */
+import { NotFoundPage } from '@/pages/not-found';
+import { toUserMessage } from '@/shared/lib/error';
 import {
   createRootRouteWithContext,
   Outlet,
   useNavigate,
   useRouterState,
 } from '@tanstack/react-router';
-import { NotFoundPage } from '@/pages/not-found';
-import { toUserMessage } from '@/shared/lib/error';
 
-import { RouteAnnouncer } from '../routing/RouteAnnouncer';
-import type { RouterContext } from '../routing/routeContext';
 import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
 import { Button } from '@/shared/ui/button';
+import { RouteAnnouncer } from '../routing/RouteAnnouncer';
+import type { RouterContext } from '../routing/routeContext';
 
 /** typed Router context와 전역 render/not-found 복구 경계를 연결한다 */
 export const Route = createRootRouteWithContext<RouterContext>()({
@@ -118,10 +118,6 @@ const routeTitles = [
   [/^\/admin\/content-production\/vocabulary-candidates\/?$/, '어휘 후보 검수'],
   [/^\/admin\/content-production\/presets\/?$/, '콘텐츠 제작 Preset'],
   [/^\/admin\/content-production\/?$/, '콘텐츠 제작'],
-  [/^\/admin\/tts\/jobs\/[^/]+\/?$/, 'TTS 작업 상세'],
-  [/^\/admin\/tts\/presets\/?$/, 'TTS Preset'],
-  [/^\/admin\/tts\/?$/, 'TTS 운영'],
-  [/^\/admin\/usage-cost\/?$/, 'AI·TTS 사용량·비용'],
   [
     /^\/admin\/questions\/[^/]+\/versions\/[^/]+\/replace\/?$/,
     '문제 버전 교체',

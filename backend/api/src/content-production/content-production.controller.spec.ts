@@ -1,14 +1,14 @@
 /** 콘텐츠 제작 Controller의 ADMIN+MFA 보안과 공개 projection을 검증한다 */
 import {
+  ContentProductionDomainError,
+  ContentProductionPresetError,
+} from '@flex-thia/domain';
+import {
   GUARDS_METADATA,
   HTTP_CODE_METADATA,
   PATH_METADATA,
 } from '@nestjs/common/constants.js';
 import { describe, expect, it, vi } from 'vitest';
-import {
-  ContentProductionDomainError,
-  ContentProductionPresetError,
-} from '@flex-thia/domain';
 import { AdminMfaGuard } from '../identity/admin-mfa.guard.js';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
 import { CognitoAuthorizerGuard } from '../identity/cognito-authorizer.guard.js';
@@ -37,8 +37,6 @@ const questionOptions = {
   excludedVocabularyIds: [],
   newAuxiliaryVocabularyLimit: 0,
   similarityThreshold: 0.7,
-  defaultVoicePresetId: 'a9979e5d-515d-43ab-a380-e88b78513c38',
-  speakerVoiceAssignments: [],
   additionalInstructionKo: null,
 };
 

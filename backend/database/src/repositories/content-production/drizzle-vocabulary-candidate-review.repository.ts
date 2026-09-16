@@ -1,33 +1,32 @@
 /** AI 어휘 후보 승인·폐기와 DRAFT graph·audit을 한 PostgreSQL transaction으로 저장한다 */
-import { isDeepStrictEqual } from 'node:util';
-import { randomUUID } from 'node:crypto';
 import {
   assertVocabularyCandidateApproval,
   assertVocabularyCandidateDiscard,
   createVocabularyDraft,
+  VocabularyCandidateReviewError,
   type ApproveVocabularyCandidateInput,
   type DiscardVocabularyCandidateInput,
   type VocabularyCandidateApprovalResult,
   type VocabularyCandidateDiscardResult,
   type VocabularyCandidateReviewRepository,
-  VocabularyCandidateReviewError,
 } from '@flex-thia/domain';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
+import { randomUUID } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
 import {
   vocabularyProductionCandidates,
   vocabularyProductionValidations,
 } from '../../schema/ai-vocabulary-production.schema.js';
 import { auditLogs } from '../../schema/identity.schema.js';
-import { mediaAssets } from '../../schema/media.schema.js';
+import * as schema from '../../schema/index.js';
 import {
   vocabularies,
   vocabularyMeaningPronunciations,
   vocabularyMeanings,
   vocabularyPronunciations,
 } from '../../schema/vocabulary.schema.js';
-import * as schema from '../../schema/index.js';
 
 type ReviewDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 type ReviewTransaction = Parameters<
@@ -453,24 +452,6 @@ export class DrizzleVocabularyCandidateReviewRepository implements VocabularyCan
     ) {
       return { kind: 'NOT_APPROVABLE' } as const;
     }
-    const mediaAssetIds = [
-      ...new Set(
-        input.draft.pronunciations.map(({ mediaAssetId }) => mediaAssetId),
-      ),
-    ];
-    const readyMedia = await transaction
-      .select({ id: mediaAssets.id })
-      .from(mediaAssets)
-      .where(
-        and(
-          inArray(mediaAssets.id, mediaAssetIds),
-          eq(mediaAssets.kind, 'AUDIO'),
-          eq(mediaAssets.status, 'READY'),
-        ),
-      );
-    if (readyMedia.length !== mediaAssetIds.length) {
-      return { kind: 'AUDIO_NOT_READY' } as const;
-    }
 
     const vocabularyId = this.generateId();
     const draft = createVocabularyDraft({
@@ -506,7 +487,6 @@ export class DrizzleVocabularyCandidateReviewRepository implements VocabularyCan
         vocabularyId,
         pronunciationKo: pronunciation.pronunciationKo,
         toneMarks: pronunciation.toneMarks,
-        mediaAssetId: pronunciation.mediaAssetId,
         createdAt: input.occurredAt,
       };
     });

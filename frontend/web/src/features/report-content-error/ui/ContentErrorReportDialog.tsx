@@ -1,10 +1,4 @@
 /** 현재 콘텐츠 문맥을 고정해 오류 신고 한 행동을 수행한다 */
-import type {
-  ContentErrorReportCategory,
-  ContentErrorReportOrigin,
-  CreateContentErrorReportRequest,
-} from '@flex-thia/contracts';
-import { useState } from 'react';
 import { Button } from '@/shared/ui/button';
 import {
   Dialog,
@@ -23,6 +17,12 @@ import {
   SelectValue,
 } from '@/shared/ui/select';
 import { Textarea } from '@/shared/ui/textarea';
+import type {
+  ContentErrorReportCategory,
+  ContentErrorReportOrigin,
+  CreateContentErrorReportRequest,
+} from '@flex-thia/contracts';
+import { useState } from 'react';
 import { submitContentErrorReport } from '../api/contentErrorReportMutation';
 
 /** 신고 대상 미리보기 */
@@ -44,13 +44,11 @@ const categories: readonly {
 }[] = [
   { value: 'MEANING_TRANSLATION', label: '뜻·해석' },
   { value: 'PRONUNCIATION_TONE', label: '발음·성조' },
-  { value: 'AUDIO', label: '음성' },
   { value: 'ANSWER_EXPLANATION', label: '정답·해설' },
   { value: 'TOKENIZATION', label: '단어 분할' },
   { value: 'OTHER', label: '기타' },
 ];
 
-/** 문제·어휘·문장·음성·개념이 재사용하는 오류 신고 dialog */
 // dialog 상태와 접근 가능한 form을 한 lifecycle에서 관리한다
 // eslint-disable-next-line max-lines-per-function
 export function ContentErrorReportDialog({

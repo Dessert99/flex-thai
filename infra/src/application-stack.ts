@@ -1,9 +1,9 @@
 /** 서울 리전의 인증·API·비동기 애플리케이션 자원을 소유한다 */
-import { fileURLToPath } from 'node:url';
 import { Stack, type StackProps } from 'aws-cdk-lib';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as ses from 'aws-cdk-lib/aws-ses';
 import type { Construct } from 'constructs';
+import { fileURLToPath } from 'node:url';
 import type { InfrastructureConfig } from './config.js';
 import { AsyncJobs } from './constructs/async-jobs.js';
 import { HttpApi } from './constructs/http-api.js';
@@ -15,7 +15,6 @@ import type { DataStack } from './data-stack.js';
 export interface ApplicationStackProps extends StackProps {
   config: InfrastructureConfig;
   dataStack: DataStack;
-  mediaKeyPairId: string;
 }
 
 /** Cognito, Lambda, API Gateway, workflow를 배치할 서울 Stack */
@@ -57,12 +56,9 @@ export class ApplicationStack extends Stack {
       jobStarterEntry: `${workerRoot}job-starter.ts`,
       foundationEntry: `${workerRoot}content-production-task.ts`,
       failureMarkerEntry: `${workerRoot}content-production-failure-marker.ts`,
-      ttsTaskEntry: `${workerRoot}media/tts-task-entry.ts`,
       relayEntry: `${workerRoot}dispatch/async-dispatch-relay-task.ts`,
-      ttsAudioGcEntry: `${workerRoot}media/tts-audio-gc-task.ts`,
       cluster: props.dataStack.cluster,
       clusterSecret: props.dataStack.clusterSecret,
-      mediaBucket: props.dataStack.mediaBucket,
     });
     const apiAssetPath = fileURLToPath(
       new URL('../../backend/api/dist/', import.meta.url),
@@ -82,11 +78,6 @@ export class ApplicationStack extends Stack {
       fromEmail: `no-reply@${props.config.rootDomain}`,
       inputBucket: props.dataStack.inputBucket,
       jobQueue: this.asyncJobs.queue,
-      ttsVoicePresetId: props.config.ttsVoicePresetId,
-      mediaBucket: props.dataStack.mediaBucket,
-      mediaCdnBaseUrl: `https://${webDomain}/media`,
-      mediaKeyPairId: props.mediaKeyPairId,
-      mediaPrivateKey: props.dataStack.mediaPrivateKey,
       userPool: this.identity.userPool,
       userPoolClient: this.identity.userPoolClient,
     });

@@ -1,9 +1,9 @@
 /** 문제 상태 변경의 확인 Dialog·409·confirmed event를 검증한다 */
+import { ApiError } from '@/shared/api';
+import { renderWithProviders } from '@/shared/test';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError } from '@/shared/api';
-import { renderWithProviders } from '@/shared/test';
 import { QuestionStateAction } from './QuestionStateAction';
 
 const questionId = '01933b6a-8f13-7a19-b7e5-536d70f57aaa';
@@ -27,14 +27,14 @@ describe('문제 상태 변경 확인', () => {
       <QuestionStateAction
         command={{ action: 'publish', versionId: questionId }}
         disabled
-        disabledReason='필수 음성이 준비되지 않았습니다.'
+        disabledReason='필수 문장이 준비되지 않았습니다.'
         onConfirmed={vi.fn()}
       />,
     );
 
     const trigger = screen.getByRole('button', { name: '버전 게시' });
     expect(trigger).toBeDisabled();
-    expect(screen.getByText('필수 음성이 준비되지 않았습니다.')).toBeVisible();
+    expect(screen.getByText('필수 문장이 준비되지 않았습니다.')).toBeVisible();
     await user.click(trigger);
     expect(mocks.authenticatedRequest).not.toHaveBeenCalled();
   });

@@ -31,7 +31,6 @@ function createDetail(): QuestionDetailResponse {
     translationKo: '안녕하세요',
     pronunciationKo: '싸왓디',
     toneMarks: '',
-    audioUrl: null,
     tokens: [],
     expressions: [],
   };
@@ -40,21 +39,19 @@ function createDetail(): QuestionDetailResponse {
     questionId: 'question',
     questionVersionId: 'version',
     questionType: { id: 'type', slug: 'dialogue', displayName: '대화' },
-    skill: 'LISTENING',
+    skill: 'READING',
     difficulty: 2,
     template: 'DIALOGUE_CHOICE',
     blocks: [
       {
         id: 'block-late',
         kind: 'QUESTION',
-        displayMode: 'TEXT',
         position: 1,
         sentences: [{ position: 0, speaker: null, sentence }],
       },
       {
         id: 'block-early',
         kind: 'DIALOGUE',
-        displayMode: 'TEXT_AND_AUDIO',
         position: 0,
         sentences: [
           { position: 1, speaker: 'B', sentence },

@@ -29,8 +29,6 @@ const approvedTargets = [
   '/admin/content-production/candidates',
   '/admin/content-production/vocabulary-candidates',
   '/admin/content-production/presets',
-  '/admin/tts',
-  '/admin/tts/presets',
   '/admin/usage-cost',
   '/forbidden',
 ] as const;
@@ -68,15 +66,6 @@ const dynamicTargets = [
         to: '/admin/content-production/vocabulary-candidates/$candidateId',
       }),
     label: '어휘 후보 상세',
-  },
-  {
-    build: () =>
-      router.buildLocation({
-        params: { jobId },
-        search: { page: 1, pageSize: 20 },
-        to: '/admin/tts/jobs/$jobId',
-      }),
-    label: 'TTS 작업 상세',
   },
   {
     build: () =>
@@ -221,7 +210,6 @@ describe('route 도달 가능성', () => {
     '/admin/content-production/jobs/$jobId',
     '/admin/content-production/candidates/$candidateId',
     '/admin/content-production/vocabulary-candidates/$candidateId',
-    '/admin/tts/jobs/$jobId',
   ])('%s 동적 경로를 route tree에서 찾을 수 있다', (to) => {
     expect(
       (router.routesByPath as unknown as Record<string, unknown>)[to],
@@ -236,9 +224,6 @@ describe('route 도달 가능성', () => {
     '/admin/content-production/vocabulary-candidates',
     '/admin/content-production/vocabulary-candidates/$candidateId',
     '/admin/content-production/presets',
-    '/admin/tts',
-    '/admin/tts/jobs/$jobId',
-    '/admin/tts/presets',
     '/admin/usage-cost',
   ])('%s 경로가 route loader로 화면 query를 미리 불러온다', (to) => {
     const route = (

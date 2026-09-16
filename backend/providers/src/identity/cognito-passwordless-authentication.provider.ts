@@ -1,5 +1,4 @@
 /** Cognito CUSTOM_AUTH를 기존 TOTP·refresh 수명주기와 결합한다 */
-import { createHmac, randomBytes } from 'node:crypto';
 import {
   AdminCreateUserCommand,
   AdminSetUserPasswordCommand,
@@ -15,6 +14,7 @@ import {
   type PasswordlessAuthenticationProvider,
   type ProviderLoginResult,
 } from '@flex-thia/domain';
+import { createHmac, randomBytes } from 'node:crypto';
 import { CognitoAuthenticationProvider } from './cognito-authentication.provider.js';
 
 /** CUSTOM_AUTH 완료와 기존 Cognito token 관리를 함께 제공한다 */

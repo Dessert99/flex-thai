@@ -1,6 +1,5 @@
 /** 관리자 shell이 공개하는 승인된 콘텐츠 관리 경로만 정의한다 */
 import {
-  AudioLines,
   BookOpenText,
   BookType,
   CircleDollarSign,
@@ -54,12 +53,6 @@ export const adminNavigation = [
     href: '/admin/concepts',
     icon: BookOpenText,
     label: '개념 관리',
-  },
-  {
-    group: '운영',
-    href: '/admin/tts',
-    icon: AudioLines,
-    label: 'TTS 운영',
   },
   {
     group: '운영',

@@ -1,26 +1,25 @@
-/** AI 후보의 canonical graph를 nullable-audio 문제 DRAFT로 저장한다 */
-import { randomUUID } from 'node:crypto';
 import {
   assertGeneratedDraftSentenceInput,
-  type ContentDraftReference,
-  type GeneratedDraftSentenceInput,
   QuestionAdminError,
   QuestionCandidateReviewError,
   resolveRepresentativeExpressions,
   validateGeneratedQuestionSchema,
   validateThaiSentenceVersion,
+  type ContentDraftReference,
+  type GeneratedDraftSentenceInput,
   type ThaiExpressionOccurrenceInput,
   type ThaiTokenOccurrenceInput,
 } from '@flex-thia/domain';
 import { and, asc, eq, inArray } from 'drizzle-orm';
+import { randomUUID } from 'node:crypto';
 import {
   expressionOccurrences,
   questionBlocks,
   questionBlockSentences,
   questionOptions,
+  questions,
   questionTags,
   questionTopics,
-  questions,
   questionTypes,
   questionTypeVersions,
   questionVersions,
@@ -150,7 +149,7 @@ const nullableSentence = (
   sentence: GeneratedSentence,
   path: string,
 ): GeneratedDraftSentenceInput => {
-  const value = { ...sentence, mediaAssetId: null };
+  const value = { ...sentence };
   try {
     assertGeneratedDraftSentenceInput(value, path);
   } catch (error) {
@@ -337,7 +336,6 @@ const resolveSentence = (input: {
       translationKo: input.sentence.translationKo,
       pronunciationKo: input.sentence.pronunciationKo,
       toneMarks: input.sentence.toneMarks,
-      mediaAssetId: null,
       frozenAt: null,
     },
     tokens,
@@ -430,7 +428,6 @@ const createGraph = (input: {
       id: blockId,
       questionVersionId,
       kind: block.kind,
-      displayMode: block.displayMode,
       position: blockPosition,
       sentences: block.sentences.map((entry, sentencePosition) => {
         const sentence = resolveSentence({
@@ -531,7 +528,6 @@ const createGraph = (input: {
 export class DrizzleGeneratedQuestionDraftRepository implements GeneratedQuestionDraftWriter {
   constructor(private readonly generateId: () => string = randomUUID) {}
 
-  /** 후보가 고정한 활성 참조를 검증한 뒤 nullable-audio DRAFT graph를 삽입한다 */
   async createDraft(
     transaction: QuestionProductionTransaction,
     input: DraftInput,

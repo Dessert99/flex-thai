@@ -34,7 +34,6 @@ const sentence = {
   translationKo: '안녕하세요',
   pronunciationKo: '싸왓디',
   toneMarks: 'L-L-M',
-  audioUrl: 'https://media.example.com/sentences/greeting.mp3?Expires=300',
   tokens: [
     {
       position: 0,
@@ -47,8 +46,6 @@ const sentence = {
       contextMeaningKo: '안녕하세요',
       pronunciationKo: '싸왓디',
       toneMarks: 'L-L-M',
-      audioUrl:
-        'https://media.example.com/vocabularies/greeting.mp3?Expires=300',
       role: 'TARGET',
     },
   ],
@@ -97,7 +94,6 @@ const detail = {
     {
       id: ids.block,
       kind: 'QUESTION',
-      displayMode: 'TEXT',
       position: 0,
       sentences: [{ position: 0, speaker: null, sentence }],
     },
@@ -394,7 +390,7 @@ describe('학습자 문제 공개 응답 계약', () => {
                 ...detail.blocks[0].sentences[0],
                 sentence: {
                   ...sentence,
-                  storageKey: 'private/sentences/greeting.mp3',
+                  storageKey: 'private/sentences/greeting.bin',
                 },
               },
             ],
@@ -456,7 +452,6 @@ describe('학습자 답안 계약', () => {
           {
             id: ids.block,
             kind: 'EXPLANATION',
-            displayMode: 'TEXT',
             position: 0,
             sentences: [{ position: 0, speaker: null, sentence }],
           },

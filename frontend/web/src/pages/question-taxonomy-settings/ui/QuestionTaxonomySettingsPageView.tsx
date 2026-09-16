@@ -1,26 +1,26 @@
-/** FLEX 7대 분류와 세부 유형 설정을 한 관리자 화면에 표현한다 */
+/** FLEX 읽기 영역 분류와 세부 유형 설정을 한 관리자 화면에 표현한다 */
 import {
   questionMajorCategoryMetadata,
   type CreateQuestionTaxonomyTermRequest,
   type CreateQuestionTypeRequest,
   type CreateQuestionTypeVersionRequest,
-  type QuestionTypeApprovedExampleRequest,
   type QuestionTaxonomySettingsResponse,
+  type QuestionTypeApprovedExampleRequest,
   type ReplaceDifficultyCriteriaRequest,
 } from '@flex-thia/contracts';
 import { useState } from 'react';
 
 import { Input } from '@/shared/ui/input';
 
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
+import { Skeleton } from '@/shared/ui/skeleton';
 import { taxonomyTermFormSchema } from '../model/questionTaxonomyFormSchema';
 import {
   CreateQuestionTypeForm,
   CreateQuestionTypeVersionForm,
 } from './QuestionTypeForms';
 import { QuestionTypeVersionEditor } from './QuestionTypeVersionEditor';
-import { Skeleton } from '@/shared/ui/skeleton';
-import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
-import { Button } from '@/shared/ui/button';
 
 type Term = QuestionTaxonomySettingsResponse['topics'][number];
 

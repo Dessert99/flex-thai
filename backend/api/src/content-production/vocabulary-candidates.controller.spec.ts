@@ -1,10 +1,10 @@
+import { RequestMethod } from '@nestjs/common';
 import {
   GUARDS_METADATA,
   HTTP_CODE_METADATA,
   METHOD_METADATA,
   PATH_METADATA,
 } from '@nestjs/common/constants.js';
-import { RequestMethod } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { buildErrorResponse } from '../common/errors/domain-exception.filter.js';
 import { AdminMfaGuard } from '../identity/admin-mfa.guard.js';
@@ -132,7 +132,6 @@ describe('VocabularyCandidateController 공개 경계', () => {
   it.each([
     ['VOCABULARY_CANDIDATE_NOT_FOUND', 404],
     ['VOCABULARY_CANDIDATE_NOT_APPROVABLE', 400],
-    ['VOCABULARY_CANDIDATE_AUDIO_NOT_READY', 400],
     ['VOCABULARY_CANDIDATE_REVIEW_CONFLICT', 409],
     ['VOCABULARY_CANDIDATE_IDEMPOTENCY_CONFLICT', 409],
   ] as const)('%s 오류를 stable %s 응답으로 바꾼다', async (code, status) => {

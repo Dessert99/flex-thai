@@ -1,5 +1,3 @@
-/** concept query·command와 media signer를 strict 공개 응답으로 조립한다 */
-import { ConflictException, NotFoundException } from '@nestjs/common';
 import {
   adminConceptDetailResponseSchema,
   adminConceptListResponseSchema,
@@ -30,11 +28,9 @@ import {
   type ConceptCommandContext,
   type ConceptDraftRecord,
   type ConceptService,
-  type MediaReadUrlProvider,
 } from '@flex-thia/domain';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import type { ZodType } from 'zod';
-
-const MEDIA_URL_TTL_MS = 5 * 60 * 1_000;
 
 type LearnerQuery = Pick<
   DrizzleLearnerConceptQuery,
@@ -47,7 +43,6 @@ export interface ConceptsServiceDependencies {
   learnerQuery: LearnerQuery;
   adminQuery: AdminQuery;
   adminService: ConceptService;
-  mediaReadUrls: MediaReadUrlProvider;
   now?: () => Date;
 }
 
@@ -91,50 +86,30 @@ const withConceptHttpErrors = async <Output>(
   }
 };
 
-const mapSentence = async (
-  sentence: ConceptSentenceProjection,
-  sign: (storageKey: string) => Promise<string>,
-) => {
-  const mapFeedback = async <
-    Feedback extends { media: { storageKey: string } },
-  >({
-    media,
-    ...feedback
-  }: Feedback) => ({
-    ...feedback,
-    audioUrl: await sign(media.storageKey),
-  });
+const mapSentence = (sentence: ConceptSentenceProjection) => {
   return {
     sentenceVersionId: sentence.sentenceVersionId,
     originalText: sentence.originalText,
     translationKo: sentence.translationKo,
     pronunciationKo: sentence.pronunciationKo,
     toneMarks: sentence.toneMarks,
-    audioUrl: await sign(sentence.media.storageKey),
-    tokens: await Promise.all(sentence.tokens.map(mapFeedback)),
-    expressions: await Promise.all(sentence.expressions.map(mapFeedback)),
+    tokens: sentence.tokens,
+    expressions: sentence.expressions,
   };
 };
 
-const mapBlocks = (
-  blocks: LearnerConceptBlockProjection[],
-  sign: (storageKey: string) => Promise<string>,
-) =>
-  Promise.all(
-    blocks.map(async (block) =>
-      block.kind !== 'THAI_EXAMPLES'
-        ? block
-        : {
-            ...block,
-            examples: await Promise.all(
-              block.examples.map(async (example) => ({
-                position: example.position,
-                noteKo: example.noteKo,
-                sentence: await mapSentence(example.sentence, sign),
-              })),
-            ),
-          },
-    ),
+const mapBlocks = (blocks: LearnerConceptBlockProjection[]) =>
+  blocks.map((block) =>
+    block.kind !== 'THAI_EXAMPLES'
+      ? block
+      : {
+          ...block,
+          examples: block.examples.map((example) => ({
+            position: example.position,
+            noteKo: example.noteKo,
+            sentence: mapSentence(example.sentence),
+          })),
+        },
   );
 
 const toPublicVersion = (record: ConceptDraftRecord): AdminConceptVersion => ({
@@ -190,21 +165,9 @@ export class ConceptsService {
     const detail =
       await this.dependencies.learnerQuery.findPublishedDetail(conceptId);
     if (!detail) throw new NotFoundException({ code: 'CONCEPT_NOT_FOUND' });
-    const expiresAt = new Date(this.now().getTime() + MEDIA_URL_TTL_MS);
-    const cache = new Map<string, Promise<string>>();
-    const sign = (storageKey: string) => {
-      const existing = cache.get(storageKey);
-      if (existing) return existing;
-      const pending = this.dependencies.mediaReadUrls.createReadUrl(
-        storageKey,
-        expiresAt,
-      );
-      cache.set(storageKey, pending);
-      return pending;
-    };
     return parsePublic(conceptDetailResponseSchema, {
       ...detail,
-      blocks: await mapBlocks(detail.blocks, sign),
+      blocks: mapBlocks(detail.blocks),
     });
   }
 

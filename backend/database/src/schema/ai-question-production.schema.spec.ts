@@ -8,8 +8,8 @@ import {
   questionCandidateReviewStatusEnum,
   questionProductionCandidates,
   questionProductionValidations,
-  questionValidationStageEnum,
   questionProductionValidationStatusEnum,
+  questionValidationStageEnum,
 } from './ai-question-production.schema.js';
 
 describe('AI 문제 제작 schema', () => {

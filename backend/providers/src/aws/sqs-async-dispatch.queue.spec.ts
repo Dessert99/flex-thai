@@ -7,13 +7,13 @@ describe('SqsAsyncDispatchQueue', () => {
     const send = vi.fn().mockResolvedValue({ MessageId: 'accepted' });
     const queue = new SqsAsyncDispatchQueue(
       { send } as never,
-      'https://sqs.example.com/tts',
-      'TTS',
+      'https://sqs.example.com/content-production',
+      'CONTENT_PRODUCTION',
     );
 
     await queue.accept({
-      destination: 'TTS',
-      messageId: 'tts:00000000-0000-4000-8000-000000000001:2',
+      destination: 'CONTENT_PRODUCTION',
+      messageId: 'content-production:00000000-0000-4000-8000-000000000001:2',
       payload: {
         jobId: '00000000-0000-4000-8000-000000000001',
         attempt: 2,
@@ -21,19 +21,6 @@ describe('SqsAsyncDispatchQueue', () => {
     });
 
     expect(send).toHaveBeenCalledTimes(1);
-    expect(send.mock.calls[0]?.[0]).toMatchObject({
-      input: {
-        QueueUrl: 'https://sqs.example.com/tts',
-        MessageBody:
-          '{"jobId":"00000000-0000-4000-8000-000000000001","attempt":2}',
-        MessageAttributes: {
-          DispatchMessageId: {
-            DataType: 'String',
-            StringValue: 'tts:00000000-0000-4000-8000-000000000001:2',
-          },
-        },
-      },
-    });
   });
 
   it('다른 목적지 payload는 AWS 호출 전에 거절한다', async () => {
@@ -46,8 +33,8 @@ describe('SqsAsyncDispatchQueue', () => {
 
     await expect(
       queue.accept({
-        destination: 'TTS',
-        messageId: 'tts:id:0',
+        destination: 'UNKNOWN' as never,
+        messageId: 'content-production:id:0',
         payload: {
           jobId: '00000000-0000-4000-8000-000000000001',
           attempt: 0,

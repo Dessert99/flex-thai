@@ -1,6 +1,6 @@
 /** API transport의 계약 검증·인증 옵션·취소 경계를 검증한다 */
-import { z } from 'zod';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { z } from 'zod';
 import { ApiError } from './ApiError';
 import { apiRequest } from './apiRequest';
 

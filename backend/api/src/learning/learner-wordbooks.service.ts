@@ -1,5 +1,4 @@
 /** 단어장 projection과 쓰기 use case를 private key 없는 공개 응답으로 조립한다 */
-import { NotFoundException } from '@nestjs/common';
 import {
   vocabularyWordbookMembershipResponseSchema,
   wordbookItemListResponseSchema,
@@ -19,11 +18,9 @@ import type {
   WordbookItemProjection,
   WordbookSummaryProjection,
 } from '@flex-thia/database';
-import type { MediaReadUrlProvider, WordbookService } from '@flex-thia/domain';
+import type { WordbookService } from '@flex-thia/domain';
+import { NotFoundException } from '@nestjs/common';
 import type { ZodType } from 'zod';
-
-const MEDIA_URL_TTL_MS = 5 * 60 * 1_000;
-type SignMedia = (storageKey: string) => Promise<string>;
 
 /** 단어장 공개 응답 계약 실패를 request 검증 오류와 분리한다 */
 export class LearnerWordbooksPublicResponseError extends Error {
@@ -61,8 +58,6 @@ export interface LearnerWordbooksDependencies {
     | 'removeVocabulary'
     | 'rename'
   >;
-  mediaReadUrls: MediaReadUrlProvider;
-  now?: () => Date;
 }
 
 const mapWordbook = (wordbook: WordbookSummaryProjection) => ({
@@ -71,31 +66,23 @@ const mapWordbook = (wordbook: WordbookSummaryProjection) => ({
   updatedAt: wordbook.updatedAt.toISOString(),
 });
 
-const mapItem = async (item: WordbookItemProjection, signMedia: SignMedia) => ({
+const mapItem = (item: WordbookItemProjection) => ({
   id: item.id,
   thai: item.thai,
   kind: item.kind,
   meanings: item.meanings,
-  pronunciations: await Promise.all(
-    item.pronunciations.map(async (pronunciation) => ({
-      id: pronunciation.id,
-      pronunciationKo: pronunciation.pronunciationKo,
-      toneMarks: pronunciation.toneMarks,
-      audioUrl: await signMedia(pronunciation.media.storageKey),
-    })),
-  ),
-  audioEligibleMeaningCount: item.audioEligibleMeaningCount,
+  pronunciations: item.pronunciations.map((pronunciation) => ({
+    id: pronunciation.id,
+    pronunciationKo: pronunciation.pronunciationKo,
+    toneMarks: pronunciation.toneMarks,
+  })),
   saved: item.saved,
   addedAt: item.addedAt.toISOString(),
 });
 
 /** 단어장 read/write 결과를 strict 공개 응답으로 제한한다 */
 export class LearnerWordbooksService {
-  private readonly now: () => Date;
-
-  constructor(private readonly dependencies: LearnerWordbooksDependencies) {
-    this.now = dependencies.now ?? (() => new Date());
-  }
+  constructor(private readonly dependencies: LearnerWordbooksDependencies) {}
 
   /** 현재 사용자의 단어장을 private 필드 없이 반환한다 */
   async listWordbooks(userId: string): Promise<WordbookListResponse> {
@@ -153,12 +140,9 @@ export class LearnerWordbooksService {
     if (!result) {
       throw new NotFoundException({ code: 'WORDBOOK_NOT_FOUND' });
     }
-    const signMedia = this.createResponseSigner();
     return parsePublicResponse(wordbookItemListResponseSchema, {
       wordbook: mapWordbook(result.wordbook),
-      items: await Promise.all(
-        result.items.map((item) => mapItem(item, signMedia)),
-      ),
+      items: result.items.map((item) => mapItem(item)),
       page: result.page,
     });
   }
@@ -254,20 +238,5 @@ export class LearnerWordbooksService {
       throw new NotFoundException({ code: 'WORDBOOK_NOT_FOUND' });
     }
     return parsePublicResponse(wordbookResponseSchema, mapWordbook(projection));
-  }
-
-  private createResponseSigner(): SignMedia {
-    const expiresAt = new Date(this.now().getTime() + MEDIA_URL_TTL_MS);
-    const cache = new Map<string, Promise<string>>();
-    return (storageKey) => {
-      const cached = cache.get(storageKey);
-      if (cached) return cached;
-      const pending = this.dependencies.mediaReadUrls.createReadUrl(
-        storageKey,
-        expiresAt,
-      );
-      cache.set(storageKey, pending);
-      return pending;
-    };
   }
 }

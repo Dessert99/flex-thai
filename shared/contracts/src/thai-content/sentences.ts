@@ -4,7 +4,6 @@ import { z } from 'zod';
 const uuidSchema = z.uuid();
 const positionSchema = z.number().int().safe().nonnegative();
 const positivePositionSchema = z.number().int().safe().positive();
-const nullableAudioUrlSchema = z.string().url().nullable();
 
 /** 단어의 문맥 학습 피드백 계약 */
 export const thaiTokenFeedbackSchema = z
@@ -19,7 +18,6 @@ export const thaiTokenFeedbackSchema = z
     contextMeaningKo: z.string().min(1),
     pronunciationKo: z.string().min(1),
     toneMarks: z.string(),
-    audioUrl: nullableAudioUrlSchema,
     role: z.enum(['TARGET', 'REQUIRED', 'SUPPORTING', 'INSTRUCTION']),
   })
   .strict();
@@ -35,7 +33,6 @@ export const thaiExpressionFeedbackSchema = z
     contextMeaningKo: z.string().min(1),
     pronunciationKo: z.string().min(1),
     toneMarks: z.string(),
-    audioUrl: nullableAudioUrlSchema,
     representative: z.boolean(),
   })
   .strict();
@@ -48,7 +45,6 @@ export const publicThaiSentenceSchema = z
     translationKo: z.string().min(1),
     pronunciationKo: z.string().min(1),
     toneMarks: z.string(),
-    audioUrl: nullableAudioUrlSchema,
     tokens: z.array(thaiTokenFeedbackSchema),
     expressions: z.array(thaiExpressionFeedbackSchema),
   })

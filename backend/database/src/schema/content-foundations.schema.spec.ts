@@ -1,16 +1,15 @@
-/** 음성·어휘·문장 schema의 게시 보존과 소유 관계를 검증한다 */
-import { readFileSync } from 'node:fs';
+/** 어휘·문장 schema의 게시 보존과 소유 관계를 검증한다 */
 import { getTableColumns, getTableName } from 'drizzle-orm';
 import { getTableConfig } from 'drizzle-orm/pg-core';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   expressionOccurrences,
-  mediaAssets,
   thaiSentenceVersions,
   tokenOccurrences,
   vocabularies,
-  vocabularyMeanings,
   vocabularyMeaningPronunciations,
+  vocabularyMeanings,
   vocabularyPronunciations,
 } from './index.js';
 
@@ -36,31 +35,6 @@ const foreignKeySummaries = (
   });
 
 describe('콘텐츠 기반 데이터베이스 schema', () => {
-  it('음성 자산은 선언 정보와 실제 검증 정보 및 READY 시각을 분리한다', () => {
-    expect(Object.keys(getTableColumns(mediaAssets))).toEqual(
-      expect.arrayContaining([
-        'storageKey',
-        'declaredMimeType',
-        'declaredSizeBytes',
-        'declaredSha256',
-        'mimeType',
-        'sizeBytes',
-        'sha256',
-        'status',
-        'readyAt',
-      ]),
-    );
-    expect(
-      getTableConfig(mediaAssets).checks.map((constraint) => constraint.name),
-    ).toEqual(
-      expect.arrayContaining([
-        'media_assets_declared_size_safe_integer',
-        'media_assets_size_safe_integer',
-        'media_assets_ready_metadata_consistent',
-      ]),
-    );
-  });
-
   it('어휘 정규화 표기 한 컬럼에 unique index를 둔다', () => {
     const config = getTableConfig(vocabularies);
     const normalizedThaiIndex = config.indexes.find(
@@ -117,7 +91,6 @@ describe('콘텐츠 기반 데이터베이스 schema', () => {
       ...getTableConfig(tokenOccurrences).foreignKeys,
       ...getTableConfig(expressionOccurrences).foreignKeys,
     ];
-
     expect(foreignKeySummaries(contentForeignKeys)).toEqual([
       {
         name: 'vocabulary_meanings_vocabulary_id_vocabularies_id_fk',
@@ -132,14 +105,6 @@ describe('콘텐츠 기반 데이터베이스 schema', () => {
         sourceTable: 'vocabulary_pronunciations',
         targetTable: 'vocabularies',
         columns: ['vocabulary_id'],
-        foreignColumns: ['id'],
-        onDelete: 'restrict',
-      },
-      {
-        name: 'vocabulary_pronunciations_media_asset_id_media_assets_id_fk',
-        sourceTable: 'vocabulary_pronunciations',
-        targetTable: 'media_assets',
-        columns: ['media_asset_id'],
         foreignColumns: ['id'],
         onDelete: 'restrict',
       },
@@ -164,14 +129,6 @@ describe('콘텐츠 기반 데이터베이스 schema', () => {
         sourceTable: 'thai_sentence_versions',
         targetTable: 'thai_sentences',
         columns: ['sentence_id'],
-        foreignColumns: ['id'],
-        onDelete: 'restrict',
-      },
-      {
-        name: 'thai_sentence_versions_media_asset_id_media_assets_id_fk',
-        sourceTable: 'thai_sentence_versions',
-        targetTable: 'media_assets',
-        columns: ['media_asset_id'],
         foreignColumns: ['id'],
         onDelete: 'restrict',
       },
@@ -257,7 +214,6 @@ describe('콘텐츠 기반 데이터베이스 schema', () => {
       'translationKo',
       'pronunciationKo',
       'toneMarks',
-      'mediaAssetId',
       'frozenAt',
       'createdAt',
     ]);
@@ -288,22 +244,7 @@ describe('콘텐츠 기반 데이터베이스 schema', () => {
     );
   });
 
-  it('bigint size를 JavaScript safe integer 범위로 제한한다', () => {
-    expect(migrationSql).toContain(
-      'CONSTRAINT "media_assets_declared_size_safe_integer" CHECK ("media_assets"."declared_size_bytes" > 0 and "media_assets"."declared_size_bytes" <= 9007199254740991)',
-    );
-    expect(migrationSql).toContain(
-      'CONSTRAINT "media_assets_size_safe_integer" CHECK ("media_assets"."size_bytes" is null or ("media_assets"."size_bytes" > 0 and "media_assets"."size_bytes" <= 9007199254740991))',
-    );
-  });
-
-  it('generated SQL에 READY metadata와 다중 토큰 표현 제약을 보존한다', () => {
-    expect(migrationSql).toContain(
-      'CONSTRAINT "media_assets_ready_metadata_consistent"',
-    );
-    expect(migrationSql).toContain(
-      '"media_assets"."status" <> \'READY\' or ("media_assets"."mime_type" is not null',
-    );
+  it('generated SQL에 다중 토큰 표현 제약을 보존한다', () => {
     expect(migrationSql).toContain(
       'CONSTRAINT "expression_occurrences_vocabulary_kind_expression"',
     );

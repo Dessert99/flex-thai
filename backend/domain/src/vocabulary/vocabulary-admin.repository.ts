@@ -5,7 +5,7 @@ import type { Vocabulary } from './vocabulary.js';
 export interface VocabularyAdminLockedGraph {
   vocabulary: Vocabulary;
   meanings: Array<{ id: string }>;
-  pronunciations: Array<{ id: string; mediaAssetId: string | null }>;
+  pronunciations: Array<{ id: string }>;
 }
 
 /** 교체할 새 뜻 row */
@@ -24,7 +24,6 @@ export interface VocabularyAdminPronunciationGraph {
   vocabularyId: string;
   pronunciationKo: string;
   toneMarks: string;
-  mediaAssetId: string;
 }
 
 /** 새 뜻과 발음의 명시적 연결 row */
@@ -40,12 +39,6 @@ export interface VocabularyAdminReplacementGraph {
   meanings: VocabularyAdminMeaningGraph[];
   pronunciations: VocabularyAdminPronunciationGraph[];
   meaningPronunciations: VocabularyAdminMeaningPronunciationGraph[];
-}
-
-/** 게시 판단에 필요한 current media 상태 */
-export interface VocabularyAdminMediaRecord {
-  id: string;
-  status: 'UPLOADING' | 'READY' | 'REJECTED';
 }
 
 /** 관리자 어휘 변경과 같은 transaction에 append할 감사 입력 */
@@ -78,9 +71,6 @@ export interface VocabularyAdminTransaction {
     normalizedThai: string,
     excludeVocabularyId: string,
   ): Promise<string | null>;
-  findMediaAssetsByIds(
-    mediaAssetIds: string[],
-  ): Promise<VocabularyAdminMediaRecord[]>;
   replaceVocabulary(graph: VocabularyAdminReplacementGraph): Promise<void>;
   transitionVocabularyStatus(input: {
     vocabularyId: string;
@@ -117,6 +107,7 @@ export class VocabularyAdminRepositoryError extends Error {
   }
 }
 
+export { VocabularyRelationsMergeRepositoryError } from './vocabulary-relations-merge.repository.js';
 export type {
   VocabularyMeaningOwner,
   VocabularyMergeMovedCounts,
@@ -125,4 +116,3 @@ export type {
   VocabularyRelationsMergeRepository,
   VocabularyRelationsMergeStoredRelation,
 } from './vocabulary-relations-merge.repository.js';
-export { VocabularyRelationsMergeRepositoryError } from './vocabulary-relations-merge.repository.js';

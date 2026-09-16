@@ -1,8 +1,3 @@
-/** 공용 태국어 어휘의 정규화 키와 게시 상태 전이를 정의한다 */
-import {
-  assertMediaAssetReady,
-  type MediaAsset,
-} from '../media/media-asset.js';
 import { normalizeThaiSearchText } from './normalize-thai-search-text.js';
 
 /** 공용 어휘 또는 다단어 표현 */
@@ -20,7 +15,7 @@ export class VocabularyDomainError extends Error {
   constructor(
     readonly code:
       | 'VOCABULARY_EMPTY'
-      | 'VOCABULARY_AUDIO_NOT_READY'
+      | 'VOCABULARY_PRONUNCIATION_REQUIRED'
       | 'VOCABULARY_STATE_CONFLICT',
   ) {
     super(code);
@@ -41,21 +36,15 @@ export const createVocabularyDraft = (input: {
   return { ...input, normalizedThai, status: 'DRAFT' };
 };
 
-/** 발음이 있고 모든 음성이 준비된 초안만 게시한다 */
 export const publishVocabulary = (
   vocabulary: Vocabulary,
-  pronunciationAssets: readonly MediaAsset[],
+  pronunciations: readonly { pronunciationKo: string; toneMarks: string }[],
 ): Vocabulary => {
   if (vocabulary.status !== 'DRAFT') {
     throw new VocabularyDomainError('VOCABULARY_STATE_CONFLICT');
   }
-  if (pronunciationAssets.length === 0) {
-    throw new VocabularyDomainError('VOCABULARY_AUDIO_NOT_READY');
-  }
-  try {
-    pronunciationAssets.forEach(assertMediaAssetReady);
-  } catch {
-    throw new VocabularyDomainError('VOCABULARY_AUDIO_NOT_READY');
+  if (pronunciations.length === 0) {
+    throw new VocabularyDomainError('VOCABULARY_PRONUNCIATION_REQUIRED');
   }
   return { ...vocabulary, status: 'PUBLISHED' };
 };

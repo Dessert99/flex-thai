@@ -1,8 +1,8 @@
 /* eslint-disable max-lines-per-function -- 운영 집계의 여섯 카드와 부분 실패를 한 화면 계약으로 검증한다. */
 /** 관리자 홈의 최근 콘텐츠와 전체 운영 집계·부분 실패·실제 진입 경로를 검증한다 */
+import { renderWithProviders } from '@/shared/test';
 import { screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '@/shared/test';
 import { AdminHomePageContainer } from './AdminHomePageContainer';
 
 const mocks = vi.hoisted(() => ({
@@ -28,7 +28,6 @@ const emptyOperations = {
     vocabularyPendingCount: 0,
   },
   contentProduction: { runningCount: 0, failedCount: 0 },
-  tts: { runningCount: 0, failedCount: 0 },
   mfa: {
     enrolled: true,
     enrolledAt: '2026-07-01T00:00:00.000Z',
@@ -120,7 +119,6 @@ describe('관리자 홈 페이지', () => {
           vocabularyPendingCount: 4,
         },
         contentProduction: { runningCount: 1, failedCount: 2 },
-        tts: { runningCount: 5, failedCount: 1 },
         mfa: {
           enrolled: true,
           enrolledAt: '2026-07-01T00:00:00.000Z',
@@ -142,7 +140,6 @@ describe('관리자 홈 페이지', () => {
     expect(screen.getByText('미처리 2건')).toBeInTheDocument();
     expect(screen.getByText('문제 3건 · 어휘 4건')).toBeInTheDocument();
     expect(screen.getByText('실행 중 1건 · 실패 2건')).toBeInTheDocument();
-    expect(screen.getByText('실행 중 5건 · 실패 1건')).toBeInTheDocument();
     expect(screen.getByText('16.500000 USD · WARNING')).toBeInTheDocument();
     expect(
       screen.getByText('등록됨 · 최근 재인증 시각 미추적'),
@@ -173,7 +170,7 @@ describe('관리자 홈 페이지', () => {
             latestVersionId: '01933b6a-8f13-7a19-b7e5-536d70f57aab',
             latestVersionStatus: 'DRAFT',
             validationStatus: 'PENDING',
-            questionTypeSlug: 'listening-dialogue',
+            questionTypeSlug: 'reading-dialogue',
             difficulty: 3,
             updatedAt: '2026-07-25T00:00:00.000Z',
           },
@@ -187,10 +184,10 @@ describe('관리자 홈 페이지', () => {
 
     renderAdminHome();
 
-    expect(await screen.findByText('listening-dialogue')).toBeInTheDocument();
+    expect(await screen.findByText('reading-dialogue')).toBeInTheDocument();
     expect(
       screen.getAllByText('운영 상태를 불러오지 못했습니다.'),
-    ).toHaveLength(5);
+    ).toHaveLength(4);
     expect(screen.getByText('16.500000 USD · WARNING')).toBeInTheDocument();
   });
 
@@ -243,9 +240,6 @@ describe('관리자 홈 페이지', () => {
       await screen.findByText('표시할 최근 문제가 없습니다.'),
     ).toBeInTheDocument();
     expect(screen.getByText('미처리 0건')).toBeInTheDocument();
-    expect(
-      screen.getByRole('link', { name: 'TTS retry 열기' }),
-    ).toHaveAttribute('href', '/admin/tts?status=FAILED&page=1&pageSize=20');
   });
 });
 

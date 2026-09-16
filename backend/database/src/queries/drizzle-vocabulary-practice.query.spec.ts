@@ -1,4 +1,3 @@
-/** 단어 연습 source 소유권·공개 음성 조건과 세션 진행 복구 조회를 검증한다 */
 import { PgDialect } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 import { DrizzleVocabularyPracticeQuery } from './drizzle-vocabulary-practice.query.js';
@@ -13,8 +12,6 @@ const candidateRow = {
       id: 'pronunciation-1',
       pronunciationKo: '리안',
       toneMarks: 'M',
-      mediaAssetId: 'media-1',
-      storageKey: 'practice/learn.mp3',
     },
   ],
   card: {
@@ -35,8 +32,6 @@ const candidateRow = {
         id: 'pronunciation-1',
         pronunciationKo: '리안',
         toneMarks: 'M',
-        mediaAssetId: 'media-1',
-        storageKey: 'practice/learn.mp3',
       },
     ],
     meaningPronunciations: [
@@ -62,7 +57,7 @@ const toSql = (query: unknown) =>
   new PgDialect().sqlToQuery(query as never).sql.toLowerCase();
 
 describe('DrizzleVocabularyPracticeQuery source 조회', () => {
-  it('검색 ID 순서와 PUBLISHED·어휘 단위 READY 조건을 query에 고정한다', async () => {
+  it('검색 ID 순서와 PUBLISHED 조건을 query에 고정한다', async () => {
     const fake = createDatabase([[candidateRow]]);
     const query = new DrizzleVocabularyPracticeQuery(fake.database);
 
@@ -75,7 +70,6 @@ describe('DrizzleVocabularyPracticeQuery source 조회', () => {
 
     const sqlText = toSql(fake.queries[0]);
     expect(sqlText).toContain('published');
-    expect(sqlText).toContain('ready');
     expect(sqlText).toContain('vocabulary_meaning_pronunciations');
     expect(sqlText).toContain('array_position');
     expect(sqlText).toContain('ep.vocabulary_id = v.id');
@@ -133,10 +127,8 @@ describe('DrizzleVocabularyPracticeQuery 세션 조회', () => {
           vocabularyId: 'vocabulary-1',
           meaningId: 'meaning-1',
           pronunciationId: null,
-          mediaAssetId: null,
           mode: 'THAI_TO_MEANING',
           promptText: 'เรียน',
-          audioStorageKey: null,
           options: [
             { id: 'option-1', label: '배우다' },
             { id: 'option-2', label: '가르치다' },

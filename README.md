@@ -1,6 +1,6 @@
 # FLEX THIA local runtime
 
-FLEX THIA를 외부 유료 AI·OCR·TTS provider 없이 로컬에서 수동 확인하는 방법입니다. Docker와 Docker Compose가 필요합니다.
+FLEX THIA를 외부 유료 AI·OCR provider 없이 로컬에서 수동 확인하는 방법입니다. Docker와 Docker Compose가 필요합니다.
 
 ## 시작과 종료
 
@@ -20,7 +20,7 @@ React와 backend workspace의 `src` 변경은 실행 중인 컨테이너에 바�
 pnpm local:fresh
 ```
 
-`fresh`는 FLEX THIA local database data를 초기화하고 seed media fixture를 만든 뒤 실행합니다. 기존 local 데이터를 유지하려면 다음 명령을 사용합니다.
+`fresh`는 FLEX THIA local database data를 초기화하고 샘플 데이터를 만든 뒤 실행합니다. 기존 local 데이터를 유지하려면 다음 명령을 사용합니다.
 
 ```bash
 pnpm local:preserve
@@ -39,7 +39,7 @@ pnpm local:stop
 - API readiness: [http://localhost:53000/ready](http://localhost:53000/ready)
 - Swagger: [http://localhost:53000/api/docs](http://localhost:53000/api/docs)
 
-기존 host port와 충돌하면 `FLEX_THIA_POSTGRES_HOST_PORT`, `FLEX_THIA_API_HOST_PORT`, `FLEX_THIA_WEB_HOST_PORT`를 설정해 각각 `55432`, `53000`, `5173` 기본값을 바꿀 수 있습니다. Web port를 바꿀 때는 `FLEX_THIA_LOCAL_PUBLIC_ORIGIN`도 같은 web origin으로 설정하며, 이 값이 CORS·이메일 확인 링크·upload/media URL에 함께 적용됩니다.
+기존 host port와 충돌하면 `FLEX_THIA_POSTGRES_HOST_PORT`, `FLEX_THIA_API_HOST_PORT`, `FLEX_THIA_WEB_HOST_PORT`를 설정해 각각 `55432`, `53000`, `5173` 기본값을 바꿀 수 있습니다. Web port를 바꿀 때는 `FLEX_THIA_LOCAL_PUBLIC_ORIGIN`도 같은 web origin으로 설정하며, 이 값이 CORS·이메일 확인 링크·upload URL에 함께 적용됩니다.
 
 ## Local 로그인
 
@@ -48,28 +48,26 @@ pnpm local:stop
 
 ## Upload부터 게시까지
 
-관리자 로그인 뒤 Swagger의 `Admin Content Production`, `Admin Question Candidates`, `Admin TTS Operations`, `Admin Questions` 순서로 다음을 확인합니다.
+관리자 로그인 뒤 Swagger의 `Admin Content Production`, `Admin Question Candidates`, `Admin Questions` 순서로 다음을 확인합니다.
 
 1. `uploads/policies`로 TEXT, PDF 또는 IMAGE upload policy를 만들고, 응답 URL에 multipart form을 전송합니다.
 2. `uploads/{uploadId}/complete`로 실제 bytes를 검사해 upload를 VERIFIED로 만듭니다.
-3. `jobs`에서 업로드 ID와 활성 preset을 사용해 콘텐츠 제작 job을 만듭니다. 문제 생성이면 `options`에 question count, active question type version, difficulty plan, TTS voice preset을 입력합니다.
+3. `jobs`에서 업로드 ID와 활성 preset을 사용해 콘텐츠 제작 job을 만듭니다. 문제 생성이면 `options`에 question count, active question type version, difficulty plan을 입력합니다.
 4. job 상세를 조회해 local queue가 candidate를 만든 것을 확인합니다. input ordinal 0은 후보를 만들고, ordinal 1은 검토 필요, ordinal 2는 재시도 가능한 실패 fixture입니다.
-5. `question-candidates`에서 NORMAL 후보를 확인하고 `approve`합니다. 승인은 question DRAFT와 TTS outbox를 만듭니다.
-6. `admin/tts`에서 local worker가 만든 READY audio를 확인합니다. 필요하면 TTS retry endpoint로 재요청합니다.
-7. `admin/question-versions/{versionId}/validate` 후 `publish`로 검증된 DRAFT를 게시합니다.
+5. `question-candidates`에서 NORMAL 후보를 확인하고 `approve`합니다. 승인은 question DRAFT를 만듭니다.
+6. `admin/question-versions/{versionId}/validate` 후 `publish`로 검증된 DRAFT를 게시합니다.
 
 활성 ID는 로그인한 관리자 세션으로 다음 endpoint에서 확인합니다.
 
 - `GET /api/v1/admin/content-production/presets`: `presetId`
 - `GET /api/v1/admin/question-taxonomy`: ACTIVE `questionTypeVersionId`
 - `GET /api/v1/admin/vocabularies?status=PUBLISHED&pageSize=20`: 게시 어휘 ID
-- `GET /api/v1/admin/tts/presets?enabled=true&pageSize=20`: enabled `defaultVoicePresetId`
 
 fresh seed의 ID를 터미널에서 직접 확인하려면 다음 명령도 사용할 수 있습니다.
 
 ```bash
 docker compose --project-name flex-thia-local exec postgres psql -U flex_thia -d flex_thia -c \
-  "select 'preset' as kind,id,name from content_production_presets where enabled union all select 'question_type_version',id,status::text from question_type_versions where status='ACTIVE' union all select 'voice_preset',id,name from tts_voice_presets where enabled union all select 'vocabulary',id,thai from vocabularies where status='PUBLISHED' order by kind,id;"
+  "select 'preset' as kind,id,name from content_production_presets where enabled union all select 'question_type_version',id,status::text from question_type_versions where status='ACTIVE' union all select 'vocabulary',id,thai from vocabularies where status='PUBLISHED' order by kind,id;"
 ```
 
 fresh seed에 포함된 VERIFIED upload `00000000-0000-4000-8000-000000000930`으로 문제 생성 job을 만들 때의 실제 request body는 다음과 같습니다. `clientRequestId`는 재호출할 때 새 UUID로 바꿉니다.
@@ -94,8 +92,6 @@ fresh seed에 포함된 VERIFIED upload `00000000-0000-4000-8000-000000000930`�
     "excludedVocabularyIds": [],
     "newAuxiliaryVocabularyLimit": 0,
     "similarityThreshold": 0.7,
-    "defaultVoicePresetId": "00000000-0000-4000-8000-000000000001",
-    "speakerVoiceAssignments": [],
     "additionalInstructionKo": null
   }
 }
@@ -105,4 +101,4 @@ fresh seed에 포함된 VERIFIED upload `00000000-0000-4000-8000-000000000930`�
 
 ## Local 범위
 
-local runtime은 실제 filesystem upload, signed media, deterministic candidate, local WAV fixture를 사용합니다. 유료 provider나 network 호출은 하지 않습니다. production에서 provider가 구성되지 않은 경우의 fail-closed 동작은 이 local runtime이 바꾸지 않습니다.
+local runtime은 실제 filesystem upload, deterministic candidate를 사용합니다. 유료 provider나 network 호출은 하지 않습니다. production에서 provider가 구성되지 않은 경우의 fail-closed 동작은 이 local runtime이 바꾸지 않습니다.

@@ -1,14 +1,6 @@
 /** API가 시작 전에 환경 설정 오류를 발견하도록 검증한다 */
 import { z } from 'zod';
 
-const localMediaDefaults = {
-  MEDIA_BUCKET_NAME: 'local-fake-media-bucket',
-  MEDIA_CDN_BASE_URL: 'https://fake-media.invalid/media',
-  MEDIA_KEY_PAIR_ID: 'local-fake-key-pair',
-  MEDIA_PRIVATE_KEY_SECRET_ARN: 'local-fake-media-secret',
-} as const;
-const localTtsVoicePresetId = '00000000-0000-4000-8000-000000000001';
-
 const apiEnvSchema = z
   .object({
     NODE_ENV: z
@@ -31,24 +23,22 @@ const apiEnvSchema = z
     CUSTOM_AUTH_SECRET_ARN: z.string().optional(),
     INPUT_BUCKET_NAME: z.string().optional(),
     JOB_QUEUE_URL: z.string().optional(),
-    TTS_VOICE_PRESET_ID: z.uuid().optional(),
-    FLEX_THIA_LOCAL_TTS_AUDIO_DIRECTORY: z.string().trim().min(1).optional(),
     FLEX_THIA_LOCAL_API_ORIGIN: z
       .url()
       .refine((value) => new URL(value).protocol === 'http:', {
         message: 'local API origin은 HTTP URL이어야 합니다',
       })
       .default('http://localhost:3000'),
+    FLEX_THIA_LOCAL_UPLOAD_HMAC_SECRET: z
+      .string()
+      .min(32)
+      .default('local-only-content-upload-hmac-secret'),
     FLEX_THIA_LOCAL_PUBLIC_ORIGIN: z
       .url()
       .refine((value) => new URL(value).protocol === 'http:', {
         message: 'local public origin은 HTTP URL이어야 합니다',
       })
       .default('http://localhost:5173'),
-    FLEX_THIA_LOCAL_MEDIA_HMAC_SECRET: z
-      .string()
-      .min(32)
-      .default('local-only-media-read-hmac-secret'),
     CHALLENGE_HMAC_PEPPER: z
       .string()
       .min(32)
@@ -61,10 +51,6 @@ const apiEnvSchema = z
     SCHOOL_EMAIL_DOMAINS: z.string().default('hufs.ac.kr'),
     FROM_EMAIL: z.string().email().optional(),
     ALARM_TOPIC_ARN: z.string().optional(),
-    MEDIA_CDN_BASE_URL: z.string().trim().url().optional(),
-    MEDIA_BUCKET_NAME: z.string().trim().min(1).optional(),
-    MEDIA_KEY_PAIR_ID: z.string().trim().min(1).optional(),
-    MEDIA_PRIVATE_KEY_SECRET_ARN: z.string().trim().min(1).optional(),
     FAKE_USER_SUB: z.string().default('local-admin-sub'),
     FAKE_USER_EMAIL: z.string().default('admin@hufs.ac.kr'),
     FAKE_LEARNER_SUB: z.string().default('local-learner-sub'),
@@ -81,14 +67,6 @@ const apiEnvSchema = z
     }
 
     if (value.NODE_ENV === 'production') {
-      if (!value.TTS_VOICE_PRESET_ID) {
-        context.addIssue({
-          code: 'custom',
-          path: ['TTS_VOICE_PRESET_ID'],
-          message: 'production TTS_VOICE_PRESET_ID가 누락되었습니다',
-        });
-      }
-
       if (value.DATABASE_MODE === 'local') {
         context.addIssue({
           code: 'custom',
@@ -105,10 +83,6 @@ const apiEnvSchema = z
         value.CHALLENGE_HMAC_PEPPER,
         value.EMAIL_LINK_CONFIRMATION_URL,
         value.FROM_EMAIL,
-        value.MEDIA_CDN_BASE_URL,
-        value.MEDIA_BUCKET_NAME,
-        value.MEDIA_KEY_PAIR_ID,
-        value.MEDIA_PRIVATE_KEY_SECRET_ARN,
       ];
 
       if (required.some((item) => !item)) {
@@ -138,17 +112,6 @@ const apiEnvSchema = z
       }
 
       if (
-        value.MEDIA_CDN_BASE_URL &&
-        new URL(value.MEDIA_CDN_BASE_URL).protocol !== 'https:'
-      ) {
-        context.addIssue({
-          code: 'custom',
-          path: ['MEDIA_CDN_BASE_URL'],
-          message: 'production MEDIA_CDN_BASE_URL은 HTTPS여야 합니다',
-        });
-      }
-
-      if (
         value.EMAIL_LINK_CONFIRMATION_URL &&
         new URL(value.EMAIL_LINK_CONFIRMATION_URL).protocol !== 'https:'
       ) {
@@ -162,18 +125,6 @@ const apiEnvSchema = z
   })
   .transform((value) => ({
     ...value,
-    TTS_VOICE_PRESET_ID: value.TTS_VOICE_PRESET_ID ?? localTtsVoicePresetId,
-    FLEX_THIA_LOCAL_TTS_AUDIO_DIRECTORY:
-      value.FLEX_THIA_LOCAL_TTS_AUDIO_DIRECTORY,
-    MEDIA_CDN_BASE_URL:
-      value.MEDIA_CDN_BASE_URL ?? localMediaDefaults.MEDIA_CDN_BASE_URL,
-    MEDIA_BUCKET_NAME:
-      value.MEDIA_BUCKET_NAME ?? localMediaDefaults.MEDIA_BUCKET_NAME,
-    MEDIA_KEY_PAIR_ID:
-      value.MEDIA_KEY_PAIR_ID ?? localMediaDefaults.MEDIA_KEY_PAIR_ID,
-    MEDIA_PRIVATE_KEY_SECRET_ARN:
-      value.MEDIA_PRIVATE_KEY_SECRET_ARN ??
-      localMediaDefaults.MEDIA_PRIVATE_KEY_SECRET_ARN,
   }));
 
 /** 검증이 끝난 API 환경 설정 */

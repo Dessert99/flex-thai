@@ -8,9 +8,9 @@ import {
   questionBlockKindEnum,
   questionBlocks,
   questionBlockSentences,
-  questionDisplayModeEnum,
   questionMajorCategoryEnum,
   questionOptions,
+  questions,
   questionSkillEnum,
   questionStatusEnum,
   questionTags,
@@ -18,14 +18,13 @@ import {
   questionTopics,
   questionTypeApprovedExamples,
   questionTypeDifficultyCriteria,
-  questionTypeVersionStatusEnum,
   questionTypes,
   questionTypeVersions,
+  questionTypeVersionStatusEnum,
   questionValidationStatusEnum,
-  questions,
   questionVersions,
-  questionVersionTags,
   questionVersionStatusEnum,
+  questionVersionTags,
   tokenOccurrenceRoleEnum,
 } from './index.js';
 
@@ -81,7 +80,7 @@ describe('문제 게시 데이터베이스 schema', () => {
   });
 
   it('문제 enum의 허용 값을 고정한다', () => {
-    expect(questionSkillEnum.enumValues).toEqual(['READING', 'LISTENING']);
+    expect(questionSkillEnum.enumValues).toEqual(['READING']);
     expect(questionTemplateEnum.enumValues).toEqual([
       'STANDARD_CHOICE',
       'PASSAGE_CHOICE',
@@ -111,13 +110,7 @@ describe('문제 게시 데이터베이스 schema', () => {
       'QUESTION',
       'EXPLANATION',
     ]);
-    expect(questionDisplayModeEnum.enumValues).toEqual([
-      'TEXT',
-      'AUDIO',
-      'TEXT_AND_AUDIO',
-      'AUDIO_THEN_REVEAL',
-    ]);
-    expect(questionMajorCategoryEnum.enumValues).toHaveLength(7);
+    expect(questionMajorCategoryEnum.enumValues).toHaveLength(4);
     expect(questionTypeVersionStatusEnum.enumValues).toEqual([
       'DRAFT',
       'ACTIVE',

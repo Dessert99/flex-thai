@@ -1,8 +1,8 @@
 /** 문제 목록 화면 테스트가 공유하는 API fake·taxonomy fixture·render 경계를 제공한다 */
-import type { RenderResult } from '@testing-library/react';
 import { renderWithProviders } from '@/shared/test';
-import { QuestionListPageContainer } from './QuestionListPageContainer';
+import type { RenderResult } from '@testing-library/react';
 import type { QuestionListSearch } from '../model/questionListSearch';
+import { QuestionListPageContainer } from './QuestionListPageContainer';
 
 /** 검색값이 없을 때 route가 제공해야 하는 목록 기본값이다 */
 export const defaultSearch: QuestionListSearch = {
@@ -13,7 +13,7 @@ export const defaultSearch: QuestionListSearch = {
 
 /** taxonomy 필터와 목록 카드가 함께 참조하는 고정 fixture 식별자다 */
 export const questionListIds = {
-  listeningQuestionType: '01933b6a-8f13-7a19-b7e5-536d70f57aad',
+  passageQuestionType: '01933b6a-8f13-7a19-b7e5-536d70f57aad',
   questionType: '01933b6a-8f13-7a19-b7e5-536d70f57aac',
   tag: '01933b6a-8f13-7a19-b7e5-536d70f57aaf',
   topic: '01933b6a-8f13-7a19-b7e5-536d70f57aae',
@@ -23,7 +23,7 @@ export const questionListIds = {
 export const questionListFacets = {
   majorCategories: [
     { label: '읽기 지문', value: 'READING_PASSAGE' },
-    { label: '듣기 대화', value: 'LISTENING_DIALOGUE' },
+    { label: '어휘·문법', value: 'READING_VOCABULARY_GRAMMAR' },
   ],
   questionTypes: [
     {
@@ -33,10 +33,10 @@ export const questionListFacets = {
       slug: 'reading-passage',
     },
     {
-      displayName: '듣기 대화 유형',
-      id: questionListIds.listeningQuestionType,
-      majorCategory: 'LISTENING_DIALOGUE',
-      slug: 'listening-dialogue',
+      displayName: '읽기 대화 유형',
+      id: questionListIds.passageQuestionType,
+      majorCategory: 'READING_VOCABULARY_GRAMMAR',
+      slug: 'reading-dialogue',
     },
   ],
   tags: [{ displayName: '여행', id: questionListIds.tag, slug: 'travel' }],

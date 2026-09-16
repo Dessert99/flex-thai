@@ -1,10 +1,10 @@
 /** 실제 PostgreSQL에서 어휘 안전 병합의 live 참조 이동·원자성·경쟁 경계를 검증한다 */
-import { randomUUID } from 'node:crypto';
 import {
   VocabularyRelationsMergeAdminError,
   VocabularyRelationsMergeService,
 } from '@flex-thia/domain';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import * as schema from '../schema/index.js';
@@ -14,7 +14,6 @@ const databaseUrl = process.env.VOCABULARY_MERGE_TEST_DATABASE_URL;
 
 interface MergeFixture {
   actorUserId: string;
-  mediaAssetId: string;
   representativeMeaningId: string;
   representativePronunciationId: string;
   representativeVocabularyId: string;
@@ -26,7 +25,6 @@ interface MergeFixture {
 const createMergeFixture = async (pool: Pool): Promise<MergeFixture> => {
   const fixture = {
     actorUserId: randomUUID(),
-    mediaAssetId: randomUUID(),
     representativeMeaningId: randomUUID(),
     representativePronunciationId: randomUUID(),
     representativeVocabularyId: randomUUID(),
@@ -42,13 +40,6 @@ const createMergeFixture = async (pool: Pool): Promise<MergeFixture> => {
       `merge-${fixture.actorUserId}`,
       `merge-${fixture.actorUserId}@example.com`,
     ],
-  );
-  await pool.query(
-    `insert into media_assets (
-       id, storage_key, declared_mime_type, declared_size_bytes,
-       declared_sha256, mime_type, size_bytes, sha256, status, ready_at
-     ) values ($1, $2, 'audio/mpeg', 1, $3, 'audio/mpeg', 1, $3, 'READY', now())`,
-    [fixture.mediaAssetId, `merge/${fixture.mediaAssetId}.mp3`, 'a'.repeat(64)],
   );
   await pool.query(
     `insert into vocabularies (
@@ -78,14 +69,12 @@ const createMergeFixture = async (pool: Pool): Promise<MergeFixture> => {
   );
   await pool.query(
     `insert into vocabulary_pronunciations (
-       id, vocabulary_id, pronunciation_ko, tone_marks, media_asset_id
-     ) values
-       ($1, $2, '원본 발음', 'M', $3),
-       ($4, $5, '대표 발음', 'M', $3)`,
+       id, vocabulary_id, pronunciation_ko, tone_marks) values
+       ($1, $2, '원본 발음', 'M'),
+       ($4, $5, '대표 발음', 'M')`,
     [
       fixture.sourcePronunciationId,
       fixture.sourceVocabularyId,
-      fixture.mediaAssetId,
       fixture.representativePronunciationId,
       fixture.representativeVocabularyId,
     ],
@@ -126,9 +115,9 @@ const addTokenOccurrence = async (pool: Pool, fixture: MergeFixture) => {
   await pool.query(
     `insert into thai_sentence_versions (
        id, sentence_id, version, original_text, translation_ko,
-       pronunciation_ko, tone_marks, media_asset_id, frozen_at
-     ) values ($1, $2, 1, 'หนึ่งสองสาม', '하나 둘 셋', '능 송 쌈', 'MMM', $3, now())`,
-    [sentenceVersionId, sentenceId, fixture.mediaAssetId],
+       pronunciation_ko, tone_marks, frozen_at
+     ) values ($1, $2, 1, 'หนึ่งสองสาม', '하나 둘 셋', '능 송 쌈', 'MMM', now())`,
+    [sentenceVersionId, sentenceId],
   );
   await pool.query(
     `insert into token_occurrences (
@@ -156,19 +145,18 @@ const addPracticeQuestion = async (pool: Pool, fixture: MergeFixture) => {
        requested_question_count, question_order, question_count, started_at
      ) values (
        $1, $2, 'SEARCH_SELECTION', '병합 snapshot',
-       array['AUDIO_TO_MEANING']::vocabulary_practice_mode[],
+       array['THAI_TO_MEANING']::vocabulary_practice_mode[],
        10, 'SOURCE', 1, now()
      )`,
     [sessionId, fixture.actorUserId],
   );
   await pool.query(
     `insert into vocabulary_practice_questions (
-       id, session_id, position, vocabulary_id, meaning_id, pronunciation_id,
-       media_asset_id, mode, audio_storage_key, thai_snapshot,
+       id, session_id, position, vocabulary_id, meaning_id, pronunciation_id, mode, thai_snapshot,
        meaning_ko_snapshot, pronunciation_ko_snapshot, tone_marks_snapshot,
        options, correct_option_id, card_snapshot
      ) values (
-       $1, $2, 1, $3, $4, $5, $6, 'AUDIO_TO_MEANING', $7,
+       $1, $2, 1, $3, $4, $5, 'THAI_TO_MEANING',
        '원본 태국어', '원본 뜻', '원본 발음', 'M', $8::jsonb, $9, $10::jsonb
      )`,
     [
@@ -177,8 +165,6 @@ const addPracticeQuestion = async (pool: Pool, fixture: MergeFixture) => {
       fixture.sourceVocabularyId,
       fixture.sourceMeaningId,
       fixture.sourcePronunciationId,
-      fixture.mediaAssetId,
-      `merge/${fixture.mediaAssetId}.mp3`,
       JSON.stringify([{ id: correctOptionId, label: '원본 뜻' }]),
       correctOptionId,
       JSON.stringify({ immutable: '원본 snapshot' }),

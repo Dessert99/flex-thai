@@ -1,8 +1,8 @@
 /** 어휘 membership picker의 다중 상태·서버 확정·실패 보존을 검증한다 */
+import { renderWithProviders } from '@/shared/test';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '@/shared/test';
 import { VocabularyWordbookPicker } from './VocabularyWordbookPicker';
 
 const vocabularyId = '00000000-0000-4000-8000-000000000103';
@@ -22,7 +22,7 @@ beforeEach(() => {
         if (method === 'PUT' || method === 'DELETE') return Promise.resolve();
         if (path === '/me/wordbooks') {
           return Promise.resolve({
-            items: [summary(firstId, 'FLEX'), summary(secondId, '듣기')],
+            items: [summary(firstId, 'FLEX'), summary(secondId, '읽기')],
           });
         }
         return Promise.resolve({ wordbookIds: [firstId] });
@@ -46,7 +46,7 @@ describe('어휘 단어장 picker', () => {
       'aria-pressed',
       'true',
     );
-    expect(screen.getByRole('button', { name: '듣기' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: '읽기' })).toHaveAttribute(
       'aria-pressed',
       'false',
     );
@@ -62,7 +62,7 @@ describe('어휘 단어장 picker', () => {
       />,
     );
     await user.click(screen.getByRole('button', { name: '단어장에 추가' }));
-    const second = await screen.findByRole('button', { name: '듣기' });
+    const second = await screen.findByRole('button', { name: '읽기' });
     await user.click(second);
 
     expect(mocks.authenticatedRequest).toHaveBeenCalledWith(

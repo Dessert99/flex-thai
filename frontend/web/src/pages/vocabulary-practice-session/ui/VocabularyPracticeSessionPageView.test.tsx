@@ -1,4 +1,5 @@
 /** 단어 연습 학습 카드·이어 풀기·즉시 피드백 동작을 검증한다 */
+import { renderWithProviders } from '@/shared/test';
 import type {
   PracticeCard,
   PracticeQuestion,
@@ -8,7 +9,6 @@ import type {
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '@/shared/test';
 import { VocabularyPracticeSessionPageView } from './VocabularyPracticeSessionPageView';
 
 const ids = {
@@ -46,7 +46,6 @@ const cards: [PracticeCard, PracticeCard] = [
         id: ids.pronunciationOne,
         pronunciationKo: '낀',
         toneMarks: '평성',
-        audioUrl: 'https://example.com/kin.mp3',
       },
     ],
     meaningPronunciations: [
@@ -74,7 +73,6 @@ const cards: [PracticeCard, PracticeCard] = [
         id: ids.pronunciationTwo,
         pronunciationKo: '빠이',
         toneMarks: '평성',
-        audioUrl: 'https://example.com/pai.mp3',
       },
     ],
     meaningPronunciations: [

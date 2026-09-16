@@ -12,9 +12,6 @@ const config = readInfrastructureConfig({
   hostedZoneId: 'Z0123456789EXAMPLE',
   alertEmail: 'owner@example.com',
   githubRepository: 'Dessert99/flex-thai',
-  ttsVoicePresetId: '00000000-0000-4000-8000-000000000777',
-  mediaPublicKeyPem:
-    '-----BEGIN PUBLIC KEY-----\ndGVzdA==\n-----END PUBLIC KEY-----',
 });
 
 type SynthesizedLambda = {
@@ -36,7 +33,6 @@ describe('Identity 학교 이메일 인증 경계', () => {
     const stack = new ApplicationStack(app, 'IdentityApplication', {
       config,
       dataStack,
-      mediaKeyPairId: 'KTESTMEDIAKEY',
     });
     const template = Template.fromStack(stack);
 
@@ -84,11 +80,10 @@ describe('Identity 학교 이메일 인증 경계', () => {
     const stack = new ApplicationStack(app, 'IdentityResources', {
       config,
       dataStack,
-      mediaKeyPairId: 'KTESTMEDIAKEY',
     });
     const template = Template.fromStack(stack);
 
-    template.resourceCountIs('AWS::Lambda::Function', 10);
+    template.resourceCountIs('AWS::Lambda::Function', 8);
     template.resourceCountIs('AWS::SES::EmailIdentity', 1);
     template.hasResourceProperties('AWS::IAM::Policy', {
       PolicyDocument: {
@@ -108,7 +103,6 @@ describe('Identity 학교 이메일 인증 경계', () => {
     const stack = new ApplicationStack(app, 'IdentitySecretApplication', {
       config,
       dataStack,
-      mediaKeyPairId: 'KTESTMEDIAKEY',
     });
     const template = Template.fromStack(stack);
     const functions = Object.values(
@@ -194,7 +188,6 @@ describe('Identity 학교 이메일 인증 경계', () => {
     const stack = new ApplicationStack(app, 'IdentityIamApplication', {
       config,
       dataStack,
-      mediaKeyPairId: 'KTESTMEDIAKEY',
     });
     const template = Template.fromStack(stack);
 
@@ -219,7 +212,6 @@ describe('Identity 학교 이메일 인증 경계', () => {
     const stack = new ApplicationStack(app, 'IdentitySmsApplication', {
       config,
       dataStack,
-      mediaKeyPairId: 'KTESTMEDIAKEY',
     });
     const template = Template.fromStack(stack);
 
@@ -247,7 +239,6 @@ describe('Identity 학교 이메일 인증 경계', () => {
     const stack = new ApplicationStack(app, 'IdentityUrlApplication', {
       config,
       dataStack,
-      mediaKeyPairId: 'KTESTMEDIAKEY',
     });
     const template = Template.fromStack(stack);
 

@@ -1,8 +1,8 @@
 /** 답안 제출의 멱등 ID·피드백·다시 풀기 수명주기를 검증한다 */
+import { renderWithProviders } from '@/shared/test';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '@/shared/test';
 import type { SubmitAnswerCommand } from '../api/submitAnswerMutation';
 import { SubmitAnswerForm } from './SubmitAnswerForm';
 
@@ -37,7 +37,6 @@ const inlineSentence = {
   translationKo: '나는 너를 사랑한다',
   pronunciationKo: '찬 락 터',
   toneMarks: 'R H M',
-  audioUrl: null,
   tokens: [
     {
       position: 0,
@@ -50,7 +49,6 @@ const inlineSentence = {
       contextMeaningKo: '나',
       pronunciationKo: '찬',
       toneMarks: 'R',
-      audioUrl: null,
       role: 'TARGET' as const,
     },
     {
@@ -64,7 +62,6 @@ const inlineSentence = {
       contextMeaningKo: '사랑하다',
       pronunciationKo: '락',
       toneMarks: 'H',
-      audioUrl: null,
       role: 'TARGET' as const,
     },
     {
@@ -78,7 +75,6 @@ const inlineSentence = {
       contextMeaningKo: '너',
       pronunciationKo: '터',
       toneMarks: 'M',
-      audioUrl: null,
       role: 'TARGET' as const,
     },
   ],
@@ -161,7 +157,7 @@ describe('답안 선택 상호작용', () => {
     expect(secondRadio).toBeChecked();
     expect(marks[1]?.querySelector('button')).toBeNull();
     expect(
-      screen.getByRole('button', { name: 'รัก 뜻과 발음 듣기' }),
+      screen.getByRole('button', { name: 'รัก 뜻과 발음 보기' }),
     ).toBeVisible();
   });
 

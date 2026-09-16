@@ -3,19 +3,16 @@ import { normalizeThaiSearchText } from '@flex-thia/domain';
 import { and, asc, count, desc, eq, inArray, type SQL, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
+import * as schema from '../schema/index.js';
 import {
-  mediaAssets,
   vocabularies,
-  vocabularyMeaningPronunciations,
   vocabularyMeanings,
   vocabularyPronunciations,
   wordbookItems,
   wordbooks,
 } from '../schema/index.js';
-import * as schema from '../schema/index.js';
 import {
   type LearnerVocabularyPageMetadata,
-  LearnerVocabularyQueryError,
   type LearnerVocabularySummaryProjection,
 } from './drizzle-learner-vocabulary.query.js';
 
@@ -49,7 +46,6 @@ interface WordbookItemBase {
   id: string;
   thai: string;
   kind: 'WORD' | 'EXPRESSION';
-  audioEligibleMeaningCount: number;
   addedAt: Date;
 }
 
@@ -168,18 +164,6 @@ export class DrizzleWordbookQuery {
         id: vocabularies.id,
         thai: vocabularies.thai,
         kind: vocabularies.kind,
-        audioEligibleMeaningCount: sql<number>`(
-          select count(distinct eligible_links.meaning_id)::integer
-          from ${vocabularyMeaningPronunciations} eligible_links
-          inner join ${vocabularyPronunciations} eligible_pronunciations
-            on eligible_pronunciations.id = eligible_links.pronunciation_id
-            and eligible_pronunciations.vocabulary_id =
-              eligible_links.vocabulary_id
-          inner join ${mediaAssets} eligible_media
-            on eligible_media.id = eligible_pronunciations.media_asset_id
-            and eligible_media.status = ${'READY'}
-          where eligible_links.vocabulary_id = "vocabularies"."id"
-        )`,
         addedAt: wordbookItems.addedAt,
       })
       .from(vocabularies)
@@ -243,16 +227,9 @@ export class DrizzleWordbookQuery {
         vocabularyId: vocabularyPronunciations.vocabularyId,
         pronunciationKo: vocabularyPronunciations.pronunciationKo,
         toneMarks: vocabularyPronunciations.toneMarks,
-        mediaAssetId: vocabularyPronunciations.mediaAssetId,
-        mediaStatus: mediaAssets.status,
-        mediaStorageKey: mediaAssets.storageKey,
         createdAt: vocabularyPronunciations.createdAt,
       })
       .from(vocabularyPronunciations)
-      .leftJoin(
-        mediaAssets,
-        eq(mediaAssets.id, vocabularyPronunciations.mediaAssetId),
-      )
       .where(inArray(vocabularyPronunciations.vocabularyId, vocabularyIds))
       .orderBy(
         asc(vocabularyPronunciations.vocabularyId),
@@ -264,19 +241,6 @@ export class DrizzleWordbookQuery {
       const vocabularyPronunciations = pronunciations
         .filter(({ vocabularyId }) => vocabularyId === base.id)
         .sort(compareCreatedAtThenId);
-      if (
-        vocabularyPronunciations.length === 0 ||
-        vocabularyPronunciations.some(
-          ({ mediaAssetId, mediaStatus, mediaStorageKey }) =>
-            mediaAssetId === null ||
-            mediaStatus !== 'READY' ||
-            mediaStorageKey === null,
-        )
-      ) {
-        throw new LearnerVocabularyQueryError(
-          'PUBLISHED_VOCABULARY_MEDIA_INVALID',
-        );
-      }
       return {
         id: base.id,
         thai: base.thai,
@@ -292,14 +256,12 @@ export class DrizzleWordbookQuery {
             contextNote,
           })),
         pronunciations: vocabularyPronunciations.map(
-          ({ id, pronunciationKo, toneMarks, mediaStorageKey }) => ({
+          ({ id, pronunciationKo, toneMarks }) => ({
             id,
             pronunciationKo,
             toneMarks,
-            media: { storageKey: mediaStorageKey! },
           }),
         ),
-        audioEligibleMeaningCount: base.audioEligibleMeaningCount,
         saved: true,
         addedAt: base.addedAt,
       };

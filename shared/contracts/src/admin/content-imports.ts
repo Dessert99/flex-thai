@@ -66,7 +66,6 @@ export const canonicalSentenceInputSchema = z
     translationKo: z.string().min(1),
     pronunciationKo: z.string().min(1),
     toneMarks: z.string(),
-    mediaAssetId: uuidSchema,
     tokens: z.array(canonicalTokenInputSchema),
     expressions: z.array(canonicalExpressionInputSchema),
   })
@@ -136,7 +135,6 @@ const vocabularyPronunciationInputSchema = z
     clientRef: clientRefSchema,
     pronunciationKo: z.string().min(1),
     toneMarks: z.string(),
-    mediaAssetId: uuidSchema,
   })
   .strict();
 
@@ -172,12 +170,6 @@ const questionBlockInputSchema = z
       'DIALOGUE',
       'QUESTION',
       'EXPLANATION',
-    ]),
-    displayMode: z.enum([
-      'TEXT',
-      'AUDIO',
-      'TEXT_AND_AUDIO',
-      'AUDIO_THEN_REVEAL',
     ]),
     sentences: z
       .array(

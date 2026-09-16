@@ -1,15 +1,14 @@
 /** 어휘 상세의 뜻·발음·관련 문제를 계약 필드만으로 표현한다 */
-import { Link } from '@tanstack/react-router';
-import type {
-  VocabularyDetailResponse,
-  VocabularyRelatedQuestionsResponse,
-} from '@flex-thia/contracts';
 import { InteractiveThaiSentence } from '@/features/explore-thai-content';
 import { ContentErrorReportDialog } from '@/features/report-content-error';
 import { VocabularyWordbookPicker } from '@/features/save-vocabulary-to-wordbooks';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
+import type {
+  VocabularyDetailResponse,
+  VocabularyRelatedQuestionsResponse,
+} from '@flex-thia/contracts';
+import { Link } from '@tanstack/react-router';
 
-/** 서버 태국어 원문과 발음 audio를 수정 없이 렌더링한다 */
 export function VocabularyDetailPageView({
   detail,
   onWordbookMembershipConfirmed,
@@ -217,7 +216,7 @@ function VocabularyMeaningPronunciations({
             <h3 className='text-heading text-primary'>{meaning.meaningKo}</h3>
             {pronunciations.length === 0 ? (
               <p className='text-body text-subtle'>
-                연결된 발음 음성이 없습니다.
+                연결된 발음 표기가 없습니다.
               </p>
             ) : (
               <ul className='grid gap-cluster'>
@@ -230,27 +229,6 @@ function VocabularyMeaningPronunciations({
                       {pronunciation.pronunciationKo} · 성조{' '}
                       {pronunciation.toneMarks || '정보 없음'}
                     </p>
-                    {/* 계약에 VTT URL이 없어 audio 규칙만 제한한다. */}
-                    {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-                    <audio
-                      aria-label={`${detail.thai} ${meaning.meaningKo} 발음`}
-                      controls
-                      src={pronunciation.audioUrl}
-                    />
-                    <ContentErrorReportDialog
-                      origin={{
-                        kind: 'AUDIO',
-                        source: {
-                          kind: 'VOCABULARY',
-                          pronunciationId: pronunciation.id,
-                        },
-                      }}
-                      preview={{
-                        title: detail.thai,
-                        metadata: pronunciation.pronunciationKo,
-                      }}
-                      triggerLabel='발음 오류 신고'
-                    />
                   </li>
                 ))}
               </ul>

@@ -31,7 +31,6 @@ export interface VocabularyCandidatePronunciationInput {
   clientRef: string;
   pronunciationKo: string;
   toneMarks: string;
-  mediaAssetId: string;
 }
 
 /** 새 DRAFT 뜻·발음 연결 입력 */
@@ -100,8 +99,7 @@ export class VocabularyCandidateReviewError extends Error {
       | 'VOCABULARY_CANDIDATE_DUPLICATE_CONFIRMATION_REQUIRED'
       | 'VOCABULARY_CANDIDATE_IDEMPOTENCY_CONFLICT'
       | 'VOCABULARY_CANDIDATE_REVIEW_CONFLICT'
-      | 'VOCABULARY_CANDIDATE_EXISTING_VOCABULARY_NOT_FOUND'
-      | 'VOCABULARY_CANDIDATE_AUDIO_NOT_READY',
+      | 'VOCABULARY_CANDIDATE_EXISTING_VOCABULARY_NOT_FOUND',
   ) {
     super(code);
     this.name = 'VocabularyCandidateReviewError';
@@ -154,8 +152,7 @@ type ApprovalRepositoryOutcome =
         | 'DUPLICATE_CONFIRMATION_REQUIRED'
         | 'IDEMPOTENCY_CONFLICT'
         | 'REVIEW_CONFLICT'
-        | 'EXISTING_VOCABULARY_NOT_FOUND'
-        | 'AUDIO_NOT_READY';
+        | 'EXISTING_VOCABULARY_NOT_FOUND';
     };
 
 type DiscardRepositoryOutcome =
@@ -221,7 +218,6 @@ const reviewErrorByOutcome = (
     REVIEW_CONFLICT: 'VOCABULARY_CANDIDATE_REVIEW_CONFLICT',
     EXISTING_VOCABULARY_NOT_FOUND:
       'VOCABULARY_CANDIDATE_EXISTING_VOCABULARY_NOT_FOUND',
-    AUDIO_NOT_READY: 'VOCABULARY_CANDIDATE_AUDIO_NOT_READY',
   }[outcome.kind] as VocabularyCandidateReviewError['code'];
   return new VocabularyCandidateReviewError(code);
 };

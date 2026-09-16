@@ -1,11 +1,8 @@
-/** 로컬 outbox relay와 TTS audio GC를 한 signal-aware process에서 반복 실행한다 */
 import { pathToFileURL } from 'node:url';
 import { createWorkerDatabase } from './database-runtime.js';
 import { createAsyncDispatchRelayRuntime } from './dispatch/async-dispatch-relay-task.js';
-import { createTtsAudioGcTaskHandler } from './media/tts-audio-gc-task.js';
-import { getDefaultTtsEntryRuntime } from './media/tts-entry-runtime.js';
 
-type LocalWorkerTask = 'relay' | 'tts-audio-gc';
+type LocalWorkerTask = 'relay';
 
 /** abort signal 또는 bounded poll interval 중 먼저 도착한 조건까지 대기한다 */
 export type LocalWorkerWait = (
@@ -17,11 +14,8 @@ export type LocalWorkerWait = (
 export interface LocalWorkerInput {
   signal: AbortSignal;
   relay: () => Promise<unknown>;
-  collectGarbage: () => Promise<unknown>;
   reportError: (task: LocalWorkerTask, error: unknown) => void;
   pollIntervalMs?: number;
-  garbageCollectionIntervalMs?: number;
-  now?: () => number;
   wait?: LocalWorkerWait;
 }
 
@@ -61,25 +55,10 @@ export const runLocalWorker = async (
   input: LocalWorkerInput,
 ): Promise<void> => {
   const pollIntervalMs = input.pollIntervalMs ?? 1_000;
-  const garbageCollectionIntervalMs =
-    input.garbageCollectionIntervalMs ?? 60 * 60 * 1_000;
-  const now = input.now ?? Date.now;
   const wait = input.wait ?? waitForPoll;
-  let nextGarbageCollectionAt = 0;
 
   while (!input.signal.aborted) {
     await runTask('relay', input.relay, input.reportError);
-
-    if (now() >= nextGarbageCollectionAt) {
-      const collected = await runTask(
-        'tts-audio-gc',
-        input.collectGarbage,
-        input.reportError,
-      );
-      if (collected) {
-        nextGarbageCollectionAt = now() + garbageCollectionIntervalMs;
-      }
-    }
 
     await wait(input.signal, pollIntervalMs);
   }
@@ -99,18 +78,14 @@ export const runDefaultLocalWorker = async (): Promise<void> => {
   process.once('SIGTERM', shutdown);
 
   try {
-    const ttsRuntime = getDefaultTtsEntryRuntime();
     const relay = createAsyncDispatchRelayRuntime({
       database: createWorkerDatabase(),
       mode: 'local',
-      localTtsHandler: ttsRuntime.taskHandler,
     });
-    const collectGarbage = createTtsAudioGcTaskHandler(() => ttsRuntime);
 
     await runLocalWorker({
       signal: controller.signal,
       relay: () => relay.handler(),
-      collectGarbage: () => collectGarbage(),
       reportError: (task, error) => {
         console.error(`local worker ${task} cycle failed`, error);
       },

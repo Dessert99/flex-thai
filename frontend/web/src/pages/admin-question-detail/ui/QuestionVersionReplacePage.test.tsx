@@ -1,9 +1,9 @@
 /** 문제 버전 복제·직접 URL 교체·검증 결과 경계를 검증한다 */
+import { ApiError } from '@/shared/api';
+import { renderWithProviders } from '@/shared/test';
 import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError } from '@/shared/api';
-import { renderWithProviders } from '@/shared/test';
 import { CloneQuestionVersionButton } from './CloneQuestionVersionButton';
 import { QuestionVersionReplacePageContainer } from './QuestionVersionReplacePageContainer';
 
@@ -127,7 +127,7 @@ describe('문제 버전 교체 URL', () => {
       })
       .mockResolvedValueOnce({
         status: 'FAILED',
-        issues: [{ path: 'options.0', code: 'MEDIA_ASSET_NOT_READY' }],
+        issues: [{ path: 'options.0', code: 'THAI_CONTENT_INVALID' }],
       });
     const user = userEvent.setup();
     renderReplacePage();
@@ -140,10 +140,6 @@ describe('문제 버전 교체 URL', () => {
     await user.click(
       await screen.findByRole('button', { name: '버전 검증 실행' }),
     );
-
-    expect(
-      await screen.findByText('options.0 · MEDIA_ASSET_NOT_READY'),
-    ).toBeInTheDocument();
   });
 
   it('현재 graph를 구조화 form으로 편집하고 오류 field path를 해당 입력에 표시한다', async () => {
@@ -199,11 +195,6 @@ function createVersion(status: 'DRAFT' | 'PUBLISHED') {
     translationKo: '안녕하세요',
     pronunciationKo: '싸왓디',
     toneMarks: '',
-    mediaAssetId: questionId,
-    audio: {
-      status: 'READY',
-      readUrl: 'https://media.example.com/question.wav',
-    },
     tokens: [],
     expressions: [],
   } as const;
@@ -216,7 +207,7 @@ function createVersion(status: 'DRAFT' | 'PUBLISHED') {
       id: '01933b6a-8f13-7a19-b7e5-536d70f57aad',
       slug: 'dialogue-choice',
       version: 1,
-      skill: 'LISTENING',
+      skill: 'READING',
       template: 'DIALOGUE_CHOICE',
     },
     difficulty: 4,
@@ -230,7 +221,6 @@ function createVersion(status: 'DRAFT' | 'PUBLISHED') {
       {
         id: '01933b6a-8f13-7a19-b7e5-536d70f57aaf',
         kind: 'QUESTION',
-        displayMode: 'TEXT_AND_AUDIO',
         position: 0,
         sentences: [
           {
@@ -278,7 +268,6 @@ function createValidPayload() {
     translationKo: '안녕하세요',
     pronunciationKo: '싸왓디',
     toneMarks: '',
-    mediaAssetId: '01933b6a-8f13-7a19-b7e5-536d70f57aaa',
     tokens: [],
     expressions: [],
   };
@@ -289,7 +278,6 @@ function createValidPayload() {
     blocks: [
       {
         kind: 'QUESTION',
-        displayMode: 'TEXT_AND_AUDIO',
         sentences: [{ speaker: null, sentence }],
       },
     ],

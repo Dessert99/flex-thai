@@ -1,6 +1,15 @@
 /** 학습자 홈에서 개인화 또는 최근 게시 추천과 이유를 표현한다 */
-import { Link } from '@tanstack/react-router';
+import { Badge } from '@/shared/ui/badge';
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+} from '@/shared/ui/item';
 import type { RecommendationResponse } from '@flex-thia/contracts';
+import { Link } from '@tanstack/react-router';
 import {
   BookOpenCheck,
   CalendarDays,
@@ -13,20 +22,11 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { Badge } from '@/shared/ui/badge';
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemGroup,
-  ItemMedia,
-  ItemTitle,
-} from '@/shared/ui/item';
 
-import { HomeCard, HomeLinkItem } from './LearnerHomeContent';
-import { Skeleton } from '@/shared/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
 import { Button } from '@/shared/ui/button';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { HomeCard, HomeLinkItem } from './LearnerHomeContent';
 
 interface LearnerHomePageViewProps {
   error: boolean;
@@ -253,7 +253,7 @@ function RecommendedQuestions({
       <ItemGroup className='gap-cluster'>
         {items.map((question) => (
           <HomeLinkItem
-            description={`${question.skill === 'READING' ? '읽기' : '듣기'} · 난이도 ${question.difficulty}`}
+            description={`${question.skill === 'READING' ? '읽기' : ''} · 난이도 ${question.difficulty}`}
             to='/questions/$questionId'
             params={{ questionId: question.questionId }}
             icon={BookOpenCheck}

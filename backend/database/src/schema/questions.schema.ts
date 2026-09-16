@@ -11,18 +11,15 @@ import {
   pgTable,
   text,
   timestamp,
-  type AnyPgColumn,
   unique,
   uniqueIndex,
   uuid,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { thaiSentenceVersions } from './thai-content.schema.js';
 
-/** 문제의 읽기·듣기 시험 영역 */
-export const questionSkillEnum = pgEnum('question_skill', [
-  'READING',
-  'LISTENING',
-]);
+/** 문제의 읽기 시험 영역 */
+export const questionSkillEnum = pgEnum('question_skill', ['READING']);
 
 /** 선택형 문제의 화면 구조 */
 export const questionTemplateEnum = pgEnum('question_template', [
@@ -32,11 +29,8 @@ export const questionTemplateEnum = pgEnum('question_template', [
   'INLINE_SPAN_CHOICE',
 ]);
 
-/** FLEX 시험의 고정 7대 문제 분류 */
+/** FLEX 읽기 영역의 네 가지 문제 분류 */
 export const questionMajorCategoryEnum = pgEnum('question_major_category', [
-  'LISTENING_RESPONSE',
-  'LISTENING_DIALOGUE',
-  'LISTENING_PASSAGE',
   'READING_VOCABULARY_GRAMMAR',
   'READING_SYNONYM_RELATION',
   'READING_ERROR_IDENTIFICATION',
@@ -83,14 +77,6 @@ export const questionBlockKindEnum = pgEnum('question_block_kind', [
   'DIALOGUE',
   'QUESTION',
   'EXPLANATION',
-]);
-
-/** 문제 문장의 텍스트·음성 초기 표시 방식 */
-export const questionDisplayModeEnum = pgEnum('question_display_mode', [
-  'TEXT',
-  'AUDIO',
-  'TEXT_AND_AUDIO',
-  'AUDIO_THEN_REVEAL',
 ]);
 
 /** 문제 버전이 하나씩 참조하는 불변 주제 사전 */
@@ -327,7 +313,6 @@ export const questionBlocks = pgTable(
       .references(() => questionVersions.id, { onDelete: 'restrict' })
       .notNull(),
     kind: questionBlockKindEnum('kind').notNull(),
-    displayMode: questionDisplayModeEnum('display_mode').notNull(),
     position: integer('position').notNull(),
   },
   (table) => [

@@ -1,4 +1,4 @@
-/** shared outbox relay Lambda를 DB와 mode별 CONTENT_PRODUCTION·TTS sender에 연결한다 */
+/** shared outbox relay Lambda를 DB와 mode별 CONTENT_PRODUCTION sender에 연결한다 */
 import {
   DrizzleAsyncDispatchOutboxRepository,
   DrizzleContentProductionRepository,
@@ -9,8 +9,6 @@ import {
 } from '@flex-thia/providers';
 import { createContentProductionRuntime } from '../content-production/content-production-runtime.js';
 import { createWorkerDatabase } from '../database-runtime.js';
-import { getDefaultTtsEntryRuntime } from '../media/tts-entry-runtime.js';
-import { createTtsRuntime } from '../media/tts-runtime.js';
 import { AsyncDispatchOutboxRelay } from './async-dispatch-outbox-relay.js';
 import {
   AcceptedQueueDispatchSender,
@@ -23,10 +21,7 @@ import {
 export interface AsyncDispatchRelayRuntimeConfig {
   database: ConstructorParameters<typeof DrizzleContentProductionRepository>[0];
   mode: 'local' | 'test' | 'production';
-  queues?: Partial<
-    Record<'CONTENT_PRODUCTION' | 'TTS', AsyncDispatchQueueAcceptance>
-  >;
-  localTtsHandler?: ReturnType<typeof createTtsRuntime>['taskHandler'];
+  queues?: Partial<Record<'CONTENT_PRODUCTION', AsyncDispatchQueueAcceptance>>;
 }
 
 /** schedule event가 한 bounded outbox drain에 전달하는 조정값 */
@@ -60,11 +55,6 @@ export const createProductionAsyncDispatchQueues = (
       queueUrl: requireRuntimeEnv(source, 'CONTENT_PRODUCTION_QUEUE_URL'),
       destination: 'CONTENT_PRODUCTION',
     }),
-    TTS: createQueue({
-      region,
-      queueUrl: requireRuntimeEnv(source, 'TTS_QUEUE_URL'),
-      destination: 'TTS',
-    }),
   };
 };
 
@@ -82,23 +72,12 @@ export const createAsyncDispatchRelayRuntime = (
                 'CONTENT_PRODUCTION',
               )
             : new UnavailableAsyncDispatchSender(),
-          TTS: input.queues?.TTS
-            ? new AcceptedQueueDispatchSender(input.queues.TTS, 'TTS')
-            : new UnavailableAsyncDispatchSender(),
         }
       : createLocalAsyncDispatchSenders({
           contentProductionHandler: createContentProductionRuntime({
             database: input.database,
             mode: input.mode,
           }).handler,
-          ttsHandler:
-            input.localTtsHandler ??
-            createTtsRuntime({
-              database: input.database as unknown as Parameters<
-                typeof createTtsRuntime
-              >[0]['database'],
-              mode: input.mode,
-            }).taskHandler,
         });
   const relay = new AsyncDispatchOutboxRelay(repository, senders);
 
@@ -133,7 +112,7 @@ export const handler = (input: AsyncDispatchRelayTaskInput = {}) => {
     database: createWorkerDatabase(),
     mode,
     ...(mode === 'local'
-      ? { localTtsHandler: getDefaultTtsEntryRuntime().taskHandler }
+      ? {}
       : { queues: createProductionAsyncDispatchQueues(process.env) }),
   }).handler;
   return defaultHandler(input);

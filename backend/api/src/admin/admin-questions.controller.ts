@@ -1,5 +1,19 @@
 /** 관리자 문제 모든 상태 조회와 버전 수명 command HTTP 경계를 제공한다 */
 import {
+  adminQuestionDetailResponseSchema,
+  adminQuestionIdPathSchema,
+  adminQuestionListQuerySchema,
+  adminQuestionListResponseSchema,
+  adminQuestionValidationReportSchema,
+  adminQuestionVersionIdPathSchema,
+  adminQuestionVersionPayloadSchema,
+  adminQuestionVersionResponseSchema,
+  type AdminQuestionDetailResponse,
+  type AdminQuestionListResponse,
+  type AdminQuestionValidationReport,
+  type AdminQuestionVersionResponse,
+} from '@flex-thia/contracts';
+import {
   Body,
   Controller,
   Get,
@@ -15,7 +29,6 @@ import {
   ApiBody,
   ApiCreatedResponse,
   ApiExtraModels,
-  ApiHeader,
   ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
@@ -23,23 +36,6 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
-import {
-  adminQuestionDetailResponseSchema,
-  adminQuestionIdPathSchema,
-  adminQuestionListQuerySchema,
-  adminQuestionListResponseSchema,
-  adminQuestionTtsJobPathSchema,
-  adminQuestionTtsJobResponseSchema,
-  adminQuestionValidationReportSchema,
-  adminQuestionVersionIdPathSchema,
-  adminQuestionVersionPayloadSchema,
-  adminQuestionVersionResponseSchema,
-  type AdminQuestionDetailResponse,
-  type AdminQuestionListResponse,
-  type AdminQuestionTtsJobResponse,
-  type AdminQuestionValidationReport,
-  type AdminQuestionVersionResponse,
-} from '@flex-thia/contracts';
 import {
   CurrentUser,
   type AuthenticatedUser,
@@ -55,8 +51,6 @@ import {
   AdminQuestionIdPathDto,
   AdminQuestionListQueryDto,
   AdminQuestionListResponseDto,
-  AdminQuestionTtsJobPathDto,
-  AdminQuestionTtsJobResponseDto,
   AdminQuestionValidationReportDto,
   AdminQuestionVersionIdPathDto,
   AdminQuestionVersionPayloadDto,
@@ -82,8 +76,6 @@ import {
   AdminQuestionVersionPayloadDto,
   AdminQuestionVersionResponseDto,
   AdminQuestionValidationReportDto,
-  AdminQuestionTtsJobPathDto,
-  AdminQuestionTtsJobResponseDto,
 )
 @Controller('admin')
 @UseGuards(CognitoAuthorizerGuard, ApplicationRoleGuard, AdminMfaGuard)
@@ -120,35 +112,6 @@ export class AdminQuestionsController {
     return parseAdminPublicResponse(
       adminQuestionDetailResponseSchema,
       await this.admin.getQuestion(path.questionId),
-    );
-  }
-
-  /** DRAFT 문제 버전의 누락된 필수 문장 음성을 예약한다 */
-  @ApiOperation({ summary: '문제 버전의 누락된 필수 문장 TTS를 예약한다' })
-  @ApiParam({ name: 'questionId', type: 'string', format: 'uuid' })
-  @ApiParam({ name: 'versionId', type: 'string', format: 'uuid' })
-  @ApiHeader({
-    name: 'X-Request-ID',
-    required: true,
-    schema: { type: 'string', format: 'uuid' },
-  })
-  @ApiCreatedResponse({ type: AdminQuestionTtsJobResponseDto })
-  @ApiProblemResponses(400, 401, 403, 404, 409, 500)
-  @Post('questions/:questionId/versions/:versionId/tts-jobs')
-  @HttpCode(201)
-  async regenerateQuestionVersionTts(
-    @CurrentUser() user: AuthenticatedUser,
-    @AdminRequestId() requestId: string,
-    @Param() rawPath: Record<string, unknown>,
-  ): Promise<AdminQuestionTtsJobResponse> {
-    const path = adminQuestionTtsJobPathSchema.parse(rawPath);
-    return parseAdminPublicResponse(
-      adminQuestionTtsJobResponseSchema,
-      await this.admin.regenerateQuestionVersionTts(
-        createAdminActorContext(user, requestId),
-        path.questionId,
-        path.versionId,
-      ),
     );
   }
 

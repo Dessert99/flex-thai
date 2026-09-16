@@ -43,7 +43,6 @@ const createDraftCommand = {
         clientRef: 'pronunciation.main',
         pronunciationKo: '싸왓디',
         toneMarks: 'L-L-M',
-        mediaAssetId: 'media-id',
       },
     ],
     meaningPronunciations: [

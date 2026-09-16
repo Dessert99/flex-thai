@@ -1,4 +1,3 @@
-/** 콘텐츠 제작과 TTS queue handoff를 durable하게 보존하는 공유 outbox schema */
 import { sql } from 'drizzle-orm';
 import {
   check,
@@ -16,7 +15,7 @@ import {
 /** 서로 payload를 해석하지 않는 비동기 실행 destination */
 export const asyncDispatchPayloadKindEnum = pgEnum(
   'async_dispatch_payload_kind',
-  ['CONTENT_PRODUCTION', 'TTS'],
+  ['CONTENT_PRODUCTION'],
 );
 
 /** queue 수락 전까지 실행 intent와 lease·재시도 상태를 보존한다 */

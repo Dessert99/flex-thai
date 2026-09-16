@@ -1,6 +1,5 @@
 /** 관리자 어휘 writer의 child lock·FK 삭제 순서·조건부 상태·audit transaction을 고정한다 */
 import { DatabaseErrorException } from '@aws-sdk/client-rds-data';
-import { randomUUID } from 'node:crypto';
 import type {
   VocabularyAdminAuditInput,
   VocabularyAdminReplacementGraph,
@@ -10,8 +9,9 @@ import {
   VocabularyAdminService,
   type ReplaceVocabularyCommand,
 } from '@flex-thia/domain';
-import { drizzle } from 'drizzle-orm/node-postgres';
 import { DrizzleQueryError } from 'drizzle-orm/errors';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import * as schema from '../schema/index.js';
@@ -130,7 +130,6 @@ const replacement: VocabularyAdminReplacementGraph = {
       vocabularyId: 'vocabulary-id',
       pronunciationKo: '마이',
       toneMarks: 'F',
-      mediaAssetId: 'media-id',
     },
   ],
   meaningPronunciations: [
@@ -202,7 +201,7 @@ describe('DrizzleVocabularyAdminRepository 잠금·전체 교체', () => {
           },
         ],
         [{ id: 'meaning-old' }],
-        [{ id: 'pronunciation-old', mediaAssetId: 'media-id' }],
+        [{ id: 'pronunciation-old' }],
         [{ meaningId: 'meaning-old', pronunciationId: 'pronunciation-old' }],
       ],
     });
@@ -223,7 +222,7 @@ describe('DrizzleVocabularyAdminRepository 잠금·전체 교체', () => {
         status: 'DRAFT',
       },
       meanings: [{ id: 'meaning-old' }],
-      pronunciations: [{ id: 'pronunciation-old', mediaAssetId: 'media-id' }],
+      pronunciations: [{ id: 'pronunciation-old' }],
     });
     expect(fake.lockModes).toEqual(['update', 'update', 'update', 'update']);
   });
@@ -316,7 +315,6 @@ const integrationDatabaseUrl = process.env.VOCABULARY_ADMIN_TEST_DATABASE_URL;
 
 interface IntegrationFixture {
   actorUserId: string;
-  mediaAssetId: string;
   meaningId: string;
   pronunciationId: string;
   vocabularyId: string;
@@ -330,7 +328,6 @@ const createIntegrationFixture = async (
   } = {},
 ): Promise<IntegrationFixture> => {
   const actorUserId = randomUUID();
-  const mediaAssetId = randomUUID();
   const vocabularyId = randomUUID();
   const meaningId = randomUUID();
   const pronunciationId = randomUUID();
@@ -339,16 +336,6 @@ const createIntegrationFixture = async (
     `insert into users (id, cognito_sub, email, role, status, mfa_enrolled_at)
      values ($1, $2, $3, 'ADMIN', 'ACTIVE', now())`,
     [actorUserId, `task8-${actorUserId}`, `task8-${actorUserId}@example.com`],
-  );
-  await pool.query(
-    `insert into media_assets (
-       id, kind, storage_key, declared_mime_type, declared_size_bytes,
-       declared_sha256, mime_type, size_bytes, sha256, status, ready_at
-     ) values (
-       $1, 'AUDIO', $2, 'audio/mpeg', 1, $3,
-       'audio/mpeg', 1, $3, 'READY', now()
-     )`,
-    [mediaAssetId, `audio/${mediaAssetId}`, 'a'.repeat(64)],
   );
   await pool.query(
     `insert into vocabularies (id, thai, normalized_thai, kind, status)
@@ -363,9 +350,8 @@ const createIntegrationFixture = async (
   );
   await pool.query(
     `insert into vocabulary_pronunciations (
-       id, vocabulary_id, pronunciation_ko, tone_marks, media_asset_id
-     ) values ($1, $2, '기존 발음', '-', $3)`,
-    [pronunciationId, vocabularyId, mediaAssetId],
+       id, vocabulary_id, pronunciation_ko, tone_marks) values ($1, $2, '기존 발음', '-')`,
+    [pronunciationId, vocabularyId],
   );
   await pool.query(
     `insert into vocabulary_meaning_pronunciations (
@@ -375,7 +361,6 @@ const createIntegrationFixture = async (
   );
   return {
     actorUserId,
-    mediaAssetId,
     meaningId,
     pronunciationId,
     vocabularyId,
@@ -400,7 +385,6 @@ const replacementInput = (
       clientRef: 'pronunciation',
       pronunciationKo: '새 발음',
       toneMarks: '-',
-      mediaAssetId: fixture.mediaAssetId,
     },
   ],
   meaningPronunciations: [
@@ -532,9 +516,8 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       await pool.query(
         `insert into thai_sentence_versions (
            id, sentence_id, version, original_text, translation_ko,
-           pronunciation_ko, tone_marks, media_asset_id
-         ) values ($1, $2, 1, 'ก', '뜻', '꺼', '-', $3)`,
-        [sentenceVersionId, sentenceId, fixture.mediaAssetId],
+           pronunciation_ko, tone_marks) values ($1, $2, 1, 'ก', '뜻', '꺼', '-')`,
+        [sentenceVersionId, sentenceId],
       );
       await pool.query(
         `insert into token_occurrences (
@@ -594,9 +577,8 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       await pool.query(
         `insert into thai_sentence_versions (
            id, sentence_id, version, original_text, translation_ko,
-           pronunciation_ko, tone_marks, media_asset_id
-         ) values ($1, $2, 1, 'กข', '뜻', '꺼커', '--', $3)`,
-        [sentenceVersionId, sentenceId, fixture.mediaAssetId],
+           pronunciation_ko, tone_marks) values ($1, $2, 1, 'กข', '뜻', '꺼커', '--')`,
+        [sentenceVersionId, sentenceId],
       );
       await pool.query(
         `insert into expression_occurrences (
@@ -635,9 +617,8 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       await pool.query(
         `insert into thai_sentence_versions (
            id, sentence_id, version, original_text, translation_ko,
-           pronunciation_ko, tone_marks, media_asset_id
-         ) values ($1, $2, 1, 'ก', '뜻', '꺼', '-', $3)`,
-        [sentenceVersionId, sentenceId, fixture.mediaAssetId],
+           pronunciation_ko, tone_marks) values ($1, $2, 1, 'ก', '뜻', '꺼', '-')`,
+        [sentenceVersionId, sentenceId],
       );
       const saveClient = await pool.connect();
       try {

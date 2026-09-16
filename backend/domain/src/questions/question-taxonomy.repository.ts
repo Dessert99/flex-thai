@@ -1,7 +1,6 @@
 /** 문제 분류 설정의 불변 버전과 taxonomy 저장 port를 정의한다 */
 import type {
   QuestionBlockKind,
-  QuestionDisplayMode,
   QuestionTemplate,
 } from './question-version.js';
 
@@ -35,14 +34,12 @@ interface ApprovedExampleSentence {
   translationKo: string;
   pronunciationKo: string;
   toneMarks: string;
-  mediaAssetId: string | null;
   tokens: ApprovedExampleToken[];
   expressions: ApprovedExampleExpression[];
 }
 
 interface ApprovedExampleBlock {
   kind: QuestionBlockKind;
-  displayMode: QuestionDisplayMode;
   sentences: Array<{
     speaker?: string | null | undefined;
     sentence: ApprovedExampleSentence;
@@ -68,11 +65,8 @@ type ApprovedExampleOption =
       };
     };
 
-/** FLEX 시험의 고정 7대 문제 분류 */
+/** FLEX 읽기 영역의 네 가지 문제 분류 */
 export type QuestionMajorCategory =
-  | 'LISTENING_RESPONSE'
-  | 'LISTENING_DIALOGUE'
-  | 'LISTENING_PASSAGE'
   | 'READING_VOCABULARY_GRAMMAR'
   | 'READING_SYNONYM_RELATION'
   | 'READING_ERROR_IDENTIFICATION'
@@ -122,7 +116,7 @@ export interface CreateQuestionTypeInput {
   slug: string;
   displayName: string;
   majorCategory: QuestionMajorCategory;
-  skill: 'READING' | 'LISTENING';
+  skill: 'READING';
 }
 
 /** 새 유형 버전의 불변 설정 */

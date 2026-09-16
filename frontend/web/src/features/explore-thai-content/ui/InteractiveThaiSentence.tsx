@@ -1,11 +1,9 @@
-/** 태국어 문장의 단어·표현 피드백과 음성을 상호작용 형태로 제공한다 */
 import type {
   PublicThaiSentence,
   ThaiExpressionFeedback,
 } from '@flex-thia/contracts';
 import { useState } from 'react';
 import { segmentThaiSentence } from '../model/segmentThaiSentence';
-import { useThaiAudioPlayback } from '../model/useThaiAudioPlayback';
 import { ThaiFeedbackTrigger, type ThaiFeedback } from './ThaiFeedbackTrigger';
 
 interface InteractiveThaiSentenceProps {
@@ -21,11 +19,9 @@ export function InteractiveThaiSentence({
   const [selectedFeedback, setSelectedFeedback] = useState<ThaiFeedback | null>(
     null,
   );
-  const { playAudio, playbackError } = useThaiAudioPlayback();
 
-  const activateFeedback = async (feedback: ThaiFeedback) => {
+  const activateFeedback = (feedback: ThaiFeedback) => {
     setSelectedFeedback(feedback);
-    await playAudio(feedback.audioUrl);
   };
 
   return (
@@ -82,14 +78,6 @@ export function InteractiveThaiSentence({
           </div>
         </dl>
       )}
-      {playbackError === null ? null : (
-        <p
-          role='status'
-          aria-live='polite'
-        >
-          {playbackError}
-        </p>
-      )}
     </div>
   );
 }
@@ -121,7 +109,7 @@ function SentenceTokenTriggers({
       <ThaiFeedbackTrigger
         key={`token-${token.position}`}
         surface={segment.text}
-        label={`${segment.text} 뜻과 발음 듣기`}
+        label={`${segment.text} 뜻과 발음 보기`}
         feedback={token}
         onSelect={onSelect}
         onActivate={onActivate}
@@ -151,7 +139,7 @@ function ExpressionFeedbackTrigger({
   return (
     <ThaiFeedbackTrigger
       surface={surface}
-      label={`표현 ${surface} 뜻과 발음 듣기`}
+      label={`표현 ${surface} 뜻과 발음 보기`}
       feedback={expression}
       onSelect={onSelect}
       onActivate={onActivate}

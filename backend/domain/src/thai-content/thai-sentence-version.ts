@@ -35,7 +35,6 @@ export interface ThaiSentenceVersionInput {
   translationKo: string;
   pronunciationKo: string;
   toneMarks: string;
-  mediaAssetId: string | null;
   tokens: ThaiTokenOccurrenceInput[];
   expressions: ThaiExpressionOccurrenceInput[];
 }

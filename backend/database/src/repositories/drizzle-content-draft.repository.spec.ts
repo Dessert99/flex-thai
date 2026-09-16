@@ -1,5 +1,4 @@
 /** canonical 콘텐츠 draft의 insert 순서·오류 변환·transaction 경계를 고정한다 */
-import { randomUUID } from 'node:crypto';
 import { DatabaseErrorException } from '@aws-sdk/client-rds-data';
 import type {
   CanonicalDraftSentenceInput,
@@ -12,15 +11,16 @@ import type {
   ResolvedVocabularyDraftGraph,
 } from '@flex-thia/domain';
 import { ContentDraftService } from '@flex-thia/domain';
-import { drizzle } from 'drizzle-orm/node-postgres';
 import { DrizzleQueryError } from 'drizzle-orm/errors';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import * as schema from '../schema/index.js';
 import {
   auditLogs,
   contentImportItems,
   expressionOccurrences,
-  mediaAssets,
   questionBlocks,
   questionBlockSentences,
   questionOptions,
@@ -35,7 +35,6 @@ import {
   vocabularyMeanings,
   vocabularyPronunciations,
 } from '../schema/index.js';
-import * as schema from '../schema/index.js';
 import {
   ContentDraftPersistenceError,
   DrizzleContentDraftRepository,
@@ -50,7 +49,6 @@ const ids = {
   actor: '00000000-0000-4000-8000-000000000001',
   import: '00000000-0000-4000-8000-000000000002',
   item: '00000000-0000-4000-8000-000000000003',
-  media: '00000000-0000-4000-8000-000000000004',
   vocabulary: '00000000-0000-4000-8000-000000000005',
   meaning: '00000000-0000-4000-8000-000000000006',
   pronunciation: '00000000-0000-4000-8000-000000000007',
@@ -97,7 +95,6 @@ const vocabularyGraph: ResolvedVocabularyDraftGraph = {
       vocabularyId: ids.vocabulary,
       pronunciationKo: '싸왓디',
       toneMarks: 'LHL',
-      mediaAssetId: ids.media,
     },
   ],
   meaningPronunciations: [
@@ -170,7 +167,6 @@ const questionGraph: ResolvedQuestionDraftGraph = {
         translationKo: '질문',
         pronunciationKo: '꺼',
         toneMarks: '-',
-        mediaAssetId: ids.media,
         frozenAt: null,
       },
       tokens: [
@@ -213,7 +209,6 @@ const questionGraph: ResolvedQuestionDraftGraph = {
         translationKo: '오답',
         pronunciationKo: '커',
         toneMarks: '-',
-        mediaAssetId: ids.media,
         frozenAt: null,
       },
       tokens: [],
@@ -229,7 +224,6 @@ const questionGraph: ResolvedQuestionDraftGraph = {
         translationKo: '정답',
         pronunciationKo: '커',
         toneMarks: '-',
-        mediaAssetId: ids.media,
         frozenAt: null,
       },
       tokens: [],
@@ -241,7 +235,6 @@ const questionGraph: ResolvedQuestionDraftGraph = {
       id: ids.block,
       questionVersionId: ids.questionVersion,
       kind: 'QUESTION',
-      displayMode: 'TEXT_AND_AUDIO',
       position: 0,
       sentences: [
         {
@@ -495,75 +488,6 @@ describe('DrizzleContentDraftRepository 어휘 저장', () => {
     expect(fake.inserts).toHaveLength(1);
   });
 
-  it('normalized 어휘와 media 존재를 같은 transaction의 current row에서 다시 확인한다', async () => {
-    const readyAt = new Date('2026-07-24T00:00:00.000Z');
-    const fake = createLookupDatabase([
-      [{ id: ids.vocabulary }],
-      [
-        {
-          id: ids.media,
-          kind: 'AUDIO',
-          storageKey: `audio/${ids.media}`,
-          declaredMimeType: 'audio/mpeg',
-          declaredSizeBytes: 3,
-          declaredSha256: 'a'.repeat(64),
-          mimeType: 'audio/mpeg',
-          sizeBytes: 3,
-          sha256: 'a'.repeat(64),
-          status: 'READY',
-          readyAt,
-          createdAt: readyAt,
-        },
-      ],
-    ]);
-    const repository = new DrizzleContentDraftRepository(
-      fake.database as never,
-    );
-
-    const result = await repository.runInTransaction(async (transaction) => ({
-      duplicateId: await transaction.findVocabularyByNormalizedThai('สวัสดี'),
-      media: await transaction.findMediaAssetById(ids.media),
-    }));
-
-    expect(result).toEqual({
-      duplicateId: ids.vocabulary,
-      media: {
-        id: ids.media,
-        kind: 'AUDIO',
-        storageKey: `audio/${ids.media}`,
-        declaredMimeType: 'audio/mpeg',
-        declaredSizeBytes: 3,
-        declaredSha256: 'a'.repeat(64),
-        mimeType: 'audio/mpeg',
-        sizeBytes: 3,
-        sha256: 'a'.repeat(64),
-        status: 'READY',
-        readyAt,
-      },
-    });
-    expect(fake.selectedTables).toEqual([vocabularies, mediaAssets]);
-    expect(fake.lockModes).toEqual(['key share', 'key share']);
-  });
-
-  it('저장 직전 사라진 pronunciation media FK를 stable reference 오류로 변환한다', async () => {
-    const fake = createFakeDatabase({
-      table: vocabularyPronunciations,
-      error: {
-        code: '23503',
-        constraint:
-          'vocabulary_pronunciations_media_asset_id_media_assets_id_fk',
-      },
-    });
-    const repository = new DrizzleContentDraftRepository(
-      fake.database as never,
-    );
-
-    await expect(saveVocabulary(repository)).rejects.toMatchObject({
-      code: 'IMPORT_REFERENCE_NOT_FOUND',
-      path: 'pronunciations.mediaAssetId',
-    });
-  });
-
   it('동시 같은 import item 충돌을 stable persistence 오류로 변환한다', async () => {
     const fake = createFakeDatabase({
       table: contentImportItems,
@@ -684,7 +608,6 @@ describe('DrizzleContentDraftRepository 문제 저장', () => {
         {
           id: ids.pronunciation,
           vocabularyId: ids.vocabulary,
-          mediaAssetId: ids.media,
         },
       ],
       [
@@ -741,7 +664,6 @@ describe('DrizzleContentDraftRepository 문제 저장', () => {
     expect(result.pronunciation).toEqual({
       id: ids.pronunciation,
       vocabularyId: ids.vocabulary,
-      mediaAssetId: ids.media,
     });
     expect(result.typeVersion).toEqual({
       id: ids.questionTypeVersion,
@@ -767,12 +689,6 @@ describe('DrizzleContentDraftRepository 문제 저장', () => {
   });
 
   it.each([
-    {
-      table: thaiSentenceVersions,
-      constraint: 'thai_sentence_versions_media_asset_id_media_assets_id_fk',
-      code: 'IMPORT_REFERENCE_NOT_FOUND',
-      path: 'sentences.mediaAssetId',
-    },
     {
       table: questionVersions,
       constraint:
@@ -860,15 +776,6 @@ describe('DrizzleContentDraftRepository Aurora Data API 오류 변환', () => {
       constraintKind: 'unique',
       code: 'CONTENT_DRAFT_ITEM_CONFLICT',
       operation: 'saveVocabularyDraft',
-    },
-    {
-      table: vocabularyPronunciations,
-      saveKind: 'VOCABULARY',
-      sqlState: '23503',
-      constraint: 'vocabulary_pronunciations_media_asset_id_media_assets_id_fk',
-      constraintKind: 'foreign key',
-      code: 'IMPORT_REFERENCE_NOT_FOUND',
-      path: 'pronunciations.mediaAssetId',
     },
     {
       table: tokenOccurrences,
@@ -1105,7 +1012,6 @@ const integrationDatabaseUrl =
 
 interface IntegrationFixture {
   importId: string;
-  mediaId: string;
   repository: DrizzleContentDraftRepository;
   typeSlug: string;
   typeVersionId: string;
@@ -1118,12 +1024,10 @@ const createIntegrationFixture = async (
 ): Promise<IntegrationFixture> => {
   const userId = randomUUID();
   const importId = randomUUID();
-  const mediaId = randomUUID();
   const typeId = randomUUID();
   const typeVersionId = randomUUID();
   const typeSlug = `standard-${randomUUID()}`;
   const wordText = `ก${randomUUID().replaceAll('-', '')}`;
-  const sha256 = 'a'.repeat(64);
 
   await pool.query(
     `insert into users (id, cognito_sub, email, role, status)
@@ -1136,13 +1040,6 @@ const createIntegrationFixture = async (
        vocabulary_count, question_count
      ) values ($1, $2, $3, $4, 1, 1)`,
     [importId, userId, randomUUID(), 'a'.repeat(64)],
-  );
-  await pool.query(
-    `insert into media_assets (
-       id, storage_key, declared_mime_type, declared_size_bytes,
-       declared_sha256, mime_type, size_bytes, sha256, status, ready_at
-     ) values ($1, $2, 'audio/mpeg', 3, $3, 'audio/mpeg', 3, $3, 'READY', now())`,
-    [mediaId, `audio/${mediaId}`, sha256],
   );
   await pool.query(
     `insert into question_types (id, slug, display_name, skill)
@@ -1158,7 +1055,6 @@ const createIntegrationFixture = async (
 
   return {
     importId,
-    mediaId,
     repository: new DrizzleContentDraftRepository(
       drizzle({ client: pool, schema }),
     ),
@@ -1178,7 +1074,6 @@ const integrationContext = (fixture: IntegrationFixture) => ({
 
 const integrationVocabularyCommand = (
   fixture: IntegrationFixture,
-  mediaAssetId = fixture.mediaId,
 ): CreateVocabularyDraftCommand => ({
   importId: fixture.importId,
   sourceIndex: 0,
@@ -1199,7 +1094,6 @@ const integrationVocabularyCommand = (
         clientRef: 'toString',
         pronunciationKo: '통합 발음',
         toneMarks: '-',
-        mediaAssetId,
       },
     ],
   },
@@ -1212,7 +1106,6 @@ const integrationSentence = (
   translationKo: '통합 문장',
   pronunciationKo: '통합 발음',
   toneMarks: '-',
-  mediaAssetId: fixture.mediaId,
   tokens: [
     {
       surface: fixture.wordText,
@@ -1243,7 +1136,6 @@ const integrationQuestionCommand = (
     blocks: [
       {
         kind: 'QUESTION',
-        displayMode: 'TEXT_AND_AUDIO',
         sentences: [{ sentence: integrationSentence(fixture) }],
       },
     ],
@@ -1288,7 +1180,6 @@ const createCrossOwnershipGraph = (
         translationKo: '교차 참조',
         pronunciationKo: '교차 참조',
         toneMarks: '-',
-        mediaAssetId: fixture.mediaId,
         frozenAt: null,
       },
       tokens: withToken
@@ -1342,7 +1233,6 @@ const createCrossOwnershipGraph = (
         id: blockId,
         questionVersionId,
         kind: 'QUESTION',
-        displayMode: 'TEXT_AND_AUDIO',
         position: 0,
         sentences: [
           {
@@ -1487,73 +1377,6 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       ]);
     });
 
-    it('missing media와 type 실패는 stable 오류만 남기고 해당 draft graph를 남기지 않는다', async () => {
-      const fixture = await createIntegrationFixture(pool);
-      const service = new ContentDraftService(fixture.repository);
-      const vocabulariesBefore = await pool.query<{ count: string }>(
-        `select count(*) from vocabularies`,
-      );
-
-      await expect(
-        service.createVocabularyItem(
-          integrationVocabularyCommand(fixture, randomUUID()),
-        ),
-      ).rejects.toMatchObject({
-        code: 'IMPORT_REFERENCE_NOT_FOUND',
-        path: 'pronunciations.0.mediaAssetId',
-      });
-      const vocabulariesAfterFailure = await pool.query<{ count: string }>(
-        `select count(*) from vocabularies`,
-      );
-      expect(vocabulariesAfterFailure.rows[0]?.count).toBe(
-        vocabulariesBefore.rows[0]?.count,
-      );
-      const vocabulary = await service.createVocabularyItem(
-        integrationVocabularyCommand(fixture),
-      );
-      const questionsBefore = await pool.query<{ count: string }>(
-        `select count(*) from questions`,
-      );
-      await expect(
-        service.createQuestionItem(
-          integrationQuestionCommand(fixture, `missing-${randomUUID()}`),
-        ),
-      ).rejects.toMatchObject({
-        code: 'IMPORT_QUESTION_TYPE_NOT_FOUND',
-        path: 'questionTypeSlug',
-      });
-      const missingReferenceCommand = integrationQuestionCommand(fixture);
-      missingReferenceCommand.input.blocks[0]!.sentences[0]!.sentence.tokens[0]!.vocabulary =
-        { clientRef: `missing-${randomUUID()}` };
-      await expect(
-        service.createQuestionItem(missingReferenceCommand),
-      ).rejects.toMatchObject({
-        code: 'IMPORT_REFERENCE_NOT_FOUND',
-        path: 'blocks.0.sentences.0.sentence.tokens.0.vocabulary',
-      });
-      const questionsAfterFailure = await pool.query<{ count: string }>(
-        `select count(*) from questions`,
-      );
-      expect(questionsAfterFailure.rows[0]?.count).toBe(
-        questionsBefore.rows[0]?.count,
-      );
-
-      const counts = await pool.query<{
-        questionItems: string;
-        vocabularies: string;
-      }>(
-        `select
-           (select count(*) from content_import_items
-             where import_id = $1 and kind = 'QUESTION') "questionItems",
-           (select count(*) from vocabularies where id = $2) "vocabularies"`,
-        [fixture.importId, vocabulary.targetId],
-      );
-      expect(counts.rows[0]).toEqual({
-        questionItems: '0',
-        vocabularies: '1',
-      });
-    });
-
     it('동시 같은 question item은 graph와 item을 각각 하나만 commit한다', async () => {
       const fixture = await createIntegrationFixture(pool);
       const service = new ContentDraftService(fixture.repository);
@@ -1613,9 +1436,8 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       );
       await pool.query(
         `insert into vocabulary_pronunciations (
-           id, vocabulary_id, pronunciation_ko, tone_marks, media_asset_id
-         ) values ($1, $2, '다른 발음', '-', $3)`,
-        [otherPronunciationId, otherVocabularyId, fixture.mediaId],
+           id, vocabulary_id, pronunciation_ko, tone_marks) values ($1, $2, '다른 발음', '-')`,
+        [otherPronunciationId, otherVocabularyId],
       );
       const correctMeaningId = vocabulary.referenceMap['__proto__']!;
       const correctPronunciationId = vocabulary.referenceMap['toString']!;

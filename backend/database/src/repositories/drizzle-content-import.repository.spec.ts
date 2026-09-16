@@ -1,5 +1,4 @@
 /** 콘텐츠 가져오기 claim·REJECTED 저장·최초 완료 audit transaction을 고정한다 */
-import { randomUUID } from 'node:crypto';
 import type {
   CompleteContentImportInput,
   ContentImportRecord,
@@ -14,14 +13,15 @@ import {
   type ContentImportRequest,
 } from '@flex-thia/domain';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import * as schema from '../schema/index.js';
 import {
   auditLogs,
   contentImportItems,
   contentImports,
 } from '../schema/index.js';
-import * as schema from '../schema/index.js';
 import { DrizzleContentDraftRepository } from './drizzle-content-draft.repository.js';
 import {
   ContentImportPersistenceError,
@@ -366,23 +366,15 @@ const createIntegrationFixture = async (
   questionCount = 1,
 ): Promise<IntegrationFixture> => {
   const userId = randomUUID();
-  const mediaId = randomUUID();
   const typeId = randomUUID();
   const typeVersionId = randomUUID();
   const idempotencyKey = randomUUID();
   const typeSlug = `task6-${randomUUID()}`;
-  const sha256 = 'a'.repeat(64);
+
   await pool.query(
     `insert into users (id, cognito_sub, email, role, status)
      values ($1, $2, $3, 'ADMIN', 'ACTIVE')`,
     [userId, `task6-${userId}`, `${userId}@example.com`],
-  );
-  await pool.query(
-    `insert into media_assets (
-       id, storage_key, declared_mime_type, declared_size_bytes,
-       declared_sha256, mime_type, size_bytes, sha256, status, ready_at
-     ) values ($1, $2, 'audio/mpeg', 3, $3, 'audio/mpeg', 3, $3, 'READY', now())`,
-    [mediaId, `audio/${mediaId}`, sha256],
   );
   await pool.query(
     `insert into question_types (id, slug, display_name, skill)
@@ -400,7 +392,6 @@ const createIntegrationFixture = async (
     translationKo: '뜻',
     pronunciationKo: '꺼',
     toneMarks: '-',
-    mediaAssetId: mediaId,
     tokens: [],
     expressions: [],
   };
@@ -414,7 +405,6 @@ const createIntegrationFixture = async (
       blocks: [
         {
           kind: 'QUESTION' as const,
-          displayMode: 'TEXT' as const,
           sentences: [{ sentence }],
         },
       ],

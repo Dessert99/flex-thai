@@ -1,10 +1,10 @@
-/** 정적 파일과 media가 S3 URL로 직접 공개되지 않게 고정한다 */
+/** 정적 파일의 CloudFront 전송 경계를 검증한다 */
+import { App } from 'aws-cdk-lib';
+import { Match, Template } from 'aws-cdk-lib/assertions';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runInNewContext } from 'node:vm';
-import { App } from 'aws-cdk-lib';
-import { Match, Template } from 'aws-cdk-lib/assertions';
 import { afterAll, describe, expect, it } from 'vitest';
 import { readInfrastructureConfig } from '../src/config.js';
 import { DataStack } from '../src/data-stack.js';
@@ -16,9 +16,6 @@ const config = readInfrastructureConfig({
   hostedZoneId: 'Z0123456789EXAMPLE',
   alertEmail: 'owner@example.com',
   githubRepository: 'Dessert99/flex-thai',
-  ttsVoicePresetId: '00000000-0000-4000-8000-000000000777',
-  mediaPublicKeyPem:
-    '-----BEGIN PUBLIC KEY-----\ndGVzdA==\n-----END PUBLIC KEY-----',
 });
 
 const webAssetPath = mkdtempSync(join(tmpdir(), 'flex-thia-web-'));
@@ -122,7 +119,7 @@ describe('EdgeStack 웹 전송 경계', () => {
         RestrictPublicBuckets: true,
       },
     });
-    template.resourceCountIs('AWS::CloudFront::OriginAccessControl', 2);
+    template.resourceCountIs('AWS::CloudFront::OriginAccessControl', 1);
     template.hasResourceProperties('AWS::CloudFront::Distribution', {
       DistributionConfig: Match.objectLike({
         ViewerCertificate: Match.anyValue(),
@@ -150,20 +147,12 @@ describe('EdgeStack 웹 전송 경계', () => {
     template.hasResourceProperties('AWS::CloudFront::Distribution', {
       DistributionConfig: Match.objectLike({
         Aliases: Match.arrayWith(['example.com', 'www.example.com']),
-        CacheBehaviors: Match.arrayWith([
-          Match.objectLike({
-            PathPattern: '/media/*',
-            TrustedKeyGroups: Match.anyValue(),
-            FunctionAssociations: Match.anyValue(),
-          }),
-        ]),
         DefaultCacheBehavior: Match.objectLike({
           FunctionAssociations: Match.anyValue(),
         }),
       }),
     });
-    template.resourceCountIs('AWS::CloudFront::PublicKey', 1);
-    template.resourceCountIs('AWS::CloudFront::KeyGroup', 1);
+
     template.resourceCountIs('AWS::Route53::RecordSet', 4);
     for (const [name, type] of [
       ['example.com.', 'A'],

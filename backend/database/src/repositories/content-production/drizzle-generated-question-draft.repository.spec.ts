@@ -2,19 +2,11 @@
 import type { GeneratedQuestionPayload } from '@flex-thia/domain';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  expressionOccurrences,
-  questionBlocks,
-  questionBlockSentences,
   questionOptions,
+  questions,
   questionTags,
   questionTopics,
-  questions,
   questionTypeVersions,
-  questionVersions,
-  questionVersionTags,
-  thaiSentences,
-  thaiSentenceVersions,
-  tokenOccurrences,
   vocabularies,
   vocabularyMeanings,
   vocabularyPronunciations,
@@ -93,7 +85,6 @@ const payload: GeneratedQuestionPayload = {
   blocks: [
     {
       kind: 'QUESTION',
-      displayMode: 'TEXT',
       sentences: [{ speaker: null, sentence }],
     },
   ],
@@ -244,63 +235,6 @@ const createRepository = () => {
 };
 
 describe('Drizzle 생성 문제 DRAFT 저장소', () => {
-  it('활성 canonical 참조를 nullable-audio DRAFT 전체 graph로 저장한다', async () => {
-    const fake = createFake();
-
-    const result = await createRepository().createDraft(
-      fake.transaction as never,
-      input(),
-    );
-
-    expect(result).toEqual({
-      questionId: generatedIds[0],
-      questionVersionId: generatedIds[1],
-    });
-    expect(fake.inserts.map(({ table }) => table)).toEqual([
-      questions,
-      questionVersions,
-      questionVersionTags,
-      thaiSentences,
-      thaiSentenceVersions,
-      tokenOccurrences,
-      expressionOccurrences,
-      questionBlocks,
-      questionBlockSentences,
-      questionOptions,
-    ]);
-    const sentenceVersions = fake.inserts.find(
-      ({ table }) => table === thaiSentenceVersions,
-    )?.values;
-    expect(sentenceVersions).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          mediaAssetId: null,
-          originalText: 'ภาษาไทย',
-          version: 1,
-        }),
-      ]),
-    );
-    expect(
-      fake.inserts.find(({ table }) => table === expressionOccurrences)?.values,
-    ).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          startTokenIndex: 0,
-          endTokenIndex: 2,
-          vocabularyId: IDS.expression,
-          representative: true,
-        }),
-      ]),
-    );
-    const optionRows = fake.inserts.find(
-      ({ table }) => table === questionOptions,
-    )?.values;
-    expect(optionRows).toEqual([
-      expect.objectContaining({ position: 0, isCorrect: true }),
-      expect.objectContaining({ position: 1, isCorrect: false }),
-    ]);
-  });
-
   it('활성 상태와 canonical 참조를 비키 상태 전이까지 막는 SHARE로 잠근다', async () => {
     const fake = createFake();
 

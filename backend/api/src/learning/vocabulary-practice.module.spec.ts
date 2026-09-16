@@ -15,7 +15,6 @@ describe('VocabularyPracticeModule 조립', () => {
   it('Controller·service·인증 guard 의존성을 독립 등록한다', () => {
     const options = {
       practice: {} as never,
-      mediaReadUrls: {} as never,
       users: {} as never,
       authorizer: {} as never,
     };

@@ -1,5 +1,3 @@
-/** 문제 버전 게시·무효화와 문제 노출 상태를 한 transaction으로 전이한다 */
-import { assertContentTtsReady } from '../media/tts-job.js';
 import {
   type QuestionPublicationRepository,
   type QuestionPublicationTransaction,
@@ -152,13 +150,6 @@ export class QuestionPublicationService {
         if (version.status !== 'DRAFT') {
           throw new QuestionPublicationError('IMMUTABLE_VERSION');
         }
-
-        assertContentTtsReady(
-          await transaction.listRequiredTargets({
-            questionId: question.id,
-            versionId: version.id,
-          }),
-        );
         const report = await validateInTransaction(
           transaction,
           version.id,

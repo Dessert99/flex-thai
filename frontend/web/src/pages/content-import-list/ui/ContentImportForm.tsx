@@ -1,16 +1,15 @@
 /** canonical JSON 파일·텍스트 검증과 논리적 제출 명령 수명을 관리한다 */
-import {
-  contentImportRequestSchema,
-  type ContentImportRequest,
-} from '@flex-thia/contracts';
-import { type ChangeEvent, type FormEvent, useState } from 'react';
-import { AudioUploadField } from '@/features/upload-audio';
 import { isApiError } from '@/shared/api';
 import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
 import { Textarea } from '@/shared/ui/textarea';
+import {
+  contentImportRequestSchema,
+  type ContentImportRequest,
+} from '@flex-thia/contracts';
+import { useState, type ChangeEvent, type FormEvent } from 'react';
 import type { ContentImportCommand } from '../api/contentImportQueries';
 
 interface ContentImportFormProps {
@@ -31,7 +30,6 @@ export function ContentImportForm({
 }: ContentImportFormProps) {
   const [source, setSource] = useState('');
   const [issues, setIssues] = useState<string[]>([]);
-  const [readyAudioId, setReadyAudioId] = useState<string>();
   const [failedCommand, setFailedCommand] =
     useState<ContentImportCommand | null>(null);
 
@@ -71,15 +69,6 @@ export function ContentImportForm({
       className='grid gap-cluster rounded-panel border border-default bg-surface p-page'
       onSubmit={submitNewCommand}
     >
-      <div className='grid gap-cluster'>
-        <h2 className='text-title text-primary'>음성 자산 준비</h2>
-        <AudioUploadField onReady={setReadyAudioId} />
-        {readyAudioId === undefined ? null : (
-          <p className='text-body text-subtle'>
-            준비된 mediaAssetId: <code>{readyAudioId}</code>
-          </p>
-        )}
-      </div>
       <div className='grid gap-cluster'>
         <Label htmlFor='content-import-file'>JSON 파일</Label>
         <Input

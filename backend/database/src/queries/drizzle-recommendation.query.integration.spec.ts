@@ -1,6 +1,6 @@
 /** 실제 PostgreSQL에서 추천 distinct 신호·상태 제외·표현 overlap을 검증한다 */
-import { randomUUID } from 'node:crypto';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { randomUUID } from 'node:crypto';
 import { Pool, type PoolClient } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import * as schema from '../schema/index.js';
@@ -22,7 +22,6 @@ interface QuestionFixture {
 
 const insertVocabulary = async (
   client: PoolClient,
-  mediaId: string,
   label: string,
   kind: 'WORD' | 'EXPRESSION',
   status: 'PUBLISHED' | 'HIDDEN',
@@ -45,9 +44,8 @@ const insertVocabulary = async (
   );
   await client.query(
     `insert into vocabulary_pronunciations (
-       id, vocabulary_id, pronunciation_ko, tone_marks, media_asset_id
-     ) values ($1, $2, $3, 'M', $4)`,
-    [pronunciationId, id, `발음-${label}`, mediaId],
+       id, vocabulary_id, pronunciation_ko, tone_marks) values ($1, $2, $3, 'M')`,
+    [pronunciationId, id, `발음-${label}`],
   );
   return { id, meaningId, pronunciationId };
 };
@@ -90,7 +88,6 @@ const insertQuestion = async (
 
 const attachTargetVocabulary = async (
   client: PoolClient,
-  mediaId: string,
   questionVersionId: string,
   vocabulary: VocabularyFixture,
   label: string,
@@ -104,14 +101,14 @@ const attachTargetVocabulary = async (
   await client.query(
     `insert into thai_sentence_versions (
        id, sentence_id, version, original_text, translation_ko,
-       pronunciation_ko, tone_marks, media_asset_id, frozen_at
-     ) values ($1, $2, 1, $3, $3, $3, 'M', $4, now())`,
-    [sentenceVersionId, sentenceId, label, mediaId],
+       pronunciation_ko, tone_marks, frozen_at
+     ) values ($1, $2, 1, $3, $3, $3, 'M', now())`,
+    [sentenceVersionId, sentenceId, label],
   );
   await client.query(
     `insert into question_blocks (
-       id, question_version_id, kind, display_mode, position
-     ) values ($1, $2, 'QUESTION', 'TEXT', 0)`,
+       id, question_version_id, kind, position
+     ) values ($1, $2, 'QUESTION', 0)`,
     [blockId, questionVersionId],
   );
   await client.query(
@@ -158,7 +155,6 @@ describe.runIf(databaseUrl !== undefined)(
 
       try {
         const userId = randomUUID();
-        const mediaId = randomUUID();
         const baseSentenceId = randomUUID();
         const baseSentenceVersionId = randomUUID();
         const typeId = randomUUID();
@@ -168,22 +164,15 @@ describe.runIf(databaseUrl !== undefined)(
            values ($1, $2, $3)`,
           [userId, `recommendation-${userId}`, `${userId}@example.com`],
         );
-        await client.query(
-          `insert into media_assets (
-             id, storage_key, declared_mime_type, declared_size_bytes,
-             declared_sha256, mime_type, size_bytes, sha256, status, ready_at
-           ) values ($1, $2, 'audio/mpeg', 1, $3, 'audio/mpeg', 1, $3, 'READY', now())`,
-          [mediaId, `recommendations/${mediaId}.mp3`, 'a'.repeat(64)],
-        );
         await client.query(`insert into thai_sentences (id) values ($1)`, [
           baseSentenceId,
         ]);
         await client.query(
           `insert into thai_sentence_versions (
              id, sentence_id, version, original_text, translation_ko,
-             pronunciation_ko, tone_marks, media_asset_id, frozen_at
-           ) values ($1, $2, 1, 'ตัวเลือก', '선택지', '선택지', 'M', $3, now())`,
-          [baseSentenceVersionId, baseSentenceId, mediaId],
+             pronunciation_ko, tone_marks, frozen_at
+           ) values ($1, $2, 1, 'ตัวเลือก', '선택지', '선택지', 'M', now())`,
+          [baseSentenceVersionId, baseSentenceId],
         );
         await client.query(
           `insert into question_types (
@@ -201,7 +190,6 @@ describe.runIf(databaseUrl !== undefined)(
 
         const wordbookVocabulary = await insertVocabulary(
           client,
-          mediaId,
           'wordbook',
           'WORD',
           'PUBLISHED',
@@ -209,7 +197,6 @@ describe.runIf(databaseUrl !== undefined)(
         );
         const practiceVocabulary = await insertVocabulary(
           client,
-          mediaId,
           'practice',
           'WORD',
           'PUBLISHED',
@@ -217,7 +204,6 @@ describe.runIf(databaseUrl !== undefined)(
         );
         const targetVocabulary = await insertVocabulary(
           client,
-          mediaId,
           'target',
           'WORD',
           'PUBLISHED',
@@ -225,7 +211,6 @@ describe.runIf(databaseUrl !== undefined)(
         );
         const overlappingExpression = await insertVocabulary(
           client,
-          mediaId,
           'overlap',
           'EXPRESSION',
           'PUBLISHED',
@@ -233,7 +218,6 @@ describe.runIf(databaseUrl !== undefined)(
         );
         const supportingExpression = await insertVocabulary(
           client,
-          mediaId,
           'supporting',
           'EXPRESSION',
           'PUBLISHED',
@@ -241,7 +225,6 @@ describe.runIf(databaseUrl !== undefined)(
         );
         const hiddenVocabulary = await insertVocabulary(
           client,
-          mediaId,
           'hidden',
           'WORD',
           'HIDDEN',
@@ -422,14 +405,14 @@ describe.runIf(databaseUrl !== undefined)(
         await client.query(
           `insert into thai_sentence_versions (
              id, sentence_id, version, original_text, translation_ko,
-             pronunciation_ko, tone_marks, media_asset_id, frozen_at
-           ) values ($1, $2, 1, 'หนึ่งสองสามสี่', '문장', '문장', 'M', $3, now())`,
-          [contentSentenceVersionId, contentSentenceId, mediaId],
+             pronunciation_ko, tone_marks, frozen_at
+           ) values ($1, $2, 1, 'หนึ่งสองสามสี่', '문장', '문장', 'M', now())`,
+          [contentSentenceVersionId, contentSentenceId],
         );
         await client.query(
           `insert into question_blocks (
-             id, question_version_id, kind, display_mode, position
-           ) values ($1, $2, 'QUESTION', 'TEXT', 0)`,
+             id, question_version_id, kind, position
+           ) values ($1, $2, 'QUESTION', 0)`,
           [blockId, vocabularyQuestion.versionId],
         );
         await client.query(
@@ -526,7 +509,6 @@ describe.runIf(databaseUrl !== undefined)(
       try {
         const firstUserId = randomUUID();
         const secondUserId = randomUUID();
-        const mediaId = randomUUID();
         const baseSentenceId = randomUUID();
         const baseSentenceVersionId = randomUUID();
         await client.query(
@@ -541,22 +523,15 @@ describe.runIf(databaseUrl !== undefined)(
             `${secondUserId}@example.com`,
           ],
         );
-        await client.query(
-          `insert into media_assets (
-             id, storage_key, declared_mime_type, declared_size_bytes,
-             declared_sha256, mime_type, size_bytes, sha256, status, ready_at
-           ) values ($1, $2, 'audio/mpeg', 1, $3, 'audio/mpeg', 1, $3, 'READY', now())`,
-          [mediaId, `recommendations/${mediaId}.mp3`, 'b'.repeat(64)],
-        );
         await client.query(`insert into thai_sentences (id) values ($1)`, [
           baseSentenceId,
         ]);
         await client.query(
           `insert into thai_sentence_versions (
              id, sentence_id, version, original_text, translation_ko,
-             pronunciation_ko, tone_marks, media_asset_id, frozen_at
-           ) values ($1, $2, 1, '선택지', '선택지', '선택지', 'M', $3, now())`,
-          [baseSentenceVersionId, baseSentenceId, mediaId],
+             pronunciation_ko, tone_marks, frozen_at
+           ) values ($1, $2, 1, '선택지', '선택지', '선택지', 'M', now())`,
+          [baseSentenceVersionId, baseSentenceId],
         );
 
         const typeAId = randomUUID();
@@ -587,7 +562,6 @@ describe.runIf(databaseUrl !== undefined)(
 
         const attemptedTarget = await insertVocabulary(
           client,
-          mediaId,
           'attempted-x',
           'WORD',
           'PUBLISHED',
@@ -595,7 +569,6 @@ describe.runIf(databaseUrl !== undefined)(
         );
         const currentTarget = await insertVocabulary(
           client,
-          mediaId,
           'current-y',
           'WORD',
           'PUBLISHED',
@@ -603,7 +576,6 @@ describe.runIf(databaseUrl !== undefined)(
         );
         const firstSignalVocabulary = await insertVocabulary(
           client,
-          mediaId,
           'signal-1',
           'WORD',
           'PUBLISHED',
@@ -611,7 +583,6 @@ describe.runIf(databaseUrl !== undefined)(
         );
         const secondSignalVocabulary = await insertVocabulary(
           client,
-          mediaId,
           'signal-2',
           'WORD',
           'PUBLISHED',
@@ -619,7 +590,6 @@ describe.runIf(databaseUrl !== undefined)(
         );
         const thirdSignalVocabulary = await insertVocabulary(
           client,
-          mediaId,
           'signal-3',
           'WORD',
           'PUBLISHED',
@@ -627,7 +597,6 @@ describe.runIf(databaseUrl !== undefined)(
         );
         const hiddenSharedVocabulary = await insertVocabulary(
           client,
-          mediaId,
           'hidden-shared',
           'WORD',
           'HIDDEN',
@@ -643,7 +612,6 @@ describe.runIf(databaseUrl !== undefined)(
         );
         await attachTargetVocabulary(
           client,
-          mediaId,
           attemptedQuestion.versionId,
           attemptedTarget,
           '첫 오답 X',
@@ -676,7 +644,6 @@ describe.runIf(databaseUrl !== undefined)(
         );
         await attachTargetVocabulary(
           client,
-          mediaId,
           currentVersionId,
           currentTarget,
           '현재 게시 Y',
@@ -697,7 +664,6 @@ describe.runIf(databaseUrl !== undefined)(
         );
         await attachTargetVocabulary(
           client,
-          mediaId,
           savedHiddenSource.versionId,
           hiddenSharedVocabulary,
           '숨김 source',
@@ -718,7 +684,6 @@ describe.runIf(databaseUrl !== undefined)(
         );
         await attachTargetVocabulary(
           client,
-          mediaId,
           hiddenSharedTarget.versionId,
           hiddenSharedVocabulary,
           '숨김 target',

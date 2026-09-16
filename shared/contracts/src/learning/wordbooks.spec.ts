@@ -152,10 +152,8 @@ describe('단어장 공개 응답 계약', () => {
             id: ids.pronunciation,
             pronunciationKo: '싸왓디',
             toneMarks: 'L-L-M',
-            audioUrl: 'https://media.example.com/greeting.mp3?Expires=300',
           },
         ],
-        audioEligibleMeaningCount: 1,
         saved: true,
         addedAt: '2026-07-26T00:30:00.000Z',
       },
@@ -187,7 +185,7 @@ describe('단어장 공개 응답 계약', () => {
             pronunciations: [
               {
                 ...response.items[0].pronunciations[0],
-                storageKey: 'private/greeting.mp3',
+                storageKey: 'private/greeting.bin',
               },
             ],
           },

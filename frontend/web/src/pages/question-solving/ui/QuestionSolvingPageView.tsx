@@ -1,21 +1,9 @@
 /** 정답 비노출 문제 상세와 사용자 제어 대본·답안 행동을 조합한다 */
-import type {
-  QuestionDetailResponse,
-  SubmitQuestionAttemptResponse,
-} from '@flex-thia/contracts';
-import { useState } from 'react';
+import { InteractiveThaiSentence } from '@/features/explore-thai-content';
 import { ContentErrorReportDialog } from '@/features/report-content-error';
 import { SubmitAnswerForm } from '@/features/submit-answer';
 import { SavedQuestionButton } from '@/features/toggle-saved-question';
 import { Button } from '@/shared/ui/button';
-import {
-  type QuestionBlockViewModel,
-  toQuestionBlockViewModels,
-} from '../model/questionViewModel';
-import {
-  InteractiveThaiSentence,
-  useThaiAudioPlayback,
-} from '@/features/explore-thai-content';
 import {
   Sheet,
   SheetContent,
@@ -24,6 +12,15 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/shared/ui/sheet';
+import type {
+  QuestionDetailResponse,
+  SubmitQuestionAttemptResponse,
+} from '@flex-thia/contracts';
+import { useState } from 'react';
+import {
+  type QuestionBlockViewModel,
+  toQuestionBlockViewModels,
+} from '../model/questionViewModel';
 
 interface QuestionSolvingPageViewProps {
   detail: QuestionDetailResponse;
@@ -35,12 +32,8 @@ export function QuestionSolvingPageView({
   detail,
   onSavedConfirmed,
 }: QuestionSolvingPageViewProps) {
-  const [transcriptRevealed, setTranscriptRevealed] = useState(false);
   const [submission, setSubmission] = useState<SubmitQuestionAttemptResponse>();
   const blocks = toQuestionBlockViewModels(detail);
-  const hasHiddenTranscript = blocks.some(
-    (block) => block.displayMode === 'AUDIO_THEN_REVEAL',
-  );
 
   return (
     <article className='grid gap-section'>
@@ -74,25 +67,13 @@ export function QuestionSolvingPageView({
         blocks={blocks}
         questionId={detail.questionId}
         questionVersionId={detail.questionVersionId}
-        transcriptRevealed={transcriptRevealed}
       />
-      {hasHiddenTranscript && !transcriptRevealed ? (
-        <Button
-          onClick={() => {
-            setTranscriptRevealed(true);
-          }}
-          type='button'
-          variant='outline'
-        >
-          대본 보기
-        </Button>
-      ) : null}
+
       <SubmitAnswerForm
         inlineSentences={detail.blocks
           .filter((block) => block.kind === 'QUESTION')
           .flatMap((block) => block.sentences.map(({ sentence }) => sentence))}
         onConfirmed={(response) => {
-          setTranscriptRevealed(true);
           setSubmission(response);
         }}
         onReset={() => {
@@ -121,7 +102,6 @@ export function QuestionSolvingPageView({
             blocks={toExplanationBlockViewModels(submission)}
             questionId={detail.questionId}
             questionVersionId={detail.questionVersionId}
-            transcriptRevealed
           />
         </section>
       )}
@@ -137,7 +117,6 @@ function toExplanationBlockViewModels(
     .map((block) => ({
       id: block.id,
       kind: block.kind,
-      displayMode: block.displayMode,
       position: block.position,
       sentences: [...block.sentences].sort(
         (left, right) => left.position - right.position,
@@ -149,7 +128,6 @@ interface QuestionContentProps {
   blocks: readonly QuestionBlockViewModel[];
   questionId: string;
   questionVersionId: string;
-  transcriptRevealed: boolean;
 }
 
 /** 문제 block의 순서와 대본 공개 정책을 보존해 표시한다 */
@@ -157,14 +135,8 @@ function QuestionContent({
   blocks,
   questionId,
   questionVersionId,
-  transcriptRevealed,
 }: QuestionContentProps) {
-  const sentences = blocks.flatMap((block) =>
-    block.displayMode === 'AUDIO_THEN_REVEAL' && !transcriptRevealed
-      ? []
-      : block.sentences,
-  );
-  const { playAudio, playbackError } = useThaiAudioPlayback();
+  const sentences = blocks.flatMap((block) => block.sentences);
 
   return (
     <div className='grid gap-section lg:grid-cols-[minmax(0,1fr)_18rem]'>
@@ -172,17 +144,13 @@ function QuestionContent({
         blocks={blocks}
         questionId={questionId}
         questionVersionId={questionVersionId}
-        transcriptRevealed={transcriptRevealed}
       />
 
       <aside
         aria-label='문장별 주석'
         className='hidden rounded-panel border border-default p-page lg:block'
       >
-        <SentenceAnnotations
-          onPlay={playAudio}
-          sentences={sentences}
-        />
+        <SentenceAnnotations sentences={sentences} />
       </aside>
 
       <div className='lg:hidden'>
@@ -203,22 +171,11 @@ function QuestionContent({
               </SheetDescription>
             </SheetHeader>
             <div className='p-page'>
-              <SentenceAnnotations
-                onPlay={playAudio}
-                sentences={sentences}
-              />
+              <SentenceAnnotations sentences={sentences} />
             </div>
           </SheetContent>
         </Sheet>
       </div>
-      {playbackError === null ? null : (
-        <p
-          role='status'
-          aria-live='polite'
-        >
-          {playbackError}
-        </p>
-      )}
     </div>
   );
 }
@@ -227,7 +184,6 @@ function QuestionBlocks({
   blocks,
   questionId,
   questionVersionId,
-  transcriptRevealed,
 }: QuestionContentProps) {
   return (
     <div className='grid gap-section'>
@@ -251,9 +207,6 @@ function QuestionBlocks({
             triggerLabel='문제 블록 오류 신고'
           />
           {block.sentences.map(({ position, sentence, speaker }) => {
-            const transcriptHidden =
-              block.displayMode === 'AUDIO_THEN_REVEAL' && !transcriptRevealed;
-
             return (
               <div
                 className={
@@ -267,22 +220,14 @@ function QuestionBlocks({
                   <strong className='text-body text-primary'>{speaker}</strong>
                 ) : null}
                 <div className='grid gap-cluster'>
-                  {sentence.audioUrl === null ? null : (
-                    // 계약 대본을 인접 제공하므로 VTT endpoint가 없는 audio 규칙만 제한한다.
-                    // eslint-disable-next-line jsx-a11y/media-has-caption
-                    <audio
-                      controls
-                      src={sentence.audioUrl}
-                    />
-                  )}
-                  {transcriptHidden ? null : (
-                    <>
-                      <InteractiveThaiSentence sentence={sentence} />
-                      <p className='text-body text-subtle'>
-                        {sentence.translationKo}
-                      </p>
-                    </>
-                  )}
+                  (
+                  <>
+                    <InteractiveThaiSentence sentence={sentence} />
+                    <p className='text-body text-subtle'>
+                      {sentence.translationKo}
+                    </p>
+                  </>
+                  )
                 </div>
               </div>
             );
@@ -294,11 +239,10 @@ function QuestionBlocks({
 }
 
 interface SentenceAnnotationsProps {
-  onPlay: (audioUrl: string | null) => Promise<void>;
   sentences: readonly QuestionBlockViewModel['sentences'][number][];
 }
 
-function SentenceAnnotations({ onPlay, sentences }: SentenceAnnotationsProps) {
+function SentenceAnnotations({ sentences }: SentenceAnnotationsProps) {
   return (
     <ol className='grid gap-cluster'>
       {sentences.map(({ sentence }, index) => (
@@ -306,39 +250,13 @@ function SentenceAnnotations({ onPlay, sentences }: SentenceAnnotationsProps) {
           className='grid gap-cluster'
           key={`${sentence.sentenceVersionId}-${index}`}
         >
-          <SentenceAudioButton
-            audioUrl={sentence.audioUrl}
-            label={`${index + 1}번 문장 뜻과 발음 듣기`}
-            onPlay={onPlay}
-          />
+          <p>{index + 1}번 문장</p>
           <p lang='th'>{sentence.originalText}</p>
           <p>{sentence.translationKo}</p>
           <p>{sentence.pronunciationKo}</p>
+          <p>{sentence.toneMarks}</p>
         </li>
       ))}
     </ol>
-  );
-}
-
-function SentenceAudioButton({
-  audioUrl,
-  label,
-  onPlay,
-}: {
-  audioUrl: string | null;
-  label: string;
-  onPlay: (audioUrl: string | null) => Promise<void>;
-}) {
-  return (
-    <Button
-      disabled={audioUrl === null}
-      onClick={() => {
-        void onPlay(audioUrl);
-      }}
-      type='button'
-      variant='ghost'
-    >
-      {label}
-    </Button>
   );
 }

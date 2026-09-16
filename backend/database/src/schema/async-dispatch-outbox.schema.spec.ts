@@ -1,19 +1,9 @@
 /** 공유 비동기 dispatch outbox의 실행 식별자·lease·재시도 무결성을 검증한다 */
 import { getTableConfig } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
-import {
-  asyncDispatchOutbox,
-  asyncDispatchPayloadKindEnum,
-} from './async-dispatch-outbox.schema.js';
+import { asyncDispatchOutbox } from './async-dispatch-outbox.schema.js';
 
 describe('공유 비동기 dispatch outbox schema', () => {
-  it('콘텐츠 제작과 TTS payload kind만 저장한다', () => {
-    expect(asyncDispatchPayloadKindEnum.enumValues).toEqual([
-      'CONTENT_PRODUCTION',
-      'TTS',
-    ]);
-  });
-
   it('실행 단위 idempotency key와 payload kind·job·attempt를 각각 유일하게 한다', () => {
     const uniqueIndexes = getTableConfig(asyncDispatchOutbox)
       .indexes.filter(({ config }) => config.unique)

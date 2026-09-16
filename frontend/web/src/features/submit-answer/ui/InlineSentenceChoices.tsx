@@ -1,11 +1,11 @@
 /** 인라인 선택지를 문제 문장 좌표에 표시하고 토큰 피드백을 제공한다 */
+import { Button } from '@/shared/ui/button';
+import { Input } from '@/shared/ui/input';
 import type {
   PublicThaiSentence,
   SubmitQuestionAttemptResponse,
 } from '@flex-thia/contracts';
-import { useEffect, useRef, useState } from 'react';
-import { Button } from '@/shared/ui/button';
-import { Input } from '@/shared/ui/input';
+import { useState } from 'react';
 import type { SubmitAnswerOption } from './SubmitAnswerForm';
 
 interface InlineSentenceChoicesProps {
@@ -32,7 +32,6 @@ export function InlineSentenceChoices({
   const inlineOptions = options.filter(
     (option): option is InlineOption => option.span !== null,
   );
-  const { playAudio, playbackError } = useInlineAudioPlayback();
   const [feedback, setFeedback] = useState<ThaiFeedback | null>(null);
   if (inlineOptions.length === 0) {
     return null;
@@ -61,7 +60,6 @@ export function InlineSentenceChoices({
                 key={option.id}
                 onActivate={(tokenFeedback) => {
                   setFeedback(tokenFeedback);
-                  void playAudio(tokenFeedback.audioUrl);
                 }}
                 onFeedbackSelect={setFeedback}
                 onSelect={onSelect}
@@ -74,14 +72,6 @@ export function InlineSentenceChoices({
         <p>
           {feedback.contextMeaningKo} · {feedback.pronunciationKo} ·{' '}
           {feedback.toneMarks}
-        </p>
-      )}
-      {playbackError === null ? null : (
-        <p
-          role='status'
-          aria-live='polite'
-        >
-          {playbackError}
         </p>
       )}
     </div>
@@ -113,38 +103,6 @@ function ThaiFeedbackTrigger({
       발음
     </Button>
   );
-}
-
-function useInlineAudioPlayback() {
-  const [playbackError, setPlaybackError] = useState<string | null>(null);
-  const playingAudioRef = useRef<HTMLAudioElement | null>(null);
-
-  useEffect(
-    () => () => {
-      playingAudioRef.current?.pause();
-    },
-    [],
-  );
-
-  const playAudio = async (audioUrl: string | null) => {
-    setPlaybackError(null);
-    if (audioUrl === null) {
-      return;
-    }
-    if (playingAudioRef.current !== null) {
-      playingAudioRef.current.pause();
-      playingAudioRef.current.currentTime = 0;
-    }
-    const audio = new Audio(audioUrl);
-    playingAudioRef.current = audio;
-    try {
-      await audio.play();
-    } catch {
-      setPlaybackError('음성을 재생할 수 없습니다.');
-    }
-  };
-
-  return { playAudio, playbackError };
 }
 
 function InlineOptionRow({
@@ -218,7 +176,7 @@ function InlineOptionRow({
         <ThaiFeedbackTrigger
           feedback={token}
           key={`feedback-${option.id}-${token.position}`}
-          label={`${token.surface} 뜻과 발음 듣기`}
+          label={`${token.surface} 뜻과 발음 보기`}
           onActivate={onActivate}
           onSelect={onFeedbackSelect}
         />

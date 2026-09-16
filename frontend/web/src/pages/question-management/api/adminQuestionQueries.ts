@@ -1,7 +1,7 @@
 /** 관리자 문제 목록의 계약 직렬화와 계층형 Query key를 정의한다 */
+import { authenticatedRequest } from '@/shared/api';
 import { adminQuestionListResponseSchema } from '@flex-thia/contracts';
 import { queryOptions } from '@tanstack/react-query';
-import { authenticatedRequest } from '@/shared/api';
 import type { AdminQuestionSearch } from '../model/adminQuestionSearch';
 
 const filterOrder = [

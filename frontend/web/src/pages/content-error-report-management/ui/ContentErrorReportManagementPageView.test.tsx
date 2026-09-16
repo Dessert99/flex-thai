@@ -34,7 +34,6 @@ const summary = {
     contentVersionId: ids.content,
     questionVersionId: ids.content,
     sentenceVersionId: null,
-    mediaAssetId: null,
     locationId: null,
   },
   snapshot: {
@@ -43,7 +42,6 @@ const summary = {
     secondaryText: null,
     versionLabel: '버전 1',
     locationLabel: '문제 전체',
-    audioAssetId: null,
   },
   createdAt: timestamp,
   updatedAt: timestamp,

@@ -35,7 +35,6 @@ const canonicalSentence: ApprovedExampleSentence = {
   translationKo: '뜻',
   pronunciationKo: '꺼',
   toneMarks: '-',
-  mediaAssetId: '00000000-0000-4000-8000-000000000010',
   tokens: [
     {
       surface: 'ก',
@@ -58,7 +57,6 @@ const standardPayload = (): ApprovedExamplePayload => ({
   blocks: [
     {
       kind: 'QUESTION' as const,
-      displayMode: 'TEXT' as const,
       sentences: [{ speaker: null, sentence: canonicalSentence }],
     },
   ],
@@ -91,16 +89,16 @@ describe('QuestionTaxonomyService', () => {
     const service = new QuestionTaxonomyService(repo);
 
     await service.createQuestionType({
-      slug: 'listening-response',
+      slug: 'reading-response',
       displayName: '반응 테스트',
-      majorCategory: 'LISTENING_RESPONSE',
+      majorCategory: 'READING_VOCABULARY_GRAMMAR',
     });
 
     expect(repo.createQuestionTypeWithDraft).toHaveBeenCalledWith({
-      slug: 'listening-response',
+      slug: 'reading-response',
       displayName: '반응 테스트',
-      majorCategory: 'LISTENING_RESPONSE',
-      skill: 'LISTENING',
+      majorCategory: 'READING_VOCABULARY_GRAMMAR',
+      skill: 'READING',
     });
   });
 
@@ -138,37 +136,10 @@ describe('QuestionTaxonomyService', () => {
     expect(repo.addApprovedExample).not.toHaveBeenCalled();
   });
 
-  it('음성 없는 승인 예시는 게시 가능한 canonical snapshot이 아니므로 거부한다', async () => {
-    const repo = repository();
-    const service = new QuestionTaxonomyService(repo);
-    const sentenceWithoutAudio = { ...canonicalSentence, mediaAssetId: null };
-    const payload = standardPayload();
-    const block = payload.blocks[0];
-    if (!block) throw new Error('승인 예시 block이 필요합니다.');
-    payload.blocks[0] = {
-      ...block,
-      sentences: [{ speaker: null, sentence: sentenceWithoutAudio }],
-    };
-    payload.options = payload.options.map((option) =>
-      option.sentence === null
-        ? option
-        : { ...option, sentence: sentenceWithoutAudio },
-    );
-
-    await expect(
-      service.addApprovedExample('version-1', {
-        title: '음성 없는 읽기 예시',
-        payloadHash: 'hash',
-        payload,
-      }),
-    ).rejects.toMatchObject({ code: 'APPROVED_EXAMPLE_INVALID' });
-    expect(repo.addApprovedExample).not.toHaveBeenCalled();
-  });
-
   it.each([
     {
       label: '논리 유형 slug',
-      payload: { ...standardPayload(), questionTypeSlug: 'listening-response' },
+      payload: { ...standardPayload(), questionTypeSlug: 'reading-response' },
     },
     {
       label: '유형 버전 번호',
@@ -244,12 +215,10 @@ describe('QuestionTaxonomyService', () => {
           blocks: [
             {
               kind: 'DIALOGUE',
-              displayMode: 'TEXT',
               sentences: [{ speaker: null, sentence: canonicalSentence }],
             },
             {
               kind: 'QUESTION',
-              displayMode: 'TEXT',
               sentences: [{ speaker: null, sentence: canonicalSentence }],
             },
           ],
@@ -281,7 +250,6 @@ describe('QuestionTaxonomyService', () => {
           blocks: [
             {
               kind: 'QUESTION',
-              displayMode: 'TEXT',
               sentences: [{ speaker: null, sentence: canonicalSentence }],
             },
           ],

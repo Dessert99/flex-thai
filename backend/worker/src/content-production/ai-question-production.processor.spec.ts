@@ -1,5 +1,4 @@
 /** AI 문제 processor가 생성·검증·lease 저장 pipeline과 공개 결과 경계를 지키는지 검증한다 */
-import { describe, expect, it } from 'vitest';
 import type {
   ContentProductionWorkItem,
   GeneratedQuestionCandidate,
@@ -11,6 +10,7 @@ import type {
   QuestionProductionProviderRunRepository,
   QuestionSimilarityLookup,
 } from '@flex-thia/domain';
+import { describe, expect, it } from 'vitest';
 import { AiQuestionProductionProcessor } from './ai-question-production.processor.js';
 
 const sentence = {
@@ -47,7 +47,6 @@ const candidate = (ordinal = 0): GeneratedQuestionCandidate => ({
     blocks: [
       {
         kind: 'QUESTION',
-        displayMode: 'TEXT',
         sentences: [{ speaker: null, sentence }],
       },
     ],

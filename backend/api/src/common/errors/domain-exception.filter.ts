@@ -1,22 +1,13 @@
 /** 도메인 오류를 안정적인 HTTP code로 바꾸고 내부 정보를 숨긴다 */
-import {
-  ArgumentsHost,
-  Catch,
-  type ExceptionFilter,
-  HttpException,
-  HttpStatus,
-} from '@nestjs/common';
 import type { ProblemDetailsResponse } from '@flex-thia/contracts';
 import { WordbookPersistenceError } from '@flex-thia/database';
 import {
-  AuthDomainError,
   AuditLogError,
+  AuthDomainError,
   ContentImportError,
-  ContentTtsReadinessError,
   EmailChallengeError,
   IdentityDomainError,
   LearningDomainError,
-  MediaAssetDomainError,
   QuestionAdminError,
   QuestionPublicationError,
   QuestionTaxonomyError,
@@ -26,6 +17,13 @@ import {
   VocabularyRelationsMergeAdminError,
   WordbookDomainError,
 } from '@flex-thia/domain';
+import {
+  ArgumentsHost,
+  Catch,
+  HttpException,
+  HttpStatus,
+  type ExceptionFilter,
+} from '@nestjs/common';
 import { ZodError } from 'zod';
 import {
   resolveAdminRequestId,
@@ -56,7 +54,6 @@ const APPLICATION_STATUS: Record<string, number> = {
   CONTENT_DRAFT_ITEM_CONFLICT: HttpStatus.CONFLICT,
   CONTENT_DRAFT_PERSISTENCE_CONFLICT: HttpStatus.CONFLICT,
   CONTENT_IMPORT_PERSISTENCE_CONFLICT: HttpStatus.CONFLICT,
-  MEDIA_ADMIN_PERSISTENCE_CONFLICT: HttpStatus.CONFLICT,
   QUESTION_ADMIN_PERSISTENCE_CONFLICT: HttpStatus.CONFLICT,
   QUESTION_PUBLICATION_PERSISTENCE_CONFLICT: HttpStatus.CONFLICT,
 };
@@ -110,20 +107,6 @@ const WORDBOOK_STATUS: Record<WordbookDomainError['code'], number> = {
   VOCABULARY_UNAVAILABLE: HttpStatus.NOT_FOUND,
 };
 
-const MEDIA_ADMIN_STATUS: Partial<
-  Record<MediaAssetDomainError['code'], number>
-> = {
-  MEDIA_UPLOAD_EMPTY: HttpStatus.BAD_REQUEST,
-  MEDIA_UPLOAD_TOO_LARGE: HttpStatus.PAYLOAD_TOO_LARGE,
-  MEDIA_MIME_NOT_ALLOWED: HttpStatus.BAD_REQUEST,
-  MEDIA_SHA256_INVALID: HttpStatus.BAD_REQUEST,
-  MEDIA_ASSET_NOT_FOUND: HttpStatus.NOT_FOUND,
-  MEDIA_ASSET_NOT_UPLOADING: HttpStatus.CONFLICT,
-  MEDIA_ASSET_NOT_READY: HttpStatus.CONFLICT,
-  MEDIA_ASSET_IMMUTABLE: HttpStatus.CONFLICT,
-  MEDIA_INSPECTION_MISMATCH: HttpStatus.CONFLICT,
-};
-
 const QUESTION_ADMIN_STATUS: Record<QuestionAdminError['code'], number> = {
   QUESTION_NOT_FOUND: HttpStatus.NOT_FOUND,
   QUESTION_VERSION_NOT_FOUND: HttpStatus.NOT_FOUND,
@@ -132,7 +115,6 @@ const QUESTION_ADMIN_STATUS: Record<QuestionAdminError['code'], number> = {
   QUESTION_TAXONOMY_NOT_FOUND: HttpStatus.NOT_FOUND,
   QUESTION_REFERENCE_NOT_FOUND: HttpStatus.NOT_FOUND,
   QUESTION_REFERENCE_MISMATCH: HttpStatus.CONFLICT,
-  QUESTION_MEDIA_NOT_READY: HttpStatus.CONFLICT,
   QUESTION_CONTENT_INVALID: HttpStatus.BAD_REQUEST,
   IMMUTABLE_VERSION: HttpStatus.CONFLICT,
 };
@@ -166,8 +148,6 @@ const VOCABULARY_ADMIN_STATUS: Record<VocabularyAdminError['code'], number> = {
   VOCABULARY_DUPLICATE: HttpStatus.CONFLICT,
   VOCABULARY_IN_USE: HttpStatus.CONFLICT,
   VOCABULARY_CONTENT_INVALID: HttpStatus.BAD_REQUEST,
-  VOCABULARY_MEDIA_NOT_FOUND: HttpStatus.NOT_FOUND,
-  VOCABULARY_AUDIO_NOT_READY: HttpStatus.CONFLICT,
   VOCABULARY_STATE_CONFLICT: HttpStatus.CONFLICT,
 };
 
@@ -219,14 +199,6 @@ export const buildErrorResponse = (
   error: unknown,
   requestId: string,
 ): ErrorResponse => {
-  if (error instanceof ContentTtsReadinessError) {
-    const status = HttpStatus.CONFLICT;
-    return {
-      status,
-      body: createProblem(error.code, status, requestId),
-    };
-  }
-
   if (error instanceof AuthDomainError) {
     const status = AUTH_STATUS[error.code];
     return {
@@ -297,16 +269,6 @@ export const buildErrorResponse = (
       status,
       body: createProblem(error.code, status, requestId),
     };
-  }
-
-  if (error instanceof MediaAssetDomainError) {
-    const status = MEDIA_ADMIN_STATUS[error.code];
-    if (status !== undefined) {
-      return {
-        status,
-        body: createProblem(error.code, status, requestId),
-      };
-    }
   }
 
   if (error instanceof QuestionAdminError) {

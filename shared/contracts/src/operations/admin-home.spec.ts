@@ -9,7 +9,6 @@ const response = {
     vocabularyPendingCount: 4,
   },
   contentProduction: { runningCount: 1, failedCount: 2 },
-  tts: { runningCount: 5, failedCount: 1 },
   mfa: {
     enrolled: true,
     enrolledAt: '2026-07-01T00:00:00.000Z',

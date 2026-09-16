@@ -1,4 +1,5 @@
 /** 단어 연습 출처·방식·문항 수·순서를 한 생성 요청으로 조립한다 */
+import { Button } from '@/shared/ui/button';
 import type {
   CreateVocabularyPracticeRequest,
   PracticeMode,
@@ -6,7 +7,6 @@ import type {
   WordbookSummary,
 } from '@flex-thia/contracts';
 import { type FormEvent, useState } from 'react';
-import { Button } from '@/shared/ui/button';
 import { PracticeSettingsFieldsets } from './PracticeSettingsFieldsets';
 import { PracticeSourceFieldset } from './PracticeSourceFieldset';
 
@@ -80,7 +80,6 @@ export function PracticeSetupForm(props: PracticeSetupFormProps) {
     >
       <PracticeSourceFieldset
         disabled={pending}
-        modes={modes}
         onRetrySearch={props.onRetrySearch}
         onSearch={props.onSearch}
         onSelectSource={setSourceType}
@@ -94,8 +93,8 @@ export function PracticeSetupForm(props: PracticeSetupFormProps) {
         wordbooks={props.wordbooks}
       />
       <PracticeSettingsFieldsets
-        disabled={pending}
         modes={modes}
+        disabled={pending}
         onChangeModes={setModes}
         onChangeOrder={setOrder}
         onChangeQuestionCount={setQuestionCount}

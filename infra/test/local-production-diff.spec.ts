@@ -15,9 +15,7 @@ const validEnvironmentSource = {
   ALERT_EMAIL: 'owner@example.com',
   ALLOWED_EMAIL_DOMAINS: 'hufs.ac.kr',
   GITHUB_REPOSITORY_CONTEXT: 'Dessert99/flex-thai',
-  TTS_VOICE_PRESET_ID: '00000000-0000-4000-8000-000000000777',
   MONTHLY_BUDGET_USD: '30',
-  MEDIA_PUBLIC_KEY_PATH: 'media-public-key.pem',
 };
 
 describe('readLocalProductionDiffEnvironment', () => {
@@ -39,10 +37,7 @@ describe('production diff 설정 변환', () => {
     const environment = readLocalProductionDiffEnvironment(
       validEnvironmentSource,
     );
-    const config = createProductionInfrastructureConfig(
-      environment,
-      '-----BEGIN PUBLIC KEY-----\ndGVzdA==\n-----END PUBLIC KEY-----',
-    );
+    const config = createProductionInfrastructureConfig(environment);
 
     expect(config).toMatchObject({
       account: '123456789012',
@@ -50,7 +45,6 @@ describe('production diff 설정 변환', () => {
       hostedZoneId: 'Z0123456789EXAMPLE',
       allowedEmailDomains: 'hufs.ac.kr',
       monthlyBudgetUsd: 30,
-      ttsVoicePresetId: '00000000-0000-4000-8000-000000000777',
     });
   });
 
@@ -58,10 +52,7 @@ describe('production diff 설정 변환', () => {
     const environment = readLocalProductionDiffEnvironment(
       validEnvironmentSource,
     );
-    const config = createProductionInfrastructureConfig(
-      environment,
-      '-----BEGIN PUBLIC KEY-----\ndGVzdA==\n-----END PUBLIC KEY-----',
-    );
+    const config = createProductionInfrastructureConfig(environment);
     const arguments_ = createProductionDiffArguments(
       config,
       environment.awsProfile,
@@ -74,12 +65,6 @@ describe('production diff 설정 변환', () => {
     expect(arguments_).toContain('hostedZoneId=Z0123456789EXAMPLE');
     expect(arguments_).toContain('alertEmail=owner@example.com');
     expect(arguments_).toContain('githubRepository=Dessert99/flex-thai');
-    expect(arguments_).toContain(
-      'ttsVoicePresetId=00000000-0000-4000-8000-000000000777',
-    );
-    expect(arguments_).not.toContain(
-      'mediaPublicKeyPem=-----BEGIN PUBLIC KEY-----\ndGVzdA==\n-----END PUBLIC KEY-----',
-    );
     expect(arguments_).toContain('allowedEmailDomains=hufs.ac.kr');
     expect(arguments_).toContain('monthlyBudgetUsd=30');
   });

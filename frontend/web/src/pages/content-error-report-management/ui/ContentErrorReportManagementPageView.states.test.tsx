@@ -85,7 +85,6 @@ const detail: AdminContentErrorReportDetailResponse = {
     contentVersionId: null,
     questionVersionId: null,
     sentenceVersionId: null,
-    mediaAssetId: null,
     locationId: null,
   },
   snapshot: {
@@ -94,7 +93,6 @@ const detail: AdminContentErrorReportDetailResponse = {
     secondaryText: null,
     versionLabel: null,
     locationLabel: '문제 전체',
-    audioAssetId: null,
   },
   createdAt: '2026-07-26T00:00:00.000Z',
   updatedAt: '2026-07-26T00:00:00.000Z',

@@ -27,7 +27,6 @@ export const ApiCsrfProtection = () =>
     }),
   );
 
-/** 공개 오류를 RFC 9457 media type과 공통 schema로 문서화한다 */
 export const ApiProblemResponse = (status: number, description: string) =>
   ApiResponse({
     status,

@@ -30,8 +30,6 @@ const sentenceProjection = (sentence: Sentence) => ({
   translationKo: sentence.translationKo,
   pronunciationKo: sentence.pronunciationKo,
   toneMarks: sentence.toneMarks,
-  mediaAssetId: sentence.mediaAssetId,
-  audioStatus: sentence.audio.status,
   tokens: [...sentence.tokens].sort(comparePosition).map((token) => ({
     position: token.position,
     surface: token.surface,
@@ -67,7 +65,6 @@ const blockProjection = (version: Version, explanation: boolean) =>
     .map((block) => ({
       position: block.position,
       kind: block.kind,
-      displayMode: block.displayMode,
       sentences: [...block.sentences].sort(comparePosition).map((item) => ({
         position: item.position,
         speaker: item.speaker,

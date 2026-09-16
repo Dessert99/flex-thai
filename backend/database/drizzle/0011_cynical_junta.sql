@@ -1,8 +1,13 @@
-CREATE TYPE "public"."concept_block_kind" AS ENUM('EXPLANATION', 'RULE_TABLE', 'THAI_EXAMPLES');--> statement-breakpoint
-CREATE TYPE "public"."concept_category" AS ENUM('THAI_SCRIPT_PRONUNCIATION', 'GRAMMAR');--> statement-breakpoint
-CREATE TYPE "public"."concept_status" AS ENUM('DRAFT', 'PUBLISHED', 'HIDDEN');--> statement-breakpoint
-CREATE TYPE "public"."concept_validation_status" AS ENUM('PENDING', 'PASSED', 'FAILED');--> statement-breakpoint
-CREATE TYPE "public"."concept_version_status" AS ENUM('DRAFT', 'PUBLISHED', 'RETIRED');--> statement-breakpoint
+CREATE TYPE "public"."concept_block_kind" AS ENUM('EXPLANATION', 'RULE_TABLE', 'THAI_EXAMPLES');
+--> statement-breakpoint
+CREATE TYPE "public"."concept_category" AS ENUM('THAI_SCRIPT_PRONUNCIATION', 'GRAMMAR');
+--> statement-breakpoint
+CREATE TYPE "public"."concept_status" AS ENUM('DRAFT', 'PUBLISHED', 'HIDDEN');
+--> statement-breakpoint
+CREATE TYPE "public"."concept_validation_status" AS ENUM('PENDING', 'PASSED', 'FAILED');
+--> statement-breakpoint
+CREATE TYPE "public"."concept_version_status" AS ENUM('DRAFT', 'PUBLISHED', 'RETIRED');
+--> statement-breakpoint
 CREATE TABLE "concept_block_examples" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"block_id" uuid NOT NULL,
@@ -60,13 +65,22 @@ CREATE TABLE "concepts" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-ALTER TABLE "concept_block_examples" ADD CONSTRAINT "concept_block_examples_block_id_concept_blocks_id_fk" FOREIGN KEY ("block_id") REFERENCES "public"."concept_blocks"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "concept_block_examples" ADD CONSTRAINT "concept_block_examples_sentence_version_id_thai_sentence_versions_id_fk" FOREIGN KEY ("sentence_version_id") REFERENCES "public"."thai_sentence_versions"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "concept_blocks" ADD CONSTRAINT "concept_blocks_concept_version_id_concept_versions_id_fk" FOREIGN KEY ("concept_version_id") REFERENCES "public"."concept_versions"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "concept_versions" ADD CONSTRAINT "concept_versions_concept_id_concepts_id_fk" FOREIGN KEY ("concept_id") REFERENCES "public"."concepts"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "concepts" ADD CONSTRAINT "concepts_current_published_version_fk" FOREIGN KEY ("id","current_published_version_id") REFERENCES "public"."concept_versions"("concept_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-CREATE UNIQUE INDEX "concept_block_examples_block_position_unique" ON "concept_block_examples" USING btree ("block_id","position");--> statement-breakpoint
-CREATE UNIQUE INDEX "concept_block_examples_block_sentence_unique" ON "concept_block_examples" USING btree ("block_id","sentence_version_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "concept_blocks_version_position_unique" ON "concept_blocks" USING btree ("concept_version_id","position");--> statement-breakpoint
-CREATE UNIQUE INDEX "concept_versions_concept_version_unique" ON "concept_versions" USING btree ("concept_id","version");--> statement-breakpoint
+ALTER TABLE "concept_block_examples" ADD CONSTRAINT "concept_block_examples_block_id_concept_blocks_id_fk" FOREIGN KEY ("block_id") REFERENCES "public"."concept_blocks"("id") ON DELETE restrict ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "concept_block_examples" ADD CONSTRAINT "concept_block_examples_sentence_version_id_thai_sentence_versions_id_fk" FOREIGN KEY ("sentence_version_id") REFERENCES "public"."thai_sentence_versions"("id") ON DELETE restrict ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "concept_blocks" ADD CONSTRAINT "concept_blocks_concept_version_id_concept_versions_id_fk" FOREIGN KEY ("concept_version_id") REFERENCES "public"."concept_versions"("id") ON DELETE restrict ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "concept_versions" ADD CONSTRAINT "concept_versions_concept_id_concepts_id_fk" FOREIGN KEY ("concept_id") REFERENCES "public"."concepts"("id") ON DELETE restrict ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "concepts" ADD CONSTRAINT "concepts_current_published_version_fk" FOREIGN KEY ("id","current_published_version_id") REFERENCES "public"."concept_versions"("concept_id","id") ON DELETE restrict ON UPDATE no action;
+--> statement-breakpoint
+CREATE UNIQUE INDEX "concept_block_examples_block_position_unique" ON "concept_block_examples" USING btree ("block_id","position");
+--> statement-breakpoint
+CREATE UNIQUE INDEX "concept_block_examples_block_sentence_unique" ON "concept_block_examples" USING btree ("block_id","sentence_version_id");
+--> statement-breakpoint
+CREATE UNIQUE INDEX "concept_blocks_version_position_unique" ON "concept_blocks" USING btree ("concept_version_id","position");
+--> statement-breakpoint
+CREATE UNIQUE INDEX "concept_versions_concept_version_unique" ON "concept_versions" USING btree ("concept_id","version");
+--> statement-breakpoint
 CREATE UNIQUE INDEX "concept_versions_single_draft_unique" ON "concept_versions" USING btree ("concept_id") WHERE "concept_versions"."status" = 'DRAFT';

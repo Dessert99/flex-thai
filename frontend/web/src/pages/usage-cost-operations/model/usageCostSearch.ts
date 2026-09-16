@@ -23,7 +23,6 @@ export function serializeUsageCostSearch(search: UsageCostSearch): string {
     'source',
     'provider',
     'model',
-    'voice',
     'status',
   ] as const) {
     if (search[key] !== undefined) parameters.set(key, search[key]);

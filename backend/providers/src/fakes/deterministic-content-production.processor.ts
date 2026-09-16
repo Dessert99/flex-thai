@@ -1,12 +1,4 @@
 /** 실제 DB port를 사용해 비용 없는 콘텐츠 제작 후보를 생성한다 */
-import { createHash } from 'node:crypto';
-import {
-  evaluateVocabularyCandidate,
-  normalizeQuestionProductionValidationRecord,
-  readVocabularyProductionPolicy,
-  validateGeneratedQuestionSchema,
-  validateQuestionDecisionRules,
-} from '@flex-thia/domain';
 import type {
   ContentProductionWorkItem,
   GeneratedQuestionCandidate,
@@ -18,6 +10,14 @@ import type {
   VocabularyProductionArtifacts,
   VocabularyProductionLookup,
 } from '@flex-thia/domain';
+import {
+  evaluateVocabularyCandidate,
+  normalizeQuestionProductionValidationRecord,
+  readVocabularyProductionPolicy,
+  validateGeneratedQuestionSchema,
+  validateQuestionDecisionRules,
+} from '@flex-thia/domain';
+import { createHash } from 'node:crypto';
 
 /** local fake processor가 artifact를 만들 때 필요한 domain repository port 묶음 */
 export interface DeterministicContentProductionProcessorDependencies {
@@ -117,7 +117,6 @@ const buildQuestionCandidate = (
       blocks: [
         {
           kind: 'QUESTION',
-          displayMode: 'TEXT',
           sentences: [{ speaker: null, sentence }],
         },
       ],

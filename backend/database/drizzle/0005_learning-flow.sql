@@ -27,15 +27,26 @@ CREATE TABLE "saved_vocabularies" (
 	CONSTRAINT "saved_vocabularies_pk" PRIMARY KEY("user_id","vocabulary_id")
 );
 --> statement-breakpoint
-ALTER TABLE "question_attempts" ADD CONSTRAINT "question_attempts_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "question_attempts" ADD CONSTRAINT "question_attempts_question_version_fk" FOREIGN KEY ("question_id","question_version_id") REFERENCES "public"."question_versions"("question_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "question_attempts" ADD CONSTRAINT "question_attempts_selected_option_fk" FOREIGN KEY ("question_version_id","selected_option_id") REFERENCES "public"."question_options"("question_version_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "saved_questions" ADD CONSTRAINT "saved_questions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "saved_questions" ADD CONSTRAINT "saved_questions_question_id_questions_id_fk" FOREIGN KEY ("question_id") REFERENCES "public"."questions"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "saved_vocabularies" ADD CONSTRAINT "saved_vocabularies_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "saved_vocabularies" ADD CONSTRAINT "saved_vocabularies_vocabulary_id_vocabularies_id_fk" FOREIGN KEY ("vocabulary_id") REFERENCES "public"."vocabularies"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-CREATE UNIQUE INDEX "question_attempts_user_question_attempt_unique" ON "question_attempts" USING btree ("user_id","question_id","attempt_no");--> statement-breakpoint
-CREATE UNIQUE INDEX "question_attempts_user_client_attempt_unique" ON "question_attempts" USING btree ("user_id","client_attempt_id");--> statement-breakpoint
-CREATE INDEX "question_attempts_user_submitted_at_idx" ON "question_attempts" USING btree ("user_id","submitted_at");--> statement-breakpoint
-CREATE INDEX "saved_questions_question_id_idx" ON "saved_questions" USING btree ("question_id");--> statement-breakpoint
+ALTER TABLE "question_attempts" ADD CONSTRAINT "question_attempts_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "question_attempts" ADD CONSTRAINT "question_attempts_question_version_fk" FOREIGN KEY ("question_id","question_version_id") REFERENCES "public"."question_versions"("question_id","id") ON DELETE restrict ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "question_attempts" ADD CONSTRAINT "question_attempts_selected_option_fk" FOREIGN KEY ("question_version_id","selected_option_id") REFERENCES "public"."question_options"("question_version_id","id") ON DELETE restrict ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "saved_questions" ADD CONSTRAINT "saved_questions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "saved_questions" ADD CONSTRAINT "saved_questions_question_id_questions_id_fk" FOREIGN KEY ("question_id") REFERENCES "public"."questions"("id") ON DELETE restrict ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "saved_vocabularies" ADD CONSTRAINT "saved_vocabularies_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "saved_vocabularies" ADD CONSTRAINT "saved_vocabularies_vocabulary_id_vocabularies_id_fk" FOREIGN KEY ("vocabulary_id") REFERENCES "public"."vocabularies"("id") ON DELETE restrict ON UPDATE no action;
+--> statement-breakpoint
+CREATE UNIQUE INDEX "question_attempts_user_question_attempt_unique" ON "question_attempts" USING btree ("user_id","question_id","attempt_no");
+--> statement-breakpoint
+CREATE UNIQUE INDEX "question_attempts_user_client_attempt_unique" ON "question_attempts" USING btree ("user_id","client_attempt_id");
+--> statement-breakpoint
+CREATE INDEX "question_attempts_user_submitted_at_idx" ON "question_attempts" USING btree ("user_id","submitted_at");
+--> statement-breakpoint
+CREATE INDEX "saved_questions_question_id_idx" ON "saved_questions" USING btree ("question_id");
+--> statement-breakpoint
 CREATE INDEX "saved_vocabularies_vocabulary_id_idx" ON "saved_vocabularies" USING btree ("vocabulary_id");

@@ -1,21 +1,21 @@
 /** 문제 목록의 로딩·빈 결과·오류·페이지 상태를 접근 가능한 UI로 표현한다 */
-import { Link } from '@tanstack/react-router';
+import { Badge } from '@/shared/ui/badge';
 import type {
   QuestionListFacets,
   QuestionListResponse,
 } from '@flex-thia/contracts';
-import { Badge } from '@/shared/ui/badge';
+import { Link } from '@tanstack/react-router';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
+import { Skeleton } from '@/shared/ui/skeleton';
 import {
   hasQuestionListFilters,
   type QuestionListSearch,
 } from '../model/questionListSearch';
 import { QuestionFilters } from './QuestionFilters';
-import { Skeleton } from '@/shared/ui/skeleton';
-import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
-import { Button } from '@/shared/ui/button';
 
 interface QuestionListPageViewProps {
   data: QuestionListResponse | undefined;
@@ -178,7 +178,7 @@ function QuestionResults({
               </CardHeader>
               <CardContent className='flex flex-wrap gap-cluster'>
                 <Badge variant='secondary'>
-                  {question.skill === 'READING' ? '읽기' : '듣기'}
+                  {question.skill === 'READING' ? '읽기' : ''}
                 </Badge>
                 <Badge variant='outline'>
                   세부 유형: {question.questionType.displayName}

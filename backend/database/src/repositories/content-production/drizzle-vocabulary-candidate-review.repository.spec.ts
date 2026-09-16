@@ -37,7 +37,6 @@ const createDraftCommand = {
         clientRef: 'pronunciation.main',
         pronunciationKo: '싸왓디',
         toneMarks: 'L-L-M',
-        mediaAssetId: '00000000-0000-4000-8000-000000000004',
       },
     ],
     meaningPronunciations: [
@@ -141,7 +140,6 @@ describe('어휘 후보 검수 Drizzle 저장소', () => {
         { stage: 'DECISION_RULE', status: 'PASSED' },
         { stage: 'AI_CROSS_VALIDATION', status: 'PASSED' },
       ],
-      [{ id: createDraftCommand.draft.pronunciations[0]!.mediaAssetId }],
     ]);
     const generatedIds = [
       '00000000-0000-4000-8000-000000000010',

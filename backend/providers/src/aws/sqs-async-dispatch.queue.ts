@@ -3,7 +3,7 @@ import { SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 
 /** relay와 provider 사이의 queue 수락 입력 */
 export interface SqsAsyncDispatchAcceptanceInput {
-  destination: 'CONTENT_PRODUCTION' | 'TTS';
+  destination: 'CONTENT_PRODUCTION';
   messageId: string;
   payload: { jobId: string; attempt: number };
 }

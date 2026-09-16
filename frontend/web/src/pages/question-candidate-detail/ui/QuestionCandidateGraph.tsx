@@ -1,6 +1,6 @@
 /** canonical 문제 후보의 문장 block과 option만 의도적으로 렌더링한다 */
-import type { QuestionCandidatePayload } from '@flex-thia/contracts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
+import type { QuestionCandidatePayload } from '@flex-thia/contracts';
 
 /** provider 원문이나 전체 JSON 없이 학습자가 보게 될 문장 필드만 보여준다 */
 export function QuestionCandidateGraph({
@@ -13,9 +13,7 @@ export function QuestionCandidateGraph({
       {payload.blocks.map((block, blockIndex) => (
         <Card key={`${block.kind}-${blockIndex}`}>
           <CardHeader>
-            <CardTitle>
-              {block.kind} · {block.displayMode}
-            </CardTitle>
+            <CardTitle>{block.kind}</CardTitle>
           </CardHeader>
           <CardContent className='grid gap-cluster'>
             {block.sentences.map(({ speaker, sentence }, sentenceIndex) => (

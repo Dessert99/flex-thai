@@ -12,9 +12,6 @@ const config = readInfrastructureConfig({
   hostedZoneId: 'Z0123456789EXAMPLE',
   alertEmail: 'owner@example.com',
   githubRepository: 'Dessert99/flex-thai',
-  ttsVoicePresetId: '00000000-0000-4000-8000-000000000777',
-  mediaPublicKeyPem:
-    '-----BEGIN PUBLIC KEY-----\ndGVzdA==\n-----END PUBLIC KEY-----',
 });
 
 describe('Observability', () => {
@@ -25,7 +22,6 @@ describe('Observability', () => {
       new ApplicationStack(app, 'ObservabilityApplication', {
         config,
         dataStack,
-        mediaKeyPairId: 'KTESTMEDIAKEY',
       }),
     );
 
@@ -63,7 +59,6 @@ describe('Observability', () => {
       new ApplicationStack(app, 'AlarmApplication', {
         config,
         dataStack,
-        mediaKeyPairId: 'KTESTMEDIAKEY',
       }),
     );
 
@@ -92,7 +87,6 @@ describe('Observability', () => {
       new ApplicationStack(app, 'ParameterApplication', {
         config,
         dataStack,
-        mediaKeyPairId: 'KTESTMEDIAKEY',
       }),
     );
 

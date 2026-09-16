@@ -1,5 +1,6 @@
 /** 동기 콘텐츠 가져오기의 hash·멱등 재개·항목별 실패 경계를 고정한다 */
 import { describe, expect, it, vi } from 'vitest';
+import { ContentDraftError } from './content-draft.js';
 import type {
   ContentImportDetail,
   ContentImportRecord,
@@ -15,14 +16,12 @@ import {
   type ContentImportCommand,
   type ContentImportRequest,
 } from './content-import.service.js';
-import { ContentDraftError } from './content-draft.js';
 
 const ids = {
   actor: '00000000-0000-4000-8000-000000000001',
   import: '00000000-0000-4000-8000-000000000002',
   vocabulary: '00000000-0000-4000-8000-000000000003',
   question: '00000000-0000-4000-8000-000000000004',
-  media: '00000000-0000-4000-8000-000000000005',
 } as const;
 
 const occurredAt = new Date('2026-07-24T00:00:00.000Z');
@@ -43,7 +42,6 @@ const vocabularyInput = (clientRef: string) => ({
       clientRef: `${clientRef}-pronunciation`,
       pronunciationKo: '발음',
       toneMarks: '-',
-      mediaAssetId: ids.media,
     },
   ],
 });
@@ -53,7 +51,6 @@ const sentenceInput = {
   translationKo: '뜻',
   pronunciationKo: '꺼',
   toneMarks: '-',
-  mediaAssetId: ids.media,
   tokens: [],
   expressions: [],
 };
@@ -66,7 +63,6 @@ const questionInput = (clientRef: string) => ({
   blocks: [
     {
       kind: 'QUESTION' as const,
-      displayMode: 'TEXT' as const,
       sentences: [{ sentence: sentenceInput }],
     },
   ],

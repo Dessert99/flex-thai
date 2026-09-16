@@ -1,16 +1,16 @@
 /** 관리자 문제 Drizzle writer의 lock·graph 교체·감사 transaction을 검증한다 */
-import { randomUUID } from 'node:crypto';
+import type { QuestionAdminVersionGraph } from '@flex-thia/domain';
 import {
   QuestionAdminError,
   QuestionAdminService,
   QuestionPublicationService,
   type ReplaceQuestionVersionCommand,
 } from '@flex-thia/domain';
-import { PgDialect } from 'drizzle-orm/pg-core';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { PgDialect } from 'drizzle-orm/pg-core';
+import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import type { QuestionAdminVersionGraph } from '@flex-thia/domain';
 import * as schema from '../schema/index.js';
 import {
   auditLogs,
@@ -143,7 +143,6 @@ const graph = (): QuestionAdminVersionGraph => ({
         translationKo: '뜻',
         pronunciationKo: '꺼',
         toneMarks: '-',
-        mediaAssetId: 'media-id',
         frozenAt: null,
       },
       tokens: [],
@@ -155,7 +154,6 @@ const graph = (): QuestionAdminVersionGraph => ({
       id: 'block-id',
       questionVersionId: 'version-id',
       kind: 'QUESTION',
-      displayMode: 'TEXT',
       position: 0,
       sentences: [
         {
@@ -202,7 +200,6 @@ describe('DrizzleQuestionAdminRepository 문제 버전 graph', () => {
           {
             id: 'block-id',
             kind: 'QUESTION',
-            displayMode: 'TEXT',
             position: 0,
           },
         ],
@@ -400,7 +397,6 @@ const integrationDatabaseUrl =
 
 interface IntegrationFixture {
   actorUserId: string;
-  mediaAssetId: string;
   questionId: string;
   publishedVersionId: string;
   typeSlug: string;
@@ -410,7 +406,6 @@ const createIntegrationFixture = async (
   pool: Pool,
 ): Promise<IntegrationFixture> => {
   const actorUserId = randomUUID();
-  const mediaAssetId = randomUUID();
   const questionTypeId = randomUUID();
   const typeVersionId = randomUUID();
   const questionId = randomUUID();
@@ -421,16 +416,6 @@ const createIntegrationFixture = async (
        id, cognito_sub, email, role, status, mfa_enrolled_at
      ) values ($1, $2, $3, 'ADMIN', 'ACTIVE', now())`,
     [actorUserId, `task7-${actorUserId}`, `task7-${actorUserId}@example.com`],
-  );
-  await pool.query(
-    `insert into media_assets (
-       id, kind, storage_key, declared_mime_type, declared_size_bytes,
-       declared_sha256, mime_type, size_bytes, sha256, status, ready_at
-     ) values (
-       $1, 'AUDIO', $2, 'audio/mpeg', 1, $3,
-       'audio/mpeg', 1, $3, 'READY', now()
-     )`,
-    [mediaAssetId, `audio/${mediaAssetId}`, 'a'.repeat(64)],
   );
   await pool.query(
     `insert into question_types (id, slug, display_name, skill)
@@ -469,22 +454,16 @@ const createIntegrationFixture = async (
     await pool.query(
       `insert into thai_sentence_versions (
          id, sentence_id, version, original_text, translation_ko,
-         pronunciation_ko, tone_marks, media_asset_id, frozen_at
-       ) values ($1, $2, 1, $3, $4, $4, '-', $5, now())`,
-      [
-        sentenceVersionId,
-        sentenceId,
-        originalText,
-        `문장 ${index}`,
-        mediaAssetId,
-      ],
+         pronunciation_ko, tone_marks, frozen_at
+       ) values ($1, $2, 1, $3, $4, $4, '-', now())`,
+      [sentenceVersionId, sentenceId, originalText, `문장 ${index}`],
     );
   }
   const blockId = randomUUID();
   await pool.query(
     `insert into question_blocks (
-       id, question_version_id, kind, display_mode, position
-     ) values ($1, $2, 'QUESTION', 'TEXT', 0)`,
+       id, question_version_id, kind, position
+     ) values ($1, $2, 'QUESTION', 0)`,
     [blockId, publishedVersionId],
   );
   await pool.query(
@@ -515,7 +494,6 @@ const createIntegrationFixture = async (
   );
   return {
     actorUserId,
-    mediaAssetId,
     questionId,
     publishedVersionId,
     typeSlug,
@@ -531,7 +509,6 @@ const replacementInput = (
     translationKo: `뜻 ${originalText}`,
     pronunciationKo: `발음 ${originalText}`,
     toneMarks: '-',
-    mediaAssetId: fixture.mediaAssetId,
     tokens: [],
     expressions: [],
   });
@@ -542,7 +519,6 @@ const replacementInput = (
     blocks: [
       {
         kind: 'QUESTION',
-        displayMode: 'TEXT_AND_AUDIO',
         sentences: [{ sentence: sentence('ง') }],
       },
     ],

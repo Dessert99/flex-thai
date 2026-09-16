@@ -4,7 +4,6 @@ import type {
   CreateQuestionTypeVersionInput,
   QuestionApprovedExampleSnapshot,
   QuestionDifficultyCriterion,
-  QuestionMajorCategory,
   QuestionTaxonomyRepository,
   QuestionTaxonomyTermKind,
   QuestionTypeActivationResult,
@@ -34,11 +33,6 @@ export class QuestionTaxonomyError extends Error {
     this.name = 'QuestionTaxonomyError';
   }
 }
-
-const categorySkill = (
-  category: QuestionMajorCategory,
-): 'READING' | 'LISTENING' =>
-  category.startsWith('LISTENING_') ? 'LISTENING' : 'READING';
 
 const assertDraft = (version: QuestionTypeVersionRecord): void => {
   if (version.status !== 'DRAFT') {
@@ -79,7 +73,6 @@ const toExampleCandidate = (
   const blocks = example.payload.blocks.map((block, blockPosition) => ({
     id: `example-block-${blockPosition}`,
     kind: block.kind,
-    displayMode: block.displayMode,
     position: blockPosition,
     sentences: block.sentences.map(
       ({ speaker, sentence }, sentencePosition) => {
@@ -147,7 +140,6 @@ const toExampleSentence = (
     translationKo: sentence.translationKo,
     pronunciationKo: sentence.pronunciationKo,
     toneMarks: sentence.toneMarks,
-    mediaAssetId: sentence.mediaAssetId,
     tokens: sentence.tokens.map((token, position) => ({
       position,
       surface: token.surface,
@@ -170,27 +162,10 @@ const toExampleSentence = (
       adminSelected: expression.representative ?? false,
     })),
   },
-  mediaAsset:
-    sentence.mediaAssetId === null
-      ? null
-      : {
-          id: sentence.mediaAssetId,
-          kind: 'AUDIO',
-          storageKey: `approved-example/${sentence.mediaAssetId}`,
-          declaredMimeType: 'audio/mpeg',
-          declaredSizeBytes: 1,
-          declaredSha256: '0'.repeat(64),
-          mimeType: 'audio/mpeg',
-          sizeBytes: 1,
-          sha256: '0'.repeat(64),
-          status: 'READY',
-          readyAt: new Date(0),
-        },
   referencedVocabularies: sentence.tokens.map(({ vocabulary }) => ({
     id: vocabulary.id,
     status: 'PUBLISHED',
   })),
-  pronunciationMediaAssets: [],
 });
 
 /** 문제 분류 설정 관리자 use case */
@@ -203,7 +178,7 @@ export class QuestionTaxonomyService {
   ): Promise<unknown> {
     return this.repository.createQuestionTypeWithDraft({
       ...input,
-      skill: categorySkill(input.majorCategory),
+      skill: 'READING',
     });
   }
 

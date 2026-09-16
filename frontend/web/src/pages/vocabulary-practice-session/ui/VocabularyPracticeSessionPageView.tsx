@@ -1,4 +1,7 @@
 /** 단어 연습의 선행 학습 카드와 미응답 기억 확인 흐름을 표시한다 */
+import { VocabularyPracticeAnswerForm } from '@/features/answer-vocabulary-practice';
+import {} from '@/features/explore-thai-content';
+import { Button } from '@/shared/ui/button';
 import type {
   PracticeCard,
   SubmitVocabularyPracticeAnswerRequest,
@@ -6,9 +9,6 @@ import type {
   VocabularyPracticeSessionResponse,
 } from '@flex-thia/contracts';
 import { useState } from 'react';
-import { VocabularyPracticeAnswerForm } from '@/features/answer-vocabulary-practice';
-import { useThaiAudioPlayback } from '@/features/explore-thai-content';
-import { Button } from '@/shared/ui/button';
 
 interface VocabularyPracticeSessionPageViewProps {
   onAnswer: (
@@ -227,7 +227,6 @@ function PracticePrompt({
 }: {
   question: VocabularyPracticeSessionResponse['questions'][number];
 }) {
-  const { playAudio, playbackError } = useThaiAudioPlayback();
   if (question.prompt.type === 'TEXT') {
     return (
       <h1
@@ -238,23 +237,10 @@ function PracticePrompt({
       </h1>
     );
   }
-  const audioUrl = question.prompt.audioUrl;
-  return (
-    <div>
-      <Button
-        onClick={() => void playAudio(audioUrl)}
-        type='button'
-      >
-        문제 음성 듣기
-      </Button>
-      {playbackError === null ? null : <p role='status'>{playbackError}</p>}
-    </div>
-  );
+  return <div></div>;
 }
 
-/** 카드의 전체 뜻·발음·성조와 음성을 표시한다 */
 export function PracticeCardView({ card }: { card: PracticeCard }) {
-  const { playAudio, playbackError } = useThaiAudioPlayback();
   return (
     <article className='grid gap-cluster rounded-panel border border-default p-page'>
       <h2
@@ -276,17 +262,9 @@ export function PracticeCardView({ card }: { card: PracticeCard }) {
           <li key={pronunciation.id}>
             <span>{pronunciation.pronunciationKo}</span> ·{' '}
             {pronunciation.toneMarks}
-            <Button
-              onClick={() => void playAudio(pronunciation.audioUrl)}
-              type='button'
-              variant='ghost'
-            >
-              {pronunciation.pronunciationKo} 음성 듣기
-            </Button>
           </li>
         ))}
       </ul>
-      {playbackError === null ? null : <p role='status'>{playbackError}</p>}
     </article>
   );
 }

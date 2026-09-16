@@ -51,28 +51,16 @@ interface AssignedCandidate {
   mode: PracticeMode;
 }
 
-const isAudioMode = (mode: PracticeMode): boolean =>
-  mode === 'AUDIO_TO_THAI' || mode === 'AUDIO_TO_MEANING';
-
 const answerLabel = (
   mode: PracticeMode,
   candidate: PracticeMeaningCandidate,
 ): string =>
-  mode === 'THAI_TO_MEANING' || mode === 'AUDIO_TO_MEANING'
-    ? candidate.meaningKo
-    : candidate.thai;
+  mode === 'THAI_TO_MEANING' ? candidate.meaningKo : candidate.thai;
 
 const promptFor = (
   mode: PracticeMode,
   candidate: PracticeMeaningCandidate,
 ): MaterializedPracticeQuestion['prompt'] => {
-  if (isAudioMode(mode)) {
-    const pronunciation = candidate.pronunciations[0];
-    if (!pronunciation) {
-      throw new VocabularyPracticeDomainError('PRACTICE_SOURCE_INSUFFICIENT');
-    }
-    return { type: 'AUDIO', storageKey: pronunciation.storageKey };
-  }
   return {
     type: 'TEXT',
     text: mode === 'THAI_TO_MEANING' ? candidate.thai : candidate.meaningKo,
@@ -83,29 +71,12 @@ const assignCandidates = (
   candidates: PracticeMeaningCandidate[],
   modes: PracticeMode[],
 ): AssignedCandidate[] => {
-  const assigned: AssignedCandidate[] = [];
-  let modeCursor = 0;
-
-  for (const candidate of candidates) {
-    const modeOffset = modes.findIndex(
-      (mode, index) =>
-        index >= modeCursor &&
-        (!isAudioMode(mode) || candidate.pronunciations.length > 0),
-    );
-    const wrappedOffset =
-      modeOffset >= 0
-        ? modeOffset
-        : modes.findIndex(
-            (mode) => !isAudioMode(mode) || candidate.pronunciations.length > 0,
-          );
-    if (wrappedOffset < 0) continue;
-    const mode = modes[wrappedOffset];
-    if (!mode) continue;
-    assigned.push({ candidate, mode });
-    modeCursor = (wrappedOffset + 1) % modes.length;
-  }
-
-  return assigned;
+  if (modes.length === 0)
+    throw new VocabularyPracticeDomainError('PRACTICE_SOURCE_INSUFFICIENT');
+  return candidates.map((candidate, index) => ({
+    candidate,
+    mode: modes[index % modes.length]!,
+  }));
 };
 
 /** source 검증·문항 materialize·세션 조회·답안 제출을 제공한다 */
@@ -250,9 +221,6 @@ export class VocabularyPracticeService {
       ...distractorLabels.map((label) => ({ id: this.createId(), label })),
     ];
     const shuffledOptions = this.shuffle(options);
-    const pronunciation = isAudioMode(mode)
-      ? (candidate.pronunciations[0] ?? null)
-      : null;
 
     return {
       id: this.createId(),
@@ -260,8 +228,6 @@ export class VocabularyPracticeService {
       position,
       vocabularyId: candidate.vocabularyId,
       meaningId: candidate.meaningId,
-      pronunciationId: pronunciation?.id ?? null,
-      mediaAssetId: pronunciation?.mediaAssetId ?? null,
       mode,
       prompt: promptFor(mode, candidate),
       options: shuffledOptions,

@@ -1,4 +1,5 @@
 /** 단어 연습 답안의 멱등 재시도와 feedback 전 정답 비공개를 검증한다 */
+import { renderWithProviders } from '@/shared/test';
 import type {
   PracticeQuestion,
   VocabularyPracticeAnswerResponse,
@@ -6,7 +7,6 @@ import type {
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '@/shared/test';
 import { VocabularyPracticeAnswerForm } from './VocabularyPracticeAnswerForm';
 
 const correctOptionId = '00000000-0000-4000-8000-000000000204';
@@ -62,7 +62,6 @@ const feedback = {
         id: '00000000-0000-4000-8000-000000000208',
         pronunciationKo: '빠이',
         toneMarks: '평성',
-        audioUrl: 'https://example.com/pai.mp3',
       },
     ],
     meaningPronunciations: [

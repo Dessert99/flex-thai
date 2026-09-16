@@ -1,8 +1,8 @@
 /* eslint-disable max-lines-per-function -- 오늘·NEW·추천·빠른 링크를 한 학습 홈 계약으로 검증한다. */
 /** 학습자 홈의 단일 추천 요청·개인화·fallback·오류 상태를 검증한다 */
+import { renderWithProviders } from '@/shared/test';
 import { screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '@/shared/test';
 import { LearnerHomePageContainer } from './LearnerHomePageContainer';
 
 const mocks = vi.hoisted(() => ({
@@ -61,7 +61,7 @@ describe('학습자 홈 페이지', () => {
             questionId: '01933b6a-8f13-7a19-b7e5-536d70f57ab1',
             questionVersionId: '01933b6a-8f13-7a19-b7e5-536d70f57ab2',
             questionTypeDisplayName: 'NEW 문제',
-            skill: 'LISTENING',
+            skill: 'READING',
             difficulty: 3,
             publishedAt: '2026-07-30T01:00:00.000Z',
           },

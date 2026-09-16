@@ -1,10 +1,10 @@
 /** 콘텐츠 제작 HTTP application 계층의 upload·preset 검증을 고정한다 */
-import { describe, expect, it, vi } from 'vitest';
 import type {
   ContentProductionPresetSnapshot,
   CreateContentProductionCommand,
   ResolveContentProductionPresetSnapshotInput,
 } from '@flex-thia/domain';
+import { describe, expect, it, vi } from 'vitest';
 import {
   ContentProductionApplicationError,
   ContentProductionApplicationService,
@@ -14,7 +14,6 @@ const ownerId = '8f47b4d5-97d6-4596-af72-16456be51be8';
 const uploadId = '77a1e8ff-7c85-4739-9004-647e12e34b65';
 const presetId = '405986f9-e552-4ce1-82d6-70a1fc460f96';
 const typeVersionId = 'cbb22737-6f3d-4112-bb0e-8e4f005c810b';
-const voicePresetId = 'a9979e5d-515d-43ab-a380-e88b78513c38';
 const validOptions = {
   questionCount: 1,
   questionTypePlan: [{ questionTypeVersionId: typeVersionId, count: 1 }],
@@ -24,8 +23,6 @@ const validOptions = {
   excludedVocabularyIds: [],
   newAuxiliaryVocabularyLimit: 0,
   similarityThreshold: 0.7,
-  defaultVoicePresetId: voicePresetId,
-  speakerVoiceAssignments: [],
   additionalInstructionKo: null,
 };
 

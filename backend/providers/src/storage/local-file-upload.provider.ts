@@ -1,5 +1,11 @@
 /** local browser upload을 HMAC policy와 private filesystem object로 구현한다 */
 import {
+  type InputType,
+  type UploadInspection,
+  type UploadPolicy,
+  type UploadStorage,
+} from '@flex-thia/domain';
+import {
   createHash,
   createHmac,
   randomUUID,
@@ -8,14 +14,6 @@ import {
 import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join, resolve } from 'node:path';
-import {
-  AudioUploadStorageError,
-  type AudioUploadStorage,
-  type InputType,
-  type UploadInspection,
-  type UploadPolicy,
-  type UploadStorage,
-} from '@flex-thia/domain';
 import { PDFDocument } from 'pdf-lib';
 
 type LocalUploadErrorCode = 'LOCAL_UPLOAD_INVALID' | 'LOCAL_UPLOAD_NOT_FOUND';
@@ -43,11 +41,6 @@ const inputStorageKeyPattern = new RegExp(
   `^inputs/${uuidSource}/${uuidSource}$`,
   'iu',
 );
-const audioTemporaryStorageKeyPattern = new RegExp(
-  `^audio/uploads/${uuidSource}$`,
-  'iu',
-);
-const audioFinalStorageKeyPattern = new RegExp(`^audio/${uuidSource}$`, 'iu');
 const sha256Pattern = /^[0-9a-f]{64}$/iu;
 const tokenPattern = /^[A-Za-z0-9_-]+\.[a-f0-9]{64}$/u;
 
@@ -64,12 +57,6 @@ const isFileSystemError = (
 
 const isInputStorageKey = (storageKey: string): boolean =>
   inputStorageKeyPattern.test(storageKey);
-
-const isAudioTemporaryStorageKey = (storageKey: string): boolean =>
-  audioTemporaryStorageKeyPattern.test(storageKey);
-
-const isAudioFinalStorageKey = (storageKey: string): boolean =>
-  audioFinalStorageKeyPattern.test(storageKey);
 
 const detectImage = (bytes: Uint8Array): boolean =>
   startsWith(bytes, [0x89, 0x50, 0x4e, 0x47]) ||
@@ -108,10 +95,7 @@ export const resolveLocalUploadDirectory = (
     : resolve(workingDirectory, configured);
 };
 
-/** content와 audio의 existing upload port를 local-only filesystem으로 함께 구현한다 */
-export class LocalFileUploadProvider
-  implements UploadStorage, AudioUploadStorage
-{
+export class LocalFileUploadProvider implements UploadStorage {
   private readonly directory: string;
   private readonly publicOrigin: string;
 
@@ -182,38 +166,6 @@ export class LocalFileUploadProvider
     };
   }
 
-  /** audio temporary key·MIME·exact SHA-256을 same-origin form token에 고정한다 */
-  // eslint-disable-next-line @typescript-eslint/require-await -- 동기 검증 throw도 storage port의 rejected Promise로 보존한다.
-  async createUpload(
-    input: Parameters<AudioUploadStorage['createUpload']>[0],
-  ): Promise<Awaited<ReturnType<AudioUploadStorage['createUpload']>>> {
-    if (
-      !uuidPattern.test(input.mediaAssetId) ||
-      !isAudioTemporaryStorageKey(input.storageKey) ||
-      input.storageKey.split('/').at(-1) !== input.mediaAssetId ||
-      input.sizeBytes < 1 ||
-      input.sizeBytes > maximumUploadBytes ||
-      !sha256Pattern.test(input.sha256)
-    ) {
-      throw new AudioUploadStorageError();
-    }
-    const token = this.createToken({
-      uploadId: input.mediaAssetId,
-      storageKey: input.storageKey,
-      contentType: input.mimeType,
-      maximumBytes: input.sizeBytes,
-      sha256: input.sha256.toLowerCase(),
-    });
-    return {
-      url: `${this.publicOrigin}/api/v1/local-uploads/${token.value}`,
-      fields: {
-        key: input.storageKey,
-        'Content-Type': input.mimeType,
-      },
-      expiresAt: token.expiresAt.toISOString(),
-    };
-  }
-
   /** multipart controller가 전달한 form fields와 bytes를 token 조건 아래 저장한다 */
   async store(input: {
     token: string;
@@ -238,41 +190,6 @@ export class LocalFileUploadProvider
       contentType: token.contentType,
       bytes: input.bytes,
     });
-  }
-
-  /** temporary audio object를 final key로 원자 이동한 actual inspection을 반환한다 */
-  async inspectAndSeal(
-    input: Parameters<AudioUploadStorage['inspectAndSeal']>[0],
-  ): Promise<Awaited<ReturnType<AudioUploadStorage['inspectAndSeal']>>> {
-    if (
-      !isAudioTemporaryStorageKey(input.temporaryStorageKey) ||
-      !isAudioFinalStorageKey(input.finalStorageKey) ||
-      input.temporaryStorageKey.split('/').at(-1) !==
-        input.finalStorageKey.split('/').at(-1)
-    ) {
-      throw new AudioUploadStorageError();
-    }
-    try {
-      const finalObject = await this.readObject(input.finalStorageKey);
-      if (finalObject) return this.toAudioInspection(finalObject);
-      const temporaryObject = await this.readObject(input.temporaryStorageKey);
-      if (!temporaryObject)
-        throw new LocalFileUploadError('LOCAL_UPLOAD_NOT_FOUND');
-      try {
-        await rename(
-          this.objectPath(input.temporaryStorageKey),
-          this.objectPath(input.finalStorageKey),
-        );
-      } catch (error) {
-        if (!isFileSystemError(error, 'ENOENT')) throw error;
-        const concurrentFinal = await this.readObject(input.finalStorageKey);
-        if (!concurrentFinal) throw error;
-        return this.toAudioInspection(concurrentFinal);
-      }
-      return this.toAudioInspection(temporaryObject);
-    } catch {
-      throw new AudioUploadStorageError();
-    }
   }
 
   private createToken(input: Omit<UploadTokenPayload, 'expiresAt'>): {
@@ -326,10 +243,7 @@ export class LocalFileUploadProvider
       !uuidPattern.test(value.uploadId) ||
       !('storageKey' in value) ||
       typeof value.storageKey !== 'string' ||
-      !(
-        isInputStorageKey(value.storageKey) ||
-        isAudioTemporaryStorageKey(value.storageKey)
-      ) ||
+      !isInputStorageKey(value.storageKey) ||
       !('contentType' in value) ||
       typeof value.contentType !== 'string' ||
       !('maximumBytes' in value) ||
@@ -435,11 +349,7 @@ export class LocalFileUploadProvider
   }
 
   private objectPath(storageKey: string): string {
-    if (
-      !isInputStorageKey(storageKey) &&
-      !isAudioTemporaryStorageKey(storageKey) &&
-      !isAudioFinalStorageKey(storageKey)
-    ) {
+    if (!isInputStorageKey(storageKey)) {
       throw new LocalFileUploadError('LOCAL_UPLOAD_INVALID');
     }
     return join(
@@ -492,15 +402,5 @@ export class LocalFileUploadProvider
       return { detectedType: 'TEXT', encryptedPdf: false, pdfPageCount: null };
     }
     return { detectedType: 'UNKNOWN', encryptedPdf: false, pdfPageCount: null };
-  }
-
-  private toAudioInspection(
-    object: StoredUploadObject,
-  ): Awaited<ReturnType<AudioUploadStorage['inspectAndSeal']>> {
-    return {
-      mimeType: object.contentType,
-      sizeBytes: object.bytes.byteLength,
-      sha256: createHash('sha256').update(object.bytes).digest('hex'),
-    };
   }
 }

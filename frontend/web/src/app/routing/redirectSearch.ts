@@ -2,9 +2,6 @@
 import {
   questionCandidateListQuerySchema,
   questionListQuerySchema,
-  ttsJobItemsQuerySchema,
-  ttsJobListQuerySchema,
-  ttsVoicePresetListQuerySchema,
   usageCostOverviewQuerySchema,
   vocabularyCandidateListQuerySchema,
   wordbookIdPathSchema,
@@ -30,8 +27,6 @@ const approvedStaticPaths = new Set([
   '/admin/content-production/candidates',
   '/admin/content-production/vocabulary-candidates',
   '/admin/content-production/presets',
-  '/admin/tts',
-  '/admin/tts/presets',
   '/admin/usage-cost',
   '/admin/questions',
   '/admin/vocabularies',
@@ -46,7 +41,6 @@ const approvedDynamicPaths = [
   /^\/admin\/content-production\/jobs\/[0-9a-f-]+$/u,
   /^\/admin\/content-production\/candidates\/[0-9a-f-]+$/u,
   /^\/admin\/content-production\/vocabulary-candidates\/[0-9a-f-]+$/u,
-  /^\/admin\/tts\/jobs\/[0-9a-f-]+$/u,
   /^\/admin\/questions\/[0-9a-f-]+$/u,
   /^\/admin\/questions\/[0-9a-f-]+\/versions\/[0-9a-f-]+\/replace$/u,
   /^\/admin\/vocabularies\/[0-9a-f-]+$/u,
@@ -100,20 +94,6 @@ function hasValidSearch(url: URL): boolean {
   }
   if (url.pathname === '/admin/content-production/vocabulary-candidates') {
     return vocabularyCandidateListQuerySchema.safeParse(
-      Object.fromEntries(url.searchParams),
-    ).success;
-  }
-  if (url.pathname === '/admin/tts') {
-    return ttsJobListQuerySchema.safeParse(Object.fromEntries(url.searchParams))
-      .success;
-  }
-  if (/^\/admin\/tts\/jobs\/[0-9a-f-]+$/u.test(url.pathname)) {
-    return ttsJobItemsQuerySchema.safeParse(
-      Object.fromEntries(url.searchParams),
-    ).success;
-  }
-  if (url.pathname === '/admin/tts/presets') {
-    return ttsVoicePresetListQuerySchema.safeParse(
       Object.fromEntries(url.searchParams),
     ).success;
   }

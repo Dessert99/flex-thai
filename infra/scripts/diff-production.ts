@@ -2,8 +2,8 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { parseEnv } from 'node:util';
 import { fileURLToPath } from 'node:url';
+import { parseEnv } from 'node:util';
 import {
   assertExpectedAwsAccount,
   createProductionDiffArguments,
@@ -55,22 +55,7 @@ const runProductionDiff = (): void => {
     readFileSync(localEnvironmentPath, 'utf8'),
   );
   const environment = readLocalProductionDiffEnvironment(environmentSource);
-  const mediaPublicKeyPath = resolve(
-    repositoryRoot,
-    environment.mediaPublicKeyPath,
-  );
-
-  if (!existsSync(mediaPublicKeyPath)) {
-    throw new Error(
-      `공개 키 파일을 찾을 수 없습니다: ${environment.mediaPublicKeyPath}`,
-    );
-  }
-
-  const mediaPublicKeyPem = readFileSync(mediaPublicKeyPath, 'utf8');
-  const config = createProductionInfrastructureConfig(
-    environment,
-    mediaPublicKeyPem,
-  );
+  const config = createProductionInfrastructureConfig(environment);
   const actualAccount = readAwsAccount(environment.awsProfile);
 
   assertExpectedAwsAccount(actualAccount, environment.account);
@@ -87,7 +72,6 @@ const runProductionDiff = (): void => {
       env: {
         ...process.env,
         AWS_PROFILE: environment.awsProfile,
-        MEDIA_PUBLIC_KEY_PEM: config.mediaPublicKeyPem,
       },
       stdio: 'inherit',
     },

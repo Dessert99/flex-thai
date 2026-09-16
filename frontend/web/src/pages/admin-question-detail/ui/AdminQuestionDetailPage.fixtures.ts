@@ -6,16 +6,6 @@ export const draftVersionId = '01933b6a-8f13-7a19-b7e5-536d70f57aab';
 /** 상세 fixture의 현재 게시 version ID */
 export const publishedVersionId = '01933b6a-8f13-7a19-b7e5-536d70f57aac';
 
-/** 게시 가능한 TTS readiness fixture를 만든다 */
-export function createReadyReadiness() {
-  return {
-    ready: true,
-    requiredCount: 1,
-    readyCount: 1,
-    blockers: [],
-  };
-}
-
 /** 비교 가능한 DRAFT와 게시 version을 포함한 상세 fixture를 만든다 */
 export function createQuestionDetail({
   draftValidationStatus = 'FAILED',
@@ -37,7 +27,7 @@ export function createQuestionDetail({
               ? [
                   {
                     path: 'blocks.0.sentences.0',
-                    code: 'MEDIA_ASSET_NOT_READY',
+                    code: 'THAI_CONTENT_INVALID',
                   },
                 ]
               : [],
@@ -84,11 +74,6 @@ function createVersion({
     translationKo: version === 3 ? '새 질문' : '이전 질문',
     pronunciationKo: '캄탐',
     toneMarks: 'M-M',
-    mediaAssetId: questionId,
-    audio: {
-      status: 'READY',
-      readUrl: 'https://media.example.com/question.wav',
-    },
     tokens: [],
     expressions: [],
   } as const;
@@ -101,7 +86,7 @@ function createVersion({
       id: `${id.slice(0, -1)}e`,
       slug: 'dialogue-choice',
       version: 1,
-      skill: 'LISTENING',
+      skill: 'READING',
       template: 'DIALOGUE_CHOICE',
     },
     difficulty: 4,
@@ -111,7 +96,6 @@ function createVersion({
       {
         id: sentenceId,
         kind: 'QUESTION',
-        displayMode: 'TEXT_AND_AUDIO',
         position: 0,
         sentences: [
           {
@@ -125,7 +109,6 @@ function createVersion({
       {
         id: `${id.slice(0, -1)}1`,
         kind: 'EXPLANATION',
-        displayMode: 'TEXT',
         position: 1,
         sentences: [
           {

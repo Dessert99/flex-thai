@@ -61,7 +61,7 @@ function FormExample({ disabled = false, invalid = false }: FormExampleProps) {
               <FormControl>
                 <Input
                   disabled={disabled}
-                  placeholder='예: 듣기 취약 유형 집중 학습'
+                  placeholder='예: 읽기 취약 유형 집중 학습'
                   {...field}
                 />
               </FormControl>

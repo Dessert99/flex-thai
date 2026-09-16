@@ -7,7 +7,7 @@ import type {
 /** queue transport가 실제 수락한 뒤에만 resolve하는 최소 port */
 export interface AsyncDispatchQueueAcceptance {
   accept(input: {
-    destination: 'CONTENT_PRODUCTION' | 'TTS';
+    destination: 'CONTENT_PRODUCTION';
     messageId: string;
     payload: AsyncDispatchMessage['payload'];
   }): Promise<void>;
@@ -17,7 +17,7 @@ export interface AsyncDispatchQueueAcceptance {
 export class AcceptedQueueDispatchSender implements AsyncDispatchSender {
   constructor(
     private readonly queue: AsyncDispatchQueueAcceptance,
-    private readonly destination: 'CONTENT_PRODUCTION' | 'TTS',
+    private readonly destination: 'CONTENT_PRODUCTION',
   ) {}
 
   /** queue가 message를 수락하기 전에 relay가 ack하지 못하게 promise를 그대로 전달한다 */
@@ -40,24 +40,10 @@ export const createLocalAsyncDispatchSenders = (input: {
   contentProductionHandler: (
     message: AsyncDispatchMessage['payload'],
   ) => Promise<unknown>;
-  ttsHandler: (message: AsyncDispatchMessage['payload']) => Promise<unknown>;
-}): Record<'CONTENT_PRODUCTION' | 'TTS', AsyncDispatchSender> => ({
+}): Record<'CONTENT_PRODUCTION', AsyncDispatchSender> => ({
   CONTENT_PRODUCTION: {
     async send(message) {
       await input.contentProductionHandler(message.payload);
-    },
-  },
-  TTS: {
-    async send(message) {
-      const result = await input.ttsHandler(message.payload);
-      if (
-        result !== null &&
-        typeof result === 'object' &&
-        'kind' in result &&
-        result.kind === 'MALFORMED'
-      ) {
-        throw new Error('ASYNC_DISPATCH_LOCAL_MESSAGE_REJECTED');
-      }
     },
   },
 });

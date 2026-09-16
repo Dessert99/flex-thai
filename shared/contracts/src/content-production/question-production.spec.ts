@@ -22,7 +22,7 @@ const typeVersionId = 'cbb22737-6f3d-4112-bb0e-8e4f005c810b';
 const topicId = 'eb16b18a-8d19-4c83-9cdb-c36a5d59c4d6';
 
 const payload = {
-  questionTypeSlug: 'listening-response',
+  questionTypeSlug: 'reading-response',
   questionTypeVersion: 1,
   difficulty: 2,
   topicSlug: 'daily-life',
@@ -30,7 +30,6 @@ const payload = {
   blocks: [
     {
       kind: 'QUESTION',
-      displayMode: 'TEXT',
       sentences: [
         {
           speaker: null,

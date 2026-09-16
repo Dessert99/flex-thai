@@ -1,6 +1,6 @@
 /** 관리자 문제 모든 상태 목록·상세의 stable projection을 검증한다 */
-import { randomUUID } from 'node:crypto';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import * as schema from '../schema/index.js';
@@ -10,8 +10,8 @@ import {
   questionBlocks,
   questionOptions,
   questionVersionTags,
-  questions,
   questionVersions,
+  questions,
   thaiSentenceVersions,
   tokenOccurrences,
 } from '../schema/index.js';
@@ -80,7 +80,7 @@ describe('DrizzleAdminQuestionQuery 목록', () => {
           latestVersionId: 'version-3',
           latestVersionStatus: 'DRAFT',
           validationStatus: 'FAILED',
-          questionTypeSlug: 'listening-dialogue',
+          questionTypeSlug: 'reading-dialogue',
           difficulty: 4,
           updatedAt,
         },
@@ -105,8 +105,8 @@ describe('DrizzleAdminQuestionQuery 목록', () => {
         status: 'HIDDEN',
         versionStatus: 'DRAFT',
         validationStatus: 'FAILED',
-        questionTypeSlug: 'listening-dialogue',
-        skill: 'LISTENING',
+        questionTypeSlug: 'reading-dialogue',
+        skill: 'READING',
         difficulty: 4,
         page: 2,
         pageSize: 10,
@@ -121,7 +121,7 @@ describe('DrizzleAdminQuestionQuery 목록', () => {
           latestVersionId: 'version-3',
           latestVersionStatus: 'DRAFT',
           validationStatus: 'FAILED',
-          questionTypeSlug: 'listening-dialogue',
+          questionTypeSlug: 'reading-dialogue',
           difficulty: 4,
           updatedAt,
         },
@@ -221,7 +221,6 @@ describe('DrizzleAdminQuestionQuery 상세', () => {
           id: 'block-2',
           questionVersionId: 'version-2',
           kind: 'QUESTION',
-          displayMode: 'TEXT',
           position: 0,
         },
       ],
@@ -263,9 +262,6 @@ describe('DrizzleAdminQuestionQuery 상세', () => {
           translationKo: '질문',
           pronunciationKo: '캄탐',
           toneMarks: 'M-M',
-          mediaAssetId: null,
-          mediaStatus: null,
-          mediaStorageKey: null,
         },
         {
           id: 'sentence-1',
@@ -273,9 +269,6 @@ describe('DrizzleAdminQuestionQuery 상세', () => {
           translationKo: '안녕하세요',
           pronunciationKo: '싸왓디',
           toneMarks: 'L-L-M',
-          mediaAssetId: 'media-1',
-          mediaStatus: 'READY',
-          mediaStorageKey: 'private/sentence-1.wav',
         },
         {
           id: 'sentence-2',
@@ -283,9 +276,6 @@ describe('DrizzleAdminQuestionQuery 상세', () => {
           translationKo: '안녕히 가세요',
           pronunciationKo: '라 꺼언',
           toneMarks: 'M-L',
-          mediaAssetId: 'media-2',
-          mediaStatus: 'REJECTED',
-          mediaStorageKey: 'private/sentence-2.wav',
         },
         {
           id: 'sentence-3',
@@ -293,9 +283,6 @@ describe('DrizzleAdminQuestionQuery 상세', () => {
           translationKo: '감사합니다',
           pronunciationKo: '컵쿤',
           toneMarks: 'L-M',
-          mediaAssetId: 'media-3',
-          mediaStatus: 'UPLOADING',
-          mediaStorageKey: 'private/sentence-3.wav',
         },
       ],
       [
@@ -363,8 +350,6 @@ describe('DrizzleAdminQuestionQuery 상세', () => {
                     translationKo: '질문',
                     pronunciationKo: '캄탐',
                     toneMarks: 'M-M',
-                    mediaAssetId: null,
-                    mediaStatus: null,
                     tokens: [],
                     expressions: [],
                   },
@@ -380,9 +365,6 @@ describe('DrizzleAdminQuestionQuery 상세', () => {
               displayText: 'สวัสดี',
               sentence: {
                 originalText: 'สวัสดี',
-                mediaAssetId: 'media-1',
-                mediaStatus: 'READY',
-                mediaStorageKey: 'private/sentence-1.wav',
                 tokens: [
                   expect.objectContaining({
                     surface: 'สวัสดี',
@@ -481,7 +463,6 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       const typeId = randomUUID();
       const typeVersionId = randomUUID();
       const slug = `query-${randomUUID()}`;
-      const mediaId = randomUUID();
       const sentenceId = randomUUID();
       const sentenceVersionId = randomUUID();
       const questionId = randomUUID();
@@ -502,25 +483,14 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
          ) values ($1, $2, 1, 'STANDARD_CHOICE', 1, '{}'::jsonb)`,
         [typeVersionId, typeId],
       );
-      await pool.query(
-        `insert into media_assets (
-           id, kind, storage_key, declared_mime_type, declared_size_bytes,
-           declared_sha256, mime_type, size_bytes, sha256, status, ready_at
-         ) values (
-           $1, 'AUDIO', $2, 'audio/mpeg', 1, $3,
-           'audio/mpeg', 1, $3, 'READY', now()
-         )`,
-        [mediaId, `audio/${mediaId}`, 'b'.repeat(64)],
-      );
       await pool.query(`insert into thai_sentences (id) values ($1)`, [
         sentenceId,
       ]);
       await pool.query(
         `insert into thai_sentence_versions (
            id, sentence_id, version, original_text, translation_ko,
-           pronunciation_ko, tone_marks, media_asset_id
-         ) values ($1, $2, 1, 'ก', '뜻', '꺼', '-', $3)`,
-        [sentenceVersionId, sentenceId, mediaId],
+           pronunciation_ko, tone_marks) values ($1, $2, 1, 'ก', '뜻', '꺼', '-')`,
+        [sentenceVersionId, sentenceId],
       );
       await pool.query(
         `insert into questions (id, status, updated_at)

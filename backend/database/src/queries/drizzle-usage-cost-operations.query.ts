@@ -1,4 +1,4 @@
-/** AI·TTS provider 실행을 하나의 읽기 모델로 정규화해 비용을 집계한다 */
+/** AI provider 실행을 하나의 읽기 모델로 정규화해 비용을 집계한다 */
 import { sql, type SQL } from 'drizzle-orm';
 
 /** provider run을 읽을 UTC half-open 기간 */
@@ -10,19 +10,17 @@ export interface UsageCostDateRange {
 /** overview의 선택적 provider run filter */
 export interface UsageCostOverviewReadInput {
   range: UsageCostDateRange;
-  source?: 'AI' | 'TTS';
+  source?: 'AI';
   provider?: string;
   model?: string;
-  voice?: string;
   status?: 'STARTED' | 'SUCCEEDED' | 'FAILED' | 'OUTCOME_UNKNOWN';
 }
 
-/** provider/model/voice 단위의 비용 aggregate */
+/** provider/model 단위의 비용 aggregate */
 export interface UsageCostBreakdown {
-  source: 'AI' | 'TTS';
+  source: 'AI';
   provider: string;
   model: string;
-  voice: string | null;
   runCount: number;
   estimatedCostUsd: string;
 }
@@ -54,25 +52,11 @@ const normalizedRuns = sql`
       'AI'::text as source,
       provider_runs.provider,
       provider_runs.model,
-      null::text as voice,
       provider_runs.status::text as status,
       provider_runs.estimated_cost_usd as estimated_cost_usd,
       provider_runs.started_at,
       provider_runs.finished_at
     from provider_runs
-    union all
-    select
-      'TTS'::text as source,
-      tts_provider_runs.provider,
-      tts_provider_runs.model,
-      tts_items.voice_snapshot ->> 'voice' as voice,
-      tts_provider_runs.status::text as status,
-      coalesce(tts_provider_runs.estimated_cost_usd, 0) as estimated_cost_usd,
-      tts_provider_runs.started_at,
-      tts_provider_runs.finished_at
-    from tts_provider_runs
-    inner join tts_items on tts_items.id = tts_provider_runs.item_id
-    inner join tts_jobs on tts_jobs.id = tts_items.job_id
   )
 `;
 
@@ -106,17 +90,16 @@ const readCount = (row: unknown, key: string): number =>
   Number(readString(row, key));
 
 const isSource = (value: string): value is UsageCostBreakdown['source'] =>
-  value === 'AI' || value === 'TTS';
+  value === 'AI';
 
 const toBreakdown = (row: unknown): UsageCostBreakdown => {
   const source = readString(row, 'source');
   if (!isSource(source)) throw new Error('USAGE_COST_SOURCE_INVALID');
-  const record = row as Record<string, unknown>;
+
   return {
     source,
     provider: readString(row, 'provider'),
     model: readString(row, 'model'),
-    voice: record.voice === null ? null : readString(row, 'voice'),
     runCount: readCount(row, 'run_count'),
     estimatedCostUsd: readString(row, 'estimated_cost_usd'),
   };
@@ -131,7 +114,6 @@ const runConditions = (
     ...(input.source ? [sql`source = ${input.source}`] : []),
     ...(input.provider ? [sql`provider = ${input.provider}`] : []),
     ...(input.model ? [sql`model = ${input.model}`] : []),
-    ...(input.voice ? [sql`voice = ${input.voice}`] : []),
     ...(input.status && options.includeStatus
       ? [sql`status = ${input.status}`]
       : []),
@@ -142,7 +124,7 @@ const runConditions = (
 const currentMonthCostConditions = (range: UsageCostDateRange): SQL =>
   sql`((status = 'STARTED' and started_at >= ${range.from} and started_at < ${range.to}) or (status <> 'STARTED' and finished_at >= ${range.from} and finished_at < ${range.to}))`;
 
-/** AI·TTS 비용 breakdown과 운영 aggregate를 변경 없이 읽는다 */
+/** AI 비용 breakdown과 운영 aggregate를 변경 없이 읽는다 */
 export class DrizzleUsageCostOperationsQuery implements UsageCostOperationsQuery {
   constructor(private readonly database: SqlExecutor) {}
 
@@ -163,16 +145,14 @@ export class DrizzleUsageCostOperationsQuery implements UsageCostOperationsQuery
           select coalesce(sum(estimated_cost_usd), 0)::text as estimated_cost_usd
           from normalized_provider_runs where ${selectedConditions}`),
       this.database.execute(sql`${normalizedRuns}
-          select source, provider, model, voice, count(*)::int as run_count,
+          select source, provider, model, count(*)::int as run_count,
             coalesce(sum(estimated_cost_usd), 0)::text as estimated_cost_usd
           from normalized_provider_runs where ${selectedConditions}
-          group by source, provider, model, voice
-          order by source, provider, model, voice nulls first`),
+          group by source, provider, model
+          order by source, provider, model`),
       this.database.execute(sql`
           select (
             (select count(*) from jobs where status in ('QUEUED', 'RUNNING')
-              and created_at >= ${input.range.from} and created_at < ${input.range.to}) +
-            (select count(*) from tts_jobs where status in ('QUEUED', 'RUNNING')
               and created_at >= ${input.range.from} and created_at < ${input.range.to})
           )::int as in_progress_job_count`),
       this.database.execute(sql`${normalizedRuns}

@@ -1,6 +1,5 @@
 /** 관리자 문제 버전 복제·전체 교체를 Drizzle transaction으로 구현한다 */
 import {
-  type MediaAsset,
   type QuestionAdminRepository,
   type QuestionAdminTransaction,
   type QuestionAdminVersionGraph,
@@ -9,16 +8,16 @@ import {
 import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
+import * as schema from '../schema/index.js';
 import {
   auditLogs,
   expressionOccurrences,
-  mediaAssets,
   questionBlocks,
   questionBlockSentences,
   questionOptions,
+  questions,
   questionTags,
   questionTopics,
-  questions,
   questionTypes,
   questionTypeVersions,
   questionVersions,
@@ -30,14 +29,12 @@ import {
   vocabularyMeanings,
   vocabularyPronunciations,
 } from '../schema/index.js';
-import * as schema from '../schema/index.js';
 
 type QuestionAdminDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 type QuestionAdminSession = Pick<
   QuestionAdminDatabase,
   'delete' | 'insert' | 'select' | 'update'
 >;
-type MediaAssetRow = typeof mediaAssets.$inferSelect;
 
 /** 관리자 문제 graph의 조건부 저장 충돌을 stable code로 전달한다 */
 export class QuestionAdminPersistenceError extends Error {
@@ -54,60 +51,6 @@ const comparePosition = (
   right: { position: number },
 ): number => left.position - right.position;
 
-const toMediaAsset = (row: MediaAssetRow): MediaAsset => {
-  const base = {
-    id: row.id,
-    kind: row.kind,
-    storageKey: row.storageKey,
-    declaredMimeType: row.declaredMimeType,
-    declaredSizeBytes: row.declaredSizeBytes,
-    declaredSha256: row.declaredSha256,
-  };
-  if (row.status === 'READY') {
-    if (
-      row.mimeType === null ||
-      row.sizeBytes === null ||
-      row.sha256 === null ||
-      row.readyAt === null
-    ) {
-      throw new QuestionAdminPersistenceError('mapReadyMedia');
-    }
-    return {
-      ...base,
-      mimeType: row.mimeType,
-      sizeBytes: row.sizeBytes,
-      sha256: row.sha256,
-      status: 'READY',
-      readyAt: row.readyAt,
-    };
-  }
-  if (row.status === 'REJECTED') {
-    if (
-      row.mimeType === null ||
-      row.sizeBytes === null ||
-      row.sha256 === null
-    ) {
-      throw new QuestionAdminPersistenceError('mapRejectedMedia');
-    }
-    return {
-      ...base,
-      mimeType: row.mimeType,
-      sizeBytes: row.sizeBytes,
-      sha256: row.sha256,
-      status: 'REJECTED',
-      readyAt: null,
-    };
-  }
-  return {
-    ...base,
-    mimeType: null,
-    sizeBytes: null,
-    sha256: null,
-    status: 'UPLOADING',
-    readyAt: null,
-  };
-};
-
 const loadSourceChildren = async (
   transaction: QuestionAdminSession,
   version: Omit<QuestionAdminVersionSource, 'blocks' | 'options' | 'tagIds'>,
@@ -116,7 +59,6 @@ const loadSourceChildren = async (
     .select({
       id: questionBlocks.id,
       kind: questionBlocks.kind,
-      displayMode: questionBlocks.displayMode,
       position: questionBlocks.position,
     })
     .from(questionBlocks)
@@ -160,7 +102,6 @@ const loadSourceChildren = async (
     tagIds: tagRows.map(({ tagId }) => tagId),
     blocks: [...blockRows].sort(comparePosition).map((block) => ({
       kind: block.kind,
-      displayMode: block.displayMode,
       position: block.position,
       sentences: blockSentenceRows
         .filter(({ blockId }) => blockId === block.id)
@@ -337,16 +278,6 @@ const createQuestionAdminTransaction = (
       .for('key share');
   },
 
-  async findMediaAssetById(mediaAssetId) {
-    const [row] = await transaction
-      .select()
-      .from(mediaAssets)
-      .where(eq(mediaAssets.id, mediaAssetId))
-      .for('key share')
-      .limit(1);
-    return row ? toMediaAsset(row) : null;
-  },
-
   async findVocabularyById(vocabularyId) {
     const [row] = await transaction
       .select({
@@ -379,7 +310,6 @@ const createQuestionAdminTransaction = (
       .select({
         id: vocabularyPronunciations.id,
         vocabularyId: vocabularyPronunciations.vocabularyId,
-        mediaAssetId: vocabularyPronunciations.mediaAssetId,
       })
       .from(vocabularyPronunciations)
       .where(eq(vocabularyPronunciations.id, pronunciationId))

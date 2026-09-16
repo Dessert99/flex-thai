@@ -1,25 +1,16 @@
 /** 도메인 오류가 내부 정보를 숨긴 안정적인 HTTP 응답이 되는지 검증한다 */
 import {
-  HttpException,
-  InternalServerErrorException,
-  NotFoundException,
-  ServiceUnavailableException,
-} from '@nestjs/common';
-import { describe, expect, it, vi } from 'vitest';
-import {
   problemDetailsSchema,
   startEmailAuthenticationRequestSchema,
 } from '@flex-thia/contracts';
 import { WordbookPersistenceError } from '@flex-thia/database';
 import {
-  AuthDomainError,
   AuditLogError,
+  AuthDomainError,
   ContentImportError,
-  ContentTtsReadinessError,
   EmailChallengeError,
   IdentityDomainError,
   LearningDomainError,
-  MediaAssetDomainError,
   QuestionAdminError,
   QuestionPublicationError,
   QuestionTaxonomyError,
@@ -28,6 +19,13 @@ import {
   VocabularyRelationsMergeAdminError,
   WordbookDomainError,
 } from '@flex-thia/domain';
+import {
+  HttpException,
+  InternalServerErrorException,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { describe, expect, it, vi } from 'vitest';
 import { LearnerPublicResponseError } from '../../learning/learner-content.service.js';
 import { LearnerQuestionsController } from '../../learning/learner-questions.controller.js';
 import { StructuredLogger } from '../logging/structured-logger.js';
@@ -37,24 +35,6 @@ import {
 } from './domain-exception.filter.js';
 
 describe('공개 오류 응답 변환', () => {
-  it('CONTENT_TTS_NOT_READY를 blocker 상세 없이 stable 409로 변환한다', () => {
-    expect(
-      buildErrorResponse(
-        new ContentTtsReadinessError(['00000000-0000-4000-8000-000000000001']),
-        'request-tts-readiness',
-      ),
-    ).toEqual({
-      status: 409,
-      body: {
-        type: 'https://flex-thia.example/problems/content-tts-not-ready',
-        title: '요청을 처리할 수 없습니다.',
-        status: 409,
-        code: 'CONTENT_TTS_NOT_READY',
-        requestId: 'request-tts-readiness',
-        fieldErrors: [],
-      },
-    });
-  });
   it.each([
     ['INVALID_SCHOOL_EMAIL', 400],
     ['CHALLENGE_NOT_FOUND', 404],
@@ -145,7 +125,7 @@ describe('공개 오류 응답 변환', () => {
           },
           route: { path: '/api/v1/questions/:questionId' },
           user: { userId: 'user-internal' },
-          body: { storageKey: 'private/internal.mp3' },
+          body: { storageKey: 'private/internal.bin' },
         }),
         getResponse: () => ({ type, status, json }),
       }),
@@ -155,7 +135,7 @@ describe('공개 오류 응답 변환', () => {
         code: 'INTERNAL_DETAIL',
         message: 'secret',
         issues: [{ path: ['storageKey'], message: 'Zod secret issue' }],
-        storageKey: 'private/exception.mp3',
+        storageKey: 'private/exception.bin',
         token: 'exception-secret-token',
       }),
       new HttpException(
@@ -250,7 +230,6 @@ describe('공개 오류 응답 변환', () => {
     'CONTENT_DRAFT_ITEM_CONFLICT',
     'CONTENT_DRAFT_PERSISTENCE_CONFLICT',
     'CONTENT_IMPORT_PERSISTENCE_CONFLICT',
-    'MEDIA_ADMIN_PERSISTENCE_CONFLICT',
     'QUESTION_ADMIN_PERSISTENCE_CONFLICT',
     'QUESTION_PUBLICATION_PERSISTENCE_CONFLICT',
   ])('관리자 persistence 충돌 %s를 409로 변환한다', (code) => {
@@ -290,18 +269,10 @@ describe('공개 오류 응답 변환', () => {
 
   it.each([
     [new ContentImportError('CONTENT_IMPORT_IDEMPOTENCY_CONFLICT'), 409],
-    [new MediaAssetDomainError('MEDIA_UPLOAD_EMPTY'), 400],
-    [new MediaAssetDomainError('MEDIA_UPLOAD_TOO_LARGE'), 413],
-    [new MediaAssetDomainError('MEDIA_MIME_NOT_ALLOWED'), 400],
-    [new MediaAssetDomainError('MEDIA_SHA256_INVALID'), 400],
-    [new MediaAssetDomainError('MEDIA_ASSET_NOT_FOUND'), 404],
-    [new MediaAssetDomainError('MEDIA_ASSET_NOT_UPLOADING'), 409],
-    [new MediaAssetDomainError('MEDIA_INSPECTION_MISMATCH'), 409],
     [new QuestionAdminError('QUESTION_NOT_FOUND'), 404],
     [new QuestionAdminError('QUESTION_VERSION_NOT_FOUND'), 404],
     [new QuestionAdminError('QUESTION_TYPE_NOT_FOUND'), 404],
     [new QuestionAdminError('QUESTION_REFERENCE_NOT_FOUND'), 404],
-    [new QuestionAdminError('QUESTION_MEDIA_NOT_READY'), 409],
     [new QuestionAdminError('QUESTION_CONTENT_INVALID'), 400],
     [new QuestionAdminError('IMMUTABLE_VERSION'), 409],
     [new QuestionPublicationError('QUESTION_NOT_FOUND'), 404],
@@ -316,11 +287,9 @@ describe('공개 오류 응답 변환', () => {
     [new UserManagementError('LAST_ACTIVE_ADMIN_REQUIRED'), 409],
     [new AuditLogError('AUDIT_LOG_NOT_FOUND'), 404],
     [new VocabularyAdminError('VOCABULARY_NOT_FOUND'), 404],
-    [new VocabularyAdminError('VOCABULARY_MEDIA_NOT_FOUND'), 404],
     [new VocabularyAdminError('VOCABULARY_CONTENT_INVALID'), 400],
     [new VocabularyAdminError('VOCABULARY_DUPLICATE'), 409],
     [new VocabularyAdminError('VOCABULARY_IN_USE'), 409],
-    [new VocabularyAdminError('VOCABULARY_AUDIO_NOT_READY'), 409],
     [new VocabularyAdminError('VOCABULARY_STATE_CONFLICT'), 409],
     [new VocabularyRelationsMergeAdminError('MEANING_RELATION_NOT_FOUND'), 404],
     [new VocabularyRelationsMergeAdminError('MEANING_RELATION_DUPLICATE'), 409],
@@ -395,7 +364,7 @@ describe('공개 오류 응답 변환', () => {
         Promise.resolve({
           items: [],
           page: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 },
-          storageKey: 'private/leak.mp3',
+          storageKey: 'private/internal.bin',
         }),
     } as never);
     let responseError: unknown;
@@ -432,7 +401,7 @@ describe('공개 오류 응답 변환', () => {
           },
           route: { path: '/api/v1/questions' },
           user: { userId: 'user-1' },
-          body: { storageKey: 'private/leak.mp3' },
+          body: { storageKey: 'private/internal.bin' },
         }),
         getResponse: () => ({ type, status, json }),
       }),

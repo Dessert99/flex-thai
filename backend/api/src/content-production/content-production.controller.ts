@@ -1,5 +1,32 @@
 /** ADMIN+MFA 콘텐츠 제작 upload·preset·작업 HTTP 경계를 제공한다 */
 import {
+  completedUploadResponseSchema,
+  contentProductionJobDetailResponseSchema,
+  contentProductionJobListQuerySchema,
+  contentProductionJobListResponseSchema,
+  contentProductionJobPathSchema,
+  contentProductionJobSummarySchema,
+  contentProductionPresetListResponseSchema,
+  contentProductionPresetPathSchema,
+  contentProductionPresetVersionListResponseSchema,
+  contentProductionPresetVersionSchema,
+  contentProductionUploadPathSchema,
+  createContentProductionJobRequestSchema,
+  createContentProductionPresetRequestSchema,
+  createContentProductionPresetVersionRequestSchema,
+  promptPreviewRequestSchema,
+  promptPreviewResponseSchema,
+  setContentProductionPresetEnabledRequestSchema,
+  uploadPolicyRequestSchema,
+  uploadPolicyResponseSchema,
+  type ContentProductionJobDetailResponse,
+} from '@flex-thia/contracts';
+import {
+  ContentProductionDomainError,
+  ContentProductionPresetError,
+  type ContentProductionJob,
+} from '@flex-thia/domain';
+import {
   BadRequestException,
   Body,
   ConflictException,
@@ -24,33 +51,6 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
-import {
-  completedUploadResponseSchema,
-  contentProductionJobDetailResponseSchema,
-  contentProductionJobListQuerySchema,
-  contentProductionJobListResponseSchema,
-  contentProductionJobPathSchema,
-  contentProductionJobSummarySchema,
-  contentProductionPresetListResponseSchema,
-  contentProductionPresetPathSchema,
-  contentProductionPresetVersionSchema,
-  contentProductionPresetVersionListResponseSchema,
-  contentProductionUploadPathSchema,
-  createContentProductionPresetRequestSchema,
-  createContentProductionPresetVersionRequestSchema,
-  createContentProductionJobRequestSchema,
-  promptPreviewRequestSchema,
-  promptPreviewResponseSchema,
-  setContentProductionPresetEnabledRequestSchema,
-  uploadPolicyRequestSchema,
-  uploadPolicyResponseSchema,
-  type ContentProductionJobDetailResponse,
-} from '@flex-thia/contracts';
-import {
-  ContentProductionDomainError,
-  ContentProductionPresetError,
-  type ContentProductionJob,
-} from '@flex-thia/domain';
 import {
   CurrentUser,
   type AuthenticatedUser,

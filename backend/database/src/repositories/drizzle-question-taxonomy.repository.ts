@@ -1,5 +1,4 @@
 /** 문제 분류 설정의 불변 lifecycle을 Drizzle transaction으로 저장한다 */
-import { randomUUID } from 'node:crypto';
 import type {
   CreateQuestionTypeInput,
   QuestionApprovedExampleSnapshot,
@@ -11,6 +10,7 @@ import { QuestionTaxonomyError } from '@flex-thia/domain';
 import { and, count, eq, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
+import { randomUUID } from 'node:crypto';
 import {
   questionTags,
   questionTopics,
@@ -71,16 +71,14 @@ export const defaultQuestionTypeVersionSettings = (
   decisionRules: Record<string, unknown>;
 } => {
   const template =
-    category === 'LISTENING_DIALOGUE'
-      ? 'DIALOGUE_CHOICE'
-      : category === 'LISTENING_PASSAGE' || category === 'READING_PASSAGE'
-        ? 'PASSAGE_CHOICE'
-        : category === 'READING_ERROR_IDENTIFICATION'
-          ? 'INLINE_SPAN_CHOICE'
-          : 'STANDARD_CHOICE';
+    category === 'READING_PASSAGE'
+      ? 'PASSAGE_CHOICE'
+      : category === 'READING_ERROR_IDENTIFICATION'
+        ? 'INLINE_SPAN_CHOICE'
+        : 'STANDARD_CHOICE';
   return {
     template,
-    optionCount: category === 'LISTENING_RESPONSE' ? 3 : 4,
+    optionCount: 4,
     decisionRules: { mode: 'single-choice' },
   };
 };

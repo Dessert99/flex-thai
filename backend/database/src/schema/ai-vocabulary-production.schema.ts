@@ -1,4 +1,5 @@
 /** AI 어휘 후보와 단계별 검증 결과를 attempt별 불변 snapshot으로 저장한다 */
+import type { ExtractedVocabularyMeaning } from '@flex-thia/domain';
 import { sql } from 'drizzle-orm';
 import {
   check,
@@ -11,7 +12,6 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
-import type { ExtractedVocabularyMeaning } from '@flex-thia/domain';
 import { users } from './identity.schema.js';
 import { jobItems } from './jobs.schema.js';
 import { vocabularies, vocabularyKindEnum } from './vocabulary.schema.js';

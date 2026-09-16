@@ -1,10 +1,10 @@
 /** 관리자 오류 신고의 filter·목록·상세·workflow 제어를 렌더링한다 */
-import { Link } from '@tanstack/react-router';
 import type {
   AdminContentErrorReportDetailResponse,
   AdminContentErrorReportListResponse,
   ContentErrorReportStatus,
 } from '@flex-thia/contracts';
+import { Link } from '@tanstack/react-router';
 import type { ContentErrorReportSearch } from '../model/contentErrorReportSearch';
 import { toContentErrorReportTargetLink } from '../model/contentErrorReportTargetLink';
 
@@ -111,11 +111,9 @@ export function ContentErrorReportManagementPageView({
           }
         >
           <option value=''>전체</option>
-          {['QUESTION', 'VOCABULARY', 'SENTENCE', 'AUDIO', 'CONCEPT'].map(
-            (value) => (
-              <option key={value}>{value}</option>
-            ),
-          )}
+          {['QUESTION', 'VOCABULARY', 'SENTENCE', 'CONCEPT'].map((value) => (
+            <option key={value}>{value}</option>
+          ))}
         </select>
       </label>
       <label>
@@ -130,7 +128,6 @@ export function ContentErrorReportManagementPageView({
           {[
             'MEANING_TRANSLATION',
             'PRONUNCIATION_TONE',
-            'AUDIO',
             'ANSWER_EXPLANATION',
             'TOKENIZATION',
             'OTHER',

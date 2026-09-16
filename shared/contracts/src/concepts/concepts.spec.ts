@@ -78,45 +78,6 @@ describe('개념 계약', () => {
     ).toThrow();
   });
 
-  it('공개 상세에서 내부 media key를 거부한다', () => {
-    expect(() =>
-      conceptDetailResponseSchema.parse({
-        id: '22222222-2222-4222-8222-222222222222',
-        versionId: '33333333-3333-4333-8333-333333333333',
-        category: 'GRAMMAR',
-        position: 0,
-        title: '기본 어순',
-        summary: '요약',
-        tableOfContents: [{ blockId, heading: '예문', position: 0 }],
-        blocks: [
-          {
-            id: blockId,
-            kind: 'THAI_EXAMPLES',
-            position: 0,
-            heading: '예문',
-            examples: [
-              {
-                position: 0,
-                noteKo: null,
-                sentence: {
-                  sentenceVersionId,
-                  originalText: 'ฉันเรียนภาษาไทย',
-                  translationKo: '나는 태국어를 공부한다',
-                  pronunciationKo: '찬 리안 파싸 타이',
-                  toneMarks: '',
-                  audioUrl: null,
-                  mediaStorageKey: 'private/example.mp3',
-                  tokens: [],
-                  expressions: [],
-                },
-              },
-            ],
-          },
-        ],
-      }),
-    ).toThrow();
-  });
-
   it('검증 문제의 canonical 근거를 보존한다', () => {
     const parsed = conceptValidationReportSchema.parse({
       versionId: '33333333-3333-4333-8333-333333333333',

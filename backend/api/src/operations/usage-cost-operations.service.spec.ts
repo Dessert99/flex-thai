@@ -88,7 +88,7 @@ describe('UsageCostOperationsService', () => {
     query.getCurrentMonthEstimatedCost.mockResolvedValueOnce('24.00000000');
 
     await expect(
-      service.overview({ role: 'ADMIN' }, { source: 'TTS', status: 'FAILED' }),
+      service.overview({ role: 'ADMIN' }, { source: 'AI', status: 'FAILED' }),
     ).resolves.toMatchObject({
       estimatedCostUsd: '16.000000',
       currentMonthThreshold: {
@@ -130,7 +130,7 @@ describe('UsageCostOperationsService', () => {
       );
 
       await expect(
-        service.overview({ role: 'ADMIN' }, { source: 'TTS' }),
+        service.overview({ role: 'ADMIN' }, { source: 'AI' }),
       ).resolves.toMatchObject({
         currentMonthThreshold: { estimatedCostUsd, status },
       });

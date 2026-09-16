@@ -12,7 +12,6 @@ const ids = {
   item: '00000000-0000-4000-8000-000000000003',
   request: '00000000-0000-4000-8000-000000000004',
   actor: '00000000-0000-4000-8000-000000000005',
-  media: '00000000-0000-4000-8000-000000000006',
   vocabulary: '00000000-0000-4000-8000-000000000007',
 } as const;
 
@@ -61,7 +60,6 @@ const createDraftRequest = {
       clientRef: 'pronunciation.main',
       pronunciationKo: '싸왓디',
       toneMarks: 'L-L-M',
-      mediaAssetId: ids.media,
     },
   ],
   meaningPronunciations: [
@@ -96,7 +94,6 @@ const createService = (found: typeof candidate | null = candidate) => {
                 code: null,
                 details: {
                   providerRawPayload: { secret: true },
-                  storageKey: 'private/audio.wav',
                 },
                 createdAt: new Date('2026-07-31T00:00:01.000Z'),
               },

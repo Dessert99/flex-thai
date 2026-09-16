@@ -25,7 +25,6 @@ describe('콘텐츠 오류 신고 계약', () => {
       pronunciationId: null,
     },
     { kind: 'SENTENCE', sentenceVersionId: id, tokenPosition: null },
-    { kind: 'AUDIO', source: { kind: 'SENTENCE', sentenceVersionId: id } },
     { kind: 'CONCEPT', conceptId: id, conceptVersionId: id, blockId: null },
   ])('$kind origin을 허용한다', (origin) => {
     expect(contentErrorReportOriginSchema.parse(origin)).toEqual(origin);
@@ -85,7 +84,6 @@ describe('콘텐츠 오류 신고 계약', () => {
         contentVersionId: null,
         questionVersionId: null,
         sentenceVersionId: null,
-        mediaAssetId: null,
         locationId: null,
       },
       snapshot: {
@@ -94,7 +92,6 @@ describe('콘텐츠 오류 신고 계약', () => {
         secondaryText: null,
         versionLabel: null,
         locationLabel: '어휘 상세',
-        audioAssetId: null,
       },
       history: [],
       createdAt: '2026-07-26T00:00:00.000Z',

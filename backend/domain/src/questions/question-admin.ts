@@ -1,18 +1,17 @@
 /** 관리자 문제 버전을 복제하거나 canonical DRAFT graph로 전체 교체한다 */
 import { randomUUID } from 'node:crypto';
 import type {
-  CanonicalDraftQuestionInput,
-  CanonicalDraftSentenceInput,
-  ContentDraftReference,
-  GeneratedDraftSentenceInput,
-} from '../content-import/content-import.js';
-import type {
   ResolvedQuestionSentenceGraph,
   VocabularyMeaningReferenceRecord,
   VocabularyPronunciationReferenceRecord,
   VocabularyReferenceRecord,
 } from '../content-import/content-draft.repository.js';
-import { assertMediaAssetReady } from '../media/media-asset.js';
+import type {
+  CanonicalDraftQuestionInput,
+  CanonicalDraftSentenceInput,
+  ContentDraftReference,
+  GeneratedDraftSentenceInput,
+} from '../content-import/content-import.js';
 import {
   resolveRepresentativeExpressions,
   validateThaiSentenceVersion,
@@ -43,7 +42,6 @@ export type QuestionAdminErrorCode =
   | 'QUESTION_TAXONOMY_NOT_FOUND'
   | 'QUESTION_REFERENCE_NOT_FOUND'
   | 'QUESTION_REFERENCE_MISMATCH'
-  | 'QUESTION_MEDIA_NOT_READY'
   | 'QUESTION_CONTENT_INVALID'
   | 'IMMUTABLE_VERSION';
 
@@ -77,12 +75,7 @@ export interface ReplaceQuestionVersionCommand extends QuestionAdminCommandConte
   input: QuestionAdminDraftInput;
 }
 
-interface QuestionAdminSentenceInput extends Omit<
-  CanonicalDraftSentenceInput,
-  'mediaAssetId'
-> {
-  mediaAssetId: string | null;
-}
+type QuestionAdminSentenceInput = CanonicalDraftSentenceInput;
 
 interface QuestionAdminDraftInput extends Omit<
   CanonicalDraftQuestionInput,
@@ -90,7 +83,6 @@ interface QuestionAdminDraftInput extends Omit<
 > {
   blocks: Array<{
     kind: CanonicalDraftQuestionInput['blocks'][number]['kind'];
-    displayMode: CanonicalDraftQuestionInput['blocks'][number]['displayMode'];
     sentences: Array<{
       speaker?: string | null;
       sentence: QuestionAdminSentenceInput;
@@ -259,12 +251,7 @@ const assertReference = (value: unknown, path: string): void => {
   failInvalidContent(path);
 };
 
-const assertSentenceInput = (
-  value: unknown,
-  path: string,
-  mediaRequirement:
-    'READY_REFERENCE' | 'OPTIONAL_TTS' | 'PENDING_TTS' = 'READY_REFERENCE',
-): void => {
+const assertSentenceInput = (value: unknown, path: string): void => {
   const sentence = requireRecord(value, path);
   requireExactKeys(
     sentence,
@@ -273,7 +260,6 @@ const assertSentenceInput = (
       'translationKo',
       'pronunciationKo',
       'toneMarks',
-      'mediaAssetId',
       'tokens',
       'expressions',
     ],
@@ -288,16 +274,6 @@ const assertSentenceInput = (
   requireNonemptyString(sentence.pronunciationKo, `${path}.pronunciationKo`);
   if (typeof sentence.toneMarks !== 'string') {
     failInvalidContent(`${path}.toneMarks`);
-  }
-  if (mediaRequirement === 'PENDING_TTS') {
-    if (sentence.mediaAssetId !== null) {
-      failInvalidContent(`${path}.mediaAssetId`);
-    }
-  } else if (
-    mediaRequirement === 'READY_REFERENCE' ||
-    sentence.mediaAssetId !== null
-  ) {
-    requireUuid(sentence.mediaAssetId, `${path}.mediaAssetId`);
   }
 
   const codePoints = Array.from(originalText);
@@ -413,12 +389,11 @@ const assertSentenceInput = (
   });
 };
 
-/** 생성 승인 adapter가 null 음성 DRAFT 문장만 통과시키도록 내부 shape를 검증한다 */
 export const assertGeneratedDraftSentenceInput: (
   value: unknown,
   path: string,
 ) => asserts value is GeneratedDraftSentenceInput = (value, path) => {
-  assertSentenceInput(value, path, 'PENDING_TTS');
+  assertSentenceInput(value, path);
 };
 
 const assertQuestionInput = (value: unknown): void => {
@@ -452,21 +427,11 @@ const assertQuestionInput = (value: unknown): void => {
   blocks.forEach((value, blockIndex) => {
     const blockPath = `blocks.${blockIndex}`;
     const block = requireRecord(value, blockPath);
-    requireExactKeys(
-      block,
-      ['kind', 'displayMode', 'sentences'],
-      [],
-      blockPath,
-    );
+    requireExactKeys(block, ['kind', 'sentences'], [], blockPath);
     requireEnum(
       block.kind,
       ['INSTRUCTION', 'PASSAGE', 'DIALOGUE', 'QUESTION', 'EXPLANATION'],
       `${blockPath}.kind`,
-    );
-    requireEnum(
-      block.displayMode,
-      ['TEXT', 'AUDIO', 'TEXT_AND_AUDIO', 'AUDIO_THEN_REVEAL'],
-      `${blockPath}.displayMode`,
     );
     const sentences = requireArray(block.sentences, `${blockPath}.sentences`);
     if (sentences.length === 0) {
@@ -483,11 +448,7 @@ const assertQuestionInput = (value: unknown): void => {
       ) {
         failInvalidContent(`${entryPath}.speaker`);
       }
-      assertSentenceInput(
-        entry.sentence,
-        `${entryPath}.sentence`,
-        'OPTIONAL_TTS',
-      );
+      assertSentenceInput(entry.sentence, `${entryPath}.sentence`);
     });
   });
 
@@ -556,11 +517,7 @@ const assertQuestionInput = (value: unknown): void => {
       );
       if (end <= start) failInvalidContent(`${optionPath}.span`);
     } else {
-      assertSentenceInput(
-        option.sentence,
-        `${optionPath}.sentence`,
-        'OPTIONAL_TTS',
-      );
+      assertSentenceInput(option.sentence, `${optionPath}.sentence`);
       if (option.span !== null) {
         failInvalidContent(`${optionPath}.span`);
       }
@@ -648,26 +605,6 @@ const resolveSentence = async (input: {
   path: string;
   newId: () => string;
 }): Promise<ResolvedQuestionSentenceGraph> => {
-  if (input.sentence.mediaAssetId !== null) {
-    const mediaAsset = await input.transaction.findMediaAssetById(
-      input.sentence.mediaAssetId,
-    );
-    if (!mediaAsset) {
-      throw new QuestionAdminError(
-        'QUESTION_REFERENCE_NOT_FOUND',
-        `${input.path}.mediaAssetId`,
-      );
-    }
-    try {
-      assertMediaAssetReady(mediaAsset);
-    } catch {
-      throw new QuestionAdminError(
-        'QUESTION_MEDIA_NOT_READY',
-        `${input.path}.mediaAssetId`,
-      );
-    }
-  }
-
   const sentenceId = input.newId();
   const sentenceVersionId = input.newId();
   const tokens = [];
@@ -762,7 +699,6 @@ const resolveSentence = async (input: {
     translationKo: input.sentence.translationKo,
     pronunciationKo: input.sentence.pronunciationKo,
     toneMarks: input.sentence.toneMarks,
-    mediaAssetId: input.sentence.mediaAssetId,
     tokens,
     expressions: expressionCandidates,
   };
@@ -784,7 +720,6 @@ const resolveSentence = async (input: {
       translationKo: input.sentence.translationKo,
       pronunciationKo: input.sentence.pronunciationKo,
       toneMarks: input.sentence.toneMarks,
-      mediaAssetId: input.sentence.mediaAssetId,
       frozenAt: null,
     },
     tokens,
@@ -854,7 +789,6 @@ export class QuestionAdminService {
             id: blockId,
             questionVersionId: versionId,
             kind: block.kind,
-            displayMode: block.displayMode,
             position: block.position,
             sentences: block.sentences.map((sentence) => ({
               id: assertGeneratedId(this.generateId),
@@ -952,7 +886,6 @@ export class QuestionAdminService {
           id: blockId,
           questionVersionId: current.id,
           kind: block.kind,
-          displayMode: block.displayMode,
           position: blockIndex,
           sentences: blockSentences,
         });

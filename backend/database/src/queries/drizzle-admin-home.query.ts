@@ -12,8 +12,6 @@ export interface AdminHomeOperationsProjection {
   pendingVocabularyCandidateCount: number;
   runningContentJobCount: number;
   failedContentJobCount: number;
-  runningTtsJobCount: number;
-  failedTtsJobCount: number;
   recentVerificationAt: Date | null;
 }
 
@@ -23,8 +21,6 @@ type AggregateRow = {
   pendingVocabularyCandidateCount?: number | string;
   runningContentJobCount?: number | string;
   failedContentJobCount?: number | string;
-  runningTtsJobCount?: number | string;
-  failedTtsJobCount?: number | string;
   recentVerificationAt?: Date | string | null;
 };
 
@@ -57,16 +53,6 @@ const operationsSummaryQuery = (userId: string) => sql`
       where purpose is not null
         and status in ('FAILED', 'COMPLETED_WITH_FAILURES')
     ) as "failedContentJobCount",
-    (
-      select count(*)
-      from tts_jobs
-      where status in ('QUEUED', 'RUNNING')
-    ) as "runningTtsJobCount",
-    (
-      select count(*)
-      from tts_jobs
-      where status in ('FAILED', 'PARTIALLY_FAILED')
-    ) as "failedTtsJobCount",
     (
       select created_at
       from step_up_grants
@@ -114,8 +100,6 @@ export class DrizzleAdminHomeQuery {
       ),
       runningContentJobCount: count(row?.runningContentJobCount),
       failedContentJobCount: count(row?.failedContentJobCount),
-      runningTtsJobCount: count(row?.runningTtsJobCount),
-      failedTtsJobCount: count(row?.failedTtsJobCount),
       recentVerificationAt: date(row?.recentVerificationAt),
     };
   }

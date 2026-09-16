@@ -3,23 +3,22 @@ import type { QuestionValidationIssue } from '@flex-thia/domain';
 import { and, asc, count, desc, eq, inArray, type SQL, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
+import * as schema from '../schema/index.js';
 import {
+  expressionOccurrences,
   questionBlocks,
   questionBlockSentences,
   questionOptions,
+  questions,
   questionTags,
   questionTopics,
-  questions,
   questionTypes,
   questionTypeVersions,
-  questionVersionTags,
   questionVersions,
-  expressionOccurrences,
-  mediaAssets,
+  questionVersionTags,
   thaiSentenceVersions,
   tokenOccurrences,
 } from '../schema/index.js';
-import * as schema from '../schema/index.js';
 
 type AdminQuestionDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 
@@ -29,7 +28,7 @@ export interface AdminQuestionListQuery {
   versionStatus?: 'DRAFT' | 'PUBLISHED' | 'RETIRED' | 'INVALIDATED';
   validationStatus?: 'PENDING' | 'PASSED' | 'FAILED';
   questionTypeSlug?: string;
-  skill?: 'READING' | 'LISTENING';
+  skill?: 'READING';
   difficulty?: number;
   page: number;
   pageSize: number;
@@ -88,9 +87,6 @@ export interface AdminQuestionResolvedSentenceProjection {
   translationKo: string;
   pronunciationKo: string;
   toneMarks: string;
-  mediaAssetId: string | null;
-  mediaStatus: 'UPLOADING' | 'READY' | 'REJECTED' | null;
-  mediaStorageKey: string | null;
   tokens: Array<{
     position: number;
     surface: string;
@@ -117,7 +113,6 @@ export interface AdminQuestionResolvedSentenceProjection {
 export interface AdminQuestionBlockProjection {
   id: string;
   kind: 'INSTRUCTION' | 'PASSAGE' | 'DIALOGUE' | 'QUESTION' | 'EXPLANATION';
-  displayMode: 'TEXT' | 'AUDIO' | 'TEXT_AND_AUDIO' | 'AUDIO_THEN_REVEAL';
   position: number;
   sentences: AdminQuestionBlockSentenceProjection[];
 }
@@ -151,7 +146,7 @@ export interface AdminQuestionTypeVersionProjection {
   id: string;
   slug: string;
   version: number;
-  skill: 'READING' | 'LISTENING';
+  skill: 'READING';
   template:
     | 'STANDARD_CHOICE'
     | 'PASSAGE_CHOICE'
@@ -429,7 +424,6 @@ export class DrizzleAdminQuestionQuery {
         id: questionBlocks.id,
         questionVersionId: questionBlocks.questionVersionId,
         kind: questionBlocks.kind,
-        displayMode: questionBlocks.displayMode,
         position: questionBlocks.position,
       })
       .from(questionBlocks)
@@ -496,15 +490,8 @@ export class DrizzleAdminQuestionQuery {
               translationKo: thaiSentenceVersions.translationKo,
               pronunciationKo: thaiSentenceVersions.pronunciationKo,
               toneMarks: thaiSentenceVersions.toneMarks,
-              mediaAssetId: thaiSentenceVersions.mediaAssetId,
-              mediaStatus: mediaAssets.status,
-              mediaStorageKey: mediaAssets.storageKey,
             })
             .from(thaiSentenceVersions)
-            .leftJoin(
-              mediaAssets,
-              eq(thaiSentenceVersions.mediaAssetId, mediaAssets.id),
-            )
             .where(inArray(thaiSentenceVersions.id, sentenceVersionIds))
             .orderBy(asc(thaiSentenceVersions.id));
     const tokenRows =
@@ -630,7 +617,6 @@ export class DrizzleAdminQuestionQuery {
           .map((block) => ({
             id: block.id,
             kind: block.kind,
-            displayMode: block.displayMode,
             position: block.position,
             sentences: blockSentenceRows
               .filter(({ blockId }) => blockId === block.id)

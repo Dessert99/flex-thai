@@ -14,8 +14,6 @@ export type ConceptCategory = 'THAI_SCRIPT_PRONUNCIATION' | 'GRAMMAR';
 export type ConceptVersionStatus = 'DRAFT' | 'PUBLISHED' | 'RETIRED';
 /** 개념 검증 상태 */
 export type ConceptValidationStatus = 'PENDING' | 'PASSED' | 'FAILED';
-/** 참조 음성 자산 상태 */
-type ConceptMediaAssetStatus = 'UPLOADING' | 'READY' | 'REJECTED' | null;
 
 /** 설명 블록 */
 export interface ConceptExplanationBlock {
@@ -44,8 +42,6 @@ export interface ConceptExampleInput {
 /** 검증 후보의 해석된 기존 문장 버전 참조 */
 export interface ConceptExampleReference extends ConceptExampleInput {
   sentenceExists: boolean;
-  audioAssetExists: boolean;
-  audioAssetStatus: ConceptMediaAssetStatus;
   interactionIssues: ConceptInteractionReferenceIssue[];
 }
 
@@ -54,8 +50,6 @@ export interface ConceptInteractionReferenceIssue {
   kind: 'TOKEN' | 'EXPRESSION';
   index: number;
   referenceValid: boolean;
-  audioAssetExists: boolean;
-  audioAssetStatus: ConceptMediaAssetStatus;
 }
 
 /** 태국어 예시 블록 */
@@ -124,7 +118,6 @@ const validatePositions = (
         ],
   );
 
-/** 개념 초안의 구조와 기존 문장·음성 참조를 검증한다 */
 export const validateConceptCandidate = (
   candidate: ConceptValidationCandidate,
 ): ConceptValidationIssue[] => {
@@ -247,24 +240,6 @@ export const validateConceptCandidate = (
               '문장 버전을 찾을 수 없습니다.',
             ),
           );
-        } else if (!example.audioAssetExists) {
-          issues.push(
-            issue(
-              'REFERENCE',
-              `${examplePath}.sentenceVersionId`,
-              'CONCEPT_AUDIO_NOT_FOUND',
-              '문장 음성을 찾을 수 없습니다.',
-            ),
-          );
-        } else if (example.audioAssetStatus !== 'READY') {
-          issues.push(
-            issue(
-              'REFERENCE',
-              `${examplePath}.sentenceVersionId`,
-              'CONCEPT_AUDIO_NOT_READY',
-              '문장 음성이 아직 준비되지 않았습니다.',
-            ),
-          );
         }
         example.interactionIssues.forEach((interaction) => {
           const interactionPath = `${examplePath}.${interaction.kind === 'TOKEN' ? 'tokens' : 'expressions'}.${interaction.index}`;
@@ -275,24 +250,6 @@ export const validateConceptCandidate = (
                 interactionPath,
                 'CONCEPT_FEEDBACK_REFERENCE_NOT_FOUND',
                 '단어·표현의 뜻 또는 발음 참조를 찾을 수 없습니다.',
-              ),
-            );
-          } else if (!interaction.audioAssetExists) {
-            issues.push(
-              issue(
-                'REFERENCE',
-                interactionPath,
-                'CONCEPT_FEEDBACK_AUDIO_NOT_FOUND',
-                '단어·표현의 발음 음성을 찾을 수 없습니다.',
-              ),
-            );
-          } else if (interaction.audioAssetStatus !== 'READY') {
-            issues.push(
-              issue(
-                'REFERENCE',
-                interactionPath,
-                'CONCEPT_FEEDBACK_AUDIO_NOT_READY',
-                '단어·표현의 발음 음성이 아직 준비되지 않았습니다.',
               ),
             );
           }

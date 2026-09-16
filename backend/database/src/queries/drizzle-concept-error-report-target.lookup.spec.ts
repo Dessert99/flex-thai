@@ -41,7 +41,6 @@ const publishedSentence = {
   originalText: 'ฉันเรียนภาษาไทย',
   translationKo: '나는 태국어를 공부한다',
   pronunciationKo: '찬 리안 파싸 타이',
-  mediaAssetId: '55555555-5555-4555-8555-555555555555',
 };
 
 describe('DrizzleConceptErrorReportTargetLookup', () => {
@@ -63,7 +62,6 @@ describe('DrizzleConceptErrorReportTargetLookup', () => {
         contentVersionId: publishedConcept.conceptVersionId,
         questionVersionId: null,
         sentenceVersionId: null,
-        mediaAssetId: null,
         locationId: null,
       },
       snapshot: {
@@ -72,7 +70,6 @@ describe('DrizzleConceptErrorReportTargetLookup', () => {
         secondaryText: null,
         versionLabel: '버전 3',
         locationLabel: '개념 상세',
-        audioAssetId: null,
       },
     });
 
@@ -138,66 +135,6 @@ describe('DrizzleConceptErrorReportTargetLookup', () => {
     ).resolves.toBeNull();
   });
 
-  it('공개 예시의 frozen 문장과 READY 음성만 문장 대상으로 해석한다', async () => {
-    const database = createSelectDatabase([[publishedSentence]]);
-    const lookup = new DrizzleConceptErrorReportTargetLookup(database as never);
-
-    await expect(
-      lookup.resolveSentence({
-        sentenceVersionId: publishedSentence.sentenceVersionId,
-        tokenPosition: null,
-      }),
-    ).resolves.toEqual({
-      reference: {
-        kind: 'SENTENCE',
-        contentId: publishedSentence.sentenceId,
-        contentVersionId: publishedSentence.sentenceVersionId,
-        questionVersionId: null,
-        sentenceVersionId: publishedSentence.sentenceVersionId,
-        mediaAssetId: publishedSentence.mediaAssetId,
-        locationId: null,
-      },
-      snapshot: {
-        title: 'ฉันเรียนภาษาไทย',
-        primaryText: '나는 태국어를 공부한다',
-        secondaryText: '찬 리안 파싸 타이',
-        versionLabel: '버전 2',
-        locationLabel: '문장',
-        audioAssetId: publishedSentence.mediaAssetId,
-      },
-    });
-
-    const compiled = new PgDialect().sqlToQuery(
-      database.whereCalls[0] as never,
-    );
-    expect(compiled.params).toEqual(
-      expect.arrayContaining([
-        publishedSentence.sentenceVersionId,
-        'THAI_EXAMPLES',
-        'READY',
-      ]),
-    );
-    expect(
-      compiled.params.filter((value) => value === 'PUBLISHED'),
-    ).toHaveLength(2);
-    expect(compiled.sql).toContain('is not null');
-    expect(database.orderByCalls).toHaveLength(1);
-  });
-
-  it('게시 문장 조회 결과의 음성 ID가 null이면 대상을 fail-closed 처리한다', async () => {
-    const database = createSelectDatabase([
-      [{ ...publishedSentence, mediaAssetId: null }],
-    ]);
-    const lookup = new DrizzleConceptErrorReportTargetLookup(database as never);
-
-    await expect(
-      lookup.resolveSentence({
-        sentenceVersionId: publishedSentence.sentenceVersionId,
-        tokenPosition: null,
-      }),
-    ).resolves.toBeNull();
-  });
-
   it('요청 token position이 문장에 없으면 대상을 거부한다', async () => {
     const database = createSelectDatabase([[publishedSentence], []]);
     const lookup = new DrizzleConceptErrorReportTargetLookup(database as never);
@@ -215,32 +152,5 @@ describe('DrizzleConceptErrorReportTargetLookup', () => {
     expect(compiled.params).toEqual(
       expect.arrayContaining([publishedSentence.sentenceVersionId, 2]),
     );
-  });
-
-  it('공개 문장의 READY 음성을 canonical audio 대상으로 해석한다', async () => {
-    const database = createSelectDatabase([[publishedSentence]]);
-    const lookup = new DrizzleConceptErrorReportTargetLookup(database as never);
-
-    await expect(
-      lookup.resolveSentenceAudio(publishedSentence.sentenceVersionId),
-    ).resolves.toEqual({
-      reference: {
-        kind: 'AUDIO',
-        contentId: publishedSentence.mediaAssetId,
-        contentVersionId: publishedSentence.sentenceVersionId,
-        questionVersionId: null,
-        sentenceVersionId: publishedSentence.sentenceVersionId,
-        mediaAssetId: publishedSentence.mediaAssetId,
-        locationId: null,
-      },
-      snapshot: {
-        title: 'ฉันเรียนภาษาไทย 음성',
-        primaryText: '나는 태국어를 공부한다',
-        secondaryText: '찬 리안 파싸 타이',
-        versionLabel: '버전 2',
-        locationLabel: '문장 음성',
-        audioAssetId: publishedSentence.mediaAssetId,
-      },
-    });
   });
 });

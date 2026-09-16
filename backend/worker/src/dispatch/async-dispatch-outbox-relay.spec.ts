@@ -6,7 +6,7 @@ import {
 } from './async-dispatch-outbox-relay.js';
 
 const now = new Date('2026-07-28T00:00:00.000Z');
-const commandFingerprint = 'a'.repeat(64);
+
 const row: ClaimedAsyncDispatch = {
   id: '00000000-0000-4000-8000-000000000001',
   payloadKind: 'CONTENT_PRODUCTION',
@@ -46,7 +46,6 @@ describe('공유 dispatch outbox relay', () => {
       repository,
       {
         CONTENT_PRODUCTION: contentProductionSender,
-        TTS: { send: vi.fn() },
       },
       () => now,
     );
@@ -76,7 +75,6 @@ describe('공유 dispatch outbox relay', () => {
         CONTENT_PRODUCTION: {
           send: vi.fn().mockRejectedValue(new Error('token=secret')),
         },
-        TTS: { send: vi.fn() },
       },
       () => now,
     );
@@ -116,7 +114,6 @@ describe('공유 dispatch outbox relay', () => {
             return Promise.reject(new Error('late failure'));
           }),
         },
-        TTS: { send: vi.fn() },
       },
       () => clock,
     );
@@ -130,137 +127,6 @@ describe('공유 dispatch outbox relay', () => {
       expect.objectContaining({
         failedAt,
         nextAvailableAt: new Date('2026-07-28T00:02:30.000Z'),
-      }),
-    );
-  });
-
-  it.each([
-    ['최초', 0, 'b'.repeat(64)],
-    ['재시도', 3, commandFingerprint],
-  ])(
-    '%s TTS row는 fingerprint를 검증한 뒤 TTS sender로만 보낸다',
-    async (_, attempt, fingerprint) => {
-      const ttsRow: ClaimedAsyncDispatch = {
-        ...row,
-        payloadKind: 'TTS',
-        attempt,
-        idempotencyKey: `tts:${row.jobId}:${attempt}`,
-        payload: {
-          jobId: row.jobId,
-          attempt,
-          commandFingerprint: fingerprint,
-        },
-      };
-      const repository = {
-        claimBatch: vi.fn().mockResolvedValue([ttsRow]),
-        acknowledge: vi.fn().mockResolvedValue(true),
-        release: vi.fn(),
-      };
-      const contentProductionSend = vi.fn();
-      const ttsSend = vi.fn().mockResolvedValue(undefined);
-      const relay = new AsyncDispatchOutboxRelay(
-        repository,
-        {
-          CONTENT_PRODUCTION: { send: contentProductionSend },
-          TTS: { send: ttsSend },
-        },
-        () => now,
-      );
-
-      await relay.drainOnce({ workerId: 'worker-a' });
-
-      expect(contentProductionSend).not.toHaveBeenCalled();
-      expect(ttsSend).toHaveBeenCalledWith({
-        messageId: ttsRow.idempotencyKey,
-        payload: { jobId: ttsRow.jobId, attempt },
-      });
-    },
-  );
-
-  it.each([
-    ['fingerprint 누락', { jobId: row.jobId, attempt: 0 }],
-    [
-      'fingerprint 형식 오류',
-      { jobId: row.jobId, attempt: 0, commandFingerprint: 'not-a-sha256' },
-    ],
-    [
-      '추가 필드 포함',
-      {
-        jobId: row.jobId,
-        attempt: 0,
-        commandFingerprint,
-        unexpected: true,
-      },
-    ],
-  ])(
-    'TTS %s payload는 queue로 보내지 않고 malformed로 release한다',
-    async (_, payload) => {
-      const malformed: ClaimedAsyncDispatch = {
-        ...row,
-        payloadKind: 'TTS',
-        attempt: 0,
-        idempotencyKey: `tts:${row.jobId}:0`,
-        payload,
-      };
-      const repository = {
-        claimBatch: vi.fn().mockResolvedValue([malformed]),
-        acknowledge: vi.fn(),
-        release: vi.fn().mockResolvedValue(true),
-      };
-      const send = vi.fn();
-      const relay = new AsyncDispatchOutboxRelay(
-        repository,
-        {
-          CONTENT_PRODUCTION: { send: vi.fn() },
-          TTS: { send },
-        },
-        () => now,
-      );
-
-      await relay.drainOnce({ workerId: 'worker-a' });
-
-      expect(send).not.toHaveBeenCalled();
-      expect(repository.release).toHaveBeenCalledWith(
-        expect.objectContaining({
-          errorCode: 'ASYNC_DISPATCH_PAYLOAD_INVALID',
-        }),
-      );
-    },
-  );
-
-  it('TTS payload identity와 outbox row identity가 다르면 malformed로 release한다', async () => {
-    const malformed: ClaimedAsyncDispatch = {
-      ...row,
-      payloadKind: 'TTS',
-      attempt: 0,
-      idempotencyKey: `tts:${row.jobId}:1`,
-      payload: {
-        jobId: row.jobId,
-        attempt: 0,
-        commandFingerprint,
-      },
-    };
-    const repository = {
-      claimBatch: vi.fn().mockResolvedValue([malformed]),
-      acknowledge: vi.fn(),
-      release: vi.fn().mockResolvedValue(true),
-    };
-    const send = vi.fn();
-    const relay = new AsyncDispatchOutboxRelay(
-      repository,
-      {
-        CONTENT_PRODUCTION: { send: vi.fn() },
-        TTS: { send },
-      },
-      () => now,
-    );
-
-    await relay.drainOnce({ workerId: 'worker-a' });
-
-    expect(send).not.toHaveBeenCalled();
-    expect(repository.release).toHaveBeenCalledWith(
-      expect.objectContaining({
-        errorCode: 'ASYNC_DISPATCH_PAYLOAD_INVALID',
       }),
     );
   });
@@ -280,7 +146,6 @@ describe('공유 dispatch outbox relay', () => {
       repository,
       {
         CONTENT_PRODUCTION: { send },
-        TTS: { send: vi.fn() },
       },
       () => now,
     );
@@ -305,7 +170,6 @@ describe('공유 dispatch outbox relay', () => {
       repository,
       {
         CONTENT_PRODUCTION: { send: vi.fn().mockResolvedValue(undefined) },
-        TTS: { send: vi.fn() },
       },
       () => now,
     );

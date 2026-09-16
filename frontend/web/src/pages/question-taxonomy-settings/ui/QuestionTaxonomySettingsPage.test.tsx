@@ -1,9 +1,9 @@
 /** 관리자 문제 분류 설정 화면 동작을 검증한다 */
-import { fireEvent, render, screen, within } from '@testing-library/react';
 import type {
   AdminQuestionVersionPayload,
   QuestionTaxonomySettingsResponse,
 } from '@flex-thia/contracts';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { QuestionTaxonomySettingsPageView } from './QuestionTaxonomySettingsPageView';
@@ -55,7 +55,6 @@ const approvedSentence = {
   translationKo: '안녕하세요',
   pronunciationKo: '싸왓디',
   toneMarks: 'L-L-M',
-  mediaAssetId: '00000000-0000-4000-8000-000000000005',
   tokens: [],
   expressions: [],
 };
@@ -69,7 +68,6 @@ const approvedExamplePayload = {
   blocks: [
     {
       kind: 'QUESTION',
-      displayMode: 'TEXT',
       sentences: [
         {
           speaker: null,
@@ -88,7 +86,7 @@ const approvedExamplePayload = {
 } satisfies AdminQuestionVersionPayload;
 
 describe('문제 유형 설정 화면', () => {
-  it('7대 분류와 세부 유형의 준비 상태를 표시한다', () => {
+  it('4대 분류와 세부 유형의 준비 상태를 표시한다', () => {
     render(
       <QuestionTaxonomySettingsPageView
         data={data}
@@ -108,7 +106,7 @@ describe('문제 유형 설정 화면', () => {
     expect(
       screen.getByRole('heading', { name: '문제 유형 설정' }),
     ).toBeVisible();
-    expect(screen.getByRole('heading', { name: '반응 테스트' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: '지문 독해' })).toBeVisible();
     expect(screen.getAllByRole('heading', { name: '어휘·문법' })).toHaveLength(
       2,
     );

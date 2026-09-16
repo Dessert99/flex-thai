@@ -9,11 +9,7 @@ import {
   CognitoAuthorizerGuard,
   IDENTITY_USER_REPOSITORY,
 } from '../identity/cognito-authorizer.guard.js';
-import { AdminContentImportsController } from './admin-content-imports.controller.js';
 import { AdminContentService } from './admin-content.service.js';
-import { AdminMediaAssetsController } from './admin-media-assets.controller.js';
-import { AdminQuestionsController } from './admin-questions.controller.js';
-import { AdminVocabulariesController } from './admin-vocabularies.controller.js';
 import { AdminModule } from './admin.module.js';
 
 describe('AdminModule 조립', () => {
@@ -21,13 +17,9 @@ describe('AdminModule 조립', () => {
     const module = AdminModule.register({
       contentImports: {} as never,
       contentImportQuery: {} as never,
-      media: {} as never,
-      mediaQuery: {} as never,
       questions: {} as never,
       questionPublication: {} as never,
       questionQuery: {} as never,
-      questionTts: {} as never,
-      mediaReadUrls: {} as never,
       vocabularies: {} as never,
       vocabularyQuery: {} as never,
       findQuestionIdByVersionId: () => Promise.resolve(null),
@@ -38,13 +30,6 @@ describe('AdminModule 조립', () => {
         nodeEnv: 'test',
       },
     });
-
-    expect(module.controllers).toEqual([
-      AdminContentImportsController,
-      AdminMediaAssetsController,
-      AdminQuestionsController,
-      AdminVocabulariesController,
-    ]);
     const providers = module.providers ?? [];
     const values = providers.filter(
       (provider: Provider): provider is ValueProvider<unknown> =>

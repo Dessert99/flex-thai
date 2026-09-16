@@ -13,22 +13,30 @@ CREATE TABLE "wordbook_items" (
 	CONSTRAINT "wordbook_items_pk" PRIMARY KEY("wordbook_id","vocabulary_id")
 );
 --> statement-breakpoint
-ALTER TABLE "wordbooks" ADD CONSTRAINT "wordbooks_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "wordbook_items" ADD CONSTRAINT "wordbook_items_wordbook_id_wordbooks_id_fk" FOREIGN KEY ("wordbook_id") REFERENCES "public"."wordbooks"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "wordbook_items" ADD CONSTRAINT "wordbook_items_vocabulary_id_vocabularies_id_fk" FOREIGN KEY ("vocabulary_id") REFERENCES "public"."vocabularies"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-CREATE UNIQUE INDEX "wordbooks_user_name_unique" ON "wordbooks" USING btree ("user_id","name");--> statement-breakpoint
-CREATE INDEX "wordbook_items_vocabulary_id_idx" ON "wordbook_items" USING btree ("vocabulary_id");--> statement-breakpoint
-CREATE INDEX "wordbook_items_page_idx" ON "wordbook_items" USING btree ("wordbook_id","added_at" DESC NULLS LAST,"vocabulary_id");--> statement-breakpoint
+ALTER TABLE "wordbooks" ADD CONSTRAINT "wordbooks_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "wordbook_items" ADD CONSTRAINT "wordbook_items_wordbook_id_wordbooks_id_fk" FOREIGN KEY ("wordbook_id") REFERENCES "public"."wordbooks"("id") ON DELETE cascade ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "wordbook_items" ADD CONSTRAINT "wordbook_items_vocabulary_id_vocabularies_id_fk" FOREIGN KEY ("vocabulary_id") REFERENCES "public"."vocabularies"("id") ON DELETE restrict ON UPDATE no action;
+--> statement-breakpoint
+CREATE UNIQUE INDEX "wordbooks_user_name_unique" ON "wordbooks" USING btree ("user_id","name");
+--> statement-breakpoint
+CREATE INDEX "wordbook_items_vocabulary_id_idx" ON "wordbook_items" USING btree ("vocabulary_id");
+--> statement-breakpoint
+CREATE INDEX "wordbook_items_page_idx" ON "wordbook_items" USING btree ("wordbook_id","added_at" DESC NULLS LAST,"vocabulary_id");
+--> statement-breakpoint
 INSERT INTO "wordbooks" ("id", "user_id", "name", "created_at", "updated_at")
 SELECT gen_random_uuid(), sv."user_id", '저장한 어휘', min(sv."saved_at"), max(sv."saved_at")
 FROM "saved_vocabularies" AS sv
-GROUP BY sv."user_id";--> statement-breakpoint
+GROUP BY sv."user_id";
+--> statement-breakpoint
 INSERT INTO "wordbook_items" ("wordbook_id", "vocabulary_id", "added_at")
 SELECT w."id", sv."vocabulary_id", sv."saved_at"
 FROM "saved_vocabularies" AS sv
 INNER JOIN "wordbooks" AS w
 	ON w."user_id" = sv."user_id"
-	AND w."name" = '저장한 어휘';--> statement-breakpoint
+	AND w."name" = '저장한 어휘';
+--> statement-breakpoint
 DO $$
 DECLARE
 	legacy_saved_count bigint;

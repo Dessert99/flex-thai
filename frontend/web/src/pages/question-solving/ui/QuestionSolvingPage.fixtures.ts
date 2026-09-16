@@ -1,7 +1,7 @@
 /** 문제 풀이 페이지 컴포넌트 테스트용 공개 계약 fixture를 만든다 */
 import type { QuestionDetailResponse } from '@flex-thia/contracts';
 
-/** 표준 듣기 문제 fixture를 만든다 */
+/** 표준 읽기 문제 fixture를 만든다 */
 export function createQuestion(): QuestionDetailResponse {
   const sentence = {
     sentenceVersionId: '01933b6a-8f13-7a19-b7e5-536d70f57ab1',
@@ -9,7 +9,6 @@ export function createQuestion(): QuestionDetailResponse {
     translationKo: '안녕하세요',
     pronunciationKo: '싸왓디 크랍',
     toneMarks: '',
-    audioUrl: 'https://example.com/audio.mp3',
     tokens: [],
     expressions: [],
   };
@@ -18,17 +17,16 @@ export function createQuestion(): QuestionDetailResponse {
     questionVersionId: '01933b6a-8f13-7a19-b7e5-536d70f57aab',
     questionType: {
       id: '01933b6a-8f13-7a19-b7e5-536d70f57aac',
-      slug: 'listening',
-      displayName: '듣기 문제',
+      slug: 'reading',
+      displayName: '읽기 문제',
     },
-    skill: 'LISTENING',
+    skill: 'READING',
     difficulty: 2,
     template: 'STANDARD_CHOICE',
     blocks: [
       {
         id: '01933b6a-8f13-7a19-b7e5-536d70f57ad1',
         kind: 'QUESTION',
-        displayMode: 'AUDIO_THEN_REVEAL',
         position: 0,
         sentences: [{ position: 0, speaker: null, sentence }],
       },
@@ -57,7 +55,6 @@ export function createDialogueQuestion(): QuestionDetailResponse {
       {
         ...firstBlock,
         kind: 'DIALOGUE' as const,
-        displayMode: 'TEXT_AND_AUDIO' as const,
         sentences: [
           { position: 1, speaker: 'B', sentence: firstSentence },
           {
@@ -118,7 +115,6 @@ export function createInteractiveFeedback(detail: QuestionDetailResponse) {
         contextMeaningKo: '왜냐하면',
         pronunciationKo: '프러',
         toneMarks: 'H',
-        audioUrl: null,
         role: 'TARGET' as const,
       },
     ],
@@ -132,7 +128,6 @@ export function createInteractiveFeedback(detail: QuestionDetailResponse) {
         {
           id: '01933b6a-8f13-7a19-b7e5-536d70f57af7',
           kind: 'EXPLANATION',
-          displayMode: 'TEXT',
           position: 0,
           sentences: [
             { position: 0, speaker: null, sentence: explanationSentence },

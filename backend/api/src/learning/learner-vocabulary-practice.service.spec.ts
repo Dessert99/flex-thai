@@ -1,4 +1,3 @@
-/** 단어 연습 snapshot의 signed URL·진행·완료 결과 공개 mapping을 검증한다 */
 import { describe, expect, it, vi } from 'vitest';
 import { LearnerVocabularyPracticeService } from './learner-vocabulary-practice.service.js';
 
@@ -8,7 +7,6 @@ const ids = {
   vocabulary: '00000000-0000-4000-8000-000000000803',
   meaning: '00000000-0000-4000-8000-000000000804',
   pronunciation: '00000000-0000-4000-8000-000000000805',
-  media: '00000000-0000-4000-8000-000000000806',
   question: '00000000-0000-4000-8000-000000000807',
   option: '00000000-0000-4000-8000-000000000808',
   secondOption: '00000000-0000-4000-8000-000000000809',
@@ -36,8 +34,6 @@ const card = {
       id: ids.pronunciation,
       pronunciationKo: '리안',
       toneMarks: 'M',
-      mediaAssetId: ids.media,
-      storageKey: 'practice/learn.mp3',
     },
   ],
   meaningPronunciations: [
@@ -51,9 +47,8 @@ const question = {
   vocabularyId: ids.vocabulary,
   meaningId: ids.meaning,
   pronunciationId: ids.pronunciation,
-  mediaAssetId: ids.media,
-  mode: 'AUDIO_TO_MEANING',
-  prompt: { type: 'AUDIO', storageKey: 'practice/learn.mp3' },
+  mode: 'THAI_TO_MEANING',
+  prompt: { type: 'TEXT', text: 'เรียน' },
   options: [
     { id: ids.option, label: '배우다' },
     { id: ids.secondOption, label: '가르치다' },
@@ -81,7 +76,7 @@ const record = (completed = false) => ({
   sourceType: 'SEARCH_SELECTION',
   sourceWordbookId: null,
   sourceLabel: '공용 검색',
-  modes: ['AUDIO_TO_MEANING'],
+  modes: ['THAI_TO_MEANING'],
   requestedQuestionCount: 10,
   order: 'SOURCE',
   questionCount: 1,
@@ -103,33 +98,16 @@ const dependencies = () => ({
       sessionCompleted: true,
     }),
   },
-  mediaReadUrls: {
-    createReadUrl: vi
-      .fn()
-      .mockResolvedValue('https://media.example.com/practice.mp3'),
-  },
-  now: () => now,
 });
 
 describe('LearnerVocabularyPracticeService 공개 응답', () => {
-  it('storage key와 미답 정답을 제거하고 5분 signed URL을 만든다', async () => {
+  it('미답 정답을 제외한 학습 문항을 반환한다', async () => {
     const fake = dependencies();
     const service = new LearnerVocabularyPracticeService(fake);
 
     const result = await service.get(ids.user, ids.session);
 
     expect(JSON.stringify(result)).not.toMatch(/storageKey|correctOptionId/u);
-    expect(result.cards[0]?.pronunciations[0]?.audioUrl).toBe(
-      'https://media.example.com/practice.mp3',
-    );
-    expect(result.questions[0]?.prompt).toEqual({
-      type: 'AUDIO',
-      audioUrl: 'https://media.example.com/practice.mp3',
-    });
-    expect(fake.mediaReadUrls.createReadUrl).toHaveBeenCalledWith(
-      'practice/learn.mp3',
-      new Date('2026-07-26T00:05:00.000Z'),
-    );
   });
 
   it('원시 답안에서 answeredQuestionIds와 완료 aggregate를 만든다', async () => {
@@ -143,9 +121,6 @@ describe('LearnerVocabularyPracticeService 공개 응답', () => {
     expect(result.answeredQuestionIds).toEqual([ids.question]);
     if (result.status === 'COMPLETED') {
       expect(result.result.total).toEqual({ correct: 1, incorrect: 0 });
-      expect(result.result.byMode).toEqual([
-        { mode: 'AUDIO_TO_MEANING', correct: 1, incorrect: 0 },
-      ]);
     }
   });
 

@@ -9,10 +9,10 @@ import {
   pgTable,
   text,
   timestamp,
-  type AnyPgColumn,
   unique,
   uniqueIndex,
   uuid,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { thaiSentenceVersions } from './thai-content.schema.js';
 

@@ -4,8 +4,8 @@ import {
   assertThaiSentenceVersionMutable,
   resolveRepresentativeExpressions,
   validateThaiSentenceVersion,
-  type ThaiSentenceVersionInput,
   type ThaiExpressionOccurrenceInput,
+  type ThaiSentenceVersionInput,
 } from './thai-sentence-version.js';
 
 const sentence = (): ThaiSentenceVersionInput => ({
@@ -13,7 +13,6 @@ const sentence = (): ThaiSentenceVersionInput => ({
   translationKo: '번역',
   pronunciationKo: '발음',
   toneMarks: '성조',
-  mediaAssetId: 'media-id',
   tokens: [
     {
       position: 0,

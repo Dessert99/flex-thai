@@ -1,7 +1,7 @@
 /** 관리자 문제 목록의 계약 필터·상태·반응형 표현을 검증한다 */
+import { renderWithProviders } from '@/shared/test';
 import { screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '@/shared/test';
 import {
   parseAdminQuestionSearch,
   type AdminQuestionSearch,
@@ -29,7 +29,7 @@ describe('관리자 문제 검색 계약', () => {
       page: 2,
       pageSize: 50,
       questionTypeSlug: 'dialogue-choice',
-      skill: 'LISTENING',
+      skill: 'READING',
       status: 'HIDDEN',
       validationStatus: 'FAILED',
       versionStatus: 'INVALIDATED',
@@ -43,7 +43,7 @@ describe('관리자 문제 검색 계약', () => {
         path:
           '/admin/questions?status=HIDDEN&versionStatus=INVALIDATED' +
           '&validationStatus=FAILED&questionTypeSlug=dialogue-choice' +
-          '&skill=LISTENING&difficulty=4&page=2&pageSize=50',
+          '&skill=READING&difficulty=4&page=2&pageSize=50',
       }),
     );
   });

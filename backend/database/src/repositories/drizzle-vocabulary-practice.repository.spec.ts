@@ -10,10 +10,8 @@ const questionRow = {
   vocabularyId: 'vocabulary-1',
   meaningId: 'meaning-1',
   pronunciationId: null,
-  mediaAssetId: null,
   mode: 'THAI_TO_MEANING',
   promptText: 'เรียน',
-  audioStorageKey: null,
   options: [
     { id: 'option-1', label: '배우다' },
     { id: 'option-2', label: '가르치다' },
@@ -39,8 +37,6 @@ const questionRow = {
         id: 'pronunciation-1',
         pronunciationKo: '리안',
         toneMarks: 'M',
-        mediaAssetId: 'media-1',
-        storageKey: 'practice/learn.mp3',
       },
     ],
     meaningPronunciations: [

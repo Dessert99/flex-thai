@@ -1,5 +1,4 @@
 /** 단어 연습 세션 생성과 답안 lock·멱등·완료를 PostgreSQL transaction으로 구현한다 */
-import { randomUUID } from 'node:crypto';
 import type {
   CreateVocabularyPracticeInput,
   MaterializedPracticeQuestion,
@@ -11,6 +10,7 @@ import type {
   VocabularyPracticeRepository,
 } from '@flex-thia/domain';
 import { sql, type SQL } from 'drizzle-orm';
+import { randomUUID } from 'node:crypto';
 import { DrizzleVocabularyPracticeQuery } from '../queries/drizzle-vocabulary-practice.query.js';
 
 interface VocabularyPracticeTransaction {
@@ -30,10 +30,8 @@ interface StoredQuestionRow {
   vocabularyId: string;
   meaningId: string;
   pronunciationId: string | null;
-  mediaAssetId: string | null;
   mode: MaterializedPracticeQuestion['mode'];
   promptText: string | null;
-  audioStorageKey: string | null;
   options: MaterializedPracticeQuestion['options'];
   correctOptionId: string;
   cardSnapshot: MaterializedPracticeQuestion['card'];
@@ -76,13 +74,8 @@ const toQuestion = (row: StoredQuestionRow): MaterializedPracticeQuestion => ({
   position: row.position,
   vocabularyId: row.vocabularyId,
   meaningId: row.meaningId,
-  pronunciationId: row.pronunciationId,
-  mediaAssetId: row.mediaAssetId,
   mode: row.mode,
-  prompt:
-    row.audioStorageKey === null
-      ? { type: 'TEXT', text: row.promptText ?? '' }
-      : { type: 'AUDIO', storageKey: row.audioStorageKey },
+  prompt: { type: 'TEXT', text: row.promptText ?? '' },
   options: row.options,
   correctOptionId: row.correctOptionId,
   card: row.cardSnapshot,
@@ -117,10 +110,8 @@ const replayQuery = (userId: string, clientAnswerId: string): SQL => sql`
     q.vocabulary_id as "vocabularyId",
     q.meaning_id as "meaningId",
     q.pronunciation_id as "pronunciationId",
-    q.media_asset_id as "mediaAssetId",
     q.mode,
     q.prompt_text as "promptText",
-    q.audio_storage_key as "audioStorageKey",
     q.options,
     q.correct_option_id as "correctOptionId",
     q.card_snapshot as "cardSnapshot",
@@ -145,7 +136,6 @@ export class DrizzleVocabularyPracticeRepository implements VocabularyPracticeRe
     this.query = query ?? new DrizzleVocabularyPracticeQuery(database);
   }
 
-  /** 출처 종류에 맞는 소유권·공개 음성 query를 실행한다 */
   loadSource(input: CreateVocabularyPracticeInput) {
     return input.source.type === 'WORDBOOK'
       ? this.query.loadWordbook(input.userId, input.source.wordbookId)
@@ -181,26 +171,18 @@ export class DrizzleVocabularyPracticeRepository implements VocabularyPracticeRe
         )
       `);
       for (const question of input.questions) {
-        const targetPronunciation =
-          question.pronunciationId === null
-            ? null
-            : (question.card.pronunciations.find(
-                ({ id }) => id === question.pronunciationId,
-              ) ?? null);
+        const targetPronunciation = question.card.pronunciations[0];
         await transaction.execute(sql`
           insert into vocabulary_practice_questions (
             id, session_id, position, vocabulary_id, meaning_id,
-            pronunciation_id, media_asset_id, mode, prompt_text,
-            audio_storage_key, thai_snapshot, meaning_ko_snapshot,
+            mode, prompt_text, thai_snapshot, meaning_ko_snapshot,
             pronunciation_ko_snapshot, tone_marks_snapshot, options,
             correct_option_id, card_snapshot
           ) values (
             ${question.id}, ${question.sessionId}, ${question.position},
             ${question.vocabularyId}, ${question.meaningId},
-            ${question.pronunciationId}, ${question.mediaAssetId},
             ${question.mode},
-            ${question.prompt.type === 'TEXT' ? question.prompt.text : null},
-            ${question.prompt.type === 'AUDIO' ? question.prompt.storageKey : null},
+            ${question.prompt.text},
             ${question.card.thai},
             ${question.card.meanings.find(({ id }) => id === question.meaningId)?.meaningKo ?? ''},
             ${targetPronunciation?.pronunciationKo ?? null},
@@ -247,10 +229,8 @@ export class DrizzleVocabularyPracticeRepository implements VocabularyPracticeRe
           q.vocabulary_id as "vocabularyId",
           q.meaning_id as "meaningId",
           q.pronunciation_id as "pronunciationId",
-          q.media_asset_id as "mediaAssetId",
           q.mode,
           q.prompt_text as "promptText",
-          q.audio_storage_key as "audioStorageKey",
           q.options,
           q.correct_option_id as "correctOptionId",
           q.card_snapshot as "cardSnapshot",

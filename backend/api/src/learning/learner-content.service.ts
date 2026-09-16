@@ -1,5 +1,4 @@
 /** 학습자 read/write 결과를 private key 없는 strict 공개 응답으로 조립한다 */
-import { NotFoundException } from '@nestjs/common';
 import {
   questionAttemptListResponseSchema,
   questionDetailResponseSchema,
@@ -24,22 +23,20 @@ import {
 import {
   type DrizzleLearnerQuestionQuery,
   type DrizzleLearnerVocabularyQuery,
-  type LearnerQuestionListQuery,
+  type LearnerQuestionBlockProjection,
   type LearnerQuestionListFacetsProjection,
   type LearnerQuestionListItemProjection,
-  type LearnerQuestionBlockProjection,
+  type LearnerQuestionListQuery,
   type LearnerQuestionSentenceProjection,
   type LearnerVocabularyListQuery,
   type LearnerVocabularySummaryProjection,
 } from '@flex-thia/database';
 import {
-  type MediaReadUrlProvider,
   type QuestionAttemptService,
   type SavedContentService,
 } from '@flex-thia/domain';
+import { NotFoundException } from '@nestjs/common';
 import type { ZodType } from 'zod';
-
-const MEDIA_URL_TTL_MS = 5 * 60 * 1_000;
 
 type QuestionQuery = Pick<
   DrizzleLearnerQuestionQuery,
@@ -66,11 +63,8 @@ interface LearnerContentDependencies {
   vocabularyQuery: VocabularyQuery;
   questionAttempts: QuestionAttempts;
   savedContent: SavedContent;
-  mediaReadUrls: MediaReadUrlProvider;
   now?: () => Date;
 }
-
-type SignMedia = (storageKey: string) => Promise<string>;
 
 /** 내부 응답 계약 실패의 Zod issue를 HTTP request 오류와 분리한다 */
 export class LearnerPublicResponseError extends Error {
@@ -179,21 +173,10 @@ const toVocabularyListQuery = (
   ...(query.difficulty === undefined ? {} : { difficulty: query.difficulty }),
 });
 
-const mapSentence = async (
-  sentence: LearnerQuestionSentenceProjection,
-  signMedia: SignMedia,
-) => {
-  const mapFeedback = async <
-    Feedback extends {
-      media: { storageKey: string } | null;
-    },
-  >(
-    feedback: Feedback,
-  ) => {
-    const { media, ...publicFeedback } = feedback;
+const mapSentence = (sentence: LearnerQuestionSentenceProjection) => {
+  const mapFeedback = <Feedback extends object>(feedback: Feedback) => {
     return {
-      ...publicFeedback,
-      audioUrl: media ? await signMedia(media.storageKey) : null,
+      ...feedback,
     };
   };
 
@@ -203,53 +186,38 @@ const mapSentence = async (
     translationKo: sentence.translationKo,
     pronunciationKo: sentence.pronunciationKo,
     toneMarks: sentence.toneMarks,
-    audioUrl: await signMedia(sentence.media.storageKey),
-    tokens: await Promise.all(sentence.tokens.map(mapFeedback)),
-    expressions: await Promise.all(sentence.expressions.map(mapFeedback)),
+    tokens: sentence.tokens.map(mapFeedback),
+    expressions: sentence.expressions.map(mapFeedback),
   };
 };
 
-const mapBlocks = (
-  blocks: LearnerQuestionBlockProjection[],
-  signMedia: SignMedia,
-) =>
-  Promise.all(
-    blocks.map(async (block) => ({
-      id: block.id,
-      kind: block.kind,
-      displayMode: block.displayMode,
-      position: block.position,
-      sentences: await Promise.all(
-        block.sentences.map(async (item) => ({
-          position: item.position,
-          speaker: item.speaker,
-          sentence: await mapSentence(item.sentence, signMedia),
-        })),
-      ),
+const mapBlocks = (blocks: LearnerQuestionBlockProjection[]) =>
+  blocks.map((block) => ({
+    id: block.id,
+    kind: block.kind,
+    position: block.position,
+    sentences: block.sentences.map((item) => ({
+      position: item.position,
+      speaker: item.speaker,
+      sentence: mapSentence(item.sentence),
     })),
-  );
+  }));
 
-const mapVocabularySummary = async (
+const mapVocabularySummary = (
   vocabulary: LearnerVocabularySummaryProjection,
-  signMedia: SignMedia,
 ) => ({
   id: vocabulary.id,
   thai: vocabulary.thai,
   kind: vocabulary.kind,
   meanings: vocabulary.meanings,
-  pronunciations: await Promise.all(
-    vocabulary.pronunciations.map(async (pronunciation) => ({
-      id: pronunciation.id,
-      pronunciationKo: pronunciation.pronunciationKo,
-      toneMarks: pronunciation.toneMarks,
-      audioUrl: await signMedia(pronunciation.media.storageKey),
-    })),
-  ),
-  audioEligibleMeaningCount: vocabulary.audioEligibleMeaningCount,
+  pronunciations: vocabulary.pronunciations.map((pronunciation) => ({
+    id: pronunciation.id,
+    pronunciationKo: pronunciation.pronunciationKo,
+    toneMarks: pronunciation.toneMarks,
+  })),
   saved: vocabulary.saved,
 });
 
-/** DB projection, 학습 use case와 media signer를 학습자 공개 응답으로 조정한다 */
 export class LearnerContentService {
   private readonly now: () => Date;
 
@@ -293,26 +261,23 @@ export class LearnerContentService {
     if (!detail) {
       throw new NotFoundException({ code: 'QUESTION_NOT_FOUND' });
     }
-    const signMedia = this.createResponseSigner();
     return parseLearnerPublicResponse(questionDetailResponseSchema, {
       ...detail,
-      blocks: await mapBlocks(detail.blocks, signMedia),
-      options: await Promise.all(
-        detail.options.map(async (option) =>
-          option.sentence === null
-            ? {
-                id: option.id,
-                position: option.position,
-                sentence: null,
-                span: option.span,
-              }
-            : {
-                id: option.id,
-                position: option.position,
-                sentence: await mapSentence(option.sentence, signMedia),
-                span: null,
-              },
-        ),
+      blocks: mapBlocks(detail.blocks),
+      options: detail.options.map((option) =>
+        option.sentence === null
+          ? {
+              id: option.id,
+              position: option.position,
+              sentence: null,
+              span: option.span,
+            }
+          : {
+              id: option.id,
+              position: option.position,
+              sentence: mapSentence(option.sentence),
+              span: null,
+            },
       ),
     });
   }
@@ -331,7 +296,6 @@ export class LearnerContentService {
     const explanation = await this.dependencies.questionQuery.getExplanation(
       result.attempt.questionVersionId,
     );
-    const signMedia = this.createResponseSigner();
     return parseLearnerPublicResponse(submitQuestionAttemptResponseSchema, {
       attempt: {
         id: result.attempt.id,
@@ -343,7 +307,7 @@ export class LearnerContentService {
       },
       feedback: {
         correctOptionId: result.feedback.correctOptionId,
-        explanationBlocks: await mapBlocks(explanation, signMedia),
+        explanationBlocks: mapBlocks(explanation),
       },
     });
   }
@@ -389,12 +353,9 @@ export class LearnerContentService {
       userId,
       toVocabularyListQuery(query),
     );
-    const signMedia = this.createResponseSigner();
     return parseLearnerPublicResponse(vocabularyListResponseSchema, {
       ...result,
-      items: await Promise.all(
-        result.items.map((item) => mapVocabularySummary(item, signMedia)),
-      ),
+      items: result.items.map((item) => mapVocabularySummary(item)),
     });
   }
 
@@ -410,15 +371,12 @@ export class LearnerContentService {
     if (!detail) {
       throw new NotFoundException({ code: 'VOCABULARY_NOT_FOUND' });
     }
-    const signMedia = this.createResponseSigner();
     return parseLearnerPublicResponse(vocabularyDetailResponseSchema, {
-      ...(await mapVocabularySummary(detail, signMedia)),
+      ...mapVocabularySummary(detail),
       meaningPronunciations: detail.meaningPronunciations,
       relations: detail.relations,
-      exampleSentences: await Promise.all(
-        detail.exampleSentences.map((example) =>
-          mapSentence(example, signMedia),
-        ),
+      exampleSentences: detail.exampleSentences.map((example) =>
+        mapSentence(example),
       ),
     });
   }
@@ -444,21 +402,5 @@ export class LearnerContentService {
         query,
       ),
     );
-  }
-  private createResponseSigner(): SignMedia {
-    const expiresAt = new Date(this.now().getTime() + MEDIA_URL_TTL_MS);
-    const cache = new Map<string, Promise<string>>();
-    return (storageKey) => {
-      const existing = cache.get(storageKey);
-      if (existing) {
-        return existing;
-      }
-      const pending = this.dependencies.mediaReadUrls.createReadUrl(
-        storageKey,
-        expiresAt,
-      );
-      cache.set(storageKey, pending);
-      return pending;
-    };
   }
 }

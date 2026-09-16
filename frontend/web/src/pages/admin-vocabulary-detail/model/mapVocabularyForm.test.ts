@@ -65,8 +65,6 @@ function createDetail(): AdminVocabularyDetailResponse {
         id: '01933b6a-8f13-7a19-b7e5-536d70f57aad',
         pronunciationKo: '싸왓디',
         toneMarks: '',
-        mediaAssetId: '01933b6a-8f13-7a19-b7e5-536d70f57aae',
-        mediaStatus: 'READY',
       },
     ],
     meaningPronunciations: [

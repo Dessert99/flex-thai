@@ -30,7 +30,6 @@ const detail = {
   kind: 'WORD',
   meanings: [],
   pronunciations: [],
-  audioEligibleMeaningCount: 0,
   saved: false,
   meaningPronunciations: [],
   exampleSentences: [],
@@ -104,7 +103,7 @@ describe('LearnerVocabulariesController 공개 계약', () => {
   });
 
   it('세 공개 응답 method의 계약 실패를 모두 generic response 오류로 바꾼다', async () => {
-    const extra = { storageKey: 'private/leak.mp3' };
+    const extra = { storageKey: 'private/internal.bin' };
 
     const listFake = service();
     listFake.listVocabularies.mockResolvedValueOnce({

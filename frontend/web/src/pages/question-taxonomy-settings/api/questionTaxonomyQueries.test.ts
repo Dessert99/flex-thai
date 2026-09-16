@@ -11,13 +11,11 @@ vi.mock('@/shared/api', () => ({
 }));
 
 const versionId = '00000000-0000-4000-8000-000000000001';
-const mediaAssetId = '00000000-0000-4000-8000-000000000002';
 const sentence = {
   originalText: 'สวัสดี',
   translationKo: '안녕하세요',
   pronunciationKo: '싸왓디',
   toneMarks: 'L-L-M',
-  mediaAssetId,
   tokens: [],
   expressions: [],
 };
@@ -57,7 +55,6 @@ describe('문제 분류 설정 mutation', () => {
         blocks: [
           {
             kind: 'QUESTION' as const,
-            displayMode: 'TEXT' as const,
             sentences: [{ speaker: null, sentence }],
           },
         ],

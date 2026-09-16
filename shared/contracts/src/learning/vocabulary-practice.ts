@@ -2,12 +2,7 @@
 import { z } from 'zod';
 import { vocabularySummarySchema } from './vocabularies.js';
 
-const practiceModeValues = [
-  'THAI_TO_MEANING',
-  'MEANING_TO_THAI',
-  'AUDIO_TO_THAI',
-  'AUDIO_TO_MEANING',
-] as const;
+const practiceModeValues = ['THAI_TO_MEANING', 'MEANING_TO_THAI'] as const;
 
 const rejectDuplicates = (
   values: readonly string[],
@@ -92,7 +87,6 @@ const meaningPronunciationSchema = z
 export const practiceCardSchema = z
   .object({
     ...vocabularySummarySchema.omit({
-      audioEligibleMeaningCount: true,
       saved: true,
     }).shape,
     meanings: vocabularySummarySchema.shape.meanings.min(1),
@@ -139,13 +133,6 @@ const textPromptSchema = z
   })
   .strict();
 
-const audioPromptSchema = z
-  .object({
-    type: z.literal('AUDIO'),
-    audioUrl: z.url(),
-  })
-  .strict();
-
 const practiceOptionSchema = z
   .object({
     id: z.uuid(),
@@ -161,7 +148,7 @@ export const practiceQuestionSchema = z
     vocabularyId: z.uuid(),
     meaningId: z.uuid(),
     mode: practiceModeSchema,
-    prompt: z.discriminatedUnion('type', [textPromptSchema, audioPromptSchema]),
+    prompt: textPromptSchema,
     options: z.array(practiceOptionSchema).length(4),
   })
   .strict()

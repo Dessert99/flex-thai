@@ -5,12 +5,11 @@ export type ContentErrorReportStatus =
   'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'REJECTED';
 /** 콘텐츠 오류 신고 대상 종류 */
 export type ContentErrorReportTargetKind =
-  'QUESTION' | 'VOCABULARY' | 'SENTENCE' | 'AUDIO' | 'CONCEPT';
+  'QUESTION' | 'VOCABULARY' | 'SENTENCE' | 'CONCEPT';
 /** 콘텐츠 오류 신고 분류 */
 export type ContentErrorReportCategory =
   | 'MEANING_TRANSLATION'
   | 'PRONUNCIATION_TONE'
-  | 'AUDIO'
   | 'ANSWER_EXPLANATION'
   | 'TOKENIZATION'
   | 'OTHER';
@@ -35,12 +34,6 @@ export type ContentErrorReportOrigin =
       tokenPosition: number | null;
     }
   | {
-      kind: 'AUDIO';
-      source:
-        | { kind: 'VOCABULARY'; pronunciationId: string }
-        | { kind: 'SENTENCE'; sentenceVersionId: string };
-    }
-  | {
       kind: 'CONCEPT';
       conceptId: string;
       conceptVersionId: string;
@@ -54,7 +47,6 @@ export interface ContentErrorReportCanonicalReference {
   contentVersionId: string | null;
   questionVersionId: string | null;
   sentenceVersionId: string | null;
-  mediaAssetId: string | null;
   locationId: string | null;
 }
 
@@ -65,7 +57,6 @@ export interface ContentErrorReportSnapshot {
   secondaryText: string | null;
   versionLabel: string | null;
   locationLabel: string;
-  audioAssetId: string | null;
 }
 
 /** 오류 신고 domain 실패 */

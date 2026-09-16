@@ -100,23 +100,6 @@ export const contentProductionQuestionOptionsSchema = z
     excludedVocabularyIds: distinctUuidListSchema,
     newAuxiliaryVocabularyLimit: z.number().int().safe().min(0).max(100),
     similarityThreshold: z.number().finite().min(0).max(1),
-    defaultVoicePresetId: uuidSchema,
-    speakerVoiceAssignments: z
-      .array(
-        z
-          .object({
-            speakerRole: z.string().trim().min(1),
-            voicePresetId: uuidSchema,
-          })
-          .strict(),
-      )
-      .max(20)
-      .refine(
-        (items) =>
-          new Set(items.map(({ speakerRole }) => speakerRole)).size ===
-          items.length,
-        'speaker role은 중복될 수 없습니다.',
-      ),
     additionalInstructionKo: nullableAdditionalInstructionKoSchema,
   })
   .strict()

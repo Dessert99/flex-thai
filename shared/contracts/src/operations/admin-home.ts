@@ -19,12 +19,6 @@ export const adminHomeOperationsResponseSchema = z
         failedCount: countSchema,
       })
       .strict(),
-    tts: z
-      .object({
-        runningCount: countSchema,
-        failedCount: countSchema,
-      })
-      .strict(),
     mfa: z
       .object({
         enrolled: z.boolean(),

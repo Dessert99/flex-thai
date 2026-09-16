@@ -71,7 +71,6 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
            on vmp.vocabulary_id = v.id and vmp.meaning_id = vm.id
          join vocabulary_pronunciations vp
            on vp.id = vmp.pronunciation_id and vp.vocabulary_id = v.id
-         join media_assets ma on ma.id = vp.media_asset_id and ma.status = 'READY'
          where w.user_id = '00000000-0000-4000-8000-000000000002'`,
       );
       const concepts = await pool.query(

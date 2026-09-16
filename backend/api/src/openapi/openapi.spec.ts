@@ -45,26 +45,11 @@ const ACTIVE_PATHS = [
   '/api/v1/admin/audit-logs',
   '/api/v1/admin/audit-logs/{auditLogId}',
   '/api/v1/admin/home',
-  '/api/v1/admin/media-assets/audio-upload-requests',
-  '/api/v1/admin/media-assets/{mediaAssetId}',
-  '/api/v1/admin/media-assets/{mediaAssetId}/complete',
   '/api/v1/admin/questions',
   '/api/v1/admin/questions/{questionId}',
   '/api/v1/admin/questions/{questionId}/hide',
   '/api/v1/admin/questions/{questionId}/restore',
   '/api/v1/admin/questions/{questionId}/versions',
-  '/api/v1/admin/questions/{questionId}/versions/{versionId}/tts-jobs',
-  '/api/v1/admin/tts/items/{itemId}/audio',
-  '/api/v1/admin/tts/items/{itemId}/retry',
-  '/api/v1/admin/tts/jobs',
-  '/api/v1/admin/tts/jobs/{jobId}',
-  '/api/v1/admin/tts/jobs/{jobId}/retry',
-  '/api/v1/admin/tts/presets',
-  '/api/v1/admin/tts/presets/{presetId}',
-  '/api/v1/admin/tts/presets/{presetId}/disable',
-  '/api/v1/admin/tts/presets/{presetId}/enable',
-  '/api/v1/admin/tts/presets/{presetId}/versions',
-  '/api/v1/admin/tts/questions/{questionId}/versions/{versionId}/readiness',
   '/api/v1/admin/usage-cost',
   '/api/v1/admin/usage-cost/settings',
   '/api/v1/admin/question-versions/{versionId}',
@@ -524,67 +509,8 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
   },
   {
     method: 'get',
-    path: '/api/v1/admin/tts/items/{itemId}/audio',
-    pathParameters: ['itemId'],
-    success: ['200', 'TtsItemAudioResponseDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/admin/tts/questions/{questionId}/versions/{versionId}/readiness',
-    pathParameters: ['questionId', 'versionId'],
-    success: ['200', 'TtsPublicationReadinessResponseDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/admin/tts/presets',
-    query: ['query', 'enabled', 'page', 'pageSize'],
-    success: ['200', 'TtsVoicePresetListResponseDto'],
-    errors: ['400', '401', '403', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/tts/presets',
-    body: 'CreateTtsVoicePresetRequestDto',
-    success: ['201', 'TtsVoicePresetDetailResponseDto'],
-    errors: ['400', '401', '403', '409', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/admin/tts/presets/{presetId}',
-    pathParameters: ['presetId'],
-    success: ['200', 'TtsVoicePresetDetailResponseDto'],
-    errors: ['400', '401', '403', '404', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/tts/presets/{presetId}/versions',
-    pathParameters: ['presetId'],
-    body: 'CreateTtsVoicePresetVersionRequestDto',
-    success: ['201', 'TtsVoicePresetDetailResponseDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/tts/presets/{presetId}/enable',
-    pathParameters: ['presetId'],
-    body: 'ChangeTtsVoicePresetEnabledRequestDto',
-    success: ['200', 'TtsVoicePresetDetailResponseDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/tts/presets/{presetId}/disable',
-    pathParameters: ['presetId'],
-    body: 'ChangeTtsVoicePresetEnabledRequestDto',
-    success: ['200', 'TtsVoicePresetDetailResponseDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'get',
     path: '/api/v1/admin/usage-cost',
-    query: ['from', 'to', 'source', 'provider', 'model', 'voice', 'status'],
+    query: ['from', 'to', 'source', 'provider', 'model', 'status'],
     success: ['200', 'UsageCostOverviewResponseDto'],
     errors: ['400', '401', '403', '500'],
   },
@@ -674,37 +600,6 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
     pathParameters: ['candidateId'],
     body: 'RegenerateQuestionCandidateRequestDto',
     success: ['202', 'RegenerateQuestionCandidateResponseDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/admin/tts/jobs',
-    query: ['status', 'from', 'to', 'page', 'pageSize'],
-    success: ['200', 'TtsJobListResponseDto'],
-    errors: ['400', '401', '403', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/admin/tts/jobs/{jobId}',
-    pathParameters: ['jobId'],
-    query: ['status', 'errorCode', 'page', 'pageSize'],
-    success: ['200', 'TtsJobDetailResponseDto'],
-    errors: ['400', '401', '403', '404', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/tts/jobs/{jobId}/retry',
-    pathParameters: ['jobId'],
-    body: 'RetryTtsJobRequestDto',
-    success: ['202', 'TtsRetryResponseDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/tts/items/{itemId}/retry',
-    pathParameters: ['itemId'],
-    body: 'RetryTtsItemRequestDto',
-    success: ['202', 'TtsRetryResponseDto'],
     errors: ['400', '401', '403', '404', '409', '500'],
   },
   {
@@ -910,27 +805,6 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
     errors: ['400', '401', '403', '404', '409', '500'],
   },
   {
-    method: 'post',
-    path: '/api/v1/admin/media-assets/audio-upload-requests',
-    body: 'AudioUploadRequestDto',
-    success: ['201', 'AudioUploadResponseDto'],
-    errors: ['400', '401', '403', '413', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/media-assets/{mediaAssetId}/complete',
-    pathParameters: ['mediaAssetId'],
-    success: ['200', 'CompleteMediaAssetResponseDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/admin/media-assets/{mediaAssetId}',
-    pathParameters: ['mediaAssetId'],
-    success: ['200', 'MediaAssetDetailResponseDto'],
-    errors: ['400', '401', '403', '404', '500'],
-  },
-  {
     method: 'get',
     path: '/api/v1/admin/questions',
     query: [
@@ -1044,14 +918,6 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
     path: '/api/v1/admin/questions/{questionId}/versions',
     pathParameters: ['questionId'],
     success: ['201', 'AdminQuestionVersionResponseDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/questions/{questionId}/versions/{versionId}/tts-jobs',
-    pathParameters: ['questionId', 'versionId'],
-    headers: ['X-Request-ID'],
-    success: ['201', 'AdminQuestionTtsJobResponseDto'],
     errors: ['400', '401', '403', '404', '409', '500'],
   },
   {
@@ -1717,12 +1583,12 @@ describe('OpenAPI 문서', () => {
     expectProtectedOpenApiOperations(document, LEARNER_OPERATIONS);
   });
 
-  it('관리자 operation 아흔여섯 개의 입력·성공·Bearer·오류 계약을 모두 고정한다', () => {
+  it('관리자 operation 여든 개의 입력·성공·Bearer·오류 계약을 모두 고정한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
 
-    expect(ADMIN_OPERATIONS).toHaveLength(96);
+    expect(ADMIN_OPERATIONS).toHaveLength(80);
     expectProtectedOpenApiOperations(document, ADMIN_OPERATIONS);
   });
 
@@ -1732,7 +1598,7 @@ describe('OpenAPI 문서', () => {
     const document = createOpenApiDocument(app);
     const adminComponents = Object.fromEntries(
       Object.entries(document.components?.schemas ?? {}).filter(([name]) =>
-        /Admin|ContentImport|MediaAsset|AudioUpload/u.test(name),
+        /Admin|ContentImport/u.test(name),
       ),
     );
     const serialized = JSON.stringify(adminComponents);
@@ -1742,7 +1608,6 @@ describe('OpenAPI 문서', () => {
     );
     expect(adminComponents).toHaveProperty('ContentImportRequestDto');
     expect(adminComponents).toHaveProperty('AdminQuestionDetailResponseDto');
-    expect(adminComponents).toHaveProperty('AdminQuestionTtsJobResponseDto');
     expect(adminComponents).toHaveProperty('AdminVocabularyDetailResponseDto');
   });
 
@@ -1809,7 +1674,6 @@ describe('OpenAPI 문서', () => {
     expect(detail).not.toContain('validationIssues');
     expect(detail).not.toContain('storageKey');
     expect(detail).not.toContain('EXPLANATION');
-    expect(detail).toContain('audioUrl');
   });
 });
 

@@ -1,5 +1,4 @@
 /** 문제 목록 필터를 taxonomy·학습 상태 책임으로 나눠 URL 검색값을 갱신한다 */
-import type { QuestionListFacets } from '@flex-thia/contracts';
 import { Button } from '@/shared/ui/button';
 import { Label } from '@/shared/ui/label';
 import {
@@ -9,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/select';
+import type { QuestionListFacets } from '@flex-thia/contracts';
 import type { QuestionListSearch } from '../model/questionListSearch';
 
 interface QuestionFilterFieldsProps {
@@ -155,14 +155,12 @@ function LearningStateFilters({ onChange, search }: QuestionFilterFieldsProps) {
         label='영역'
         onValueChange={(value) => {
           onChange({
-            skill:
-              value === 'ALL' ? undefined : (value as 'LISTENING' | 'READING'),
+            skill: value === 'ALL' ? undefined : (value as 'READING'),
           });
         }}
         options={[
           { label: '전체', value: 'ALL' },
           { label: '읽기', value: 'READING' },
-          { label: '듣기', value: 'LISTENING' },
         ]}
         value={search.skill ?? 'ALL'}
       />

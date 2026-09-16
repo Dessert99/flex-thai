@@ -1,6 +1,6 @@
 /** 격리 PostgreSQL에서 단어 연습 snapshot·동시성·멱등 경계를 검증한다 */
-import { drizzle } from 'drizzle-orm/node-postgres';
 import type { MaterializedPracticeSession } from '@flex-thia/domain';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import * as schema from '../schema/index.js';
@@ -16,7 +16,6 @@ const ids = {
   user: uuid(701),
   vocabulary: uuid(702),
   meaning: uuid(703),
-  media: uuid(704),
   pronunciation: uuid(705),
   option: uuid(706),
   secondOption: uuid(707),
@@ -42,8 +41,6 @@ const card = {
       id: ids.pronunciation,
       pronunciationKo: '리안',
       toneMarks: 'M',
-      mediaAssetId: ids.media,
-      storageKey: `practice/${ids.media}.mp3`,
     },
   ],
   meaningPronunciations: [
@@ -78,8 +75,6 @@ const createSessionInput = (
     position: index + 1,
     vocabularyId: ids.vocabulary,
     meaningId: ids.meaning,
-    pronunciationId: null,
-    mediaAssetId: null,
     mode: 'THAI_TO_MEANING' as const,
     prompt: { type: 'TEXT' as const, text: 'คำฝึกทดสอบระบบ' },
     options,
@@ -127,13 +122,10 @@ integration('DrizzleVocabularyPracticeRepository PostgreSQL', () => {
       `insert into vocabulary_meanings (id, vocabulary_id, meaning_ko, part_of_speech, difficulty) values ($1, $2, '배우다', '동사', 1)`,
       [ids.meaning, ids.vocabulary],
     );
+
     await pool.query(
-      `insert into media_assets (id, storage_key, declared_mime_type, declared_size_bytes, declared_sha256, mime_type, size_bytes, sha256, status, ready_at) values ($1, $2, 'audio/mpeg', 1, $3, 'audio/mpeg', 1, $3, 'READY', now())`,
-      [ids.media, `practice/${ids.media}.mp3`, 'a'.repeat(64)],
-    );
-    await pool.query(
-      `insert into vocabulary_pronunciations (id, vocabulary_id, pronunciation_ko, tone_marks, media_asset_id) values ($1, $2, '리안', 'M', $3)`,
-      [ids.pronunciation, ids.vocabulary, ids.media],
+      `insert into vocabulary_pronunciations (id, vocabulary_id, pronunciation_ko, tone_marks) values ($1, $2, '리안', 'M')`,
+      [ids.pronunciation, ids.vocabulary],
     );
     await pool.query(
       `insert into vocabulary_meaning_pronunciations (vocabulary_id, meaning_id, pronunciation_id) values ($1, $2, $3)`,
@@ -180,7 +172,7 @@ integration('DrizzleVocabularyPracticeRepository PostgreSQL', () => {
     await pool.query(`delete from vocabulary_pronunciations where id = $1`, [
       ids.pronunciation,
     ]);
-    await pool.query(`delete from media_assets where id = $1`, [ids.media]);
+
     await pool.query(`delete from vocabulary_meanings where id = $1`, [
       ids.meaning,
     ]);

@@ -55,7 +55,6 @@ describe('assembleLearnerConceptDetail', () => {
       translationKo: '나는 태국어를 공부한다',
       pronunciationKo: '찬 리안 파싸 타이',
       toneMarks: '',
-      media: { storageKey: 'sentence.mp3' },
       tokens: [
         {
           position: 0,
@@ -68,7 +67,6 @@ describe('assembleLearnerConceptDetail', () => {
           contextMeaningKo: '나',
           pronunciationKo: '찬',
           toneMarks: '',
-          media: { storageKey: 'token.mp3' },
           role: 'TARGET' as const,
         },
       ],
@@ -82,7 +80,6 @@ describe('assembleLearnerConceptDetail', () => {
           contextMeaningKo: '나',
           pronunciationKo: '찬',
           toneMarks: '',
-          media: { storageKey: 'expression.mp3' },
           representative: true,
         },
       ],

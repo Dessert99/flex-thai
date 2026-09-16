@@ -5,7 +5,6 @@ import type { QuestionDetailResponse } from '@flex-thia/contracts';
 export interface QuestionBlockViewModel {
   id: string;
   kind: QuestionDetailResponse['blocks'][number]['kind'] | 'EXPLANATION';
-  displayMode: QuestionDetailResponse['blocks'][number]['displayMode'];
   position: number;
   sentences: QuestionDetailResponse['blocks'][number]['sentences'];
 }
@@ -19,7 +18,6 @@ export function toQuestionBlockViewModels(
     .map((block) => ({
       id: block.id,
       kind: block.kind,
-      displayMode: block.displayMode,
       position: block.position,
       sentences: [...block.sentences].sort(
         (left, right) => left.position - right.position,

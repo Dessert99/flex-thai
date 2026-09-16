@@ -1,11 +1,11 @@
 /** 콘텐츠 오류 신고 adapter의 concept 격리와 원자 생성 저장을 검증한다 */
-import { describe, expect, it, vi } from 'vitest';
 import { PgDialect } from 'drizzle-orm/pg-core';
-import { auditLogs } from '../schema/identity.schema.js';
+import { describe, expect, it, vi } from 'vitest';
 import {
   contentErrorReportHistory,
   contentErrorReports,
 } from '../schema/feedback.schema.js';
+import { auditLogs } from '../schema/identity.schema.js';
 import { DrizzleContentErrorReportRepository } from './drizzle-content-error-report.repository.js';
 
 const createSelectDatabase = (responses: unknown[][]) => {
@@ -90,7 +90,6 @@ describe('DrizzleContentErrorReportRepository', () => {
         contentVersionId: 'version-id',
         questionVersionId: null,
         sentenceVersionId: null,
-        mediaAssetId: null,
         locationId: null,
       },
       snapshot: {
@@ -99,13 +98,11 @@ describe('DrizzleContentErrorReportRepository', () => {
         secondaryText: null,
         versionLabel: '버전 1',
         locationLabel: '개념 상세',
-        audioAssetId: null,
       },
     };
     const lookup = {
       resolve: vi.fn().mockResolvedValue(resolved),
       resolveSentence: vi.fn(),
-      resolveSentenceAudio: vi.fn(),
     };
     const repository = new DrizzleContentErrorReportRepository(
       {} as never,
@@ -131,7 +128,6 @@ describe('DrizzleContentErrorReportRepository', () => {
           contentVersionId: 'version-id',
           questionVersionId: null,
           sentenceVersionId: null,
-          mediaAssetId: null,
           locationId: null,
           internalStatus: 'DRAFT',
         },
@@ -141,11 +137,9 @@ describe('DrizzleContentErrorReportRepository', () => {
           secondaryText: null,
           versionLabel: '버전 1',
           locationLabel: '개념 상세',
-          audioAssetId: null,
         },
       }),
       resolveSentence: vi.fn(),
-      resolveSentenceAudio: vi.fn(),
     };
     const repository = new DrizzleContentErrorReportRepository(
       {} as never,
@@ -171,7 +165,6 @@ describe('DrizzleContentErrorReportRepository', () => {
           contentVersionId: 'version-id',
           questionVersionId: null,
           sentenceVersionId: null,
-          mediaAssetId: null,
           locationId: null,
         },
         snapshot: {
@@ -180,11 +173,9 @@ describe('DrizzleContentErrorReportRepository', () => {
           secondaryText: null,
           versionLabel: '버전 1',
           locationLabel: '개념 상세',
-          audioAssetId: null,
         },
       }),
       resolveSentence: vi.fn(),
-      resolveSentenceAudio: vi.fn(),
     };
     const repository = new DrizzleContentErrorReportRepository(
       {} as never,
@@ -272,7 +263,6 @@ describe('DrizzleContentErrorReportRepository', () => {
           sentenceVersionId: 'sentence-1',
           originalText: '첫 문장',
           translationKo: '첫 해석',
-          mediaAssetId: 'media-1',
         },
         {
           blockId: 'block-id',
@@ -282,7 +272,6 @@ describe('DrizzleContentErrorReportRepository', () => {
           sentenceVersionId: 'sentence-2',
           originalText: '둘째 문장',
           translationKo: '둘째 해석',
-          mediaAssetId: 'media-2',
         },
       ],
     ]);
@@ -302,13 +291,11 @@ describe('DrizzleContentErrorReportRepository', () => {
       reference: {
         sentenceVersionId: null,
         locationId: 'block-id',
-        mediaAssetId: null,
       },
       snapshot: {
         title: '첫 문장\n둘째 문장',
         primaryText: '첫 해석\n둘째 해석',
         locationLabel: 'PASSAGE 블록 3',
-        audioAssetId: null,
       },
     });
     const blockWhere = database.whereCalls[1];
@@ -329,7 +316,6 @@ describe('DrizzleContentErrorReportRepository', () => {
           sentenceVersionId: 'sentence-id',
           originalText: '정답 해설',
           translationKo: '해설 번역',
-          mediaAssetId: null,
         },
       ],
     ]);
@@ -379,7 +365,6 @@ describe('DrizzleContentErrorReportRepository', () => {
             sentenceVersionId: 'sentence-id',
             originalText: label,
             translationKo: '선택지 해석',
-            mediaAssetId: 'media-id',
           },
         ],
       ]);
@@ -419,7 +404,7 @@ describe('DrizzleContentErrorReportRepository', () => {
     const database = createSelectDatabase([
       [{ version: 1 }],
       [],
-      [{ originalText: '선택지', translationKo: '오답', mediaAssetId: 'm' }],
+      [{ originalText: '선택지', translationKo: '오답' }],
     ]);
     const repository = new DrizzleContentErrorReportRepository(
       database as never,
@@ -461,7 +446,6 @@ describe('DrizzleContentErrorReportRepository', () => {
           originalText: 'ไทย',
           translationKo: '태국어',
           pronunciationKo: '타이',
-          mediaAssetId: 'media-id',
           frozenAt: new Date(),
         },
       ],
@@ -487,7 +471,6 @@ describe('DrizzleContentErrorReportRepository', () => {
         contentVersionId: 'sentence-version-id',
         questionVersionId: null,
         sentenceVersionId: 'sentence-version-id',
-        mediaAssetId: null,
         locationId: null,
       },
       snapshot: {
@@ -496,7 +479,6 @@ describe('DrizzleContentErrorReportRepository', () => {
         secondaryText: null,
         versionLabel: '버전 1',
         locationLabel: '개념 예문',
-        audioAssetId: null,
       },
     };
     const database = createSelectDatabase([
@@ -508,7 +490,6 @@ describe('DrizzleContentErrorReportRepository', () => {
           originalText: '개념 문장',
           translationKo: '개념 해석',
           pronunciationKo: null,
-          mediaAssetId: null,
           frozenAt: new Date(),
         },
       ],
@@ -518,7 +499,6 @@ describe('DrizzleContentErrorReportRepository', () => {
     const lookup = {
       resolve: vi.fn(),
       resolveSentence: vi.fn().mockResolvedValue(resolved),
-      resolveSentenceAudio: vi.fn(),
     };
     const repository = new DrizzleContentErrorReportRepository(
       database as never,
@@ -537,90 +517,6 @@ describe('DrizzleContentErrorReportRepository', () => {
     });
   });
 
-  it('concept 문장 음성 lookup의 strict AUDIO target만 허용한다', async () => {
-    const resolved = {
-      reference: {
-        kind: 'AUDIO' as const,
-        contentId: 'media-id',
-        contentVersionId: 'sentence-version-id',
-        questionVersionId: null,
-        sentenceVersionId: 'sentence-version-id',
-        mediaAssetId: 'media-id',
-        locationId: null,
-      },
-      snapshot: {
-        title: '개념 문장 음성',
-        primaryText: '개념 문장',
-        secondaryText: null,
-        versionLabel: '버전 1',
-        locationLabel: '개념 예문',
-        audioAssetId: 'media-id',
-      },
-    };
-    const database = createSelectDatabase([[]]);
-    const lookup = {
-      resolve: vi.fn(),
-      resolveSentence: vi.fn(),
-      resolveSentenceAudio: vi.fn().mockResolvedValue(resolved),
-    };
-    const repository = new DrizzleContentErrorReportRepository(
-      database as never,
-      lookup,
-    );
-
-    await expect(
-      repository.resolve({
-        kind: 'AUDIO',
-        source: {
-          kind: 'SENTENCE',
-          sentenceVersionId: 'sentence-version-id',
-        },
-      }),
-    ).resolves.toEqual(resolved);
-  });
-
-  it('concept 문장 음성 lookup의 추가 key와 다른 sentence 관계를 거부한다', async () => {
-    const database = createSelectDatabase([[]]);
-    const lookup = {
-      resolve: vi.fn(),
-      resolveSentence: vi.fn(),
-      resolveSentenceAudio: vi.fn().mockResolvedValue({
-        reference: {
-          kind: 'AUDIO',
-          contentId: 'media-id',
-          contentVersionId: 'other-sentence-version-id',
-          questionVersionId: null,
-          sentenceVersionId: 'other-sentence-version-id',
-          mediaAssetId: 'media-id',
-          locationId: null,
-        },
-        snapshot: {
-          title: '개념 문장 음성',
-          primaryText: '개념 문장',
-          secondaryText: null,
-          versionLabel: '버전 1',
-          locationLabel: '개념 예문',
-          audioAssetId: 'media-id',
-          storageKey: 'private/audio.mp3',
-        },
-      }),
-    };
-    const repository = new DrizzleContentErrorReportRepository(
-      database as never,
-      lookup,
-    );
-
-    await expect(
-      repository.resolve({
-        kind: 'AUDIO',
-        source: {
-          kind: 'SENTENCE',
-          sentenceVersionId: 'sentence-version-id',
-        },
-      }),
-    ).resolves.toBeNull();
-  });
-
   it('일반·inline 선택지에 노출된 문장을 공개 SENTENCE 대상으로 허용한다', async () => {
     const sentence = {
       id: 'sentence-version-id',
@@ -629,7 +525,6 @@ describe('DrizzleContentErrorReportRepository', () => {
       originalText: '선택지 문장',
       translationKo: '선택지 해석',
       pronunciationKo: null,
-      mediaAssetId: null,
       frozenAt: new Date(),
     };
     const database = createSelectDatabase([[sentence], [], [{ id: 'qv-id' }]]);
@@ -659,7 +554,6 @@ describe('DrizzleContentErrorReportRepository', () => {
       originalText: '문장',
       translationKo: '해석',
       pronunciationKo: null,
-      mediaAssetId: null,
       frozenAt: new Date(),
     };
     const database = createSelectDatabase([[sentence], [{ questionId: 'q' }]]);
@@ -677,53 +571,6 @@ describe('DrizzleContentErrorReportRepository', () => {
     const query = new PgDialect().sqlToQuery(exposureWhere as never);
     expect(query.params).toContain('EXPLANATION');
     expect(query.sql).toContain('<>');
-  });
-
-  it('READY가 아닌 어휘 발음은 상세 신고에서도 거부한다', async () => {
-    const database = createSelectDatabase([
-      [{ thai: 'ไทย' }],
-      [
-        {
-          value: '타이',
-          mediaAssetId: 'media-id',
-          mediaStatus: 'PROCESSING',
-        },
-      ],
-    ]);
-    const repository = new DrizzleContentErrorReportRepository(
-      database as never,
-    );
-    await expect(
-      repository.resolve({
-        kind: 'VOCABULARY',
-        vocabularyId: 'vocabulary-id',
-        meaningId: null,
-        pronunciationId: 'pronunciation-id',
-      }),
-    ).resolves.toBeNull();
-  });
-
-  it('READY가 아닌 어휘 음성을 거부한다', async () => {
-    const database = createSelectDatabase([
-      [
-        {
-          vocabularyId: 'vocabulary-id',
-          thai: 'ไทย',
-          pronunciation: '타이',
-          mediaAssetId: 'media-id',
-          mediaStatus: 'REJECTED',
-        },
-      ],
-    ]);
-    const repository = new DrizzleContentErrorReportRepository(
-      database as never,
-    );
-    await expect(
-      repository.resolve({
-        kind: 'AUDIO',
-        source: { kind: 'VOCABULARY', pronunciationId: 'pronunciation-id' },
-      }),
-    ).resolves.toBeNull();
   });
 
   it('신고와 SUBMITTED 이력을 한 transaction에 저장하고 중복 신고도 허용한다', async () => {

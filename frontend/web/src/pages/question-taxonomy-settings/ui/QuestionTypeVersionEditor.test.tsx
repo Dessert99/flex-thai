@@ -1,11 +1,11 @@
 /** 문제 유형 버전의 기준·승인 예시·상태 전이 사용자 행동을 검증한다 */
-import { fireEvent, render, screen } from '@testing-library/react';
 import type {
   AdminQuestionVersionPayload,
   QuestionTaxonomySettingsResponse,
 } from '@flex-thia/contracts';
-import type { ComponentProps } from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ComponentProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { QuestionTypeVersionEditor } from './QuestionTypeVersionEditor';
 
@@ -19,7 +19,6 @@ const sentence = {
   translationKo: '안녕하세요',
   pronunciationKo: '싸왓디',
   toneMarks: 'L-L-M',
-  mediaAssetId: '00000000-0000-4000-8000-000000000005',
   tokens: [],
   expressions: [],
 };
@@ -32,7 +31,6 @@ const approvedExamplePayload = {
   blocks: [
     {
       kind: 'QUESTION',
-      displayMode: 'TEXT',
       sentences: [{ speaker: null, sentence }],
     },
   ],

@@ -1,6 +1,6 @@
 /** 실제 PostgreSQL에서 관리자 보존 lock·no-op·audit rollback을 검증한다 */
-import { randomUUID } from 'node:crypto';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import * as schema from '../schema/index.js';

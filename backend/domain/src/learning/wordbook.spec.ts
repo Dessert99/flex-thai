@@ -1,12 +1,12 @@
 /** 단어장 이름·소유권 오류와 bulk 위임 경계를 검증한다 */
 import { describe, expect, it } from 'vitest';
+import { WordbookService } from './wordbook.js';
 import type {
   WordbookRecord,
   WordbookRemoveInput,
   WordbookRepository,
   WordbookTransferInput,
 } from './wordbook.repository.js';
-import { WordbookService } from './wordbook.js';
 
 const ids = {
   user: '00000000-0000-4000-8000-000000000201',
@@ -92,7 +92,7 @@ describe('WordbookService 단어장 이름', () => {
     const service = new WordbookService(repository, () => now);
 
     await service.create(ids.user, '  FLEX 어휘  ');
-    await service.rename(ids.user, ids.wordbook, '  듣기 어휘  ');
+    await service.rename(ids.user, ids.wordbook, '  읽기 어휘  ');
 
     expect(repository.createInputs).toEqual([
       { userId: ids.user, name: 'FLEX 어휘', now },
@@ -101,7 +101,7 @@ describe('WordbookService 단어장 이름', () => {
       {
         userId: ids.user,
         wordbookId: ids.wordbook,
-        name: '듣기 어휘',
+        name: '읽기 어휘',
         now,
       },
     ]);

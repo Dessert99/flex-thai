@@ -1,7 +1,4 @@
 /** 학습 홈의 섹션 카드와 내부 탐색 행에 일관된 시각 위계를 제공한다 */
-import { Link } from '@tanstack/react-router';
-import { ChevronRight, type LucideIcon } from 'lucide-react';
-import type { ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import {
   Item,
@@ -11,6 +8,9 @@ import {
   ItemMedia,
   ItemTitle,
 } from '@/shared/ui/item';
+import { Link } from '@tanstack/react-router';
+import { ChevronRight, type LucideIcon } from 'lucide-react';
+import type { ReactNode } from 'react';
 
 export function HomeCard({
   children,

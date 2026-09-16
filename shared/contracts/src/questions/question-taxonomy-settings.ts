@@ -19,24 +19,6 @@ const displayNameSchema = z.string().trim().min(1).max(100);
 
 /** 대분류에서 파생되는 영역과 기본 출제 형식 */
 export const questionMajorCategoryMetadata = {
-  LISTENING_RESPONSE: {
-    label: '반응 테스트',
-    skill: 'LISTENING',
-    template: 'STANDARD_CHOICE',
-    optionCount: 3,
-  },
-  LISTENING_DIALOGUE: {
-    label: '대화문',
-    skill: 'LISTENING',
-    template: 'DIALOGUE_CHOICE',
-    optionCount: 4,
-  },
-  LISTENING_PASSAGE: {
-    label: '설명문',
-    skill: 'LISTENING',
-    template: 'PASSAGE_CHOICE',
-    optionCount: 4,
-  },
   READING_VOCABULARY_GRAMMAR: {
     label: '어휘·문법',
     skill: 'READING',
@@ -65,7 +47,7 @@ export const questionMajorCategoryMetadata = {
   QuestionMajorCategory,
   {
     label: string;
-    skill: 'READING' | 'LISTENING';
+    skill: 'READING';
     template:
       | 'STANDARD_CHOICE'
       | 'PASSAGE_CHOICE'

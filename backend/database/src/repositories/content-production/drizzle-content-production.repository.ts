@@ -1,5 +1,26 @@
 /** 콘텐츠 제작 작업·항목 조건부 전이와 preset 조회를 Drizzle로 구현한다 */
-import { randomUUID } from 'node:crypto';
+import type {
+  ContentProductionItem,
+  ContentProductionItemSeed,
+  ContentProductionJob,
+  ContentProductionJobStatus,
+  ContentProductionOperation,
+  ContentProductionPresetCatalog,
+  ContentProductionPresetSnapshot,
+  ContentProductionPresetVersion,
+  ContentProductionRepository,
+  CreateContentProductionCommand,
+  CreateInitialContentProductionPresetInput,
+  CreateNextContentProductionPresetVersionInput,
+  ResolveContentProductionPresetSnapshotInput,
+  SetContentProductionPresetEnabledInput,
+} from '@flex-thia/domain';
+import {
+  CONTENT_PRODUCTION_ITEM_LEASE_MS,
+  ContentProductionDomainError,
+  ContentProductionPresetError,
+  assertContentProductionPresetPurposeParameters,
+} from '@flex-thia/domain';
 import {
   and,
   asc,
@@ -13,46 +34,24 @@ import {
   or,
   sql,
 } from 'drizzle-orm';
-import {
-  CONTENT_PRODUCTION_ITEM_LEASE_MS,
-  ContentProductionDomainError,
-  ContentProductionPresetError,
-  assertContentProductionPresetPurposeParameters,
-} from '@flex-thia/domain';
-import type {
-  ContentProductionItem,
-  ContentProductionItemSeed,
-  ContentProductionJob,
-  ContentProductionJobStatus,
-  ContentProductionPresetCatalog,
-  ContentProductionPresetSnapshot,
-  ContentProductionPresetVersion,
-  ContentProductionRepository,
-  ContentProductionOperation,
-  CreateContentProductionCommand,
-  CreateInitialContentProductionPresetInput,
-  CreateNextContentProductionPresetVersionInput,
-  ResolveContentProductionPresetSnapshotInput,
-  SetContentProductionPresetEnabledInput,
-} from '@flex-thia/domain';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
-import {
-  contentProductionPresets,
-  jobInputs,
-  jobItems,
-  jobs,
-  uploads,
-  auditLogs,
-  questionTypeVersions,
-  ttsVoicePresets,
-  vocabularies,
-} from '../../schema/index.js';
+import { randomUUID } from 'node:crypto';
 import {
   vocabularyProductionCandidates,
   vocabularyProductionValidations,
 } from '../../schema/ai-vocabulary-production.schema.js';
 import * as schema from '../../schema/index.js';
+import {
+  auditLogs,
+  contentProductionPresets,
+  jobInputs,
+  jobItems,
+  jobs,
+  questionTypeVersions,
+  uploads,
+  vocabularies,
+} from '../../schema/index.js';
 
 type ContentProductionDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 type ContentProductionExecutor = Pick<ContentProductionDatabase, 'select'>;
@@ -871,8 +870,6 @@ export class DrizzleContentProductionPresetCatalog implements ContentProductionP
       'excludedVocabularyIds',
       'newAuxiliaryVocabularyLimit',
       'similarityThreshold',
-      'defaultVoicePresetId',
-      'speakerVoiceAssignments',
       'additionalInstructionKo',
     ] as const;
     const parameters: Record<string, unknown> = {
@@ -895,7 +892,6 @@ export class DrizzleContentProductionPresetCatalog implements ContentProductionP
           )
         : [],
     );
-    const voiceAssignments = parameters['speakerVoiceAssignments'];
     const typePlanEntries: unknown[] = Array.isArray(typePlan) ? typePlan : [];
     const typeIds = typePlanEntries.flatMap((entry) => {
       if (!entry || typeof entry !== 'object') return [];
@@ -906,61 +902,34 @@ export class DrizzleContentProductionPresetCatalog implements ContentProductionP
         ? [questionTypeVersionId]
         : [];
     });
-    const assignmentValues: unknown[] = Array.isArray(voiceAssignments)
-      ? voiceAssignments
-      : [];
-    const voiceIds = [
-      parameters['defaultVoicePresetId'],
-      ...assignmentValues.flatMap((assignment) => {
-        if (!assignment || typeof assignment !== 'object') return [];
-        const voicePresetId = (assignment as Record<string, unknown>)[
-          'voicePresetId'
-        ];
-        return typeof voicePresetId === 'string' ? [voicePresetId] : [];
-      }),
-    ].filter((id): id is string => typeof id === 'string');
-    if (typeIds.length === 0 || voiceIds.length === 0) return null;
-
-    const [activeTypes, publishedVocabulary, enabledVoices] = await Promise.all(
-      [
-        this.database
-          .select({ id: questionTypeVersions.id })
-          .from(questionTypeVersions)
-          .where(
-            and(
-              inArray(questionTypeVersions.id, [...new Set(typeIds)]),
-              eq(questionTypeVersions.status, 'ACTIVE'),
-            ),
+    if (typeIds.length === 0) return null;
+    const [activeTypes, publishedVocabulary] = await Promise.all([
+      this.database
+        .select({ id: questionTypeVersions.id })
+        .from(questionTypeVersions)
+        .where(
+          and(
+            inArray(questionTypeVersions.id, [...new Set(typeIds)]),
+            eq(questionTypeVersions.status, 'ACTIVE'),
           ),
-        vocabularyIds.length === 0
-          ? Promise.resolve([])
-          : this.database
-              .select({ id: vocabularies.id })
-              .from(vocabularies)
-              .where(
-                and(
-                  inArray(vocabularies.id, [...new Set(vocabularyIds)]),
-                  eq(vocabularies.status, 'PUBLISHED'),
-                ),
+        ),
+      vocabularyIds.length === 0
+        ? Promise.resolve([])
+        : this.database
+            .select({ id: vocabularies.id })
+            .from(vocabularies)
+            .where(
+              and(
+                inArray(vocabularies.id, [...new Set(vocabularyIds)]),
+                eq(vocabularies.status, 'PUBLISHED'),
               ),
-        this.database
-          .select({ id: ttsVoicePresets.id })
-          .from(ttsVoicePresets)
-          .where(
-            and(
-              inArray(ttsVoicePresets.id, [...new Set(voiceIds)]),
-              eq(ttsVoicePresets.enabled, true),
             ),
-          ),
-      ],
-    );
+    ]);
     if (
       activeTypes.length !== new Set(typeIds).size ||
-      publishedVocabulary.length !== new Set(vocabularyIds).size ||
-      enabledVoices.length !== new Set(voiceIds).size
-    ) {
+      publishedVocabulary.length !== new Set(vocabularyIds).size
+    )
       return null;
-    }
     return { ...preset, parameters };
   }
 

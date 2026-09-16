@@ -1,18 +1,16 @@
-/** 학습 query·use case·media signer를 학습자 HTTP 경계에 조립한다 */
-import { type DynamicModule, Module } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
 import {
   type DrizzleLearnerQuestionQuery,
   type DrizzleLearnerVocabularyQuery,
   type DrizzleWordbookQuery,
 } from '@flex-thia/database';
 import {
-  type MediaReadUrlProvider,
+  type IdentityUserRepository,
   type QuestionAttemptService,
   type SavedContentService,
-  type IdentityUserRepository,
   type WordbookService,
 } from '@flex-thia/domain';
+import { type DynamicModule, Module } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
 import {
   AUTHORIZER_GUARD_OPTIONS,
@@ -34,7 +32,6 @@ export interface LearningModuleOptions {
   savedContent: SavedContentService;
   wordbookQuery: DrizzleWordbookQuery;
   wordbooks: WordbookService;
-  mediaReadUrls: MediaReadUrlProvider;
   users: IdentityUserRepository;
   authorizer: AuthorizerGuardOptions;
 }
@@ -59,7 +56,6 @@ export class LearningModule {
             vocabularyQuery: options.vocabularyQuery,
             questionAttempts: options.questionAttempts,
             savedContent: options.savedContent,
-            mediaReadUrls: options.mediaReadUrls,
           }),
         },
         {
@@ -67,7 +63,6 @@ export class LearningModule {
           useValue: new LearnerWordbooksService({
             query: options.wordbookQuery,
             wordbooks: options.wordbooks,
-            mediaReadUrls: options.mediaReadUrls,
           }),
         },
         {

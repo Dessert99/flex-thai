@@ -2,8 +2,8 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
-import { changeQuestionListFilters } from '../model/questionListSearch';
 import { questionListQueryOptions } from '../api/questionListQueries';
+import { changeQuestionListFilters } from '../model/questionListSearch';
 import {
   defaultSearch,
   emptyQuestionListResponse,
@@ -249,12 +249,12 @@ it('필터 변경 시 URL 검색값의 페이지를 1로 되돌린다', () => {
   expect(
     changeQuestionListFilters(
       { ...defaultSearch, page: 3 },
-      { skill: 'LISTENING' },
+      { skill: 'READING' },
     ),
   ).toEqual({
     ...defaultSearch,
     page: 1,
-    skill: 'LISTENING',
+    skill: 'READING',
   });
 });
 

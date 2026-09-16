@@ -18,11 +18,7 @@ export type QuestionCandidateReviewStatus =
 export type QuestionValidationStage =
   'SCHEMA' | 'DECISION_RULE' | 'SIMILARITY' | 'AI_CROSS_VALIDATION';
 
-/** 생성 모델이 media 없이 제안하는 문장 graph */
-export type GeneratedQuestionSentenceInput = Omit<
-  CanonicalDraftSentenceInput,
-  'mediaAssetId'
->;
+export type GeneratedQuestionSentenceInput = CanonicalDraftSentenceInput;
 
 /** 생성 모델이 제안하는 일반 문장 또는 inline span 선택지 */
 export type GeneratedQuestionOptionInput =
@@ -53,7 +49,6 @@ export interface GeneratedQuestionPayload {
   tagSlugs: string[];
   blocks: Array<{
     kind: 'INSTRUCTION' | 'PASSAGE' | 'DIALOGUE' | 'QUESTION' | 'EXPLANATION';
-    displayMode: 'TEXT' | 'AUDIO' | 'TEXT_AND_AUDIO' | 'AUDIO_THEN_REVEAL';
     sentences: Array<{
       speaker: string | null;
       sentence: GeneratedQuestionSentenceInput;
@@ -366,7 +361,6 @@ const projectApprovedExample = (
     tagSlugs: [...example.payload.tagSlugs],
     blocks: example.payload.blocks.map((block) => ({
       kind: block.kind,
-      displayMode: block.displayMode,
       sentences: block.sentences.map(({ speaker, sentence }) => ({
         speaker,
         sentence: projectGeneratedSentence(sentence),
@@ -483,7 +477,6 @@ export const projectQuestionPromptApprovedExample = (
             isRecord(block)
               ? {
                   kind: block.kind,
-                  displayMode: block.displayMode,
                   sentences: isUnknownArray(block.sentences)
                     ? block.sentences.map((sentence) =>
                         isRecord(sentence)
@@ -630,10 +623,6 @@ const generatedSentenceSchema = {
 const generatedBlockSchema = {
   additionalProperties: false,
   properties: {
-    displayMode: {
-      enum: ['TEXT', 'AUDIO', 'TEXT_AND_AUDIO', 'AUDIO_THEN_REVEAL'],
-      type: 'string',
-    },
     kind: {
       enum: ['INSTRUCTION', 'PASSAGE', 'DIALOGUE', 'QUESTION', 'EXPLANATION'],
       type: 'string',
@@ -656,7 +645,7 @@ const generatedBlockSchema = {
       type: 'array',
     },
   },
-  required: ['kind', 'displayMode', 'sentences'],
+  required: ['kind', 'sentences'],
   type: 'object',
 };
 
@@ -1344,7 +1333,7 @@ const isGeneratedSentence = (
     value.tokens.every(isCanonicalToken) &&
     Array.isArray(value.expressions) &&
     value.expressions.every(isCanonicalExpression) &&
-    hasValidSentenceOffsets(value as GeneratedQuestionSentenceInput)
+    hasValidSentenceOffsets(value as unknown as GeneratedQuestionSentenceInput)
   );
 };
 
@@ -1352,12 +1341,9 @@ const isBlock = (value: unknown): boolean => {
   if (!isRecord(value)) return false;
 
   return (
-    hasExactKeys(value, ['kind', 'displayMode', 'sentences']) &&
+    hasExactKeys(value, ['kind', 'sentences']) &&
     ['INSTRUCTION', 'PASSAGE', 'DIALOGUE', 'QUESTION', 'EXPLANATION'].includes(
       value.kind as string,
-    ) &&
-    ['TEXT', 'AUDIO', 'TEXT_AND_AUDIO', 'AUDIO_THEN_REVEAL'].includes(
-      value.displayMode as string,
     ) &&
     Array.isArray(value.sentences) &&
     value.sentences.every(

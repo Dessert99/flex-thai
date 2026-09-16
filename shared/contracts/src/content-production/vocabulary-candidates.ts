@@ -67,7 +67,6 @@ export const vocabularyCandidateReviewErrorCodeSchema = z.enum([
   'VOCABULARY_CANDIDATE_IDEMPOTENCY_CONFLICT',
   'VOCABULARY_CANDIDATE_REVIEW_CONFLICT',
   'VOCABULARY_CANDIDATE_EXISTING_VOCABULARY_NOT_FOUND',
-  'VOCABULARY_CANDIDATE_AUDIO_NOT_READY',
 ]);
 
 const vocabularyMeaningSnapshotSchema = z
@@ -90,7 +89,6 @@ const vocabularyDraftPronunciationSchema = z
     clientRef: z.string().trim().min(1),
     pronunciationKo: z.string().trim().min(1),
     toneMarks: z.string(),
-    mediaAssetId: uuidSchema,
   })
   .strict();
 

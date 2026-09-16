@@ -35,7 +35,7 @@ export interface AsyncDispatchSender {
 /** DB claim이 queue delivery identity와 현재 lease 소유권을 함께 운반한다 */
 export interface ClaimedAsyncDispatch {
   id: string;
-  payloadKind: 'CONTENT_PRODUCTION' | 'TTS';
+  payloadKind: 'CONTENT_PRODUCTION';
   jobId: string;
   attempt: number;
   idempotencyKey: string;
@@ -56,7 +56,7 @@ export interface AsyncDispatchRelayResult {
 const toDispatchMessagePayload = (
   row: ClaimedAsyncDispatch,
 ): AsyncDispatchMessage['payload'] | null => {
-  const expectedIdempotencyKey = `${row.payloadKind === 'CONTENT_PRODUCTION' ? 'content-production' : 'tts'}:${row.jobId}:${row.attempt}`;
+  const expectedIdempotencyKey = `content-production:${row.jobId}:${row.attempt}`;
   const keys = Object.keys(row.payload).sort();
   const commonIdentityMatches =
     row.idempotencyKey === expectedIdempotencyKey &&
@@ -71,17 +71,6 @@ const toDispatchMessagePayload = (
     keys.length === 2 &&
     keys[0] === 'attempt' &&
     keys[1] === 'jobId'
-  ) {
-    return { jobId: row.jobId, attempt: row.attempt };
-  }
-  if (
-    row.payloadKind === 'TTS' &&
-    keys.length === 3 &&
-    keys[0] === 'attempt' &&
-    keys[1] === 'commandFingerprint' &&
-    keys[2] === 'jobId' &&
-    typeof row.payload['commandFingerprint'] === 'string' &&
-    /^[a-f0-9]{64}$/.test(row.payload['commandFingerprint'])
   ) {
     return { jobId: row.jobId, attempt: row.attempt };
   }

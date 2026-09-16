@@ -1,15 +1,11 @@
 /** 관리자 어휘 list/detail의 정규화 검색·stable order·안전한 projection을 고정한다 */
-import { randomUUID } from 'node:crypto';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { PgDialect } from 'drizzle-orm/pg-core';
+import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import * as schema from '../schema/index.js';
-import {
-  mediaAssets,
-  vocabularies,
-  vocabularyPronunciations,
-} from '../schema/index.js';
+import { vocabularies, vocabularyPronunciations } from '../schema/index.js';
 import { DrizzleAdminVocabularyQuery } from './drizzle-admin-vocabulary.query.js';
 
 const createSelectFake = (results: Array<Array<Record<string, unknown>>>) => {
@@ -56,7 +52,6 @@ const ids = {
   vocabulary: '00000000-0000-4000-8000-000000000001',
   meaning: '00000000-0000-4000-8000-000000000002',
   pronunciation: '00000000-0000-4000-8000-000000000003',
-  media: '00000000-0000-4000-8000-000000000004',
   sentenceA: '00000000-0000-4000-8000-000000000005',
   sentenceB: '00000000-0000-4000-8000-000000000006',
   questionA: '00000000-0000-4000-8000-000000000007',
@@ -160,7 +155,6 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
 
     it('정규화 검색과 all-status count/detail distinct usage를 private field 없이 반환한다', async () => {
       const actorUserId = randomUUID();
-      const mediaAssetId = randomUUID();
       const vocabularyId = randomUUID();
       const otherVocabularyId = randomUUID();
       const meaningId = randomUUID();
@@ -175,16 +169,6 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
           `query-${actorUserId}`,
           `query-${actorUserId}@example.com`,
         ],
-      );
-      await pool.query(
-        `insert into media_assets (
-           id, storage_key, declared_mime_type, declared_size_bytes,
-           declared_sha256, mime_type, size_bytes, sha256, status, ready_at
-         ) values (
-           $1, $2, 'audio/mpeg', 1, $3,
-           'audio/mpeg', 1, $3, 'READY', now()
-         )`,
-        [mediaAssetId, `audio/private-${mediaAssetId}`, 'a'.repeat(64)],
       );
       await pool.query(
         `insert into vocabularies (
@@ -215,9 +199,8 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       );
       await pool.query(
         `insert into vocabulary_pronunciations (
-           id, vocabulary_id, pronunciation_ko, tone_marks, media_asset_id
-         ) values ($1, $2, '싸왓디 크랍', 'L-L-M-H', $3)`,
-        [pronunciationId, vocabularyId, mediaAssetId],
+           id, vocabulary_id, pronunciation_ko, tone_marks) values ($1, $2, '싸왓디 크랍', 'L-L-M-H')`,
+        [pronunciationId, vocabularyId],
       );
       await pool.query(
         `insert into vocabulary_meaning_pronunciations (
@@ -235,9 +218,8 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
         await pool.query(
           `insert into thai_sentence_versions (
              id, sentence_id, version, original_text, translation_ko,
-             pronunciation_ko, tone_marks, media_asset_id
-           ) values ($1, $2, 1, 'กข', '뜻', '꺼커', '--', $3)`,
-          [sentenceVersionId, sentenceId, mediaAssetId],
+             pronunciation_ko, tone_marks) values ($1, $2, 1, 'กข', '뜻', '꺼커', '--')`,
+          [sentenceVersionId, sentenceId],
         );
         await pool.query(
           `insert into token_occurrences (
@@ -293,8 +275,8 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       );
       await pool.query(
         `insert into question_blocks (
-           id, question_version_id, kind, display_mode, position
-         ) values ($1, $2, 'QUESTION', 'TEXT', 0)`,
+           id, question_version_id, kind, position
+         ) values ($1, $2, 'QUESTION', 0)`,
         [blockId, questionVersionId],
       );
       await pool.query(
@@ -343,7 +325,6 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       expect(detail).not.toHaveProperty('requestHash');
       expect(detail).not.toHaveProperty('referenceMap');
       expect(detail).not.toHaveProperty('actorUserId');
-      expect(JSON.stringify(detail)).not.toContain('audio/private-');
     });
 
     it('%·_·역슬래시를 포함한 검색어는 literal substring만 찾는다', async () => {
@@ -409,8 +390,6 @@ describe('DrizzleAdminVocabularyQuery 상세', () => {
           id: ids.pronunciation,
           pronunciationKo: '싸왓디',
           toneMarks: 'L-L-M',
-          mediaAssetId: ids.media,
-          mediaStatus: 'READY',
         },
       ],
       [{ meaningId: ids.meaning, pronunciationId: ids.pronunciation }],
@@ -449,8 +428,6 @@ describe('DrizzleAdminVocabularyQuery 상세', () => {
           id: ids.pronunciation,
           pronunciationKo: '싸왓디',
           toneMarks: 'L-L-M',
-          mediaAssetId: ids.media,
-          mediaStatus: 'READY',
         },
       ],
       meaningPronunciations: [
@@ -468,9 +445,6 @@ describe('DrizzleAdminVocabularyQuery 상세', () => {
       'storageKey',
     );
     expect(fake.calls[2]?.table).toBe(vocabularyPronunciations);
-    expect(Object.values(fake.calls[2]?.fields ?? {})).not.toContain(
-      mediaAssets.storageKey,
-    );
   });
 
   it('없는 어휘는 null이며 child·usage를 조회하지 않는다', async () => {
@@ -479,41 +453,5 @@ describe('DrizzleAdminVocabularyQuery 상세', () => {
 
     await expect(query.findById(ids.vocabulary)).resolves.toBeNull();
     expect(fake.calls).toHaveLength(1);
-  });
-
-  it('media 없는 발음 projection은 private FK 손상으로 거절한다', async () => {
-    const fake = createSelectFake([
-      [
-        {
-          id: ids.vocabulary,
-          thai: 'สวัสดี',
-          kind: 'WORD',
-          status: 'DRAFT',
-          mergedIntoVocabularyId: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ],
-      [],
-      [
-        {
-          id: ids.pronunciation,
-          pronunciationKo: '싸왓디',
-          toneMarks: '',
-          mediaAssetId: null,
-          mediaStatus: null,
-        },
-      ],
-      [],
-      [],
-      [],
-      [],
-      [],
-    ]);
-    const query = new DrizzleAdminVocabularyQuery(fake.database as never);
-
-    await expect(query.findById(ids.vocabulary)).rejects.toMatchObject({
-      code: 'ADMIN_VOCABULARY_QUERY_INTEGRITY_ERROR',
-    });
   });
 });

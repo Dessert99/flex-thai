@@ -74,24 +74,6 @@ export * from './uploads/upload.repository.js';
 /** 안전한 upload policy와 완료 검증 use case를 공개한다 */
 export * from './uploads/upload-policy.service.js';
 
-/** 음성 자산의 완료·거절·게시 준비 규칙을 공개한다 */
-export * from './media/media-asset.js';
-
-/** 관리자 음성 업로드 repository·storage port를 공개한다 */
-export * from './media/media-admin.repository.js';
-
-/** 관리자 음성 업로드 요청·완료 use case를 공개한다 */
-export * from './media/media-admin.service.js';
-
-/** 자동 TTS 작업 lifecycle과 immutable snapshot 타입을 공개한다 */
-export * from './media/tts-job.js';
-
-/** 자동 TTS 공급자와 음성 저장소 port를 공개한다 */
-export * from './media/tts-provider.js';
-
-/** 문제 버전 TTS 재생성의 소유권·멱등 결정을 공개한다 */
-export * from './media/question-tts-regeneration.js';
-
 /** 태국어 문장 버전의 Unicode offset·표현·동결 규칙을 공개한다 */
 export * from './thai-content/thai-sentence-version.js';
 
@@ -137,9 +119,6 @@ export * from './learning/vocabulary-practice.repository.js';
 
 /** 단어 연습 materialize와 상태 전이 use case를 공개한다 */
 export * from './learning/vocabulary-practice.js';
-
-/** private media 읽기 URL provider port를 공개한다 */
-export * from './media/media-read-url.provider.js';
 
 /** canonical 콘텐츠 가져오기 내부 명령 구조를 공개한다 */
 export * from './content-import/content-import.js';

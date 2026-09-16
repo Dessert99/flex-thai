@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { authenticatedRequest } from '@/shared/api';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   approveVocabularyCandidate,
   discardVocabularyCandidate,

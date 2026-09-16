@@ -1,14 +1,14 @@
 /** 학습자 문제 read model의 공개 범위·historical 판정·정답 비노출을 검증한다 */
-import { PgDialect } from 'drizzle-orm/pg-core';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import * as schema from '../schema/index.js';
 import {
-  questionTags,
-  questionTopics,
   questionAttempts,
   questionBlocks,
+  questionTags,
+  questionTopics,
   questionTypes,
   questionVersionTags,
   questions,
@@ -228,16 +228,13 @@ describe('DrizzleLearnerQuestionQuery 문제 목록', () => {
 
   it('현재 공개 문제에서만 중복 없는 안정적 facet을 만든다', async () => {
     const fake = createSelectFake([
-      [
-        { majorCategory: 'LISTENING_DIALOGUE' },
-        { majorCategory: 'READING_PASSAGE' },
-      ],
+      [{ majorCategory: 'READING_PASSAGE' }],
       [
         {
           id: 'type-2',
-          slug: 'listening-choice',
-          displayName: '듣기 선택',
-          majorCategory: 'LISTENING_DIALOGUE',
+          slug: 'reading-choice',
+          displayName: '읽기 선택',
+          majorCategory: 'READING_PASSAGE',
         },
         {
           id: 'type-1',
@@ -255,16 +252,13 @@ describe('DrizzleLearnerQuestionQuery 문제 목록', () => {
     const query = new DrizzleLearnerQuestionQuery(fake.database as never);
 
     await expect(query.listQuestionFacets()).resolves.toEqual({
-      majorCategories: [
-        { value: 'LISTENING_DIALOGUE', label: '대화문' },
-        { value: 'READING_PASSAGE', label: '지문 독해' },
-      ],
+      majorCategories: [{ value: 'READING_PASSAGE', label: '지문 독해' }],
       questionTypes: [
         {
           id: 'type-2',
-          slug: 'listening-choice',
-          displayName: '듣기 선택',
-          majorCategory: 'LISTENING_DIALOGUE',
+          slug: 'reading-choice',
+          displayName: '읽기 선택',
+          majorCategory: 'READING_PASSAGE',
         },
         {
           id: 'type-1',
@@ -370,13 +364,11 @@ describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
         {
           id: 'block-2',
           kind: 'QUESTION',
-          displayMode: 'TEXT',
           position: 2,
         },
         {
           id: 'block-1',
           kind: 'INSTRUCTION',
-          displayMode: 'TEXT_AND_AUDIO',
           position: 1,
         },
       ],
@@ -419,7 +411,6 @@ describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
           translationKo: '안녕하세요',
           pronunciationKo: '싸왓디',
           toneMarks: 'L-L-M',
-          mediaStorageKey: 'private/sentence.mp3',
         },
       ],
       [
@@ -435,7 +426,6 @@ describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
           contextMeaningKo: '좋다',
           pronunciationKo: '디',
           toneMarks: 'M',
-          mediaStorageKey: 'private/token-2.mp3',
           role: 'SUPPORTING',
         },
         {
@@ -450,7 +440,6 @@ describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
           contextMeaningKo: '안녕',
           pronunciationKo: '싸왓디',
           toneMarks: 'L-L-M',
-          mediaStorageKey: 'private/token-1.mp3',
           role: 'TARGET',
         },
       ],
@@ -466,7 +455,6 @@ describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
           contextMeaningKo: '인사',
           pronunciationKo: '싸왓디',
           toneMarks: 'L-L-M',
-          mediaStorageKey: 'private/expression-2.mp3',
           representative: false,
         },
         {
@@ -480,7 +468,6 @@ describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
           contextMeaningKo: '안녕하세요',
           pronunciationKo: '싸왓디',
           toneMarks: 'L-L-M',
-          mediaStorageKey: 'private/expression-1.mp3',
           representative: true,
         },
         {
@@ -494,7 +481,6 @@ describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
           contextMeaningKo: '좋은 인사',
           pronunciationKo: '디',
           toneMarks: 'M',
-          mediaStorageKey: 'private/expression-3.mp3',
           representative: false,
         },
       ],
@@ -524,14 +510,12 @@ describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
     expect(detail?.blocks[0]?.sentences[0]?.sentence.tokens[0]).toMatchObject({
       pronunciationKo: '싸왓디',
       toneMarks: 'L-L-M',
-      media: { storageKey: 'private/token-1.mp3' },
     });
     expect(
       detail?.blocks[0]?.sentences[0]?.sentence.expressions[0],
     ).toMatchObject({
       meaningId: 'expression-meaning-1',
       contextMeaningKo: '안녕하세요',
-      media: { storageKey: 'private/expression-1.mp3' },
     });
     expect(
       fake.selectCalls[6]?.orderBy.map((order) => toSql(order).sql),
@@ -542,9 +526,6 @@ describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
       expect.stringContaining('"id" asc'),
     ]);
     expect(detail?.options[0]?.sentence).toBeNull();
-    expect(detail?.blocks[0]?.sentences[0]?.sentence.media).toEqual({
-      storageKey: 'private/sentence.mp3',
-    });
 
     const serialized = JSON.stringify(detail);
     expect(serialized).not.toContain('isCorrect');
@@ -588,7 +569,6 @@ describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
         {
           id: 'explanation-block',
           kind: 'EXPLANATION',
-          displayMode: 'TEXT',
           position: 3,
         },
       ],
@@ -607,7 +587,6 @@ describe('DrizzleLearnerQuestionQuery 문제 상세와 해설', () => {
           translationKo: '해설',
           pronunciationKo: '캄아티바이',
           toneMarks: '-',
-          mediaStorageKey: 'private/explanation.mp3',
         },
       ],
       [],
@@ -688,7 +667,6 @@ const integrationDatabaseUrl =
 
 const ids = {
   user: '10000000-0000-4000-8000-000000000001',
-  media: '20000000-0000-4000-8000-000000000001',
   word: '30000000-0000-4000-8000-000000000001',
   expression: '30000000-0000-4000-8000-000000000002',
   meaning: '30000000-0000-4000-8000-000000000003',
@@ -698,9 +676,9 @@ const ids = {
   sentence: '40000000-0000-4000-8000-000000000001',
   sentenceVersion: '40000000-0000-4000-8000-000000000002',
   readingType: '50000000-0000-4000-8000-000000000001',
-  listeningType: '50000000-0000-4000-8000-000000000002',
+  passageType: '50000000-0000-4000-8000-000000000002',
   readingTypeVersion: '50000000-0000-4000-8000-000000000003',
-  listeningTypeVersion: '50000000-0000-4000-8000-000000000004',
+  passageTypeVersion: '50000000-0000-4000-8000-000000000004',
   topic: '50000000-0000-4000-8000-000000000005',
   unavailableTopics: [
     '50000000-0000-4000-8000-000000000008',
@@ -757,21 +735,12 @@ const ids = {
 } as const;
 
 const createQuestionQueryFixture = async (pool: Pool): Promise<void> => {
-  const sha256 = 'a'.repeat(64);
   // 로컬 seed와 무관하게 fixture가 정의한 공개 문제 집합만 검증한다.
   await pool.query('truncate table questions, question_types cascade');
   await pool.query(
     `insert into users (id, cognito_sub, email, status)
      values ($1, 'query-user', 'query-user@example.com', 'ACTIVE')`,
     [ids.user],
-  );
-  await pool.query(
-    `insert into media_assets (
-       id, storage_key, declared_mime_type, declared_size_bytes,
-       declared_sha256, mime_type, size_bytes, sha256, status, ready_at
-     ) values ($1, 'private/sentence.mp3', 'audio/mpeg', 1, $2,
-               'audio/mpeg', 1, $2, 'READY', now())`,
-    [ids.media, sha256],
   );
   await pool.query(
     `insert into vocabularies (id, thai, normalized_thai, kind, status)
@@ -799,9 +768,9 @@ const createQuestionQueryFixture = async (pool: Pool): Promise<void> => {
   await pool.query(
     `insert into thai_sentence_versions (
        id, sentence_id, version, original_text, translation_ko,
-       pronunciation_ko, tone_marks, media_asset_id, frozen_at
-     ) values ($1, $2, 1, 'สวัสดีครับ', '안녕하세요', '싸왓디 크랍', '-', $3, now())`,
-    [ids.sentenceVersion, ids.sentence, ids.media],
+       pronunciation_ko, tone_marks, frozen_at
+     ) values ($1, $2, 1, 'สวัสดีครับ', '안녕하세요', '싸왓디 크랍', '-', now())`,
+    [ids.sentenceVersion, ids.sentence],
   );
   await pool.query(
     `insert into token_occurrences (
@@ -842,9 +811,9 @@ const createQuestionQueryFixture = async (pool: Pool): Promise<void> => {
   await pool.query(
     `insert into question_types (id, slug, display_name, skill, major_category)
      values ($1, 'reading-choice-query', '독해 선택', 'READING', 'READING_PASSAGE'),
-            ($2, 'listening-choice-query', '듣기 선택', 'LISTENING', 'LISTENING_DIALOGUE'),
+            ($2, 'reading-choice-query', '읽기 선택', 'READING', 'READING_PASSAGE'),
             ($3, 'unavailable-choice-query', '비공개 선택', 'READING', 'READING_ERROR_IDENTIFICATION')`,
-    [ids.readingType, ids.listeningType, ids.unavailableType],
+    [ids.readingType, ids.passageType, ids.unavailableType],
   );
   await pool.query(
     `insert into question_type_versions (
@@ -855,8 +824,8 @@ const createQuestionQueryFixture = async (pool: Pool): Promise<void> => {
     [
       ids.readingTypeVersion,
       ids.readingType,
-      ids.listeningTypeVersion,
-      ids.listeningType,
+      ids.passageTypeVersion,
+      ids.passageType,
       ids.unavailableTypeVersion,
       ids.unavailableType,
     ],
@@ -884,7 +853,7 @@ const createQuestionQueryFixture = async (pool: Pool): Promise<void> => {
       ...ids.versions,
       ...ids.questions,
       ids.readingTypeVersion,
-      ids.listeningTypeVersion,
+      ids.passageTypeVersion,
       ids.unavailableTypeVersion,
       ids.topic,
       ...ids.unavailableTopics,
@@ -943,11 +912,11 @@ const createQuestionQueryFixture = async (pool: Pool): Promise<void> => {
   );
   await pool.query(
     `insert into question_blocks
-       (id, question_version_id, kind, display_mode, position)
-     values ($1, $5, 'QUESTION', 'TEXT', 2),
-            ($2, $5, 'INSTRUCTION', 'TEXT_AND_AUDIO', 0),
-            ($3, $5, 'EXPLANATION', 'TEXT', 3),
-            ($4, $6, 'EXPLANATION', 'TEXT', 1)`,
+       (id, question_version_id, kind, position)
+     values ($1, $5, 'QUESTION', 2),
+            ($2, $5, 'INSTRUCTION', 0),
+            ($3, $5, 'EXPLANATION', 3),
+            ($4, $6, 'EXPLANATION', 1)`,
     [...ids.blocks, ids.versions[1], ids.versions[0]],
   );
   await pool.query(
@@ -1075,7 +1044,6 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       const facets = await query.listQuestionFacets();
 
       expect(facets.majorCategories).toEqual([
-        { value: 'LISTENING_DIALOGUE', label: '대화문' },
         { value: 'READING_PASSAGE', label: '지문 독해' },
       ]);
       expect(facets.questionTypes).toEqual([
@@ -1086,10 +1054,10 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
           majorCategory: 'READING_PASSAGE',
         },
         {
-          id: ids.listeningType,
-          slug: 'listening-choice-query',
-          displayName: '듣기 선택',
-          majorCategory: 'LISTENING_DIALOGUE',
+          id: ids.passageType,
+          slug: 'reading-choice-query',
+          displayName: '읽기 선택',
+          majorCategory: 'READING_PASSAGE',
         },
       ]);
       expect(facets.topics).toEqual([
@@ -1135,9 +1103,6 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       expect(detail?.options.map((option) => option.position)).toEqual([0, 1]);
       expect(detail?.blocks[0]?.sentences[0]?.sentence).toBe(
         detail?.options[0]?.sentence,
-      );
-      expect(detail?.blocks[0]?.sentences[0]?.sentence.media.storageKey).toBe(
-        'private/sentence.mp3',
       );
       const serialized = JSON.stringify(detail);
       expect(serialized).not.toContain('isCorrect');

@@ -19,7 +19,7 @@ const bodyRequestId = 'd9886994-5b49-46ac-bcd5-3f2024b9c1c6';
 const occurredAt = new Date('2026-07-27T01:02:03.000Z');
 
 const payload = {
-  questionTypeSlug: 'listening-response',
+  questionTypeSlug: 'reading-response',
   questionTypeVersion: 1,
   difficulty: 2,
   topicSlug: 'daily-life',

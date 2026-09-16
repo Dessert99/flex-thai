@@ -1,11 +1,10 @@
 /** 검증된 context로 production CDK Stack 세 개를 조립한다 */
-import { fileURLToPath } from 'node:url';
 import { App } from 'aws-cdk-lib';
+import { fileURLToPath } from 'node:url';
 import { ApplicationStack } from './application-stack.js';
 import {
   type InfrastructureConfig,
   readInfrastructureConfig,
-  readInfrastructureConfigFromSources,
 } from './config.js';
 import { DataStack } from './data-stack.js';
 import { EdgeStack } from './edge-stack.js';
@@ -19,9 +18,6 @@ const fixtureConfig: InfrastructureConfig = readInfrastructureConfig({
   hostedZoneId: 'Z0123456789EXAMPLE',
   alertEmail: 'owner@example.com',
   githubRepository: 'Dessert99/flex-thai',
-  ttsVoicePresetId: '00000000-0000-4000-8000-000000000777',
-  mediaPublicKeyPem:
-    '-----BEGIN PUBLIC KEY-----\ndGVzdA==\n-----END PUBLIC KEY-----',
 });
 
 const synthFixture = app.node.tryGetContext('synthFixture') === 'true';
@@ -33,19 +29,15 @@ const webAssetPath = fileURLToPath(
 );
 const config = synthFixture
   ? fixtureConfig
-  : readInfrastructureConfigFromSources(
-      {
-        account: app.node.tryGetContext('account'),
-        rootDomain: app.node.tryGetContext('rootDomain'),
-        hostedZoneId: app.node.tryGetContext('hostedZoneId'),
-        alertEmail: app.node.tryGetContext('alertEmail'),
-        githubRepository: app.node.tryGetContext('githubRepository'),
-        allowedEmailDomains: app.node.tryGetContext('allowedEmailDomains'),
-        monthlyBudgetUsd: app.node.tryGetContext('monthlyBudgetUsd'),
-        ttsVoicePresetId: app.node.tryGetContext('ttsVoicePresetId'),
-      },
-      process.env,
-    );
+  : readInfrastructureConfig({
+      account: app.node.tryGetContext('account'),
+      rootDomain: app.node.tryGetContext('rootDomain'),
+      hostedZoneId: app.node.tryGetContext('hostedZoneId'),
+      alertEmail: app.node.tryGetContext('alertEmail'),
+      githubRepository: app.node.tryGetContext('githubRepository'),
+      allowedEmailDomains: app.node.tryGetContext('allowedEmailDomains'),
+      monthlyBudgetUsd: app.node.tryGetContext('monthlyBudgetUsd'),
+    });
 
 if (synthFixture) {
   app.node.setContext(
@@ -68,7 +60,6 @@ const edgeStack = new EdgeStack(app, 'FlexThiaEdgeProd', {
 const applicationStack = new ApplicationStack(app, 'FlexThiaApplicationProd', {
   config,
   dataStack,
-  mediaKeyPairId: edgeStack.mediaKeyPairId,
   env: { account: config.account, region: config.appRegion },
   crossRegionReferences: true,
 });

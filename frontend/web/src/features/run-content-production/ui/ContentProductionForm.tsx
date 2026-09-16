@@ -1,12 +1,5 @@
 /** 콘텐츠 제작 upload·preview·create 행동을 한 form으로 제공한다 */
 /* eslint-disable max-lines, max-lines-per-function */
-import { useState } from 'react';
-import {
-  contentProductionQuestionOptionsSchema,
-  type ContentProductionQuestionOptions,
-  type ContentProductionPreset,
-  type PromptPreviewResponse,
-} from '@flex-thia/contracts';
 import { Button } from '@/shared/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { Input } from '@/shared/ui/input';
@@ -20,6 +13,13 @@ import {
 } from '@/shared/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import { Textarea } from '@/shared/ui/textarea';
+import {
+  contentProductionQuestionOptionsSchema,
+  type ContentProductionPreset,
+  type ContentProductionQuestionOptions,
+  type PromptPreviewResponse,
+} from '@flex-thia/contracts';
+import { useState } from 'react';
 import type { UploadedContentProductionInput } from '../model/uploadContentProductionInput';
 
 type PreviewInput = {
@@ -345,55 +345,7 @@ function AdvancedSettings({ options, onChange }: AdvancedSettingsProps) {
         type='number'
         value={options.similarityThreshold}
       />
-      <Label htmlFor='content-production-default-voice'>
-        기본 음성 preset ID
-      </Label>
-      <Input
-        id='content-production-default-voice'
-        onChange={(event) => set('defaultVoicePresetId', event.target.value)}
-        value={options.defaultVoicePresetId}
-      />
-      {options.speakerVoiceAssignments.map((item, index) => (
-        <div
-          className='grid gap-cluster'
-          key={`${item.speakerRole}-${index}`}
-        >
-          <Label htmlFor={`content-production-speaker-role-${index}`}>
-            speaker role {index + 1}
-          </Label>
-          <Input
-            id={`content-production-speaker-role-${index}`}
-            onChange={(event) =>
-              set(
-                'speakerVoiceAssignments',
-                options.speakerVoiceAssignments.map((current, currentIndex) =>
-                  currentIndex === index
-                    ? { ...current, speakerRole: event.target.value }
-                    : current,
-                ),
-              )
-            }
-            value={item.speakerRole}
-          />
-          <Label htmlFor={`content-production-speaker-voice-${index}`}>
-            speaker 음성 preset ID {index + 1}
-          </Label>
-          <Input
-            id={`content-production-speaker-voice-${index}`}
-            onChange={(event) =>
-              set(
-                'speakerVoiceAssignments',
-                options.speakerVoiceAssignments.map((current, currentIndex) =>
-                  currentIndex === index
-                    ? { ...current, voicePresetId: event.target.value }
-                    : current,
-                ),
-              )
-            }
-            value={item.voicePresetId}
-          />
-        </div>
-      ))}
+
       <Label htmlFor='content-production-instruction'>추가 지시</Label>
       <Textarea
         id='content-production-instruction'
@@ -420,8 +372,6 @@ const questionOptionsFrom = (
     excludedVocabularyIds,
     newAuxiliaryVocabularyLimit,
     similarityThreshold,
-    defaultVoicePresetId,
-    speakerVoiceAssignments,
     additionalInstructionKo,
   } = preset.parameters;
   return contentProductionQuestionOptionsSchema.parse({
@@ -433,8 +383,6 @@ const questionOptionsFrom = (
     excludedVocabularyIds,
     newAuxiliaryVocabularyLimit,
     similarityThreshold,
-    defaultVoicePresetId,
-    speakerVoiceAssignments,
     additionalInstructionKo,
   });
 };

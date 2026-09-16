@@ -1,8 +1,5 @@
-/** 콘텐츠 초안의 최신 참조 조회와 graph·item·audit 원자 저장 port를 정의한다 */
-import type { MediaAsset } from '../media/media-asset.js';
 import type {
   QuestionBlockKind,
-  QuestionDisplayMode,
   QuestionTemplate,
 } from '../questions/question-version.js';
 import type {
@@ -33,11 +30,9 @@ export interface VocabularyMeaningReferenceRecord {
   vocabularyId: string;
 }
 
-/** token이 참조할 발음의 현재 어휘·media 소유 정보 */
 export interface VocabularyPronunciationReferenceRecord {
   id: string;
   vocabularyId: string;
-  mediaAssetId: string | null;
 }
 
 /** slug와 version으로 고정한 문제 유형 버전의 현재 정보 */
@@ -65,13 +60,11 @@ export interface ResolvedVocabularyMeaning {
   contextNote: string | null;
 }
 
-/** vocabulary graph에 저장할 한국어 발음과 media 참조 */
 export interface ResolvedVocabularyPronunciation {
   id: string;
   vocabularyId: string;
   pronunciationKo: string;
   toneMarks: string;
-  mediaAssetId: string;
 }
 
 /** 같은 vocabulary의 뜻과 발음을 잇는 resolved mapping */
@@ -102,7 +95,6 @@ export interface ResolvedQuestionSentenceGraph {
     translationKo: string;
     pronunciationKo: string;
     toneMarks: string;
-    mediaAssetId: string | null;
     frozenAt: null;
   };
   tokens: Array<
@@ -125,7 +117,6 @@ export interface ResolvedQuestionBlock {
   id: string;
   questionVersionId: string;
   kind: QuestionBlockKind;
-  displayMode: QuestionDisplayMode;
   position: number;
   sentences: Array<{
     id: string;
@@ -205,10 +196,6 @@ export interface ContentDraftTransaction {
     this: void,
     normalizedThai: string,
   ): Promise<string | null>;
-  findMediaAssetById(
-    this: void,
-    mediaAssetId: string,
-  ): Promise<MediaAsset | null>;
   findSuccessfulVocabularyImportItemsByReference(
     this: void,
     importId: string,

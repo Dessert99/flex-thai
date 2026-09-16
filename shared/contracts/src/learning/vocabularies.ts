@@ -36,7 +36,6 @@ const vocabularyPronunciationSchema = z
     id: uuidSchema,
     pronunciationKo: z.string().min(1),
     toneMarks: z.string(),
-    audioUrl: z.string().url(),
   })
   .strict();
 
@@ -66,7 +65,6 @@ const vocabularySummaryShape = {
   kind: z.enum(['WORD', 'EXPRESSION']),
   meanings: z.array(vocabularyMeaningSchema),
   pronunciations: z.array(vocabularyPronunciationSchema),
-  audioEligibleMeaningCount: z.number().int().safe().nonnegative(),
   saved: z.boolean(),
 };
 
@@ -94,7 +92,6 @@ export const vocabularyListResponseSchema = z
   })
   .strict();
 
-/** 공개 뜻·발음 음성과 현재 게시 문제의 예문을 포함한 어휘 상세 */
 export const vocabularyDetailResponseSchema = z
   .object({
     ...vocabularySummaryShape,

@@ -14,7 +14,6 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { mediaAssets } from './media.schema.js';
 import { users } from './identity.schema.js';
 
 /** 공용 어휘 종류 */
@@ -110,7 +109,6 @@ export const vocabularyMeanings = pgTable(
   ],
 );
 
-/** 공용 어휘의 한국어 발음·성조·준비 음성 */
 export const vocabularyPronunciations = pgTable(
   'vocabulary_pronunciations',
   {
@@ -120,9 +118,6 @@ export const vocabularyPronunciations = pgTable(
       .notNull(),
     pronunciationKo: text('pronunciation_ko').notNull(),
     toneMarks: text('tone_marks').notNull(),
-    mediaAssetId: uuid('media_asset_id').references(() => mediaAssets.id, {
-      onDelete: 'restrict',
-    }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),

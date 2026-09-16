@@ -1,7 +1,4 @@
 /** AI 문제 후보 artifact와 item terminal 전이를 같은 PostgreSQL transaction으로 저장한다 */
-import { isDeepStrictEqual } from 'node:util';
-import { QuestionCandidateReviewError } from '@flex-thia/domain';
-import { and, eq, gt, isNull, sql } from 'drizzle-orm';
 import type {
   ApprovedQuestionDraft,
   ApproveQuestionCandidateInput,
@@ -17,15 +14,18 @@ import type {
   QuestionRegenerationDispatchWriter,
   RegenerateQuestionCandidateInput,
 } from '@flex-thia/domain';
+import { QuestionCandidateReviewError } from '@flex-thia/domain';
+import { and, eq, gt, isNull, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
+import { isDeepStrictEqual } from 'node:util';
 import {
   questionProductionCandidates,
   questionProductionValidations,
 } from '../../schema/ai-question-production.schema.js';
 import { auditLogs } from '../../schema/identity.schema.js';
-import { jobItems, jobs, providerRuns } from '../../schema/jobs.schema.js';
 import * as schema from '../../schema/index.js';
+import { jobItems, jobs, providerRuns } from '../../schema/jobs.schema.js';
 
 type QuestionProductionDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 /** 생성 DRAFT adapter가 후보 갱신과 같은 commit 경계를 공유할 Drizzle session */
@@ -33,7 +33,6 @@ export type QuestionProductionTransaction = Parameters<
   Parameters<QuestionProductionDatabase['transaction']>[0]
 >[0];
 
-/** nullable-audio 문제 graph 생성을 후보 승인 transaction 안에 주입하는 port */
 export interface GeneratedQuestionDraftWriter {
   createDraft(
     transaction: QuestionProductionTransaction,
@@ -53,25 +52,6 @@ export interface GeneratedQuestionDraftWriter {
       };
     },
   ): Promise<ApprovedQuestionDraft>;
-}
-
-/** 생성 DRAFT와 같은 transaction에 초기 TTS job·dispatch를 예약하는 port */
-export interface GeneratedQuestionTtsScheduler {
-  schedule(
-    transaction: QuestionProductionTransaction,
-    input: {
-      draft: ApprovedQuestionDraft;
-      requestedBy: string;
-      requestedAt: Date;
-      voicePolicy?: {
-        defaultVoicePresetId: string;
-        speakerVoiceAssignments: Array<{
-          speakerRole: string;
-          voicePresetId: string;
-        }>;
-      };
-    },
-  ): Promise<{ jobIds: string[] }>;
 }
 
 type ReviewCandidate = {
@@ -106,43 +86,6 @@ const requiredValidationStages = new Set([
   'SIMILARITY',
   'AI_CROSS_VALIDATION',
 ]);
-
-const readVoicePolicy = (
-  snapshot: ReviewCandidate['presetSnapshot'],
-):
-  | {
-      voicePolicy: {
-        defaultVoicePresetId: string;
-        speakerVoiceAssignments: Array<{
-          speakerRole: string;
-          voicePresetId: string;
-        }>;
-      };
-    }
-  | Record<string, never> => {
-  const parameters = snapshot?.parameters;
-  const defaultVoicePresetId = parameters?.['defaultVoicePresetId'];
-  const assignments = parameters?.['speakerVoiceAssignments'];
-  if (typeof defaultVoicePresetId !== 'string' || !Array.isArray(assignments)) {
-    return {};
-  }
-  const assignmentValues: unknown[] = assignments;
-  const speakerVoiceAssignments = assignmentValues.flatMap((assignment) => {
-    if (!assignment || typeof assignment !== 'object') return [];
-    const record = assignment as Record<string, unknown>;
-    const speakerRole = record['speakerRole'];
-    const voicePresetId = record['voicePresetId'];
-    return typeof speakerRole === 'string' &&
-      speakerRole.trim() !== '' &&
-      typeof voicePresetId === 'string'
-      ? [{ speakerRole: speakerRole.trim(), voicePresetId }]
-      : [];
-  });
-  if (speakerVoiceAssignments.length !== assignmentValues.length) return {};
-  return {
-    voicePolicy: { defaultVoicePresetId, speakerVoiceAssignments },
-  };
-};
 
 const lockReviewRequest = (
   transaction: QuestionProductionTransaction,
@@ -517,10 +460,8 @@ export class DrizzleAiQuestionProductionRepository
     private readonly now: () => Date = () => new Date(),
     private readonly draftWriter?: GeneratedQuestionDraftWriter,
     private readonly regenerationDispatchWriter?: QuestionRegenerationDispatchWriter<QuestionProductionTransaction>,
-    private readonly ttsScheduler?: GeneratedQuestionTtsScheduler,
   ) {}
 
-  /** 검증 완료 후보를 잠근 채 nullable-audio DRAFT·연결·감사를 한 commit으로 만든다 */
   async approve(
     input: ApproveQuestionCandidateInput,
   ): ReturnType<GeneratedQuestionDraftRepository['approve']> {
@@ -584,9 +525,6 @@ export class DrizzleAiQuestionProductionRepository
       if (!this.draftWriter) {
         throw new Error('QUESTION_DRAFT_WRITER_NOT_CONFIGURED');
       }
-      if (!this.ttsScheduler) {
-        throw new Error('QUESTION_TTS_SCHEDULER_NOT_CONFIGURED');
-      }
 
       const draft = await this.draftWriter.createDraft(transaction, {
         candidate: {
@@ -602,12 +540,6 @@ export class DrizzleAiQuestionProductionRepository
           requestId: input.requestId,
           occurredAt: input.occurredAt,
         },
-      });
-      await this.ttsScheduler.schedule(transaction, {
-        draft,
-        requestedBy: input.actorUserId,
-        requestedAt: input.occurredAt,
-        ...readVoicePolicy(candidate.presetSnapshot),
       });
       const nextRevision = candidate.revision + 1;
       const updated = await transaction

@@ -4,16 +4,15 @@ import {
   contentProductionJobConfigurationSchema,
   contentProductionJobDetailResponseSchema,
   contentProductionQuestionOptionsSchema,
+  createContentProductionJobRequestSchema,
   createContentProductionPresetRequestSchema,
   createContentProductionPresetVersionRequestSchema,
-  createContentProductionJobRequestSchema,
   promptPreviewRequestSchema,
   setContentProductionPresetEnabledRequestSchema,
   uploadPolicyRequestSchema,
 } from './content-production.js';
 
 const questionTypeVersionId = 'cbb22737-6f3d-4112-bb0e-8e4f005c810b';
-const voicePresetId = 'eb16b18a-8d19-4c83-9cdb-c36a5d59c4d6';
 const targetVocabularyId = 'd9886994-5b49-46ac-bcd5-3f2024b9c1c6';
 const validQuestionOptions = {
   questionCount: 2,
@@ -27,8 +26,6 @@ const validQuestionOptions = {
   excludedVocabularyIds: [],
   newAuxiliaryVocabularyLimit: 10,
   similarityThreshold: 0.7,
-  defaultVoicePresetId: voicePresetId,
-  speakerVoiceAssignments: [{ speakerRole: ' 진행자 ', voicePresetId }],
   additionalInstructionKo: ' 짧고 명확하게 출제해 주세요. ',
 };
 
@@ -49,7 +46,6 @@ describe('콘텐츠 제작 공개 계약', () => {
       uploadIds: ['77a1e8ff-7c85-4739-9004-647e12e34b65'],
       options: {
         ...validQuestionOptions,
-        speakerVoiceAssignments: [{ speakerRole: '진행자', voicePresetId }],
         additionalInstructionKo: '짧고 명확하게 출제해 주세요.',
       },
     });
@@ -76,13 +72,6 @@ describe('콘텐츠 제작 공개 계약', () => {
       {
         ...validQuestionOptions,
         requiredVocabularyIds: [targetVocabularyId],
-      },
-      {
-        ...validQuestionOptions,
-        speakerVoiceAssignments: [
-          { speakerRole: '진행자', voicePresetId },
-          { speakerRole: ' 진행자 ', voicePresetId },
-        ],
       },
       { ...validQuestionOptions, unexpected: true },
     ]) {

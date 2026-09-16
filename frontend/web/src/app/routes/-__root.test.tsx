@@ -1,8 +1,8 @@
 /** root route가 예상하지 못한 render 오류와 취소를 안전하게 복구하는지 검증한다 */
+import { ApiError } from '@/shared/api';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { ApiError } from '@/shared/api';
 import { getRouteTitle, RootRouteError } from './__root';
 
 describe('root route 오류 경계', () => {
@@ -96,10 +96,6 @@ describe('root route 제목', () => {
       '어휘 후보 상세',
     ],
     ['/admin/content-production/presets', '콘텐츠 제작 Preset'],
-    ['/admin/tts', 'TTS 운영'],
-    ['/admin/tts/jobs/00000000-0000-4000-8000-000000000105', 'TTS 작업 상세'],
-    ['/admin/tts/presets', 'TTS Preset'],
-    ['/admin/usage-cost', 'AI·TTS 사용량·비용'],
   ])('%s 경로에 %s 제목을 제공한다', (pathname, title) => {
     expect(getRouteTitle(pathname)).toBe(title);
   });

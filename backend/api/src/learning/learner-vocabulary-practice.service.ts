@@ -1,5 +1,3 @@
-/** 단어 연습 내부 snapshot을 signed media와 strict 공개 응답으로 조립한다 */
-import { ConflictException, NotFoundException } from '@nestjs/common';
 import {
   vocabularyPracticeAnswerResponseSchema,
   vocabularyPracticeSessionResponseSchema,
@@ -10,15 +8,12 @@ import {
   type VocabularyPracticeSessionResponse,
 } from '@flex-thia/contracts';
 import type {
-  MediaReadUrlProvider,
   PracticeCardSnapshot,
   PracticeSessionRecord,
   VocabularyPracticeService,
 } from '@flex-thia/domain';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import type { ZodType } from 'zod';
-
-const MEDIA_URL_TTL_MS = 5 * 60 * 1_000;
-type SignMedia = (storageKey: string) => Promise<string>;
 
 /** 단어 연습 내부 필드가 공개 계약과 어긋났음을 숨기는 오류 */
 export class LearnerVocabularyPracticePublicResponseError extends Error {
@@ -31,8 +26,6 @@ export class LearnerVocabularyPracticePublicResponseError extends Error {
 /** 단어 연습 HTTP application service가 소비하는 최소 의존성 */
 export interface LearnerVocabularyPracticeDependencies {
   practice: Pick<VocabularyPracticeService, 'answer' | 'create' | 'get'>;
-  mediaReadUrls: MediaReadUrlProvider;
-  now?: () => Date;
 }
 
 const parsePublicResponse = <Output>(
@@ -66,34 +59,24 @@ const mapDomainError = (error: unknown): never => {
   throw error;
 };
 
-const mapCard = async (
-  card: PracticeCardSnapshot,
-  signMedia: SignMedia,
-): Promise<PracticeCard> => ({
+const mapCard = (card: PracticeCardSnapshot): PracticeCard => ({
   id: card.id,
   thai: card.thai,
   kind: card.kind,
   meanings: card.meanings,
-  pronunciations: await Promise.all(
-    card.pronunciations.map(async (pronunciation) => ({
-      id: pronunciation.id,
-      pronunciationKo: pronunciation.pronunciationKo,
-      toneMarks: pronunciation.toneMarks,
-      audioUrl: await signMedia(pronunciation.storageKey),
-    })),
-  ),
+  pronunciations: card.pronunciations.map((pronunciation) => ({
+    id: pronunciation.id,
+    pronunciationKo: pronunciation.pronunciationKo,
+    toneMarks: pronunciation.toneMarks,
+  })),
   meaningPronunciations: card.meaningPronunciations,
 });
 
 /** 단어 연습 use case를 진행 복구 가능한 공개 응답으로 제한한다 */
 export class LearnerVocabularyPracticeService {
-  private readonly now: () => Date;
-
   constructor(
     private readonly dependencies: LearnerVocabularyPracticeDependencies,
-  ) {
-    this.now = dependencies.now ?? (() => new Date());
-  }
+  ) {}
 
   /** 요청한 source·방식·수를 materialize한 세션을 반환한다 */
   async create(
@@ -101,7 +84,7 @@ export class LearnerVocabularyPracticeService {
     request: CreateVocabularyPracticeRequest,
   ): Promise<VocabularyPracticeSessionResponse> {
     try {
-      return await this.mapSession(
+      return this.mapSession(
         await this.dependencies.practice.create({ userId, ...request }),
       );
     } catch (error) {
@@ -109,13 +92,12 @@ export class LearnerVocabularyPracticeService {
     }
   }
 
-  /** 사용자 세션과 답변 진행을 새 signed URL로 반환한다 */
   async get(
     userId: string,
     sessionId: string,
   ): Promise<VocabularyPracticeSessionResponse> {
     try {
-      return await this.mapSession(
+      return this.mapSession(
         await this.dependencies.practice.get(userId, sessionId),
       );
     } catch (error) {
@@ -137,14 +119,13 @@ export class LearnerVocabularyPracticeService {
         questionId,
         ...request,
       });
-      const signMedia = this.createResponseSigner();
       return parsePublicResponse(vocabularyPracticeAnswerResponseSchema, {
         questionId: feedback.answer.questionId,
         selectedOptionId: feedback.answer.selectedOptionId,
         selectedLabel: feedback.answer.selectedLabelSnapshot,
         isCorrect: feedback.answer.isCorrect,
         correctOptionId: feedback.correctOptionId,
-        card: await mapCard(feedback.card, signMedia),
+        card: mapCard(feedback.card),
         sessionCompleted: feedback.sessionCompleted,
         answeredAt: feedback.answer.answeredAt.toISOString(),
       });
@@ -153,34 +134,23 @@ export class LearnerVocabularyPracticeService {
     }
   }
 
-  private async mapSession(
+  private mapSession(
     session: PracticeSessionRecord,
-  ): Promise<VocabularyPracticeSessionResponse> {
-    const signMedia = this.createResponseSigner();
+  ): VocabularyPracticeSessionResponse {
     const cardSnapshots = new Map(
       session.questions.map(({ card }) => [card.id, card]),
     );
-    const cards = await Promise.all(
-      [...cardSnapshots.values()].map((card) => mapCard(card, signMedia)),
-    );
+    const cards = [...cardSnapshots.values()].map((card) => mapCard(card));
     const publicCards = new Map(cards.map((card) => [card.id, card]));
-    const questions = await Promise.all(
-      session.questions.map(async (question) => ({
-        id: question.id,
-        position: question.position,
-        vocabularyId: question.vocabularyId,
-        meaningId: question.meaningId,
-        mode: question.mode,
-        prompt:
-          question.prompt.type === 'TEXT'
-            ? question.prompt
-            : {
-                type: 'AUDIO' as const,
-                audioUrl: await signMedia(question.prompt.storageKey),
-              },
-        options: question.options,
-      })),
-    );
+    const questions = session.questions.map((question) => ({
+      id: question.id,
+      position: question.position,
+      vocabularyId: question.vocabularyId,
+      meaningId: question.meaningId,
+      mode: question.mode,
+      prompt: question.prompt,
+      options: question.options,
+    }));
     const base = {
       id: session.id,
       sourceLabel: session.sourceLabel,
@@ -238,20 +208,5 @@ export class LearnerVocabularyPracticeService {
       completedAt: session.completedAt?.toISOString(),
       result: { total, byMode, incorrectCards },
     });
-  }
-
-  private createResponseSigner(): SignMedia {
-    const expiresAt = new Date(this.now().getTime() + MEDIA_URL_TTL_MS);
-    const cache = new Map<string, Promise<string>>();
-    return (storageKey) => {
-      const cached = cache.get(storageKey);
-      if (cached) return cached;
-      const pending = this.dependencies.mediaReadUrls.createReadUrl(
-        storageKey,
-        expiresAt,
-      );
-      cache.set(storageKey, pending);
-      return pending;
-    };
   }
 }

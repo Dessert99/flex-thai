@@ -2,12 +2,12 @@
 import {
   AdminRespondToAuthChallengeCommand,
   AssociateSoftwareTokenCommand,
-  type AuthenticationResultType,
-  type CognitoIdentityProviderClient,
   GetTokensFromRefreshTokenCommand,
   RevokeTokenCommand,
   SetUserMFAPreferenceCommand,
   VerifySoftwareTokenCommand,
+  type AuthenticationResultType,
+  type CognitoIdentityProviderClient,
 } from '@aws-sdk/client-cognito-identity-provider';
 import {
   AuthenticationProviderError,

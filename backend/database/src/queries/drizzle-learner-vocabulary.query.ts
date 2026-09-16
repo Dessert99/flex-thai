@@ -13,9 +13,9 @@ import {
 } from 'drizzle-orm';
 import { alias, type PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
+import * as schema from '../schema/index.js';
 import {
   expressionOccurrences,
-  mediaAssets,
   questionAttempts,
   questionBlocks,
   questionBlockSentences,
@@ -35,7 +35,6 @@ import {
   wordbooks,
 } from '../schema/index.js';
 import { vocabularyMeaningRelations } from '../schema/vocabulary.schema.js';
-import * as schema from '../schema/index.js';
 import type {
   LearnerQuestionExpressionProjection,
   LearnerQuestionTokenProjection,
@@ -70,11 +69,6 @@ export interface LearnerVocabularyPageMetadata {
   totalPages: number;
 }
 
-/** private media key를 API mapper에만 전달하는 내부 projection */
-export interface LearnerVocabularyMediaProjection {
-  storageKey: string;
-}
-
 /** 공용 어휘의 한국어 뜻 projection */
 export interface LearnerVocabularyMeaningProjection {
   id: string;
@@ -89,7 +83,6 @@ export interface LearnerVocabularyPronunciationProjection {
   id: string;
   pronunciationKo: string;
   toneMarks: string;
-  media: LearnerVocabularyMediaProjection;
 }
 
 /** 게시 어휘 목록과 상세가 공유하는 내부 projection */
@@ -99,7 +92,6 @@ export interface LearnerVocabularySummaryProjection {
   kind: LearnerVocabularyKind;
   meanings: LearnerVocabularyMeaningProjection[];
   pronunciations: LearnerVocabularyPronunciationProjection[];
-  audioEligibleMeaningCount: number;
   saved: boolean;
 }
 
@@ -122,7 +114,6 @@ export interface LearnerVocabularyExampleSentenceProjection {
   translationKo: string;
   pronunciationKo: string;
   toneMarks: string;
-  media: LearnerVocabularyMediaProjection;
   tokens: LearnerQuestionTokenProjection[];
   expressions: LearnerQuestionExpressionProjection[];
 }
@@ -144,7 +135,7 @@ export interface LearnerVocabularyDetailProjection extends LearnerVocabularySumm
 }
 
 /** 관련 문제 summary의 시험 영역 */
-export type LearnerVocabularyQuestionSkill = 'READING' | 'LISTENING';
+export type LearnerVocabularyQuestionSkill = 'READING';
 
 /** 관련 문제 첫 답의 유효 결과 */
 export type LearnerVocabularyQuestionFirstResult =
@@ -176,12 +167,7 @@ export interface LearnerVocabularyRelatedQuestionsProjection {
 
 /** 게시 데이터 손상을 조용히 누락하지 않는 stable 내부 query 오류 */
 export class LearnerVocabularyQueryError extends Error {
-  constructor(
-    readonly code:
-      | 'PUBLISHED_VOCABULARY_MEDIA_INVALID'
-      | 'PUBLISHED_VOCABULARY_LINK_INVALID'
-      | 'PUBLISHED_SENTENCE_MEDIA_INVALID',
-  ) {
+  constructor(readonly code: 'PUBLISHED_VOCABULARY_LINK_INVALID') {
     super(code);
     this.name = 'LearnerVocabularyQueryError';
   }
@@ -191,7 +177,6 @@ interface VocabularyBaseRow {
   id: string;
   thai: string;
   kind: LearnerVocabularyKind;
-  audioEligibleMeaningCount: number;
   saved: boolean;
 }
 
@@ -259,18 +244,6 @@ const savedInAnyWordbook = (
     on saved_wordbooks.id = saved_items.wordbook_id
   where saved_items.vocabulary_id = "vocabularies"."id"
     and saved_wordbooks.user_id = ${userId}
-)`;
-
-const audioEligibleMeaningCount = (): SQL<number> => sql<number>`(
-  select count(distinct eligible_links.meaning_id)::integer
-  from ${vocabularyMeaningPronunciations} eligible_links
-  inner join ${vocabularyPronunciations} eligible_pronunciations
-    on eligible_pronunciations.id = eligible_links.pronunciation_id
-    and eligible_pronunciations.vocabulary_id = eligible_links.vocabulary_id
-  inner join ${mediaAssets} eligible_media
-    on eligible_media.id = eligible_pronunciations.media_asset_id
-    and eligible_media.status = ${'READY'}
-  where eligible_links.vocabulary_id = "vocabularies"."id"
 )`;
 
 const currentQuestionUsesSentence = (): SQL => sql`(
@@ -384,7 +357,6 @@ export class DrizzleLearnerVocabularyQuery {
         id: vocabularies.id,
         thai: vocabularies.thai,
         kind: vocabularies.kind,
-        audioEligibleMeaningCount: audioEligibleMeaningCount(),
         saved: savedInAnyWordbook(userId),
       })
       .from(vocabularies)
@@ -409,7 +381,6 @@ export class DrizzleLearnerVocabularyQuery {
         id: vocabularies.id,
         thai: vocabularies.thai,
         kind: vocabularies.kind,
-        audioEligibleMeaningCount: audioEligibleMeaningCount(),
         saved: savedInAnyWordbook(userId),
       })
       .from(vocabularies)
@@ -629,16 +600,9 @@ export class DrizzleLearnerVocabularyQuery {
         vocabularyId: vocabularyPronunciations.vocabularyId,
         pronunciationKo: vocabularyPronunciations.pronunciationKo,
         toneMarks: vocabularyPronunciations.toneMarks,
-        mediaAssetId: vocabularyPronunciations.mediaAssetId,
-        mediaStatus: mediaAssets.status,
-        mediaStorageKey: mediaAssets.storageKey,
         createdAt: vocabularyPronunciations.createdAt,
       })
       .from(vocabularyPronunciations)
-      .leftJoin(
-        mediaAssets,
-        eq(mediaAssets.id, vocabularyPronunciations.mediaAssetId),
-      )
       .where(inArray(vocabularyPronunciations.vocabularyId, vocabularyIds))
       .orderBy(
         asc(vocabularyPronunciations.vocabularyId),
@@ -650,19 +614,6 @@ export class DrizzleLearnerVocabularyQuery {
       const vocabularyPronunciationRows = pronunciations
         .filter((pronunciation) => pronunciation.vocabularyId === base.id)
         .sort(compareCreatedAtThenId);
-      if (
-        vocabularyPronunciationRows.length === 0 ||
-        vocabularyPronunciationRows.some(
-          (pronunciation) =>
-            pronunciation.mediaAssetId === null ||
-            pronunciation.mediaStatus !== 'READY' ||
-            pronunciation.mediaStorageKey === null,
-        )
-      ) {
-        throw new LearnerVocabularyQueryError(
-          'PUBLISHED_VOCABULARY_MEDIA_INVALID',
-        );
-      }
       return {
         id: base.id,
         thai: base.thai,
@@ -681,9 +632,7 @@ export class DrizzleLearnerVocabularyQuery {
           id: pronunciation.id,
           pronunciationKo: pronunciation.pronunciationKo,
           toneMarks: pronunciation.toneMarks,
-          media: { storageKey: pronunciation.mediaStorageKey! },
         })),
-        audioEligibleMeaningCount: base.audioEligibleMeaningCount,
         saved: base.saved,
       };
     });
@@ -812,15 +761,8 @@ export class DrizzleLearnerVocabularyQuery {
         pronunciationKo: thaiSentenceVersions.pronunciationKo,
         toneMarks: thaiSentenceVersions.toneMarks,
         frozenAt: thaiSentenceVersions.frozenAt,
-        mediaAssetId: thaiSentenceVersions.mediaAssetId,
-        mediaStatus: mediaAssets.status,
-        mediaStorageKey: mediaAssets.storageKey,
       })
       .from(thaiSentenceVersions)
-      .leftJoin(
-        mediaAssets,
-        eq(mediaAssets.id, thaiSentenceVersions.mediaAssetId),
-      )
       .where(
         and(
           isNotNull(thaiSentenceVersions.frozenAt),
@@ -829,33 +771,14 @@ export class DrizzleLearnerVocabularyQuery {
         ),
       )
       .orderBy(asc(thaiSentenceVersions.id));
-    if (
-      rows.some(
-        (row) =>
-          row.frozenAt === null ||
-          row.mediaAssetId === null ||
-          row.mediaStatus !== 'READY' ||
-          row.mediaStorageKey === null,
-      )
-    ) {
-      throw new LearnerVocabularyQueryError('PUBLISHED_SENTENCE_MEDIA_INVALID');
-    }
     const sentenceVersionIds = rows.map((row) => row.sentenceVersionId);
     const tokenPronunciations = alias(
       vocabularyPronunciations,
       'learner_vocabulary_token_pronunciations',
     );
-    const tokenMediaAssets = alias(
-      mediaAssets,
-      'learner_vocabulary_token_media_assets',
-    );
     const expressionPronunciations = alias(
       vocabularyPronunciations,
       'learner_vocabulary_expression_pronunciations',
-    );
-    const expressionMediaAssets = alias(
-      mediaAssets,
-      'learner_vocabulary_expression_media_assets',
     );
     const tokenRows = await this.database
       .select({
@@ -870,7 +793,6 @@ export class DrizzleLearnerVocabularyQuery {
         contextMeaningKo: tokenOccurrences.contextMeaningKo,
         pronunciationKo: tokenPronunciations.pronunciationKo,
         toneMarks: tokenPronunciations.toneMarks,
-        mediaStorageKey: tokenMediaAssets.storageKey,
         role: tokenOccurrences.role,
       })
       .from(tokenOccurrences)
@@ -880,10 +802,6 @@ export class DrizzleLearnerVocabularyQuery {
           eq(tokenOccurrences.pronunciationId, tokenPronunciations.id),
           eq(tokenOccurrences.vocabularyId, tokenPronunciations.vocabularyId),
         ),
-      )
-      .leftJoin(
-        tokenMediaAssets,
-        eq(tokenPronunciations.mediaAssetId, tokenMediaAssets.id),
       )
       .where(inArray(tokenOccurrences.sentenceVersionId, sentenceVersionIds))
       .orderBy(
@@ -901,7 +819,6 @@ export class DrizzleLearnerVocabularyQuery {
         contextMeaningKo: expressionOccurrences.contextMeaningKo,
         pronunciationKo: expressionPronunciations.pronunciationKo,
         toneMarks: expressionPronunciations.toneMarks,
-        mediaStorageKey: expressionMediaAssets.storageKey,
         representative: expressionOccurrences.representative,
       })
       .from(expressionOccurrences)
@@ -917,10 +834,6 @@ export class DrizzleLearnerVocabularyQuery {
             expressionPronunciations.vocabularyId,
           ),
         ),
-      )
-      .leftJoin(
-        expressionMediaAssets,
-        eq(expressionPronunciations.mediaAssetId, expressionMediaAssets.id),
       )
       .where(
         inArray(expressionOccurrences.sentenceVersionId, sentenceVersionIds),
@@ -940,7 +853,6 @@ export class DrizzleLearnerVocabularyQuery {
         translationKo: row.translationKo,
         pronunciationKo: row.pronunciationKo,
         toneMarks: row.toneMarks,
-        media: { storageKey: row.mediaStorageKey! },
         tokens: tokenRows
           .filter((token) => token.sentenceVersionId === row.sentenceVersionId)
           .map((token) => ({
@@ -954,10 +866,6 @@ export class DrizzleLearnerVocabularyQuery {
             contextMeaningKo: token.contextMeaningKo,
             pronunciationKo: token.pronunciationKo,
             toneMarks: token.toneMarks,
-            media:
-              token.mediaStorageKey === null
-                ? null
-                : { storageKey: token.mediaStorageKey },
             role: token.role,
           })),
         expressions: expressionRows
@@ -974,10 +882,6 @@ export class DrizzleLearnerVocabularyQuery {
             contextMeaningKo: expression.contextMeaningKo,
             pronunciationKo: expression.pronunciationKo,
             toneMarks: expression.toneMarks,
-            media:
-              expression.mediaStorageKey === null
-                ? null
-                : { storageKey: expression.mediaStorageKey },
             representative: expression.representative,
           })),
       }));

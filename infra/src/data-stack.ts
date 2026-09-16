@@ -1,6 +1,5 @@
 /** 장기 보존 데이터와 비용이 큰 DB를 애플리케이션 배포에서 분리한다 */
 import {
-  Aws,
   CfnOutput,
   Duration,
   RemovalPolicy,
@@ -8,26 +7,20 @@ import {
   type StackProps,
 } from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
-import * as iam from 'aws-cdk-lib/aws-iam';
 import * as rds from 'aws-cdk-lib/aws-rds';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import type { Construct } from 'constructs';
 
-/** Aurora와 private input·media storage를 소유한다 — 앱 재배포가 데이터를 건드리지 못하게 Stack을 분리 */
 export class DataStack extends Stack {
   /** Lambda가 VPC 밖에서 HTTPS(Data API)로 SQL을 보내는 Aurora cluster */
   readonly cluster: rds.DatabaseCluster;
   /** Aurora가 자동 생성한 DB 접속 정보 — 코드·env에 비밀번호를 두지 않으려고 secret으로 받는다 */
   readonly clusterSecret: secretsmanager.ISecret;
-  /** 사용자가 올린 원본 음성 storage — 처리 뒤 보관 이유가 없어 30일 후 자동 삭제 */
+
   readonly inputBucket: s3.Bucket;
-  /** 게시 음성을 보존하는 storage — CloudFront를 통해서만 읽힌다 */
-  readonly mediaBucket: s3.Bucket;
   /** 인증 코드 해시에 섞는 서버 비밀값(pepper) — DB가 새도 코드 역산을 막는다 */
   readonly challengeHmacPepper: secretsmanager.Secret;
-  /** CloudFront signed URL 서명용 private key — 배포 뒤 사람이 직접 채우는 빈 secret */
-  readonly mediaPrivateKey: secretsmanager.Secret;
 
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
@@ -79,29 +72,6 @@ export class DataStack extends Stack {
     this.inputBucket = this.createPrivateBucket('InputBucket', [
       { expiration: Duration.days(30) },
     ]);
-    this.mediaBucket = this.createPrivateBucket('MediaBucket', [
-      {
-        prefix: 'private/tts/runs/',
-        abortIncompleteMultipartUploadAfter: Duration.days(1),
-      },
-    ]);
-    // CloudFront에만 읽기를 허용 — EdgeStack에 이 policy를 두면 두 Stack이 서로를 참조해 순환한다.
-    this.mediaBucket.addToResourcePolicy(
-      new iam.PolicyStatement({
-        actions: ['s3:GetObject'],
-        resources: [this.mediaBucket.arnForObjects('*')],
-        principals: [new iam.ServicePrincipal('cloudfront.amazonaws.com')],
-        // 우리 계정의 distribution으로 조건을 좁혀 남의 CloudFront가 이 bucket을 읽는 것을 막는다.
-        conditions: {
-          StringEquals: {
-            'AWS:SourceAccount': Aws.ACCOUNT_ID,
-          },
-          StringLike: {
-            'AWS:SourceArn': `arn:${Aws.PARTITION}:cloudfront::${Aws.ACCOUNT_ID}:distribution/*`,
-          },
-        },
-      }),
-    );
     this.challengeHmacPepper = new secretsmanager.Secret(
       this,
       'ChallengeHmacPepper',
@@ -114,11 +84,6 @@ export class DataStack extends Stack {
         },
       },
     );
-    // generateSecretString이 없으면 값 없는 빈 secret — private key는 CDK 밖에서 사람이 넣는다.
-    this.mediaPrivateKey = new secretsmanager.Secret(this, 'MediaPrivateKey', {
-      description:
-        'CloudFront signed media private key를 배포 뒤 수동 입력한다',
-    });
 
     // migration·운영 스크립트가 Data API를 호출하려면 이 ARN들을 알아야 한다.
     new CfnOutput(this, 'ClusterArn', {
@@ -126,9 +91,6 @@ export class DataStack extends Stack {
     });
     new CfnOutput(this, 'SecretArn', {
       value: this.clusterSecret.secretArn,
-    });
-    new CfnOutput(this, 'MediaPrivateKeySecretArn', {
-      value: this.mediaPrivateKey.secretArn,
     });
   }
 

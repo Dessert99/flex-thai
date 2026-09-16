@@ -1,108 +1,95 @@
 /** HTTP 기능 모듈을 하나의 NestJS 애플리케이션으로 조립한다 */
-import { randomUUID } from 'node:crypto';
 import { CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
 import { S3Client } from '@aws-sdk/client-s3';
-import { SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { SESv2Client } from '@aws-sdk/client-sesv2';
 import { SQSClient } from '@aws-sdk/client-sqs';
-import { type DynamicModule, Module } from '@nestjs/common';
 import { readApiEnv } from '@flex-thia/config';
 import {
   createDataApiDatabase,
   createLocalDatabase,
   DrizzleAdminConceptQuery,
   DrizzleAdminHomeQuery,
-  DrizzleAdminMediaQuery,
   DrizzleAdminQuestionQuery,
   DrizzleAdminVocabularyQuery,
   DrizzleAiQuestionProductionRepository,
   DrizzleAsyncDispatchOutboxRepository,
   DrizzleAuditLogQuery,
-  DrizzleContentDraftRepository,
-  DrizzleContentImportQuery,
-  DrizzleContentImportRepository,
   DrizzleConceptAdminRepository,
   DrizzleConceptErrorReportTargetLookup,
-  DrizzleContentProductionPresetCatalog,
-  DrizzleContentProductionRepository,
+  DrizzleContentDraftRepository,
   DrizzleContentErrorReportQuery,
   DrizzleContentErrorReportRepository,
+  DrizzleContentImportQuery,
+  DrizzleContentImportRepository,
+  DrizzleContentProductionPresetCatalog,
+  DrizzleContentProductionRepository,
   DrizzleEmailChallengeRepository,
   DrizzleGeneratedQuestionDraftRepository,
-  DrizzleGeneratedQuestionTtsScheduler,
-  DrizzleLearnerQuestionQuery,
   DrizzleLearnerConceptQuery,
+  DrizzleLearnerQuestionQuery,
   DrizzleLearnerVocabularyQuery,
   DrizzleLearningRepository,
-  DrizzleMediaAdminRepository,
+  DrizzleOperationsCostSettingsRepository,
   DrizzleQuestionAdminRepository,
   DrizzleQuestionCandidateQuery,
-  DrizzleVocabularyCandidateQuery,
-  DrizzleVocabularyCandidateReviewRepository,
   DrizzleQuestionProductionContextQuery,
   DrizzleQuestionPublicationRepository,
   DrizzleQuestionTaxonomyQuery,
   DrizzleQuestionTaxonomyRepository,
-  DrizzleRecommendationQuery,
   DrizzleReadinessProbe,
+  DrizzleRecommendationQuery,
   DrizzleUploadRepository,
-  DrizzleUserRepository,
+  DrizzleUsageCostOperationsQuery,
   DrizzleUserManagementQuery,
+  DrizzleUserRepository,
   DrizzleVocabularyAdminRepository,
+  DrizzleVocabularyCandidateQuery,
+  DrizzleVocabularyCandidateReviewRepository,
   DrizzleVocabularyPracticeQuery,
   DrizzleVocabularyPracticeRepository,
   DrizzleVocabularyProductionLookup,
-  DrizzleTtsOperationsQuery,
-  DrizzleTtsRetryCoordinator,
-  DrizzleTtsVoicePresetQuery,
-  DrizzleTtsVoicePresetRepository,
-  DrizzleUsageCostOperationsQuery,
-  DrizzleOperationsCostSettingsRepository,
   DrizzleWordbookQuery,
   DrizzleWordbookRepository,
 } from '@flex-thia/database';
 import {
+  AuditLogService,
+  ConceptService,
   ContentDraftService,
   ContentErrorReportService,
   ContentImportService,
   ContentProductionService,
-  ConceptService,
-  AuditLogService,
   IdentityAuthenticationService,
-  MediaAdminService,
+  PasswordlessAuthenticationService,
   QuestionAdminService,
   QuestionAttemptService,
   QuestionCandidateReviewService,
-  VocabularyCandidateReviewService,
   QuestionPublicationService,
   QuestionTaxonomyService,
   SavedContentService,
-  PasswordlessAuthenticationService,
   UploadPolicyService,
   UserManagementService,
   VocabularyAdminService,
+  VocabularyCandidateReviewService,
   VocabularyPracticeService,
   WordbookService,
 } from '@flex-thia/domain';
 import {
   ChallengeCrypto,
-  CloudFrontMediaReadUrlProvider,
   CognitoPasswordlessAuthenticationProvider,
   DeterministicContentProductionProcessor,
-  FakeEmailChallengeSender,
   FakeConceptContentValidator,
+  FakeEmailChallengeSender,
   FakePasswordlessAuthenticationProvider,
   LocalContentProductionQueue,
-  LocalFileMediaReadProvider,
   LocalFileUploadProvider,
-  resolveLocalTtsAudioDirectory,
   resolveLocalUploadDirectory,
-  S3AudioUploadProvider,
   S3UploadProvider,
   SesEmailChallengeSender,
   SqsJobQueue,
   UnavailableConceptContentValidator,
 } from '@flex-thia/providers';
+import { type DynamicModule, Module } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { AdminModule } from './admin/admin.module.js';
 import { ConceptsModule } from './concepts/concepts.module.js';
 import { ContentProductionModule } from './content-production/content-production.module.js';
@@ -115,10 +102,10 @@ import {
 import { IdentityModule } from './identity/identity.module.js';
 import { LearningModule } from './learning/learning.module.js';
 import { VocabularyPracticeModule } from './learning/vocabulary-practice.module.js';
-import { RecommendationsModule } from './recommendations/recommendations.module.js';
 import { OperationsModule } from './operations/operations.module.js';
-import { MediaModule } from './media/media.module.js';
 import { QuestionTaxonomyModule } from './questions/question-taxonomy.module.js';
+import { RecommendationsModule } from './recommendations/recommendations.module.js';
+import { LocalUploadsModule } from './uploads/local-uploads.module.js';
 
 /** 기초 API의 root module */
 @Module({})
@@ -230,33 +217,14 @@ export const createApplicationModule = (
     userManagementRepository,
   );
   const learningRepository = new DrizzleLearningRepository(database);
-  const localMedia =
-    env.NODE_ENV === 'production'
-      ? undefined
-      : new LocalFileMediaReadProvider(
-          resolveLocalTtsAudioDirectory(source),
-          env.FLEX_THIA_LOCAL_PUBLIC_ORIGIN,
-          env.FLEX_THIA_LOCAL_MEDIA_HMAC_SECRET,
-          undefined,
-          resolveLocalUploadDirectory(source),
-        );
   const localUploads =
     env.NODE_ENV === 'production'
       ? undefined
       : new LocalFileUploadProvider(
           resolveLocalUploadDirectory(source),
           env.FLEX_THIA_LOCAL_PUBLIC_ORIGIN,
-          env.FLEX_THIA_LOCAL_MEDIA_HMAC_SECRET,
+          env.FLEX_THIA_LOCAL_UPLOAD_HMAC_SECRET,
         );
-  const mediaReadUrls =
-    env.NODE_ENV === 'production'
-      ? new CloudFrontMediaReadUrlProvider(
-          new SecretsManagerClient({ region: env.AWS_REGION }),
-          env.MEDIA_CDN_BASE_URL,
-          env.MEDIA_KEY_PAIR_ID,
-          env.MEDIA_PRIVATE_KEY_SECRET_ARN,
-        )
-      : localMedia!;
   const authorizer = {
     authMode: env.AUTH_MODE,
     cognitoClientId: env.COGNITO_CLIENT_ID ?? 'local-client',
@@ -274,15 +242,6 @@ export const createApplicationModule = (
     contentImportRepository,
     new ContentDraftService(contentDraftRepository),
   );
-  const mediaRepository = new DrizzleMediaAdminRepository(database);
-  const audioStorage =
-    env.NODE_ENV === 'production'
-      ? new S3AudioUploadProvider(
-          new S3Client({ region: env.AWS_REGION }),
-          env.MEDIA_BUCKET_NAME,
-        )
-      : localUploads!;
-  const media = new MediaAdminService(mediaRepository, audioStorage);
   const questionAdminRepository = new DrizzleQuestionAdminRepository(database);
   const questionPublicationRepository =
     new DrizzleQuestionPublicationRepository(database);
@@ -329,16 +288,11 @@ export const createApplicationModule = (
     database,
   );
   const dispatchOutbox = new DrizzleAsyncDispatchOutboxRepository(database);
-  const questionTtsScheduler = new DrizzleGeneratedQuestionTtsScheduler(
-    env.TTS_VOICE_PRESET_ID,
-    dispatchOutbox,
-  );
   const questionCandidateRepository = new DrizzleAiQuestionProductionRepository(
     database,
     () => new Date(),
     new DrizzleGeneratedQuestionDraftRepository(),
     dispatchOutbox,
-    questionTtsScheduler,
   );
   const questionProductionContext = new DrizzleQuestionProductionContextQuery(
     database,
@@ -372,7 +326,6 @@ export const createApplicationModule = (
   );
   const vocabularyCandidateRepository =
     new DrizzleVocabularyCandidateReviewRepository(database);
-  const ttsOperationsQuery = new DrizzleTtsOperationsQuery(database);
   const questionTaxonomy = new QuestionTaxonomyService(
     new DrizzleQuestionTaxonomyRepository(database),
   );
@@ -398,23 +351,15 @@ export const createApplicationModule = (
         savedContent: new SavedContentService(learningRepository),
         wordbookQuery: new DrizzleWordbookQuery(database),
         wordbooks: new WordbookService(new DrizzleWordbookRepository(database)),
-        mediaReadUrls,
         users,
         authorizer,
       }),
       AdminModule.register({
         contentImports,
         contentImportQuery: new DrizzleContentImportQuery(database),
-        media,
-        mediaQuery: new DrizzleAdminMediaQuery(database),
         questions: new QuestionAdminService(questionAdminRepository),
         questionPublication,
         questionQuery: new DrizzleAdminQuestionQuery(database),
-        questionTts: {
-          regenerate: (input) =>
-            questionTtsScheduler.regenerate(database, input),
-        },
-        mediaReadUrls,
         vocabularies: new VocabularyAdminService(vocabularyRepository),
         vocabularyQuery: new DrizzleAdminVocabularyQuery(database),
         findQuestionIdByVersionId: async (versionId) =>
@@ -427,7 +372,6 @@ export const createApplicationModule = (
       }),
       VocabularyPracticeModule.register({
         practice: vocabularyPractice,
-        mediaReadUrls,
         users,
         authorizer,
       }),
@@ -435,7 +379,6 @@ export const createApplicationModule = (
         learnerQuery: new DrizzleLearnerConceptQuery(database),
         adminQuery: new DrizzleAdminConceptQuery(database),
         adminService: concepts,
-        mediaReadUrls,
         users,
         authorizer,
       }),
@@ -471,24 +414,7 @@ export const createApplicationModule = (
         users,
         authorizer,
       }),
-      MediaModule.register({
-        query: ttsOperationsQuery,
-        retryCoordinator: new DrizzleTtsRetryCoordinator(
-          database,
-          dispatchOutbox,
-        ),
-        mediaReadUrls,
-        voicePresets: {
-          query: new DrizzleTtsVoicePresetQuery(database),
-          repository: new DrizzleTtsVoicePresetRepository(database),
-          activePresetId: env.TTS_VOICE_PRESET_ID,
-          generateId: randomUUID,
-        },
-        users,
-        authorizer,
-        ...(localMedia ? { localMedia } : {}),
-        ...(localUploads ? { localUploads } : {}),
-      }),
+      LocalUploadsModule.register(localUploads),
       QuestionTaxonomyModule.register({
         query: new DrizzleQuestionTaxonomyQuery(database),
         service: questionTaxonomy,

@@ -1,12 +1,12 @@
 /** 콘텐츠 가져오기 schema의 멱등성과 처리 결과 무결성을 검증한다 */
-import { readFileSync } from 'node:fs';
 import { getTableColumns, getTableName } from 'drizzle-orm';
 import { getTableConfig } from 'drizzle-orm/pg-core';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   contentImportItemKindEnum,
-  contentImportItemStatusEnum,
   contentImportItems,
+  contentImportItemStatusEnum,
   contentImports,
   contentImportStatusEnum,
 } from './index.js';

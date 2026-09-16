@@ -1,4 +1,5 @@
-/** 관리자 어휘 상세의 음성 readiness·form 검증·409를 검증한다 */
+import { ApiError } from '@/shared/api';
+import { renderWithProviders } from '@/shared/test';
 import type {
   AdminVocabularyDetailResponse,
   AdminVocabularyMergePreviewResponse,
@@ -6,8 +7,6 @@ import type {
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError } from '@/shared/api';
-import { renderWithProviders } from '@/shared/test';
 import {
   vocabularyMergeInvalidationKeys,
   vocabularyRelationInvalidationKeys,
@@ -35,16 +34,6 @@ beforeEach(() => {
 });
 
 describe('관리자 어휘 상세', () => {
-  it('발음 음성 readiness와 사용처를 표시한다', async () => {
-    renderDetail();
-    expect(await screen.findByText('음성 준비 완료')).toBeInTheDocument();
-    expect(screen.getByText('문장 버전 사용처 1개')).toBeInTheDocument();
-    expect(screen.getByText(/PENDING/u)).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: '병합 미리보기' }),
-    ).toBeInTheDocument();
-  });
-
   it('schema field 오류에는 교체 요청을 보내지 않는다', async () => {
     const user = userEvent.setup();
     renderDetail();
@@ -224,8 +213,6 @@ function createDetail(
         id: '01933b6a-8f13-7a19-b7e5-536d70f57aac',
         pronunciationKo: '싸왓디',
         toneMarks: '',
-        mediaAssetId: '01933b6a-8f13-7a19-b7e5-536d70f57aad',
-        mediaStatus: 'READY',
       },
     ],
     meaningPronunciations: [

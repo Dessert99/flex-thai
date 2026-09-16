@@ -1,17 +1,15 @@
 /** 완료된 단어 연습의 서버 집계와 오답 카드만 표시한다 */
+import {} from '@/features/explore-thai-content';
+import { Button } from '@/shared/ui/button';
 import type {
   PracticeCard,
   PracticeMode,
   VocabularyPracticeSessionResponse,
 } from '@flex-thia/contracts';
-import { useThaiAudioPlayback } from '@/features/explore-thai-content';
-import { Button } from '@/shared/ui/button';
 
 const modeLabels: Record<PracticeMode, string> = {
   THAI_TO_MEANING: '태국어 → 뜻',
   MEANING_TO_THAI: '뜻 → 태국어',
-  AUDIO_TO_THAI: '음성 → 태국어',
-  AUDIO_TO_MEANING: '음성 → 뜻',
 };
 
 /** 계약에 포함된 완료 결과를 별도 추정 없이 표시한다 */
@@ -68,7 +66,6 @@ export function VocabularyPracticeResultPageView({
 }
 
 function ResultCardView({ card }: { card: PracticeCard }) {
-  const { playAudio, playbackError } = useThaiAudioPlayback();
   return (
     <article className='grid gap-cluster rounded-panel border border-default p-page'>
       <h3
@@ -88,16 +85,8 @@ function ResultCardView({ card }: { card: PracticeCard }) {
           <p>
             {pronunciation.pronunciationKo} · {pronunciation.toneMarks}
           </p>
-          <Button
-            onClick={() => void playAudio(pronunciation.audioUrl)}
-            type='button'
-            variant='ghost'
-          >
-            {pronunciation.pronunciationKo} 음성 듣기
-          </Button>
         </div>
       ))}
-      {playbackError === null ? null : <p role='status'>{playbackError}</p>}
     </article>
   );
 }

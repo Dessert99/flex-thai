@@ -17,10 +17,9 @@ describe('콘텐츠 오류 신고 schema', () => {
       'QUESTION',
       'VOCABULARY',
       'SENTENCE',
-      'AUDIO',
       'CONCEPT',
     ]);
-    expect(contentErrorReportCategoryEnum.enumValues).toHaveLength(6);
+    expect(contentErrorReportCategoryEnum.enumValues).toHaveLength(5);
     expect(contentErrorReportStatusEnum.enumValues).toEqual([
       'OPEN',
       'IN_PROGRESS',

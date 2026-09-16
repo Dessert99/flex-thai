@@ -34,10 +34,6 @@ export class AdminHomeService {
         runningCount: operations.runningContentJobCount,
         failedCount: operations.failedContentJobCount,
       },
-      tts: {
-        runningCount: operations.runningTtsJobCount,
-        failedCount: operations.failedTtsJobCount,
-      },
       mfa: {
         enrolled: actor.mfaEnrolledAt !== null,
         enrolledAt: actor.mfaEnrolledAt?.toISOString() ?? null,

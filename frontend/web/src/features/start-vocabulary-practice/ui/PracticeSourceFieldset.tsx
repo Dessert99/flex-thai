@@ -1,21 +1,16 @@
 /** 단어장 또는 최대 100개 검색 어휘의 연습 출처 선택을 표시한다 */
-import type {
-  PracticeMode,
-  VocabularySummary,
-  WordbookSummary,
-} from '@flex-thia/contracts';
-import { useState } from 'react';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/radio-group';
+import type { VocabularySummary, WordbookSummary } from '@flex-thia/contracts';
+import { useState } from 'react';
 
 type SourceType = 'SEARCH' | 'WORDBOOK' | '';
 type SearchStateValue = 'IDLE' | 'LOADING' | 'ERROR' | 'SUCCESS';
 
 interface PracticeSourceFieldsetProps {
   disabled: boolean;
-  modes: PracticeMode[];
   onRetrySearch: () => void;
   onSearch: (query: string) => void;
   onSelectSource: (value: SourceType) => void;
@@ -32,7 +27,6 @@ interface PracticeSourceFieldsetProps {
 /** 출처 종류와 해당 단어장·검색 선택기를 조립한다 */
 export function PracticeSourceFieldset({
   disabled,
-  modes,
   onRetrySearch,
   onSearch,
   onSelectSource,
@@ -67,7 +61,6 @@ export function PracticeSourceFieldset({
           onRetrySearch={onRetrySearch}
           onSearch={onSearch}
           onSelect={onSelectVocabulary}
-          modes={modes}
           results={searchResults}
           searchState={searchState}
           selected={selectedVocabularies}
@@ -131,7 +124,6 @@ function WordbookSelector({
 }
 
 function VocabularySelector({
-  modes,
   onRetrySearch,
   onSearch,
   onSelect,
@@ -139,7 +131,6 @@ function VocabularySelector({
   searchState,
   selected,
 }: {
-  modes: PracticeMode[];
   onRetrySearch: () => void;
   onSearch: (query: string) => void;
   onSelect: (value: VocabularySummary) => void;
@@ -148,14 +139,8 @@ function VocabularySelector({
   selected: Map<string, VocabularySummary>;
 }) {
   const [query, setQuery] = useState('');
-  const audioOnly =
-    modes.length > 0 && modes.every((mode) => mode.startsWith('AUDIO_'));
   const eligibleMeaningCount = [...selected.values()].reduce(
-    (count, vocabulary) =>
-      count +
-      (audioOnly
-        ? vocabulary.audioEligibleMeaningCount
-        : vocabulary.meanings.length),
+    (count, vocabulary) => count + vocabulary.meanings.length,
     0,
   );
   return (

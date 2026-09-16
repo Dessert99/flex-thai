@@ -15,7 +15,6 @@ import {
 } from 'drizzle-orm/pg-core';
 import { users } from './identity.schema.js';
 import { wordbooks } from './learning.schema.js';
-import { mediaAssets } from './media.schema.js';
 import {
   vocabularies,
   vocabularyMeanings,
@@ -32,8 +31,6 @@ export const vocabularyPracticeSourceTypeEnum = pgEnum(
 export const vocabularyPracticeModeEnum = pgEnum('vocabulary_practice_mode', [
   'THAI_TO_MEANING',
   'MEANING_TO_THAI',
-  'AUDIO_TO_THAI',
-  'AUDIO_TO_MEANING',
 ]);
 
 /** 단어 연습 출제 순서 */
@@ -64,8 +61,6 @@ type PracticeCardJson = {
     id: string;
     pronunciationKo: string;
     toneMarks: string;
-    mediaAssetId: string;
-    storageKey: string;
   }>;
   meaningPronunciations: Array<{
     meaningId: string;
@@ -110,7 +105,7 @@ export const vocabularyPracticeSessions = pgTable(
     ),
     check(
       'vocabulary_practice_sessions_modes_nonempty',
-      sql`cardinality(${table.modes}) between 1 and 4`,
+      sql`cardinality(${table.modes}) between 1 and 2`,
     ),
     check(
       'vocabulary_practice_sessions_status_completed_at_match',
@@ -140,12 +135,8 @@ export const vocabularyPracticeQuestions = pgTable(
       .notNull(),
     meaningId: uuid('meaning_id').notNull(),
     pronunciationId: uuid('pronunciation_id'),
-    mediaAssetId: uuid('media_asset_id').references(() => mediaAssets.id, {
-      onDelete: 'restrict',
-    }),
     mode: vocabularyPracticeModeEnum('mode').notNull(),
-    promptText: text('prompt_text'),
-    audioStorageKey: text('audio_storage_key'),
+    promptText: text('prompt_text').notNull(),
     thaiSnapshot: text('thai_snapshot').notNull(),
     meaningKoSnapshot: text('meaning_ko_snapshot').notNull(),
     pronunciationKoSnapshot: text('pronunciation_ko_snapshot'),
@@ -179,10 +170,6 @@ export const vocabularyPracticeQuestions = pgTable(
     check(
       'vocabulary_practice_questions_position_positive',
       sql`${table.position} > 0`,
-    ),
-    check(
-      'vocabulary_practice_questions_audio_fields_match',
-      sql`(${table.mode} in ('AUDIO_TO_THAI', 'AUDIO_TO_MEANING') and ${table.pronunciationId} is not null and ${table.mediaAssetId} is not null and ${table.audioStorageKey} is not null and ${table.promptText} is null) or (${table.mode} not in ('AUDIO_TO_THAI', 'AUDIO_TO_MEANING') and ${table.pronunciationId} is null and ${table.mediaAssetId} is null and ${table.audioStorageKey} is null and ${table.promptText} is not null)`,
     ),
   ],
 );

@@ -13,7 +13,6 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { mediaAssets } from './media.schema.js';
 import {
   vocabularies,
   vocabularyKindEnum,
@@ -37,7 +36,6 @@ export const thaiSentences = pgTable('thai_sentences', {
     .notNull(),
 });
 
-/** 실제 표시 내용과 음성을 보존하는 문장 스냅샷 */
 export const thaiSentenceVersions = pgTable(
   'thai_sentence_versions',
   {
@@ -50,9 +48,6 @@ export const thaiSentenceVersions = pgTable(
     translationKo: text('translation_ko').notNull(),
     pronunciationKo: text('pronunciation_ko').notNull(),
     toneMarks: text('tone_marks').notNull(),
-    mediaAssetId: uuid('media_asset_id').references(() => mediaAssets.id, {
-      onDelete: 'restrict',
-    }),
     frozenAt: timestamp('frozen_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()

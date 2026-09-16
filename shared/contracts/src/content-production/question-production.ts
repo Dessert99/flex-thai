@@ -144,12 +144,6 @@ export const questionCandidatePayloadSchema = z
             'QUESTION',
             'EXPLANATION',
           ]),
-          displayMode: z.enum([
-            'TEXT',
-            'AUDIO',
-            'TEXT_AND_AUDIO',
-            'AUDIO_THEN_REVEAL',
-          ]),
           sentences: z.array(
             z
               .object({

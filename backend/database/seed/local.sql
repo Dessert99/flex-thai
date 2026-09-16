@@ -46,71 +46,7 @@ set
   last_request_fingerprint = null
 where id = 1;
 
-insert into media_assets (
-  id,
-  storage_key,
-  declared_mime_type,
-  declared_size_bytes,
-  declared_sha256,
-  mime_type,
-  size_bytes,
-  sha256,
-  status,
-  ready_at,
-  created_at
-) values
-  (
-    '00000000-0000-4000-8000-000000000010',
-    'private/tts/runs/00000000-0000-4000-8000-000000000010.wav',
-    'audio/wav',
-    44,
-    '8b8fbafe8679076454429756fa72f11d5f442c87381cc6a4285451d826a9e629',
-    'audio/wav',
-    44,
-    '8b8fbafe8679076454429756fa72f11d5f442c87381cc6a4285451d826a9e629',
-    'READY',
-    '2026-07-01T00:00:00Z',
-    '2026-07-01T00:00:00Z'
-  ),
-  (
-    '00000000-0000-4000-8000-000000000011',
-    'private/tts/runs/00000000-0000-4000-8000-000000000011.wav',
-    'audio/wav',
-    44,
-    '8b8fbafe8679076454429756fa72f11d5f442c87381cc6a4285451d826a9e629',
-    'audio/wav',
-    44,
-    '8b8fbafe8679076454429756fa72f11d5f442c87381cc6a4285451d826a9e629',
-    'READY',
-    '2026-07-01T00:00:00Z',
-    '2026-07-01T00:00:00Z'
-  ),
-  (
-    '00000000-0000-4000-8000-000000000012',
-    'audio/local/uploading.mp3',
-    'audio/mpeg',
-    512,
-    repeat('c', 64),
-    null,
-    null,
-    null,
-    'UPLOADING',
-    null,
-    '2026-07-01T00:00:00Z'
-  ),
-  (
-    '00000000-0000-4000-8000-000000000013',
-    'private/tts/runs/00000000-0000-4000-8000-000000000013.wav',
-    'audio/wav',
-    44,
-    '8b8fbafe8679076454429756fa72f11d5f442c87381cc6a4285451d826a9e629',
-    'audio/wav',
-    44,
-    '8b8fbafe8679076454429756fa72f11d5f442c87381cc6a4285451d826a9e629',
-    'READY',
-    '2026-07-01T00:00:00Z',
-    '2026-07-01T00:00:00Z'
-  );
+
 
 insert into vocabularies (
   id,
@@ -366,7 +302,6 @@ insert into vocabulary_pronunciations (
   vocabulary_id,
   pronunciation_ko,
   tone_marks,
-  media_asset_id,
   created_at
 ) values
   (
@@ -374,7 +309,6 @@ insert into vocabulary_pronunciations (
     '00000000-0000-4000-8000-000000000101',
     '싸왓디',
     'L-H-M',
-    '00000000-0000-4000-8000-000000000010',
     '2026-07-01T00:00:00Z'
   ),
   (
@@ -382,7 +316,6 @@ insert into vocabulary_pronunciations (
     '00000000-0000-4000-8000-000000000102',
     '컵쿤',
     'L-M',
-    '00000000-0000-4000-8000-000000000010',
     '2026-07-02T00:00:00Z'
   ),
   (
@@ -390,7 +323,6 @@ insert into vocabulary_pronunciations (
     '00000000-0000-4000-8000-000000000103',
     '마이뺀라이',
     'F-M-M',
-    '00000000-0000-4000-8000-000000000010',
     '2026-07-03T00:00:00Z'
   ),
   (
@@ -398,7 +330,6 @@ insert into vocabulary_pronunciations (
     '00000000-0000-4000-8000-000000000104',
     '리안',
     'M',
-    '00000000-0000-4000-8000-000000000012',
     '2026-07-04T00:00:00Z'
   ),
   (
@@ -406,7 +337,6 @@ insert into vocabulary_pronunciations (
     '00000000-0000-4000-8000-000000000105',
     '커톳',
     'L-F',
-    '00000000-0000-4000-8000-000000000010',
     '2026-07-05T00:00:00Z'
   ),
   (
@@ -414,7 +344,6 @@ insert into vocabulary_pronunciations (
     '00000000-0000-4000-8000-000000000106',
     '차이',
     'F',
-    '00000000-0000-4000-8000-000000000010',
     '2026-07-05T00:00:00Z'
   ),
   (
@@ -422,7 +351,6 @@ insert into vocabulary_pronunciations (
     '00000000-0000-4000-8000-000000000107',
     '마이',
     'F',
-    '00000000-0000-4000-8000-000000000010',
     '2026-07-05T00:00:00Z'
   ),
   (
@@ -430,7 +358,6 @@ insert into vocabulary_pronunciations (
     '00000000-0000-4000-8000-000000000108',
     '낀',
     'M',
-    '00000000-0000-4000-8000-000000000010',
     '2026-07-05T00:00:00Z'
   ),
   (
@@ -438,7 +365,6 @@ insert into vocabulary_pronunciations (
     '00000000-0000-4000-8000-000000000109',
     '듬',
     'L',
-    '00000000-0000-4000-8000-000000000010',
     '2026-07-05T00:00:00Z'
   ),
   (
@@ -446,7 +372,6 @@ insert into vocabulary_pronunciations (
     '00000000-0000-4000-8000-000000000110',
     '빠이',
     'M',
-    '00000000-0000-4000-8000-000000000010',
     '2026-07-05T00:00:00Z'
   ),
   (
@@ -454,7 +379,6 @@ insert into vocabulary_pronunciations (
     '00000000-0000-4000-8000-000000000111',
     '마',
     'M',
-    '00000000-0000-4000-8000-000000000010',
     '2026-07-05T00:00:00Z'
   ),
   (
@@ -462,7 +386,6 @@ insert into vocabulary_pronunciations (
     '00000000-0000-4000-8000-000000000112',
     '반',
     'F',
-    '00000000-0000-4000-8000-000000000010',
     '2026-07-05T00:00:00Z'
   );
 
@@ -519,7 +442,6 @@ insert into thai_sentence_versions (
   translation_ko,
   pronunciation_ko,
   tone_marks,
-  media_asset_id,
   frozen_at,
   created_at
 ) values
@@ -531,7 +453,6 @@ insert into thai_sentence_versions (
     '다음 태국어의 뜻을 고르세요.',
     '싸왓디',
     'L-H-M',
-    '00000000-0000-4000-8000-000000000011',
     '2026-07-01T00:00:00Z',
     '2026-07-01T00:00:00Z'
   ),
@@ -543,7 +464,6 @@ insert into thai_sentence_versions (
     '안녕하세요',
     '안녕하세요',
     '-',
-    '00000000-0000-4000-8000-000000000011',
     '2026-07-01T00:00:00Z',
     '2026-07-01T00:00:00Z'
   ),
@@ -555,7 +475,6 @@ insert into thai_sentence_versions (
     '감사합니다',
     '감사합니다',
     '-',
-    '00000000-0000-4000-8000-000000000011',
     '2026-07-01T00:00:00Z',
     '2026-07-01T00:00:00Z'
   ),
@@ -567,7 +486,6 @@ insert into thai_sentence_versions (
     '괜찮습니다',
     '괜찮습니다',
     '-',
-    '00000000-0000-4000-8000-000000000011',
     '2026-07-01T00:00:00Z',
     '2026-07-01T00:00:00Z'
   ),
@@ -579,7 +497,6 @@ insert into thai_sentence_versions (
     '미안합니다',
     '미안합니다',
     '-',
-    '00000000-0000-4000-8000-000000000011',
     '2026-07-01T00:00:00Z',
     '2026-07-01T00:00:00Z'
   ),
@@ -591,7 +508,6 @@ insert into thai_sentence_versions (
     '다음 태국어의 뜻을 고르세요.',
     '컵쿤',
     'L-M',
-    '00000000-0000-4000-8000-000000000011',
     '2026-07-01T00:00:00Z',
     '2026-07-01T00:00:00Z'
   ),
@@ -603,7 +519,6 @@ insert into thai_sentence_versions (
     'สวัสดี는 안녕하세요라는 뜻입니다.',
     '싸왓디',
     'L-H-M',
-    '00000000-0000-4000-8000-000000000011',
     '2026-07-01T00:00:00Z',
     '2026-07-01T00:00:00Z'
   ),
@@ -615,7 +530,6 @@ insert into thai_sentence_versions (
     'ขอบคุณ은 감사합니다라는 뜻입니다.',
     '컵쿤',
     'L-M',
-    '00000000-0000-4000-8000-000000000011',
     '2026-07-01T00:00:00Z',
     '2026-07-01T00:00:00Z'
   ),
@@ -627,7 +541,6 @@ insert into thai_sentence_versions (
     '다음 태국어의 뜻을 고르세요.',
     '싸왓디',
     'L-H-M',
-    '00000000-0000-4000-8000-000000000013',
     null,
     '2026-07-01T00:01:00Z'
   );
@@ -881,297 +794,21 @@ insert into provider_runs (
   '2026-07-01T00:01:00Z'
 );
 
-insert into tts_voice_presets (
-  id,
-  name,
-  provider,
-  model,
-  voice,
-  locale,
-  audio_format,
-  generation_revision,
-  enabled,
-  created_at,
-  updated_at
-) values (
-  '00000000-0000-4000-8000-000000000001',
-  '로컬 deterministic 태국어 음성',
-  'LOCAL_FAKE',
-  'deterministic-v1',
-  'th-TH-standard-a',
-  'th-TH',
-  'audio/wav',
-  '2026-07-27',
-  true,
-  '2026-07-01T00:00:00Z',
-  '2026-07-01T00:00:00Z'
-);
 
-insert into tts_voice_presets (
-  id,
-  name,
-  provider,
-  model,
-  voice,
-  locale,
-  audio_format,
-  generation_revision,
-  enabled,
-  created_at,
-  updated_at
-) values (
-  '00000000-0000-4000-8000-000000000905',
-  '로컬 비활성 음성',
-  'LOCAL_FAKE',
-  'deterministic-v0',
-  'th-TH-standard-b',
-  'th-TH',
-  'audio/wav',
-  '2026-06-30',
-  false,
-  '2026-06-30T00:00:00Z',
-  '2026-07-01T00:00:00Z'
-);
 
-insert into tts_jobs (
-  id,
-  requested_by,
-  voice_snapshot,
-  dispatch_attempt,
-  status,
-  pending_count,
-  processing_count,
-  succeeded_count,
-  failed_count,
-  created_at,
-  started_at,
-  finished_at,
-  updated_at
-) values (
-  '00000000-0000-4000-8000-000000000920',
-  '00000000-0000-4000-8000-000000000001',
-  '{"presetId":"00000000-0000-4000-8000-000000000001","provider":"LOCAL_FAKE","model":"deterministic-v1","voice":"th-TH-standard-a","locale":"th-TH","audioFormat":"audio/wav","generationRevision":"2026-07-27"}',
-  0,
-  'SUCCEEDED',
-  0,
-  0,
-  1,
-  0,
-  '2026-07-01T00:00:00Z',
-  '2026-07-01T00:00:00Z',
-  '2026-07-01T00:01:00Z',
-  '2026-07-01T00:01:00Z'
-);
 
-insert into tts_items (
-  id,
-  job_id,
-  target_kind,
-  target_id,
-  target_text,
-  target_required,
-  revision,
-  voice_snapshot,
-  cache_key,
-  status,
-  attempt,
-  retryable,
-  media_asset_id,
-  created_at,
-  updated_at
-) values (
-  '00000000-0000-4000-8000-000000000921',
-  '00000000-0000-4000-8000-000000000920',
-  'THAI_SENTENCE_VERSION',
-  '00000000-0000-4000-8000-000000000219',
-  'สวัสดี',
-  true,
-  '00000000-0000-4000-8000-000000000413',
-  '{"presetId":"00000000-0000-4000-8000-000000000001","provider":"LOCAL_FAKE","model":"deterministic-v1","voice":"th-TH-standard-a","locale":"th-TH","audioFormat":"audio/wav","generationRevision":"2026-07-27"}',
-  '00db352c5a855781202ea35b7e2264d4ec02c938785e23a7ff7f6dfffebbac4e',
-  'SUCCEEDED',
-  0,
-  false,
-  '00000000-0000-4000-8000-000000000013',
-  '2026-07-01T00:00:00Z',
-  '2026-07-01T00:01:00Z'
-);
 
-insert into tts_jobs (
-  id,
-  requested_by,
-  voice_snapshot,
-  dispatch_attempt,
-  status,
-  pending_count,
-  processing_count,
-  succeeded_count,
-  failed_count,
-  created_at,
-  started_at,
-  finished_at,
-  updated_at
-) values
-  (
-    '00000000-0000-4000-8000-000000000924',
-    '00000000-0000-4000-8000-000000000001',
-    '{"presetId":"00000000-0000-4000-8000-000000000001","provider":"LOCAL_FAKE","model":"deterministic-v1","voice":"th-TH-standard-a","locale":"th-TH","audioFormat":"audio/wav","generationRevision":"2026-07-27"}',
-    0,
-    'RUNNING',
-    0,
-    1,
-    0,
-    0,
-    '2026-07-02T00:00:00Z',
-    '2026-07-02T00:00:00Z',
-    null,
-    '2026-07-02T00:00:30Z'
-  ),
-  (
-    '00000000-0000-4000-8000-000000000926',
-    '00000000-0000-4000-8000-000000000001',
-    '{"presetId":"00000000-0000-4000-8000-000000000001","provider":"LOCAL_FAKE","model":"deterministic-v1","voice":"th-TH-standard-a","locale":"th-TH","audioFormat":"audio/wav","generationRevision":"2026-07-27"}',
-    0,
-    'FAILED',
-    0,
-    0,
-    0,
-    1,
-    '2026-07-03T00:00:00Z',
-    '2026-07-03T00:00:00Z',
-    '2026-07-03T00:01:00Z',
-    '2026-07-03T00:01:00Z'
-  );
 
-insert into tts_items (
-  id,
-  job_id,
-  target_kind,
-  target_id,
-  target_text,
-  target_required,
-  revision,
-  voice_snapshot,
-  cache_key,
-  status,
-  attempt,
-  lease_token,
-  lease_until,
-  error_code,
-  retryable,
-  created_at,
-  updated_at
-) values
-  (
-    '00000000-0000-4000-8000-000000000925',
-    '00000000-0000-4000-8000-000000000924',
-    'THAI_SENTENCE_VERSION',
-    '00000000-0000-4000-8000-000000000218',
-    'ขอบคุณ',
-    true,
-    'local-running-revision',
-    '{"presetId":"00000000-0000-4000-8000-000000000001","provider":"LOCAL_FAKE","model":"deterministic-v1","voice":"th-TH-standard-a","locale":"th-TH","audioFormat":"audio/wav","generationRevision":"2026-07-27"}',
-    repeat('e', 64),
-    'PROCESSING',
-    1,
-    'local-running-lease',
-    '2026-07-02T00:05:00Z',
-    null,
-    false,
-    '2026-07-02T00:00:00Z',
-    '2026-07-02T00:00:30Z'
-  ),
-  (
-    '00000000-0000-4000-8000-000000000927',
-    '00000000-0000-4000-8000-000000000926',
-    'THAI_SENTENCE_VERSION',
-    '00000000-0000-4000-8000-000000000217',
-    'สวัสดี',
-    true,
-    'local-failed-revision',
-    '{"presetId":"00000000-0000-4000-8000-000000000001","provider":"LOCAL_FAKE","model":"deterministic-v1","voice":"th-TH-standard-a","locale":"th-TH","audioFormat":"audio/wav","generationRevision":"2026-07-27"}',
-    repeat('f', 64),
-    'FAILED',
-    1,
-    null,
-    null,
-    'LOCAL_TTS_TRANSIENT_FAILURE',
-    true,
-    '2026-07-03T00:00:00Z',
-    '2026-07-03T00:01:00Z'
-  );
 
-insert into tts_provider_runs (
-  id,
-  item_id,
-  attempt,
-  cache_key,
-  cache_claim_token,
-  item_lease_token,
-  provider,
-  model,
-  status,
-  usage,
-  estimated_cost_usd,
-  provider_request_id,
-  retryable,
-  storage_key,
-  storage_mime_type,
-  storage_size_bytes,
-  storage_sha256,
-  started_at,
-  finished_at,
-  created_at,
-  updated_at
-) values (
-  '00000000-0000-4000-8000-000000000923',
-  '00000000-0000-4000-8000-000000000921',
-  0,
-  '00db352c5a855781202ea35b7e2264d4ec02c938785e23a7ff7f6dfffebbac4e',
-  'local-cache-claim',
-  'local-item-lease',
-  'LOCAL_FAKE',
-  'deterministic-v1',
-  'SUCCEEDED',
-  '{"characters":6}'::jsonb,
-  '0.25000000',
-  'local-tts-provider-request',
-  false,
-  'private/tts/runs/00000000-0000-4000-8000-000000000013.wav',
-  'audio/wav',
-  44,
-  '8b8fbafe8679076454429756fa72f11d5f442c87381cc6a4285451d826a9e629',
-  '2026-07-01T00:00:00Z',
-  '2026-07-01T00:01:00Z',
-  '2026-07-01T00:00:00Z',
-  '2026-07-01T00:01:00Z'
-);
 
-insert into tts_audio_cache (
-  id,
-  cache_key,
-  audio_digest,
-  status,
-  generation_attempt,
-  retryable,
-  media_asset_id,
-  ready_metadata_revision,
-  ready_at,
-  created_at,
-  updated_at
-) values (
-  '00000000-0000-4000-8000-000000000922',
-  '00db352c5a855781202ea35b7e2264d4ec02c938785e23a7ff7f6dfffebbac4e',
-  '8b8fbafe8679076454429756fa72f11d5f442c87381cc6a4285451d826a9e629',
-  'READY',
-  1,
-  false,
-  '00000000-0000-4000-8000-000000000013',
-  '2026-07-27',
-  '2026-07-01T00:01:00Z',
-  '2026-07-01T00:00:00Z',
-  '2026-07-01T00:01:00Z'
-);
+
+
+
+
+
+
+
+
 
 insert into question_types (
   id,
@@ -1188,33 +825,6 @@ insert into question_types (
     '어휘 의미 선택',
     'READING',
     'READING_VOCABULARY_GRAMMAR',
-    '2026-07-01T00:00:00Z',
-    '2026-07-01T00:00:00Z'
-  ),
-  (
-    '00000000-0000-4000-8000-000000000302',
-    'listening-response',
-    '반응 선택',
-    'LISTENING',
-    'LISTENING_RESPONSE',
-    '2026-07-01T00:00:00Z',
-    '2026-07-01T00:00:00Z'
-  ),
-  (
-    '00000000-0000-4000-8000-000000000303',
-    'listening-dialogue',
-    '대화문 듣기',
-    'LISTENING',
-    'LISTENING_DIALOGUE',
-    '2026-07-01T00:00:00Z',
-    '2026-07-01T00:00:00Z'
-  ),
-  (
-    '00000000-0000-4000-8000-000000000304',
-    'listening-passage',
-    '설명문 듣기',
-    'LISTENING',
-    'LISTENING_PASSAGE',
     '2026-07-01T00:00:00Z',
     '2026-07-01T00:00:00Z'
   ),
@@ -1262,33 +872,6 @@ insert into question_type_versions (
     'STANDARD_CHOICE',
     4,
     'ACTIVE',
-    '{"mode":"single-choice"}'
-  ),
-  (
-    '00000000-0000-4000-8000-000000000312',
-    '00000000-0000-4000-8000-000000000302',
-    1,
-    'STANDARD_CHOICE',
-    3,
-    'DRAFT',
-    '{"mode":"single-choice"}'
-  ),
-  (
-    '00000000-0000-4000-8000-000000000313',
-    '00000000-0000-4000-8000-000000000303',
-    1,
-    'DIALOGUE_CHOICE',
-    4,
-    'DRAFT',
-    '{"mode":"single-choice"}'
-  ),
-  (
-    '00000000-0000-4000-8000-000000000314',
-    '00000000-0000-4000-8000-000000000304',
-    1,
-    'PASSAGE_CHOICE',
-    4,
-    'DRAFT',
     '{"mode":"single-choice"}'
   ),
   (
@@ -1479,15 +1062,14 @@ insert into question_blocks (
   id,
   question_version_id,
   kind,
-  display_mode,
   position
 ) values
-  ('00000000-0000-4000-8000-000000000421', '00000000-0000-4000-8000-000000000411', 'QUESTION', 'TEXT', 0),
-  ('00000000-0000-4000-8000-000000000422', '00000000-0000-4000-8000-000000000411', 'EXPLANATION', 'TEXT', 1),
-  ('00000000-0000-4000-8000-000000000423', '00000000-0000-4000-8000-000000000412', 'QUESTION', 'TEXT', 0),
-  ('00000000-0000-4000-8000-000000000424', '00000000-0000-4000-8000-000000000412', 'EXPLANATION', 'TEXT', 1),
-  ('00000000-0000-4000-8000-000000000425', '00000000-0000-4000-8000-000000000413', 'QUESTION', 'TEXT', 0),
-  ('00000000-0000-4000-8000-000000000426', '00000000-0000-4000-8000-000000000414', 'QUESTION', 'TEXT', 0);
+  ('00000000-0000-4000-8000-000000000421', '00000000-0000-4000-8000-000000000411', 'QUESTION', 0),
+  ('00000000-0000-4000-8000-000000000422', '00000000-0000-4000-8000-000000000411', 'EXPLANATION', 1),
+  ('00000000-0000-4000-8000-000000000423', '00000000-0000-4000-8000-000000000412', 'QUESTION', 0),
+  ('00000000-0000-4000-8000-000000000424', '00000000-0000-4000-8000-000000000412', 'EXPLANATION', 1),
+  ('00000000-0000-4000-8000-000000000425', '00000000-0000-4000-8000-000000000413', 'QUESTION', 0),
+  ('00000000-0000-4000-8000-000000000426', '00000000-0000-4000-8000-000000000414', 'QUESTION', 0);
 
 insert into question_block_sentences (
   id,
@@ -1559,7 +1141,6 @@ insert into question_type_approved_examples (
   "blocks": [
     {
       "kind": "QUESTION",
-      "displayMode": "TEXT",
       "sentences": [
         {
           "sentence": {
@@ -1567,7 +1148,6 @@ insert into question_type_approved_examples (
             "translationKo": "다음 태국어의 뜻을 고르세요.",
             "pronunciationKo": "싸왓디",
             "toneMarks": "L-H-M",
-            "mediaAssetId": "00000000-0000-4000-8000-000000000011",
             "tokens": [
               {
                 "surface": "สวัสดี",
@@ -1587,7 +1167,6 @@ insert into question_type_approved_examples (
     },
     {
       "kind": "EXPLANATION",
-      "displayMode": "TEXT",
       "sentences": [
         {
           "sentence": {
@@ -1595,7 +1174,6 @@ insert into question_type_approved_examples (
             "translationKo": "สวัสดี는 안녕하세요라는 뜻입니다.",
             "pronunciationKo": "싸왓디",
             "toneMarks": "L-H-M",
-            "mediaAssetId": "00000000-0000-4000-8000-000000000011",
             "tokens": [],
             "expressions": []
           }
@@ -1612,7 +1190,6 @@ insert into question_type_approved_examples (
         "translationKo": "안녕하세요",
         "pronunciationKo": "안녕하세요",
         "toneMarks": "-",
-        "mediaAssetId": "00000000-0000-4000-8000-000000000011",
         "tokens": [],
         "expressions": []
       },
@@ -1626,7 +1203,6 @@ insert into question_type_approved_examples (
         "translationKo": "감사합니다",
         "pronunciationKo": "감사합니다",
         "toneMarks": "-",
-        "mediaAssetId": "00000000-0000-4000-8000-000000000011",
         "tokens": [],
         "expressions": []
       },
@@ -1640,7 +1216,6 @@ insert into question_type_approved_examples (
         "translationKo": "괜찮습니다",
         "pronunciationKo": "괜찮습니다",
         "toneMarks": "-",
-        "mediaAssetId": "00000000-0000-4000-8000-000000000011",
         "tokens": [],
         "expressions": []
       },
@@ -1654,7 +1229,6 @@ insert into question_type_approved_examples (
         "translationKo": "미안합니다",
         "pronunciationKo": "미안합니다",
         "toneMarks": "-",
-        "mediaAssetId": "00000000-0000-4000-8000-000000000011",
         "tokens": [],
         "expressions": []
       },
@@ -1664,7 +1238,7 @@ insert into question_type_approved_examples (
   "correctOptionRef": "option-1"
 }
 $readingVocabularyExample$::jsonb,
-  'bd5e5b2dc6584778680394153547b1ee054b1846465655b15603b213b9c55df3',
+  '5963e9e5ee0530a7684d863bcc399fea91c086eb93aa3b1a6878e8e131c0218e',
   '2026-07-10T00:00:00Z'
 );
 
@@ -1965,8 +1539,8 @@ insert into content_error_reports (
     'OPEN',
     null,
     '선택지 설명을 조금 더 자세히 확인해 주세요.',
-    '{"kind":"QUESTION","contentId":"00000000-0000-4000-8000-000000000401","contentVersionId":"00000000-0000-4000-8000-000000000411","questionVersionId":"00000000-0000-4000-8000-000000000411","sentenceVersionId":"00000000-0000-4000-8000-000000000211","mediaAssetId":"00000000-0000-4000-8000-000000000011","locationId":"00000000-0000-4000-8000-000000000421"}',
-    '{"title":"어휘 의미 선택","primaryText":"สวัสดี","secondaryText":"다음 태국어의 뜻을 고르세요.","versionLabel":"버전 1","locationLabel":"문제 본문","audioAssetId":"00000000-0000-4000-8000-000000000011"}',
+    '{"kind":"QUESTION","contentId":"00000000-0000-4000-8000-000000000401","contentVersionId":"00000000-0000-4000-8000-000000000411","questionVersionId":"00000000-0000-4000-8000-000000000411","sentenceVersionId":"00000000-0000-4000-8000-000000000211","locationId":"00000000-0000-4000-8000-000000000421"}',
+    '{"title":"어휘 의미 선택","primaryText":"สวัสดี","secondaryText":"다음 태국어의 뜻을 고르세요.","versionLabel":"버전 1","locationLabel":"문제 본문"}',
     '2026-07-18T00:00:00Z',
     '2026-07-18T00:00:00Z'
   ),
@@ -1978,8 +1552,8 @@ insert into content_error_reports (
     'IN_PROGRESS',
     '00000000-0000-4000-8000-000000000001',
     '예문 발음 설명을 확인해 주세요.',
-    '{"kind":"CONCEPT","contentId":"00000000-0000-4000-8000-000000000701","contentVersionId":"00000000-0000-4000-8000-000000000711","questionVersionId":null,"sentenceVersionId":null,"mediaAssetId":null,"locationId":"00000000-0000-4000-8000-000000000722"}',
-    '{"title":"태국어 인사말의 소리","primaryText":"인사말 예문","secondaryText":"기본 인사말의 발음과 성조를 실제 문장으로 익힙니다.","versionLabel":"버전 1","locationLabel":"개념 블록 2","audioAssetId":null}',
+    '{"kind":"CONCEPT","contentId":"00000000-0000-4000-8000-000000000701","contentVersionId":"00000000-0000-4000-8000-000000000711","questionVersionId":null,"sentenceVersionId":null,"locationId":"00000000-0000-4000-8000-000000000722"}',
+    '{"title":"태국어 인사말의 소리","primaryText":"인사말 예문","secondaryText":"기본 인사말의 발음과 성조를 실제 문장으로 익힙니다.","versionLabel":"버전 1","locationLabel":"개념 블록 2"}',
     '2026-07-18T01:00:00Z',
     '2026-07-18T01:02:00Z'
   );

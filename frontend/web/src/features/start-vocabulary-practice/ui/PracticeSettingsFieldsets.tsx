@@ -1,16 +1,14 @@
 /** 단어 연습 방식·문항 수·출제 순서 설정을 표시한다 */
-import type { PracticeMode } from '@flex-thia/contracts';
 import { Button } from '@/shared/ui/button';
 import { Label } from '@/shared/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/shared/ui/radio-group';
+import type { PracticeMode } from '@flex-thia/contracts';
 
 type QuestionCount = 10 | 20 | 'ALL';
 
 const modeLabels: Array<{ mode: PracticeMode; label: string }> = [
   { mode: 'THAI_TO_MEANING', label: '태국어 → 뜻' },
   { mode: 'MEANING_TO_THAI', label: '뜻 → 태국어' },
-  { mode: 'AUDIO_TO_THAI', label: '음성 → 태국어' },
-  { mode: 'AUDIO_TO_MEANING', label: '음성 → 뜻' },
 ];
 
 interface PracticeSettingsFieldsetsProps {

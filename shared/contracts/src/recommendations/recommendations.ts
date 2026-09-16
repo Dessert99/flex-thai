@@ -33,7 +33,7 @@ const questionRecommendationSchema = z
         displayName: z.string().min(1),
       })
       .strict(),
-    skill: z.enum(['READING', 'LISTENING']),
+    skill: z.enum(['READING']),
     difficulty: z.number().int().min(1).max(5),
     reasonCode: questionRecommendationReasonCodeSchema,
     reason: z.string().min(1),
@@ -55,7 +55,7 @@ const homeQuestionSchema = z
     questionId: uuidSchema,
     questionVersionId: uuidSchema,
     questionTypeDisplayName: z.string().min(1),
-    skill: z.enum(['READING', 'LISTENING']),
+    skill: z.enum(['READING']),
     difficulty: z.number().int().min(1).max(5),
     publishedAt: z.iso.datetime(),
   })

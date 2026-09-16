@@ -30,7 +30,6 @@ export default defineConfig([
       'src/features/explore-thai-content/**',
       'src/features/submit-answer/**',
       'src/features/toggle-saved-question/**',
-      'src/features/upload-audio/**',
       'src/features/manage-wordbook/**',
       'src/features/manage-wordbook-items/**',
       'src/features/report-content-error/**',
@@ -38,9 +37,6 @@ export default defineConfig([
       'src/features/start-vocabulary-practice/**',
       // Wave 6 운영 기능은 관리자 page와 문제 상세에서만 조립되는 의도적인 command slice다.
       'src/features/manage-content-production-presets/**',
-      'src/features/play-tts-audio/**',
-      'src/features/retry-tts-items/**',
-      'src/features/tts-publication-readiness/**',
     ],
     rules: {
       'fsd/insignificant-slice': 'off',

@@ -1,10 +1,10 @@
 /** 단어 연습 설정 query의 캐시 키·검색 활성화·인증 요청을 검증한다 */
+import { createTestQueryClient } from '@/shared/test';
 import {
   vocabularyListResponseSchema,
   wordbookListResponseSchema,
 } from '@flex-thia/contracts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createTestQueryClient } from '@/shared/test';
 import {
   practiceVocabularySearchQueryOptions,
   practiceWordbooksQueryOptions,

@@ -3,7 +3,6 @@ import {
   ContentDraftError,
   type ContentDraftRepository,
   type ContentDraftTransaction,
-  type MediaAsset,
   type ResolvedContentDraftAudit,
   type ResolvedQuestionDraftGraph,
   type ResolvedVocabularyDraftGraph,
@@ -11,17 +10,17 @@ import {
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
+import * as schema from '../schema/index.js';
 import {
   auditLogs,
   contentImportItems,
   expressionOccurrences,
-  mediaAssets,
   questionBlocks,
   questionBlockSentences,
   questionOptions,
+  questions,
   questionTags,
   questionTopics,
-  questions,
   questionTypes,
   questionTypeVersions,
   questionVersions,
@@ -34,11 +33,9 @@ import {
   vocabularyMeanings,
   vocabularyPronunciations,
 } from '../schema/index.js';
-import * as schema from '../schema/index.js';
 
 type ContentDraftDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 type ContentDraftSession = Pick<ContentDraftDatabase, 'insert' | 'select'>;
-type MediaAssetRow = typeof mediaAssets.$inferSelect;
 
 type ContentDraftPersistenceCode =
   'CONTENT_DRAFT_ITEM_CONFLICT' | 'CONTENT_DRAFT_PERSISTENCE_CONFLICT';
@@ -80,11 +77,6 @@ const DATA_API_CONSTRAINTS = [
   {
     code: '23503',
     kind: 'foreign key',
-    name: 'thai_sentence_versions_media_asset_id_media_assets_id_fk',
-  },
-  {
-    code: '23503',
-    kind: 'foreign key',
     name: 'token_occurrences_meaning_vocabulary_fk',
   },
   {
@@ -101,11 +93,6 @@ const DATA_API_CONSTRAINTS = [
     code: '23505',
     kind: 'unique',
     name: 'vocabularies_normalized_thai_unique',
-  },
-  {
-    code: '23503',
-    kind: 'foreign key',
-    name: 'vocabulary_pronunciations_media_asset_id_media_assets_id_fk',
   },
 ] as const;
 
@@ -220,16 +207,7 @@ const translateVocabularySaveError = (
   ) {
     throw new ContentDraftError('IMPORT_DUPLICATE_VOCABULARY', 'thai');
   }
-  if (
-    postgresError?.code === '23503' &&
-    postgresError.constraint ===
-      'vocabulary_pronunciations_media_asset_id_media_assets_id_fk'
-  ) {
-    throw new ContentDraftError(
-      'IMPORT_REFERENCE_NOT_FOUND',
-      'pronunciations.mediaAssetId',
-    );
-  }
+
   translateSharedSaveError(error, operation);
   throw error;
 };
@@ -240,15 +218,6 @@ const translateQuestionSaveError = (
 ): never => {
   const postgresError = decodePostgreSqlError(error);
   if (postgresError?.code === '23503') {
-    if (
-      postgresError.constraint ===
-      'thai_sentence_versions_media_asset_id_media_assets_id_fk'
-    ) {
-      throw new ContentDraftError(
-        'IMPORT_REFERENCE_NOT_FOUND',
-        'sentences.mediaAssetId',
-      );
-    }
     if (
       postgresError.constraint ===
       'question_versions_type_version_id_question_type_versions_id_fk'
@@ -295,66 +264,6 @@ const translateQuestionSaveError = (
   }
   translateSharedSaveError(error, operation);
   throw error;
-};
-
-const toMediaAsset = (row: MediaAssetRow): MediaAsset => {
-  const base = {
-    id: row.id,
-    kind: row.kind,
-    storageKey: row.storageKey,
-    declaredMimeType: row.declaredMimeType,
-    declaredSizeBytes: row.declaredSizeBytes,
-    declaredSha256: row.declaredSha256,
-  };
-  if (row.status === 'READY') {
-    if (
-      row.mimeType === null ||
-      row.sizeBytes === null ||
-      row.sha256 === null ||
-      row.readyAt === null
-    ) {
-      throw new ContentDraftPersistenceError(
-        'CONTENT_DRAFT_PERSISTENCE_CONFLICT',
-        'mapReadyMedia',
-      );
-    }
-    return {
-      ...base,
-      mimeType: row.mimeType,
-      sizeBytes: row.sizeBytes,
-      sha256: row.sha256,
-      status: 'READY',
-      readyAt: row.readyAt,
-    };
-  }
-  if (row.status === 'REJECTED') {
-    if (
-      row.mimeType === null ||
-      row.sizeBytes === null ||
-      row.sha256 === null
-    ) {
-      throw new ContentDraftPersistenceError(
-        'CONTENT_DRAFT_PERSISTENCE_CONFLICT',
-        'mapRejectedMedia',
-      );
-    }
-    return {
-      ...base,
-      mimeType: row.mimeType,
-      sizeBytes: row.sizeBytes,
-      sha256: row.sha256,
-      status: 'REJECTED',
-      readyAt: null,
-    };
-  }
-  return {
-    ...base,
-    mimeType: null,
-    sizeBytes: null,
-    sha256: null,
-    status: 'UPLOADING',
-    readyAt: null,
-  };
 };
 
 const appendAudit = async (
@@ -490,22 +399,6 @@ const createContentDraftTransaction = (
     return rows[0]?.id ?? null;
   },
 
-  async findMediaAssetById(mediaAssetId) {
-    const rows = await transaction
-      .select()
-      .from(mediaAssets)
-      .where(eq(mediaAssets.id, mediaAssetId))
-      .for('key share')
-      .limit(2);
-    if (rows.length > 1) {
-      throw new ContentDraftPersistenceError(
-        'CONTENT_DRAFT_PERSISTENCE_CONFLICT',
-        'findMediaAssetById',
-      );
-    }
-    return rows[0] ? toMediaAsset(rows[0]) : null;
-  },
-
   async findSuccessfulVocabularyImportItemsByReference(importId, clientRef) {
     const rows = await transaction
       .select({
@@ -586,7 +479,6 @@ const createContentDraftTransaction = (
       .select({
         id: vocabularyPronunciations.id,
         vocabularyId: vocabularyPronunciations.vocabularyId,
-        mediaAssetId: vocabularyPronunciations.mediaAssetId,
       })
       .from(vocabularyPronunciations)
       .where(eq(vocabularyPronunciations.id, pronunciationId))

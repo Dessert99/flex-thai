@@ -1,6 +1,6 @@
 /** AI 문제 생성 prompt 문맥이 공개 가능한 값만 안정적으로 조립되는지 검증한다 */
-import { describe, expect, it, vi } from 'vitest';
 import { PgDialect } from 'drizzle-orm/pg-core';
+import { describe, expect, it, vi } from 'vitest';
 import {
   assembleQuestionProductionContext,
   DrizzleQuestionProductionContextQuery,
@@ -195,12 +195,6 @@ describe('AI 문제 생성 문맥 조립', () => {
         parameters: {
           newAuxiliaryVocabularyLimit: 0,
           similarityThreshold: 0.7,
-          speakerVoiceAssignments: [
-            {
-              speakerRole: ' 진행자 ',
-              voicePresetId: '00000000-0000-4000-8000-000000000001',
-            },
-          ],
         },
       },
     });
@@ -359,7 +353,6 @@ const questionPreset = (parameters: Record<string, unknown>) => ({
   parameters: {
     newAuxiliaryVocabularyLimit: 0,
     similarityThreshold: 0.7,
-    speakerVoiceAssignments: [],
     ...parameters,
   },
 });

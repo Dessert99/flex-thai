@@ -61,7 +61,6 @@ const canonical = {
       blocks: [
         {
           kind: 'DIALOGUE',
-          displayMode: 'TEXT',
           sentences: [{ speaker: 'A', sentence }],
         },
       ],

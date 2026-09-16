@@ -31,7 +31,7 @@ const pageQueryShape = {
   pageSize: httpIntegerSchema(1, 100).default(20),
 };
 
-const questionSkillSchema = z.enum(['READING', 'LISTENING']);
+const questionSkillSchema = z.enum(['READING']);
 const firstResultSchema = z.enum(['CORRECT', 'INCORRECT', 'UNANSWERED']);
 /** 문제 목록의 현재 지원 정렬 기준 */
 export const questionListSortSchema = z.enum(['LATEST']);
@@ -40,12 +40,6 @@ const questionTemplateSchema = z.enum([
   'PASSAGE_CHOICE',
   'DIALOGUE_CHOICE',
   'INLINE_SPAN_CHOICE',
-]);
-const questionDisplayModeSchema = z.enum([
-  'TEXT',
-  'AUDIO',
-  'TEXT_AND_AUDIO',
-  'AUDIO_THEN_REVEAL',
 ]);
 const publicQuestionBlockKindSchema = z.enum([
   'INSTRUCTION',
@@ -108,7 +102,6 @@ const publicQuestionBlockSchema = z
   .object({
     id: uuidSchema,
     kind: publicQuestionBlockKindSchema,
-    displayMode: questionDisplayModeSchema,
     position: positionSchema,
     sentences: z.array(questionBlockSentenceSchema),
   })
@@ -118,7 +111,6 @@ const explanationBlockSchema = z
   .object({
     id: uuidSchema,
     kind: z.literal('EXPLANATION'),
-    displayMode: questionDisplayModeSchema,
     position: positionSchema,
     sentences: z.array(questionBlockSentenceSchema),
   })

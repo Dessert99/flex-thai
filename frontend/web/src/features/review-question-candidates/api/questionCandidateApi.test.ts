@@ -1,6 +1,6 @@
 /** 후보 command의 fresh requestId·revision·DELETE body를 검증한다 */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { authenticatedRequest } from '@/shared/api';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   approveQuestionCandidate,
   discardQuestionCandidate,

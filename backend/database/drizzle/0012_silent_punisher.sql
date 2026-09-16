@@ -1,7 +1,11 @@
-CREATE TYPE "public"."content_error_report_category" AS ENUM('MEANING_TRANSLATION', 'PRONUNCIATION_TONE', 'AUDIO', 'ANSWER_EXPLANATION', 'TOKENIZATION', 'OTHER');--> statement-breakpoint
-CREATE TYPE "public"."content_error_report_history_action" AS ENUM('SUBMITTED', 'STATUS_CHANGED', 'ASSIGNEE_CHANGED');--> statement-breakpoint
-CREATE TYPE "public"."content_error_report_status" AS ENUM('OPEN', 'IN_PROGRESS', 'RESOLVED', 'REJECTED');--> statement-breakpoint
-CREATE TYPE "public"."content_error_report_target_kind" AS ENUM('QUESTION', 'VOCABULARY', 'SENTENCE', 'AUDIO', 'CONCEPT');--> statement-breakpoint
+CREATE TYPE "public"."content_error_report_target_kind" AS ENUM('QUESTION', 'VOCABULARY', 'SENTENCE', 'CONCEPT');
+--> statement-breakpoint
+CREATE TYPE "public"."content_error_report_category" AS ENUM('MEANING_TRANSLATION', 'PRONUNCIATION_TONE', 'ANSWER_EXPLANATION', 'TOKENIZATION', 'OTHER');
+--> statement-breakpoint
+CREATE TYPE "public"."content_error_report_history_action" AS ENUM('SUBMITTED', 'STATUS_CHANGED', 'ASSIGNEE_CHANGED');
+--> statement-breakpoint
+CREATE TYPE "public"."content_error_report_status" AS ENUM('OPEN', 'IN_PROGRESS', 'RESOLVED', 'REJECTED');
+--> statement-breakpoint
 CREATE TABLE "content_error_report_history" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"report_id" uuid NOT NULL,
@@ -52,13 +56,22 @@ CREATE TABLE "content_error_reports" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-ALTER TABLE "content_error_report_history" ADD CONSTRAINT "content_error_report_history_report_id_content_error_reports_id_fk" FOREIGN KEY ("report_id") REFERENCES "public"."content_error_reports"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "content_error_report_history" ADD CONSTRAINT "content_error_report_history_actor_user_id_users_id_fk" FOREIGN KEY ("actor_user_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "content_error_report_history" ADD CONSTRAINT "content_error_report_history_from_assignee_user_id_users_id_fk" FOREIGN KEY ("from_assignee_user_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "content_error_report_history" ADD CONSTRAINT "content_error_report_history_to_assignee_user_id_users_id_fk" FOREIGN KEY ("to_assignee_user_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "content_error_reports" ADD CONSTRAINT "content_error_reports_reporter_user_id_users_id_fk" FOREIGN KEY ("reporter_user_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "content_error_reports" ADD CONSTRAINT "content_error_reports_assignee_user_id_users_id_fk" FOREIGN KEY ("assignee_user_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "content_error_report_history_report_time_idx" ON "content_error_report_history" USING btree ("report_id","created_at","id");--> statement-breakpoint
-CREATE INDEX "content_error_reports_status_page_idx" ON "content_error_reports" USING btree ("status","created_at" DESC NULLS LAST,"id");--> statement-breakpoint
-CREATE INDEX "content_error_reports_assignee_status_page_idx" ON "content_error_reports" USING btree ("assignee_user_id","status","created_at" DESC NULLS LAST,"id");--> statement-breakpoint
+ALTER TABLE "content_error_report_history" ADD CONSTRAINT "content_error_report_history_report_id_content_error_reports_id_fk" FOREIGN KEY ("report_id") REFERENCES "public"."content_error_reports"("id") ON DELETE cascade ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "content_error_report_history" ADD CONSTRAINT "content_error_report_history_actor_user_id_users_id_fk" FOREIGN KEY ("actor_user_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "content_error_report_history" ADD CONSTRAINT "content_error_report_history_from_assignee_user_id_users_id_fk" FOREIGN KEY ("from_assignee_user_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "content_error_report_history" ADD CONSTRAINT "content_error_report_history_to_assignee_user_id_users_id_fk" FOREIGN KEY ("to_assignee_user_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "content_error_reports" ADD CONSTRAINT "content_error_reports_reporter_user_id_users_id_fk" FOREIGN KEY ("reporter_user_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "content_error_reports" ADD CONSTRAINT "content_error_reports_assignee_user_id_users_id_fk" FOREIGN KEY ("assignee_user_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;
+--> statement-breakpoint
+CREATE INDEX "content_error_report_history_report_time_idx" ON "content_error_report_history" USING btree ("report_id","created_at","id");
+--> statement-breakpoint
+CREATE INDEX "content_error_reports_status_page_idx" ON "content_error_reports" USING btree ("status","created_at" DESC NULLS LAST,"id");
+--> statement-breakpoint
+CREATE INDEX "content_error_reports_assignee_status_page_idx" ON "content_error_reports" USING btree ("assignee_user_id","status","created_at" DESC NULLS LAST,"id");
+--> statement-breakpoint
 CREATE INDEX "content_error_reports_target_page_idx" ON "content_error_reports" USING btree ("target_kind","created_at" DESC NULLS LAST,"id");

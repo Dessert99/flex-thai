@@ -44,57 +44,6 @@ describe('문제 버전 비교', () => {
   });
 });
 
-describe('문제 버전 학습 정보 비교', () => {
-  it('유형·표시 모드·화자·문장 학습 정보·audio·option 의미 변경을 찾는다', () => {
-    const before = version();
-    const after = structuredClone(before);
-    const bodyBlock = required(
-      after.blocks.find(({ position }) => position === 0),
-      '본문 block이 필요합니다.',
-    );
-    const bodyItem = required(
-      bodyBlock.sentences.find(({ position }) => position === 0),
-      '본문 문장이 필요합니다.',
-    );
-    const token = required(
-      bodyItem.sentence.tokens.find(({ position }) => position === 0),
-      '본문 token이 필요합니다.',
-    );
-    const expression = required(
-      bodyItem.sentence.expressions[0],
-      '본문 expression이 필요합니다.',
-    );
-    const firstOption = required(
-      after.options.find(({ position }) => position === 0),
-      '첫 번째 보기가 필요합니다.',
-    );
-    after.questionType.skill = 'LISTENING';
-    after.difficulty = 5;
-    after.tags.push({
-      id: '00000000-0000-4000-8000-000000000031',
-      slug: 'listening',
-      displayName: '듣기',
-    });
-    bodyBlock.displayMode = 'AUDIO_THEN_REVEAL';
-    bodyItem.speaker = 'B';
-    const bodySentence = bodyItem.sentence;
-    bodySentence.pronunciationKo = '새 발음';
-    bodySentence.toneMarks = 'H';
-    bodySentence.mediaAssetId = '00000000-0000-4000-8000-000000000032';
-    bodySentence.audio.status = 'FAILED';
-    bodySentence.audio.readUrl = null;
-    token.contextMeaningKo = '새 문맥';
-    expression.representative = false;
-    firstOption.sentence.translationKo = '새 보기 번역';
-
-    expect(
-      compareQuestionVersions(before as never, after as never).map(
-        ({ kind }) => kind,
-      ),
-    ).toEqual(['METADATA', 'BODY', 'OPTIONS']);
-  });
-});
-
 describe('문제 버전 내부 식별자 비교', () => {
   it('내부 UUID·서명 URL과 position이 같은 배열 순서 변경은 무시한다', () => {
     const before = version();
@@ -110,9 +59,6 @@ describe('문제 버전 내부 식별자 비교', () => {
       block.sentences.forEach((item, sentenceIndex) => {
         item.sentenceVersionId = `00000000-0000-4000-8000-00000000005${blockIndex + sentenceIndex}`;
         item.sentence.id = `00000000-0000-4000-8000-00000000006${blockIndex + sentenceIndex}`;
-        if (item.sentence.audio.status === 'READY') {
-          item.sentence.audio.readUrl = `https://media.example.com/signed-${blockIndex}.wav`;
-        }
       });
     });
     after.options.reverse();
@@ -184,7 +130,6 @@ function version() {
       {
         id: '00000000-0000-4000-8000-000000000005',
         kind: 'QUESTION',
-        displayMode: 'TEXT_AND_AUDIO',
         position: 0,
         sentences: [
           {
@@ -198,7 +143,6 @@ function version() {
       {
         id: '00000000-0000-4000-8000-000000000006',
         kind: 'EXPLANATION',
-        displayMode: 'TEXT',
         position: 1,
         sentences: [
           {
@@ -245,11 +189,6 @@ function resolvedSentence(
     translationKo,
     pronunciationKo: '발음',
     toneMarks: 'M',
-    mediaAssetId: '00000000-0000-4000-8000-000000000020',
-    audio: {
-      status: 'READY',
-      readUrl: 'https://media.example.com/signed.wav' as string | null,
-    },
     tokens: [
       {
         position: 0,

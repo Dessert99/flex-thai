@@ -43,11 +43,8 @@ const vocabulary = {
       id: ids.pronunciation,
       pronunciationKo: '싸왓디',
       toneMarks: 'L-L-M',
-      audioUrl:
-        'https://media.example.com/vocabularies/greeting.mp3?Expires=300',
     },
   ],
-  audioEligibleMeaningCount: 1,
   saved: true,
 } as const;
 
@@ -109,21 +106,6 @@ describe('학습자 어휘 query와 path 계약', () => {
 });
 
 describe('학습자 어휘 공개 응답 계약', () => {
-  it('뜻과 발음 음성 URL을 포함한 공용 어휘 목록을 허용한다', () => {
-    expect(
-      vocabularyListResponseSchema.parse({ items: [vocabulary], page }),
-    ).toEqual({ items: [vocabulary], page });
-  });
-
-  it('공용 어휘 목록에 음성 연습 가능한 어의 수를 포함한다', () => {
-    const parsed = vocabularyListResponseSchema.parse({
-      items: [vocabulary],
-      page,
-    });
-
-    expect(parsed.items[0]?.audioEligibleMeaningCount).toBe(1);
-  });
-
   it('어휘 상세에 게시 문장의 공개 예문을 허용한다', () => {
     const detail = {
       ...vocabulary,
@@ -149,8 +131,6 @@ describe('학습자 어휘 공개 응답 계약', () => {
           translationKo: '그는 안녕하세요라고 말했다',
           pronunciationKo: '카오 풋 와 싸왓디',
           toneMarks: 'R-F-F-L-L-M',
-          audioUrl:
-            'https://media.example.com/sentences/example.mp3?Expires=300',
           tokens: [],
           expressions: [],
         },
@@ -178,8 +158,6 @@ describe('학습자 어휘 공개 응답 계약', () => {
           id: ids.secondPronunciation,
           pronunciationKo: '싸왓디이',
           toneMarks: 'L-L-M',
-          audioUrl:
-            'https://media.example.com/vocabularies/greeting-long.mp3?Expires=300',
         },
       ],
       meaningPronunciations: [
@@ -249,7 +227,7 @@ describe('학습자 어휘 공개 응답 계약', () => {
             pronunciations: [
               {
                 ...vocabulary.pronunciations[0],
-                storageKey: 'private/vocabularies/greeting.mp3',
+                storageKey: 'private/vocabularies/greeting.bin',
               },
             ],
           },

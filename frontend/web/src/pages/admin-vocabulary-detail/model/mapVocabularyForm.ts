@@ -20,7 +20,6 @@ export function mapVocabularyDetailToForm(
       clientRef: pronunciation.id,
       pronunciationKo: pronunciation.pronunciationKo,
       toneMarks: pronunciation.toneMarks,
-      mediaAssetId: pronunciation.mediaAssetId,
     })),
     meaningPronunciations: detail.meaningPronunciations.map(
       ({ meaningId, pronunciationId }) => ({

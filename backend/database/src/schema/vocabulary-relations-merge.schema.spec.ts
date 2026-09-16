@@ -1,14 +1,14 @@
 /** 어휘 관계·병합 이력과 MERGED 대표 연결 schema를 검증한다 */
-import { readFileSync } from 'node:fs';
 import { getTableConfig } from 'drizzle-orm/pg-core';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
+  vocabularies,
   vocabularyMeaningRelationDirectionEnum,
   vocabularyMeaningRelationStatusEnum,
   vocabularyMeaningRelationTypeEnum,
   vocabularyMeaningRelations,
   vocabularyMergeHistory,
-  vocabularies,
   vocabularyStatusEnum,
 } from './vocabulary.schema.js';
 

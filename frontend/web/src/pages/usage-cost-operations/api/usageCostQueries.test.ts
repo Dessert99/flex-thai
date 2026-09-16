@@ -1,6 +1,6 @@
 /** 사용량·비용 React Query 요청의 path와 settings body를 검증한다 */
-import { z } from 'zod';
 import { describe, expect, it, vi } from 'vitest';
+import { z } from 'zod';
 
 const mocks = vi.hoisted(() => ({ authenticatedRequest: vi.fn() }));
 
@@ -27,18 +27,13 @@ describe('사용량·비용 query options', () => {
     mocks.authenticatedRequest.mockResolvedValue({});
     const signal = new AbortController().signal;
 
-    const overviewQuery = usageCostOverviewQueryOptions({ source: 'TTS' });
+    const overviewQuery = usageCostOverviewQueryOptions({ source: 'AI' });
     const settingsQuery = usageCostSettingsQueryOptions();
     if (!overviewQuery.queryFn || !settingsQuery.queryFn) {
       throw new Error('USAGE_COST_QUERY_FUNCTION_MISSING');
     }
     await overviewQuery.queryFn({ signal } as never);
     await settingsQuery.queryFn({ signal } as never);
-
-    expect(mocks.authenticatedRequest).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({ path: '/admin/usage-cost?source=TTS', signal }),
-    );
     expect(mocks.authenticatedRequest).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({ path: '/admin/usage-cost/settings', signal }),

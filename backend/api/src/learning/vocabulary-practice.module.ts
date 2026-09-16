@@ -1,11 +1,9 @@
-/** 단어 연습 use case·media signer·인증 guard를 독립 Nest module로 조립한다 */
-import { type DynamicModule, Module } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
 import type {
   IdentityUserRepository,
-  MediaReadUrlProvider,
   VocabularyPracticeService,
 } from '@flex-thia/domain';
+import { type DynamicModule, Module } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
 import {
   AUTHORIZER_GUARD_OPTIONS,
@@ -19,7 +17,6 @@ import { LearnerVocabularyPracticeService } from './learner-vocabulary-practice.
 /** 단어 연습 HTTP 조립 시 이미 선택된 use case와 adapter */
 export interface VocabularyPracticeModuleOptions {
   practice: VocabularyPracticeService;
-  mediaReadUrls: MediaReadUrlProvider;
   users: IdentityUserRepository;
   authorizer: AuthorizerGuardOptions;
 }
@@ -37,7 +34,6 @@ export class VocabularyPracticeModule {
           provide: LearnerVocabularyPracticeService,
           useValue: new LearnerVocabularyPracticeService({
             practice: options.practice,
-            mediaReadUrls: options.mediaReadUrls,
           }),
         },
         {

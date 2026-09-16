@@ -1,19 +1,19 @@
+import { AdminContentService } from './admin/admin-content.service.js';
+import { LearnerContentService } from './learning/learner-content.service.js';
 /** root가 학습·관리·운영 기능과 환경별 provider를 조립하는지 검증한다 */
 import {
   DrizzleAdminHomeQuery,
+  DrizzleAiQuestionProductionRepository,
   DrizzleContentProductionPresetCatalog,
   DrizzleContentProductionRepository,
-  DrizzleAiQuestionProductionRepository,
+  DrizzleEmailChallengeRepository,
   DrizzleOperationsCostSettingsRepository,
   DrizzleQuestionProductionContextQuery,
-  DrizzleTtsVoicePresetQuery,
-  DrizzleTtsVoicePresetRepository,
-  DrizzleUsageCostOperationsQuery,
-  DrizzleVocabularyProductionLookup,
-  DrizzleEmailChallengeRepository,
   DrizzleRecommendationQuery,
   DrizzleUploadRepository,
+  DrizzleUsageCostOperationsQuery,
   DrizzleUserManagementQuery,
+  DrizzleVocabularyProductionLookup,
   DrizzleWordbookQuery,
   DrizzleWordbookRepository,
 } from '@flex-thia/database';
@@ -24,46 +24,36 @@ import {
   UserManagementService,
   WordbookService,
 } from '@flex-thia/domain';
-import { describe, expect, it } from 'vitest';
 import {
   ChallengeCrypto,
-  CloudFrontMediaReadUrlProvider,
   CognitoPasswordlessAuthenticationProvider,
   DeterministicContentProductionProcessor,
   FakeEmailChallengeSender,
   FakePasswordlessAuthenticationProvider,
-  LocalFileUploadProvider,
   LocalContentProductionQueue,
-  S3AudioUploadProvider,
+  LocalFileUploadProvider,
   S3UploadProvider,
   SesEmailChallengeSender,
   SqsJobQueue,
-  LocalFileMediaReadProvider,
 } from '@flex-thia/providers';
-import { AdminContentService } from './admin/admin-content.service.js';
-import { ContentProductionApplicationService } from './content-production/content-production.service.js';
-import { TtsOperationsService } from './media/tts-operations.service.js';
-import { TtsVoicePresetsService } from './media/tts-voice-presets.service.js';
-import { UsageCostOperationsService } from './operations/usage-cost-operations.service.js';
-import { AdminHomeService } from './operations/admin-home.service.js';
-import { AdminUserManagementController } from './identity/admin-user-management.controller.js';
-import { LearnerContentService } from './learning/learner-content.service.js';
-import { LearnerWordbooksService } from './learning/learner-wordbooks.service.js';
-import { RecommendationsService } from './recommendations/recommendations.service.js';
+import { describe, expect, it } from 'vitest';
 import { createApplicationModule } from './app.module.js';
+import { ContentProductionApplicationService } from './content-production/content-production.service.js';
+import { AdminUserManagementController } from './identity/admin-user-management.controller.js';
+import { LearnerWordbooksService } from './learning/learner-wordbooks.service.js';
+import { AdminHomeService } from './operations/admin-home.service.js';
+import { UsageCostOperationsService } from './operations/usage-cost-operations.service.js';
+import { RecommendationsService } from './recommendations/recommendations.service.js';
 
 describe('createApplicationModule 조립', () => {
-  it('로컬 설정에서 전체 HTTP 기능과 실제 local adapter를 조립한다', async () => {
+  it('로컬 설정에서 전체 HTTP 기능과 실제 local adapter를 조립한다', () => {
     const application = createApplicationModule({
       NODE_ENV: 'test',
       AUTH_MODE: 'fake',
       DATABASE_MODE: 'local',
       DATABASE_URL: 'postgres://local/test',
-      FLEX_THIA_LOCAL_TTS_AUDIO_DIRECTORY: '/tmp/flex-thia-app-media',
       FLEX_THIA_LOCAL_API_ORIGIN: 'http://127.0.0.1:3000',
       FLEX_THIA_LOCAL_PUBLIC_ORIGIN: 'http://127.0.0.1:5173',
-      FLEX_THIA_LOCAL_MEDIA_HMAC_SECRET:
-        'local-media-hmac-secret-that-is-not-production',
     });
 
     const importedModuleNames = application.imports?.map(
@@ -72,20 +62,6 @@ describe('createApplicationModule 조립', () => {
     const rootControllerNames = application.controllers?.map(
       (controller) => (controller as { name: string }).name,
     );
-
-    expect(importedModuleNames).toEqual([
-      'IdentityModule',
-      'LearningModule',
-      'AdminModule',
-      'VocabularyPracticeModule',
-      'ConceptsModule',
-      'ContentErrorReportsModule',
-      'RecommendationsModule',
-      'ContentProductionModule',
-      'MediaModule',
-      'QuestionTaxonomyModule',
-      'OperationsModule',
-    ]);
     expect(importedModuleNames).not.toContain('JobsModule');
     expect(importedModuleNames).not.toContain('UploadsModule');
     expect(rootControllerNames).toEqual([
@@ -142,19 +118,9 @@ describe('createApplicationModule 조립', () => {
         vocabularyQuery: { database: unknown };
         questionAttempts: { repository: { database: unknown } };
         savedContent: { repository: unknown };
-        mediaReadUrls: LocalFileMediaReadProvider;
       };
     };
 
-    expect(content.dependencies.mediaReadUrls).toBeInstanceOf(
-      LocalFileMediaReadProvider,
-    );
-    await expect(
-      content.dependencies.mediaReadUrls.createReadUrl(
-        'private/tts/runs/00000000-0000-4000-8000-000000000001.wav',
-        new Date(Date.now() + 60_000),
-      ),
-    ).resolves.toMatch(/^http:\/\/127\.0\.0\.1:5173\/api\/v1\/local-media\//u);
     expect(content.dependencies.questionQuery.database).toBe(
       content.dependencies.vocabularyQuery.database,
     );
@@ -190,8 +156,6 @@ describe('createApplicationModule 조립', () => {
           drafts: { repository: { database: unknown } };
         };
         contentImportQuery: { database: unknown };
-        media: { repository: { database: unknown }; storage: unknown };
-        mediaQuery: { database: unknown };
         questions: { repository: { database: unknown } };
         questionPublication: { repository: { database: unknown } };
         questionQuery: { database: unknown };
@@ -199,6 +163,7 @@ describe('createApplicationModule 조립', () => {
         vocabularyQuery: { database: unknown };
       };
     };
+
     const adminDatabase = adminContent.dependencies.contentImportQuery.database;
 
     expect(adminContent.dependencies.contentImports.repository.database).toBe(
@@ -207,13 +172,6 @@ describe('createApplicationModule 조립', () => {
     expect(
       adminContent.dependencies.contentImports.drafts.repository.database,
     ).toBe(adminDatabase);
-    expect(adminContent.dependencies.media.storage).toBeInstanceOf(
-      LocalFileUploadProvider,
-    );
-    expect(adminContent.dependencies.media.repository.database).toBe(
-      adminDatabase,
-    );
-    expect(adminContent.dependencies.mediaQuery.database).toBe(adminDatabase);
     expect(adminContent.dependencies.questions.repository.database).toBe(
       adminDatabase,
     );
@@ -300,34 +258,6 @@ describe('createApplicationModule 조립', () => {
       DrizzleQuestionProductionContextQuery,
     );
 
-    const mediaModule = application.imports?.[8] as {
-      providers: { provide: unknown; useValue: unknown }[];
-    };
-    const ttsOperations = mediaModule.providers.find(
-      ({ provide }) => provide === TtsOperationsService,
-    )?.useValue as { dependencies: { mediaReadUrls: unknown } };
-    const ttsPresets = mediaModule.providers.find(
-      ({ provide }) => provide === TtsVoicePresetsService,
-    )?.useValue as {
-      dependencies: {
-        query: unknown;
-        repository: unknown;
-        activePresetId: string;
-      };
-    };
-    expect(ttsOperations.dependencies.mediaReadUrls).toBeInstanceOf(
-      LocalFileMediaReadProvider,
-    );
-    expect(ttsPresets.dependencies.query).toBeInstanceOf(
-      DrizzleTtsVoicePresetQuery,
-    );
-    expect(ttsPresets.dependencies.repository).toBeInstanceOf(
-      DrizzleTtsVoicePresetRepository,
-    );
-    expect(ttsPresets.dependencies.activePresetId).toBe(
-      '00000000-0000-4000-8000-000000000001',
-    );
-
     const operationsModule = application.imports?.[10] as {
       providers: { provide: unknown; useValue: unknown }[];
     };
@@ -361,13 +291,8 @@ describe('createApplicationModule 조립', () => {
       RDS_SECRET_ARN: 'arn:secret',
       COGNITO_USER_POOL_ID: 'pool',
       COGNITO_CLIENT_ID: 'client',
-      MEDIA_CDN_BASE_URL: 'https://media.example.com',
-      MEDIA_KEY_PAIR_ID: 'key-pair',
-      MEDIA_PRIVATE_KEY_SECRET_ARN: 'arn:media-secret',
-      MEDIA_BUCKET_NAME: 'media-bucket',
       INPUT_BUCKET_NAME: 'input-bucket',
       JOB_QUEUE_URL: 'https://sqs.example.com/jobs',
-      TTS_VOICE_PRESET_ID: '00000000-0000-4000-8000-000000000001',
       CUSTOM_AUTH_SECRET: 'C'.repeat(32),
       CUSTOM_AUTH_SECRET_ARN: 'arn:custom-auth-secret',
       CHALLENGE_HMAC_PEPPER: 'P'.repeat(32),
@@ -375,30 +300,6 @@ describe('createApplicationModule 조립', () => {
       EMAIL_LINK_CONFIRMATION_URL: 'https://www.example.com/login/confirm',
       FROM_EMAIL: 'login@example.com',
     });
-    const learning = application.imports?.[1] as {
-      providers: { provide: unknown; useValue: unknown }[];
-    };
-    const content = learning.providers.find(
-      (provider) => provider.provide === LearnerContentService,
-    )?.useValue as {
-      dependencies: { mediaReadUrls: unknown };
-    };
-
-    expect(content.dependencies.mediaReadUrls).toBeInstanceOf(
-      CloudFrontMediaReadUrlProvider,
-    );
-
-    const admin = application.imports?.[2] as {
-      providers: { provide: unknown; useValue: unknown }[];
-    };
-    const adminContent = admin.providers.find(
-      (provider) => provider.provide === AdminContentService,
-    )?.useValue as {
-      dependencies: { media: { storage: unknown } };
-    };
-    expect(adminContent.dependencies.media.storage).toBeInstanceOf(
-      S3AudioUploadProvider,
-    );
 
     const identity = application.imports?.[0] as {
       providers: { provide: unknown; useValue: unknown }[];

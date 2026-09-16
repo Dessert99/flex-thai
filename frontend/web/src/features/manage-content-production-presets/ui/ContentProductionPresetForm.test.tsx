@@ -59,8 +59,6 @@ describe('ContentProductionPresetForm', () => {
         excludedVocabularyIds: [],
         newAuxiliaryVocabularyLimit: 2,
         similarityThreshold: 0.7,
-        defaultVoicePresetId: '00000000-0000-4000-8000-000000000012',
-        speakerVoiceAssignments: [],
         additionalInstructionKo: null,
         commonPrinciples: [],
         similarQuestions: [],
@@ -111,9 +109,6 @@ describe('ContentProductionPresetForm', () => {
     fireEvent.click(screen.getByRole('option', { name: '문제 생성' }));
     fireEvent.change(screen.getByLabelText('문제 유형 버전 ID'), {
       target: { value: '00000000-0000-4000-8000-000000000011' },
-    });
-    fireEvent.change(screen.getByLabelText('기본 음성 preset ID'), {
-      target: { value: '00000000-0000-4000-8000-000000000012' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Preset 만들기' }));
 

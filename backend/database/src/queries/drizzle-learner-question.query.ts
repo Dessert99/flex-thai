@@ -15,31 +15,30 @@ import {
 } from 'drizzle-orm';
 import { alias, type PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
+import * as schema from '../schema/index.js';
 import {
   expressionOccurrences,
-  mediaAssets,
   questionAttempts,
   questionBlocks,
   questionBlockSentences,
   questionOptions,
+  questions,
   questionTags,
   questionTopics,
-  questions,
   questionTypes,
   questionTypeVersions,
-  questionVersionTags,
   questionVersions,
+  questionVersionTags,
   savedQuestions,
   thaiSentenceVersions,
   tokenOccurrences,
   vocabularyPronunciations,
 } from '../schema/index.js';
-import * as schema from '../schema/index.js';
 
 type LearnerQuestionDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 
 /** 문제 목록의 시험 영역 */
-export type LearnerQuestionSkill = 'READING' | 'LISTENING';
+export type LearnerQuestionSkill = 'READING';
 
 /** 첫 답의 유효 결과 */
 export type LearnerQuestionFirstResult = 'CORRECT' | 'INCORRECT' | 'UNANSWERED';
@@ -122,11 +121,6 @@ export interface LearnerQuestionListFacetsProjection {
   tags: LearnerQuestionTaxonomyTermProjection[];
 }
 
-/** private media key를 API mapper에만 전달하는 내부 projection */
-export interface LearnerQuestionMediaProjection {
-  storageKey: string;
-}
-
 /** 문장 안 공용 어휘 출현의 내부 projection */
 export interface LearnerQuestionTokenProjection {
   position: number;
@@ -139,7 +133,6 @@ export interface LearnerQuestionTokenProjection {
   contextMeaningKo: string;
   pronunciationKo: string;
   toneMarks: string;
-  media: LearnerQuestionMediaProjection | null;
   role: 'TARGET' | 'REQUIRED' | 'SUPPORTING' | 'INSTRUCTION';
 }
 
@@ -153,7 +146,6 @@ export interface LearnerQuestionExpressionProjection {
   contextMeaningKo: string;
   pronunciationKo: string;
   toneMarks: string;
-  media: LearnerQuestionMediaProjection | null;
   representative: boolean;
 }
 
@@ -164,7 +156,6 @@ export interface LearnerQuestionSentenceProjection {
   translationKo: string;
   pronunciationKo: string;
   toneMarks: string;
-  media: LearnerQuestionMediaProjection;
   tokens: LearnerQuestionTokenProjection[];
   expressions: LearnerQuestionExpressionProjection[];
 }
@@ -180,7 +171,6 @@ export interface LearnerQuestionBlockSentenceProjection {
 export interface LearnerQuestionBlockProjection {
   id: string;
   kind: 'INSTRUCTION' | 'PASSAGE' | 'DIALOGUE' | 'QUESTION' | 'EXPLANATION';
-  displayMode: 'TEXT' | 'AUDIO' | 'TEXT_AND_AUDIO' | 'AUDIO_THEN_REVEAL';
   position: number;
   sentences: LearnerQuestionBlockSentenceProjection[];
 }
@@ -257,9 +247,6 @@ const comparePosition = (
 ): number => left.position - right.position;
 
 const questionMajorCategoryLabels = {
-  LISTENING_RESPONSE: '반응 테스트',
-  LISTENING_DIALOGUE: '대화문',
-  LISTENING_PASSAGE: '설명문',
   READING_VOCABULARY_GRAMMAR: '어휘·문법',
   READING_SYNONYM_RELATION: '동의·유의 관계',
   READING_ERROR_IDENTIFICATION: '비문 찾기',
@@ -337,9 +324,6 @@ export class DrizzleLearnerQuestionQuery {
           ),
       );
     const categoryOrder = sql<number>`case ${publicCurrentQuestionVersions.majorCategory}
-      when 'LISTENING_RESPONSE' then 1
-      when 'LISTENING_DIALOGUE' then 2
-      when 'LISTENING_PASSAGE' then 3
       when 'READING_VOCABULARY_GRAMMAR' then 4
       when 'READING_SYNONYM_RELATION' then 5
       when 'READING_ERROR_IDENTIFICATION' then 6
@@ -826,7 +810,6 @@ export class DrizzleLearnerQuestionQuery {
       .select({
         id: questionBlocks.id,
         kind: questionBlocks.kind,
-        displayMode: questionBlocks.displayMode,
         position: questionBlocks.position,
       })
       .from(questionBlocks)
@@ -877,17 +860,9 @@ export class DrizzleLearnerQuestionQuery {
       vocabularyPronunciations,
       'learner_question_token_pronunciations',
     );
-    const tokenMediaAssets = alias(
-      mediaAssets,
-      'learner_question_token_media_assets',
-    );
     const expressionPronunciations = alias(
       vocabularyPronunciations,
       'learner_question_expression_pronunciations',
-    );
-    const expressionMediaAssets = alias(
-      mediaAssets,
-      'learner_question_expression_media_assets',
     );
     const sentenceRows = await this.database
       .select({
@@ -896,19 +871,9 @@ export class DrizzleLearnerQuestionQuery {
         translationKo: thaiSentenceVersions.translationKo,
         pronunciationKo: thaiSentenceVersions.pronunciationKo,
         toneMarks: thaiSentenceVersions.toneMarks,
-        mediaStorageKey: mediaAssets.storageKey,
       })
       .from(thaiSentenceVersions)
-      .innerJoin(
-        mediaAssets,
-        eq(thaiSentenceVersions.mediaAssetId, mediaAssets.id),
-      )
-      .where(
-        and(
-          inArray(thaiSentenceVersions.id, sentenceVersionIds),
-          eq(mediaAssets.status, 'READY'),
-        ),
-      )
+      .where(and(inArray(thaiSentenceVersions.id, sentenceVersionIds)))
       .orderBy(asc(thaiSentenceVersions.id));
     const tokenRows = await this.database
       .select({
@@ -923,7 +888,6 @@ export class DrizzleLearnerQuestionQuery {
         contextMeaningKo: tokenOccurrences.contextMeaningKo,
         pronunciationKo: tokenPronunciations.pronunciationKo,
         toneMarks: tokenPronunciations.toneMarks,
-        mediaStorageKey: tokenMediaAssets.storageKey,
         role: tokenOccurrences.role,
       })
       .from(tokenOccurrences)
@@ -933,10 +897,6 @@ export class DrizzleLearnerQuestionQuery {
           eq(tokenOccurrences.pronunciationId, tokenPronunciations.id),
           eq(tokenOccurrences.vocabularyId, tokenPronunciations.vocabularyId),
         ),
-      )
-      .leftJoin(
-        tokenMediaAssets,
-        eq(tokenPronunciations.mediaAssetId, tokenMediaAssets.id),
       )
       .where(inArray(tokenOccurrences.sentenceVersionId, sentenceVersionIds))
       .orderBy(
@@ -955,7 +915,6 @@ export class DrizzleLearnerQuestionQuery {
         contextMeaningKo: expressionOccurrences.contextMeaningKo,
         pronunciationKo: expressionPronunciations.pronunciationKo,
         toneMarks: expressionPronunciations.toneMarks,
-        mediaStorageKey: expressionMediaAssets.storageKey,
         representative: expressionOccurrences.representative,
       })
       .from(expressionOccurrences)
@@ -971,10 +930,6 @@ export class DrizzleLearnerQuestionQuery {
             expressionPronunciations.vocabularyId,
           ),
         ),
-      )
-      .leftJoin(
-        expressionMediaAssets,
-        eq(expressionPronunciations.mediaAssetId, expressionMediaAssets.id),
       )
       .where(
         inArray(expressionOccurrences.sentenceVersionId, sentenceVersionIds),
@@ -995,7 +950,6 @@ export class DrizzleLearnerQuestionQuery {
           translationKo: sentence.translationKo,
           pronunciationKo: sentence.pronunciationKo,
           toneMarks: sentence.toneMarks,
-          media: { storageKey: sentence.mediaStorageKey },
           tokens: tokenRows
             .filter(
               (token) => token.sentenceVersionId === sentence.sentenceVersionId,
@@ -1012,10 +966,6 @@ export class DrizzleLearnerQuestionQuery {
               contextMeaningKo: token.contextMeaningKo,
               pronunciationKo: token.pronunciationKo,
               toneMarks: token.toneMarks,
-              media:
-                token.mediaStorageKey === null
-                  ? null
-                  : { storageKey: token.mediaStorageKey },
               role: token.role,
             })),
           expressions: expressionRows
@@ -1033,10 +983,6 @@ export class DrizzleLearnerQuestionQuery {
               contextMeaningKo: expression.contextMeaningKo,
               pronunciationKo: expression.pronunciationKo,
               toneMarks: expression.toneMarks,
-              media:
-                expression.mediaStorageKey === null
-                  ? null
-                  : { storageKey: expression.mediaStorageKey },
               representative: expression.representative,
             })),
         },
@@ -1056,7 +1002,6 @@ export class DrizzleLearnerQuestionQuery {
     return blockRows.sort(comparePosition).map((block) => ({
       id: block.id,
       kind: block.kind,
-      displayMode: block.displayMode,
       position: block.position,
       sentences: blockSentenceRows
         .filter((blockSentence) => blockSentence.blockId === block.id)

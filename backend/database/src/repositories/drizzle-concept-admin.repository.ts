@@ -1,5 +1,4 @@
 /** 관리자 개념 수명주기를 Drizzle transaction으로 구현한다 */
-import { randomUUID } from 'node:crypto';
 import type {
   ConceptAdminRepository,
   ConceptCandidateBlock,
@@ -7,9 +6,9 @@ import type {
   ConceptDomainErrorCode,
   ConceptDraftBlock,
   ConceptDraftRecord,
-  ConceptValidationReport,
   ConceptValidationCandidate,
   ConceptValidationIssue,
+  ConceptValidationReport,
   CreateConceptCommand,
   ReplaceConceptDraftCommand,
 } from '@flex-thia/domain';
@@ -17,17 +16,17 @@ import { validateConceptCandidate } from '@flex-thia/domain';
 import { and, asc, desc, eq, inArray, isNull, type SQL } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
-import { auditLogs } from '../schema/identity.schema.js';
-import { mediaAssets } from '../schema/media.schema.js';
+import { randomUUID } from 'node:crypto';
 import {
   conceptBlockExamples,
   conceptBlocks,
   concepts,
   conceptVersions,
 } from '../schema/concepts.schema.js';
-import { thaiSentenceVersions } from '../schema/thai-content.schema.js';
+import { auditLogs } from '../schema/identity.schema.js';
 import {
   expressionOccurrences,
+  thaiSentenceVersions,
   tokenOccurrences,
 } from '../schema/thai-content.schema.js';
 import {
@@ -39,7 +38,6 @@ import {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const conceptSchema = {
   auditLogs,
-  mediaAssets,
   conceptBlockExamples,
   conceptBlocks,
   concepts,
@@ -85,14 +83,10 @@ interface CandidateExampleRow {
   sentenceVersionId: string;
   noteKo: string | null;
   sentenceExists: boolean;
-  audioAssetExists: boolean;
-  audioAssetStatus: 'UPLOADING' | 'READY' | 'REJECTED' | null;
   interactionIssues: Array<{
     kind: 'TOKEN' | 'EXPRESSION';
     index: number;
     referenceValid: boolean;
-    audioAssetExists: boolean;
-    audioAssetStatus: 'UPLOADING' | 'READY' | 'REJECTED' | null;
   }>;
 }
 
@@ -175,8 +169,6 @@ export const assembleConceptValidationCandidate = (
             sentenceVersionId: example.sentenceVersionId,
             noteKo: example.noteKo,
             sentenceExists: example.sentenceExists,
-            audioAssetExists: example.audioAssetExists,
-            audioAssetStatus: example.audioAssetStatus,
             interactionIssues: example.interactionIssues,
           })),
       };
@@ -224,8 +216,6 @@ const loadCandidate = async (
       sentenceVersionId: conceptBlockExamples.sentenceVersionId,
       noteKo: conceptBlockExamples.noteKo,
       sentenceId: thaiSentenceVersions.id,
-      mediaAssetId: mediaAssets.id,
-      audioAssetStatus: mediaAssets.status,
     })
     .from(conceptBlockExamples)
     .innerJoin(
@@ -235,10 +225,6 @@ const loadCandidate = async (
     .leftJoin(
       thaiSentenceVersions,
       eq(conceptBlockExamples.sentenceVersionId, thaiSentenceVersions.id),
-    )
-    .leftJoin(
-      mediaAssets,
-      eq(thaiSentenceVersions.mediaAssetId, mediaAssets.id),
     )
     .where(eq(conceptBlocks.conceptVersionId, versionId))
     .orderBy(asc(conceptBlocks.position), asc(conceptBlockExamples.position));
@@ -254,8 +240,6 @@ const loadCandidate = async (
             index: tokenOccurrences.position,
             meaningReferenceId: vocabularyMeanings.id,
             pronunciationReferenceId: vocabularyPronunciations.id,
-            audioAssetId: mediaAssets.id,
-            audioAssetStatus: mediaAssets.status,
           })
           .from(tokenOccurrences)
           .leftJoin(
@@ -278,10 +262,6 @@ const loadCandidate = async (
               ),
             ),
           )
-          .leftJoin(
-            mediaAssets,
-            eq(vocabularyPronunciations.mediaAssetId, mediaAssets.id),
-          )
           .where(inArray(tokenOccurrences.sentenceVersionId, sentenceIds));
   const expressionFeedback =
     sentenceIds.length === 0
@@ -292,8 +272,6 @@ const loadCandidate = async (
             index: expressionOccurrences.startTokenIndex,
             meaningReferenceId: vocabularyMeanings.id,
             pronunciationReferenceId: vocabularyPronunciations.id,
-            audioAssetId: mediaAssets.id,
-            audioAssetStatus: mediaAssets.status,
           })
           .from(expressionOccurrences)
           .leftJoin(
@@ -319,10 +297,6 @@ const loadCandidate = async (
               ),
             ),
           )
-          .leftJoin(
-            mediaAssets,
-            eq(vocabularyPronunciations.mediaAssetId, mediaAssets.id),
-          )
           .where(inArray(expressionOccurrences.sentenceVersionId, sentenceIds));
   return assembleConceptValidationCandidate(
     version,
@@ -333,8 +307,6 @@ const loadCandidate = async (
       sentenceVersionId: row.sentenceVersionId,
       noteKo: row.noteKo,
       sentenceExists: row.sentenceId !== null,
-      audioAssetExists: row.mediaAssetId !== null,
-      audioAssetStatus: row.audioAssetStatus,
       interactionIssues: [
         ...tokenFeedback
           .filter(
@@ -347,8 +319,6 @@ const loadCandidate = async (
             referenceValid:
               feedback.meaningReferenceId !== null &&
               feedback.pronunciationReferenceId !== null,
-            audioAssetExists: feedback.audioAssetId !== null,
-            audioAssetStatus: feedback.audioAssetStatus,
           })),
         ...expressionFeedback
           .filter(
@@ -361,8 +331,6 @@ const loadCandidate = async (
             referenceValid:
               feedback.meaningReferenceId !== null &&
               feedback.pronunciationReferenceId !== null,
-            audioAssetExists: feedback.audioAssetId !== null,
-            audioAssetStatus: feedback.audioAssetStatus,
           })),
       ],
     })),
@@ -398,7 +366,6 @@ export const lockConceptReferencedContent = async (
   const sentenceRows = await session
     .select({
       id: thaiSentenceVersions.id,
-      mediaAssetId: thaiSentenceVersions.mediaAssetId,
     })
     .from(thaiSentenceVersions)
     .where(inArray(thaiSentenceVersions.id, sentenceIds))
@@ -441,32 +408,14 @@ export const lockConceptReferencedContent = async (
       .orderBy(asc(vocabularyMeanings.id))
       .for('update');
   }
-  const pronunciationRows =
-    pronunciationIds.length === 0
-      ? []
-      : await session
-          .select({
-            id: vocabularyPronunciations.id,
-            mediaAssetId: vocabularyPronunciations.mediaAssetId,
-          })
-          .from(vocabularyPronunciations)
-          .where(inArray(vocabularyPronunciations.id, pronunciationIds))
-          .orderBy(asc(vocabularyPronunciations.id))
-          .for('update');
-  const mediaIds = uniqueSorted([
-    ...sentenceRows.flatMap(({ mediaAssetId }) =>
-      mediaAssetId ? [mediaAssetId] : [],
-    ),
-    ...pronunciationRows.flatMap(({ mediaAssetId }) =>
-      mediaAssetId ? [mediaAssetId] : [],
-    ),
-  ]);
-  if (mediaIds.length > 0) {
+  if (pronunciationIds.length > 0) {
     await session
-      .select({ id: mediaAssets.id })
-      .from(mediaAssets)
-      .where(inArray(mediaAssets.id, mediaIds))
-      .orderBy(asc(mediaAssets.id))
+      .select({
+        id: vocabularyPronunciations.id,
+      })
+      .from(vocabularyPronunciations)
+      .where(inArray(vocabularyPronunciations.id, pronunciationIds))
+      .orderBy(asc(vocabularyPronunciations.id))
       .for('update');
   }
 };

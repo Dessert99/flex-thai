@@ -1,5 +1,9 @@
 /** 단어 연습 문항 materialize와 세션·답안 상태 전이를 검증한다 */
 import { describe, expect, it } from 'vitest';
+import {
+  VocabularyPracticeService,
+  type VocabularyPracticeDependencies,
+} from './vocabulary-practice.js';
 import type {
   AnswerVocabularyPracticeInput,
   CreateVocabularyPracticeInput,
@@ -10,10 +14,6 @@ import type {
   SubmitPracticeAnswerResult,
   VocabularyPracticeRepository,
 } from './vocabulary-practice.repository.js';
-import {
-  VocabularyPracticeService,
-  type VocabularyPracticeDependencies,
-} from './vocabulary-practice.js';
 
 const now = new Date('2026-07-26T03:00:00.000Z');
 
@@ -29,8 +29,6 @@ const createSource = (count = 10): PracticeSourceRecord => ({
         id: `pronunciation-${index + 1}`,
         pronunciationKo: `발음-${index + 1}`,
         toneMarks: 'M',
-        mediaAssetId: `media-${index + 1}`,
-        storageKey: `practice/audio-${index + 1}.mp3`,
       },
     ],
     card: {
@@ -51,8 +49,6 @@ const createSource = (count = 10): PracticeSourceRecord => ({
           id: `pronunciation-${index + 1}`,
           pronunciationKo: `발음-${index + 1}`,
           toneMarks: 'M',
-          mediaAssetId: `media-${index + 1}`,
-          storageKey: `practice/audio-${index + 1}.mp3`,
         },
       ],
       meaningPronunciations: [
@@ -128,91 +124,41 @@ const createInput = (
 });
 
 describe('VocabularyPracticeService 세션 생성', () => {
-  it.each([
-    'THAI_TO_MEANING',
-    'MEANING_TO_THAI',
-    'AUDIO_TO_THAI',
-    'AUDIO_TO_MEANING',
-  ] as const)('%s를 meaning 단위 4지선다로 만든다', async (mode) => {
-    const repository = new FakeVocabularyPracticeRepository();
-    const result = await createService(repository).create(
-      createInput({ modes: [mode] }),
-    );
+  it.each(['THAI_TO_MEANING', 'MEANING_TO_THAI'] as const)(
+    '%s를 meaning 단위 4지선다로 만든다',
+    async (mode) => {
+      const repository = new FakeVocabularyPracticeRepository();
+      const result = await createService(repository).create(
+        createInput({ modes: [mode] }),
+      );
 
-    expect(result.questions).toHaveLength(10);
-    expect(result.questions[0]).toMatchObject({
-      vocabularyId: 'vocabulary-1',
-      meaningId: 'meaning-1',
-      mode,
-    });
-    expect(result.questions[0]?.options).toHaveLength(4);
-    expect(
-      new Set(result.questions[0]?.options.map(({ label }) => label)).size,
-    ).toBe(4);
-  });
+      expect(result.questions).toHaveLength(10);
+      expect(result.questions[0]).toMatchObject({
+        vocabularyId: 'vocabulary-1',
+        meaningId: 'meaning-1',
+        mode,
+      });
+      expect(result.questions[0]?.options).toHaveLength(4);
+      expect(
+        new Set(result.questions[0]?.options.map(({ label }) => label)).size,
+      ).toBe(4);
+    },
+  );
 
   it('여러 방식은 source 순서에 round-robin으로 배정한다', async () => {
     const repository = new FakeVocabularyPracticeRepository();
     const result = await createService(repository).create(
       createInput({
-        modes: ['THAI_TO_MEANING', 'AUDIO_TO_MEANING'],
+        modes: ['THAI_TO_MEANING', 'MEANING_TO_THAI'],
       }),
     );
 
     expect(result.questions.slice(0, 4).map(({ mode }) => mode)).toEqual([
       'THAI_TO_MEANING',
-      'AUDIO_TO_MEANING',
+      'MEANING_TO_THAI',
       'THAI_TO_MEANING',
-      'AUDIO_TO_MEANING',
+      'MEANING_TO_THAI',
     ]);
-  });
-
-  it('연결 발음 없는 어의는 비음성 방식에 포함하고 음성 방식에서는 건너뛴다', async () => {
-    const repository = new FakeVocabularyPracticeRepository();
-    const source = createSource();
-    const [unlinked, ...linked] = source.candidates;
-    if (!unlinked) throw new Error('테스트 후보가 필요합니다.');
-    repository.source = {
-      ...source,
-      candidates: [{ ...unlinked, pronunciations: [] }, ...linked],
-    };
-
-    const result = await createService(repository).create(
-      createInput({
-        modes: ['AUDIO_TO_MEANING', 'THAI_TO_MEANING'],
-      }),
-    );
-
-    expect(result.questions[0]).toMatchObject({
-      vocabularyId: unlinked.vocabularyId,
-      mode: 'THAI_TO_MEANING',
-    });
-    expect(
-      result.questions
-        .filter(({ mode }) => mode.startsWith('AUDIO'))
-        .some(({ meaningId }) => meaningId === unlinked.meaningId),
-    ).toBe(false);
-  });
-
-  it('100번째 뒤의 음성 적격 어의도 최종 100문항 한도 안에서 선택한다', async () => {
-    const repository = new FakeVocabularyPracticeRepository();
-    const source = createSource(110);
-    repository.source = {
-      ...source,
-      candidates: source.candidates.map((candidate, index) =>
-        index < 100 ? { ...candidate, pronunciations: [] } : candidate,
-      ),
-    };
-
-    const result = await createService(repository).create(
-      createInput({
-        modes: ['AUDIO_TO_MEANING'],
-        questionCount: 10,
-      }),
-    );
-
-    expect(result.questions).toHaveLength(10);
-    expect(result.questions[0]?.meaningId).toBe('meaning-101');
   });
 
   it('RANDOM만 source 후보를 한 번 섞어 저장한다', async () => {

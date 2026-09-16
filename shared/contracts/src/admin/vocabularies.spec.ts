@@ -13,7 +13,6 @@ const ids = {
   vocabulary: '00000000-0000-4000-8000-000000000001',
   meaning: '00000000-0000-4000-8000-000000000002',
   pronunciation: '00000000-0000-4000-8000-000000000003',
-  media: '00000000-0000-4000-8000-000000000004',
   sentence: '00000000-0000-4000-8000-000000000005',
   questionVersion: '00000000-0000-4000-8000-000000000006',
   relation: '00000000-0000-4000-8000-000000000007',
@@ -64,7 +63,6 @@ describe('관리자 어휘 path·query·교체 계약', () => {
           clientRef: 'pronunciation.greeting',
           pronunciationKo: '싸왓디',
           toneMarks: 'L-L-M',
-          mediaAssetId: ids.media,
         },
       ],
       meaningPronunciations: [
@@ -138,8 +136,6 @@ describe('관리자 어휘 공개 응답 계약', () => {
           id: ids.pronunciation,
           pronunciationKo: '싸왓디',
           toneMarks: 'L-L-M',
-          mediaAssetId: ids.media,
-          mediaStatus: 'READY',
         },
       ],
       meaningPronunciations: [
@@ -166,14 +162,6 @@ describe('관리자 어휘 공개 응답 계약', () => {
     } as const;
 
     expect(adminVocabularyDetailResponseSchema.parse(detail)).toEqual(detail);
-    expect(() =>
-      adminVocabularyDetailResponseSchema.parse({
-        ...detail,
-        pronunciations: [
-          { ...detail.pronunciations[0], storageKey: 'audio/private' },
-        ],
-      }),
-    ).toThrow();
     expect(() =>
       adminVocabularyDetailResponseSchema.parse({
         ...detail,

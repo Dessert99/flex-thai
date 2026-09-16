@@ -1,11 +1,11 @@
 /** 단어장 Controller의 인증·strict Zod·HTTP operation 경계를 검증한다 */
+import { RequestMethod } from '@nestjs/common';
 import {
   GUARDS_METADATA,
   HTTP_CODE_METADATA,
   METHOD_METADATA,
   PATH_METADATA,
 } from '@nestjs/common/constants.js';
-import { RequestMethod } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
 import { CognitoAuthorizerGuard } from '../identity/cognito-authorizer.guard.js';
@@ -100,7 +100,7 @@ describe('LearnerWordbooksController strict 공개 입력', () => {
     await controller.rename(
       user,
       { wordbookId: ids.wordbook },
-      { name: ' 듣기 ' },
+      { name: ' 읽기 ' },
     );
     await controller.listItems(
       user,
@@ -110,7 +110,7 @@ describe('LearnerWordbooksController strict 공개 입력', () => {
 
     expect(fake.create).toHaveBeenCalledWith('user-id', { name: 'FLEX' });
     expect(fake.rename).toHaveBeenCalledWith('user-id', ids.wordbook, {
-      name: '듣기',
+      name: '읽기',
     });
     expect(fake.listItems).toHaveBeenCalledWith('user-id', ids.wordbook, {
       query: 'สวัสดี',

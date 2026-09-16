@@ -1,10 +1,10 @@
 /** 게시 개념의 목차와 종류별 블록을 semantic HTML로 표현한다 */
-import type { ConceptDetailResponse } from '@flex-thia/contracts';
 import { InteractiveThaiSentence } from '@/features/explore-thai-content';
 import { ContentErrorReportDialog } from '@/features/report-content-error';
-import { Skeleton } from '@/shared/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
 import { Button } from '@/shared/ui/button';
+import { Skeleton } from '@/shared/ui/skeleton';
+import type { ConceptDetailResponse } from '@flex-thia/contracts';
 
 interface ConceptDetailPageViewProps {
   data: ConceptDetailResponse | undefined;
@@ -189,22 +189,6 @@ function ConceptBlock({
                   }}
                   triggerLabel='예문 오류 신고'
                 />
-                {example.sentence.audioUrl === null ? null : (
-                  <ContentErrorReportDialog
-                    origin={{
-                      kind: 'AUDIO',
-                      source: {
-                        kind: 'SENTENCE',
-                        sentenceVersionId: example.sentence.sentenceVersionId,
-                      },
-                    }}
-                    preview={{
-                      title: example.sentence.originalText,
-                      metadata: example.sentence.pronunciationKo,
-                    }}
-                    triggerLabel='예문 음성 오류 신고'
-                  />
-                )}
               </div>
               {example.noteKo ? <p lang='ko'>{example.noteKo}</p> : null}
             </li>

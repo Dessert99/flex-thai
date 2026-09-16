@@ -1,4 +1,4 @@
-/** 월간 AI·TTS 비용 경고 기준과 최신 idempotent 요청을 저장한다 */
+/** 월간 AI 비용 경고 기준과 최신 idempotent 요청을 저장한다 */
 import { sql } from 'drizzle-orm';
 import {
   check,

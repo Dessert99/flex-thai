@@ -6,23 +6,23 @@ import {
   VocabularyAdminRepositoryError,
   type VocabularyAdminTransaction,
   type VocabularyMergeGraph,
-  type VocabularyRelationsMergeRepository,
   type VocabularyRelationsMergeRelationWrite,
+  type VocabularyRelationsMergeRepository,
   type VocabularyRelationsMergeStoredRelation,
 } from '@flex-thia/domain';
 import { and, asc, eq, inArray, ne, or, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
+import * as schema from '../schema/index.js';
 import {
   auditLogs,
   expressionOccurrences,
-  mediaAssets,
   savedVocabularies,
   tokenOccurrences,
   vocabularies,
-  vocabularyPracticeQuestions,
   vocabularyMeaningPronunciations,
   vocabularyMeanings,
+  vocabularyPracticeQuestions,
   vocabularyPronunciations,
   wordbookItems,
 } from '../schema/index.js';
@@ -30,7 +30,6 @@ import {
   vocabularyMeaningRelations,
   vocabularyMergeHistory,
 } from '../schema/vocabulary.schema.js';
-import * as schema from '../schema/index.js';
 
 type VocabularyAdminDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 type VocabularyAdminSession = Pick<
@@ -255,7 +254,6 @@ const createVocabularyAdminTransaction = (
     const pronunciations = await transaction
       .select({
         id: vocabularyPronunciations.id,
-        mediaAssetId: vocabularyPronunciations.mediaAssetId,
       })
       .from(vocabularyPronunciations)
       .where(eq(vocabularyPronunciations.vocabularyId, vocabularyId))
@@ -318,16 +316,6 @@ const createVocabularyAdminTransaction = (
       );
     }
     return rows[0]?.id ?? null;
-  },
-
-  async findMediaAssetsByIds(mediaAssetIds) {
-    if (mediaAssetIds.length === 0) return [];
-    return transaction
-      .select({ id: mediaAssets.id, status: mediaAssets.status })
-      .from(mediaAssets)
-      .where(inArray(mediaAssets.id, mediaAssetIds))
-      .orderBy(asc(mediaAssets.id))
-      .for('key share');
   },
 
   async replaceVocabulary(graph) {

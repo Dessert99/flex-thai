@@ -7,69 +7,8 @@ const seedSql = readFileSync(
   new URL('../../seed/local.sql', import.meta.url),
   'utf8',
 );
-const uuidSource = '[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}';
-
-const readCompletedSentenceTtsItem = () => {
-  const match = seedSql.match(
-    new RegExp(
-      `insert into tts_items[\\s\\S]*?values\\s*\\(\\s*'${uuidSource}',\\s*'${uuidSource}',\\s*'THAI_SENTENCE_VERSION',\\s*'(?<targetId>${uuidSource})',\\s*'(?<targetText>[^']+)',\\s*true,\\s*'(?<revision>${uuidSource})',[\\s\\S]*?'(?<cacheKey>[0-9a-f]{64})',\\s*'SUCCEEDED',\\s*0,\\s*false,\\s*'(?<mediaAssetId>${uuidSource})'`,
-      'iu',
-    ),
-  );
-  if (!match?.groups) throw new Error('완료된 문장 TTS fixture가 필요합니다.');
-  return match.groups;
-};
-
-const readSentenceVersion = (sentenceVersionId: string) => {
-  const match = seedSql.match(
-    new RegExp(
-      `insert into thai_sentence_versions[\\s\\S]*?\\(\\s*'${sentenceVersionId}',\\s*'${uuidSource}',\\s*1,\\s*'(?<originalText>[^']+)',\\s*'[^']+',\\s*'[^']+',\\s*'[^']+',\\s*(?<mediaAssetId>null|'${uuidSource}'),\\s*(?<frozenAt>null|'[^']+')`,
-      'iu',
-    ),
-  );
-  if (!match?.groups) throw new Error('TTS 대상 문장 버전이 필요합니다.');
-  return {
-    originalText: match.groups.originalText,
-    mediaAssetId: match.groups.mediaAssetId?.replaceAll("'", ''),
-    frozenAt: match.groups.frozenAt?.replaceAll("'", ''),
-  };
-};
-
-const readReadyCacheMediaId = (cacheKey: string) => {
-  const match = seedSql.match(
-    new RegExp(
-      `insert into tts_audio_cache[\\s\\S]*?values\\s*\\(\\s*'${uuidSource}',\\s*'${cacheKey}',[\\s\\S]*?'READY',\\s*1,\\s*false,\\s*'(?<mediaAssetId>${uuidSource})'`,
-      'iu',
-    ),
-  );
-  if (!match?.groups?.mediaAssetId) {
-    throw new Error('READY TTS cache fixture가 필요합니다.');
-  }
-  return match.groups.mediaAssetId;
-};
 
 describe('로컬 seed SQL', () => {
-  it('READY media storage key를 local TTS reader의 canonical pattern으로 고정한다', () => {
-    const readyStorageKeys = [
-      ...new Set(
-        Array.from(
-          seedSql.matchAll(/'(?<storageKey>private\/tts\/runs\/[^']+\.wav)'/gu),
-        ).map((match) => match.groups?.storageKey),
-      ),
-    ].sort();
-
-    expect(readyStorageKeys).toEqual([
-      'private/tts/runs/00000000-0000-4000-8000-000000000010.wav',
-      'private/tts/runs/00000000-0000-4000-8000-000000000011.wav',
-      'private/tts/runs/00000000-0000-4000-8000-000000000013.wav',
-    ]);
-    expect(seedSql).not.toContain("'audio/local/vocabulary.mp3'");
-    expect(seedSql).not.toContain("'audio/local/sentence.mp3'");
-    expect(seedSql).toMatch(
-      /'private\/tts\/runs\/00000000-0000-4000-8000-000000000010\.wav',\s*'audio\/wav',\s*44,\s*'8b8fbafe8679076454429756fa72f11d5f442c87381cc6a4285451d826a9e629',\s*'audio\/wav',\s*44,\s*'8b8fbafe8679076454429756fa72f11d5f442c87381cc6a4285451d826a9e629',\s*'READY'/u,
-    );
-  });
-
   it('학교 이메일 사용자와 관리자 MFA 상태를 password 없이 만든다', () => {
     expect(seedSql).toContain("'admin@hufs.ac.kr'");
     expect(seedSql).toContain("'learner@hufs.ac.kr'");
@@ -113,11 +52,8 @@ describe('로컬 seed SQL', () => {
     );
   });
 
-  it('7대 분류의 유형 버전과 기존 ACTIVE 버전의 준비 데이터를 만든다', () => {
+  it('4대 분류의 유형 버전과 기존 ACTIVE 버전의 준비 데이터를 만든다', () => {
     [
-      'LISTENING_RESPONSE',
-      'LISTENING_DIALOGUE',
-      'LISTENING_PASSAGE',
       'READING_VOCABULARY_GRAMMAR',
       'READING_SYNONYM_RELATION',
       'READING_ERROR_IDENTIFICATION',
@@ -137,7 +73,7 @@ describe('로컬 seed SQL', () => {
       /'00000000-0000-4000-8000-000000000311',[\s\S]*'canonical-reading-vocabulary-v1'/iu,
     );
     expect(seedSql).toMatch(
-      /'00000000-0000-4000-8000-000000000312',[\s\S]*?'DRAFT'/iu,
+      /'00000000-0000-4000-8000-000000000315',[\s\S]*?'DRAFT'/iu,
     );
   });
 
@@ -186,85 +122,5 @@ describe('로컬 seed SQL', () => {
     expect(seedSql).toMatch(
       /'기본 문제 생성',\s*'QUESTION_GENERATION',\s*2,[\s\S]*?false/iu,
     );
-  });
-
-  it('비용 경고 singleton과 TTS 비용 실행을 고정한다', () => {
-    expect(seedSql).toMatch(/update operations_cost_settings/iu);
-    expect(seedSql).not.toMatch(/insert into operations_cost_settings/iu);
-    expect(seedSql).toMatch(
-      /currency = 'USD',[\s\S]*warning_usd = '15.000000',[\s\S]*critical_usd = '24.000000'/iu,
-    );
-    expect(seedSql).toMatch(/insert into tts_provider_runs/iu);
-    expect(seedSql).toContain("'0.25000000'");
-    expect(seedSql).toContain("'로컬 비활성 음성'");
-    expect(seedSql).toMatch(/insert into tts_jobs[\s\S]*?'RUNNING'/iu);
-    expect(seedSql).toMatch(/insert into tts_jobs[\s\S]*?'FAILED'/iu);
-  });
-
-  it('API local 기본 UUID에 deterministic TTS 음성 preset을 활성화한다', () => {
-    expect(seedSql).toMatch(/insert into tts_voice_presets/iu);
-    expect(seedSql).toContain("'00000000-0000-4000-8000-000000000001'");
-    expect(seedSql).toContain("'LOCAL_FAKE'");
-    expect(seedSql).toContain("'deterministic-v1'");
-    expect(seedSql).toContain("'th-TH-standard-a'");
-    expect(seedSql).toContain("'2026-07-27'");
-    expect(seedSql).not.toMatch(
-      /insert into tts_voice_presets[\s\S]*?(?:POLLY|GOOGLE|AZURE|ELEVENLABS)/iu,
-    );
-  });
-
-  it('deterministic preset snapshot과 READY media를 연결한 TTS 운영 fixture를 만든다', () => {
-    expect(seedSql).toMatch(/insert into tts_jobs/iu);
-    expect(seedSql).toMatch(/insert into tts_items/iu);
-    expect(seedSql).toMatch(/insert into tts_audio_cache/iu);
-    expect(seedSql).toContain(
-      '"presetId":"00000000-0000-4000-8000-000000000001"',
-    );
-    expect(seedSql).toMatch(
-      /insert into tts_items[\s\S]*?'SUCCEEDED'[\s\S]*?'00000000-0000-4000-8000-000000000013'/iu,
-    );
-    expect(seedSql).toMatch(
-      /insert into tts_audio_cache[\s\S]*?'READY'[\s\S]*?'00000000-0000-4000-8000-000000000013'/iu,
-    );
-  });
-
-  it('완료된 문장 TTS 항목은 expected DRAFT 문제 revision이 참조하는 문장을 대상으로 한다', () => {
-    const item = readCompletedSentenceTtsItem();
-    const draftVersionPattern = new RegExp(
-      `\\(\\s*'${item.revision}',\\s*'${uuidSource}',\\s*\\d+,\\s*'${uuidSource}',\\s*'${uuidSource}',\\s*\\d+,\\s*'DRAFT'`,
-      'iu',
-    );
-    const block = seedSql.match(
-      new RegExp(
-        `\\(\\s*'(?<blockId>${uuidSource})',\\s*'${item.revision}',\\s*'QUESTION'`,
-        'iu',
-      ),
-    )?.groups?.blockId;
-
-    expect(seedSql).toMatch(draftVersionPattern);
-    expect(block).toBeDefined();
-    expect(seedSql).toMatch(
-      new RegExp(
-        `\\(\\s*'${uuidSource}',\\s*'${block}',\\s*'${item.targetId}'`,
-        'iu',
-      ),
-    );
-  });
-
-  it('완료된 문장 TTS 대상은 원문이 같고 게시 freeze 없이 연결 가능하다', () => {
-    const item = readCompletedSentenceTtsItem();
-    const sentence = readSentenceVersion(item.targetId!);
-
-    expect(sentence.originalText).toBe(item.targetText);
-    expect(sentence.frozenAt).toBe('null');
-  });
-
-  it('완료된 문장·항목·READY cache는 성공 후 같은 media를 가리킨다', () => {
-    const item = readCompletedSentenceTtsItem();
-    const sentence = readSentenceVersion(item.targetId!);
-    const cacheMediaAssetId = readReadyCacheMediaId(item.cacheKey!);
-
-    expect(sentence.mediaAssetId).toBe(item.mediaAssetId);
-    expect(cacheMediaAssetId).toBe(item.mediaAssetId);
   });
 });

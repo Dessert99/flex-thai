@@ -1,5 +1,10 @@
 /** canonical 콘텐츠 초안의 참조 해석·검증·원자 저장 경계를 고정한다 */
 import { describe, expect, it, vi } from 'vitest';
+import {
+  ContentDraftService,
+  type CreateQuestionDraftCommand,
+  type CreateVocabularyDraftCommand,
+} from './content-draft.js';
 import type {
   ContentDraftRepository,
   ContentDraftTransaction,
@@ -7,21 +12,14 @@ import type {
   QuestionTypeVersionReferenceRecord,
   VocabularyReferenceRecord,
 } from './content-draft.repository.js';
-import {
-  ContentDraftService,
-  type CreateQuestionDraftCommand,
-  type CreateVocabularyDraftCommand,
-} from './content-draft.js';
 import type {
   CanonicalDraftSentenceInput,
   ContentDraftAuditContext,
 } from './content-import.js';
-import type { MediaAsset } from '../media/media-asset.js';
 
 const ids = {
   actor: '00000000-0000-4000-8000-000000000001',
   import: '00000000-0000-4000-8000-000000000002',
-  media: '00000000-0000-4000-8000-000000000003',
   vocabulary: '00000000-0000-4000-8000-000000000004',
   meaning: '00000000-0000-4000-8000-000000000005',
   pronunciation: '00000000-0000-4000-8000-000000000006',
@@ -38,48 +36,6 @@ const context: ContentDraftAuditContext = {
   actorUserId: ids.actor,
   requestId: 'request-id',
   occurredAt,
-};
-
-const readyMedia = (
-  id = ids.media,
-  status: MediaAsset['status'] = 'READY',
-): MediaAsset => {
-  const base = {
-    id,
-    kind: 'AUDIO' as const,
-    storageKey: `audio/${id}`,
-    declaredMimeType: 'audio/mpeg',
-    declaredSizeBytes: 3,
-    declaredSha256: 'a'.repeat(64),
-  };
-  if (status === 'READY') {
-    return {
-      ...base,
-      mimeType: 'audio/mpeg',
-      sizeBytes: 3,
-      sha256: 'a'.repeat(64),
-      status,
-      readyAt: occurredAt,
-    };
-  }
-  if (status === 'REJECTED') {
-    return {
-      ...base,
-      mimeType: 'audio/ogg',
-      sizeBytes: 4,
-      sha256: 'b'.repeat(64),
-      status,
-      readyAt: null,
-    };
-  }
-  return {
-    ...base,
-    mimeType: null,
-    sizeBytes: null,
-    sha256: null,
-    status,
-    readyAt: null,
-  };
 };
 
 const importedWord: ImportedVocabularyReferenceItem = {
@@ -106,14 +62,12 @@ const importedExpression: ImportedVocabularyReferenceItem = {
 
 interface TransactionOptions {
   duplicateVocabularyId?: string | null;
-  mediaAssets?: MediaAsset[];
   importedItems?: ImportedVocabularyReferenceItem[];
   vocabularies?: VocabularyReferenceRecord[];
   meanings?: Array<{ id: string; vocabularyId: string }>;
   pronunciations?: Array<{
     id: string;
     vocabularyId: string;
-    mediaAssetId: string | null;
   }>;
   questionTypeExists?: boolean;
   questionTypeVersion?: QuestionTypeVersionReferenceRecord;
@@ -122,7 +76,6 @@ interface TransactionOptions {
 const createTransaction = (
   options: TransactionOptions = {},
 ): ContentDraftTransaction => {
-  const mediaAssets = options.mediaAssets ?? [readyMedia()];
   const importedItems = options.importedItems ?? [
     importedWord,
     importedExpression,
@@ -139,12 +92,10 @@ const createTransaction = (
     {
       id: ids.pronunciation,
       vocabularyId: ids.vocabulary,
-      mediaAssetId: ids.media,
     },
     {
       id: ids.expressionPronunciation,
       vocabularyId: ids.expression,
-      mediaAssetId: ids.media,
     },
   ];
 
@@ -155,11 +106,6 @@ const createTransaction = (
         options.duplicateVocabularyId === undefined
           ? null
           : options.duplicateVocabularyId,
-      ),
-    findMediaAssetById: vi
-      .fn()
-      .mockImplementation((id: string) =>
-        Promise.resolve(mediaAssets.find((asset) => asset.id === id) ?? null),
       ),
     findSuccessfulVocabularyImportItemsByReference: vi
       .fn()
@@ -261,13 +207,11 @@ const vocabularyCommand = (
         clientRef: 'pronunciation-1',
         pronunciationKo: '싸왓디',
         toneMarks: 'LHL',
-        mediaAssetId: ids.media,
       },
       {
         clientRef: 'pronunciation-2',
         pronunciationKo: '크랍',
         toneMarks: 'H',
-        mediaAssetId: ids.media,
       },
     ],
     ...overrides,
@@ -279,7 +223,6 @@ const sentenceInput = (): CanonicalDraftSentenceInput => ({
   translationKo: '번역',
   pronunciationKo: '발음',
   toneMarks: '성조',
-  mediaAssetId: ids.media,
   tokens: [
     {
       surface: 'ก',
@@ -329,7 +272,6 @@ const questionCommand = (
     blocks: [
       {
         kind: 'QUESTION',
-        displayMode: 'TEXT_AND_AUDIO',
         sentences: [{ sentence }],
       },
     ],
@@ -353,9 +295,7 @@ const questionCommand = (
 
 describe('ContentDraftService 어휘 초안', () => {
   it('정규화와 뜻·발음 all-to-all mapping을 원자 저장하고 내부 참조 map을 반환한다', async () => {
-    const transaction = createTransaction({
-      mediaAssets: [readyMedia(ids.media, 'UPLOADING')],
-    });
+    const transaction = createTransaction({});
     const repository = createRepository(transaction);
     const service = new ContentDraftService(repository, createIdGenerator());
 
@@ -495,22 +435,6 @@ describe('ContentDraftService 어휘 초안', () => {
     await expect(service.createVocabularyItem(command)).rejects.toMatchObject({
       code: 'IMPORT_CONTENT_INVALID',
       path: 'meanings',
-    });
-    expect(transaction.saveVocabularyDraft).not.toHaveBeenCalled();
-  });
-
-  it('존재하지 않는 발음 media를 안정적인 참조 오류로 거절한다', async () => {
-    const transaction = createTransaction({ mediaAssets: [] });
-    const service = new ContentDraftService(
-      createRepository(transaction),
-      createIdGenerator(),
-    );
-
-    await expect(
-      service.createVocabularyItem(vocabularyCommand()),
-    ).rejects.toMatchObject({
-      code: 'IMPORT_REFERENCE_NOT_FOUND',
-      path: 'pronunciations.0.mediaAssetId',
     });
     expect(transaction.saveVocabularyDraft).not.toHaveBeenCalled();
   });
@@ -863,7 +787,6 @@ describe('ContentDraftService 문제 초안', () => {
         {
           id: ids.pronunciation,
           vocabularyId: ids.otherVocabulary,
-          mediaAssetId: ids.media,
         },
       ],
     });
@@ -935,58 +858,6 @@ describe('ContentDraftService 문제 초안', () => {
     ).rejects.toMatchObject({
       code: 'IMPORT_CONTENT_INVALID',
       path: 'blocks.0.sentences.0.sentence.tokens.0.surface',
-    });
-    expect(transaction.saveQuestionDraft).not.toHaveBeenCalled();
-  });
-
-  it('sentence media가 READY가 아니면 stable media 오류로 거절한다', async () => {
-    const transaction = createTransaction({
-      mediaAssets: [readyMedia(ids.media, 'UPLOADING')],
-    });
-    const service = new ContentDraftService(
-      createRepository(transaction),
-      createIdGenerator(),
-    );
-
-    await expect(
-      service.createQuestionItem(questionCommand()),
-    ).rejects.toMatchObject({
-      code: 'IMPORT_MEDIA_NOT_READY',
-      path: 'blocks.0.sentences.0.sentence.mediaAssetId',
-    });
-    expect(transaction.saveQuestionDraft).not.toHaveBeenCalled();
-  });
-
-  it('import 문장에서 mediaAssetId를 생략하면 저장 전에 거절한다', async () => {
-    const transaction = createTransaction();
-    const service = new ContentDraftService(
-      createRepository(transaction),
-      createIdGenerator(),
-    );
-    const sentence = sentenceInput();
-    delete (sentence as unknown as Partial<CanonicalDraftSentenceInput>)
-      .mediaAssetId;
-
-    await expect(
-      service.createQuestionItem(questionCommand(sentence)),
-    ).rejects.toMatchObject({
-      path: 'blocks.0.sentences.0.sentence.mediaAssetId',
-    });
-    expect(transaction.saveQuestionDraft).not.toHaveBeenCalled();
-  });
-
-  it('sentence media가 없으면 stable reference 오류로 거절한다', async () => {
-    const transaction = createTransaction({ mediaAssets: [] });
-    const service = new ContentDraftService(
-      createRepository(transaction),
-      createIdGenerator(),
-    );
-
-    await expect(
-      service.createQuestionItem(questionCommand()),
-    ).rejects.toMatchObject({
-      code: 'IMPORT_REFERENCE_NOT_FOUND',
-      path: 'blocks.0.sentences.0.sentence.mediaAssetId',
     });
     expect(transaction.saveQuestionDraft).not.toHaveBeenCalled();
   });

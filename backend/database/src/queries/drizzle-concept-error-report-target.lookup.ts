@@ -4,14 +4,13 @@ import { and, asc, eq, isNotNull } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import type { ConceptErrorReportTargetLookup } from '../repositories/drizzle-content-error-report.repository.js';
-import * as baseSchema from '../schema/index.js';
 import {
   conceptBlockExamples,
   conceptBlocks,
   concepts,
   conceptVersions,
 } from '../schema/concepts.schema.js';
-import { mediaAssets } from '../schema/media.schema.js';
+import * as baseSchema from '../schema/index.js';
 import {
   thaiSentenceVersions,
   tokenOccurrences,
@@ -34,7 +33,6 @@ interface PublishedConceptSentenceRow {
   originalText: string;
   translationKo: string;
   pronunciationKo: string;
-  mediaAssetId: string;
 }
 
 /** 현재 게시된 개념 graph만 콘텐츠 오류 신고 target으로 공개한다 */
@@ -101,33 +99,6 @@ export class DrizzleConceptErrorReportTargetLookup implements ConceptErrorReport
     return this.buildSentenceTarget(sentence, input.tokenPosition);
   }
 
-  /** 공개 예시 문장의 READY media만 audio target으로 만든다 */
-  async resolveSentenceAudio(
-    sentenceVersionId: string,
-  ): Promise<ResolvedContentErrorReportTarget | null> {
-    const sentence = await this.loadPublishedConceptSentence(sentenceVersionId);
-    if (!sentence) return null;
-    return {
-      reference: {
-        kind: 'AUDIO',
-        contentId: sentence.mediaAssetId,
-        contentVersionId: sentence.sentenceVersionId,
-        questionVersionId: null,
-        sentenceVersionId: sentence.sentenceVersionId,
-        mediaAssetId: sentence.mediaAssetId,
-        locationId: null,
-      },
-      snapshot: {
-        title: `${sentence.originalText} 음성`,
-        primaryText: sentence.translationKo,
-        secondaryText: sentence.pronunciationKo,
-        versionLabel: `버전 ${sentence.version}`,
-        locationLabel: '문장 음성',
-        audioAssetId: sentence.mediaAssetId,
-      },
-    };
-  }
-
   private async loadPublishedConcept(
     conceptId: string,
     conceptVersionId: string,
@@ -167,7 +138,6 @@ export class DrizzleConceptErrorReportTargetLookup implements ConceptErrorReport
         originalText: thaiSentenceVersions.originalText,
         translationKo: thaiSentenceVersions.translationKo,
         pronunciationKo: thaiSentenceVersions.pronunciationKo,
-        mediaAssetId: mediaAssets.id,
       })
       .from(conceptBlockExamples)
       .innerJoin(
@@ -189,10 +159,6 @@ export class DrizzleConceptErrorReportTargetLookup implements ConceptErrorReport
         thaiSentenceVersions,
         eq(thaiSentenceVersions.id, conceptBlockExamples.sentenceVersionId),
       )
-      .innerJoin(
-        mediaAssets,
-        eq(mediaAssets.id, thaiSentenceVersions.mediaAssetId),
-      )
       .where(
         and(
           eq(conceptBlockExamples.sentenceVersionId, sentenceVersionId),
@@ -200,7 +166,6 @@ export class DrizzleConceptErrorReportTargetLookup implements ConceptErrorReport
           eq(concepts.status, 'PUBLISHED'),
           eq(conceptVersions.status, 'PUBLISHED'),
           isNotNull(thaiSentenceVersions.frozenAt),
-          eq(mediaAssets.status, 'READY'),
         ),
       )
       .orderBy(
@@ -211,7 +176,7 @@ export class DrizzleConceptErrorReportTargetLookup implements ConceptErrorReport
       )
       .limit(1);
     const row = rows[0];
-    return row?.mediaAssetId ? row : null;
+    return row ?? null;
   }
 
   private buildConceptTarget(
@@ -225,7 +190,6 @@ export class DrizzleConceptErrorReportTargetLookup implements ConceptErrorReport
         contentVersionId: concept.conceptVersionId,
         questionVersionId: null,
         sentenceVersionId: null,
-        mediaAssetId: null,
         locationId: block?.id ?? null,
       },
       snapshot: {
@@ -234,7 +198,6 @@ export class DrizzleConceptErrorReportTargetLookup implements ConceptErrorReport
         secondaryText: block ? concept.summary : null,
         versionLabel: `버전 ${concept.version}`,
         locationLabel: block ? `개념 블록 ${block.position + 1}` : '개념 상세',
-        audioAssetId: null,
       },
     };
   }
@@ -250,7 +213,6 @@ export class DrizzleConceptErrorReportTargetLookup implements ConceptErrorReport
         contentVersionId: sentence.sentenceVersionId,
         questionVersionId: null,
         sentenceVersionId: sentence.sentenceVersionId,
-        mediaAssetId: sentence.mediaAssetId,
         locationId: null,
       },
       snapshot: {
@@ -260,7 +222,6 @@ export class DrizzleConceptErrorReportTargetLookup implements ConceptErrorReport
         versionLabel: `버전 ${sentence.version}`,
         locationLabel:
           tokenPosition === null ? '문장' : `토큰 ${tokenPosition}`,
-        audioAssetId: sentence.mediaAssetId,
       },
     };
   }

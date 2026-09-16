@@ -1,11 +1,19 @@
-CREATE TYPE "public"."challenge_status" AS ENUM('PENDING', 'SUCCEEDED', 'EXPIRED', 'CANCELLED');--> statement-breakpoint
-CREATE TYPE "public"."user_role" AS ENUM('LEARNER', 'ADMIN');--> statement-breakpoint
-CREATE TYPE "public"."user_status" AS ENUM('ACTIVE', 'DISABLED');--> statement-breakpoint
-CREATE TYPE "public"."input_type" AS ENUM('TEXT', 'PDF', 'IMAGE');--> statement-breakpoint
-CREATE TYPE "public"."job_item_status" AS ENUM('PENDING', 'PROCESSING', 'SUCCEEDED', 'NEEDS_ATTENTION', 'FAILED');--> statement-breakpoint
-CREATE TYPE "public"."job_status" AS ENUM('QUEUED', 'RUNNING', 'COMPLETED', 'COMPLETED_WITH_FAILURES', 'FAILED', 'CANCELLED');--> statement-breakpoint
-CREATE TYPE "public"."job_type" AS ENUM('VOCAB_IMPORT', 'QUESTION_GENERATION');--> statement-breakpoint
-CREATE TYPE "public"."upload_status" AS ENUM('PENDING', 'VERIFIED', 'REJECTED');--> statement-breakpoint
+CREATE TYPE "public"."challenge_status" AS ENUM('PENDING', 'SUCCEEDED', 'EXPIRED', 'CANCELLED');
+--> statement-breakpoint
+CREATE TYPE "public"."user_role" AS ENUM('LEARNER', 'ADMIN');
+--> statement-breakpoint
+CREATE TYPE "public"."user_status" AS ENUM('ACTIVE', 'DISABLED');
+--> statement-breakpoint
+CREATE TYPE "public"."input_type" AS ENUM('TEXT', 'PDF', 'IMAGE');
+--> statement-breakpoint
+CREATE TYPE "public"."job_item_status" AS ENUM('PENDING', 'PROCESSING', 'SUCCEEDED', 'NEEDS_ATTENTION', 'FAILED');
+--> statement-breakpoint
+CREATE TYPE "public"."job_status" AS ENUM('QUEUED', 'RUNNING', 'COMPLETED', 'COMPLETED_WITH_FAILURES', 'FAILED', 'CANCELLED');
+--> statement-breakpoint
+CREATE TYPE "public"."job_type" AS ENUM('VOCAB_IMPORT', 'QUESTION_GENERATION');
+--> statement-breakpoint
+CREATE TYPE "public"."upload_status" AS ENUM('PENDING', 'VERIFIED', 'REJECTED');
+--> statement-breakpoint
 CREATE TABLE "audit_logs" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"actor_sub" text NOT NULL,
@@ -118,18 +126,32 @@ CREATE TABLE "uploads" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-ALTER TABLE "step_up_challenges" ADD CONSTRAINT "step_up_challenges_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "step_up_grants" ADD CONSTRAINT "step_up_grants_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "job_inputs" ADD CONSTRAINT "job_inputs_job_id_jobs_id_fk" FOREIGN KEY ("job_id") REFERENCES "public"."jobs"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "job_inputs" ADD CONSTRAINT "job_inputs_upload_id_uploads_id_fk" FOREIGN KEY ("upload_id") REFERENCES "public"."uploads"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "job_items" ADD CONSTRAINT "job_items_job_id_jobs_id_fk" FOREIGN KEY ("job_id") REFERENCES "public"."jobs"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "jobs" ADD CONSTRAINT "jobs_requested_by_users_id_fk" FOREIGN KEY ("requested_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "provider_runs" ADD CONSTRAINT "provider_runs_job_item_id_job_items_id_fk" FOREIGN KEY ("job_item_id") REFERENCES "public"."job_items"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "uploads" ADD CONSTRAINT "uploads_owner_id_users_id_fk" FOREIGN KEY ("owner_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "auth_challenges_email_hash_idx" ON "auth_challenges" USING btree ("email_hash");--> statement-breakpoint
-CREATE UNIQUE INDEX "users_cognito_sub_unique" ON "users" USING btree ("cognito_sub");--> statement-breakpoint
-CREATE UNIQUE INDEX "users_email_unique" ON "users" USING btree ("email");--> statement-breakpoint
-CREATE UNIQUE INDEX "jobs_requester_client_request_unique" ON "jobs" USING btree ("requested_by","client_request_id");--> statement-breakpoint
-CREATE INDEX "jobs_status_created_at_idx" ON "jobs" USING btree ("status","created_at");--> statement-breakpoint
-CREATE UNIQUE INDEX "provider_runs_item_operation_attempt_unique" ON "provider_runs" USING btree ("job_item_id","operation","attempt");--> statement-breakpoint
+ALTER TABLE "step_up_challenges" ADD CONSTRAINT "step_up_challenges_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "step_up_grants" ADD CONSTRAINT "step_up_grants_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "job_inputs" ADD CONSTRAINT "job_inputs_job_id_jobs_id_fk" FOREIGN KEY ("job_id") REFERENCES "public"."jobs"("id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "job_inputs" ADD CONSTRAINT "job_inputs_upload_id_uploads_id_fk" FOREIGN KEY ("upload_id") REFERENCES "public"."uploads"("id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "job_items" ADD CONSTRAINT "job_items_job_id_jobs_id_fk" FOREIGN KEY ("job_id") REFERENCES "public"."jobs"("id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "jobs" ADD CONSTRAINT "jobs_requested_by_users_id_fk" FOREIGN KEY ("requested_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "provider_runs" ADD CONSTRAINT "provider_runs_job_item_id_job_items_id_fk" FOREIGN KEY ("job_item_id") REFERENCES "public"."job_items"("id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "uploads" ADD CONSTRAINT "uploads_owner_id_users_id_fk" FOREIGN KEY ("owner_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
+CREATE INDEX "auth_challenges_email_hash_idx" ON "auth_challenges" USING btree ("email_hash");
+--> statement-breakpoint
+CREATE UNIQUE INDEX "users_cognito_sub_unique" ON "users" USING btree ("cognito_sub");
+--> statement-breakpoint
+CREATE UNIQUE INDEX "users_email_unique" ON "users" USING btree ("email");
+--> statement-breakpoint
+CREATE UNIQUE INDEX "jobs_requester_client_request_unique" ON "jobs" USING btree ("requested_by","client_request_id");
+--> statement-breakpoint
+CREATE INDEX "jobs_status_created_at_idx" ON "jobs" USING btree ("status","created_at");
+--> statement-breakpoint
+CREATE UNIQUE INDEX "provider_runs_item_operation_attempt_unique" ON "provider_runs" USING btree ("job_item_id","operation","attempt");
+--> statement-breakpoint
 CREATE UNIQUE INDEX "uploads_object_key_unique" ON "uploads" USING btree ("object_key");

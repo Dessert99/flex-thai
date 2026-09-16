@@ -1,4 +1,4 @@
-/** AI·TTS 운영 사용량·비용의 안전한 공개 JSON 계약을 정의한다 */
+/** AI 운영 사용량·비용의 안전한 공개 JSON 계약을 정의한다 */
 import { z } from 'zod';
 
 const usdDecimalPattern = /^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/u;
@@ -27,9 +27,9 @@ const timeRangeSchema = z
 const thresholdStatusSchema = z.enum(['NORMAL', 'WARNING', 'CRITICAL']);
 
 /** 정규화된 실행 출처 */
-export const usageCostSourceSchema = z.enum(['AI', 'TTS']);
+export const usageCostSourceSchema = z.enum(['AI']);
 
-/** AI·TTS provider 실행이 공통으로 보존하는 상태 */
+/** AI provider 실행이 공통으로 보존하는 상태 */
 export const usageCostRunStatusSchema = z.enum([
   'STARTED',
   'SUCCEEDED',
@@ -45,7 +45,6 @@ export const usageCostOverviewQuerySchema = z
     source: usageCostSourceSchema.optional(),
     provider: z.string().trim().min(1).max(100).optional(),
     model: z.string().trim().min(1).max(160).optional(),
-    voice: z.string().trim().min(1).max(160).optional(),
     status: usageCostRunStatusSchema.optional(),
   })
   .strict()
@@ -61,22 +60,14 @@ export const usageCostOverviewQuerySchema = z
         path: ['from'],
       });
     }
-    if (value.source === 'AI' && value.voice !== undefined) {
-      context.addIssue({
-        code: 'custom',
-        message: 'voice filter는 TTS에서만 사용할 수 있습니다.',
-        path: ['voice'],
-      });
-    }
   });
 
-/** provider/model/voice 단위의 실행·비용 집계 */
+/** provider/model 단위의 실행·비용 집계 */
 export const usageCostBreakdownSchema = z
   .object({
     source: usageCostSourceSchema,
     provider: z.string().min(1),
     model: z.string().min(1),
-    voice: z.string().min(1).nullable(),
     runCount: z.number().int().nonnegative(),
     estimatedCostUsd: estimatedCostUsdSchema,
   })
@@ -148,7 +139,7 @@ export type UsageCostOverviewQuery = z.infer<
   typeof usageCostOverviewQuerySchema
 >;
 
-/** provider/model/voice 비용 breakdown */
+/** provider/model 비용 breakdown */
 export type UsageCostBreakdown = z.infer<typeof usageCostBreakdownSchema>;
 
 /** 사용량·비용 overview 응답 */

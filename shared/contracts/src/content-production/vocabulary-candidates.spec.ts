@@ -10,41 +10,10 @@ import {
 const ids = {
   request: '00000000-0000-4000-8000-000000000001',
   vocabulary: '00000000-0000-4000-8000-000000000002',
-  media: '00000000-0000-4000-8000-000000000003',
   candidate: '00000000-0000-4000-8000-000000000004',
   job: '00000000-0000-4000-8000-000000000005',
   item: '00000000-0000-4000-8000-000000000006',
 } as const;
-
-const createDraftRequest = {
-  action: 'CREATE_DRAFT' as const,
-  expectedRevision: 3,
-  requestId: ids.request,
-  thai: 'สวัสดี',
-  kind: 'WORD' as const,
-  meanings: [
-    {
-      clientRef: 'meaning.greeting',
-      meaningKo: '안녕하세요',
-      partOfSpeech: '감탄사',
-      difficulty: 1,
-    },
-  ],
-  pronunciations: [
-    {
-      clientRef: 'pronunciation.main',
-      pronunciationKo: '싸왓디',
-      toneMarks: 'L-L-M',
-      mediaAssetId: ids.media,
-    },
-  ],
-  meaningPronunciations: [
-    {
-      meaningRef: 'meaning.greeting',
-      pronunciationRef: 'pronunciation.main',
-    },
-  ],
-};
 
 describe('AI 어휘 후보 공개 계약', () => {
   it('기존 어휘 연결 승인 요청을 action별 strict 입력으로 검증한다', () => {
@@ -66,59 +35,6 @@ describe('AI 어휘 후보 공개 계약', () => {
         privateInputKey: 'private/input.json',
       }),
     ).toThrow();
-  });
-
-  it('새 DRAFT 승인은 뜻·발음·sealed media·완전한 mapping graph를 요구한다', () => {
-    expect(
-      vocabularyCandidateApproveRequestSchema.parse(createDraftRequest),
-    ).toEqual(createDraftRequest);
-
-    for (const patch of [
-      { meanings: [] },
-      { pronunciations: [] },
-      { meaningPronunciations: [] },
-      {
-        pronunciations: [
-          {
-            ...createDraftRequest.pronunciations[0],
-            mediaAssetId: 'not-a-uuid',
-          },
-        ],
-      },
-      {
-        meaningPronunciations: [
-          ...createDraftRequest.meaningPronunciations,
-          ...createDraftRequest.meaningPronunciations,
-        ],
-      },
-      {
-        meanings: [
-          ...createDraftRequest.meanings,
-          { ...createDraftRequest.meanings[0] },
-        ],
-      },
-      {
-        pronunciations: [
-          ...createDraftRequest.pronunciations,
-          { ...createDraftRequest.pronunciations[0] },
-        ],
-      },
-      {
-        meaningPronunciations: [
-          {
-            meaningRef: 'missing',
-            pronunciationRef: 'pronunciation.main',
-          },
-        ],
-      },
-    ]) {
-      expect(() =>
-        vocabularyCandidateApproveRequestSchema.parse({
-          ...createDraftRequest,
-          ...patch,
-        }),
-      ).toThrow();
-    }
   });
 
   it('목록 query와 검수 command의 page·revision·request ID를 제한한다', () => {

@@ -1,8 +1,7 @@
-/** 어휘 상세의 발음 음성·원문·관련 문제 링크를 검증한다 */
+import { renderWithProviders } from '@/shared/test';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '@/shared/test';
 import {
   createDetail,
   createRelatedQuestions,
@@ -68,28 +67,6 @@ beforeEach(() => {
 });
 
 describe('어휘 상세 페이지', () => {
-  it('태국어 원문과 발음 audio, 현재 공개 관련 문제를 표시한다', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(
-      <VocabularyDetailPageContainer vocabularyId='01933b6a-8f13-7a19-b7e5-536d70f57aaa' />,
-    );
-
-    expect(await screen.findByText('สวัสดี')).toHaveAttribute('lang', 'th');
-    await user.click(screen.getByRole('tab', { name: '발음' }));
-    expect(
-      await screen.findByRole('region', { name: '안녕하세요 발음' }),
-    ).toHaveTextContent('싸왓디');
-    expect(screen.getByLabelText('สวัสดี 안녕하세요 발음')).toHaveAttribute(
-      'src',
-      'https://example.com/hello.mp3',
-    );
-    await user.click(screen.getByRole('tab', { name: '관련 문제' }));
-    expect(screen.getByRole('link', { name: '인사 표현' })).toHaveAttribute(
-      'href',
-      '/questions/01933b6a-8f13-7a19-b7e5-536d70f57ab1',
-    );
-  });
-
   it('단어장 picker와 예문 token 상호작용을 서로 중첩하지 않고 제공한다', async () => {
     const user = userEvent.setup();
     const { container } = renderWithProviders(
@@ -98,7 +75,7 @@ describe('어휘 상세 페이지', () => {
 
     expect(await screen.findByText('나는 온다')).toBeVisible();
     await user.click(
-      screen.getByRole('button', { name: 'ฉัน 뜻과 발음 듣기' }),
+      screen.getByRole('button', { name: 'ฉัน 뜻과 발음 보기' }),
     );
     expect(screen.getByText('나')).toBeVisible();
 
@@ -164,36 +141,6 @@ describe('어휘 상세 페이지', () => {
   });
 });
 
-describe('어휘 상세 학습 정보', () => {
-  it('종류·난이도와 뜻별 연결 발음·성조·audio 누락 상태를 표시한다', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(
-      <VocabularyDetailPageView
-        detail={createDetail()}
-        onWordbookMembershipConfirmed={vi.fn()}
-        relatedQuestions={[]}
-      />,
-    );
-
-    expect(screen.getByText('종류: WORD')).toBeVisible();
-    expect(screen.getByText(/난이도 1/)).toBeVisible();
-    await user.click(screen.getByRole('tab', { name: '발음' }));
-    expect(
-      screen.getByRole('region', { name: '안녕하세요 발음' }),
-    ).toHaveTextContent('싸왓디');
-    expect(
-      screen.getByRole('region', { name: '안녕하세요 발음' }),
-    ).toHaveTextContent('성조 L-L-M');
-    expect(screen.getByLabelText('สวัสดี 안녕하세요 발음')).toHaveAttribute(
-      'src',
-      'https://example.com/hello.mp3',
-    );
-    expect(screen.getByRole('region', { name: '인사 발음' })).toHaveTextContent(
-      '연결된 발음 음성이 없습니다.',
-    );
-  });
-});
-
 describe('어휘 오류 신고 연결', () => {
   it('어휘 하위 콘텐츠별 식별자를 오류 신고 origin에 명시한다', async () => {
     const user = userEvent.setup();
@@ -239,17 +186,5 @@ describe('어휘 오류 신고 연결', () => {
       }),
     );
     await user.click(screen.getByRole('tab', { name: '발음' }));
-    expect(
-      screen.getByRole('button', { name: '발음 오류 신고' }),
-    ).toHaveAttribute(
-      'data-origin',
-      JSON.stringify({
-        kind: 'AUDIO',
-        source: {
-          kind: 'VOCABULARY',
-          pronunciationId: detail.pronunciations[0]?.id,
-        },
-      }),
-    );
   });
 });

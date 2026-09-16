@@ -28,7 +28,6 @@ const candidate: GeneratedQuestionCandidate = {
     blocks: [
       {
         kind: 'QUESTION',
-        displayMode: 'TEXT',
         sentences: [
           { speaker: null, sentence: sentence('  สวัสดี\u200B ครับ  ') },
         ],

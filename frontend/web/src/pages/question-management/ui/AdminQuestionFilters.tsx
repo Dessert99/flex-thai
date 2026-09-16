@@ -114,14 +114,12 @@ function QuestionMetadataFilters({
         label='영역'
         onValueChange={(value) =>
           onChange({
-            skill:
-              value === 'ALL' ? undefined : (value as 'LISTENING' | 'READING'),
+            skill: value === 'ALL' ? undefined : (value as 'READING'),
           })
         }
         options={[
           { label: '전체', value: 'ALL' },
           { label: '읽기', value: 'READING' },
-          { label: '듣기', value: 'LISTENING' },
         ]}
         value={search.skill ?? 'ALL'}
       />

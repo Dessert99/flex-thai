@@ -207,7 +207,7 @@ describe('LearnerQuestionsController 공개 계약', () => {
       clientAttemptId: ids.clientAttempt,
       durationMs: 1_000,
     };
-    const extra = { storageKey: 'private/leak.mp3' };
+    const extra = { storageKey: 'private/internal.bin' };
 
     const listFake = service();
     listFake.listQuestions.mockResolvedValueOnce({ ...emptyPage, ...extra });
