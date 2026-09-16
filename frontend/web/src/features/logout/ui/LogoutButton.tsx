@@ -4,13 +4,13 @@ import { useNavigate } from '@tanstack/react-router';
 import { LogOut } from 'lucide-react';
 import { logoutSession } from '@/shared/api';
 import { Button } from '@/shared/ui/button';
-import { SidebarMenuButton, SidebarMenuItem } from '@/shared/ui/sidebar';
+import { DropdownMenuItem } from '@/shared/ui/dropdown-menu';
 
 /** pending·실패 feedback을 제공하는 SPA logout 버튼 */
 export function LogoutButton({
   appearance = 'button',
 }: {
-  appearance?: 'button' | 'sidebar';
+  appearance?: 'button' | 'menu';
 }) {
   const navigate = useNavigate();
   const mutation = useMutation({
@@ -20,27 +20,28 @@ export function LogoutButton({
     },
   });
 
-  if (appearance === 'sidebar') {
+  if (appearance === 'menu') {
     return (
-      <SidebarMenuItem>
-        <SidebarMenuButton
+      <>
+        <DropdownMenuItem
           disabled={mutation.isPending}
-          onClick={() => mutation.mutate()}
-          tooltip='로그아웃'
-          type='button'
+          onSelect={(event) => {
+            event.preventDefault();
+            mutation.mutate();
+          }}
         >
           <LogOut />
           <span>{mutation.isPending ? '로그아웃 중' : '로그아웃'}</span>
-        </SidebarMenuButton>
+        </DropdownMenuItem>
         {mutation.isError ? (
           <p
-            aria-live='polite'
-            className='px-cluster text-caption text-danger group-data-[collapsible=icon]:hidden'
+            role='alert'
+            className='p-cluster text-caption text-danger'
           >
             로그아웃하지 못했습니다. 다시 시도해 주세요.
           </p>
         ) : null}
-      </SidebarMenuItem>
+      </>
     );
   }
 

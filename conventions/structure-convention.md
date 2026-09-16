@@ -167,9 +167,11 @@ frontend/web/src/
 - `app/routes`는 TanStack Router의 파일 기반 라우팅을 사용하며, 접근
   권한과 기능별 디렉터리로 계층을 표현한다. 여러 경로를 점으로 연결한
   긴 파일명은 사용하지 않는다.
-- `_authenticated/route.tsx`에서 로그인을 확인하고, `_learner`에는 학습
+- `_authenticated/route.tsx`에서 로그인 확인과 공통 사이드바를 제공하고, `_learner`에는 학습
   화면을, `admin`에는 관리자 화면을 둔다. `admin/_enrollment`는 TOTP 등록
   화면, `admin/_enrolled`는 TOTP 등록을 마친 관리자의 화면을 담당한다.
+- 로그인 기본 홈은 역할과 무관하게 `/learn`이다. 학습 메뉴 아래에 관리자만
+  운영자 메뉴를 별도 섹션으로 보며, `/admin` 하위에서는 추가 권한을 검사한다.
 - 공통 접근 검사나 레이아웃은 `route.tsx`, 기본 화면은 `index.tsx`,
   동적 경로는 `$questionId` 같은 이름으로 표현한다. 공통 처리가 없는
   디렉터리에는 `route.tsx`를 만들지 않는다.

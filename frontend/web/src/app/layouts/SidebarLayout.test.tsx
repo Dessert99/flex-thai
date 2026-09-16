@@ -14,6 +14,7 @@ import {
   useRouterState,
 } from '@tanstack/react-router';
 import userEvent from '@testing-library/user-event';
+import { adminNavigation } from '../routing/adminNavigation';
 import { learnerNavigation } from '../routing/learnerNavigation';
 
 const navigation = [
@@ -25,7 +26,7 @@ beforeEach(() => {
   setViewportWidth(1280);
 });
 
-describe('SidebarLayout', () => {
+describe('SidebarLayout 화면 전환', () => {
   it('메뉴 클릭을 라우터가 처리하고 검색 조건과 접힌 사이드바를 유지한다', async () => {
     const root = createRootRoute({ component: NavigationShell });
     const home = createRoute({
@@ -38,9 +39,19 @@ describe('SidebarLayout', () => {
       path: '/concepts',
       component: () => <p>개념 목록 화면</p>,
     });
+    const users = createRoute({
+      getParentRoute: () => root,
+      path: '/admin/users',
+      component: () => <p>사용자 관리 화면</p>,
+    });
+    const wordbooks = createRoute({
+      getParentRoute: () => root,
+      path: '/wordbooks',
+      component: () => <p>개인 단어장 화면</p>,
+    });
     const router = createRouter({
       history: createMemoryHistory({ initialEntries: ['/learn'] }),
-      routeTree: root.addChildren([home, concepts]),
+      routeTree: root.addChildren([home, concepts, users, wordbooks]),
     });
     await router.load();
     render(<RouterProvider router={router} />);
@@ -60,8 +71,33 @@ describe('SidebarLayout', () => {
     expect(desktopSidebar()).toBe(sidebar);
     expect(sidebar).toHaveAttribute('data-state', 'collapsed');
     expect(screen.getByRole('main')).toBe(main);
+    await user.click(screen.getByRole('link', { name: '사용자 관리' }));
+    await screen.findByText('사용자 관리 화면');
+    expect(router.state.location.pathname).toBe('/admin/users');
+    expect(desktopSidebar()).toBe(sidebar);
+    expect(sidebar).toHaveAttribute('data-state', 'collapsed');
+    await user.click(screen.getByRole('link', { name: '학습 홈' }));
+    await screen.findByText('학습 시작 화면');
+    expect(desktopSidebar()).toBe(sidebar);
+    expect(
+      screen.queryByRole('link', { name: '내 단어장' }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '프로필 메뉴' }));
+    expect(
+      screen.getByRole('menuitem', { name: '나의 학습 기록' }),
+    ).toHaveAttribute('href', '/history');
+    expect(
+      screen.getByRole('menuitem', { name: '저장한 문제' }),
+    ).toHaveAttribute('href', '/questions?saved=true&page=1&pageSize=20');
+    await user.click(screen.getByRole('menuitem', { name: '내 단어장' }));
+    await screen.findByText('개인 단어장 화면');
+    expect(router.state.location.pathname).toBe('/wordbooks');
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    expect(desktopSidebar()).toBe(sidebar);
   });
+});
 
+describe('SidebarLayout', () => {
   it('주요 메뉴와 단일 main landmark를 제공한다', () => {
     render(
       <SidebarLayout
@@ -115,11 +151,12 @@ describe('SidebarLayout', () => {
     expect(desktopSidebar()).toHaveAttribute('data-collapsible', 'icon');
   });
 
-  it('내비게이션 링크와 선택적인 프로필 메뉴를 노출한다', () => {
+  it('프로필 메뉴를 열면 추가 계정 동작을 표시한다', async () => {
     render(
       <SidebarLayout
         currentPath='/study'
         navigation={navigation}
+        identity={{ email: 'learner@example.com', role: 'LEARNER' }}
         profileMenu={<button type='button'>프로필</button>}
       >
         본문
@@ -130,6 +167,9 @@ describe('SidebarLayout', () => {
       'href',
       '/study',
     );
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: '프로필 메뉴' }));
     expect(screen.getByRole('button', { name: '프로필' })).toBeInTheDocument();
   });
 });
@@ -140,6 +180,8 @@ function NavigationShell() {
     <SidebarLayout
       currentPath={path}
       navigation={learnerNavigation}
+      adminNavigation={adminNavigation}
+      identity={{ email: 'admin@example.com', role: 'ADMIN' }}
     >
       <Outlet />
     </SidebarLayout>
@@ -147,27 +189,27 @@ function NavigationShell() {
 }
 
 describe('SidebarLayout 계정 영역', () => {
-  it('관리자 계정과 학습자 portal link를 Sidebar Footer에 표시한다', () => {
+  it('관리자 계정과 운영자 섹션을 표시한다', () => {
     render(
       <SidebarLayout
         currentPath='/dashboard'
         identity={{ email: 'admin@example.com', role: 'ADMIN' }}
         navigation={navigation}
-        portalLink={{ href: '/learn', label: '학습자 포털' }}
+        adminNavigation={adminNavigation}
       >
         관리자 본문
       </SidebarLayout>,
     );
 
     expect(screen.getByText('admin@example.com')).toBeVisible();
-    expect(screen.getByText('관리자')).toBeVisible();
-    expect(screen.getByRole('link', { name: '학습자 포털' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: '프로필 메뉴' })).toBeVisible();
+    expect(screen.getByRole('link', { name: '사용자 관리' })).toHaveAttribute(
       'href',
-      '/learn',
+      '/admin/users',
     );
   });
 
-  it('학습자 계정을 표시하고 관리자 portal link는 만들지 않는다', () => {
+  it('학습자 계정에는 운영자 섹션을 표시하지 않는다', () => {
     render(
       <SidebarLayout
         currentPath='/dashboard'
@@ -179,9 +221,9 @@ describe('SidebarLayout 계정 영역', () => {
     );
 
     expect(screen.getByText('learner@example.com')).toBeVisible();
-    expect(screen.getByText('학습자')).toBeVisible();
+    expect(screen.getByRole('button', { name: '프로필 메뉴' })).toBeVisible();
     expect(
-      screen.queryByRole('link', { name: '관리자 포털' }),
+      screen.queryByRole('region', { name: '운영자 기능' }),
     ).not.toBeInTheDocument();
   });
 });

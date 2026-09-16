@@ -1,39 +1,10 @@
-/** TOTP 등록 관리자 전용 pathless 접근 경계와 역할 shell을 정의한다 */
-import {
-  createFileRoute,
-  Outlet,
-  useRouterState,
-} from '@tanstack/react-router';
-import { LogoutButton } from '@/features/logout';
-import { SidebarLayout } from '../../../../layouts/SidebarLayout';
-import { adminNavigation } from '../../../../routing/adminNavigation';
+/** 공통 사이드바 아래에서 접근 권한만 검사한다 */
+import { createFileRoute, Outlet } from '@tanstack/react-router';
 import { requireAdminPortal } from '../../../../routing/guards';
 
-/** 인증 부모 session의 enrolled 관리자 상태를 검증한다 */
 export const Route = createFileRoute('/_authenticated/admin/_enrolled')({
   beforeLoad: ({ context }) => {
     requireAdminPortal(context.session);
   },
-  component: AdminPortalRoute,
+  component: Outlet,
 });
-
-function AdminPortalRoute() {
-  const { session } = Route.useRouteContext();
-  const currentPath = useRouterState({
-    select: (state) => state.location.pathname,
-  });
-  return (
-    <SidebarLayout
-      currentPath={currentPath}
-      identity={{
-        email: session.user.email,
-        role: session.user.role,
-      }}
-      navigation={adminNavigation}
-      portalLink={{ href: '/learn', label: '학습자 포털' }}
-      profileMenu={<LogoutButton appearance='sidebar' />}
-    >
-      <Outlet />
-    </SidebarLayout>
-  );
-}

@@ -48,7 +48,7 @@ describe('로그인 TOTP 페이지', () => {
     );
   });
 
-  it('인증된 관리자를 SPA replace로 관리자 홈에 보낸다', async () => {
+  it('인증된 관리자를 SPA replace로 공통 학습 홈에 보낸다', async () => {
     mocks.completeLoginTotpSession.mockResolvedValue({
       status: 'authenticated',
       user: {
@@ -66,11 +66,11 @@ describe('로그인 TOTP 페이지', () => {
 
     expect(mocks.navigate).toHaveBeenCalledWith({
       replace: true,
-      to: '/admin',
+      to: '/learn',
     });
   });
 
-  it('TOTP 완료 뒤 보존한 내부 redirect를 관리자 홈보다 우선한다', async () => {
+  it('TOTP 완료 뒤 보존한 내부 redirect를 공통 학습 홈보다 우선한다', async () => {
     mocks.completeLoginTotpSession.mockResolvedValue({
       status: 'authenticated',
       user: {

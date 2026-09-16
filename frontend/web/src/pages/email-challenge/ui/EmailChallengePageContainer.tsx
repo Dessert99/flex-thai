@@ -1,6 +1,6 @@
 /** 이메일 code·resend mutation을 인증 navigation으로 연결한다 */
 import { zodResolver } from '@hookform/resolvers/zod';
-import type { MeResponse, VerifyEmailCodeInput } from '@flex-thia/contracts';
+import type { VerifyEmailCodeInput } from '@flex-thia/contracts';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
@@ -46,7 +46,7 @@ export function EmailChallengePageContainer({
       }
       void navigate({
         replace: true,
-        to: (redirectTo ?? getUserHome(result.user)) as never,
+        to: (redirectTo ?? '/learn') as never,
       });
     },
   });
@@ -87,8 +87,3 @@ export function EmailChallengePageContainer({
     />
   );
 }
-
-const getUserHome = (user: MeResponse): string => {
-  if (user.role === 'LEARNER') return '/learn';
-  return user.mfaEnrolled ? '/admin' : '/admin/totp-setup';
-};

@@ -1,6 +1,5 @@
 /** 로그인 TOTP mutation을 인증 완료 navigation과 연결한다 */
 import { zodResolver } from '@hookform/resolvers/zod';
-import type { MeResponse } from '@flex-thia/contracts';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useForm } from 'react-hook-form';
@@ -32,10 +31,10 @@ export function LoginTotpPageContainer({
         message: '인증 코드를 확인해 주세요.',
       });
     },
-    onSuccess(result) {
+    onSuccess() {
       void navigate({
         replace: true,
-        to: (redirectTo ?? getUserHome(result.user)) as never,
+        to: (redirectTo ?? '/learn') as never,
       });
       form.reset();
     },
@@ -51,15 +50,6 @@ export function LoginTotpPageContainer({
       {...withRequestId(mutation.error)}
     />
   );
-}
-
-function getUserHome(user: MeResponse) {
-  if (user.role === 'LEARNER') {
-    return '/learn' as const;
-  }
-  return user.mfaEnrolled
-    ? ('/admin' as const)
-    : ('/admin/totp-setup' as const);
 }
 
 function readRequestId(error: unknown) {

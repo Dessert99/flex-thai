@@ -1,7 +1,6 @@
 /** 서버 secret만 표시하고 TOTP 등록 확인 form을 렌더링한다 */
 import type { FormEventHandler } from 'react';
 import type { UseFormReturn } from 'react-hook-form';
-import { LogoutButton } from '@/features/logout';
 import { Button } from '@/shared/ui/button';
 import {
   Card,
@@ -43,7 +42,7 @@ export function TotpSetupPageView({
   setupError,
 }: TotpSetupPageViewProps) {
   return (
-    <main className='grid min-h-screen place-items-center bg-background p-page'>
+    <section className='grid min-h-state place-items-center p-page'>
       <Card className='w-full max-w-form border-default bg-surface shadow-overlay'>
         <CardHeader>
           <h1 className='text-title text-primary'>관리자 2단계 인증 등록</h1>
@@ -114,9 +113,8 @@ export function TotpSetupPageView({
           {requestId ? (
             <p className='text-caption text-danger'>요청 ID: {requestId}</p>
           ) : null}
-          <LogoutButton />
         </CardContent>
       </Card>
-    </main>
+    </section>
   );
 }

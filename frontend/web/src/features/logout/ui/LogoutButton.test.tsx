@@ -5,6 +5,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/shared/api';
 import { renderWithProviders } from '@/shared/test';
 import { LogoutButton } from './LogoutButton';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/shared/ui/dropdown-menu';
 
 const mocks = vi.hoisted(() => ({
   logoutSession: vi.fn(),
@@ -28,6 +33,35 @@ beforeEach(() => {
 });
 
 describe('로그아웃 버튼', () => {
+  it('메뉴 로그아웃이 실패하면 메뉴에서 재시도하고 성공한 뒤 이동한다', async () => {
+    const deferred = createDeferred();
+    mocks.logoutSession.mockReturnValueOnce(deferred.promise);
+    const user = userEvent.setup();
+    renderWithProviders(
+      <DropdownMenu>
+        <DropdownMenuTrigger>프로필</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <LogoutButton appearance='menu' />
+        </DropdownMenuContent>
+      </DropdownMenu>,
+    );
+    await user.click(screen.getByRole('button', { name: '프로필' }));
+    await user.click(screen.getByRole('menuitem', { name: '로그아웃' }));
+    expect(
+      screen.getByRole('menuitem', { name: '로그아웃 중' }),
+    ).toHaveAttribute('aria-disabled', 'true');
+    deferred.reject(new ApiError({ kind: 'network' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('다시 시도');
+    expect(screen.getByRole('menu')).toBeVisible();
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    mocks.logoutSession.mockResolvedValueOnce(undefined);
+    await user.click(screen.getByRole('menuitem', { name: '로그아웃' }));
+    expect(mocks.navigate).toHaveBeenCalledWith({
+      replace: true,
+      to: '/login',
+    });
+  });
+
   it('요청 중 버튼을 비활성화하고 실패하면 현재 화면에 남는다', async () => {
     const deferred = createDeferred();
     mocks.logoutSession.mockReturnValue(deferred.promise);

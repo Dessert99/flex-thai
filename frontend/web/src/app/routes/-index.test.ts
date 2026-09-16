@@ -14,7 +14,7 @@ describe('root index route', () => {
       '/login',
     ],
     [createSession('LEARNER'), '/learn'],
-    [createSession('ADMIN'), '/admin'],
+    [createSession('ADMIN'), '/learn'],
   ])('%s session을 %s 경로로 보낸다', (state, destination) => {
     const beforeLoad = Route.options.beforeLoad;
     if (typeof beforeLoad !== 'function') {

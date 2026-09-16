@@ -85,7 +85,7 @@ describe('이메일 challenge 페이지', () => {
     });
   });
 
-  it('TOTP 등록을 마친 관리자를 관리자 홈으로 보낸다', async () => {
+  it('TOTP 등록을 마친 관리자를 공통 학습 홈으로 보낸다', async () => {
     vi.useRealTimers();
     mocks.verifyEmailCodeSession.mockResolvedValue({
       status: 'authenticated',
@@ -104,7 +104,7 @@ describe('이메일 challenge 페이지', () => {
 
     expect(mocks.navigate).toHaveBeenCalledWith({
       replace: true,
-      to: '/admin',
+      to: '/learn',
     });
   });
 });

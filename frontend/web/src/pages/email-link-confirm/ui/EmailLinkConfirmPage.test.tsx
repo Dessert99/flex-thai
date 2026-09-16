@@ -60,7 +60,7 @@ describe('이메일 링크 확인 페이지', () => {
     });
   });
 
-  it('명시적 POST로 인증된 미등록 관리자를 TOTP 등록 화면으로 보낸다', async () => {
+  it('명시적 POST로 인증된 미등록 관리자도 학습 홈으로 보낸다', async () => {
     mocks.confirmEmailLinkSession.mockResolvedValue({
       status: 'authenticated',
       user: {
@@ -77,7 +77,7 @@ describe('이메일 링크 확인 페이지', () => {
 
     expect(mocks.navigate).toHaveBeenCalledWith({
       replace: true,
-      to: '/admin/totp-setup',
+      to: '/learn',
     });
   });
 });

@@ -2,7 +2,6 @@
 import {
   confirmEmailLinkRequestSchema,
   emailChallengeIdPathSchema,
-  type MeResponse,
 } from '@flex-thia/contracts';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
@@ -53,7 +52,7 @@ export function EmailLinkConfirmPageContainer({
       }
       void navigate({
         replace: true,
-        to: (redirectTo ?? getUserHome(result.user)) as never,
+        to: (redirectTo ?? '/learn') as never,
       });
     },
   });
@@ -70,8 +69,3 @@ export function EmailLinkConfirmPageContainer({
     />
   );
 }
-
-const getUserHome = (user: MeResponse): string => {
-  if (user.role === 'LEARNER') return '/learn';
-  return user.mfaEnrolled ? '/admin' : '/admin/totp-setup';
-};

@@ -1,11 +1,7 @@
 /** 사이드바와 Provider만 공유하고 페이지 본문 배치는 각 페이지가 소유한다 */
 import { Link } from '@tanstack/react-router';
-import {
-  ArrowLeftRight,
-  CircleUserRound,
-  GraduationCap,
-  type LucideIcon,
-} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { SidebarProfileMenu } from './SidebarProfileMenu';
 import type { ReactNode } from 'react';
 import {
   Sidebar,
@@ -42,10 +38,7 @@ export interface SidebarLayoutProps {
     role: 'ADMIN' | 'LEARNER';
   };
   navigation: readonly SidebarLayoutNavigationItem[];
-  portalLink?: {
-    href: string;
-    label: string;
-  };
+  adminNavigation?: readonly SidebarLayoutNavigationItem[];
   profileMenu?: ReactNode;
 }
 
@@ -55,10 +48,13 @@ export function SidebarLayout({
   currentPath,
   identity,
   navigation,
-  portalLink,
+  adminNavigation = [],
   profileMenu,
 }: SidebarLayoutProps) {
-  const activeHref = findActiveHref(currentPath, navigation);
+  const activeHref = findActiveHref(currentPath, [
+    ...navigation,
+    ...adminNavigation,
+  ]);
   const home = navigation[0];
 
   return (
@@ -69,13 +65,19 @@ export function SidebarLayout({
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
-                className='[&>svg]:text-sidebar-primary'
+                className='group-data-[collapsible=icon]:p-none!'
                 size='lg'
-                tooltip='FLEX THIA'
+                tooltip='학습 홈'
               >
-                <Link to={home?.href ?? '/'}>
-                  <GraduationCap />
-                  <span className='font-semibold'>FLEX THIA</span>
+                <Link
+                  to={home?.href ?? '/'}
+                  aria-label='홈으로 이동'
+                >
+                  <img
+                    src='/images/thai-flag.png'
+                    alt=''
+                    className='size-avatar shrink-0 rounded-full object-cover'
+                  />
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -87,13 +89,30 @@ export function SidebarLayout({
             activeHref={activeHref}
             navigation={navigation}
           />
+          {identity?.role === 'ADMIN' && adminNavigation.length > 0 ? (
+            <section
+              aria-label='운영자 기능'
+              className='mt-cluster flex-1 border-t border-operator-border bg-operator-surface'
+            >
+              <h2 className='p-cluster text-caption font-semibold text-foreground group-data-[collapsible=icon]:sr-only'>
+                운영자 기능
+              </h2>
+              <AppNavigation
+                activeHref={activeHref}
+                navigation={adminNavigation}
+                label='운영자 메뉴'
+              />
+            </section>
+          ) : null}
         </SidebarContent>
 
         <SidebarFooter className='border-t border-sidebar-border'>
           <SidebarMenu>
-            {identity ? <IdentityItem identity={identity} /> : null}
-            {portalLink ? <PortalItem portalLink={portalLink} /> : null}
-            {profileMenu}
+            {identity ? (
+              <SidebarProfileMenu identity={identity}>
+                {profileMenu}
+              </SidebarProfileMenu>
+            ) : null}
           </SidebarMenu>
         </SidebarFooter>
         <SidebarRail aria-label='사이드바 열기 또는 접기' />
@@ -113,15 +132,19 @@ export function SidebarLayout({
 function AppNavigation({
   activeHref,
   navigation,
+  label = '주요 메뉴',
 }: {
   activeHref: string | undefined;
+  label?: string;
   navigation: readonly SidebarLayoutNavigationItem[];
 }) {
   return (
-    <nav aria-label='주요 메뉴'>
+    <nav aria-label={label}>
       {groupNavigation(navigation).map(([group, items]) => (
         <SidebarGroup key={group}>
-          <SidebarGroupLabel>{group}</SidebarGroupLabel>
+          <SidebarGroupLabel className='group-data-[collapsible=icon]:pointer-events-none'>
+            {group}
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
@@ -147,53 +170,6 @@ function AppNavigation({
         </SidebarGroup>
       ))}
     </nav>
-  );
-}
-
-function IdentityItem({
-  identity,
-}: {
-  identity: NonNullable<SidebarLayoutProps['identity']>;
-}) {
-  return (
-    <SidebarMenuItem>
-      <SidebarMenuButton
-        asChild
-        className='cursor-default'
-        size='lg'
-        tooltip={identity.email}
-      >
-        <div>
-          <CircleUserRound />
-          <span className='grid flex-1 text-left text-caption leading-tight'>
-            <span className='truncate font-medium'>{identity.email}</span>
-            <span className='truncate text-caption text-sidebar-foreground/70'>
-              {identity.role === 'ADMIN' ? '관리자' : '학습자'}
-            </span>
-          </span>
-        </div>
-      </SidebarMenuButton>
-    </SidebarMenuItem>
-  );
-}
-
-function PortalItem({
-  portalLink,
-}: {
-  portalLink: NonNullable<SidebarLayoutProps['portalLink']>;
-}) {
-  return (
-    <SidebarMenuItem>
-      <SidebarMenuButton
-        asChild
-        tooltip={portalLink.label}
-      >
-        <Link to={portalLink.href}>
-          <ArrowLeftRight />
-          <span>{portalLink.label}</span>
-        </Link>
-      </SidebarMenuButton>
-    </SidebarMenuItem>
   );
 }
 

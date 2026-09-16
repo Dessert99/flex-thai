@@ -24,6 +24,9 @@
     'Noto Sans KR', 'Malgun Gothic', sans-serif;
   --foundation-font-thai:
     'Noto Sans Thai', 'Leelawadee UI', Tahoma, var(--foundation-font-korean);
+  --foundation-space-none: 0;
+  --foundation-size-avatar: 2rem;
+  --foundation-size-profile-menu: 16rem;
   --foundation-space-cluster: 0.75rem;
   --foundation-space-page: clamp(1rem, 3vw, 2rem);
   --foundation-space-section: 2rem;
@@ -57,11 +60,20 @@
   --semantic-color-action-primary: var(--foundation-color-neutral-700);
   --semantic-color-action-primary-strong: var(--foundation-color-neutral-800);
   --semantic-color-action-primary-soft: var(--foundation-color-neutral-300);
+  --semantic-color-operator-surface: var(--foundation-color-danger-soft);
+  --semantic-color-operator-border: color-mix(
+    in oklch,
+    var(--foundation-color-danger) 18%,
+    var(--foundation-color-neutral-100)
+  );
   --semantic-color-focus-ring: var(--foundation-color-neutral-500);
   --semantic-color-status-danger: var(--foundation-color-danger);
   --semantic-color-status-danger-soft: var(--foundation-color-danger-soft);
   --semantic-font-body: var(--foundation-font-korean);
   --semantic-font-thai: var(--foundation-font-thai);
+  --semantic-space-none: var(--foundation-space-none);
+  --semantic-size-avatar: var(--foundation-size-avatar);
+  --semantic-size-profile-menu: var(--foundation-size-profile-menu);
   --semantic-space-cluster: var(--foundation-space-cluster);
   --semantic-space-page: var(--foundation-space-page);
   --semantic-space-section: var(--foundation-space-section);
@@ -109,6 +121,8 @@
 }
 
 @theme inline {
+  --color-operator-surface: var(--semantic-color-operator-surface);
+  --color-operator-border: var(--semantic-color-operator-border);
   --color-canvas: var(--semantic-color-surface-canvas);
   --color-surface: var(--semantic-color-surface-default);
   --color-surface-muted: var(--semantic-color-surface-muted);
@@ -158,6 +172,9 @@
   --text-title--font-weight: 700;
   --text-caption: 0.875rem;
   --text-caption--line-height: 1.5;
+  --spacing-none: var(--semantic-space-none);
+  --spacing-avatar: var(--semantic-size-avatar);
+  --spacing-profile-menu: var(--semantic-size-profile-menu);
   --spacing-cluster: var(--semantic-space-cluster);
   --spacing-control: var(--semantic-size-control);
   --spacing-collapsible: var(--semantic-size-collapsible);
