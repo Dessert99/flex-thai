@@ -87,7 +87,8 @@ infra ─────────────────> backend 실행 산출
 ```
 
 - 다른 workspace의 코드는 상대 경로로 내부 파일을 참조하지 않고
-  `@flex-thia/*` 공개 진입점으로 import한다.
+  `@flex-thia/*`의 package exports에 선언된 공개 경로로 import한다.
+  여러 모듈을 공개할 때는 배럴 대신 각 모듈을 가리키는 subpath export를 사용한다.
 - `backend/api`와 `backend/worker`는 서로의 `src`를 직접 import하지
   않는다.
 - `backend/domain`은 NestJS, AWS SDK, Drizzle 같은 바깥 기술을 알지
@@ -98,9 +99,14 @@ infra ─────────────────> backend 실행 산출
 
 ## 공통 파일 배치
 
+- 프로젝트 전반에서 배럴 파일을 사용하지 않는다. 여러 파일의 export를
+  모아 다시 내보내는 `index.ts`나 다른 이름의 재수출 전용 파일을 만들지 않는다.
+  같은 workspace에서는 필요한 항목을 정의한 파일에서 직접 import하고,
+  workspace 간에는 package exports에 선언된 해당 모듈의 공개 경로를 사용한다.
+  파일명 자체를 금지하는 규칙은 아니며, 라우트 구현인 `index.tsx` 등은 허용한다.
 - 테스트는 대상 파일 옆에 `*.spec.ts`로 둔다. E2E 테스트 폴더는 만들지
-  않는다. `shared/ui` primitives의 테스트·스토리 작성은
-  `frontend/web/src/shared/ui/AGENTS.md`를 따른다.
+  않는다. `shared/components` primitives의 테스트·스토리 작성은
+  `frontend/web/src/shared/components/AGENTS.md`를 따른다.
 - 한 workspace에서만 쓰는 설정과 helper는 해당 workspace 가까이에
   둔다.
 - 책임이 드러나지 않는 root `utils`, `helpers`, `common-packages` 같은
@@ -120,48 +126,54 @@ infra ─────────────────> backend 실행 산출
 ```text
 frontend/web/src/
 ├── app/                       # 라우터·전역 provider·앱 레이아웃
-├── pages/{slice}/             # 라우트 단위 화면과 화면 전용 서버 상태
-│   ├── ui/
-│   ├── api/
-│   ├── model/
-│   └── lib/
-├── features/{slice}/          # 재사용되는 사용자 행동과 그 상태
-│   ├── ui/
-│   ├── api/
-│   ├── model/
-│   └── lib/
-├── shared/
-│   ├── ui/                    # 공용 primitive만 배치
-│   ├── api/
-│   ├── model/
-│   ├── lib/
+├── pages/                     # 기능 컴포넌트 조립과 페이지 배치
+│   └── VocabularyListPage.tsx
+├── features/{기능}/            # 업무 기능의 UI·상태·API·로직
+│   ├── components/
+│   ├── hooks/
+│   ├── apis/
+│   └── libs/
+├── shared/                    # 업무에 종속되지 않는 공용 코드
+│   ├── components/
+│   ├── hooks/
+│   ├── apis/
+│   ├── libs/
 │   └── test/
 └── main.tsx
 ```
 
-- 의존성은 `app -> pages -> features -> shared` 방향으로만 흐르며 같은
-  layer의 다른 slice를 직접 import하지 않는다.
-- 빈 `ui`, `api`, `model`, `lib` 폴더는 미리 만들지 않는다.
-- 한 화면에서만 쓰는 조회·필터·조립 코드는 해당 `pages/{slice}`에
-  유지하고, 둘 이상의 화면에서 재사용되는 사용자 행동만
-  `features/{slice}`로 분리한다.
+- 의존성은 `app -> pages -> features -> shared` 방향으로 흐른다.
+  상위 계층은 하위 계층을 사용할 수 있고, 역방향으로 import하지 않는다.
+- `pages`는 기능 컴포넌트를 조립하고 페이지 배치를 구성한다. 페이지 아래에
+  `components`, `hooks`, `apis`, `libs`, `ui`, `model` 폴더를 두지 않는다.
+- 조회·필터·이벤트 처리·검증·상태 등 업무 기능 구현은 `features`에 둔다.
+  한 페이지에서만 사용하는 기능도 `features`에 둔다.
+- `features`는 업무 영역으로 묶는다. 현재 인증·사용자 관리는 `identity`,
+  어휘·문제·개념·단어장·연습은 `learning`, 콘텐츠 제작·후보 검토·가져오기는
+  `content-production`, 운영 현황·감사·비용·신고 관리는 `operations`,
+  접근 거부·없는 경로 안내는 `navigation`이 담당한다.
+  내부는 컴포넌트 `components`, React 훅 `hooks`, API 요청과
+  query·mutation 설정 `apis`, 일반 로직 `libs`로 구분한다.
+  역할 폴더 안에서는 `components/vocabulary-list`처럼 세부 기능으로 묶을 수 있다.
+  필요한 폴더만 만들며, FSD의 `ui`, `model` segment 구조는 사용하지 않는다.
 - 도메인 규칙을 몰라도 이해할 수 있고 여러 기능이 실제로 사용할 때만
   프론트엔드 내부 `shared`로 옮긴다.
-- `shared/ui`에는 공용 primitive만 둔다. 사이드바·Provider 조합만
+- 다른 feature를 직접 import하지 않는다. 기능 간 조립은 `pages`에서 한다.
+- 공용 primitive는 `shared/components`에 둔다. 사이드바·Provider 조합은
   `app/layouts/SidebarLayout.tsx`에서 공유한다. 페이지 헤더·본문 너비·여백·
-  카드 배치와 로딩·빈 결과·오류 안내는 각 페이지에서 직접 구성한다.
-  앱의 세션·라우트 상태 안내도 해당 사용처에서 직접 구성한다.
-  이를 위한 공용 PageState나 feedback 계층을 만들지 않는다.
-  페이지 배치는 검토·수정 중이므로 사이드바 외에 레이아웃만을 위한 컴포넌트를 추출하지
-  않는다. primitive와 페이지별 카드·기능 컴포넌트는 유지한다.
-  페이지 JSX를 분리하도록 강제하는 파일·함수 줄 수 제한은 적용하지 않는다.
-  기능·화면 전용 조합은 해당 slice의 `ui`에 두며 `shared/components`는
-  만들지 않는다.
-- Storybook은 `shared/ui`의 primitive만 수집한다.
-- 다른 layer가 slice를 사용할 때만 slice root `index.ts`를 공개 API로
-  두며, 소비자는 내부 segment를 우회하거나 재귀 barrel을 만들지 않는다.
+  카드 배치는 `pages`에서 구성하고, 기능의 로딩·빈 결과·오류 안내는
+  해당 feature에서 구성한다. 앱의 세션·라우트 상태 안내는 해당 사용처에 둔다.
+  이를 위한 공용 PageState나 feedback 계층은 만들지 않는다.
+  페이지 배치는 검토·수정 중이므로 사이드바 외에 레이아웃만을 위한 컴포넌트를
+  추출하지 않는다. 페이지 JSX 분리를 강제하는 파일·함수 줄 수 제한은 적용하지 않는다.
+- Storybook은 공용 primitive만 수집한다.
+- feature root나 하위 폴더에 배럴 `index.ts`를 두지 않는다.
+  계층 간 의존성 규칙을 지키면서 실제 컴포넌트·훅·로직 파일에서 직접 import한다.
 - 프론트엔드 테스트는 대상 옆에 `*.test.ts` 또는 `*.test.tsx`로 두고,
   백엔드 테스트의 `*.spec.ts` 규칙은 유지한다.
+- `pnpm architecture:check`로 페이지의 조립 책임, 계층 간 의존성,
+  실제 파일의 직접 import와 프로젝트 전반의 배럴 금지를 검사한다.
+  FSD의 segment 이름이나 배럴 진입점을 강제하는 검사기는 사용하지 않는다.
 
 ### 프론트엔드 라우트 구조
 
@@ -177,7 +189,7 @@ frontend/web/src/
   동적 경로는 `$questionId` 같은 이름으로 표현한다. 공통 처리가 없는
   디렉터리에는 `route.tsx`를 만들지 않는다.
 - 목록·상세·하위 작업은 기능별 폴더로 묶고, 단일 화면은 `users.tsx`처럼
-  파일로 둔다. 화면 구현은 `pages`에 유지한다.
+  파일로 둔다. 라우트는 `pages`를 연결하고, `pages`는 `features`의 화면을 조립한다.
 - 라우트 옆 테스트 파일은 `-route.test.ts`처럼 `-` 접두사를 붙여 라우트
   생성 대상에서 제외한다. `src/routeTree.gen.ts`는 자동 생성 결과다.
 - 앱 내부 화면 이동에는 `@tanstack/react-router`의 `Link`를 사용한다.
@@ -189,10 +201,9 @@ frontend/web/src/
 - 새 UI primitive는 shadcn 레지스트리를 먼저 확인하고, 생성물은 vendored
   코드로 취급해 직접 수정하지 않는다. 프로젝트 확장은 상위 컴포넌트로
   조합한다.
-- 화면에서는 동일 primitive를 직접 반복 구현하지 않고 `shared/ui`의
+- 화면에서는 동일 primitive를 직접 반복 구현하지 않고 `shared/components`의
   공개 컴포넌트를 사용한다.
 - 색상과 반경은 `frontend/web/src/app/styles/theme.css`의 semantic token을
   참조하며 리터럴 색상을 추가하지 않는다.
 - 직접 작성한 컴포넌트 파일은 `PascalCase.tsx`, hook과 로직 파일은
-  `camelCase.ts`를 사용한다. 여러 파일을 공개하는 폴더에만 `index.ts`를
-  둔다.
+  `camelCase.ts`를 사용한다. export를 모으기 위한 배럴 파일은 만들지 않는다.

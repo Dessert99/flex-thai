@@ -15,6 +15,8 @@ export function checkSourceArchitecture(files) {
   const violations = [];
   const paths = new Set(Object.keys(files));
   for (const [file, content] of Object.entries(files)) {
+    // CSS는 import 경로 존재 여부만 검사하고 TypeScript로 해석하지 않는다.
+    if (file.endsWith('.css')) continue;
     const source = ts.createSourceFile(
       file,
       content,
