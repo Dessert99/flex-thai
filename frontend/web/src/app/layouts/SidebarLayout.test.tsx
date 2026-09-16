@@ -1,8 +1,8 @@
-/** AppShell의 landmark와 shadcn Sidebar 내비게이션 경계를 검증한다 */
+/** SidebarLayout의 landmark와 shadcn Sidebar 내비게이션 경계를 검증한다 */
 import { fireEvent, render, screen } from '@testing-library/react';
 import { House, Search } from 'lucide-react';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { AppShell } from './AppShell';
+import { SidebarLayout } from './SidebarLayout';
 
 const navigation = [
   { group: '메뉴', href: '/dashboard', icon: House, label: '대시보드' },
@@ -13,15 +13,15 @@ beforeEach(() => {
   setViewportWidth(1280);
 });
 
-describe('AppShell', () => {
+describe('SidebarLayout', () => {
   it('주요 메뉴와 단일 main landmark를 제공한다', () => {
     render(
-      <AppShell
+      <SidebarLayout
         currentPath='/dashboard'
         navigation={navigation}
       >
         본문
-      </AppShell>,
+      </SidebarLayout>,
     );
 
     expect(
@@ -33,12 +33,12 @@ describe('AppShell', () => {
 
   it('가장 구체적인 현재 경로를 활성 메뉴로 표시한다', () => {
     render(
-      <AppShell
+      <SidebarLayout
         currentPath='/study/session-1'
         navigation={navigation}
       >
         본문
-      </AppShell>,
+      </SidebarLayout>,
     );
 
     expect(screen.getByRole('link', { name: '학습' })).toHaveAttribute(
@@ -53,12 +53,12 @@ describe('AppShell', () => {
 
   it('트리거로 데스크톱 Sidebar를 아이콘 형태로 접는다', () => {
     render(
-      <AppShell
+      <SidebarLayout
         currentPath='/dashboard'
         navigation={navigation}
       >
         본문
-      </AppShell>,
+      </SidebarLayout>,
     );
 
     expect(desktopSidebar()).toHaveAttribute('data-state', 'expanded');
@@ -69,13 +69,13 @@ describe('AppShell', () => {
 
   it('내비게이션 링크와 선택적인 프로필 메뉴를 노출한다', () => {
     render(
-      <AppShell
+      <SidebarLayout
         currentPath='/study'
         navigation={navigation}
         profileMenu={<button type='button'>프로필</button>}
       >
         본문
-      </AppShell>,
+      </SidebarLayout>,
     );
 
     expect(screen.getByRole('link', { name: '학습' })).toHaveAttribute(
@@ -86,17 +86,17 @@ describe('AppShell', () => {
   });
 });
 
-describe('AppShell 계정 영역', () => {
+describe('SidebarLayout 계정 영역', () => {
   it('관리자 계정과 학습자 portal link를 Sidebar Footer에 표시한다', () => {
     render(
-      <AppShell
+      <SidebarLayout
         currentPath='/dashboard'
         identity={{ email: 'admin@example.com', role: 'ADMIN' }}
         navigation={navigation}
         portalLink={{ href: '/learn', label: '학습자 포털' }}
       >
         관리자 본문
-      </AppShell>,
+      </SidebarLayout>,
     );
 
     expect(screen.getByText('admin@example.com')).toBeVisible();
@@ -109,13 +109,13 @@ describe('AppShell 계정 영역', () => {
 
   it('학습자 계정을 표시하고 관리자 portal link는 만들지 않는다', () => {
     render(
-      <AppShell
+      <SidebarLayout
         currentPath='/dashboard'
         identity={{ email: 'learner@example.com', role: 'LEARNER' }}
         navigation={navigation}
       >
         학습자 본문
-      </AppShell>,
+      </SidebarLayout>,
     );
 
     expect(screen.getByText('learner@example.com')).toBeVisible();

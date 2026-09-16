@@ -1,4 +1,4 @@
-/** 역할과 라우터에 의존하지 않는 반응형 애플리케이션 골격을 제공한다 */
+/** 사이드바와 Provider만 공유하고 페이지 본문 배치는 각 페이지가 소유한다 */
 import {
   ArrowLeftRight,
   CircleUserRound,
@@ -6,7 +6,6 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { Separator } from '@/shared/ui/separator';
 import {
   Sidebar,
   SidebarContent,
@@ -24,23 +23,23 @@ import {
   SidebarTrigger,
 } from '@/shared/ui/sidebar';
 
-/** AppShell이 렌더링할 도메인 중립 내비게이션 항목 */
-export interface AppShellNavigationItem {
+/** SidebarLayout이 렌더링할 도메인 중립 내비게이션 항목 */
+export interface SidebarLayoutNavigationItem {
   group?: string;
   href: string;
   icon: LucideIcon;
   label: string;
 }
 
-/** AppShell의 내비게이션·본문·선택 프로필 슬롯 */
-export interface AppShellProps {
+/** SidebarLayout의 내비게이션·본문·선택 프로필 슬롯 */
+export interface SidebarLayoutProps {
   children: ReactNode;
   currentPath: string;
   identity?: {
     email: string;
     role: 'ADMIN' | 'LEARNER';
   };
-  navigation: readonly AppShellNavigationItem[];
+  navigation: readonly SidebarLayoutNavigationItem[];
   portalLink?: {
     href: string;
     label: string;
@@ -48,15 +47,15 @@ export interface AppShellProps {
   profileMenu?: ReactNode;
 }
 
-/** 모바일 Sheet와 데스크톱 icon collapse를 공유하는 shadcn Sidebar shell */
-export function AppShell({
+/** 모바일 Sheet와 데스크톱 icon collapse를 공유하는 사이드바 레이아웃 */
+export function SidebarLayout({
   children,
   currentPath,
   identity,
   navigation,
   portalLink,
   profileMenu,
-}: AppShellProps) {
+}: SidebarLayoutProps) {
   const activeHref = findActiveHref(currentPath, navigation);
   const home = navigation[0];
 
@@ -99,19 +98,11 @@ export function AppShell({
       </Sidebar>
 
       <SidebarInset id='app-main'>
-        <header className='flex h-control shrink-0 items-center gap-cluster border-b border-default bg-surface/90 px-page backdrop-blur'>
-          <SidebarTrigger aria-label='사이드바 열기 또는 접기' />
-          <Separator
-            className='mr-cluster h-icon'
-            orientation='vertical'
-          />
-          <span className='text-caption font-medium text-subtle'>
-            {identity?.role === 'ADMIN' ? '관리자 포털' : '학습자 포털'}
-          </span>
-        </header>
-        <div className='mx-auto w-full max-w-content flex-1 p-page'>
-          {children}
-        </div>
+        <SidebarTrigger
+          aria-label='사이드바 열기 또는 접기'
+          className='m-cluster'
+        />
+        {children}
       </SidebarInset>
     </SidebarProvider>
   );
@@ -122,7 +113,7 @@ function AppNavigation({
   navigation,
 }: {
   activeHref: string | undefined;
-  navigation: readonly AppShellNavigationItem[];
+  navigation: readonly SidebarLayoutNavigationItem[];
 }) {
   return (
     <nav aria-label='주요 메뉴'>
@@ -157,7 +148,7 @@ function AppNavigation({
 function IdentityItem({
   identity,
 }: {
-  identity: NonNullable<AppShellProps['identity']>;
+  identity: NonNullable<SidebarLayoutProps['identity']>;
 }) {
   return (
     <SidebarMenuItem>
@@ -184,7 +175,7 @@ function IdentityItem({
 function PortalItem({
   portalLink,
 }: {
-  portalLink: NonNullable<AppShellProps['portalLink']>;
+  portalLink: NonNullable<SidebarLayoutProps['portalLink']>;
 }) {
   return (
     <SidebarMenuItem>
@@ -202,9 +193,9 @@ function PortalItem({
 }
 
 function groupNavigation(
-  navigation: readonly AppShellNavigationItem[],
-): Array<[string, AppShellNavigationItem[]]> {
-  const groups = new Map<string, AppShellNavigationItem[]>();
+  navigation: readonly SidebarLayoutNavigationItem[],
+): Array<[string, SidebarLayoutNavigationItem[]]> {
+  const groups = new Map<string, SidebarLayoutNavigationItem[]>();
   for (const item of navigation) {
     const group = item.group ?? '메뉴';
     groups.set(group, [...(groups.get(group) ?? []), item]);
@@ -215,7 +206,7 @@ function groupNavigation(
 /** 가장 구체적인 상위 경로 하나만 활성 메뉴로 선택한다 */
 export function findActiveHref(
   currentPath: string,
-  navigation: readonly AppShellNavigationItem[],
+  navigation: readonly SidebarLayoutNavigationItem[],
 ): string | undefined {
   return navigation
     .filter(({ href }) => {

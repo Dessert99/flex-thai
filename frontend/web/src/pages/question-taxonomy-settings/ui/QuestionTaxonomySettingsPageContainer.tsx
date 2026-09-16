@@ -25,35 +25,39 @@ export function QuestionTaxonomySettingsPageContainer() {
     if (!mutation.isPending) mutation.mutate(work);
   };
   return (
-    <QuestionTaxonomySettingsPageView
-      data={settings.data}
-      error={settings.isError}
-      loading={settings.isPending}
-      onActivate={(versionId) =>
-        run(() =>
-          changeQuestionTypeVersionStatus({ versionId, action: 'activate' }),
-        )
-      }
-      onAddExample={(versionId, input) =>
-        run(() => addApprovedExample({ versionId, input }))
-      }
-      onArchiveTerm={(kind, id) => run(() => archiveTaxonomyTerm({ kind, id }))}
-      onCreateTerm={(kind, input) =>
-        run(() => createTaxonomyTerm({ kind, input }))
-      }
-      onCreateType={(input) => run(() => createQuestionType(input))}
-      onCreateVersion={(questionTypeId, input) =>
-        run(() => createQuestionTypeVersion({ questionTypeId, input }))
-      }
-      onRetry={() => void settings.refetch()}
-      onRetire={(versionId) =>
-        run(() =>
-          changeQuestionTypeVersionStatus({ versionId, action: 'retire' }),
-        )
-      }
-      onSaveCriteria={(versionId, input) =>
-        run(() => replaceDifficultyCriteria({ versionId, input }))
-      }
-    />
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <QuestionTaxonomySettingsPageView
+        data={settings.data}
+        error={settings.isError}
+        loading={settings.isPending}
+        onActivate={(versionId) =>
+          run(() =>
+            changeQuestionTypeVersionStatus({ versionId, action: 'activate' }),
+          )
+        }
+        onAddExample={(versionId, input) =>
+          run(() => addApprovedExample({ versionId, input }))
+        }
+        onArchiveTerm={(kind, id) =>
+          run(() => archiveTaxonomyTerm({ kind, id }))
+        }
+        onCreateTerm={(kind, input) =>
+          run(() => createTaxonomyTerm({ kind, input }))
+        }
+        onCreateType={(input) => run(() => createQuestionType(input))}
+        onCreateVersion={(questionTypeId, input) =>
+          run(() => createQuestionTypeVersion({ questionTypeId, input }))
+        }
+        onRetry={() => void settings.refetch()}
+        onRetire={(versionId) =>
+          run(() =>
+            changeQuestionTypeVersionStatus({ versionId, action: 'retire' }),
+          )
+        }
+        onSaveCriteria={(versionId, input) =>
+          run(() => replaceDifficultyCriteria({ versionId, input }))
+        }
+      />
+    </div>
   );
 }

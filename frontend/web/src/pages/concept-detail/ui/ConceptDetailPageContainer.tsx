@@ -16,12 +16,14 @@ export function ConceptDetailPageContainer({
     concept.error.detail.kind === 'problem' &&
     concept.error.detail.problem.status === 404;
   return (
-    <ConceptDetailPageView
-      data={concept.data}
-      error={concept.isError}
-      loading={concept.isPending}
-      notFound={notFound}
-      onRetry={() => void concept.refetch()}
-    />
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <ConceptDetailPageView
+        data={concept.data}
+        error={concept.isError}
+        loading={concept.isPending}
+        notFound={notFound}
+        onRetry={() => void concept.refetch()}
+      />
+    </div>
   );
 }

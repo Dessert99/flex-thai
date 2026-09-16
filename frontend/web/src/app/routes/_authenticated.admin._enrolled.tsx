@@ -5,7 +5,7 @@ import {
   useRouterState,
 } from '@tanstack/react-router';
 import { LogoutButton } from '@/features/logout';
-import { AppShell } from '@/shared/ui/app-shell';
+import { SidebarLayout } from '../layouts/SidebarLayout';
 import { adminNavigation } from '../routing/adminNavigation';
 import { requireAdminPortal } from '../routing/guards';
 
@@ -23,7 +23,7 @@ function AdminPortalRoute() {
     select: (state) => state.location.pathname,
   });
   return (
-    <AppShell
+    <SidebarLayout
       currentPath={currentPath}
       identity={{
         email: session.user.email,
@@ -34,6 +34,6 @@ function AdminPortalRoute() {
       profileMenu={<LogoutButton appearance='sidebar' />}
     >
       <Outlet />
-    </AppShell>
+    </SidebarLayout>
   );
 }

@@ -1,8 +1,7 @@
 /** 관리자 TTS 작업 page의 loading·error·empty·목록 상태를 표현한다 */
 import type { TtsJobListResponse } from '@flex-thia/contracts';
 import { Badge } from '@/shared/ui/badge';
-import { Button } from '@/shared/ui/button';
-import { PageEmpty, PageError, PageLoading } from '@/shared/ui/page-state';
+
 import {
   Table,
   TableBody,
@@ -16,6 +15,9 @@ import {
   type TtsOperationsSearch,
 } from '../model/ttsOperationsSearch';
 import { TtsOperationsFilters } from './TtsOperationsFilters';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 interface TtsOperationsPageViewProps {
   data: TtsJobListResponse | undefined;
@@ -70,42 +72,62 @@ function renderListState({
   search,
 }: Omit<TtsOperationsPageViewProps, 'onFilterChange'>) {
   if (loading) {
-    return <PageLoading message='TTS 작업을 불러오고 있습니다.' />;
+    return (
+      <section
+        aria-live='polite'
+        className='flex min-h-state flex-col justify-center gap-cluster p-page'
+        role='status'
+      >
+        <Skeleton className='h-control w-full max-w-content' />
+        <p className='text-body text-subtle'>TTS 작업을 불러오고 있습니다.</p>
+      </section>
+    );
   }
   if (error !== null || data === undefined) {
     return (
-      <PageError
-        message='TTS 작업을 불러오지 못했습니다.'
-        onRetry={onRetry}
-      />
+      <Alert
+        className='rounded-panel border-danger bg-danger-surface'
+        variant='destructive'
+      >
+        <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+        <AlertDescription className='flex flex-col gap-cluster text-danger'>
+          <p>TTS 작업을 불러오지 못했습니다.</p>
+          <Button
+            className='mt-cluster w-auto'
+            onClick={onRetry}
+            type='button'
+            variant='outline'
+          >
+            다시 시도
+          </Button>
+        </AlertDescription>
+      </Alert>
     );
   }
   if (data.items.length === 0) {
     const filtered = hasTtsOperationsFilters(search);
     return (
-      <PageEmpty
-        action={
-          filtered ? (
-            <Button
-              onClick={onResetFilters}
-              type='button'
-              variant='outline'
-            >
-              필터 초기화
-            </Button>
-          ) : undefined
-        }
-        description={
-          filtered
-            ? '기간이나 상태 조건을 변경해 보세요.'
-            : 'TTS 생성 작업이 접수되면 이곳에 표시됩니다.'
-        }
-        title={
-          filtered
+      <section className='flex min-h-state flex-col items-center justify-center gap-cluster rounded-panel border border-default bg-surface-muted p-page text-center'>
+        <h2 className='text-title text-primary'>
+          {filtered
             ? '조건에 맞는 TTS 작업이 없습니다.'
-            : '등록된 TTS 작업이 없습니다.'
-        }
-      />
+            : '등록된 TTS 작업이 없습니다.'}
+        </h2>
+        <p className='text-body text-subtle'>
+          {filtered
+            ? '기간이나 상태 조건을 변경해 보세요.'
+            : 'TTS 생성 작업이 접수되면 이곳에 표시됩니다.'}
+        </p>
+        {filtered ? (
+          <Button
+            onClick={onResetFilters}
+            type='button'
+            variant='outline'
+          >
+            필터 초기화
+          </Button>
+        ) : undefined}
+      </section>
     );
   }
   return (

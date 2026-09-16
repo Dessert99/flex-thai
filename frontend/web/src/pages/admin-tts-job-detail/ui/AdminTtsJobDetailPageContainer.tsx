@@ -19,16 +19,18 @@ export function AdminTtsJobDetailPageContainer({
 }) {
   const query = useQuery(adminTtsJobDetailQueryOptions(jobId, search));
   return (
-    <AdminTtsJobDetailPageView
-      data={query.data}
-      error={query.error}
-      loading={query.isPending}
-      onFilterChange={(patch) =>
-        onSearchChange(updateTtsJobItemsSearch(search, patch))
-      }
-      onPageChange={(page) => onSearchChange({ ...search, page })}
-      onRetry={() => void query.refetch()}
-      search={search}
-    />
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <AdminTtsJobDetailPageView
+        data={query.data}
+        error={query.error}
+        loading={query.isPending}
+        onFilterChange={(patch) =>
+          onSearchChange(updateTtsJobItemsSearch(search, patch))
+        }
+        onPageChange={(page) => onSearchChange({ ...search, page })}
+        onRetry={() => void query.refetch()}
+        search={search}
+      />
+    </div>
   );
 }

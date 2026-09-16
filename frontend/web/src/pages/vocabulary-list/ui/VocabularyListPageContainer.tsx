@@ -20,18 +20,20 @@ export function VocabularyListPageContainer({
 }: VocabularyListPageContainerProps) {
   const vocabularies = useQuery(vocabularyListQueryOptions(search));
   return (
-    <VocabularyListPageView
-      data={vocabularies.data}
-      error={vocabularies.isError}
-      loading={vocabularies.isPending}
-      onFilterChange={(patch) =>
-        onSearchChange(changeVocabularyListFilters(search, patch))
-      }
-      onPageChange={(page) =>
-        onSearchChange(changeVocabularyListPage(search, page))
-      }
-      onRetry={() => void vocabularies.refetch()}
-      search={search}
-    />
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <VocabularyListPageView
+        data={vocabularies.data}
+        error={vocabularies.isError}
+        loading={vocabularies.isPending}
+        onFilterChange={(patch) =>
+          onSearchChange(changeVocabularyListFilters(search, patch))
+        }
+        onPageChange={(page) =>
+          onSearchChange(changeVocabularyListPage(search, page))
+        }
+        onRetry={() => void vocabularies.refetch()}
+        search={search}
+      />
+    </div>
   );
 }

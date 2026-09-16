@@ -14,7 +14,7 @@ import {
   Users,
   WandSparkles,
 } from 'lucide-react';
-import type { AppShellNavigationItem } from '@/shared/ui/app-shell';
+import type { SidebarLayoutNavigationItem } from '../layouts/SidebarLayout';
 
 /** 학습자 경로와 분리된 관리자 주요 메뉴 */
 export const adminNavigation = [
@@ -91,4 +91,4 @@ export const adminNavigation = [
     icon: ScrollText,
     label: '감사 기록',
   },
-] as const satisfies readonly AppShellNavigationItem[];
+] as const satisfies readonly SidebarLayoutNavigationItem[];

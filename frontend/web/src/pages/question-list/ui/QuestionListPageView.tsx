@@ -4,14 +4,17 @@ import type {
   QuestionListResponse,
 } from '@flex-thia/contracts';
 import { Badge } from '@/shared/ui/badge';
-import { Button } from '@/shared/ui/button';
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
-import { PageEmpty, PageError, PageLoading } from '@/shared/ui/page-state';
+
 import {
   hasQuestionListFilters,
   type QuestionListSearch,
 } from '../model/questionListSearch';
 import { QuestionFilters } from './QuestionFilters';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 interface QuestionListPageViewProps {
   data: QuestionListResponse | undefined;
@@ -100,14 +103,36 @@ function renderQuestionState({
   search,
 }: Omit<QuestionListPageViewProps, 'onFilterChange'>) {
   if (loading) {
-    return <PageLoading message='문제를 불러오고 있습니다.' />;
+    return (
+      <section
+        aria-live='polite'
+        className='flex min-h-state flex-col justify-center gap-cluster p-page'
+        role='status'
+      >
+        <Skeleton className='h-control w-full max-w-content' />
+        <p className='text-body text-subtle'>문제를 불러오고 있습니다.</p>
+      </section>
+    );
   }
   if (error || data === undefined) {
     return (
-      <PageError
-        message='문제 목록을 불러오지 못했습니다.'
-        onRetry={onRetry}
-      />
+      <Alert
+        className='rounded-panel border-danger bg-danger-surface'
+        variant='destructive'
+      >
+        <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+        <AlertDescription className='flex flex-col gap-cluster text-danger'>
+          <p>문제 목록을 불러오지 못했습니다.</p>
+          <Button
+            className='mt-cluster w-auto'
+            onClick={onRetry}
+            type='button'
+            variant='outline'
+          >
+            다시 시도
+          </Button>
+        </AlertDescription>
+      </Alert>
     );
   }
   if (data.items.length === 0) {
@@ -216,27 +241,25 @@ function renderEmptyState(
 ) {
   const filtered = hasQuestionListFilters(search);
   return (
-    <PageEmpty
-      action={
-        filtered ? (
-          <Button
-            onClick={onResetFilters}
-            type='button'
-            variant='outline'
-          >
-            필터 초기화
-          </Button>
-        ) : undefined
-      }
-      description={
-        filtered
+    <section className='flex min-h-state flex-col items-center justify-center gap-cluster rounded-panel border border-default bg-surface-muted p-page text-center'>
+      <h2 className='text-title text-primary'>
+        {filtered ? '조건에 맞는 문제가 없습니다.' : '게시된 문제가 없습니다.'}
+      </h2>
+      <p className='text-body text-subtle'>
+        {filtered
           ? '다른 조건을 선택하거나 필터를 초기화해 보세요.'
-          : '게시된 문제가 생기면 이곳에서 확인할 수 있습니다.'
-      }
-      title={
-        filtered ? '조건에 맞는 문제가 없습니다.' : '게시된 문제가 없습니다.'
-      }
-    />
+          : '게시된 문제가 생기면 이곳에서 확인할 수 있습니다.'}
+      </p>
+      {filtered ? (
+        <Button
+          onClick={onResetFilters}
+          type='button'
+          variant='outline'
+        >
+          필터 초기화
+        </Button>
+      ) : undefined}
+    </section>
   );
 }
 

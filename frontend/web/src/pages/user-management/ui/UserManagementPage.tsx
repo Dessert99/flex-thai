@@ -1,5 +1,5 @@
 /** 관리자 사용자 검색·필터·안전한 역할/상태 변경 화면을 제공한다 */
-/* eslint-disable complexity, max-lines, max-lines-per-function */
+/* eslint-disable complexity */
 import {
   betaInvitationRequestSchema,
   betaInvitationResponseSchema,
@@ -9,9 +9,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { authenticatedRequest, isApiError } from '@/shared/api';
 import { Badge } from '@/shared/ui/badge';
-import { Button } from '@/shared/ui/button';
+
 import { Input } from '@/shared/ui/input';
-import { PageError, PageLoading } from '@/shared/ui/page-state';
+
 import {
   Select,
   SelectContent,
@@ -34,6 +34,9 @@ import {
   userManagementQueryOptions,
 } from '../api/userManagementQueries';
 import type { UserManagementSearch } from '../model/userManagementSearch';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 interface UserManagementPageProps {
   currentUserId?: string;
@@ -67,131 +70,161 @@ export function UserManagementPage({
     onSearchChange({ ...search, ...patch, page: 1 });
 
   if (usersQuery.isPending) {
-    return <PageLoading message='사용자를 불러오고 있습니다.' />;
+    return (
+      <div className='mx-auto w-full max-w-content flex-1 p-page'>
+        <section
+          aria-live='polite'
+          className='flex min-h-state flex-col justify-center gap-cluster p-page'
+          role='status'
+        >
+          <Skeleton className='h-control w-full max-w-content' />
+          <p className='text-body text-subtle'>사용자를 불러오고 있습니다.</p>
+        </section>
+      </div>
+    );
   }
   if (usersQuery.isError || !usersQuery.data) {
     return (
-      <PageError
-        message='사용자 목록을 불러오지 못했습니다.'
-        onRetry={() => void usersQuery.refetch()}
-      />
+      <div className='mx-auto w-full max-w-content flex-1 p-page'>
+        <Alert
+          className='rounded-panel border-danger bg-danger-surface'
+          variant='destructive'
+        >
+          <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+          <AlertDescription className='flex flex-col gap-cluster text-danger'>
+            <p>사용자 목록을 불러오지 못했습니다.</p>
+            <Button
+              className='mt-cluster w-auto'
+              onClick={() => void usersQuery.refetch()}
+              type='button'
+              variant='outline'
+            >
+              다시 시도
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
     );
   }
 
   const mutationMessage = getMutationErrorMessage(mutation.error);
   return (
-    <section className='grid gap-section'>
-      <h1 className='text-title text-primary'>사용자 관리</h1>
-      <BetaInvitationForm />
-      <div className='grid gap-control md:grid-cols-4'>
-        <Input
-          aria-label='이메일 검색'
-          onChange={(event) =>
-            changeFilter({ query: event.target.value || undefined })
-          }
-          placeholder='이메일 검색'
-          value={search.query ?? ''}
-        />
-        <FilterSelect
-          label='역할 필터'
-          onChange={(value) =>
-            changeFilter({
-              role:
-                value === 'ALL' ? undefined : (value as 'LEARNER' | 'ADMIN'),
-            })
-          }
-          value={search.role ?? 'ALL'}
-          values={[
-            ['ALL', '모든 역할'],
-            ['LEARNER', '학습자'],
-            ['ADMIN', '관리자'],
-          ]}
-        />
-        <FilterSelect
-          label='상태 필터'
-          onChange={(value) =>
-            changeFilter({
-              status:
-                value === 'ALL' ? undefined : (value as 'ACTIVE' | 'DISABLED'),
-            })
-          }
-          value={search.status ?? 'ALL'}
-          values={[
-            ['ALL', '모든 상태'],
-            ['ACTIVE', '활성'],
-            ['DISABLED', '비활성'],
-          ]}
-        />
-        <FilterSelect
-          label='TOTP 필터'
-          onChange={(value) =>
-            changeFilter({
-              mfaEnrolled: value === 'ALL' ? undefined : value === 'TRUE',
-            })
-          }
-          value={getMfaFilterValue(search.mfaEnrolled)}
-          values={[
-            ['ALL', '모든 TOTP'],
-            ['TRUE', '등록'],
-            ['FALSE', '미등록'],
-          ]}
-        />
-      </div>
-      {mutationMessage ? (
-        <p
-          aria-live='polite'
-          className='text-body text-danger'
-        >
-          {mutationMessage}
-        </p>
-      ) : null}
-      {usersQuery.data.items.length === 0 ? (
-        <p>
-          {hasFilter(search)
-            ? '조건에 맞는 사용자가 없습니다.'
-            : '사용자가 없습니다.'}
-        </p>
-      ) : (
-        <ManagedUserTable
-          currentUserId={currentUserId}
-          onChangeRole={(user) =>
-            mutation.mutate({
-              kind: 'role',
-              userId: user.id,
-              value: user.role === 'ADMIN' ? 'LEARNER' : 'ADMIN',
-            })
-          }
-          onChangeStatus={(user) =>
-            mutation.mutate({
-              kind: 'status',
-              userId: user.id,
-              value: user.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE',
-            })
-          }
-          pending={mutation.isPending}
-          users={usersQuery.data.items}
-        />
-      )}
-      <div className='flex items-center gap-control'>
-        <Button
-          disabled={search.page <= 1}
-          onClick={() => onSearchChange({ ...search, page: search.page - 1 })}
-          variant='outline'
-        >
-          이전
-        </Button>
-        <span>
-          {search.page} / {Math.max(usersQuery.data.page.totalPages, 1)}
-        </span>
-        <Button
-          disabled={search.page >= usersQuery.data.page.totalPages}
-          onClick={() => onSearchChange({ ...search, page: search.page + 1 })}
-          variant='outline'
-        >
-          다음
-        </Button>
-      </div>
-    </section>
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <section className='grid gap-section'>
+        <h1 className='text-title text-primary'>사용자 관리</h1>
+        <BetaInvitationForm />
+        <div className='grid gap-control md:grid-cols-4'>
+          <Input
+            aria-label='이메일 검색'
+            onChange={(event) =>
+              changeFilter({ query: event.target.value || undefined })
+            }
+            placeholder='이메일 검색'
+            value={search.query ?? ''}
+          />
+          <FilterSelect
+            label='역할 필터'
+            onChange={(value) =>
+              changeFilter({
+                role:
+                  value === 'ALL' ? undefined : (value as 'LEARNER' | 'ADMIN'),
+              })
+            }
+            value={search.role ?? 'ALL'}
+            values={[
+              ['ALL', '모든 역할'],
+              ['LEARNER', '학습자'],
+              ['ADMIN', '관리자'],
+            ]}
+          />
+          <FilterSelect
+            label='상태 필터'
+            onChange={(value) =>
+              changeFilter({
+                status:
+                  value === 'ALL'
+                    ? undefined
+                    : (value as 'ACTIVE' | 'DISABLED'),
+              })
+            }
+            value={search.status ?? 'ALL'}
+            values={[
+              ['ALL', '모든 상태'],
+              ['ACTIVE', '활성'],
+              ['DISABLED', '비활성'],
+            ]}
+          />
+          <FilterSelect
+            label='TOTP 필터'
+            onChange={(value) =>
+              changeFilter({
+                mfaEnrolled: value === 'ALL' ? undefined : value === 'TRUE',
+              })
+            }
+            value={getMfaFilterValue(search.mfaEnrolled)}
+            values={[
+              ['ALL', '모든 TOTP'],
+              ['TRUE', '등록'],
+              ['FALSE', '미등록'],
+            ]}
+          />
+        </div>
+        {mutationMessage ? (
+          <p
+            aria-live='polite'
+            className='text-body text-danger'
+          >
+            {mutationMessage}
+          </p>
+        ) : null}
+        {usersQuery.data.items.length === 0 ? (
+          <p>
+            {hasFilter(search)
+              ? '조건에 맞는 사용자가 없습니다.'
+              : '사용자가 없습니다.'}
+          </p>
+        ) : (
+          <ManagedUserTable
+            currentUserId={currentUserId}
+            onChangeRole={(user) =>
+              mutation.mutate({
+                kind: 'role',
+                userId: user.id,
+                value: user.role === 'ADMIN' ? 'LEARNER' : 'ADMIN',
+              })
+            }
+            onChangeStatus={(user) =>
+              mutation.mutate({
+                kind: 'status',
+                userId: user.id,
+                value: user.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE',
+              })
+            }
+            pending={mutation.isPending}
+            users={usersQuery.data.items}
+          />
+        )}
+        <div className='flex items-center gap-control'>
+          <Button
+            disabled={search.page <= 1}
+            onClick={() => onSearchChange({ ...search, page: search.page - 1 })}
+            variant='outline'
+          >
+            이전
+          </Button>
+          <span>
+            {search.page} / {Math.max(usersQuery.data.page.totalPages, 1)}
+          </span>
+          <Button
+            disabled={search.page >= usersQuery.data.page.totalPages}
+            onClick={() => onSearchChange({ ...search, page: search.page + 1 })}
+            variant='outline'
+          >
+            다음
+          </Button>
+        </div>
+      </section>
+    </div>
   );
 }
 

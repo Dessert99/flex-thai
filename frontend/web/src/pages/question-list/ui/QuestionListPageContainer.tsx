@@ -20,23 +20,25 @@ export function QuestionListPageContainer({
   const questions = useQuery(questionListQueryOptions(search));
 
   return (
-    <QuestionListPageView
-      data={questions.data}
-      error={questions.isError}
-      loading={questions.isPending}
-      onFilterChange={(patch) => {
-        onSearchChange(applyQuestionFilterPatch(search, patch));
-      }}
-      onPageChange={(page) => {
-        onSearchChange(applyQuestionFilterPatch(search, { page }));
-      }}
-      onResetFilters={() => {
-        onSearchChange({ page: 1, pageSize: search.pageSize });
-      }}
-      onRetry={() => {
-        void questions.refetch();
-      }}
-      search={search}
-    />
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <QuestionListPageView
+        data={questions.data}
+        error={questions.isError}
+        loading={questions.isPending}
+        onFilterChange={(patch) => {
+          onSearchChange(applyQuestionFilterPatch(search, patch));
+        }}
+        onPageChange={(page) => {
+          onSearchChange(applyQuestionFilterPatch(search, { page }));
+        }}
+        onResetFilters={() => {
+          onSearchChange({ page: 1, pageSize: search.pageSize });
+        }}
+        onRetry={() => {
+          void questions.refetch();
+        }}
+        search={search}
+      />
+    </div>
   );
 }

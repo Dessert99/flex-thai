@@ -17,19 +17,21 @@ export function TtsOperationsPageContainer({
 }) {
   const query = useQuery(ttsJobListQueryOptions(search));
   return (
-    <TtsOperationsPageView
-      data={query.data}
-      error={query.error}
-      loading={query.isPending}
-      onFilterChange={(patch) =>
-        onSearchChange(updateTtsOperationsSearch(search, patch))
-      }
-      onPageChange={(page) => onSearchChange({ ...search, page })}
-      onResetFilters={() =>
-        onSearchChange({ page: 1, pageSize: search.pageSize })
-      }
-      onRetry={() => void query.refetch()}
-      search={search}
-    />
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <TtsOperationsPageView
+        data={query.data}
+        error={query.error}
+        loading={query.isPending}
+        onFilterChange={(patch) =>
+          onSearchChange(updateTtsOperationsSearch(search, patch))
+        }
+        onPageChange={(page) => onSearchChange({ ...search, page })}
+        onResetFilters={() =>
+          onSearchChange({ page: 1, pageSize: search.pageSize })
+        }
+        onRetry={() => void query.refetch()}
+        search={search}
+      />
+    </div>
   );
 }

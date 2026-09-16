@@ -5,7 +5,9 @@ import type {
 } from '@flex-thia/contracts';
 import type { ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
-import { PageError, PageLoading } from '@/shared/ui/page-state';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 interface AdminHomeOperationsCardsProps {
   cost: UsageCostOverviewResponse | undefined;
@@ -158,13 +160,36 @@ function renderOperationalState({
   loading,
   onRetry,
 }: OperationalStateProps & { content: ReactNode }) {
-  if (loading) return <PageLoading message='운영 상태를 불러오고 있습니다.' />;
+  if (loading)
+    return (
+      <section
+        aria-live='polite'
+        className='flex min-h-state flex-col justify-center gap-cluster p-page'
+        role='status'
+      >
+        <Skeleton className='h-control w-full max-w-content' />
+        <p className='text-body text-subtle'>운영 상태를 불러오고 있습니다.</p>
+      </section>
+    );
   if (error || !data) {
     return (
-      <PageError
-        message='운영 상태를 불러오지 못했습니다.'
-        onRetry={onRetry}
-      />
+      <Alert
+        className='rounded-panel border-danger bg-danger-surface'
+        variant='destructive'
+      >
+        <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+        <AlertDescription className='flex flex-col gap-cluster text-danger'>
+          <p>운영 상태를 불러오지 못했습니다.</p>
+          <Button
+            className='mt-cluster w-auto'
+            onClick={onRetry}
+            type='button'
+            variant='outline'
+          >
+            다시 시도
+          </Button>
+        </AlertDescription>
+      </Alert>
     );
   }
   return content;
@@ -183,13 +208,36 @@ function renderCostState({
   loading: boolean;
   onRetry: () => void;
 }) {
-  if (loading) return <PageLoading message='비용 상태를 불러오고 있습니다.' />;
+  if (loading)
+    return (
+      <section
+        aria-live='polite'
+        className='flex min-h-state flex-col justify-center gap-cluster p-page'
+        role='status'
+      >
+        <Skeleton className='h-control w-full max-w-content' />
+        <p className='text-body text-subtle'>비용 상태를 불러오고 있습니다.</p>
+      </section>
+    );
   if (error || !cost) {
     return (
-      <PageError
-        message='비용 상태를 불러오지 못했습니다.'
-        onRetry={onRetry}
-      />
+      <Alert
+        className='rounded-panel border-danger bg-danger-surface'
+        variant='destructive'
+      >
+        <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+        <AlertDescription className='flex flex-col gap-cluster text-danger'>
+          <p>비용 상태를 불러오지 못했습니다.</p>
+          <Button
+            className='mt-cluster w-auto'
+            onClick={onRetry}
+            type='button'
+            variant='outline'
+          >
+            다시 시도
+          </Button>
+        </AlertDescription>
+      </Alert>
     );
   }
   return content;

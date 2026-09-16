@@ -7,9 +7,11 @@ import {
 } from '@tanstack/react-router';
 import { NotFoundPage } from '@/pages/not-found';
 import { toUserMessage } from '@/shared/lib/error';
-import { PageError } from '@/shared/ui/page-state';
+
 import { RouteAnnouncer } from '../routing/RouteAnnouncer';
 import type { RouterContext } from '../routing/routeContext';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 /** typed Router context와 전역 render/not-found 복구 경계를 연결한다 */
 export const Route = createRootRouteWithContext<RouterContext>()({
@@ -50,13 +52,26 @@ export function RootRouteError({ error, reset }: RootRouteErrorProps) {
   return (
     <main className='grid min-h-screen place-items-center bg-background p-page'>
       <div className='w-full max-w-content'>
-        <PageError
-          message={userMessage.message}
-          onRetry={reset}
-          {...(userMessage.requestId === undefined
-            ? {}
-            : { requestId: userMessage.requestId })}
-        />
+        <Alert
+          className='rounded-panel border-danger bg-danger-surface'
+          variant='destructive'
+        >
+          <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+          <AlertDescription className='flex flex-col gap-cluster text-danger'>
+            <p>{userMessage.message}</p>
+            {userMessage.requestId ? (
+              <p className='text-caption'>요청 ID: {userMessage.requestId}</p>
+            ) : null}
+            <Button
+              className='mt-cluster w-auto'
+              onClick={reset}
+              type='button'
+              variant='outline'
+            >
+              다시 시도
+            </Button>
+          </AlertDescription>
+        </Alert>
       </div>
     </main>
   );

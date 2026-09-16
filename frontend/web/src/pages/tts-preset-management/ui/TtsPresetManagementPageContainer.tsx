@@ -73,44 +73,46 @@ export function TtsPresetManagementPageContainer({
   const mutationError =
     createMutation.error ?? versionMutation.error ?? toggleMutation.error;
   return (
-    <TtsPresetManagementPageView
-      data={query.data}
-      error={query.error}
-      loading={query.isPending}
-      mutationError={mutationError}
-      mutationPending={
-        createMutation.isPending ||
-        versionMutation.isPending ||
-        toggleMutation.isPending
-      }
-      onCancelVersion={() => setVersionSourceId(null)}
-      onCreate={(body: CreateTtsVoicePresetRequest) =>
-        createMutation.mutateAsync(body).then(() => undefined)
-      }
-      onCreateVersion={(presetId, body) =>
-        versionMutation.mutateAsync({ body, presetId }).then(() => undefined)
-      }
-      onFilterChange={(patch) =>
-        onSearchChange(updateTtsPresetSearch(search, patch))
-      }
-      onPageChange={(page) => onSearchChange({ ...search, page })}
-      onRetry={() => void query.refetch()}
-      onSelectVersion={(preset) => {
-        queryClient.setQueryData<TtsVoicePresetDetailResponse>(
-          ttsPresetDetailQueryOptions(preset.id).queryKey,
-          preset,
-        );
-        setVersionSourceId(preset.id);
-      }}
-      onToggle={(preset) =>
-        toggleMutation.mutate({
-          enabled: !preset.enabled,
-          preset,
-        })
-      }
-      search={search}
-      versionSource={versionSourceQuery.data ?? null}
-    />
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <TtsPresetManagementPageView
+        data={query.data}
+        error={query.error}
+        loading={query.isPending}
+        mutationError={mutationError}
+        mutationPending={
+          createMutation.isPending ||
+          versionMutation.isPending ||
+          toggleMutation.isPending
+        }
+        onCancelVersion={() => setVersionSourceId(null)}
+        onCreate={(body: CreateTtsVoicePresetRequest) =>
+          createMutation.mutateAsync(body).then(() => undefined)
+        }
+        onCreateVersion={(presetId, body) =>
+          versionMutation.mutateAsync({ body, presetId }).then(() => undefined)
+        }
+        onFilterChange={(patch) =>
+          onSearchChange(updateTtsPresetSearch(search, patch))
+        }
+        onPageChange={(page) => onSearchChange({ ...search, page })}
+        onRetry={() => void query.refetch()}
+        onSelectVersion={(preset) => {
+          queryClient.setQueryData<TtsVoicePresetDetailResponse>(
+            ttsPresetDetailQueryOptions(preset.id).queryKey,
+            preset,
+          );
+          setVersionSourceId(preset.id);
+        }}
+        onToggle={(preset) =>
+          toggleMutation.mutate({
+            enabled: !preset.enabled,
+            preset,
+          })
+        }
+        search={search}
+        versionSource={versionSourceQuery.data ?? null}
+      />
+    </div>
   );
 }
 

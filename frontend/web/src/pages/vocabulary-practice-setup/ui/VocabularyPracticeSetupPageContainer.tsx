@@ -5,11 +5,14 @@ import {
   PracticeSetupForm,
   startVocabularyPractice,
 } from '@/features/start-vocabulary-practice';
-import { PageError, PageLoading } from '@/shared/ui/page-state';
+
 import {
   practiceVocabularySearchQueryOptions,
   practiceWordbooksQueryOptions,
 } from '../api/vocabularyPracticeSetupQueries';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 interface VocabularyPracticeSetupPageContainerProps {
   onCreated: (sessionId: string) => void;
@@ -23,14 +26,40 @@ export function VocabularyPracticeSetupPageContainer({
   const wordbooks = useQuery(practiceWordbooksQueryOptions());
   const vocabularies = useQuery(practiceVocabularySearchQueryOptions(query));
   if (wordbooks.isPending) {
-    return <PageLoading message='단어장을 불러오고 있습니다.' />;
+    return (
+      <div className='mx-auto w-full max-w-content flex-1 p-page'>
+        <section
+          aria-live='polite'
+          className='flex min-h-state flex-col justify-center gap-cluster p-page'
+          role='status'
+        >
+          <Skeleton className='h-control w-full max-w-content' />
+          <p className='text-body text-subtle'>단어장을 불러오고 있습니다.</p>
+        </section>
+      </div>
+    );
   }
   if (wordbooks.isError || wordbooks.data === undefined) {
     return (
-      <PageError
-        message='단어장을 불러오지 못했습니다.'
-        onRetry={() => void wordbooks.refetch()}
-      />
+      <div className='mx-auto w-full max-w-content flex-1 p-page'>
+        <Alert
+          className='rounded-panel border-danger bg-danger-surface'
+          variant='destructive'
+        >
+          <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+          <AlertDescription className='flex flex-col gap-cluster text-danger'>
+            <p>단어장을 불러오지 못했습니다.</p>
+            <Button
+              className='mt-cluster w-auto'
+              onClick={() => void wordbooks.refetch()}
+              type='button'
+              variant='outline'
+            >
+              다시 시도
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
     );
   }
   const searchState = getSearchState(query, {
@@ -38,21 +67,23 @@ export function VocabularyPracticeSetupPageContainer({
     isPending: vocabularies.isPending,
   });
   return (
-    <section
-      aria-labelledby='practice-setup-title'
-      className='grid gap-section'
-    >
-      <h1 id='practice-setup-title'>단어 연습</h1>
-      <PracticeSetupForm
-        onCreated={onCreated}
-        onRetrySearch={() => void vocabularies.refetch()}
-        onSearch={setQuery}
-        onStart={startVocabularyPractice}
-        searchResults={vocabularies.data?.items ?? []}
-        searchState={searchState}
-        wordbooks={wordbooks.data.items}
-      />
-    </section>
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <section
+        aria-labelledby='practice-setup-title'
+        className='grid gap-section'
+      >
+        <h1 id='practice-setup-title'>단어 연습</h1>
+        <PracticeSetupForm
+          onCreated={onCreated}
+          onRetrySearch={() => void vocabularies.refetch()}
+          onSearch={setQuery}
+          onStart={startVocabularyPractice}
+          searchResults={vocabularies.data?.items ?? []}
+          searchState={searchState}
+          wordbooks={wordbooks.data.items}
+        />
+      </section>
+    </div>
   );
 }
 

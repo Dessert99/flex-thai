@@ -17,16 +17,18 @@ export function VocabularyCandidateManagementPageContainer({
 }: VocabularyCandidateManagementPageContainerProps) {
   const query = useQuery(vocabularyCandidatesQueryOptions(search));
   return (
-    <VocabularyCandidateManagementPageView
-      {...(query.data ? { data: query.data } : {})}
-      error={query.isError}
-      loading={query.isPending}
-      onFilterChange={(patch) =>
-        onSearchChange(changeVocabularyCandidateFilters(search, patch))
-      }
-      onPageChange={(page) => onSearchChange({ ...search, page })}
-      onRetry={() => void query.refetch()}
-      search={search}
-    />
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <VocabularyCandidateManagementPageView
+        {...(query.data ? { data: query.data } : {})}
+        error={query.isError}
+        loading={query.isPending}
+        onFilterChange={(patch) =>
+          onSearchChange(changeVocabularyCandidateFilters(search, patch))
+        }
+        onPageChange={(page) => onSearchChange({ ...search, page })}
+        onRetry={() => void query.refetch()}
+        search={search}
+      />
+    </div>
   );
 }

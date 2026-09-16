@@ -1,8 +1,7 @@
 /** 관리자 문제 record를 desktop table과 mobile stack으로 표현한다 */
 import type { AdminQuestionListResponse } from '@flex-thia/contracts';
 import { Badge } from '@/shared/ui/badge';
-import { Button } from '@/shared/ui/button';
-import { PageEmpty, PageError, PageLoading } from '@/shared/ui/page-state';
+
 import {
   Table,
   TableBody,
@@ -16,6 +15,9 @@ import {
   type AdminQuestionSearch,
 } from '../model/adminQuestionSearch';
 import { AdminQuestionFilters } from './AdminQuestionFilters';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 interface QuestionManagementPageViewProps {
   data: AdminQuestionListResponse | undefined;
@@ -77,41 +79,61 @@ function renderListState({
   search,
 }: Omit<QuestionManagementPageViewProps, 'onFilterChange'>) {
   if (loading) {
-    return <PageLoading message='관리 문제를 불러오고 있습니다.' />;
+    return (
+      <section
+        aria-live='polite'
+        className='flex min-h-state flex-col justify-center gap-cluster p-page'
+        role='status'
+      >
+        <Skeleton className='h-control w-full max-w-content' />
+        <p className='text-body text-subtle'>관리 문제를 불러오고 있습니다.</p>
+      </section>
+    );
   }
   if (error || data === undefined) {
     return (
-      <PageError
-        message='관리 문제 목록을 불러오지 못했습니다.'
-        onRetry={onRetry}
-      />
+      <Alert
+        className='rounded-panel border-danger bg-danger-surface'
+        variant='destructive'
+      >
+        <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+        <AlertDescription className='flex flex-col gap-cluster text-danger'>
+          <p>관리 문제 목록을 불러오지 못했습니다.</p>
+          <Button
+            className='mt-cluster w-auto'
+            onClick={onRetry}
+            type='button'
+            variant='outline'
+          >
+            다시 시도
+          </Button>
+        </AlertDescription>
+      </Alert>
     );
   }
   if (data.items.length === 0) {
     return (
-      <PageEmpty
-        action={
-          hasAdminQuestionFilters(search) ? (
-            <Button
-              onClick={onResetFilters}
-              type='button'
-              variant='outline'
-            >
-              필터 초기화
-            </Button>
-          ) : undefined
-        }
-        description={
-          hasAdminQuestionFilters(search)
-            ? '다른 조건을 선택하거나 필터를 초기화해 보세요.'
-            : '콘텐츠 가져오기로 문제 초안을 등록할 수 있습니다.'
-        }
-        title={
-          hasAdminQuestionFilters(search)
+      <section className='flex min-h-state flex-col items-center justify-center gap-cluster rounded-panel border border-default bg-surface-muted p-page text-center'>
+        <h2 className='text-title text-primary'>
+          {hasAdminQuestionFilters(search)
             ? '조건에 맞는 문제가 없습니다.'
-            : '등록된 문제가 없습니다.'
-        }
-      />
+            : '등록된 문제가 없습니다.'}
+        </h2>
+        <p className='text-body text-subtle'>
+          {hasAdminQuestionFilters(search)
+            ? '다른 조건을 선택하거나 필터를 초기화해 보세요.'
+            : '콘텐츠 가져오기로 문제 초안을 등록할 수 있습니다.'}
+        </p>
+        {hasAdminQuestionFilters(search) ? (
+          <Button
+            onClick={onResetFilters}
+            type='button'
+            variant='outline'
+          >
+            필터 초기화
+          </Button>
+        ) : undefined}
+      </section>
     );
   }
 

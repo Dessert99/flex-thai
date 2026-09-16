@@ -38,17 +38,21 @@ export function ContentImportListPageContainer({
   });
 
   return (
-    <ContentImportListPageView
-      data={imports.data}
-      importError={createImport.error}
-      importing={createImport.isPending}
-      importSucceeded={createImport.isSuccess}
-      listError={imports.isError}
-      loading={imports.isPending}
-      onImport={(command: ContentImportCommand) => createImport.mutate(command)}
-      onImportReset={() => createImport.reset()}
-      onPageChange={(page) => onSearchChange({ ...search, page })}
-      onRetry={() => void imports.refetch()}
-    />
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <ContentImportListPageView
+        data={imports.data}
+        importError={createImport.error}
+        importing={createImport.isPending}
+        importSucceeded={createImport.isSuccess}
+        listError={imports.isError}
+        loading={imports.isPending}
+        onImport={(command: ContentImportCommand) =>
+          createImport.mutate(command)
+        }
+        onImportReset={() => createImport.reset()}
+        onPageChange={(page) => onSearchChange({ ...search, page })}
+        onRetry={() => void imports.refetch()}
+      />
+    </div>
   );
 }

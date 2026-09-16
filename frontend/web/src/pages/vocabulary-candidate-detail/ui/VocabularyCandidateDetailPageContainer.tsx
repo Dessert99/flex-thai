@@ -8,8 +8,11 @@ import {
 } from '@/features/review-vocabulary-candidate';
 import { isApiError } from '@/shared/api';
 import { toUserMessage } from '@/shared/lib/error';
-import { PageError, PageLoading } from '@/shared/ui/page-state';
+
 import { VocabularyCandidateDetailPageView } from './VocabularyCandidateDetailPageView';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 type ReviewCommand =
   | {
@@ -58,13 +61,41 @@ export function VocabularyCandidateDetailPageContainer({
       ]),
   });
   if (query.isPending)
-    return <PageLoading message='어휘 후보를 불러오고 있습니다.' />;
+    return (
+      <div className='mx-auto w-full max-w-content flex-1 p-page'>
+        <section
+          aria-live='polite'
+          className='flex min-h-state flex-col justify-center gap-cluster p-page'
+          role='status'
+        >
+          <Skeleton className='h-control w-full max-w-content' />
+          <p className='text-body text-subtle'>
+            어휘 후보를 불러오고 있습니다.
+          </p>
+        </section>
+      </div>
+    );
   if (query.isError || !query.data) {
     return (
-      <PageError
-        message='어휘 후보를 불러오지 못했습니다.'
-        onRetry={() => void query.refetch()}
-      />
+      <div className='mx-auto w-full max-w-content flex-1 p-page'>
+        <Alert
+          className='rounded-panel border-danger bg-danger-surface'
+          variant='destructive'
+        >
+          <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+          <AlertDescription className='flex flex-col gap-cluster text-danger'>
+            <p>어휘 후보를 불러오지 못했습니다.</p>
+            <Button
+              className='mt-cluster w-auto'
+              onClick={() => void query.refetch()}
+              type='button'
+              variant='outline'
+            >
+              다시 시도
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
     );
   }
   const errorMessage =
@@ -74,18 +105,20 @@ export function VocabularyCandidateDetailPageContainer({
       ? '다른 검수자가 먼저 변경했습니다. 최신 후보를 다시 확인해 주세요.'
       : toUserMessage(action.error)?.message;
   return (
-    <VocabularyCandidateDetailPageView
-      data={query.data}
-      {...(errorMessage ? { errorMessage } : {})}
-      onCreateDraft={(input) => action.mutate({ kind: 'APPROVE', input })}
-      onDiscard={() => action.mutate({ kind: 'DISCARD' })}
-      onLinkExisting={(vocabularyId) =>
-        action.mutate({
-          kind: 'APPROVE',
-          input: { action: 'LINK_EXISTING', vocabularyId },
-        })
-      }
-      pending={action.isPending}
-    />
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <VocabularyCandidateDetailPageView
+        data={query.data}
+        {...(errorMessage ? { errorMessage } : {})}
+        onCreateDraft={(input) => action.mutate({ kind: 'APPROVE', input })}
+        onDiscard={() => action.mutate({ kind: 'DISCARD' })}
+        onLinkExisting={(vocabularyId) =>
+          action.mutate({
+            kind: 'APPROVE',
+            input: { action: 'LINK_EXISTING', vocabularyId },
+          })
+        }
+        pending={action.isPending}
+      />
+    </div>
   );
 }

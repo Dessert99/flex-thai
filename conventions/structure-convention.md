@@ -118,7 +118,7 @@ infra ─────────────────> backend 실행 산출
 
 ```text
 frontend/web/src/
-├── app/                       # 라우터·전역 provider
+├── app/                       # 라우터·전역 provider·앱 레이아웃
 ├── pages/{slice}/             # 라우트 단위 화면과 화면 전용 서버 상태
 │   ├── ui/
 │   ├── api/
@@ -130,7 +130,7 @@ frontend/web/src/
 │   ├── model/
 │   └── lib/
 ├── shared/
-│   ├── ui/
+│   ├── ui/                    # 공용 primitive만 배치
 │   ├── api/
 │   ├── model/
 │   ├── lib/
@@ -146,7 +146,17 @@ frontend/web/src/
   `features/{slice}`로 분리한다.
 - 도메인 규칙을 몰라도 이해할 수 있고 여러 기능이 실제로 사용할 때만
   프론트엔드 내부 `shared`로 옮긴다.
-- 공용 UI는 `shared/ui`에 두며 `shared/components`는 만들지 않는다.
+- `shared/ui`에는 공용 primitive만 둔다. 사이드바·Provider 조합만
+  `app/layouts/SidebarLayout.tsx`에서 공유한다. 페이지 헤더·본문 너비·여백·
+  카드 배치와 로딩·빈 결과·오류 안내는 각 페이지에서 직접 구성한다.
+  앱의 세션·라우트 상태 안내도 해당 사용처에서 직접 구성한다.
+  이를 위한 공용 PageState나 feedback 계층을 만들지 않는다.
+  페이지 배치는 검토·수정 중이므로 사이드바 외에 레이아웃만을 위한 컴포넌트를 추출하지
+  않는다. primitive와 페이지별 카드·기능 컴포넌트는 유지한다.
+  페이지 JSX를 분리하도록 강제하는 파일·함수 줄 수 제한은 적용하지 않는다.
+  기능·화면 전용 조합은 해당 slice의 `ui`에 두며 `shared/components`는
+  만들지 않는다.
+- Storybook은 `shared/ui`의 primitive만 수집한다.
 - 다른 layer가 slice를 사용할 때만 slice root `index.ts`를 공개 API로
   두며, 소비자는 내부 segment를 우회하거나 재귀 barrel을 만들지 않는다.
 - 프론트엔드 테스트는 대상 옆에 `*.test.ts` 또는 `*.test.tsx`로 두고,

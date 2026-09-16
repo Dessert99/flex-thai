@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { isApiError } from '@/shared/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
-import { PageError, PageLoading } from '@/shared/ui/page-state';
+
 import {
   updateOperationsCostSettings,
   usageCostOverviewQueryOptions,
@@ -14,6 +14,9 @@ import {
 import type { UsageCostSearch } from '../model/usageCostSearch';
 import { UsageCostFilters } from './UsageCostFilters';
 import { UsageCostSettingsCard } from './UsageCostSettingsCard';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 interface UsageCostOperationsPageProps {
   search: UsageCostSearch;
@@ -21,7 +24,7 @@ interface UsageCostOperationsPageProps {
 }
 
 /** URL filter·overview·settings mutation을 조립하는 화면 */
-// eslint-disable-next-line max-lines-per-function -- 독립 query와 화면 전용 카드를 한 route page에서 조립한다.
+
 export function UsageCostOperationsPage({
   search,
   onSearchChange,
@@ -58,14 +61,42 @@ export function UsageCostOperationsPage({
     onSearchChange({ ...search, ...patch });
 
   if (overview.isPending) {
-    return <PageLoading message='사용량·비용을 불러오고 있습니다.' />;
+    return (
+      <div className='mx-auto w-full max-w-content flex-1 p-page'>
+        <section
+          aria-live='polite'
+          className='flex min-h-state flex-col justify-center gap-cluster p-page'
+          role='status'
+        >
+          <Skeleton className='h-control w-full max-w-content' />
+          <p className='text-body text-subtle'>
+            사용량·비용을 불러오고 있습니다.
+          </p>
+        </section>
+      </div>
+    );
   }
   if (overview.isError || !overview.data) {
     return (
-      <PageError
-        message='사용량·비용을 불러오지 못했습니다.'
-        onRetry={() => void overview.refetch()}
-      />
+      <div className='mx-auto w-full max-w-content flex-1 p-page'>
+        <Alert
+          className='rounded-panel border-danger bg-danger-surface'
+          variant='destructive'
+        >
+          <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+          <AlertDescription className='flex flex-col gap-cluster text-danger'>
+            <p>사용량·비용을 불러오지 못했습니다.</p>
+            <Button
+              className='mt-cluster w-auto'
+              onClick={() => void overview.refetch()}
+              type='button'
+              variant='outline'
+            >
+              다시 시도
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
     );
   }
 
@@ -82,67 +113,70 @@ export function UsageCostOperationsPage({
   };
 
   return (
-    <section className='grid gap-section'>
-      <header className='space-y-cluster'>
-        <h1 className='text-title text-primary'>AI·TTS 사용량·비용</h1>
-        <p className='text-body text-subtle'>
-          provider 실행 기록을 기준으로 예상 비용과 운영 대기 상태를 확인합니다.
-        </p>
-      </header>
-      <UsageCostFilters
-        key={`${search.from ?? ''}:${search.to ?? ''}`}
-        onChange={changeSearch}
-        search={search}
-      />
-      <div className='grid gap-section md:grid-cols-2 lg:grid-cols-4'>
-        <MetricCard
-          label='조회 기간 예상 비용'
-          value={`${overview.data.estimatedCostUsd} USD`}
-        />
-        <MetricCard
-          label='실행 중 작업'
-          value={String(overview.data.inProgressJobCount)}
-        />
-        <MetricCard
-          label='실패 실행'
-          value={String(overview.data.failedRunCount)}
-        />
-        <MetricCard
-          label='검토 대기 후보'
-          value={String(overview.data.pendingReviewCandidateCount)}
-        />
-      </div>
-      <Card className='rounded-panel border-default bg-surface'>
-        <CardHeader>
-          <CardTitle className='text-title'>현재 월 예상 비용</CardTitle>
-        </CardHeader>
-        <CardContent className='grid gap-cluster'>
-          <p className='text-body text-primary'>
-            {overview.data.currentMonthThreshold.estimatedCostUsd} USD
-          </p>
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <section className='grid gap-section'>
+        <header className='space-y-cluster'>
+          <h1 className='text-title text-primary'>AI·TTS 사용량·비용</h1>
           <p className='text-body text-subtle'>
-            경고 상태:{' '}
-            <strong>{overview.data.currentMonthThreshold.status}</strong>
+            provider 실행 기록을 기준으로 예상 비용과 운영 대기 상태를
+            확인합니다.
           </p>
-        </CardContent>
-      </Card>
-      <BreakdownTable breakdown={overview.data.breakdown} />
-      <UsageCostSettingsCard
-        key={
-          settings.data
-            ? `${settings.data.updatedAt}:${settings.data.warningUsd}:${settings.data.criticalUsd}`
-            : 'usage-cost-settings'
-        }
-        conflict={settingsConflict}
-        loading={settings.isPending}
-        onRetry={() => void settings.refetch()}
-        onSave={saveSettings}
-        queryError={settings.isError}
-        saveError={update.isError && !settingsConflict}
-        saving={update.isPending}
-        settings={settings.data}
-      />
-    </section>
+        </header>
+        <UsageCostFilters
+          key={`${search.from ?? ''}:${search.to ?? ''}`}
+          onChange={changeSearch}
+          search={search}
+        />
+        <div className='grid gap-section md:grid-cols-2 lg:grid-cols-4'>
+          <MetricCard
+            label='조회 기간 예상 비용'
+            value={`${overview.data.estimatedCostUsd} USD`}
+          />
+          <MetricCard
+            label='실행 중 작업'
+            value={String(overview.data.inProgressJobCount)}
+          />
+          <MetricCard
+            label='실패 실행'
+            value={String(overview.data.failedRunCount)}
+          />
+          <MetricCard
+            label='검토 대기 후보'
+            value={String(overview.data.pendingReviewCandidateCount)}
+          />
+        </div>
+        <Card className='rounded-panel border-default bg-surface'>
+          <CardHeader>
+            <CardTitle className='text-title'>현재 월 예상 비용</CardTitle>
+          </CardHeader>
+          <CardContent className='grid gap-cluster'>
+            <p className='text-body text-primary'>
+              {overview.data.currentMonthThreshold.estimatedCostUsd} USD
+            </p>
+            <p className='text-body text-subtle'>
+              경고 상태:{' '}
+              <strong>{overview.data.currentMonthThreshold.status}</strong>
+            </p>
+          </CardContent>
+        </Card>
+        <BreakdownTable breakdown={overview.data.breakdown} />
+        <UsageCostSettingsCard
+          key={
+            settings.data
+              ? `${settings.data.updatedAt}:${settings.data.warningUsd}:${settings.data.criticalUsd}`
+              : 'usage-cost-settings'
+          }
+          conflict={settingsConflict}
+          loading={settings.isPending}
+          onRetry={() => void settings.refetch()}
+          onSave={saveSettings}
+          queryError={settings.isError}
+          saveError={update.isError && !settingsConflict}
+          saving={update.isPending}
+          settings={settings.data}
+        />
+      </section>
+    </div>
   );
 }
 

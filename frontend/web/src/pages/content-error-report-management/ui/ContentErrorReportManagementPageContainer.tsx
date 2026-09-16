@@ -57,23 +57,25 @@ export function ContentErrorReportManagementPageContainer({
     },
   });
   return (
-    <ContentErrorReportManagementPageView
-      reports={list.data}
-      detail={detail.data}
-      search={search}
-      loading={list.isLoading}
-      detailLoading={detail.isLoading}
-      error={list.isError}
-      detailError={detail.isError}
-      mutationError={mutation.isError}
-      mutating={mutation.isPending}
-      onSearchChange={onSearchChange}
-      onSelect={setSelectedId}
-      onStatusChange={(status) => mutation.mutate({ kind: 'STATUS', status })}
-      onAssign={(assigneeUserId) =>
-        mutation.mutate({ kind: 'ASSIGN', assigneeUserId })
-      }
-      onUnassign={() => mutation.mutate({ kind: 'UNASSIGN' })}
-    />
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <ContentErrorReportManagementPageView
+        reports={list.data}
+        detail={detail.data}
+        search={search}
+        loading={list.isLoading}
+        detailLoading={detail.isLoading}
+        error={list.isError}
+        detailError={detail.isError}
+        mutationError={mutation.isError}
+        mutating={mutation.isPending}
+        onSearchChange={onSearchChange}
+        onSelect={setSelectedId}
+        onStatusChange={(status) => mutation.mutate({ kind: 'STATUS', status })}
+        onAssign={(assigneeUserId) =>
+          mutation.mutate({ kind: 'ASSIGN', assigneeUserId })
+        }
+        onUnassign={() => mutation.mutate({ kind: 'UNASSIGN' })}
+      />
+    </div>
   );
 }

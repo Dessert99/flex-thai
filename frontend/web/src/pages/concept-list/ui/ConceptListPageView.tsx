@@ -3,7 +3,9 @@ import type {
   ConceptCategory,
   ConceptListResponse,
 } from '@flex-thia/contracts';
-import { PageEmpty, PageError, PageLoading } from '@/shared/ui/page-state';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 interface ConceptListPageViewProps {
   category: ConceptCategory;
@@ -46,15 +48,39 @@ export function ConceptListPageView({
           </button>
         ))}
       </div>
-      {loading ? <PageLoading message='개념을 불러오고 있습니다.' /> : null}
+      {loading ? (
+        <section
+          aria-live='polite'
+          className='flex min-h-state flex-col justify-center gap-cluster p-page'
+          role='status'
+        >
+          <Skeleton className='h-control w-full max-w-content' />
+          <p className='text-body text-subtle'>개념을 불러오고 있습니다.</p>
+        </section>
+      ) : null}
       {error ? (
-        <PageError
-          message='개념 목록을 불러오지 못했습니다.'
-          onRetry={onRetry}
-        />
+        <Alert
+          className='rounded-panel border-danger bg-danger-surface'
+          variant='destructive'
+        >
+          <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+          <AlertDescription className='flex flex-col gap-cluster text-danger'>
+            <p>개념 목록을 불러오지 못했습니다.</p>
+            <Button
+              className='mt-cluster w-auto'
+              onClick={onRetry}
+              type='button'
+              variant='outline'
+            >
+              다시 시도
+            </Button>
+          </AlertDescription>
+        </Alert>
       ) : null}
       {!loading && !error && data?.items.length === 0 ? (
-        <PageEmpty title='게시된 개념이 없습니다.' />
+        <section className='flex min-h-state flex-col items-center justify-center gap-cluster rounded-panel border border-default bg-surface-muted p-page text-center'>
+          <h2 className='text-title text-primary'>게시된 개념이 없습니다.</h2>
+        </section>
       ) : null}
       {data?.items.length ? (
         <ul className='grid gap-cluster'>

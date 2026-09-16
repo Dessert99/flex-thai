@@ -48,7 +48,7 @@ const changeFilter = (
 
 /** 목록 선택과 허용된 workflow command를 한 화면에서 제공한다 */
 // 목록·상세 workflow를 한 접근성 문맥에 유지해 조건 분기가 함께 보이게 한다
-// eslint-disable-next-line max-lines-per-function, complexity
+// eslint-disable-next-line complexity
 export function ContentErrorReportManagementPageView({
   reports,
   detail,
@@ -74,7 +74,7 @@ export function ContentErrorReportManagementPageView({
       })
     : null;
   return (
-    <main>
+    <section>
       <h1>콘텐츠 오류 신고</h1>
       <label>
         상태
@@ -278,6 +278,6 @@ export function ContentErrorReportManagementPageView({
           </form>
         </section>
       ) : null}
-    </main>
+    </section>
   );
 }

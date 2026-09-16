@@ -9,8 +9,11 @@ import {
   type AuthSessionState,
   type AuthSessionStore,
 } from '@/shared/api';
-import { PageEmpty, PageError, PageLoading } from '@/shared/ui/page-state';
+
 import { createAppRouter } from '../router';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 /** production cache freshness와 자동 재시도 경계를 가진 QueryClient를 생성한다 */
 export function createAppQueryClient(): QueryClient {
@@ -80,34 +83,78 @@ export function AppProviders() {
 
   if (session.status === 'restoring') {
     return (
-      <RecoveryShell>
-        <PageLoading message='세션을 확인하고 있습니다.' />
-      </RecoveryShell>
+      <main
+        className='grid min-h-screen place-items-center bg-background p-page'
+        id='app-main'
+        tabIndex={-1}
+      >
+        <div className='w-full max-w-content'>
+          <section
+            aria-live='polite'
+            className='flex min-h-state flex-col justify-center gap-cluster p-page'
+            role='status'
+          >
+            <Skeleton className='h-control w-full max-w-content' />
+            <p className='text-body text-subtle'>세션을 확인하고 있습니다.</p>
+          </section>
+        </div>
+      </main>
     );
   }
   if (session.status === 'blocked') {
     return (
-      <RecoveryShell>
-        <PageEmpty
-          description='계정 상태를 확인하려면 관리자에게 문의해 주세요.'
-          title='이 계정은 현재 사용할 수 없습니다.'
-        />
-      </RecoveryShell>
+      <main
+        className='grid min-h-screen place-items-center bg-background p-page'
+        id='app-main'
+        tabIndex={-1}
+      >
+        <div className='w-full max-w-content'>
+          <section className='flex min-h-state flex-col items-center justify-center gap-cluster rounded-panel border border-default bg-surface-muted p-page text-center'>
+            <h2 className='text-title text-primary'>
+              이 계정은 현재 사용할 수 없습니다.
+            </h2>
+            <p className='text-body text-subtle'>
+              계정 상태를 확인하려면 관리자에게 문의해 주세요.
+            </p>
+          </section>
+        </div>
+      </main>
     );
   }
   if (session.status === 'restore-error') {
     return (
-      <RecoveryShell>
-        <PageError
-          message='세션을 확인하지 못했습니다. 다시 시도해 주세요.'
-          onRetry={() => {
-            void restoreSession();
-          }}
-          {...(session.requestId === undefined
-            ? {}
-            : { requestId: session.requestId })}
-        />
-      </RecoveryShell>
+      <main
+        className='grid min-h-screen place-items-center bg-background p-page'
+        id='app-main'
+        tabIndex={-1}
+      >
+        <div className='w-full max-w-content'>
+          <Alert
+            className='rounded-panel border-danger bg-danger-surface'
+            variant='destructive'
+          >
+            <AlertTitle className='text-danger'>
+              문제가 발생했습니다.
+            </AlertTitle>
+            <AlertDescription className='flex flex-col gap-cluster text-danger'>
+              <p>세션을 확인하지 못했습니다. 다시 시도해 주세요.</p>
+              {session.requestId ? (
+                <p className='text-caption'>요청 ID: {session.requestId}</p>
+              ) : null}
+              <Button
+                className='mt-cluster w-auto'
+                onClick={() => {
+                  void restoreSession();
+                }}
+                type='button'
+                variant='outline'
+              >
+                다시 시도
+              </Button>
+            </AlertDescription>
+          </Alert>
+        </div>
+      </main>
     );
   }
 
@@ -120,16 +167,4 @@ export function AppProviders() {
 
 function readSubject(state: AuthSessionState): string | undefined {
   return state.status === 'authenticated' ? state.user.id : undefined;
-}
-
-function RecoveryShell({ children }: { children: React.ReactNode }) {
-  return (
-    <main
-      className='grid min-h-screen place-items-center bg-background p-page'
-      id='app-main'
-      tabIndex={-1}
-    >
-      <div className='w-full max-w-content'>{children}</div>
-    </main>
-  );
 }

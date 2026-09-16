@@ -6,10 +6,10 @@ import {
 } from '@flex-thia/contracts';
 import { z } from 'zod';
 import { Badge } from '@/shared/ui/badge';
-import { Button } from '@/shared/ui/button';
+
 import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
-import { PageEmpty, PageError, PageLoading } from '@/shared/ui/page-state';
+
 import {
   Select,
   SelectContent,
@@ -25,6 +25,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/shared/ui/table';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 export interface VocabularyCandidateManagementPageViewProps {
   data?: VocabularyCandidateListResponse;
@@ -150,17 +153,46 @@ function CandidateResults({
   VocabularyCandidateManagementPageViewProps,
   'onFilterChange' | 'search'
 >) {
-  if (loading) return <PageLoading message='어휘 후보를 불러오고 있습니다.' />;
+  if (loading)
+    return (
+      <section
+        aria-live='polite'
+        className='flex min-h-state flex-col justify-center gap-cluster p-page'
+        role='status'
+      >
+        <Skeleton className='h-control w-full max-w-content' />
+        <p className='text-body text-subtle'>어휘 후보를 불러오고 있습니다.</p>
+      </section>
+    );
   if (error) {
     return (
-      <PageError
-        message='어휘 후보를 불러오지 못했습니다.'
-        onRetry={onRetry}
-      />
+      <Alert
+        className='rounded-panel border-danger bg-danger-surface'
+        variant='destructive'
+      >
+        <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+        <AlertDescription className='flex flex-col gap-cluster text-danger'>
+          <p>어휘 후보를 불러오지 못했습니다.</p>
+          <Button
+            className='mt-cluster w-auto'
+            onClick={onRetry}
+            type='button'
+            variant='outline'
+          >
+            다시 시도
+          </Button>
+        </AlertDescription>
+      </Alert>
     );
   }
   if (!data || data.items.length === 0) {
-    return <PageEmpty title='조건에 맞는 어휘 후보가 없습니다.' />;
+    return (
+      <section className='flex min-h-state flex-col items-center justify-center gap-cluster rounded-panel border border-default bg-surface-muted p-page text-center'>
+        <h2 className='text-title text-primary'>
+          조건에 맞는 어휘 후보가 없습니다.
+        </h2>
+      </section>
+    );
   }
   return (
     <>

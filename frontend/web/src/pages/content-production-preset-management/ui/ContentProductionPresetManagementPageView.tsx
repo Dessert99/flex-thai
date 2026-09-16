@@ -2,8 +2,7 @@
 import type { ContentProductionPresetVersion } from '@flex-thia/contracts';
 import { ContentProductionPresetForm } from '@/features/manage-content-production-presets';
 import { Badge } from '@/shared/ui/badge';
-import { Button } from '@/shared/ui/button';
-import { PageEmpty, PageError, PageLoading } from '@/shared/ui/page-state';
+
 import {
   Table,
   TableBody,
@@ -12,6 +11,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/shared/ui/table';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 export interface ContentProductionPresetManagementPageViewProps {
   conflict: boolean;
@@ -34,13 +36,37 @@ export function ContentProductionPresetManagementPageView(
   props: ContentProductionPresetManagementPageViewProps,
 ) {
   if (props.loading)
-    return <PageLoading message='Preset 버전을 불러오고 있습니다.' />;
+    return (
+      <section
+        aria-live='polite'
+        className='flex min-h-state flex-col justify-center gap-cluster p-page'
+        role='status'
+      >
+        <Skeleton className='h-control w-full max-w-content' />
+        <p className='text-body text-subtle'>
+          Preset 버전을 불러오고 있습니다.
+        </p>
+      </section>
+    );
   if (props.error && !props.data) {
     return (
-      <PageError
-        message='Preset 버전을 불러오지 못했습니다.'
-        onRetry={props.onRetry}
-      />
+      <Alert
+        className='rounded-panel border-danger bg-danger-surface'
+        variant='destructive'
+      >
+        <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+        <AlertDescription className='flex flex-col gap-cluster text-danger'>
+          <p>Preset 버전을 불러오지 못했습니다.</p>
+          <Button
+            className='mt-cluster w-auto'
+            onClick={props.onRetry}
+            type='button'
+            variant='outline'
+          >
+            다시 시도
+          </Button>
+        </AlertDescription>
+      </Alert>
     );
   }
   return (
@@ -52,13 +78,32 @@ export function ContentProductionPresetManagementPageView(
         </p>
       </header>
       {props.conflict ? (
-        <PageError
-          message='다른 관리자가 먼저 변경했습니다. 최신 revision을 확인해 주세요.'
-          onRetry={props.onRetry}
-        />
+        <Alert
+          className='rounded-panel border-danger bg-danger-surface'
+          variant='destructive'
+        >
+          <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+          <AlertDescription className='flex flex-col gap-cluster text-danger'>
+            <p>
+              다른 관리자가 먼저 변경했습니다. 최신 revision을 확인해 주세요.
+            </p>
+            <Button
+              className='mt-cluster w-auto'
+              onClick={props.onRetry}
+              type='button'
+              variant='outline'
+            >
+              다시 시도
+            </Button>
+          </AlertDescription>
+        </Alert>
       ) : null}
       {!props.data || props.data.items.length === 0 ? (
-        <PageEmpty title='등록된 preset 버전이 없습니다.' />
+        <section className='flex min-h-state flex-col items-center justify-center gap-cluster rounded-panel border border-default bg-surface-muted p-page text-center'>
+          <h2 className='text-title text-primary'>
+            등록된 preset 버전이 없습니다.
+          </h2>
+        </section>
       ) : (
         <Table>
           <TableHeader>

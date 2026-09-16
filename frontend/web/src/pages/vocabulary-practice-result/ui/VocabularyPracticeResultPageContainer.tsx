@@ -1,9 +1,12 @@
 /** 완료 단어 연습 query 상태를 결과 화면에 연결한다 */
 import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import { PageError, PageLoading } from '@/shared/ui/page-state';
+
 import { vocabularyPracticeResultQueryOptions } from '../api/vocabularyPracticeResultQuery';
 import { VocabularyPracticeResultPageView } from './VocabularyPracticeResultPageView';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 /** 결과 세션 loading/error를 처리한다 */
 export function VocabularyPracticeResultPageContainer({
@@ -20,21 +23,54 @@ export function VocabularyPracticeResultPageContainer({
     }
   }, [onContinue, session.data]);
   if (session.isPending) {
-    return <PageLoading message='연습 결과를 불러오고 있습니다.' />;
+    return (
+      <div className='mx-auto w-full max-w-content flex-1 p-page'>
+        <section
+          aria-live='polite'
+          className='flex min-h-state flex-col justify-center gap-cluster p-page'
+          role='status'
+        >
+          <Skeleton className='h-control w-full max-w-content' />
+          <p className='text-body text-subtle'>
+            연습 결과를 불러오고 있습니다.
+          </p>
+        </section>
+      </div>
+    );
   }
   if (session.isError || session.data === undefined) {
     return (
-      <PageError
-        message='연습 결과를 불러오지 못했습니다.'
-        onRetry={() => void session.refetch()}
-      />
+      <div className='mx-auto w-full max-w-content flex-1 p-page'>
+        <Alert
+          className='rounded-panel border-danger bg-danger-surface'
+          variant='destructive'
+        >
+          <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+          <AlertDescription className='flex flex-col gap-cluster text-danger'>
+            <p>연습 결과를 불러오지 못했습니다.</p>
+            <Button
+              className='mt-cluster w-auto'
+              onClick={() => void session.refetch()}
+              type='button'
+              variant='outline'
+            >
+              다시 시도
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
     );
   }
-  if (session.data.status === 'ACTIVE') return null;
+  if (session.data.status === 'ACTIVE')
+    return (
+      <div className='mx-auto w-full max-w-content flex-1 p-page'>null</div>
+    );
   return (
-    <VocabularyPracticeResultPageView
-      onContinue={onContinue}
-      session={session.data}
-    />
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <VocabularyPracticeResultPageView
+        onContinue={onContinue}
+        session={session.data}
+      />
+    </div>
   );
 }

@@ -2,7 +2,7 @@
 import type { ContentImportDetailResponse } from '@flex-thia/contracts';
 import { Badge } from '@/shared/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
-import { PageError, PageLoading } from '@/shared/ui/page-state';
+
 import {
   Table,
   TableBody,
@@ -11,6 +11,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/shared/ui/table';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 interface ContentImportDetailPageViewProps {
   data: ContentImportDetailResponse | undefined;
@@ -27,14 +30,38 @@ export function ContentImportDetailPageView({
   onRetry,
 }: ContentImportDetailPageViewProps) {
   if (loading) {
-    return <PageLoading message='가져오기 결과를 불러오고 있습니다.' />;
+    return (
+      <section
+        aria-live='polite'
+        className='flex min-h-state flex-col justify-center gap-cluster p-page'
+        role='status'
+      >
+        <Skeleton className='h-control w-full max-w-content' />
+        <p className='text-body text-subtle'>
+          가져오기 결과를 불러오고 있습니다.
+        </p>
+      </section>
+    );
   }
   if (error || data === undefined) {
     return (
-      <PageError
-        message='가져오기 결과를 불러오지 못했습니다.'
-        onRetry={onRetry}
-      />
+      <Alert
+        className='rounded-panel border-danger bg-danger-surface'
+        variant='destructive'
+      >
+        <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+        <AlertDescription className='flex flex-col gap-cluster text-danger'>
+          <p>가져오기 결과를 불러오지 못했습니다.</p>
+          <Button
+            className='mt-cluster w-auto'
+            onClick={onRetry}
+            type='button'
+            variant='outline'
+          >
+            다시 시도
+          </Button>
+        </AlertDescription>
+      </Alert>
     );
   }
 

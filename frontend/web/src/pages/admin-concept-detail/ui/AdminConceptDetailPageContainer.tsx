@@ -1,5 +1,5 @@
 /** 관리자 개념 query와 mutation을 상세 View에 연결한다 */
-/* eslint-disable max-lines-per-function, react-hooks/set-state-in-effect, @typescript-eslint/no-unused-vars */
+/* eslint-disable react-hooks/set-state-in-effect, @typescript-eslint/no-unused-vars */
 import {
   type ConceptBlockInput,
   type ConceptCategory,
@@ -108,44 +108,46 @@ export function AdminConceptDetailPageContainer({
     onSuccess: refresh,
   });
   return (
-    <AdminConceptDetailPageView
-      blocks={blocks}
-      conflict={conflict}
-      data={query.data}
-      draftMetadata={metadata}
-      error={query.isError}
-      loading={query.isPending}
-      message={message}
-      onBlocksChange={setBlocks}
-      onCreateDraft={() => createDraft.mutate()}
-      onPublish={(versionId) => publish.mutate(versionId)}
-      onRetry={() => void query.refetch()}
-      onMetadataChange={(patch) =>
-        setMetadata((current) => ({ ...current, ...patch }))
-      }
-      onSave={(versionId) => {
-        if (!draft) return;
-        const parsed = conceptDraftFormSchema.safeParse({
-          revision: draft.revision,
-          ...metadata,
-          blocks,
-        });
-        if (!parsed.success) {
-          setMessage('입력값을 확인해 주세요.');
-          return;
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <AdminConceptDetailPageView
+        blocks={blocks}
+        conflict={conflict}
+        data={query.data}
+        draftMetadata={metadata}
+        error={query.isError}
+        loading={query.isPending}
+        message={message}
+        onBlocksChange={setBlocks}
+        onCreateDraft={() => createDraft.mutate()}
+        onPublish={(versionId) => publish.mutate(versionId)}
+        onRetry={() => void query.refetch()}
+        onMetadataChange={(patch) =>
+          setMetadata((current) => ({ ...current, ...patch }))
         }
-        setMessage(null);
-        replace.mutate({ versionId, payload: parsed.data });
-      }}
-      onValidate={(versionId) => validate.mutate(versionId)}
-      onVisibilityChange={(action) => visibility.mutate(action)}
-      pending={
-        createDraft.isPending ||
-        replace.isPending ||
-        validate.isPending ||
-        publish.isPending ||
-        visibility.isPending
-      }
-    />
+        onSave={(versionId) => {
+          if (!draft) return;
+          const parsed = conceptDraftFormSchema.safeParse({
+            revision: draft.revision,
+            ...metadata,
+            blocks,
+          });
+          if (!parsed.success) {
+            setMessage('입력값을 확인해 주세요.');
+            return;
+          }
+          setMessage(null);
+          replace.mutate({ versionId, payload: parsed.data });
+        }}
+        onValidate={(versionId) => validate.mutate(versionId)}
+        onVisibilityChange={(action) => visibility.mutate(action)}
+        pending={
+          createDraft.isPending ||
+          replace.isPending ||
+          validate.isPending ||
+          publish.isPending ||
+          visibility.isPending
+        }
+      />
+    </div>
   );
 }

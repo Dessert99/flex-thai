@@ -8,13 +8,15 @@ export function LearnerHomePageContainer() {
   const recommendation = useQuery(learnerHomeQueryOptions());
 
   return (
-    <LearnerHomePageView
-      error={recommendation.isError}
-      onRetry={() => {
-        void recommendation.refetch();
-      }}
-      recommendation={recommendation.data ?? null}
-      waiting={recommendation.isPending}
-    />
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <LearnerHomePageView
+        error={recommendation.isError}
+        onRetry={() => {
+          void recommendation.refetch();
+        }}
+        recommendation={recommendation.data ?? null}
+        waiting={recommendation.isPending}
+      />
+    </div>
   );
 }

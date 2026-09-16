@@ -16,13 +16,15 @@ export function ConceptListPageContainer({
 }: ConceptListPageContainerProps) {
   const concepts = useQuery(conceptListQueryOptions(category));
   return (
-    <ConceptListPageView
-      category={category}
-      data={concepts.data}
-      error={concepts.isError}
-      loading={concepts.isPending}
-      onCategoryChange={onCategoryChange}
-      onRetry={() => void concepts.refetch()}
-    />
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <ConceptListPageView
+        category={category}
+        data={concepts.data}
+        error={concepts.isError}
+        loading={concepts.isPending}
+        onCategoryChange={onCategoryChange}
+        onRetry={() => void concepts.refetch()}
+      />
+    </div>
   );
 }

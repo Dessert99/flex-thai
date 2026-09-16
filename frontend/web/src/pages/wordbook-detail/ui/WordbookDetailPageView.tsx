@@ -1,10 +1,13 @@
 /** 단어장 상세의 검색·페이지·선택과 상태 화면을 표현한다 */
 import type { WordbookItemListResponse } from '@flex-thia/contracts';
 import { type FormEvent, useState } from 'react';
-import { Button } from '@/shared/ui/button';
+
 import { Input } from '@/shared/ui/input';
-import { PageError, PageLoading } from '@/shared/ui/page-state';
+
 import type { WordbookDetailSearch } from '../model/wordbookDetailSearch';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 interface WordbookDetailPageViewProps {
   data: WordbookItemListResponse | undefined;
@@ -20,7 +23,7 @@ interface WordbookDetailPageViewProps {
 
 /** 서버 검색값과 현재 page selection을 사용자 행동으로 연결한다 */
 // 검색·선택·페이지 접근성 상태를 같은 presentational 경계에서 표현한다.
-// eslint-disable-next-line max-lines-per-function
+
 export function WordbookDetailPageView({
   data,
   error,
@@ -34,14 +37,38 @@ export function WordbookDetailPageView({
 }: WordbookDetailPageViewProps) {
   const [query, setQuery] = useState(search.query ?? '');
   if (loading) {
-    return <PageLoading message='단어장 항목을 불러오고 있습니다.' />;
+    return (
+      <section
+        aria-live='polite'
+        className='flex min-h-state flex-col justify-center gap-cluster p-page'
+        role='status'
+      >
+        <Skeleton className='h-control w-full max-w-content' />
+        <p className='text-body text-subtle'>
+          단어장 항목을 불러오고 있습니다.
+        </p>
+      </section>
+    );
   }
   if (error || data === undefined) {
     return (
-      <PageError
-        message='단어장 항목을 불러오지 못했습니다.'
-        onRetry={onRetry}
-      />
+      <Alert
+        className='rounded-panel border-danger bg-danger-surface'
+        variant='destructive'
+      >
+        <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+        <AlertDescription className='flex flex-col gap-cluster text-danger'>
+          <p>단어장 항목을 불러오지 못했습니다.</p>
+          <Button
+            className='mt-cluster w-auto'
+            onClick={onRetry}
+            type='button'
+            variant='outline'
+          >
+            다시 시도
+          </Button>
+        </AlertDescription>
+      </Alert>
     );
   }
   const submitSearch = (event: FormEvent) => {

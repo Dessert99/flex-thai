@@ -8,11 +8,14 @@ import type {
 } from '@flex-thia/contracts';
 import type { ReactNode } from 'react';
 import { Badge } from '@/shared/ui/badge';
-import { PageError, PageLoading } from '@/shared/ui/page-state';
+
 import { mapVocabularyDetailToForm } from '../model/mapVocabularyForm';
 import { VocabularyForm } from './VocabularyForm';
 import { VocabularyMergePanel } from './VocabularyMergePanel';
 import { VocabularyRelationManager } from './VocabularyRelationManager';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 interface Props {
   actions: ReactNode;
@@ -56,13 +59,35 @@ export function AdminVocabularyDetailPageView({
   mergePreview,
 }: Props) {
   if (data === undefined && !error)
-    return <PageLoading message='어휘 상세를 불러오고 있습니다.' />;
+    return (
+      <section
+        aria-live='polite'
+        className='flex min-h-state flex-col justify-center gap-cluster p-page'
+        role='status'
+      >
+        <Skeleton className='h-control w-full max-w-content' />
+        <p className='text-body text-subtle'>어휘 상세를 불러오고 있습니다.</p>
+      </section>
+    );
   if (error || data === undefined) {
     return (
-      <PageError
-        message='어휘 상세를 불러오지 못했습니다.'
-        onRetry={onRetry}
-      />
+      <Alert
+        className='rounded-panel border-danger bg-danger-surface'
+        variant='destructive'
+      >
+        <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+        <AlertDescription className='flex flex-col gap-cluster text-danger'>
+          <p>어휘 상세를 불러오지 못했습니다.</p>
+          <Button
+            className='mt-cluster w-auto'
+            onClick={onRetry}
+            type='button'
+            variant='outline'
+          >
+            다시 시도
+          </Button>
+        </AlertDescription>
+      </Alert>
     );
   }
   return (

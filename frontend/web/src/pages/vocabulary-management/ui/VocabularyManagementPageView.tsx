@@ -1,8 +1,7 @@
 /** 관리자 어휘 목록과 검색 결과 상태를 dense record로 표현한다 */
 import type { AdminVocabularyListResponse } from '@flex-thia/contracts';
 import { Badge } from '@/shared/ui/badge';
-import { Button } from '@/shared/ui/button';
-import { PageEmpty, PageError, PageLoading } from '@/shared/ui/page-state';
+
 import {
   Table,
   TableBody,
@@ -12,6 +11,9 @@ import {
   TableRow,
 } from '@/shared/ui/table';
 import type { AdminVocabularySearch } from '../model/adminVocabularySearch';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 interface Props {
   data: AdminVocabularyListResponse | undefined;
@@ -31,23 +33,48 @@ export function VocabularyManagementPageView({
   onRetry,
   search,
 }: Props) {
-  if (loading) return <PageLoading message='관리 어휘를 불러오고 있습니다.' />;
+  if (loading)
+    return (
+      <section
+        aria-live='polite'
+        className='flex min-h-state flex-col justify-center gap-cluster p-page'
+        role='status'
+      >
+        <Skeleton className='h-control w-full max-w-content' />
+        <p className='text-body text-subtle'>관리 어휘를 불러오고 있습니다.</p>
+      </section>
+    );
   if (error || data === undefined) {
     return (
-      <PageError
-        message='관리 어휘 목록을 불러오지 못했습니다.'
-        onRetry={onRetry}
-      />
+      <Alert
+        className='rounded-panel border-danger bg-danger-surface'
+        variant='destructive'
+      >
+        <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+        <AlertDescription className='flex flex-col gap-cluster text-danger'>
+          <p>관리 어휘 목록을 불러오지 못했습니다.</p>
+          <Button
+            className='mt-cluster w-auto'
+            onClick={onRetry}
+            type='button'
+            variant='outline'
+          >
+            다시 시도
+          </Button>
+        </AlertDescription>
+      </Alert>
     );
   }
   if (data.items.length === 0) {
     const filtered = Boolean(search.query || search.kind || search.status);
     return (
-      <PageEmpty
-        title={
-          filtered ? '조건에 맞는 어휘가 없습니다.' : '등록된 어휘가 없습니다.'
-        }
-      />
+      <section className='flex min-h-state flex-col items-center justify-center gap-cluster rounded-panel border border-default bg-surface-muted p-page text-center'>
+        <h2 className='text-title text-primary'>
+          {filtered
+            ? '조건에 맞는 어휘가 없습니다.'
+            : '등록된 어휘가 없습니다.'}
+        </h2>
+      </section>
     );
   }
   return (

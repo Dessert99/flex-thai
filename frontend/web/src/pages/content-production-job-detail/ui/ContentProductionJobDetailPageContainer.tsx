@@ -4,8 +4,11 @@ import {
   contentProductionJobQueryOptions,
   retryContentProductionJob,
 } from '@/features/run-content-production';
-import { PageError, PageLoading } from '@/shared/ui/page-state';
+
 import { ContentProductionJobDetailPageView } from './ContentProductionJobDetailPageView';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 /** jobId 하나의 cache와 목록 cache를 retry 뒤 함께 무효화한다 */
 export function ContentProductionJobDetailPageContainer({
@@ -27,20 +30,49 @@ export function ContentProductionJobDetailPageContainer({
         }),
       ]),
   });
-  if (job.isPending) return <PageLoading message='작업을 불러오고 있습니다.' />;
+  if (job.isPending)
+    return (
+      <div className='mx-auto w-full max-w-content flex-1 p-page'>
+        <section
+          aria-live='polite'
+          className='flex min-h-state flex-col justify-center gap-cluster p-page'
+          role='status'
+        >
+          <Skeleton className='h-control w-full max-w-content' />
+          <p className='text-body text-subtle'>작업을 불러오고 있습니다.</p>
+        </section>
+      </div>
+    );
   if (job.isError || !job.data) {
     return (
-      <PageError
-        message='작업을 불러오지 못했습니다.'
-        onRetry={() => void job.refetch()}
-      />
+      <div className='mx-auto w-full max-w-content flex-1 p-page'>
+        <Alert
+          className='rounded-panel border-danger bg-danger-surface'
+          variant='destructive'
+        >
+          <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+          <AlertDescription className='flex flex-col gap-cluster text-danger'>
+            <p>작업을 불러오지 못했습니다.</p>
+            <Button
+              className='mt-cluster w-auto'
+              onClick={() => void job.refetch()}
+              type='button'
+              variant='outline'
+            >
+              다시 시도
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
     );
   }
   return (
-    <ContentProductionJobDetailPageView
-      job={job.data}
-      onRetry={() => retry.mutate()}
-      retrying={retry.isPending}
-    />
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <ContentProductionJobDetailPageView
+        job={job.data}
+        onRetry={() => retry.mutate()}
+        retrying={retry.isPending}
+      />
+    </div>
   );
 }

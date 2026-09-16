@@ -1,14 +1,17 @@
 /** 관리자 개념의 모든 버전과 초안 편집·검증 action을 표현한다 */
-/* eslint-disable max-lines-per-function */
+
 import type {
   AdminConceptDetailResponse,
   ConceptCategory,
   ConceptBlockInput,
 } from '@flex-thia/contracts';
-import { Button } from '@/shared/ui/button';
+
 import { Input } from '@/shared/ui/input';
-import { PageError, PageLoading } from '@/shared/ui/page-state';
+
 import { ConceptBlockEditor } from './ConceptBlockEditor';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 interface AdminConceptDetailPageViewProps {
   blocks: ConceptBlockInput[];
@@ -40,13 +43,36 @@ interface AdminConceptDetailPageViewProps {
 export function AdminConceptDetailPageView(
   props: AdminConceptDetailPageViewProps,
 ) {
-  if (props.loading) return <PageLoading message='개념을 불러오고 있습니다.' />;
+  if (props.loading)
+    return (
+      <section
+        aria-live='polite'
+        className='flex min-h-state flex-col justify-center gap-cluster p-page'
+        role='status'
+      >
+        <Skeleton className='h-control w-full max-w-content' />
+        <p className='text-body text-subtle'>개념을 불러오고 있습니다.</p>
+      </section>
+    );
   if (props.error || !props.data)
     return (
-      <PageError
-        message='개념을 불러오지 못했습니다.'
-        onRetry={props.onRetry}
-      />
+      <Alert
+        className='rounded-panel border-danger bg-danger-surface'
+        variant='destructive'
+      >
+        <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+        <AlertDescription className='flex flex-col gap-cluster text-danger'>
+          <p>개념을 불러오지 못했습니다.</p>
+          <Button
+            className='mt-cluster w-auto'
+            onClick={props.onRetry}
+            type='button'
+            variant='outline'
+          >
+            다시 시도
+          </Button>
+        </AlertDescription>
+      </Alert>
     );
   const draft = props.data.versions.find(({ status }) => status === 'DRAFT');
   return (

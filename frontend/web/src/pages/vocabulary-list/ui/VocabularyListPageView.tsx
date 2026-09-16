@@ -1,14 +1,17 @@
 /** 어휘 검색과 태국어 원문 목록 상태를 표현한다 */
 import { useState, type FormEvent } from 'react';
 import type { VocabularyListResponse } from '@flex-thia/contracts';
-import { Button } from '@/shared/ui/button';
+
 import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
-import { PageEmpty, PageError, PageLoading } from '@/shared/ui/page-state';
+
 import type {
   VocabularyListFilterPatch,
   VocabularyListSearch,
 } from '../model/vocabularyListSearch';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 interface VocabularyListPageViewProps {
   data: VocabularyListResponse | undefined;
@@ -132,17 +135,46 @@ function VocabularyResults({
   onPageChange,
   onRetry,
 }: Omit<VocabularyListPageViewProps, 'onFilterChange' | 'search'>) {
-  if (loading) return <PageLoading message='어휘를 불러오고 있습니다.' />;
+  if (loading)
+    return (
+      <section
+        aria-live='polite'
+        className='flex min-h-state flex-col justify-center gap-cluster p-page'
+        role='status'
+      >
+        <Skeleton className='h-control w-full max-w-content' />
+        <p className='text-body text-subtle'>어휘를 불러오고 있습니다.</p>
+      </section>
+    );
   if (error || !data) {
     return (
-      <PageError
-        message='어휘 목록을 불러오지 못했습니다.'
-        onRetry={onRetry}
-      />
+      <Alert
+        className='rounded-panel border-danger bg-danger-surface'
+        variant='destructive'
+      >
+        <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+        <AlertDescription className='flex flex-col gap-cluster text-danger'>
+          <p>어휘 목록을 불러오지 못했습니다.</p>
+          <Button
+            className='mt-cluster w-auto'
+            onClick={onRetry}
+            type='button'
+            variant='outline'
+          >
+            다시 시도
+          </Button>
+        </AlertDescription>
+      </Alert>
     );
   }
   if (data.items.length === 0) {
-    return <PageEmpty title='조건에 맞는 어휘가 없습니다.' />;
+    return (
+      <section className='flex min-h-state flex-col items-center justify-center gap-cluster rounded-panel border border-default bg-surface-muted p-page text-center'>
+        <h2 className='text-title text-primary'>
+          조건에 맞는 어휘가 없습니다.
+        </h2>
+      </section>
+    );
   }
   return (
     <>

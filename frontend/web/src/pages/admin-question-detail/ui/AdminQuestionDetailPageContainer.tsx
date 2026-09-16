@@ -39,50 +39,52 @@ export function AdminQuestionDetailPageContainer({
       }),
     ]);
   return (
-    <AdminQuestionDetailPageView
-      actions={
-        detail.data ? (
-          <>
-            <CloneQuestionVersionButton
-              onCloned={onCloned}
-              questionId={questionId}
-            />
-            <QuestionStateAction
-              command={
-                detail.data.status === 'HIDDEN'
-                  ? { action: 'restore', questionId }
-                  : { action: 'hide', questionId }
-              }
-              onConfirmed={() => void refreshQuestions()}
-            />
-          </>
-        ) : null
-      }
-      data={detail.data}
-      error={detail.error}
-      loading={detail.isPending}
-      onRetry={() => void detail.refetch()}
-      renderVersionAction={(version) => {
-        if (version.status === 'DRAFT') {
-          return (
-            <DraftVersionTtsState
-              onConfirmed={refreshQuestions}
-              questionId={questionId}
-              version={version}
-            />
-          );
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <AdminQuestionDetailPageView
+        actions={
+          detail.data ? (
+            <>
+              <CloneQuestionVersionButton
+                onCloned={onCloned}
+                questionId={questionId}
+              />
+              <QuestionStateAction
+                command={
+                  detail.data.status === 'HIDDEN'
+                    ? { action: 'restore', questionId }
+                    : { action: 'hide', questionId }
+                }
+                onConfirmed={() => void refreshQuestions()}
+              />
+            </>
+          ) : null
         }
-        if (version.status === 'PUBLISHED') {
-          return (
-            <QuestionStateAction
-              command={{ action: 'invalidate', versionId: version.id }}
-              onConfirmed={() => void refreshQuestions()}
-            />
-          );
-        }
-        return null;
-      }}
-    />
+        data={detail.data}
+        error={detail.error}
+        loading={detail.isPending}
+        onRetry={() => void detail.refetch()}
+        renderVersionAction={(version) => {
+          if (version.status === 'DRAFT') {
+            return (
+              <DraftVersionTtsState
+                onConfirmed={refreshQuestions}
+                questionId={questionId}
+                version={version}
+              />
+            );
+          }
+          if (version.status === 'PUBLISHED') {
+            return (
+              <QuestionStateAction
+                command={{ action: 'invalidate', versionId: version.id }}
+                onConfirmed={() => void refreshQuestions()}
+              />
+            );
+          }
+          return null;
+        }}
+      />
+    </div>
   );
 }
 

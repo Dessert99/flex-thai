@@ -11,37 +11,39 @@ export function AdminHomePageContainer() {
     });
 
   return (
-    <AdminHomePageView
-      onRetryQuestions={() => {
-        void questions.refetch();
-      }}
-      onRetryAuditLogs={() => {
-        void auditLogs.refetch();
-      }}
-      onRetryVocabularies={() => {
-        void vocabularies.refetch();
-      }}
-      onRetryOperations={() => {
-        void operations.refetch();
-      }}
-      onRetryUsageCost={() => {
-        void usageCost.refetch();
-      }}
-      auditLogs={auditLogs.data?.items ?? []}
-      auditLogsError={auditLogs.isError}
-      auditLogsLoading={auditLogs.isPending}
-      questions={questions.data?.items ?? []}
-      questionsError={questions.isError}
-      questionsLoading={questions.isPending}
-      operations={operations.data}
-      operationsError={operations.isError}
-      operationsLoading={operations.isPending}
-      usageCost={usageCost.data}
-      usageCostError={usageCost.isError}
-      usageCostLoading={usageCost.isPending}
-      vocabularies={vocabularies.data?.items ?? []}
-      vocabulariesError={vocabularies.isError}
-      vocabulariesLoading={vocabularies.isPending}
-    />
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <AdminHomePageView
+        onRetryQuestions={() => {
+          void questions.refetch();
+        }}
+        onRetryAuditLogs={() => {
+          void auditLogs.refetch();
+        }}
+        onRetryVocabularies={() => {
+          void vocabularies.refetch();
+        }}
+        onRetryOperations={() => {
+          void operations.refetch();
+        }}
+        onRetryUsageCost={() => {
+          void usageCost.refetch();
+        }}
+        auditLogs={auditLogs.data?.items ?? []}
+        auditLogsError={auditLogs.isError}
+        auditLogsLoading={auditLogs.isPending}
+        questions={questions.data?.items ?? []}
+        questionsError={questions.isError}
+        questionsLoading={questions.isPending}
+        operations={operations.data}
+        operationsError={operations.isError}
+        operationsLoading={operations.isPending}
+        usageCost={usageCost.data}
+        usageCostError={usageCost.isError}
+        usageCostLoading={usageCost.isPending}
+        vocabularies={vocabularies.data?.items ?? []}
+        vocabulariesError={vocabularies.isError}
+        vocabulariesLoading={vocabularies.isPending}
+      />
+    </div>
   );
 }

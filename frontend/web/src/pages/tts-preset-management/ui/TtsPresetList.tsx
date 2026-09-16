@@ -1,12 +1,14 @@
 /** TTS preset page의 loading·error·empty·version 목록 상태를 표현한다 */
 import type { TtsVoicePresetListResponse } from '@flex-thia/contracts';
 import { Badge } from '@/shared/ui/badge';
-import { Button } from '@/shared/ui/button';
-import { PageEmpty, PageError, PageLoading } from '@/shared/ui/page-state';
+
 import {
   hasTtsPresetFilters,
   type TtsPresetSearch,
 } from '../model/ttsPresetSearch';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 type Preset = TtsVoicePresetListResponse['items'][number];
 
@@ -30,29 +32,52 @@ export function TtsPresetList({
   onToggle: (preset: Preset) => void;
   search: TtsPresetSearch;
 }) {
-  if (loading) return <PageLoading message='TTS preset을 불러오고 있습니다.' />;
+  if (loading)
+    return (
+      <section
+        aria-live='polite'
+        className='flex min-h-state flex-col justify-center gap-cluster p-page'
+        role='status'
+      >
+        <Skeleton className='h-control w-full max-w-content' />
+        <p className='text-body text-subtle'>TTS preset을 불러오고 있습니다.</p>
+      </section>
+    );
   if (error !== null || data === undefined) {
     return (
-      <PageError
-        message='TTS preset을 불러오지 못했습니다.'
-        onRetry={onRetry}
-      />
+      <Alert
+        className='rounded-panel border-danger bg-danger-surface'
+        variant='destructive'
+      >
+        <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+        <AlertDescription className='flex flex-col gap-cluster text-danger'>
+          <p>TTS preset을 불러오지 못했습니다.</p>
+          <Button
+            className='mt-cluster w-auto'
+            onClick={onRetry}
+            type='button'
+            variant='outline'
+          >
+            다시 시도
+          </Button>
+        </AlertDescription>
+      </Alert>
     );
   }
   if (data.items.length === 0) {
     return (
-      <PageEmpty
-        description={
-          hasTtsPresetFilters(search)
-            ? '검색어나 enabled 조건을 변경해 보세요.'
-            : '위 양식에서 최초 preset version을 만들 수 있습니다.'
-        }
-        title={
-          hasTtsPresetFilters(search)
+      <section className='flex min-h-state flex-col items-center justify-center gap-cluster rounded-panel border border-default bg-surface-muted p-page text-center'>
+        <h2 className='text-title text-primary'>
+          {hasTtsPresetFilters(search)
             ? '조건에 맞는 TTS preset이 없습니다.'
-            : '등록된 TTS preset이 없습니다.'
-        }
-      />
+            : '등록된 TTS preset이 없습니다.'}
+        </h2>
+        <p className='text-body text-subtle'>
+          {hasTtsPresetFilters(search)
+            ? '검색어나 enabled 조건을 변경해 보세요.'
+            : '위 양식에서 최초 preset version을 만들 수 있습니다.'}
+        </p>
+      </section>
     );
   }
   return (

@@ -9,15 +9,18 @@ import {
   type ReplaceDifficultyCriteriaRequest,
 } from '@flex-thia/contracts';
 import { useState } from 'react';
-import { Button } from '@/shared/ui/button';
+
 import { Input } from '@/shared/ui/input';
-import { PageError, PageLoading } from '@/shared/ui/page-state';
+
 import { taxonomyTermFormSchema } from '../model/questionTaxonomyFormSchema';
 import {
   CreateQuestionTypeForm,
   CreateQuestionTypeVersionForm,
 } from './QuestionTypeForms';
 import { QuestionTypeVersionEditor } from './QuestionTypeVersionEditor';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 type Term = QuestionTaxonomySettingsResponse['topics'][number];
 
@@ -52,14 +55,38 @@ interface Props {
 export function QuestionTaxonomySettingsPageView(props: Props) {
   const { data } = props;
   if (props.loading) {
-    return <PageLoading message='문제 유형 설정을 불러오고 있습니다.' />;
+    return (
+      <section
+        aria-live='polite'
+        className='flex min-h-state flex-col justify-center gap-cluster p-page'
+        role='status'
+      >
+        <Skeleton className='h-control w-full max-w-content' />
+        <p className='text-body text-subtle'>
+          문제 유형 설정을 불러오고 있습니다.
+        </p>
+      </section>
+    );
   }
   if (props.error || data === undefined) {
     return (
-      <PageError
-        message='문제 유형 설정을 불러오지 못했습니다.'
-        onRetry={props.onRetry}
-      />
+      <Alert
+        className='rounded-panel border-danger bg-danger-surface'
+        variant='destructive'
+      >
+        <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+        <AlertDescription className='flex flex-col gap-cluster text-danger'>
+          <p>문제 유형 설정을 불러오지 못했습니다.</p>
+          <Button
+            className='mt-cluster w-auto'
+            onClick={props.onRetry}
+            type='button'
+            variant='outline'
+          >
+            다시 시도
+          </Button>
+        </AlertDescription>
+      </Alert>
     );
   }
   return (

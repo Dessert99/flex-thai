@@ -34,28 +34,32 @@ export function WordbookDetailPageContainer({
   };
 
   return (
-    <div className='grid gap-section'>
-      <WordbookDetailPageView
-        data={detail.data}
-        error={detail.isError}
-        loading={detail.isPending}
-        onRetry={() => void detail.refetch()}
-        onSearchChange={onSearchChange}
-        onSelectionChange={toggleSelection}
-        onSelectPage={() =>
-          setSelectedIds(new Set(detail.data?.items.map(({ id }) => id) ?? []))
-        }
-        search={search}
-        selectedIds={selectedIds}
-      />
-      <WordbookItemActions
-        onConfirmed={() => setSelectedIds(new Set())}
-        selectedIds={[...selectedIds]}
-        sourceWordbookId={wordbookId}
-        wordbooks={
-          wordbooks.data?.items.map(({ id, name }) => ({ id, name })) ?? []
-        }
-      />
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <div className='grid gap-section'>
+        <WordbookDetailPageView
+          data={detail.data}
+          error={detail.isError}
+          loading={detail.isPending}
+          onRetry={() => void detail.refetch()}
+          onSearchChange={onSearchChange}
+          onSelectionChange={toggleSelection}
+          onSelectPage={() =>
+            setSelectedIds(
+              new Set(detail.data?.items.map(({ id }) => id) ?? []),
+            )
+          }
+          search={search}
+          selectedIds={selectedIds}
+        />
+        <WordbookItemActions
+          onConfirmed={() => setSelectedIds(new Set())}
+          selectedIds={[...selectedIds]}
+          sourceWordbookId={wordbookId}
+          wordbooks={
+            wordbooks.data?.items.map(({ id, name }) => ({ id, name })) ?? []
+          }
+        />
+      </div>
     </div>
   );
 }

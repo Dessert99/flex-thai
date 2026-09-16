@@ -6,7 +6,9 @@ import type {
 } from '@flex-thia/contracts';
 import { ContentProductionForm } from '@/features/run-content-production';
 import { Badge } from '@/shared/ui/badge';
-import { PageEmpty, PageError, PageLoading } from '@/shared/ui/page-state';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 interface ContentProductionConsolePageViewProps {
   createError: boolean;
@@ -69,13 +71,33 @@ export function ContentProductionConsolePageView(
         </p>
       </header>
       {props.presetsLoading ? (
-        <PageLoading message='Preset을 불러오고 있습니다.' />
+        <section
+          aria-live='polite'
+          className='flex min-h-state flex-col justify-center gap-cluster p-page'
+          role='status'
+        >
+          <Skeleton className='h-control w-full max-w-content' />
+          <p className='text-body text-subtle'>Preset을 불러오고 있습니다.</p>
+        </section>
       ) : null}
       {props.presetsError ? (
-        <PageError
-          message='Preset을 불러오지 못했습니다.'
-          onRetry={props.onRetryPresets}
-        />
+        <Alert
+          className='rounded-panel border-danger bg-danger-surface'
+          variant='destructive'
+        >
+          <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+          <AlertDescription className='flex flex-col gap-cluster text-danger'>
+            <p>Preset을 불러오지 못했습니다.</p>
+            <Button
+              className='mt-cluster w-auto'
+              onClick={props.onRetryPresets}
+              type='button'
+              variant='outline'
+            >
+              다시 시도
+            </Button>
+          </AlertDescription>
+        </Alert>
       ) : null}
       {props.presets ? (
         <>
@@ -97,16 +119,40 @@ export function ContentProductionConsolePageView(
       <section className='grid gap-cluster'>
         <h2 className='text-title text-primary'>최근 작업</h2>
         {props.jobsLoading ? (
-          <PageLoading message='작업을 불러오고 있습니다.' />
+          <section
+            aria-live='polite'
+            className='flex min-h-state flex-col justify-center gap-cluster p-page'
+            role='status'
+          >
+            <Skeleton className='h-control w-full max-w-content' />
+            <p className='text-body text-subtle'>작업을 불러오고 있습니다.</p>
+          </section>
         ) : null}
         {props.jobsError ? (
-          <PageError
-            message='작업을 불러오지 못했습니다.'
-            onRetry={props.onRetryJobs}
-          />
+          <Alert
+            className='rounded-panel border-danger bg-danger-surface'
+            variant='destructive'
+          >
+            <AlertTitle className='text-danger'>
+              문제가 발생했습니다.
+            </AlertTitle>
+            <AlertDescription className='flex flex-col gap-cluster text-danger'>
+              <p>작업을 불러오지 못했습니다.</p>
+              <Button
+                className='mt-cluster w-auto'
+                onClick={props.onRetryJobs}
+                type='button'
+                variant='outline'
+              >
+                다시 시도
+              </Button>
+            </AlertDescription>
+          </Alert>
         ) : null}
         {props.jobs?.items.length === 0 ? (
-          <PageEmpty title='아직 작업이 없습니다.' />
+          <section className='flex min-h-state flex-col items-center justify-center gap-cluster rounded-panel border border-default bg-surface-muted p-page text-center'>
+            <h2 className='text-title text-primary'>아직 작업이 없습니다.</h2>
+          </section>
         ) : null}
         {props.jobs?.items.map((job) => (
           <a

@@ -21,8 +21,11 @@ import {
   ItemMedia,
   ItemTitle,
 } from '@/shared/ui/item';
-import { PageError, PageLoading } from '@/shared/ui/page-state';
+
 import { HomeCard, HomeLinkItem } from './LearnerHomeContent';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 interface LearnerHomePageViewProps {
   error: boolean;
@@ -39,15 +42,37 @@ export function LearnerHomePageView({
   waiting,
 }: LearnerHomePageViewProps) {
   if (waiting) {
-    return <PageLoading message='학습 홈을 불러오고 있습니다.' />;
+    return (
+      <section
+        aria-live='polite'
+        className='flex min-h-state flex-col justify-center gap-cluster p-page'
+        role='status'
+      >
+        <Skeleton className='h-control w-full max-w-content' />
+        <p className='text-body text-subtle'>학습 홈을 불러오고 있습니다.</p>
+      </section>
+    );
   }
 
   if (error || recommendation === null) {
     return (
-      <PageError
-        message='추천 콘텐츠를 불러오지 못했습니다.'
-        onRetry={onRetry}
-      />
+      <Alert
+        className='rounded-panel border-danger bg-danger-surface'
+        variant='destructive'
+      >
+        <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+        <AlertDescription className='flex flex-col gap-cluster text-danger'>
+          <p>추천 콘텐츠를 불러오지 못했습니다.</p>
+          <Button
+            className='mt-cluster w-auto'
+            onClick={onRetry}
+            type='button'
+            variant='outline'
+          >
+            다시 시도
+          </Button>
+        </AlertDescription>
+      </Alert>
     );
   }
 

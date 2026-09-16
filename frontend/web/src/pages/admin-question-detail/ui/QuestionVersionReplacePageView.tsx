@@ -5,11 +5,13 @@ import type {
   AdminQuestionVersionPayload,
 } from '@flex-thia/contracts';
 import { isApiError } from '@/shared/api';
-import { Button } from '@/shared/ui/button';
-import { PageError, PageLoading } from '@/shared/ui/page-state';
+
 import { toQuestionVersionPayload } from '../model/toQuestionVersionPayload';
 import { QuestionVersionJsonForm } from './QuestionVersionJsonForm';
 import { QuestionVersionStructuredForm } from './QuestionVersionStructuredForm';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 interface QuestionVersionReplacePageViewProps {
   data: AdminQuestionDetailResponse | undefined;
@@ -43,14 +45,38 @@ export function QuestionVersionReplacePageView({
   versionId,
 }: QuestionVersionReplacePageViewProps) {
   if (loading) {
-    return <PageLoading message='교체할 문제 버전을 확인하고 있습니다.' />;
+    return (
+      <section
+        aria-live='polite'
+        className='flex min-h-state flex-col justify-center gap-cluster p-page'
+        role='status'
+      >
+        <Skeleton className='h-control w-full max-w-content' />
+        <p className='text-body text-subtle'>
+          교체할 문제 버전을 확인하고 있습니다.
+        </p>
+      </section>
+    );
   }
   if (detailError !== null || data === undefined) {
     return (
-      <PageError
-        message='문제 버전을 확인하지 못했습니다.'
-        onRetry={onRetry}
-      />
+      <Alert
+        className='rounded-panel border-danger bg-danger-surface'
+        variant='destructive'
+      >
+        <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+        <AlertDescription className='flex flex-col gap-cluster text-danger'>
+          <p>문제 버전을 확인하지 못했습니다.</p>
+          <Button
+            className='mt-cluster w-auto'
+            onClick={onRetry}
+            type='button'
+            variant='outline'
+          >
+            다시 시도
+          </Button>
+        </AlertDescription>
+      </Alert>
     );
   }
   const version = data.versions.find(({ id }) => id === versionId);

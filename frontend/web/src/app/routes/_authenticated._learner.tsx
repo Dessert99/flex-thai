@@ -5,7 +5,7 @@ import {
   useRouterState,
 } from '@tanstack/react-router';
 import { LogoutButton } from '@/features/logout';
-import { AppShell } from '@/shared/ui/app-shell';
+import { SidebarLayout } from '../layouts/SidebarLayout';
 import { requireLearnerPortal } from '../routing/guards';
 import { learnerNavigation } from '../routing/learnerNavigation';
 
@@ -23,7 +23,7 @@ function LearnerPortalRoute() {
     select: (state) => state.location.pathname,
   });
   return (
-    <AppShell
+    <SidebarLayout
       currentPath={currentPath}
       identity={{
         email: session.user.email,
@@ -41,6 +41,6 @@ function LearnerPortalRoute() {
       profileMenu={<LogoutButton appearance='sidebar' />}
     >
       <Outlet />
-    </AppShell>
+    </SidebarLayout>
   );
 }

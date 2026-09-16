@@ -16,13 +16,15 @@ export function VocabularyManagementPageContainer({
 }: Props) {
   const query = useQuery(adminVocabularyListQueryOptions(search));
   return (
-    <VocabularyManagementPageView
-      data={query.data}
-      error={query.isError}
-      loading={query.isPending}
-      onPageChange={(page) => onSearchChange({ ...search, page })}
-      onRetry={() => void query.refetch()}
-      search={search}
-    />
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <VocabularyManagementPageView
+        data={query.data}
+        error={query.isError}
+        loading={query.isPending}
+        onPageChange={(page) => onSearchChange({ ...search, page })}
+        onRetry={() => void query.refetch()}
+        search={search}
+      />
+    </div>
   );
 }

@@ -6,8 +6,7 @@ import type {
 } from '@flex-thia/contracts';
 import { QuestionCandidateActions } from '@/features/review-question-candidates';
 import { Badge } from '@/shared/ui/badge';
-import { Button } from '@/shared/ui/button';
-import { PageEmpty, PageError, PageLoading } from '@/shared/ui/page-state';
+
 import {
   Table,
   TableBody,
@@ -16,6 +15,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/shared/ui/table';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 export interface QuestionCandidateManagementPageViewProps {
   data?: QuestionCandidateListResponse;
@@ -149,17 +151,45 @@ export function QuestionCandidateManagementPageView(
   props: QuestionCandidateManagementPageViewProps,
 ) {
   if (props.loading)
-    return <PageLoading message='문제 후보를 불러오고 있습니다.' />;
+    return (
+      <section
+        aria-live='polite'
+        className='flex min-h-state flex-col justify-center gap-cluster p-page'
+        role='status'
+      >
+        <Skeleton className='h-control w-full max-w-content' />
+        <p className='text-body text-subtle'>문제 후보를 불러오고 있습니다.</p>
+      </section>
+    );
   if (props.error) {
     return (
-      <PageError
-        message='문제 후보를 불러오지 못했습니다.'
-        onRetry={props.onRetry}
-      />
+      <Alert
+        className='rounded-panel border-danger bg-danger-surface'
+        variant='destructive'
+      >
+        <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+        <AlertDescription className='flex flex-col gap-cluster text-danger'>
+          <p>문제 후보를 불러오지 못했습니다.</p>
+          <Button
+            className='mt-cluster w-auto'
+            onClick={props.onRetry}
+            type='button'
+            variant='outline'
+          >
+            다시 시도
+          </Button>
+        </AlertDescription>
+      </Alert>
     );
   }
   if (!props.data || props.data.items.length === 0) {
-    return <PageEmpty title='조건에 맞는 문제 후보가 없습니다.' />;
+    return (
+      <section className='flex min-h-state flex-col items-center justify-center gap-cluster rounded-panel border border-default bg-surface-muted p-page text-center'>
+        <h2 className='text-title text-primary'>
+          조건에 맞는 문제 후보가 없습니다.
+        </h2>
+      </section>
+    );
   }
   return (
     <section className='grid gap-section'>

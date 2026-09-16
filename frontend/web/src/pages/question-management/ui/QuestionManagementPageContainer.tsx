@@ -19,19 +19,21 @@ export function QuestionManagementPageContainer({
 }: QuestionManagementPageContainerProps) {
   const questions = useQuery(adminQuestionListQueryOptions(search));
   return (
-    <QuestionManagementPageView
-      data={questions.data}
-      error={questions.isError}
-      loading={questions.isPending}
-      onFilterChange={(patch) =>
-        onSearchChange(changeAdminQuestionFilters(search, patch))
-      }
-      onPageChange={(page) => onSearchChange({ ...search, page })}
-      onResetFilters={() =>
-        onSearchChange({ page: 1, pageSize: search.pageSize })
-      }
-      onRetry={() => void questions.refetch()}
-      search={search}
-    />
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <QuestionManagementPageView
+        data={questions.data}
+        error={questions.isError}
+        loading={questions.isPending}
+        onFilterChange={(patch) =>
+          onSearchChange(changeAdminQuestionFilters(search, patch))
+        }
+        onPageChange={(page) => onSearchChange({ ...search, page })}
+        onResetFilters={() =>
+          onSearchChange({ page: 1, pageSize: search.pageSize })
+        }
+        onRetry={() => void questions.refetch()}
+        search={search}
+      />
+    </div>
   );
 }

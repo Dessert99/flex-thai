@@ -26,43 +26,45 @@ export function AdminVocabularyDetailPageContainer({
   } = useAdminVocabularyDetailActions(vocabularyId);
   const action = toStateAction(detail.data?.status);
   return (
-    <AdminVocabularyDetailPageView
-      actions={
-        detail.data && action ? (
-          <VocabularyStateAction
-            action={action}
-            onConfirmed={() => void refresh()}
-            vocabularyId={vocabularyId}
-          />
-        ) : null
-      }
-      data={detail.data}
-      error={detail.isError}
-      mergeMutating={previewMerge.isPending || merge.isPending}
-      mergePreview={mergePreview}
-      onCreateRelation={(payload) =>
-        relation.mutate({
-          kind: 'create',
-          payload,
-        })
-      }
-      onDeleteRelation={(relationId) =>
-        relation.mutate({ kind: 'delete', relationId })
-      }
-      onMerge={(preview) => merge.mutate(preview)}
-      onPreviewMerge={(representativeVocabularyId) =>
-        previewMerge.mutate(representativeVocabularyId)
-      }
-      onRelationUpdate={(relationId, payload) =>
-        relation.mutate({ kind: 'status', relationId, payload })
-      }
-      onRepresentativeChange={discardMergePreview}
-      onReplace={(payload) => replace.mutate(payload)}
-      onRetry={() => void detail.refetch()}
-      replaceError={replace.isError}
-      replacing={replace.isPending}
-      relationMutating={relation.isPending}
-    />
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <AdminVocabularyDetailPageView
+        actions={
+          detail.data && action ? (
+            <VocabularyStateAction
+              action={action}
+              onConfirmed={() => void refresh()}
+              vocabularyId={vocabularyId}
+            />
+          ) : null
+        }
+        data={detail.data}
+        error={detail.isError}
+        mergeMutating={previewMerge.isPending || merge.isPending}
+        mergePreview={mergePreview}
+        onCreateRelation={(payload) =>
+          relation.mutate({
+            kind: 'create',
+            payload,
+          })
+        }
+        onDeleteRelation={(relationId) =>
+          relation.mutate({ kind: 'delete', relationId })
+        }
+        onMerge={(preview) => merge.mutate(preview)}
+        onPreviewMerge={(representativeVocabularyId) =>
+          previewMerge.mutate(representativeVocabularyId)
+        }
+        onRelationUpdate={(relationId, payload) =>
+          relation.mutate({ kind: 'status', relationId, payload })
+        }
+        onRepresentativeChange={discardMergePreview}
+        onReplace={(payload) => replace.mutate(payload)}
+        onRetry={() => void detail.refetch()}
+        replaceError={replace.isError}
+        replacing={replace.isPending}
+        relationMutating={relation.isPending}
+      />
+    </div>
   );
 }
 

@@ -6,9 +6,11 @@ import type {
   CreateConceptRequest,
 } from '@flex-thia/contracts';
 import { useState } from 'react';
-import { Button } from '@/shared/ui/button';
+
 import { Input } from '@/shared/ui/input';
-import { PageEmpty, PageError, PageLoading } from '@/shared/ui/page-state';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 interface ConceptManagementPageViewProps {
   createMessage: string | null;
@@ -224,16 +226,38 @@ export function ConceptManagementPageView(
         search={props.search}
       />
       {props.loading ? (
-        <PageLoading message='개념을 불러오고 있습니다.' />
+        <section
+          aria-live='polite'
+          className='flex min-h-state flex-col justify-center gap-cluster p-page'
+          role='status'
+        >
+          <Skeleton className='h-control w-full max-w-content' />
+          <p className='text-body text-subtle'>개념을 불러오고 있습니다.</p>
+        </section>
       ) : null}
       {props.error ? (
-        <PageError
-          message='개념 목록을 불러오지 못했습니다.'
-          onRetry={props.onRetry}
-        />
+        <Alert
+          className='rounded-panel border-danger bg-danger-surface'
+          variant='destructive'
+        >
+          <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+          <AlertDescription className='flex flex-col gap-cluster text-danger'>
+            <p>개념 목록을 불러오지 못했습니다.</p>
+            <Button
+              className='mt-cluster w-auto'
+              onClick={props.onRetry}
+              type='button'
+              variant='outline'
+            >
+              다시 시도
+            </Button>
+          </AlertDescription>
+        </Alert>
       ) : null}
       {!props.loading && !props.error && props.data?.items.length === 0 ? (
-        <PageEmpty title='등록된 개념이 없습니다.' />
+        <section className='flex min-h-state flex-col items-center justify-center gap-cluster rounded-panel border border-default bg-surface-muted p-page text-center'>
+          <h2 className='text-title text-primary'>등록된 개념이 없습니다.</h2>
+        </section>
       ) : null}
       {props.data?.items.length ? (
         <ConceptTable

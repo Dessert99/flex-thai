@@ -77,17 +77,19 @@ export function QuestionCandidateManagementPageContainer({
     );
   };
   return (
-    <QuestionCandidateManagementPageView
-      {...(query.data ? { data: query.data } : {})}
-      error={query.isError}
-      loading={query.isPending}
-      onAction={(action) => bulk.mutate(action)}
-      onPageChange={(page) => onSearchChange({ ...search, page })}
-      onRetry={() => void query.refetch()}
-      onSelectionChange={toggle}
-      pending={bulk.isPending}
-      search={search}
-      selectedIds={selected.map(({ candidateId }) => candidateId)}
-    />
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <QuestionCandidateManagementPageView
+        {...(query.data ? { data: query.data } : {})}
+        error={query.isError}
+        loading={query.isPending}
+        onAction={(action) => bulk.mutate(action)}
+        onPageChange={(page) => onSearchChange({ ...search, page })}
+        onRetry={() => void query.refetch()}
+        onSelectionChange={toggle}
+        pending={bulk.isPending}
+        search={search}
+        selectedIds={selected.map(({ candidateId }) => candidateId)}
+      />
+    </div>
   );
 }

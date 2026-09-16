@@ -8,7 +8,7 @@ import {
   Library,
   Search,
 } from 'lucide-react';
-import type { AppShellNavigationItem } from '@/shared/ui/app-shell';
+import type { SidebarLayoutNavigationItem } from '../layouts/SidebarLayout';
 
 /** 관리자 경로와 분리된 학습자 주요 메뉴 */
 export const learnerNavigation = [
@@ -34,4 +34,4 @@ export const learnerNavigation = [
     icon: Library,
     label: '내 단어장',
   },
-] as const satisfies readonly AppShellNavigationItem[];
+] as const satisfies readonly SidebarLayoutNavigationItem[];

@@ -2,7 +2,9 @@
 import type { ConceptDetailResponse } from '@flex-thia/contracts';
 import { InteractiveThaiSentence } from '@/features/explore-thai-content';
 import { ContentErrorReportDialog } from '@/features/report-content-error';
-import { PageError, PageLoading } from '@/shared/ui/page-state';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 interface ConceptDetailPageViewProps {
   data: ConceptDetailResponse | undefined;
@@ -20,21 +22,57 @@ export function ConceptDetailPageView({
   notFound,
   onRetry,
 }: ConceptDetailPageViewProps) {
-  if (loading) return <PageLoading message='개념을 불러오고 있습니다.' />;
+  if (loading)
+    return (
+      <section
+        aria-live='polite'
+        className='flex min-h-state flex-col justify-center gap-cluster p-page'
+        role='status'
+      >
+        <Skeleton className='h-control w-full max-w-content' />
+        <p className='text-body text-subtle'>개념을 불러오고 있습니다.</p>
+      </section>
+    );
   if (notFound) {
     return (
-      <PageError
-        message='게시된 개념을 찾을 수 없습니다.'
-        onRetry={onRetry}
-      />
+      <Alert
+        className='rounded-panel border-danger bg-danger-surface'
+        variant='destructive'
+      >
+        <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+        <AlertDescription className='flex flex-col gap-cluster text-danger'>
+          <p>게시된 개념을 찾을 수 없습니다.</p>
+          <Button
+            className='mt-cluster w-auto'
+            onClick={onRetry}
+            type='button'
+            variant='outline'
+          >
+            다시 시도
+          </Button>
+        </AlertDescription>
+      </Alert>
     );
   }
   if (error || !data) {
     return (
-      <PageError
-        message='개념을 불러오지 못했습니다.'
-        onRetry={onRetry}
-      />
+      <Alert
+        className='rounded-panel border-danger bg-danger-surface'
+        variant='destructive'
+      >
+        <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+        <AlertDescription className='flex flex-col gap-cluster text-danger'>
+          <p>개념을 불러오지 못했습니다.</p>
+          <Button
+            className='mt-cluster w-auto'
+            onClick={onRetry}
+            type='button'
+            variant='outline'
+          >
+            다시 시도
+          </Button>
+        </AlertDescription>
+      </Alert>
     );
   }
   return (

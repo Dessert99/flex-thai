@@ -34,35 +34,37 @@ export function ContentProductionPresetManagementPageContainer() {
     onSettled: invalidate,
   });
   return (
-    <ContentProductionPresetManagementPageView
-      conflict={conflict}
-      {...(query.data ? { data: query.data } : {})}
-      error={query.isError}
-      loading={query.isPending}
-      onCreate={(input) =>
-        mutation.mutate(() => createContentProductionPreset(input))
-      }
-      onCreateVersion={(presetId, purpose, parameters) =>
-        mutation.mutate(() =>
-          createContentProductionPresetVersion(presetId, {
-            purpose,
-            parameters,
-          }),
-        )
-      }
-      onRetry={() => void query.refetch()}
-      onSelect={setSelected}
-      onSetEnabled={(preset) =>
-        mutation.mutate(() =>
-          setContentProductionPresetEnabled(
-            preset.id,
-            !preset.enabled,
-            preset.revision,
-          ),
-        )
-      }
-      pending={mutation.isPending}
-      {...(selected ? { selected } : {})}
-    />
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <ContentProductionPresetManagementPageView
+        conflict={conflict}
+        {...(query.data ? { data: query.data } : {})}
+        error={query.isError}
+        loading={query.isPending}
+        onCreate={(input) =>
+          mutation.mutate(() => createContentProductionPreset(input))
+        }
+        onCreateVersion={(presetId, purpose, parameters) =>
+          mutation.mutate(() =>
+            createContentProductionPresetVersion(presetId, {
+              purpose,
+              parameters,
+            }),
+          )
+        }
+        onRetry={() => void query.refetch()}
+        onSelect={setSelected}
+        onSetEnabled={(preset) =>
+          mutation.mutate(() =>
+            setContentProductionPresetEnabled(
+              preset.id,
+              !preset.enabled,
+              preset.revision,
+            ),
+          )
+        }
+        pending={mutation.isPending}
+        {...(selected ? { selected } : {})}
+      />
+    </div>
   );
 }

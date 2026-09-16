@@ -4,9 +4,12 @@ import type { ReactNode } from 'react';
 import { isApiError } from '@/shared/api';
 import { Badge } from '@/shared/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
-import { PageError, PageLoading } from '@/shared/ui/page-state';
+
 import { QuestionVersionComparison } from './QuestionVersionComparison';
 import { QuestionVersionPreview } from './QuestionVersionPreview';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 interface AdminQuestionDetailPageViewProps {
   actions: ReactNode;
@@ -29,23 +32,47 @@ export function AdminQuestionDetailPageView({
   renderVersionAction,
 }: AdminQuestionDetailPageViewProps) {
   if (loading) {
-    return <PageLoading message='문제 상세를 불러오고 있습니다.' />;
+    return (
+      <section
+        aria-live='polite'
+        className='flex min-h-state flex-col justify-center gap-cluster p-page'
+        role='status'
+      >
+        <Skeleton className='h-control w-full max-w-content' />
+        <p className='text-body text-subtle'>문제 상세를 불러오고 있습니다.</p>
+      </section>
+    );
   }
   if (error !== null || data === undefined) {
     const problem =
       isApiError(error) && error.detail.kind === 'problem'
         ? error.detail.problem
-        : undefined;
+        : { status: undefined, requestId: undefined };
     return (
-      <PageError
-        message={
-          problem?.status === 404
-            ? '요청한 문제를 찾을 수 없습니다.'
-            : '문제 상세를 불러오지 못했습니다.'
-        }
-        onRetry={onRetry}
-        {...(problem === undefined ? {} : { requestId: problem.requestId })}
-      />
+      <Alert
+        className='rounded-panel border-danger bg-danger-surface'
+        variant='destructive'
+      >
+        <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+        <AlertDescription className='flex flex-col gap-cluster text-danger'>
+          <p>
+            {problem.status === 404
+              ? '요청한 문제를 찾을 수 없습니다.'
+              : '문제 상세를 불러오지 못했습니다.'}
+          </p>
+          {problem.requestId ? (
+            <p className='text-caption'>요청 ID: {problem.requestId}</p>
+          ) : null}
+          <Button
+            className='mt-cluster w-auto'
+            onClick={onRetry}
+            type='button'
+            variant='outline'
+          >
+            다시 시도
+          </Button>
+        </AlertDescription>
+      </Alert>
     );
   }
 

@@ -1,19 +1,19 @@
 /** 역할별 shell이 분리된 내비게이션과 landmark를 제공하는지 검증한다 */
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { AppShell } from '@/shared/ui/app-shell';
+import { SidebarLayout } from '../layouts/SidebarLayout';
 import { adminNavigation } from './adminNavigation';
 import { learnerNavigation } from './learnerNavigation';
 
 describe('역할별 내비게이션', () => {
   it('학습자 전용 주요 메뉴와 main landmark를 제공한다', () => {
     render(
-      <AppShell
+      <SidebarLayout
         currentPath='/learn'
         navigation={learnerNavigation}
       >
         학습자 본문
-      </AppShell>,
+      </SidebarLayout>,
     );
 
     expect(
@@ -46,12 +46,12 @@ describe('역할별 내비게이션', () => {
 
   it('관리자 전용 주요 메뉴와 main landmark를 제공한다', () => {
     render(
-      <AppShell
+      <SidebarLayout
         currentPath='/admin'
         navigation={adminNavigation}
       >
         관리자 본문
-      </AppShell>,
+      </SidebarLayout>,
     );
 
     expect(screen.getByRole('main')).toHaveTextContent('관리자 본문');

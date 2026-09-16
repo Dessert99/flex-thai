@@ -13,11 +13,13 @@ export function ContentImportDetailPageContainer({
 }: ContentImportDetailPageContainerProps) {
   const detail = useQuery(contentImportDetailQueryOptions(importId));
   return (
-    <ContentImportDetailPageView
-      data={detail.data}
-      error={detail.isError}
-      loading={detail.isPending}
-      onRetry={() => void detail.refetch()}
-    />
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <ContentImportDetailPageView
+        data={detail.data}
+        error={detail.isError}
+        loading={detail.isPending}
+        onRetry={() => void detail.refetch()}
+      />
+    </div>
   );
 }

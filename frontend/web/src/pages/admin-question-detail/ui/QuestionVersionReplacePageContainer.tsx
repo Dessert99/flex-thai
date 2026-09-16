@@ -36,19 +36,21 @@ export function QuestionVersionReplacePageContainer({
   });
 
   return (
-    <QuestionVersionReplacePageView
-      data={detail.data}
-      detailError={detail.error}
-      loading={detail.isPending}
-      onReplace={(payload) => replace.mutate(payload)}
-      onRetry={() => void detail.refetch()}
-      onValidate={() => validate.mutate()}
-      replaceError={replace.error}
-      replaced={replace.isSuccess}
-      replacing={replace.isPending}
-      validationReport={validate.data}
-      validating={validate.isPending}
-      versionId={versionId}
-    />
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <QuestionVersionReplacePageView
+        data={detail.data}
+        detailError={detail.error}
+        loading={detail.isPending}
+        onReplace={(payload) => replace.mutate(payload)}
+        onRetry={() => void detail.refetch()}
+        onValidate={() => validate.mutate()}
+        replaceError={replace.error}
+        replaced={replace.isSuccess}
+        replacing={replace.isPending}
+        validationReport={validate.data}
+        validating={validate.isPending}
+        versionId={versionId}
+      />
+    </div>
   );
 }

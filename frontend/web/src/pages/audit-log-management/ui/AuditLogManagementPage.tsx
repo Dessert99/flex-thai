@@ -1,10 +1,10 @@
 /** 관리자 감사 기록 검색·페이지·안전한 상세 화면을 제공한다 */
-/* eslint-disable max-lines-per-function */
+
 import type { AuditLogDetailResponse } from '@flex-thia/contracts';
 import { useQuery } from '@tanstack/react-query';
-import { Button } from '@/shared/ui/button';
+
 import { Input } from '@/shared/ui/input';
-import { PageError, PageLoading } from '@/shared/ui/page-state';
+
 import {
   Table,
   TableBody,
@@ -22,6 +22,9 @@ import {
   toAuditDatetimeLocal,
   type AuditLogSearch,
 } from '../model/auditLogSearch';
+import { Skeleton } from '@/shared/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
+import { Button } from '@/shared/ui/button';
 
 interface AuditLogManagementPageProps {
   onSearchChange: (search: AuditLogSearch) => void;
@@ -39,140 +42,170 @@ export function AuditLogManagementPage({
     onSearchChange({ ...search, ...patch, page: 1 });
 
   if (list.isPending) {
-    return <PageLoading message='감사 기록을 불러오고 있습니다.' />;
+    return (
+      <div className='mx-auto w-full max-w-content flex-1 p-page'>
+        <section
+          aria-live='polite'
+          className='flex min-h-state flex-col justify-center gap-cluster p-page'
+          role='status'
+        >
+          <Skeleton className='h-control w-full max-w-content' />
+          <p className='text-body text-subtle'>
+            감사 기록을 불러오고 있습니다.
+          </p>
+        </section>
+      </div>
+    );
   }
   if (list.isError || !list.data) {
     return (
-      <PageError
-        message='감사 기록을 불러오지 못했습니다.'
-        onRetry={() => void list.refetch()}
-      />
+      <div className='mx-auto w-full max-w-content flex-1 p-page'>
+        <Alert
+          className='rounded-panel border-danger bg-danger-surface'
+          variant='destructive'
+        >
+          <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+          <AlertDescription className='flex flex-col gap-cluster text-danger'>
+            <p>감사 기록을 불러오지 못했습니다.</p>
+            <Button
+              className='mt-cluster w-auto'
+              onClick={() => void list.refetch()}
+              type='button'
+              variant='outline'
+            >
+              다시 시도
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
     );
   }
 
   return (
-    <section className='grid gap-section'>
-      <h1 className='text-title text-primary'>감사 기록</h1>
-      <div className='grid gap-control md:grid-cols-3'>
-        <AuditFilter
-          label='통합 검색'
-          onChange={(query) => changeFilter({ query })}
-          value={search.query}
-        />
-        <AuditFilter
-          label='행위'
-          onChange={(action) => changeFilter({ action })}
-          value={search.action}
-        />
-        <AuditFilter
-          label='행위자 사용자 ID'
-          onChange={(actorUserId) => changeFilter({ actorUserId })}
-          value={search.actorUserId}
-        />
-        <AuditFilter
-          label='대상 유형'
-          onChange={(targetType) => changeFilter({ targetType })}
-          value={search.targetType}
-        />
-        <AuditFilter
-          label='대상 ID'
-          onChange={(targetId) => changeFilter({ targetId })}
-          value={search.targetId}
-        />
-        <AuditFilter
-          label='시작 시각'
-          onChange={(from) =>
-            changeFilter({ from: fromAuditDatetimeLocal(from ?? '') })
-          }
-          type='datetime-local'
-          value={toAuditDatetimeLocal(search.from)}
-        />
-        <AuditFilter
-          label='종료 시각'
-          onChange={(to) =>
-            changeFilter({ to: fromAuditDatetimeLocal(to ?? '') })
-          }
-          type='datetime-local'
-          value={toAuditDatetimeLocal(search.to)}
-        />
-      </div>
-      {list.data.items.length === 0 ? (
-        <p>
-          {hasFilter(search)
-            ? '조건에 맞는 감사 기록이 없습니다.'
-            : '감사 기록이 없습니다.'}
-        </p>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>시각</TableHead>
-              <TableHead>행위자</TableHead>
-              <TableHead>행위</TableHead>
-              <TableHead>대상</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {list.data.items.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell data-label='시각'>
-                  {new Date(item.createdAt).toLocaleString('ko-KR')}
-                </TableCell>
-                <TableCell data-label='행위자'>
-                  {item.actor.kind === 'USER'
-                    ? item.actor.email
-                    : item.actor.label}
-                </TableCell>
-                <TableCell data-label='행위'>{item.action}</TableCell>
-                <TableCell data-label='대상'>
-                  <Button
-                    onClick={() =>
-                      onSearchChange({ ...search, selectedAuditId: item.id })
-                    }
-                    variant='outline'
-                  >
-                    {item.targetType && item.targetId
-                      ? `${item.targetType}/${item.targetId}`
-                      : item.target}
-                  </Button>
-                </TableCell>
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <section className='grid gap-section'>
+        <h1 className='text-title text-primary'>감사 기록</h1>
+        <div className='grid gap-control md:grid-cols-3'>
+          <AuditFilter
+            label='통합 검색'
+            onChange={(query) => changeFilter({ query })}
+            value={search.query}
+          />
+          <AuditFilter
+            label='행위'
+            onChange={(action) => changeFilter({ action })}
+            value={search.action}
+          />
+          <AuditFilter
+            label='행위자 사용자 ID'
+            onChange={(actorUserId) => changeFilter({ actorUserId })}
+            value={search.actorUserId}
+          />
+          <AuditFilter
+            label='대상 유형'
+            onChange={(targetType) => changeFilter({ targetType })}
+            value={search.targetType}
+          />
+          <AuditFilter
+            label='대상 ID'
+            onChange={(targetId) => changeFilter({ targetId })}
+            value={search.targetId}
+          />
+          <AuditFilter
+            label='시작 시각'
+            onChange={(from) =>
+              changeFilter({ from: fromAuditDatetimeLocal(from ?? '') })
+            }
+            type='datetime-local'
+            value={toAuditDatetimeLocal(search.from)}
+          />
+          <AuditFilter
+            label='종료 시각'
+            onChange={(to) =>
+              changeFilter({ to: fromAuditDatetimeLocal(to ?? '') })
+            }
+            type='datetime-local'
+            value={toAuditDatetimeLocal(search.to)}
+          />
+        </div>
+        {list.data.items.length === 0 ? (
+          <p>
+            {hasFilter(search)
+              ? '조건에 맞는 감사 기록이 없습니다.'
+              : '감사 기록이 없습니다.'}
+          </p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>시각</TableHead>
+                <TableHead>행위자</TableHead>
+                <TableHead>행위</TableHead>
+                <TableHead>대상</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-      <div className='flex items-center gap-control'>
-        <Button
-          disabled={search.page <= 1}
-          onClick={() => onSearchChange({ ...search, page: search.page - 1 })}
-          variant='outline'
-        >
-          이전
-        </Button>
-        <span>
-          {search.page} / {Math.max(list.data.page.totalPages, 1)}
-        </span>
-        <Button
-          disabled={search.page >= list.data.page.totalPages}
-          onClick={() => onSearchChange({ ...search, page: search.page + 1 })}
-          variant='outline'
-        >
-          다음
-        </Button>
-      </div>
-      {search.selectedAuditId ? (
-        <AuditDetail
-          detail={detail.data}
-          error={detail.isError}
-          loading={detail.isPending}
-          onClose={() => {
-            const next = { ...search };
-            delete next.selectedAuditId;
-            onSearchChange(next);
-          }}
-        />
-      ) : null}
-    </section>
+            </TableHeader>
+            <TableBody>
+              {list.data.items.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell data-label='시각'>
+                    {new Date(item.createdAt).toLocaleString('ko-KR')}
+                  </TableCell>
+                  <TableCell data-label='행위자'>
+                    {item.actor.kind === 'USER'
+                      ? item.actor.email
+                      : item.actor.label}
+                  </TableCell>
+                  <TableCell data-label='행위'>{item.action}</TableCell>
+                  <TableCell data-label='대상'>
+                    <Button
+                      onClick={() =>
+                        onSearchChange({ ...search, selectedAuditId: item.id })
+                      }
+                      variant='outline'
+                    >
+                      {item.targetType && item.targetId
+                        ? `${item.targetType}/${item.targetId}`
+                        : item.target}
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+        <div className='flex items-center gap-control'>
+          <Button
+            disabled={search.page <= 1}
+            onClick={() => onSearchChange({ ...search, page: search.page - 1 })}
+            variant='outline'
+          >
+            이전
+          </Button>
+          <span>
+            {search.page} / {Math.max(list.data.page.totalPages, 1)}
+          </span>
+          <Button
+            disabled={search.page >= list.data.page.totalPages}
+            onClick={() => onSearchChange({ ...search, page: search.page + 1 })}
+            variant='outline'
+          >
+            다음
+          </Button>
+        </div>
+        {search.selectedAuditId ? (
+          <AuditDetail
+            detail={detail.data}
+            error={detail.isError}
+            loading={detail.isPending}
+            onClose={() => {
+              const next = { ...search };
+              delete next.selectedAuditId;
+              onSearchChange(next);
+            }}
+          />
+        ) : null}
+      </section>
+    </div>
   );
 }
 

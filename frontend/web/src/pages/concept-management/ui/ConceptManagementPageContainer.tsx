@@ -28,18 +28,20 @@ export function ConceptManagementPageContainer({
       client.invalidateQueries({ queryKey: ['admin', 'concepts'] }),
   });
   return (
-    <ConceptManagementPageView
-      createMessage={mutationErrorMessage(create.error)}
-      createPending={create.isPending}
-      data={concepts.data}
-      error={concepts.isError}
-      loading={concepts.isPending}
-      onFilterChange={(patch) => onSearchChange({ ...search, ...patch })}
-      onCreate={(input) => {
-        if (!create.isPending) create.mutate(input);
-      }}
-      onRetry={() => void concepts.refetch()}
-      search={search}
-    />
+    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+      <ConceptManagementPageView
+        createMessage={mutationErrorMessage(create.error)}
+        createPending={create.isPending}
+        data={concepts.data}
+        error={concepts.isError}
+        loading={concepts.isPending}
+        onFilterChange={(patch) => onSearchChange({ ...search, ...patch })}
+        onCreate={(input) => {
+          if (!create.isPending) create.mutate(input);
+        }}
+        onRetry={() => void concepts.refetch()}
+        search={search}
+      />
+    </div>
   );
 }
