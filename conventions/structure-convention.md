@@ -162,6 +162,22 @@ frontend/web/src/
 - 프론트엔드 테스트는 대상 옆에 `*.test.ts` 또는 `*.test.tsx`로 두고,
   백엔드 테스트의 `*.spec.ts` 규칙은 유지한다.
 
+### 프론트엔드 라우트 구조
+
+- `app/routes`는 TanStack Router의 파일 기반 라우팅을 사용하며, 접근
+  권한과 기능별 디렉터리로 계층을 표현한다. 여러 경로를 점으로 연결한
+  긴 파일명은 사용하지 않는다.
+- `_authenticated/route.tsx`에서 로그인을 확인하고, `_learner`에는 학습
+  화면을, `admin`에는 관리자 화면을 둔다. `admin/_enrollment`는 TOTP 등록
+  화면, `admin/_enrolled`는 TOTP 등록을 마친 관리자의 화면을 담당한다.
+- 공통 접근 검사나 레이아웃은 `route.tsx`, 기본 화면은 `index.tsx`,
+  동적 경로는 `$questionId` 같은 이름으로 표현한다. 공통 처리가 없는
+  디렉터리에는 `route.tsx`를 만들지 않는다.
+- 목록·상세·하위 작업은 기능별 폴더로 묶고, 단일 화면은 `users.tsx`처럼
+  파일로 둔다. 화면 구현은 `pages`에 유지한다.
+- 라우트 옆 테스트 파일은 `-route.test.ts`처럼 `-` 접두사를 붙여 라우트
+  생성 대상에서 제외한다. `src/routeTree.gen.ts`는 자동 생성 결과다.
+
 ## 프론트엔드 UI 규칙
 
 - 새 UI primitive는 shadcn 레지스트리를 먼저 확인하고, 생성물은 vendored

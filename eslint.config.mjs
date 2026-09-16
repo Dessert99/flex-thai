@@ -109,7 +109,7 @@ export default tseslint.config(
     // 검토 중인 화면 배치를 줄 수 때문에 별도 레이아웃으로 추출하지 않는다.
     files: [
       'frontend/web/src/pages/**/ui/*Page*.tsx',
-      'frontend/web/src/app/routes/*.tsx',
+      'frontend/web/src/app/routes/**/*.tsx',
       'frontend/web/src/app/providers/AppProviders.tsx',
     ],
     ignores: ['**/*.test.tsx', '**/*.test-support.tsx'],

@@ -5,9 +5,9 @@ import {
   useRouterState,
 } from '@tanstack/react-router';
 import { LogoutButton } from '@/features/logout';
-import { SidebarLayout } from '../layouts/SidebarLayout';
-import { requireLearnerPortal } from '../routing/guards';
-import { learnerNavigation } from '../routing/learnerNavigation';
+import { SidebarLayout } from '../../../layouts/SidebarLayout';
+import { requireLearnerPortal } from '../../../routing/guards';
+import { learnerNavigation } from '../../../routing/learnerNavigation';
 
 /** 인증 부모 session의 learner role을 하위 route보다 먼저 검증한다 */
 export const Route = createFileRoute('/_authenticated/_learner')({

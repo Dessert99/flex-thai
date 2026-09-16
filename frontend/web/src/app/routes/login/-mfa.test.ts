@@ -1,7 +1,7 @@
 /** 로그인 TOTP route의 메모리 challenge 접근 경계를 검증한다 */
 import { isRedirect } from '@tanstack/react-router';
 import { describe, expect, it } from 'vitest';
-import { requireLoginTotpChallenge } from './login.mfa';
+import { requireLoginTotpChallenge } from './mfa';
 
 describe('로그인 TOTP route', () => {
   it('challenge 없는 직접 reload를 로그인으로 보낸다', () => {

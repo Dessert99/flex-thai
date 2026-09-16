@@ -5,9 +5,9 @@ import {
   useRouterState,
 } from '@tanstack/react-router';
 import { LogoutButton } from '@/features/logout';
-import { SidebarLayout } from '../layouts/SidebarLayout';
-import { adminNavigation } from '../routing/adminNavigation';
-import { requireAdminPortal } from '../routing/guards';
+import { SidebarLayout } from '../../../../layouts/SidebarLayout';
+import { adminNavigation } from '../../../../routing/adminNavigation';
+import { requireAdminPortal } from '../../../../routing/guards';
 
 /** 인증 부모 session의 enrolled 관리자 상태를 검증한다 */
 export const Route = createFileRoute('/_authenticated/admin/_enrolled')({

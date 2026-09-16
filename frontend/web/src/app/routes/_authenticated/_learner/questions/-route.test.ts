@@ -5,7 +5,7 @@ import {
   questionListQueryOptions,
 } from '@/pages/question-list';
 import { createTestQueryClient } from '@/shared/test';
-import { Route } from './_authenticated._learner.questions';
+import { Route } from './route';
 
 const mocks = vi.hoisted(() => ({ authenticatedRequest: vi.fn() }));
 vi.mock('@/shared/api', () => ({

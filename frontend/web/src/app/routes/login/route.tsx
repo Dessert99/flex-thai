@@ -1,7 +1,7 @@
 /** 공개 로그인 shell과 안전한 redirect search를 정의한다 */
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router';
 import type { MeResponse } from '@flex-thia/contracts';
-import { parseSafeRedirect } from '../routing/redirectSearch';
+import { parseSafeRedirect } from '../../routing/redirectSearch';
 
 /** 로그인 search와 이미 인증된 사용자의 우회 navigation을 검증한다 */
 export const Route = createFileRoute('/login')({
