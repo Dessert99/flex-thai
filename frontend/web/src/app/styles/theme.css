@@ -1,4 +1,4 @@
-/** 태국 국기의 왕실색과 사원 금빛을 제품 semantic token으로 제한해 공개한다 */
+/** shadcn Neutral 팔레트를 제품 semantic token과 컴포넌트에 연결한다 */
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
@@ -8,40 +8,15 @@
 :root {
   /** 1계층: 원시 팔레트. 숫자가 커질수록 어두워지며 화면에서 직접 사용하지 않는다. */
   --foundation-color-neutral-100: oklch(1 0 0);
-  --foundation-color-neutral-200: oklch(0.985 0.008 86);
-  --foundation-color-neutral-300: oklch(0.958 0.015 84);
-  --foundation-color-neutral-400: oklch(0.9 0.022 82);
-  --foundation-color-neutral-500: oklch(0.72 0.022 275);
-  --foundation-color-neutral-600: oklch(0.58 0.03 272);
-  --foundation-color-neutral-700: oklch(0.46 0.03 270);
-  --foundation-color-neutral-800: oklch(0.25 0.035 270);
-
-  --foundation-color-royal-blue-100: oklch(0.955 0.025 274);
-  --foundation-color-royal-blue-200: oklch(0.88 0.055 274);
-  --foundation-color-royal-blue-300: oklch(0.77 0.09 274);
-  --foundation-color-royal-blue-400: oklch(0.65 0.12 274);
-  --foundation-color-royal-blue-500: oklch(0.54 0.14 274);
-  --foundation-color-royal-blue-600: oklch(0.46 0.14 274);
-  --foundation-color-royal-blue-700: oklch(0.32 0.1 274);
-  --foundation-color-royal-blue-800: oklch(0.23 0.065 274);
-
-  --foundation-color-temple-gold-100: oklch(0.97 0.025 83);
-  --foundation-color-temple-gold-200: oklch(0.94 0.045 83);
-  --foundation-color-temple-gold-300: oklch(0.88 0.075 82);
-  --foundation-color-temple-gold-400: oklch(0.8 0.11 81);
-  --foundation-color-temple-gold-500: oklch(0.72 0.13 80);
-  --foundation-color-temple-gold-600: oklch(0.62 0.12 79);
-  --foundation-color-temple-gold-700: oklch(0.5 0.1 78);
-  --foundation-color-temple-gold-800: oklch(0.38 0.075 77);
-
-  --foundation-color-siam-red-100: oklch(0.97 0.025 22);
-  --foundation-color-siam-red-200: oklch(0.92 0.055 22);
-  --foundation-color-siam-red-300: oklch(0.84 0.095 22);
-  --foundation-color-siam-red-400: oklch(0.74 0.14 22);
-  --foundation-color-siam-red-500: oklch(0.62 0.175 22);
-  --foundation-color-siam-red-600: oklch(0.52 0.19 22);
-  --foundation-color-siam-red-700: oklch(0.44 0.18 22);
-  --foundation-color-siam-red-800: oklch(0.34 0.14 22);
+  --foundation-color-neutral-200: oklch(0.985 0 0);
+  --foundation-color-neutral-300: oklch(0.97 0 0);
+  --foundation-color-neutral-400: oklch(0.922 0 0);
+  --foundation-color-neutral-500: oklch(0.708 0 0);
+  --foundation-color-neutral-600: oklch(0.556 0 0);
+  --foundation-color-neutral-700: oklch(0.205 0 0);
+  --foundation-color-neutral-800: oklch(0.145 0 0);
+  --foundation-color-danger: oklch(0.577 0.245 27.325);
+  --foundation-color-danger-soft: oklch(0.971 0.013 17.38);
 
   /** 색상 외 foundation 값 */
   --foundation-font-korean:
@@ -57,49 +32,34 @@
   --foundation-size-icon: 1.25rem;
   --foundation-size-form: 28rem;
   --foundation-size-state: 16rem;
-  --foundation-size-ribbon: 0.375rem;
   --foundation-radius-control: 0.625rem;
   --foundation-radius-panel: 0.875rem;
   --foundation-shadow-control: 0 1px 2px
-    color-mix(in oklch, var(--foundation-color-royal-blue-800) 8%, transparent);
+    color-mix(in oklch, var(--foundation-color-neutral-800) 8%, transparent);
   --foundation-shadow-surface:
     0 1px 2px
-      color-mix(
-        in oklch,
-        var(--foundation-color-royal-blue-800) 7%,
-        transparent
-      ),
+      color-mix(in oklch, var(--foundation-color-neutral-800) 7%, transparent),
     0 8px 24px
-      color-mix(
-        in oklch,
-        var(--foundation-color-royal-blue-800) 6%,
-        transparent
-      );
+      color-mix(in oklch, var(--foundation-color-neutral-800) 6%, transparent);
   --foundation-shadow-overlay: 0 1rem 3rem
-    color-mix(in oklch, var(--foundation-color-royal-blue-800) 18%, transparent);
+    color-mix(in oklch, var(--foundation-color-neutral-800) 18%, transparent);
   --foundation-duration-feedback: 160ms;
 
   /** 2계층: 제품 의미. 배경 → 콘텐츠 → 경계 → 액션 → 상태 순서로 정의한다. */
-  --semantic-color-surface-canvas: var(--foundation-color-neutral-200);
+  --semantic-color-surface-canvas: var(--foundation-color-neutral-100);
   --semantic-color-surface-default: var(--foundation-color-neutral-100);
   --semantic-color-surface-muted: var(--foundation-color-neutral-300);
   --semantic-color-content-primary: var(--foundation-color-neutral-800);
-  --semantic-color-content-secondary: var(--foundation-color-neutral-700);
-  --semantic-color-content-inverse: var(--foundation-color-neutral-100);
+  --semantic-color-content-secondary: var(--foundation-color-neutral-600);
+  --semantic-color-content-inverse: var(--foundation-color-neutral-200);
   --semantic-color-border-default: var(--foundation-color-neutral-400);
   --semantic-color-border-strong: var(--foundation-color-neutral-500);
-  --semantic-color-action-primary: var(--foundation-color-royal-blue-700);
-  --semantic-color-action-primary-strong: var(
-    --foundation-color-royal-blue-800
-  );
-  --semantic-color-action-primary-soft: var(--foundation-color-royal-blue-100);
-  --semantic-color-accent-warm: var(--foundation-color-temple-gold-500);
-  --semantic-color-accent-warm-soft: var(--foundation-color-temple-gold-200);
-  --semantic-color-heritage-primary: var(--foundation-color-siam-red-600);
-  --semantic-color-heritage-soft: var(--foundation-color-siam-red-100);
-  --semantic-color-focus-ring: var(--foundation-color-royal-blue-500);
-  --semantic-color-status-danger: var(--foundation-color-siam-red-700);
-  --semantic-color-status-danger-soft: var(--foundation-color-siam-red-100);
+  --semantic-color-action-primary: var(--foundation-color-neutral-700);
+  --semantic-color-action-primary-strong: var(--foundation-color-neutral-800);
+  --semantic-color-action-primary-soft: var(--foundation-color-neutral-300);
+  --semantic-color-focus-ring: var(--foundation-color-neutral-500);
+  --semantic-color-status-danger: var(--foundation-color-danger);
+  --semantic-color-status-danger-soft: var(--foundation-color-danger-soft);
   --semantic-font-body: var(--foundation-font-korean);
   --semantic-font-thai: var(--foundation-font-thai);
   --semantic-space-cluster: var(--foundation-space-cluster);
@@ -110,7 +70,6 @@
   --semantic-size-icon: var(--foundation-size-icon);
   --semantic-size-form: var(--foundation-size-form);
   --semantic-size-state: var(--foundation-size-state);
-  --semantic-size-ribbon: var(--foundation-size-ribbon);
   --semantic-radius-control: var(--foundation-radius-control);
   --semantic-radius-panel: var(--foundation-radius-panel);
   --semantic-shadow-control: var(--foundation-shadow-control);
@@ -127,26 +86,26 @@
   --popover-foreground: var(--semantic-color-content-primary);
   --primary: var(--semantic-color-action-primary);
   --primary-foreground: var(--semantic-color-content-inverse);
-  --secondary: var(--semantic-color-accent-warm-soft);
-  --secondary-foreground: var(--semantic-color-action-primary-strong);
+  --secondary: var(--semantic-color-surface-muted);
+  --secondary-foreground: var(--semantic-color-action-primary);
   --muted: var(--semantic-color-surface-muted);
   --muted-foreground: var(--semantic-color-content-secondary);
   --accent: var(--semantic-color-action-primary-soft);
-  --accent-foreground: var(--semantic-color-action-primary-strong);
+  --accent-foreground: var(--semantic-color-action-primary);
   --destructive: var(--semantic-color-status-danger);
   --border: var(--semantic-color-border-default);
   --input: var(--semantic-color-border-default);
   --ring: var(--semantic-color-focus-ring);
   --radius: var(--semantic-radius-control);
 
-  --sidebar: var(--semantic-color-action-primary-strong);
-  --sidebar-foreground: var(--foundation-color-neutral-200);
-  --sidebar-primary: var(--semantic-color-accent-warm);
-  --sidebar-primary-foreground: var(--semantic-color-action-primary-strong);
-  --sidebar-accent: var(--semantic-color-action-primary);
-  --sidebar-accent-foreground: var(--semantic-color-content-inverse);
-  --sidebar-border: var(--foundation-color-royal-blue-600);
-  --sidebar-ring: var(--semantic-color-accent-warm);
+  --sidebar: var(--foundation-color-neutral-200);
+  --sidebar-foreground: var(--semantic-color-content-primary);
+  --sidebar-primary: var(--semantic-color-action-primary);
+  --sidebar-primary-foreground: var(--semantic-color-content-inverse);
+  --sidebar-accent: var(--semantic-color-surface-muted);
+  --sidebar-accent-foreground: var(--semantic-color-action-primary);
+  --sidebar-border: var(--semantic-color-border-default);
+  --sidebar-ring: var(--semantic-color-focus-ring);
 }
 
 @theme inline {
@@ -156,10 +115,6 @@
   --color-brand: var(--semantic-color-action-primary);
   --color-brand-strong: var(--semantic-color-action-primary-strong);
   --color-brand-soft: var(--semantic-color-action-primary-soft);
-  --color-warm: var(--semantic-color-accent-warm);
-  --color-warm-soft: var(--semantic-color-accent-warm-soft);
-  --color-heritage: var(--semantic-color-heritage-primary);
-  --color-heritage-soft: var(--semantic-color-heritage-soft);
   --color-primary: var(--primary);
   --color-subtle: var(--semantic-color-content-secondary);
   --color-danger: var(--semantic-color-status-danger);
@@ -210,7 +165,6 @@
   --spacing-section: var(--semantic-space-section);
   --spacing-icon: var(--semantic-size-icon);
   --spacing-state: var(--semantic-size-state);
-  --spacing-ribbon: var(--semantic-size-ribbon);
   --container-content: 80rem;
   --container-form: var(--semantic-size-form);
   --radius-control: var(--semantic-radius-control);
@@ -239,28 +193,9 @@
     @apply min-h-screen bg-background font-sans text-foreground antialiased;
   }
 
-  body::before {
-    position: fixed;
-    z-index: 100;
-    top: 0;
-    right: 0;
-    left: 0;
-    height: var(--semantic-size-ribbon);
-    background: linear-gradient(
-      to bottom,
-      var(--semantic-color-heritage-primary) 0 16.667%,
-      var(--foundation-color-neutral-100) 16.667% 33.333%,
-      var(--semantic-color-action-primary) 33.333% 66.667%,
-      var(--foundation-color-neutral-100) 66.667% 83.333%,
-      var(--semantic-color-heritage-primary) 83.333% 100%
-    );
-    content: '';
-    pointer-events: none;
-  }
-
   ::selection {
     color: var(--semantic-color-action-primary-strong);
-    background: var(--semantic-color-accent-warm-soft);
+    background: var(--semantic-color-surface-muted);
   }
 
   :focus-visible {

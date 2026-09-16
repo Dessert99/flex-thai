@@ -28,7 +28,7 @@ export function HomeCard({
           <h2 className='flex items-center gap-cluster text-title'>
             <Icon
               aria-hidden='true'
-              className='text-warm'
+              className='text-muted-foreground'
             />
             {title}
           </h2>
