@@ -1,7 +1,7 @@
 /** 이메일 code 입력과 resend countdown을 표현한다 */
 import type { VerifyEmailCodeInput } from '@flex-thia/contracts';
-import type { FormEventHandler } from 'react';
-import type { UseFormReturn } from 'react-hook-form';
+import { useId, type FormEventHandler } from 'react';
+import { Controller, type UseFormReturn } from 'react-hook-form';
 import { Button } from '@/shared/ui/button';
 import {
   Card,
@@ -9,14 +9,7 @@ import {
   CardDescription,
   CardHeader,
 } from '@/shared/ui/card';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/shared/ui/form';
+import { Field, FieldLabel, FieldError } from '@/shared/ui/field';
 import { Input } from '@/shared/ui/input';
 
 interface EmailChallengePageViewProps {
@@ -41,6 +34,9 @@ export function EmailChallengePageView({
   resendPending,
   resendSeconds,
 }: EmailChallengePageViewProps) {
+  const inputId = useId();
+  const errorId = `${inputId}-error`;
+
   return (
     <main className='grid min-h-screen place-items-center bg-background p-page'>
       <Card className='w-full max-w-form border-default bg-surface shadow-overlay'>
@@ -53,59 +49,65 @@ export function EmailChallengePageView({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Form {...form}>
-            <form
-              className='flex flex-col gap-section'
-              noValidate
-              onSubmit={onSubmit}
+          <form
+            className='flex flex-col gap-section'
+            noValidate
+            onSubmit={onSubmit}
+          >
+            <Controller
+              control={form.control}
+              name='code'
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={inputId}>인증 코드</FieldLabel>
+
+                  <Input
+                    id={inputId}
+                    aria-invalid={fieldState.invalid}
+                    aria-describedby={fieldState.error ? errorId : undefined}
+                    autoComplete='one-time-code'
+                    inputMode='numeric'
+                    maxLength={6}
+                    {...field}
+                  />
+
+                  {fieldState.error && (
+                    <FieldError
+                      id={errorId}
+                      errors={[fieldState.error]}
+                    />
+                  )}
+                </Field>
+              )}
+            />
+            {errorMessage ? (
+              <p
+                aria-live='polite'
+                className='text-body text-danger'
+              >
+                {errorMessage}
+              </p>
+            ) : null}
+            <Button
+              disabled={pending || !email}
+              type='submit'
             >
-              <FormField
-                control={form.control}
-                name='code'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>인증 코드</FormLabel>
-                    <FormControl>
-                      <Input
-                        autoComplete='one-time-code'
-                        inputMode='numeric'
-                        maxLength={6}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {errorMessage ? (
-                <p
-                  aria-live='polite'
-                  className='text-body text-danger'
-                >
-                  {errorMessage}
-                </p>
-              ) : null}
-              <Button
-                disabled={pending || !email}
-                type='submit'
-              >
-                {pending ? '확인 중' : '로그인'}
-              </Button>
-              <Button
-                disabled={resendSeconds > 0 || resendPending || !email}
-                onClick={onResend}
-                type='button'
-                variant='outline'
-              >
-                {resendPending ? '재전송 중' : '인증 메일 재전송'}
-              </Button>
-              {resendSeconds > 0 ? (
-                <p className='text-caption text-subtle'>
-                  {resendSeconds}초 후 재전송 가능
-                </p>
-              ) : null}
-            </form>
-          </Form>
+              {pending ? '확인 중' : '로그인'}
+            </Button>
+            <Button
+              disabled={resendSeconds > 0 || resendPending || !email}
+              onClick={onResend}
+              type='button'
+              variant='outline'
+            >
+              {resendPending ? '재전송 중' : '인증 메일 재전송'}
+            </Button>
+            {resendSeconds > 0 ? (
+              <p className='text-caption text-subtle'>
+                {resendSeconds}초 후 재전송 가능
+              </p>
+            ) : null}
+          </form>
         </CardContent>
       </Card>
     </main>

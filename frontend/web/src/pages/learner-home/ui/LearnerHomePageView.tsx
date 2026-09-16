@@ -1,13 +1,5 @@
 /** 학습자 홈에서 개인화 또는 최근 게시 추천과 이유를 표현한다 */
 import { Badge } from '@/shared/ui/badge';
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemGroup,
-  ItemMedia,
-  ItemTitle,
-} from '@/shared/ui/item';
 import type { RecommendationResponse } from '@flex-thia/contracts';
 import { Link } from '@tanstack/react-router';
 import {
@@ -163,7 +155,7 @@ function PublishedContentCard({
       {empty ? (
         <p className='text-body text-subtle'>표시할 콘텐츠가 없습니다.</p>
       ) : (
-        <ItemGroup className='gap-cluster'>
+        <div className='flex flex-col gap-cluster'>
           {content.questions.map((question) => (
             <HomeLinkItem
               to='/questions/$questionId'
@@ -189,7 +181,7 @@ function PublishedContentCard({
               }
             />
           ))}
-        </ItemGroup>
+        </div>
       )}
     </HomeCard>
   );
@@ -205,35 +197,28 @@ const quickLinks = [
 function QuickLinks() {
   return (
     <nav aria-label='학습 빠른 이동'>
-      <ItemGroup className='grid gap-cluster sm:grid-cols-2 lg:grid-cols-4'>
+      <div className='grid gap-cluster sm:grid-cols-2 lg:grid-cols-4'>
         {quickLinks.map((link) => (
-          <Item
-            asChild
+          <Link
             key={link.href}
-            variant='outline'
+            className='flex items-center gap-cluster rounded-panel border border-default bg-surface p-cluster transition-colors hover:bg-accent focus-visible:outline-ring'
+            to={link.href}
           >
-            <Link
-              className='bg-surface'
-              to={link.href}
-            >
-              <ItemMedia variant='icon'>
-                <link.icon aria-hidden='true' />
-              </ItemMedia>
-              <ItemContent>
-                <ItemTitle className='text-body text-primary'>
-                  {link.label}
-                </ItemTitle>
-              </ItemContent>
-              <ItemActions>
-                <ChevronRight
-                  aria-hidden='true'
-                  className='text-subtle'
-                />
-              </ItemActions>
-            </Link>
-          </Item>
+            <span className='flex size-control shrink-0 items-center justify-center rounded-control border border-default bg-muted'>
+              <link.icon aria-hidden='true' />
+            </span>
+            <div className='flex min-w-none flex-1 flex-col gap-cluster'>
+              <span className='text-body text-primary'>{link.label}</span>
+            </div>
+            <span className='flex shrink-0 items-center'>
+              <ChevronRight
+                aria-hidden='true'
+                className='text-subtle'
+              />
+            </span>
+          </Link>
         ))}
-      </ItemGroup>
+      </div>
     </nav>
   );
 }
@@ -250,7 +235,7 @@ function RecommendedQuestions({
     content = <p className='text-body text-subtle'>표시할 문제가 없습니다.</p>;
   } else {
     content = (
-      <ItemGroup className='gap-cluster'>
+      <div className='flex flex-col gap-cluster'>
         {items.map((question) => (
           <HomeLinkItem
             description={`${question.skill === 'READING' ? '읽기' : ''} · 난이도 ${question.difficulty}`}
@@ -262,7 +247,7 @@ function RecommendedQuestions({
             title={question.questionType.displayName}
           />
         ))}
-      </ItemGroup>
+      </div>
     );
   }
 
@@ -288,7 +273,7 @@ function RecommendedVocabularies({
     content = <p className='text-body text-subtle'>표시할 어휘가 없습니다.</p>;
   } else {
     content = (
-      <ItemGroup className='gap-cluster'>
+      <div className='flex flex-col gap-cluster'>
         {items.map((vocabulary) => (
           <HomeLinkItem
             to='/vocabularies/$vocabularyId'
@@ -306,7 +291,7 @@ function RecommendedVocabularies({
             }
           />
         ))}
-      </ItemGroup>
+      </div>
     );
   }
 

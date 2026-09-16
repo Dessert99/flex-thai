@@ -1,7 +1,7 @@
 /** 키보드 접근 가능한 학교 이메일 form과 안전한 feedback을 렌더링한다 */
 import type { StartEmailAuthenticationInput } from '@flex-thia/contracts';
-import type { FormEventHandler } from 'react';
-import type { UseFormReturn } from 'react-hook-form';
+import { useId, type FormEventHandler } from 'react';
+import { Controller, type UseFormReturn } from 'react-hook-form';
 import { Button } from '@/shared/ui/button';
 import {
   Card,
@@ -9,14 +9,7 @@ import {
   CardDescription,
   CardHeader,
 } from '@/shared/ui/card';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/shared/ui/form';
+import { Field, FieldLabel, FieldError } from '@/shared/ui/field';
 import { Input } from '@/shared/ui/input';
 
 interface LoginPageViewProps {
@@ -33,6 +26,9 @@ export function LoginPageView({
   pending,
   requestId,
 }: LoginPageViewProps) {
+  const inputId = useId();
+  const errorId = `${inputId}-error`;
+
   return (
     <main className='grid min-h-screen place-items-center bg-background p-page'>
       <Card className='w-full max-w-form border-default bg-surface shadow-overlay'>
@@ -43,49 +39,55 @@ export function LoginPageView({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Form {...form}>
-            <form
-              className='flex flex-col gap-section'
-              noValidate
-              onSubmit={onSubmit}
-            >
-              <FormField
-                control={form.control}
-                name='email'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>학교 이메일</FormLabel>
-                    <FormControl>
-                      <Input
-                        autoComplete='email'
-                        inputMode='email'
-                        type='email'
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {form.formState.errors.root?.message ? (
-                <div
-                  aria-live='polite'
-                  className='text-body text-danger'
-                >
-                  <p>{form.formState.errors.root.message}</p>
-                  {requestId ? (
-                    <p className='text-caption'>요청 ID: {requestId}</p>
-                  ) : null}
-                </div>
-              ) : null}
-              <Button
-                disabled={pending}
-                type='submit'
+          <form
+            className='flex flex-col gap-section'
+            noValidate
+            onSubmit={onSubmit}
+          >
+            <Controller
+              control={form.control}
+              name='email'
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={inputId}>학교 이메일</FieldLabel>
+
+                  <Input
+                    id={inputId}
+                    aria-invalid={fieldState.invalid}
+                    aria-describedby={fieldState.error ? errorId : undefined}
+                    autoComplete='email'
+                    inputMode='email'
+                    type='email'
+                    {...field}
+                  />
+
+                  {fieldState.error && (
+                    <FieldError
+                      id={errorId}
+                      errors={[fieldState.error]}
+                    />
+                  )}
+                </Field>
+              )}
+            />
+            {form.formState.errors.root?.message ? (
+              <div
+                aria-live='polite'
+                className='text-body text-danger'
               >
-                {pending ? '메일 보내는 중' : '인증 메일 받기'}
-              </Button>
-            </form>
-          </Form>
+                <p>{form.formState.errors.root.message}</p>
+                {requestId ? (
+                  <p className='text-caption'>요청 ID: {requestId}</p>
+                ) : null}
+              </div>
+            ) : null}
+            <Button
+              disabled={pending}
+              type='submit'
+            >
+              {pending ? '메일 보내는 중' : '인증 메일 받기'}
+            </Button>
+          </form>
         </CardContent>
       </Card>
     </main>

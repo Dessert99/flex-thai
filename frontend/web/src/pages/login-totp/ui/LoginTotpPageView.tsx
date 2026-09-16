@@ -1,6 +1,6 @@
 /** 로그인 TOTP의 접근 가능한 숫자 입력과 inline feedback을 렌더링한다 */
-import type { FormEventHandler } from 'react';
-import type { UseFormReturn } from 'react-hook-form';
+import { useId, type FormEventHandler } from 'react';
+import { Controller, type UseFormReturn } from 'react-hook-form';
 import { Button } from '@/shared/ui/button';
 import {
   Card,
@@ -8,14 +8,7 @@ import {
   CardDescription,
   CardHeader,
 } from '@/shared/ui/card';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/shared/ui/form';
+import { Field, FieldLabel, FieldError } from '@/shared/ui/field';
 import { Input } from '@/shared/ui/input';
 import type { LoginTotpFormInput } from '../model/loginTotpFormSchema';
 
@@ -33,6 +26,9 @@ export function LoginTotpPageView({
   pending,
   requestId,
 }: LoginTotpPageViewProps) {
+  const inputId = useId();
+  const errorId = `${inputId}-error`;
+
   return (
     <main className='grid min-h-screen place-items-center bg-background p-page'>
       <Card className='w-full max-w-form border-default bg-surface shadow-overlay'>
@@ -43,42 +39,48 @@ export function LoginTotpPageView({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Form {...form}>
-            <form
-              className='flex flex-col gap-section'
-              noValidate
-              onSubmit={onSubmit}
+          <form
+            className='flex flex-col gap-section'
+            noValidate
+            onSubmit={onSubmit}
+          >
+            <Controller
+              control={form.control}
+              name='code'
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={inputId}>인증 코드</FieldLabel>
+
+                  <Input
+                    id={inputId}
+                    aria-invalid={fieldState.invalid}
+                    aria-describedby={fieldState.error ? errorId : undefined}
+                    autoComplete='one-time-code'
+                    inputMode='numeric'
+                    maxLength={6}
+                    pattern='[0-9]*'
+                    {...field}
+                  />
+
+                  {fieldState.error && (
+                    <FieldError
+                      id={errorId}
+                      errors={[fieldState.error]}
+                    />
+                  )}
+                </Field>
+              )}
+            />
+            {requestId ? (
+              <p className='text-caption text-danger'>요청 ID: {requestId}</p>
+            ) : null}
+            <Button
+              disabled={pending}
+              type='submit'
             >
-              <FormField
-                control={form.control}
-                name='code'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>인증 코드</FormLabel>
-                    <FormControl>
-                      <Input
-                        autoComplete='one-time-code'
-                        inputMode='numeric'
-                        maxLength={6}
-                        pattern='[0-9]*'
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {requestId ? (
-                <p className='text-caption text-danger'>요청 ID: {requestId}</p>
-              ) : null}
-              <Button
-                disabled={pending}
-                type='submit'
-              >
-                {pending ? '인증 중' : '인증하기'}
-              </Button>
-            </form>
-          </Form>
+              {pending ? '인증 중' : '인증하기'}
+            </Button>
+          </form>
         </CardContent>
       </Card>
     </main>

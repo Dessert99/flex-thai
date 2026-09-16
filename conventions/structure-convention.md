@@ -99,7 +99,8 @@ infra ─────────────────> backend 실행 산출
 ## 공통 파일 배치
 
 - 테스트는 대상 파일 옆에 `*.spec.ts`로 둔다. E2E 테스트 폴더는 만들지
-  않는다.
+  않는다. `shared/ui` primitives의 테스트·스토리 작성은
+  `frontend/web/src/shared/ui/AGENTS.md`를 따른다.
 - 한 workspace에서만 쓰는 설정과 helper는 해당 workspace 가까이에
   둔다.
 - 책임이 드러나지 않는 root `utils`, `helpers`, `common-packages` 같은

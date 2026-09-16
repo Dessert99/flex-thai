@@ -1,13 +1,5 @@
 /** 학습 홈의 섹션 카드와 내부 탐색 행에 일관된 시각 위계를 제공한다 */
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemDescription,
-  ItemMedia,
-  ItemTitle,
-} from '@/shared/ui/item';
 import { Link } from '@tanstack/react-router';
 import { ChevronRight, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -55,34 +47,34 @@ export function HomeLinkItem({
   title: ReactNode;
 }) {
   return (
-    <Item
-      asChild
-      variant='muted'
+    <Link
+      className='flex items-center gap-cluster rounded-panel border border-transparent bg-muted p-cluster transition-colors hover:bg-accent focus-visible:outline-ring'
+      to={to}
+      params={params}
+      search={{ page: 1, pageSize: 20 }}
     >
-      <Link
-        to={to}
-        params={params}
-        search={{ page: 1, pageSize: 20 }}
-      >
-        <ItemMedia variant='icon'>
-          <Icon aria-hidden='true' />
-        </ItemMedia>
-        <ItemContent>
-          <ItemTitle className='text-body text-primary'>{title}</ItemTitle>
-          {description ? (
-            <ItemDescription>{description}</ItemDescription>
-          ) : null}
-          {secondaryDescription ? (
-            <ItemDescription>{secondaryDescription}</ItemDescription>
-          ) : null}
-        </ItemContent>
-        <ItemActions>
-          <ChevronRight
-            aria-hidden='true'
-            className='text-subtle'
-          />
-        </ItemActions>
-      </Link>
-    </Item>
+      <span className='flex size-control shrink-0 items-center justify-center rounded-control border border-default bg-muted'>
+        <Icon aria-hidden='true' />
+      </span>
+      <div className='flex min-w-none flex-1 flex-col gap-cluster'>
+        <span className='text-body text-primary'>{title}</span>
+        {description ? (
+          <p className='line-clamp-2 text-body text-muted-foreground'>
+            {description}
+          </p>
+        ) : null}
+        {secondaryDescription ? (
+          <p className='line-clamp-2 text-body text-muted-foreground'>
+            {secondaryDescription}
+          </p>
+        ) : null}
+      </div>
+      <span className='flex shrink-0 items-center'>
+        <ChevronRight
+          aria-hidden='true'
+          className='text-subtle'
+        />
+      </span>
+    </Link>
   );
 }
