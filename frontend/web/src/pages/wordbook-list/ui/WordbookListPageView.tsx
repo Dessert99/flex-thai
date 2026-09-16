@@ -1,4 +1,5 @@
 /** 단어장 생성 입력과 목록·빈 상태를 한 화면에 표현한다 */
+import { Link } from '@tanstack/react-router';
 import type { WordbookListResponse } from '@flex-thia/contracts';
 import { WordbookActions, WordbookForm } from '@/features/manage-wordbook';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
@@ -37,7 +38,13 @@ export function WordbookListPageView({ items }: WordbookListPageViewProps) {
                   <p className='text-body text-subtle'>
                     {wordbook.itemCount}개 항목
                   </p>
-                  <a href={`/wordbooks/${wordbook.id}`}>{wordbook.name} 열기</a>
+                  <Link
+                    to='/wordbooks/$wordbookId'
+                    search={{ page: 1, pageSize: 20 }}
+                    params={{ wordbookId: wordbook.id }}
+                  >
+                    {wordbook.name} 열기
+                  </Link>
                   <WordbookActions
                     name={wordbook.name}
                     wordbookId={wordbook.id}

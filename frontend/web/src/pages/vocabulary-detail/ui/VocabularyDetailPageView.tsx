@@ -1,4 +1,5 @@
 /** 어휘 상세의 뜻·발음·관련 문제를 계약 필드만으로 표현한다 */
+import { Link } from '@tanstack/react-router';
 import type {
   VocabularyDetailResponse,
   VocabularyRelatedQuestionsResponse,
@@ -63,10 +64,14 @@ export function VocabularyDetailPageView({
           <ul>
             {detail.relations.map((relation) => (
               <li key={relation.id}>
-                <a href={`/vocabularies/${relation.relatedVocabularyId}`}>
+                <Link
+                  to='/vocabularies/$vocabularyId'
+                  search={{ page: 1, pageSize: 20 }}
+                  params={{ vocabularyId: relation.relatedVocabularyId }}
+                >
                   <span lang='th'>{relation.relatedThai}</span> ·{' '}
                   {relation.relatedMeaningKo}
-                </a>
+                </Link>
               </li>
             ))}
           </ul>
@@ -173,9 +178,12 @@ function VocabularyDetailTabs({
         <ul>
           {relatedQuestions.map((item) => (
             <li key={item.questionId}>
-              <a href={`/questions/${item.questionId}`}>
+              <Link
+                to='/questions/$questionId'
+                params={{ questionId: item.questionId }}
+              >
                 {item.questionType.displayName}
-              </a>
+              </Link>
             </li>
           ))}
         </ul>

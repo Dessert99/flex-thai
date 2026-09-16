@@ -18,7 +18,8 @@ export const learnerNavigation = [
   { group: '학습', href: '/practice', icon: Dumbbell, label: '단어 연습' },
   {
     group: '콘텐츠',
-    href: '/concepts?category=GRAMMAR',
+    href: '/concepts',
+    search: { category: 'GRAMMAR' },
     icon: BookOpenText,
     label: '개념 학습',
   },

@@ -1,4 +1,5 @@
 /** 문제 후보 목록의 필터·선택·부분 실패 bulk 상태를 표현한다 */
+import { Link } from '@tanstack/react-router';
 import type {
   QuestionCandidateListItem,
   QuestionCandidateListResponse,
@@ -94,11 +95,12 @@ function CandidateTable(props: CandidateTableProps) {
                   size='sm'
                   variant='link'
                 >
-                  <a
-                    href={`/admin/content-production/candidates/${candidate.id}`}
+                  <Link
+                    to='/admin/content-production/candidates/$candidateId'
+                    params={{ candidateId: candidate.id }}
                   >
                     열기
-                  </a>
+                  </Link>
                 </Button>
               </TableCell>
             </TableRow>

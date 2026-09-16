@@ -1,4 +1,5 @@
 /** 콘텐츠 제작 form과 최근 job의 독립 상태를 표현한다 */
+import { Link } from '@tanstack/react-router';
 import type {
   ContentProductionJobListResponse,
   ContentProductionPresetListResponse,
@@ -155,14 +156,15 @@ export function ContentProductionConsolePageView(
           </section>
         ) : null}
         {props.jobs?.items.map((job) => (
-          <a
+          <Link
             className='flex justify-between border-b py-cluster'
-            href={`/admin/content-production/jobs/${job.id}`}
+            to='/admin/content-production/jobs/$jobId'
+            params={{ jobId: job.id }}
             key={job.id}
           >
             <span>{new Date(job.createdAt).toLocaleString('ko-KR')}</span>
             <Badge>{job.status}</Badge>
-          </a>
+          </Link>
         ))}
       </section>
     </section>

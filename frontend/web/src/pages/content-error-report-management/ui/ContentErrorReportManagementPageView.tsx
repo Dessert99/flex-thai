@@ -1,4 +1,5 @@
 /** 관리자 오류 신고의 filter·목록·상세·workflow 제어를 렌더링한다 */
+import { Link } from '@tanstack/react-router';
 import type {
   AdminContentErrorReportDetailResponse,
   AdminContentErrorReportListResponse,
@@ -67,7 +68,7 @@ export function ContentErrorReportManagementPageView({
 }: ContentErrorReportManagementPageViewProps) {
   if (loading) return <p role='status'>오류 신고를 불러오는 중입니다.</p>;
   if (error) return <p role='alert'>오류 신고를 불러오지 못했습니다.</p>;
-  const targetHref = detail
+  const targetLink = detail
     ? toContentErrorReportTargetLink({
         kind: detail.targetKind,
         contentId: detail.canonicalReference.contentId,
@@ -212,8 +213,8 @@ export function ContentErrorReportManagementPageView({
           {mutationError ? (
             <p role='alert'>변경을 저장하지 못했습니다.</p>
           ) : null}
-          {targetHref ? (
-            <a href={targetHref}>대상 콘텐츠 열기</a>
+          {targetLink ? (
+            <Link {...targetLink}>대상 콘텐츠 열기</Link>
           ) : (
             <span>통합 대기</span>
           )}

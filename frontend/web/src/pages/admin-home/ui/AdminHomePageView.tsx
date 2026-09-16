@@ -1,4 +1,5 @@
 /** 관리자 홈의 최근 콘텐츠와 독립 운영 상태 카드를 표현한다 */
+import { Link } from '@tanstack/react-router';
 import type {
   AdminHomeOperationsResponse,
   AdminQuestionListResponse,
@@ -185,12 +186,13 @@ function RecentAuditLogs({
       </CardHeader>
       <CardContent className='space-y-cluster'>
         {content}
-        <a
+        <Link
           className='text-body text-primary underline-offset-4 hover:underline'
-          href='/admin/audit-logs'
+          to='/admin/audit-logs'
+          search={{ page: 1, pageSize: 20 }}
         >
           감사 기록 열기
-        </a>
+        </Link>
       </CardContent>
     </Card>
   );
@@ -248,16 +250,18 @@ function RecentAdminQuestions({
       <ul className='flex flex-col gap-cluster'>
         {items.map((question) => (
           <li key={question.questionId}>
-            <a
+            <Link
               className='block rounded-control border border-default p-cluster text-body text-primary'
-              href={`/admin/questions/${question.questionId}`}
+              to='/admin/questions/$questionId'
+              search={{ page: 1, pageSize: 20 }}
+              params={{ questionId: question.questionId }}
             >
               <span>{question.questionTypeSlug}</span>
               <span className='block text-caption text-subtle'>
                 {toQuestionStatusLabel(question.status)} · 난이도{' '}
                 {question.difficulty}
               </span>
-            </a>
+            </Link>
           </li>
         ))}
       </ul>
@@ -326,9 +330,11 @@ function RecentAdminVocabularies({
       <ul className='flex flex-col gap-cluster'>
         {items.map((vocabulary) => (
           <li key={vocabulary.id}>
-            <a
+            <Link
               className='block rounded-control border border-default p-cluster'
-              href={`/admin/vocabularies/${vocabulary.id}`}
+              to='/admin/vocabularies/$vocabularyId'
+              search={{ page: 1, pageSize: 20 }}
+              params={{ vocabularyId: vocabulary.id }}
             >
               <span
                 className='font-thai text-title text-primary'
@@ -339,7 +345,7 @@ function RecentAdminVocabularies({
               <span className='block text-caption text-subtle'>
                 {toVocabularyStatusLabel(vocabulary.status)}
               </span>
-            </a>
+            </Link>
           </li>
         ))}
       </ul>

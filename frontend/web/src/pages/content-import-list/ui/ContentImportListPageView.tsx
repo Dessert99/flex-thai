@@ -1,4 +1,5 @@
 /** 관리자 콘텐츠 가져오기 입력과 처리 이력을 한 화면에 표현한다 */
+import { Link } from '@tanstack/react-router';
 import type { ContentImportListResponse } from '@flex-thia/contracts';
 
 import {
@@ -112,12 +113,14 @@ export function ContentImportListPageView({
                 {data.items.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell>
-                      <a
+                      <Link
                         className='text-primary underline'
-                        href={`/admin/content-imports/${item.id}`}
+                        to='/admin/content-imports/$importId'
+                        search={{ page: 1, pageSize: 20 }}
+                        params={{ importId: item.id }}
                       >
                         {new Date(item.createdAt).toLocaleString('ko-KR')}
-                      </a>
+                      </Link>
                     </TableCell>
                     <TableCell>{item.vocabularyCount}</TableCell>
                     <TableCell>{item.questionCount}</TableCell>

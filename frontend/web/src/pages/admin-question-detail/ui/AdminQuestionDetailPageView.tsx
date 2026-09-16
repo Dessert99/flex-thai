@@ -1,4 +1,5 @@
 /** 관리자 문제의 공개 구조·버전·검증 결과만 계약 그대로 표현한다 */
+import { Link } from '@tanstack/react-router';
 import type { AdminQuestionDetailResponse } from '@flex-thia/contracts';
 import type { ReactNode } from 'react';
 import { isApiError } from '@/shared/api';
@@ -168,12 +169,14 @@ function QuestionVersionCard({
           </ul>
         ) : null}
         {version.status === 'DRAFT' ? (
-          <a
+          <Link
             className='w-fit rounded-control border border-default px-page py-cluster text-primary'
-            href={`/admin/questions/${questionId}/versions/${version.id}/replace`}
+            to='/admin/questions/$questionId/versions/$versionId/replace'
+            search={{ page: 1, pageSize: 20 }}
+            params={{ questionId: questionId, versionId: version.id }}
           >
             버전 {version.version} 전체 교체
-          </a>
+          </Link>
         ) : null}
         {stateAction}
       </CardContent>

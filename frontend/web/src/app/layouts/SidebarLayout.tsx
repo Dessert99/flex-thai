@@ -1,4 +1,5 @@
 /** 사이드바와 Provider만 공유하고 페이지 본문 배치는 각 페이지가 소유한다 */
+import { Link } from '@tanstack/react-router';
 import {
   ArrowLeftRight,
   CircleUserRound,
@@ -27,6 +28,7 @@ import {
 export interface SidebarLayoutNavigationItem {
   group?: string;
   href: string;
+  search?: Record<string, string | number | boolean>;
   icon: LucideIcon;
   label: string;
 }
@@ -71,10 +73,10 @@ export function SidebarLayout({
                 size='lg'
                 tooltip='FLEX THIA'
               >
-                <a href={home?.href ?? '/'}>
+                <Link to={home?.href ?? '/'}>
                   <GraduationCap />
                   <span className='font-semibold'>FLEX THIA</span>
-                </a>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -130,10 +132,13 @@ function AppNavigation({
                     isActive={item.href === activeHref}
                     tooltip={item.label}
                   >
-                    <a href={item.href}>
+                    <Link
+                      to={item.href}
+                      search={item.search ?? {}}
+                    >
                       <item.icon />
                       <span>{item.label}</span>
-                    </a>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -183,10 +188,10 @@ function PortalItem({
         asChild
         tooltip={portalLink.label}
       >
-        <a href={portalLink.href}>
+        <Link to={portalLink.href}>
           <ArrowLeftRight />
           <span>{portalLink.label}</span>
-        </a>
+        </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>
   );

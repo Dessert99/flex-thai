@@ -1,8 +1,20 @@
 /** SidebarLayout의 landmark와 shadcn Sidebar 내비게이션 경계를 검증한다 */
-import { fireEvent, render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/shared/test';
+import { fireEvent, screen } from '@testing-library/react';
 import { House, Search } from 'lucide-react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { SidebarLayout } from './SidebarLayout';
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  Outlet,
+  RouterProvider,
+  useRouterState,
+} from '@tanstack/react-router';
+import userEvent from '@testing-library/user-event';
+import { learnerNavigation } from '../routing/learnerNavigation';
 
 const navigation = [
   { group: '메뉴', href: '/dashboard', icon: House, label: '대시보드' },
@@ -14,6 +26,42 @@ beforeEach(() => {
 });
 
 describe('SidebarLayout', () => {
+  it('메뉴 클릭을 라우터가 처리하고 검색 조건과 접힌 사이드바를 유지한다', async () => {
+    const root = createRootRoute({ component: NavigationShell });
+    const home = createRoute({
+      getParentRoute: () => root,
+      path: '/learn',
+      component: () => <p>학습 시작 화면</p>,
+    });
+    const concepts = createRoute({
+      getParentRoute: () => root,
+      path: '/concepts',
+      component: () => <p>개념 목록 화면</p>,
+    });
+    const router = createRouter({
+      history: createMemoryHistory({ initialEntries: ['/learn'] }),
+      routeTree: root.addChildren([home, concepts]),
+    });
+    await router.load();
+    render(<RouterProvider router={router} />);
+    const user = userEvent.setup();
+    await screen.findByText('학습 시작 화면');
+    await user.click(sidebarTrigger());
+    const sidebar = desktopSidebar();
+    const main = screen.getByRole('main');
+    const link = screen.getByRole('link', { name: '개념 학습' });
+    // 일반 anchor는 기본 문서 이동을 취소하지 않아 이 검증을 통과할 수 없다.
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true });
+    fireEvent(link, click);
+    expect(click.defaultPrevented).toBe(true);
+    await screen.findByText('개념 목록 화면');
+    expect(router.state.location.pathname).toBe('/concepts');
+    expect(router.state.location.search).toEqual({ category: 'GRAMMAR' });
+    expect(desktopSidebar()).toBe(sidebar);
+    expect(sidebar).toHaveAttribute('data-state', 'collapsed');
+    expect(screen.getByRole('main')).toBe(main);
+  });
+
   it('주요 메뉴와 단일 main landmark를 제공한다', () => {
     render(
       <SidebarLayout
@@ -85,6 +133,18 @@ describe('SidebarLayout', () => {
     expect(screen.getByRole('button', { name: '프로필' })).toBeInTheDocument();
   });
 });
+
+function NavigationShell() {
+  const path = useRouterState({ select: (state) => state.location.pathname });
+  return (
+    <SidebarLayout
+      currentPath={path}
+      navigation={learnerNavigation}
+    >
+      <Outlet />
+    </SidebarLayout>
+  );
+}
 
 describe('SidebarLayout 계정 영역', () => {
   it('관리자 계정과 학습자 portal link를 Sidebar Footer에 표시한다', () => {

@@ -154,7 +154,7 @@ describe('관리자 문제 TTS readiness 복구', () => {
       await screen.findByRole('link', { name: '버전 3 전체 교체' }),
     ).toHaveAttribute(
       'href',
-      `/admin/questions/${questionId}/versions/${draftVersionId}/replace`,
+      `/admin/questions/${questionId}/versions/${draftVersionId}/replace?page=1&pageSize=20`,
     );
     expect(
       screen.queryByRole('link', { name: '버전 2 전체 교체' }),

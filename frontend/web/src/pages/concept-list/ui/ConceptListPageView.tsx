@@ -1,4 +1,5 @@
 /** 게시 개념을 영역 탭과 카드 목록으로 표현한다 */
+import { Link } from '@tanstack/react-router';
 import type {
   ConceptCategory,
   ConceptListResponse,
@@ -86,13 +87,14 @@ export function ConceptListPageView({
         <ul className='grid gap-cluster'>
           {data.items.map((item) => (
             <li key={item.id}>
-              <a
+              <Link
                 className='block rounded-panel border border-default p-page'
-                href={`/concepts/${item.id}`}
+                to='/concepts/$conceptId'
+                params={{ conceptId: item.id }}
               >
                 <h2 className='text-subtitle text-primary'>{item.title}</h2>
                 <p className='text-body text-subtle'>{item.summary}</p>
-              </a>
+              </Link>
             </li>
           ))}
         </ul>

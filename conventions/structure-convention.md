@@ -177,6 +177,9 @@ frontend/web/src/
   파일로 둔다. 화면 구현은 `pages`에 유지한다.
 - 라우트 옆 테스트 파일은 `-route.test.ts`처럼 `-` 접두사를 붙여 라우트
   생성 대상에서 제외한다. `src/routeTree.gen.ts`는 자동 생성 결과다.
+- 앱 내부 화면 이동에는 `@tanstack/react-router`의 `Link`를 사용한다.
+  동적 경로는 `params`, 검색 조건은 `search`로 전달한다. 일반 `a`는
+  외부 링크·다운로드·메일·전화·현재 문서 내 앵커 이동에 사용한다.
 
 ## 프론트엔드 UI 규칙
 

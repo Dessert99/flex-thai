@@ -1,4 +1,5 @@
 /** 관리자 어휘 목록과 검색 결과 상태를 dense record로 표현한다 */
+import { Link } from '@tanstack/react-router';
 import type { AdminVocabularyListResponse } from '@flex-thia/contracts';
 import { Badge } from '@/shared/ui/badge';
 
@@ -93,13 +94,15 @@ export function VocabularyManagementPageView({
           {data.items.map((item) => (
             <TableRow key={item.id}>
               <TableCell>
-                <a
+                <Link
                   className='font-thai text-primary underline'
-                  href={`/admin/vocabularies/${item.id}`}
+                  to='/admin/vocabularies/$vocabularyId'
+                  search={{ page: 1, pageSize: 20 }}
+                  params={{ vocabularyId: item.id }}
                   lang='th'
                 >
                   {item.thai}
-                </a>
+                </Link>
               </TableCell>
               <TableCell>{item.kind === 'WORD' ? '단어' : '표현'}</TableCell>
               <TableCell>

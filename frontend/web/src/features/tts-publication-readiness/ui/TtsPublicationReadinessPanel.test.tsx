@@ -33,7 +33,7 @@ describe('TTS 게시 readiness 패널', () => {
     expect(screen.getByText('필수 음성이 준비되지 않았습니다.')).toBeVisible();
     expect(screen.getByRole('link', { name: 'TTS 작업 보기' })).toHaveAttribute(
       'href',
-      '/admin/tts/jobs/00000000-0000-4000-8000-000000000002',
+      '/admin/tts/jobs/00000000-0000-4000-8000-000000000002?page=1&pageSize=20',
     );
   });
 });

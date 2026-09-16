@@ -1,4 +1,5 @@
 /** 학습자의 원시 풀이 기록을 통계 없이 시간순 목록으로 표현한다 */
+import { Link } from '@tanstack/react-router';
 import type { QuestionAttemptListResponse } from '@flex-thia/contracts';
 import { formatLocalDateTime } from '@/shared/lib/date';
 
@@ -19,12 +20,13 @@ export function LearningHistoryPageView({
             className='grid gap-cluster rounded-panel border border-default bg-surface p-page'
             key={attempt.id}
           >
-            <a
+            <Link
               className='text-body text-primary'
-              href={`/questions/${attempt.questionId}`}
+              to='/questions/$questionId'
+              params={{ questionId: attempt.questionId }}
             >
               {attempt.attemptNo}번째 시도
-            </a>
+            </Link>
             <span className='text-body text-subtle'>
               {attempt.isCorrect ? '정답' : '오답'}
             </span>

@@ -1,4 +1,5 @@
 /** 문제 상세 Query와 Page 소유 cache 무효화를 조정한다 */
+import { Link } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { isApiError } from '@/shared/api';
 
@@ -40,7 +41,7 @@ export function QuestionSolvingPageContainer({
           <h2 className='text-title text-primary'>
             이 문제는 지금 풀 수 없습니다.
           </h2>
-          {<a href='/questions'>문제 목록으로</a>}
+          {<Link to='/questions'>문제 목록으로</Link>}
         </section>
       </div>
     );

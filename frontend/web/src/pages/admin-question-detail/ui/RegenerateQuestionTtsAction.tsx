@@ -1,4 +1,5 @@
 /** 문제 버전 단위 TTS 재생성과 job 이동 상태를 표현한다 */
+import { Link } from '@tanstack/react-router';
 import { useMutation } from '@tanstack/react-query';
 import { useRef } from 'react';
 import { isApiError } from '@/shared/api';
@@ -60,12 +61,14 @@ export function RegenerateQuestionTtsAction({
         {mutation.isPending ? 'TTS 예약 중' : '버전 TTS 재생성'}
       </Button>
       {firstJobId ? (
-        <a
+        <Link
           className='text-body text-primary underline'
-          href={`/admin/tts/jobs/${firstJobId}`}
+          to='/admin/tts/jobs/$jobId'
+          search={{ page: 1, pageSize: 20 }}
+          params={{ jobId: firstJobId }}
         >
           생성된 TTS 작업 보기
-        </a>
+        </Link>
       ) : null}
       {mutation.isSuccess && mutation.data.jobIds.length === 0 ? (
         <p

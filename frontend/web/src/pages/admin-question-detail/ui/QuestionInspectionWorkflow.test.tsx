@@ -88,7 +88,7 @@ describe('관리자 문제 버전 TTS action', () => {
 
     expect(
       await screen.findByRole('link', { name: '생성된 TTS 작업 보기' }),
-    ).toHaveAttribute('href', `/admin/tts/jobs/${jobId}`);
+    ).toHaveAttribute('href', `/admin/tts/jobs/${jobId}?page=1&pageSize=20`);
   });
 
   it('실패한 같은 사용자 action의 재시도에는 처음 만든 request ID를 재사용한다', async () => {

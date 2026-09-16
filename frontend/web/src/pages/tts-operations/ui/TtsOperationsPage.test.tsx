@@ -1,6 +1,7 @@
 /** TTS 작업 목록의 상태·빈 상태·반응형 표현을 검증한다 */
+import { renderWithProviders as render } from '@/shared/test';
 import type { TtsJobListResponse } from '@flex-thia/contracts';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { TtsOperationsPageView } from './TtsOperationsPageView';

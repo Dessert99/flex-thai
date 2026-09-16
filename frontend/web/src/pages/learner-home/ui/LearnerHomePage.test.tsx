@@ -100,7 +100,7 @@ describe('학습자 홈 페이지', () => {
       await screen.findByRole('link', { name: /문맥에 맞는 표현/u }),
     ).toHaveAttribute(
       'href',
-      '/questions/01933b6a-8f13-7a19-b7e5-536d70f57aaa',
+      '/questions/01933b6a-8f13-7a19-b7e5-536d70f57aaa?page=1&pageSize=20',
     );
     expect(screen.getByText('สวัสดี')).toHaveAttribute('lang', 'th');
     expect(

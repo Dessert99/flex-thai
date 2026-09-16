@@ -1,9 +1,10 @@
 /** 관리자 오류 신고 화면의 filter·상세·workflow 상호작용을 검증한다 */
+import { renderWithProviders as render } from '@/shared/test';
 import type {
   AdminContentErrorReportDetailResponse,
   AdminContentErrorReportListResponse,
 } from '@flex-thia/contracts';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { ContentErrorReportSearch } from '../model/contentErrorReportSearch';
 import {
@@ -216,7 +217,10 @@ describe('ContentErrorReportManagementPageView 탐색', () => {
     expect(screen.getByText(/STATUS_CHANGED/u)).toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: '대상 콘텐츠 열기' }),
-    ).toHaveAttribute('href', `/admin/questions/${ids.content}`);
+    ).toHaveAttribute(
+      'href',
+      `/admin/questions/${ids.content}?page=1&pageSize=20`,
+    );
     for (const status of ['IN_PROGRESS', 'RESOLVED', 'REJECTED']) {
       fireEvent.click(screen.getByRole('button', { name: status }));
     }

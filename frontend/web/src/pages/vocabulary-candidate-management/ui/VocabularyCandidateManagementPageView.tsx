@@ -1,4 +1,5 @@
 /** 어휘 후보 목록의 URL filter·검수 상태와 상세 이동을 표현한다 */
+import { Link } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 import {
   type VocabularyCandidateListQuery,
@@ -219,11 +220,12 @@ function CandidateResults({
                   size='sm'
                   variant='link'
                 >
-                  <a
-                    href={`/admin/content-production/vocabulary-candidates/${candidate.id}`}
+                  <Link
+                    to='/admin/content-production/vocabulary-candidates/$candidateId'
+                    params={{ candidateId: candidate.id }}
                   >
                     상세 열기
-                  </a>
+                  </Link>
                 </Button>
               </TableCell>
             </TableRow>

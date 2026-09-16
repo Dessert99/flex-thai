@@ -1,9 +1,10 @@
 /** 관리자 오류 신고 View의 loading·empty·미배정 상태를 검증한다 */
+import { renderWithProviders as render } from '@/shared/test';
 import type {
   AdminContentErrorReportDetailResponse,
   AdminContentErrorReportListResponse,
 } from '@flex-thia/contracts';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import {
   ContentErrorReportManagementPageView,

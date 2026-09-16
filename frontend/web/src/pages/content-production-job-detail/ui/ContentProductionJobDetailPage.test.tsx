@@ -1,6 +1,7 @@
 /** 콘텐츠 제작 job 상세의 공개 상태와 retry 조건을 검증한다 */
+import { renderWithProviders as render } from '@/shared/test';
 import type { ContentProductionJobDetailResponse } from '@flex-thia/contracts';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '@/shared/test';
@@ -62,7 +63,7 @@ describe('콘텐츠 제작 작업 상세 화면', () => {
     expect(screen.getByText(/실패 1/u)).toBeVisible();
     expect(screen.getByRole('link', { name: '후보 검수' })).toHaveAttribute(
       'href',
-      `/admin/content-production/candidates?jobId=${id}`,
+      `/admin/content-production/candidates?jobId=${id}&page=1&pageSize=20`,
     );
     expect(screen.getByRole('button', { name: '재시도' })).toBeEnabled();
   });

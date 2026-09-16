@@ -38,7 +38,7 @@ describe('어휘 목록 페이지', () => {
     expect(await screen.findByText('โรงเรียน')).toHaveAttribute('lang', 'th');
     expect(screen.getByRole('link', { name: 'โรงเรียน' })).toHaveAttribute(
       'href',
-      '/vocabularies/01933b6a-8f13-7a19-b7e5-536d70f57aaa',
+      '/vocabularies/01933b6a-8f13-7a19-b7e5-536d70f57aaa?page=1&pageSize=20',
     );
   });
 

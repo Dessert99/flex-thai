@@ -1,4 +1,5 @@
 /** 문제 목록의 로딩·빈 결과·오류·페이지 상태를 접근 가능한 UI로 표현한다 */
+import { Link } from '@tanstack/react-router';
 import type {
   QuestionListFacets,
   QuestionListResponse,
@@ -161,9 +162,12 @@ function QuestionResults({
             <Card className='rounded-panel border-default bg-surface'>
               <CardHeader>
                 <CardTitle className='text-title'>
-                  <a href={`/questions/${question.questionId}`}>
+                  <Link
+                    to='/questions/$questionId'
+                    params={{ questionId: question.questionId }}
+                  >
                     {question.questionType.displayName}
-                  </a>
+                  </Link>
                 </CardTitle>
                 <p className='text-body text-subtle'>
                   대분류:{' '}

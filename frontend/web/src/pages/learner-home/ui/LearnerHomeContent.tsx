@@ -1,4 +1,5 @@
 /** 학습 홈의 섹션 카드와 내부 탐색 행에 일관된 시각 위계를 제공한다 */
+import { Link } from '@tanstack/react-router';
 import { ChevronRight, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
@@ -40,13 +41,15 @@ export function HomeCard({
 
 export function HomeLinkItem({
   description,
-  href,
+  to,
+  params,
   icon: Icon,
   secondaryDescription,
   title,
 }: {
   description?: ReactNode;
-  href: string;
+  to: '/questions/$questionId' | '/vocabularies/$vocabularyId';
+  params: { questionId: string } | { vocabularyId: string };
   icon: LucideIcon;
   secondaryDescription?: ReactNode;
   title: ReactNode;
@@ -56,7 +59,11 @@ export function HomeLinkItem({
       asChild
       variant='muted'
     >
-      <a href={href}>
+      <Link
+        to={to}
+        params={params}
+        search={{ page: 1, pageSize: 20 }}
+      >
         <ItemMedia variant='icon'>
           <Icon aria-hidden='true' />
         </ItemMedia>
@@ -75,7 +82,7 @@ export function HomeLinkItem({
             className='text-subtle'
           />
         </ItemActions>
-      </a>
+      </Link>
     </Item>
   );
 }

@@ -1,5 +1,6 @@
 /** 역할별 shell이 분리된 내비게이션과 landmark를 제공하는지 검증한다 */
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/shared/test';
+import { screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { SidebarLayout } from '../layouts/SidebarLayout';
 import { adminNavigation } from './adminNavigation';

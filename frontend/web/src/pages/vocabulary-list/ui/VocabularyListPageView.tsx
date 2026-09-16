@@ -1,4 +1,5 @@
 /** 어휘 검색과 태국어 원문 목록 상태를 표현한다 */
+import { Link } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 import type { VocabularyListResponse } from '@flex-thia/contracts';
 
@@ -181,9 +182,11 @@ function VocabularyResults({
       <ul className='grid gap-cluster'>
         {data.items.map((item) => (
           <li key={item.id}>
-            <a
+            <Link
               className='block rounded-panel border border-default p-page'
-              href={`/vocabularies/${item.id}`}
+              to='/vocabularies/$vocabularyId'
+              search={{ page: 1, pageSize: 20 }}
+              params={{ vocabularyId: item.id }}
             >
               <span
                 className='font-thai text-title'
@@ -191,7 +194,7 @@ function VocabularyResults({
               >
                 {item.thai}
               </span>
-            </a>
+            </Link>
           </li>
         ))}
       </ul>

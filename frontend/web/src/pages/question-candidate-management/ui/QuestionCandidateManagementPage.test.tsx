@@ -1,6 +1,7 @@
 /** 문제 후보 목록의 그룹 표시·선택·pagination을 검증한다 */
+import { renderWithProviders as render } from '@/shared/test';
 import type { QuestionCandidateListResponse } from '@flex-thia/contracts';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { QuestionCandidateManagementPageView } from './QuestionCandidateManagementPageView';
 

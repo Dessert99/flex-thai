@@ -45,6 +45,6 @@ describe('단어장 목록 페이지', () => {
     expect(screen.getByText('3개 항목')).toBeVisible();
     expect(
       screen.getByRole('link', { name: 'FLEX 어휘 열기' }),
-    ).toHaveAttribute('href', `/wordbooks/${id}`);
+    ).toHaveAttribute('href', `/wordbooks/${id}?page=1&pageSize=20`);
   });
 });

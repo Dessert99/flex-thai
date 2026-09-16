@@ -1,4 +1,5 @@
 /** 관리자 홈의 전체 운영 집계를 카드별 상태와 실제 진입 경로로 표현한다 */
+import { Link } from '@tanstack/react-router';
 import type {
   AdminHomeOperationsResponse,
   UsageCostOverviewResponse,
@@ -22,6 +23,7 @@ interface AdminHomeOperationsCardsProps {
 
 type OperationLink = {
   href: string;
+  search?: { status: 'FAILED'; page: number; pageSize: number };
   label: string;
 };
 type OperationalStateProps = Pick<
@@ -112,7 +114,8 @@ export function AdminHomeOperationsCards({
         })}
         links={[
           {
-            href: '/admin/tts?status=FAILED&page=1&pageSize=20',
+            href: '/admin/tts',
+            search: { status: 'FAILED', page: 1, pageSize: 20 },
             label: 'TTS retry 열기',
           },
         ]}
@@ -260,13 +263,14 @@ function OperationalCard({
       <CardContent className='space-y-cluster'>
         {content}
         {links.map((link) => (
-          <a
+          <Link
             className='block text-body text-primary underline-offset-4 hover:underline'
-            href={link.href}
+            to={link.href}
+            search={link.search ?? {}}
             key={link.href}
           >
             {link.label}
-          </a>
+          </Link>
         ))}
       </CardContent>
     </Card>

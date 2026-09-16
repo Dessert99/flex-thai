@@ -1,5 +1,6 @@
 /** 개념 카드 홈의 탭과 page state를 검증한다 */
-import { fireEvent, render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/shared/test';
+import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ConceptListPageView } from './ConceptListPageView';
 

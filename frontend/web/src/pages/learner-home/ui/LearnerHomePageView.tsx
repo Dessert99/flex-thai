@@ -1,4 +1,5 @@
 /** 학습자 홈에서 개인화 또는 최근 게시 추천과 이유를 표현한다 */
+import { Link } from '@tanstack/react-router';
 import type { RecommendationResponse } from '@flex-thia/contracts';
 import {
   BookOpenCheck,
@@ -165,7 +166,8 @@ function PublishedContentCard({
         <ItemGroup className='gap-cluster'>
           {content.questions.map((question) => (
             <HomeLinkItem
-              href={`/questions/${question.questionId}`}
+              to='/questions/$questionId'
+              params={{ questionId: question.questionId }}
               icon={BookOpenCheck}
               key={question.questionId}
               title={question.questionTypeDisplayName}
@@ -173,7 +175,8 @@ function PublishedContentCard({
           ))}
           {content.vocabularies.map((vocabulary) => (
             <HomeLinkItem
-              href={`/vocabularies/${vocabulary.id}`}
+              to='/vocabularies/$vocabularyId'
+              params={{ vocabularyId: vocabulary.id }}
               icon={Languages}
               key={vocabulary.id}
               title={
@@ -209,9 +212,9 @@ function QuickLinks() {
             key={link.href}
             variant='outline'
           >
-            <a
+            <Link
               className='bg-surface'
-              href={link.href}
+              to={link.href}
             >
               <ItemMedia variant='icon'>
                 <link.icon aria-hidden='true' />
@@ -227,7 +230,7 @@ function QuickLinks() {
                   className='text-subtle'
                 />
               </ItemActions>
-            </a>
+            </Link>
           </Item>
         ))}
       </ItemGroup>
@@ -251,7 +254,8 @@ function RecommendedQuestions({
         {items.map((question) => (
           <HomeLinkItem
             description={`${question.skill === 'READING' ? '읽기' : '듣기'} · 난이도 ${question.difficulty}`}
-            href={`/questions/${question.questionId}`}
+            to='/questions/$questionId'
+            params={{ questionId: question.questionId }}
             icon={BookOpenCheck}
             key={question.questionId}
             secondaryDescription={question.reason}
@@ -287,7 +291,8 @@ function RecommendedVocabularies({
       <ItemGroup className='gap-cluster'>
         {items.map((vocabulary) => (
           <HomeLinkItem
-            href={`/vocabularies/${vocabulary.id}`}
+            to='/vocabularies/$vocabularyId'
+            params={{ vocabularyId: vocabulary.id }}
             icon={Languages}
             key={vocabulary.id}
             secondaryDescription={vocabulary.reason}

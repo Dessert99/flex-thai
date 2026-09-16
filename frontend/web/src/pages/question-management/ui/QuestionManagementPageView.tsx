@@ -1,4 +1,5 @@
 /** 관리자 문제 record를 desktop table과 mobile stack으로 표현한다 */
+import { Link } from '@tanstack/react-router';
 import type { AdminQuestionListResponse } from '@flex-thia/contracts';
 import { Badge } from '@/shared/ui/badge';
 
@@ -218,12 +219,14 @@ function MobileQuestionRecords({ records }: { records: QuestionRecord[] }) {
 
 function QuestionLink({ record }: { record: QuestionRecord }) {
   return (
-    <a
+    <Link
       className='text-primary underline'
-      href={`/admin/questions/${record.questionId}`}
+      to='/admin/questions/$questionId'
+      search={{ page: 1, pageSize: 20 }}
+      params={{ questionId: record.questionId }}
     >
       {record.questionTypeSlug}
-    </a>
+    </Link>
   );
 }
 

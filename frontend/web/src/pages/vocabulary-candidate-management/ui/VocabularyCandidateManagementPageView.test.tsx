@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@/shared/test';
+import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { VocabularyCandidateManagementPageView } from './VocabularyCandidateManagementPageView';
 

@@ -1,4 +1,5 @@
 /** immutable snapshot과 item 공개 상태만 job 상세에 렌더링한다 */
+import { Link } from '@tanstack/react-router';
 import type { ContentProductionJobDetailResponse } from '@flex-thia/contracts';
 import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
@@ -85,9 +86,12 @@ export function ContentProductionJobDetailPageView({
           asChild
           variant='outline'
         >
-          <a href={`/admin/content-production/candidates?jobId=${job.id}`}>
+          <Link
+            to='/admin/content-production/candidates'
+            search={{ jobId: job.id, page: 1, pageSize: 20 }}
+          >
             후보 검수
-          </a>
+          </Link>
         </Button>
       </div>
     </section>

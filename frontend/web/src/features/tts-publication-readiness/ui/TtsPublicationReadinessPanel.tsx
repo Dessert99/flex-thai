@@ -1,4 +1,5 @@
 /** validation과 독립된 TTS 게시 readiness와 blocker를 표시한다 */
+import { Link } from '@tanstack/react-router';
 import type { TtsPublicationReadinessResponse } from '@flex-thia/contracts';
 import type { ReactNode } from 'react';
 
@@ -44,12 +45,14 @@ export function TtsPublicationReadinessPanel({
           </p>
           {blocker.operation ? (
             <>
-              <a
+              <Link
                 className='text-accent underline'
-                href={`/admin/tts/jobs/${blocker.operation.jobId}`}
+                to='/admin/tts/jobs/$jobId'
+                search={{ page: 1, pageSize: 20 }}
+                params={{ jobId: blocker.operation.jobId }}
               >
                 TTS 작업 보기
-              </a>
+              </Link>
               {blocker.operation.itemStatus === 'FAILED' &&
               blocker.operation.retryable &&
               renderRetry

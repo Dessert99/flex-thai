@@ -1,4 +1,5 @@
 /** 관리자 개념 목록을 상태·최신 버전·검증 상태와 함께 표현한다 */
+import { Link } from '@tanstack/react-router';
 import type {
   AdminConceptListQuery,
   AdminConceptListResponse,
@@ -172,7 +173,12 @@ function ConceptTable({
           {data.items.map((item) => (
             <tr key={item.id}>
               <td>
-                <a href={`/admin/concepts/${item.id}`}>{item.title}</a>
+                <Link
+                  to='/admin/concepts/$conceptId'
+                  params={{ conceptId: item.id }}
+                >
+                  {item.title}
+                </Link>
               </td>
               <td>{item.status}</td>
               <td>v{item.latestVersion}</td>

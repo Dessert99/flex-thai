@@ -1,4 +1,5 @@
 /** 관리자 TTS 작업 page의 loading·error·empty·목록 상태를 표현한다 */
+import { Link } from '@tanstack/react-router';
 import type { TtsJobListResponse } from '@flex-thia/contracts';
 import { Badge } from '@/shared/ui/badge';
 
@@ -163,7 +164,13 @@ function TtsJobRecords({ data }: { data: TtsJobListResponse }) {
                   {job.counts.succeeded} 성공 / {job.counts.failed} 실패
                 </TableCell>
                 <TableCell>
-                  <a href={`/admin/tts/jobs/${job.id}`}>{job.createdAt}</a>
+                  <Link
+                    to='/admin/tts/jobs/$jobId'
+                    search={{ page: 1, pageSize: 20 }}
+                    params={{ jobId: job.id }}
+                  >
+                    {job.createdAt}
+                  </Link>
                 </TableCell>
               </TableRow>
             ))}
@@ -176,9 +183,13 @@ function TtsJobRecords({ data }: { data: TtsJobListResponse }) {
       >
         {data.items.map((job) => (
           <li key={job.id}>
-            <a href={`/admin/tts/jobs/${job.id}`}>
+            <Link
+              to='/admin/tts/jobs/$jobId'
+              search={{ page: 1, pageSize: 20 }}
+              params={{ jobId: job.id }}
+            >
               <JobStatus status={job.status} />
-            </a>
+            </Link>
           </li>
         ))}
       </ul>

@@ -135,7 +135,7 @@ describe('관리자 홈 페이지', () => {
       await screen.findByRole('link', { name: /reading-context/u }),
     ).toHaveAttribute(
       'href',
-      '/admin/questions/01933b6a-8f13-7a19-b7e5-536d70f57aaa',
+      '/admin/questions/01933b6a-8f13-7a19-b7e5-536d70f57aaa?page=1&pageSize=20',
     );
     expect(screen.getByText('โรงเรียน')).toHaveAttribute('lang', 'th');
     expect(screen.getByText('로컬 시스템')).toBeInTheDocument();

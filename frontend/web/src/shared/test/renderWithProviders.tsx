@@ -1,5 +1,11 @@
-/** QueryClient를 포함한 웹 컴포넌트 테스트 렌더링 도우미를 제공한다 */
+/** QueryClient와 메모리 라우터를 포함한 컴포넌트 테스트 렌더링 도우미를 제공한다 */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRouter,
+  RouterContextProvider,
+} from '@tanstack/react-router';
 import {
   render,
   type RenderOptions,
@@ -29,7 +35,7 @@ export function createTestQueryClient(): QueryClient {
   });
 }
 
-/** QueryClientProvider와 함께 React 요소를 렌더링한다 */
+/** Query cache와 Link용 라우터 context 안에서 React 요소를 렌더링한다 */
 export function renderWithProviders(
   ui: ReactElement,
   {
@@ -37,9 +43,17 @@ export function renderWithProviders(
     ...renderOptions
   }: RenderWithProvidersOptions = {},
 ): RenderResult & { queryClient: QueryClient } {
+  const router = createRouter({
+    history: createMemoryHistory({ initialEntries: ['/'] }),
+    routeTree: createRootRoute(),
+  });
   function TestProviders({ children }: { children: ReactNode }) {
     return (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <RouterContextProvider router={router}>
+          {children}
+        </RouterContextProvider>
+      </QueryClientProvider>
     );
   }
 
