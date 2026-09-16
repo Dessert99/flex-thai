@@ -2,7 +2,7 @@
 import { questionCandidatePathSchema } from '@flex-thia/contracts/content-production/question-production';
 import { createFileRoute } from '@tanstack/react-router';
 import { questionCandidateQueryOptions } from '@/features/content-production/apis/review-question-candidates/questionCandidateApi';
-import { QuestionCandidateDetailPage } from '@/pages/QuestionCandidateDetailPage';
+import { QuestionCandidateDetailPage } from '@/pages/admin/content-production/QuestionCandidateDetailPage';
 
 /** 검증된 후보 UUID의 상세 cache를 route와 화면이 공유한다 */
 export const Route = createFileRoute(

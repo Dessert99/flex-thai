@@ -3,7 +3,7 @@ import { vocabularyCandidatePathSchema } from '@flex-thia/contracts/content-prod
 import type { QueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { vocabularyCandidateQueryOptions } from '@/features/content-production/apis/review-vocabulary-candidate/vocabularyCandidateApi';
-import { VocabularyCandidateDetailPage } from '@/pages/VocabularyCandidateDetailPage';
+import { VocabularyCandidateDetailPage } from '@/pages/admin/content-production/VocabularyCandidateDetailPage';
 
 /** 검증된 어휘 후보 UUID의 상세 cache를 route와 화면이 공유한다 */
 export const Route = createFileRoute(

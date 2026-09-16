@@ -2,7 +2,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { adminVocabularyListQueryOptions } from '@/features/learning/apis/vocabulary-management/adminVocabularyQueries';
 import { parseAdminVocabularySearch } from '@/features/learning/libs/vocabulary-management/adminVocabularySearch';
-import { VocabularyManagementPage } from '@/pages/VocabularyManagementPage';
+import { VocabularyManagementPage } from '@/pages/admin/vocabularies/VocabularyManagementPage';
 
 /** 목록 Query option을 route loader와 Page가 공유한다 */
 export const Route = createFileRoute(

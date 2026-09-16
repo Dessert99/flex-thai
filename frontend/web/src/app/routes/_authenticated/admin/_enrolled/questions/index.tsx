@@ -2,7 +2,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { adminQuestionListQueryOptions } from '@/features/learning/apis/question-management/adminQuestionQueries';
 import { parseAdminQuestionSearch } from '@/features/learning/libs/question-management/adminQuestionSearch';
-import { QuestionManagementPage } from '@/pages/QuestionManagementPage';
+import { QuestionManagementPage } from '@/pages/admin/questions/QuestionManagementPage';
 
 /** 동일 queryOptions로 intent preload와 Page cache를 공유한다 */
 export const Route = createFileRoute(

@@ -4,7 +4,7 @@ import {
   contentProductionJobsQueryOptions,
   contentProductionPresetsQueryOptions,
 } from '@/features/content-production/apis/run-content-production/contentProductionApi';
-import { ContentProductionConsolePage } from '@/pages/ContentProductionConsolePage';
+import { ContentProductionConsolePage } from '@/pages/admin/content-production/ContentProductionConsolePage';
 
 /** 등록된 관리자 경계에서 콘텐츠 제작 화면 query를 함께 prefetch한다 */
 export const Route = createFileRoute(

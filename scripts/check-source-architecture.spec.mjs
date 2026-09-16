@@ -4,10 +4,11 @@ import { checkSourceArchitecture } from './check-source-architecture.mjs';
 
 const featureFile =
   'frontend/web/src/features/vocabulary/components/VocabularyList.tsx';
-const pageFile = 'frontend/web/src/pages/VocabularyListPage.tsx';
+const pageFile =
+  'frontend/web/src/pages/learner/vocabularies/VocabularyListPage.tsx';
 
 describe('소스 구조 검사', () => {
-  it('페이지가 feature 컴포넌트를 직접 가져와 조립할 수 있다', () => {
+  it('분류 폴더 안의 페이지가 feature 컴포넌트를 직접 가져와 조립할 수 있다', () => {
     expect(
       checkSourceArchitecture({
         [featureFile]: 'export function VocabularyList() { return null; }',
@@ -47,7 +48,7 @@ describe('소스 구조 검사', () => {
     expect(
       checkSourceArchitecture({
         [featureFile]:
-          "import '@/pages/VocabularyListPage'; import '@/features/wordbook/components/Wordbook';",
+          "import '@/pages/learner/vocabularies/VocabularyListPage'; import '@/features/wordbook/components/Wordbook';",
         [pageFile]: 'export const Page = 1;',
         'frontend/web/src/features/wordbook/components/Wordbook.tsx':
           'export const Wordbook = 1;',

@@ -2,7 +2,7 @@
 import { adminVocabularyIdPathSchema } from '@flex-thia/contracts/admin/vocabularies';
 import { createFileRoute } from '@tanstack/react-router';
 import { adminVocabularyDetailQueryOptions } from '@/features/learning/apis/admin-vocabulary-detail/adminVocabularyMutations';
-import { AdminVocabularyDetailPage } from '@/pages/AdminVocabularyDetailPage';
+import { AdminVocabularyDetailPage } from '@/pages/admin/vocabularies/AdminVocabularyDetailPage';
 
 /** 검증된 UUID 상세 cache를 route와 Page가 공유한다 */
 export const Route = createFileRoute(

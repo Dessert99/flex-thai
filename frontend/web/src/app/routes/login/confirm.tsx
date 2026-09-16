@@ -1,6 +1,6 @@
 /** 이메일 링크를 scanner-safe 명시적 확인 Page에 연결한다 */
 import { createFileRoute } from '@tanstack/react-router';
-import { EmailLinkConfirmPage } from '@/pages/EmailLinkConfirmPage';
+import { EmailLinkConfirmPage } from '@/pages/auth/EmailLinkConfirmPage';
 import { parseSafeRedirect } from '../../routing/redirectSearch';
 
 /** 이메일 링크 확인 route가 허용하는 검색값 */

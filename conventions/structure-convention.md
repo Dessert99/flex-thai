@@ -127,7 +127,13 @@ infra ─────────────────> backend 실행 산출
 frontend/web/src/
 ├── app/                       # 라우터·전역 provider·앱 레이아웃
 ├── pages/                     # 기능 컴포넌트 조립과 페이지 배치
-│   └── VocabularyListPage.tsx
+│   ├── auth/                  # 로그인·이메일 인증·TOTP
+│   ├── learner/               # 학습자 화면, 업무별 하위 폴더
+│   │   └── vocabularies/
+│   │       ├── VocabularyListPage.tsx
+│   │       └── VocabularyListPage.test.tsx
+│   ├── admin/                 # 관리자 화면, 업무별 하위 폴더
+│   └── errors/                # 접근 거부·없는 경로 안내
 ├── features/{기능}/            # 업무 기능의 UI·상태·API·로직
 │   ├── components/
 │   ├── hooks/
@@ -144,7 +150,12 @@ frontend/web/src/
 
 - 의존성은 `app -> pages -> features -> shared` 방향으로 흐른다.
   상위 계층은 하위 계층을 사용할 수 있고, 역방향으로 import하지 않는다.
-- `pages`는 기능 컴포넌트를 조립하고 페이지 배치를 구성한다. 페이지 아래에
+- `app`은 라우트와 접근 권한, 전역 Provider, 공통 레이아웃을 설정한다.
+  `app/routes`는 URL·검색값·경로 매개변수를 해당 페이지에 연결한다.
+- `pages`는 기능 컴포넌트를 조립하고 페이지 배치를 구성한다.
+  `auth`, `learner`, `admin`, `errors`로 분류하고, 화면이 많은 영역은
+  `vocabularies`, `questions`, `concepts` 등 업무별 하위 폴더로 묶는다.
+  테스트는 해당 페이지 파일 옆에 둔다. 분류를 위한 폴더는 허용하되,
   `components`, `hooks`, `apis`, `libs`, `ui`, `model` 폴더를 두지 않는다.
 - 조회·필터·이벤트 처리·검증·상태 등 업무 기능 구현은 `features`에 둔다.
   한 페이지에서만 사용하는 기능도 `features`에 둔다.

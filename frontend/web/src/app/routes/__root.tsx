@@ -1,5 +1,5 @@
 /** 모든 file route가 공유하는 root Outlet과 복구 경계를 정의한다 */
-import { NotFoundPage } from '@/pages/NotFoundPage';
+import { NotFoundPage } from '@/pages/errors/NotFoundPage';
 import { toUserMessage } from '@/shared/libs/error/toUserMessage';
 import {
   createRootRouteWithContext,

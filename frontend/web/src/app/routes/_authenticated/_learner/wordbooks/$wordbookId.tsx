@@ -2,7 +2,7 @@
 import { wordbookIdPathSchema } from '@flex-thia/contracts/learning/wordbooks';
 import { createFileRoute } from '@tanstack/react-router';
 import { parseWordbookDetailSearch } from '@/features/learning/libs/wordbook-detail/wordbookDetailSearch';
-import { WordbookDetailPage } from '@/pages/WordbookDetailPage';
+import { WordbookDetailPage } from '@/pages/learner/wordbooks/WordbookDetailPage';
 
 /** 계약 UUID와 검색값만 상세 Query에 전달한다 */
 export const Route = createFileRoute(

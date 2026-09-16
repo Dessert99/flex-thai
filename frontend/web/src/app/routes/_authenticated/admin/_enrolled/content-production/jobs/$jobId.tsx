@@ -2,7 +2,7 @@
 import { contentProductionJobPathSchema } from '@flex-thia/contracts/content-production/content-production';
 import { createFileRoute } from '@tanstack/react-router';
 import { contentProductionJobQueryOptions } from '@/features/content-production/apis/run-content-production/contentProductionApi';
-import { ContentProductionJobDetailPage } from '@/pages/ContentProductionJobDetailPage';
+import { ContentProductionJobDetailPage } from '@/pages/admin/content-production/ContentProductionJobDetailPage';
 
 /** 검증된 작업 UUID의 상세 cache를 route와 화면이 공유한다 */
 export const Route = createFileRoute(

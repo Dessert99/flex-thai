@@ -1,7 +1,7 @@
 /** 사용량·비용 overview와 singleton 설정을 route 진입 전에 준비한다 */
 import { createFileRoute } from '@tanstack/react-router';
 import { parseUsageCostSearch } from '@/features/operations/libs/usage-cost-operations/usageCostSearch';
-import { UsageCostOperationsPage } from '@/pages/UsageCostOperationsPage';
+import { UsageCostOperationsPage } from '@/pages/admin/operations/UsageCostOperationsPage';
 import {
   usageCostOverviewQueryOptions,
   usageCostSettingsQueryOptions,

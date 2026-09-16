@@ -1,6 +1,6 @@
 /** 관리자 감사 기록 URL 상태와 Page를 연결한다 */
 import { createFileRoute } from '@tanstack/react-router';
-import { AuditLogManagementPage } from '@/pages/AuditLogManagementPage';
+import { AuditLogManagementPage } from '@/pages/admin/operations/AuditLogManagementPage';
 import { parseAuditLogSearch } from '@/features/operations/libs/audit-log-management/auditLogSearch';
 
 /** 등록된 관리자 guard 아래에서 감사 기록을 렌더링한다 */

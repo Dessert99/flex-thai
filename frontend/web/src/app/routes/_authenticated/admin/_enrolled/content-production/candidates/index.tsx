@@ -2,7 +2,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { parseQuestionCandidateSearch } from '@/features/content-production/libs/question-candidate-management/questionCandidateSearch';
 import { questionCandidatesQueryOptions } from '@/features/content-production/apis/review-question-candidates/questionCandidateApi';
-import { QuestionCandidateManagementPage } from '@/pages/QuestionCandidateManagementPage';
+import { QuestionCandidateManagementPage } from '@/pages/admin/content-production/QuestionCandidateManagementPage';
 
 /** 후보 filter cache를 route intent preload와 화면이 공유한다 */
 export const Route = createFileRoute(

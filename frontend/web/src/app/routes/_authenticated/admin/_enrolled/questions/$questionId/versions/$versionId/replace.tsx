@@ -4,7 +4,7 @@ import {
   adminQuestionVersionIdPathSchema,
 } from '@flex-thia/contracts/admin/questions';
 import { createFileRoute } from '@tanstack/react-router';
-import { QuestionVersionReplacePage } from '@/pages/QuestionVersionReplacePage';
+import { QuestionVersionReplacePage } from '@/pages/admin/questions/QuestionVersionReplacePage';
 
 /** 두 path UUID를 모두 계약 검증한 뒤 replacement Page에 전달한다 */
 export const Route = createFileRoute(

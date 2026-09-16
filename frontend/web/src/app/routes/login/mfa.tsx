@@ -1,6 +1,6 @@
 /** 메모리 challenge가 있는 경우에만 로그인 TOTP Page를 노출한다 */
 import { createFileRoute, redirect } from '@tanstack/react-router';
-import { LoginTotpPage } from '@/pages/LoginTotpPage';
+import { LoginTotpPage } from '@/pages/auth/LoginTotpPage';
 import { hasLoginTotpChallenge } from '@/shared/apis/auth/authSessionStore';
 
 /** 직접 reload로 challenge가 사라진 경우 로그인 index로 되돌린다 */

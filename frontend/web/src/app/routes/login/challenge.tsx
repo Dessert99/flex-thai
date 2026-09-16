@@ -1,6 +1,6 @@
 /** 메모리 이메일 challenge가 있는 경우에만 code 인증 Page를 노출한다 */
 import { createFileRoute, redirect } from '@tanstack/react-router';
-import { EmailChallengePage } from '@/pages/EmailChallengePage';
+import { EmailChallengePage } from '@/pages/auth/EmailChallengePage';
 import { getPendingEmailChallenge } from '@/shared/apis/auth/authSessionStore';
 
 /** 직접 reload로 challenge가 사라진 경우 로그인 index로 되돌린다 */

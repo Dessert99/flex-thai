@@ -1,6 +1,6 @@
 /** 관리자 문제 유형 설정 Page를 등록한다 */
 import { createFileRoute } from '@tanstack/react-router';
-import { QuestionTaxonomySettingsPage } from '@/pages/QuestionTaxonomySettingsPage';
+import { QuestionTaxonomySettingsPage } from '@/pages/admin/questions/QuestionTaxonomySettingsPage';
 
 /** 등록된 관리자 guard 아래에서 문제 유형 설정을 렌더링한다 */
 export const Route = createFileRoute(

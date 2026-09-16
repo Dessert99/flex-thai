@@ -28,7 +28,14 @@ export function checkSourceArchitecture(files) {
       : [];
     const [layer, feature] = parts;
     const isTest = /\.test\.tsx?$/.test(file);
-    if (layer === 'pages' && parts.length !== 2) {
+    if (
+      layer === 'pages' &&
+      parts
+        .slice(1, -1)
+        .some((part) =>
+          ['components', 'hooks', 'apis', 'libs', 'ui', 'model'].includes(part),
+        )
+    ) {
       violations.push(`${file}: pages에는 조립용 페이지 파일만 둡니다.`);
     }
     if (

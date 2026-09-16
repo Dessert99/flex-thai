@@ -3,7 +3,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import type { QueryClient } from '@tanstack/react-query';
 import { parseVocabularyCandidateSearch } from '@/features/content-production/libs/vocabulary-candidate-management/vocabularyCandidateSearch';
 import { vocabularyCandidatesQueryOptions } from '@/features/content-production/apis/review-vocabulary-candidate/vocabularyCandidateApi';
-import { VocabularyCandidateManagementPage } from '@/pages/VocabularyCandidateManagementPage';
+import { VocabularyCandidateManagementPage } from '@/pages/admin/content-production/VocabularyCandidateManagementPage';
 
 /** 후보 filter cache를 route intent preload와 화면이 공유한다 */
 export const Route = createFileRoute(
