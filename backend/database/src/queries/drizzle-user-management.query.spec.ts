@@ -1,6 +1,6 @@
 /** 관리자 사용자 검색과 원자적 역할·상태 변경 adapter를 검증한다 */
 import { describe, expect, it, vi } from 'vitest';
-import { auditLogs } from '../schema/index.js';
+import { auditLogs } from '../schema/identity.schema.js';
 import { DrizzleUserManagementQuery } from './drizzle-user-management.query.js';
 
 const now = new Date('2026-07-26T00:00:00.000Z');

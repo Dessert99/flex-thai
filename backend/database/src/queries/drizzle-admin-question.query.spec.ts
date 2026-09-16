@@ -3,18 +3,20 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import * as schema from '../schema/index.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
 import {
   expressionOccurrences,
+  thaiSentenceVersions,
+  tokenOccurrences,
+} from '../schema/thai-content.schema.js';
+import {
   questionBlockSentences,
   questionBlocks,
   questionOptions,
   questionVersionTags,
   questionVersions,
   questions,
-  thaiSentenceVersions,
-  tokenOccurrences,
-} from '../schema/index.js';
+} from '../schema/questions.schema.js';
 import { DrizzleAdminQuestionQuery } from './drizzle-admin-question.query.js';
 
 type QueryResult = Array<Record<string, unknown>>;

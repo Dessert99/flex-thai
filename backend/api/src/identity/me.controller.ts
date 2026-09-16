@@ -7,7 +7,10 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { meResponseSchema, type MeResponse } from '@flex-thia/contracts';
+import {
+  meResponseSchema,
+  type MeResponse,
+} from '@flex-thia/contracts/identity/auth';
 import {
   CurrentUser,
   type AuthenticatedUser,

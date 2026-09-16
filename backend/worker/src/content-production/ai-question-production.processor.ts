@@ -1,6 +1,6 @@
 /** 콘텐츠 제작 work item을 멱등한 AI 문제 후보 pipeline으로 처리한다 */
+import type { ContentProductionWorkItem } from '@flex-thia/domain/content-production/content-production-work-item';
 import type {
-  ContentProductionWorkItem,
   GeneratedQuestionCandidate,
   QuestionCrossValidationProvider,
   QuestionGenerationProvider,
@@ -16,7 +16,7 @@ import type {
   QuestionProductionProviderRunRepository,
   QuestionProductionValidationRecord,
   QuestionSimilarityLookup,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/ai-question-production';
 import {
   assertDistinctValidationModels,
   buildQuestionGenerationPrompt,
@@ -26,7 +26,7 @@ import {
   normalizeQuestionProductionValidationRecord,
   validateGeneratedQuestionSchema,
   validateQuestionDecisionRules,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/ai-question-production';
 import { createHash } from 'node:crypto';
 
 type QuestionWorkItem = ContentProductionWorkItem & {

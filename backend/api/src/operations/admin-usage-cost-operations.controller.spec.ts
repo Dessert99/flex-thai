@@ -8,22 +8,27 @@ import { CognitoAuthorizerGuard } from '../identity/cognito-authorizer.guard.js'
 import { REQUIRED_ROLE_KEY } from '../identity/require-role.decorator.js';
 import { AdminUsageCostOperationsController } from './admin-usage-cost-operations.controller.js';
 
-vi.mock('@flex-thia/contracts', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@flex-thia/contracts')>()),
-  usageCostOverviewQuerySchema: z
-    .object({ source: z.enum(['AI']).optional() })
-    .strict(),
-  updateOperationsCostSettingsRequestSchema: z
-    .object({
-      warningUsd: z.string(),
-      criticalUsd: z.string(),
-      expectedUpdatedAt: z.iso.datetime(),
-      requestId: z.uuid(),
-    })
-    .strict(),
-  usageCostOverviewResponseSchema: z.object({}).passthrough(),
-  operationsCostSettingsResponseSchema: z.object({}).passthrough(),
-}));
+vi.mock(
+  '@flex-thia/contracts/operations/usage-cost',
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import('@flex-thia/contracts/operations/usage-cost')
+    >()),
+    usageCostOverviewQuerySchema: z
+      .object({ source: z.enum(['AI']).optional() })
+      .strict(),
+    updateOperationsCostSettingsRequestSchema: z
+      .object({
+        warningUsd: z.string(),
+        criticalUsd: z.string(),
+        expectedUpdatedAt: z.iso.datetime(),
+        requestId: z.uuid(),
+      })
+      .strict(),
+    usageCostOverviewResponseSchema: z.object({}).passthrough(),
+    operationsCostSettingsResponseSchema: z.object({}).passthrough(),
+  }),
+);
 
 const admin = {
   userId: '00000000-0000-4000-8000-000000000001',

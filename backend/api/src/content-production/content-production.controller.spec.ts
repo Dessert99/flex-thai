@@ -2,7 +2,7 @@
 import {
   ContentProductionDomainError,
   ContentProductionPresetError,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/content-production.service';
 import {
   GUARDS_METADATA,
   HTTP_CODE_METADATA,

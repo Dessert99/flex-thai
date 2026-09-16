@@ -1,9 +1,9 @@
 /** 격리 PostgreSQL에서 단어 연습 snapshot·동시성·멱등 경계를 검증한다 */
-import type { MaterializedPracticeSession } from '@flex-thia/domain';
+import type { MaterializedPracticeSession } from '@flex-thia/domain/learning/vocabulary-practice.repository';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import * as schema from '../schema/index.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
 import * as practiceSchema from '../schema/learning-practice.schema.js';
 import { DrizzleVocabularyPracticeRepository } from './drizzle-vocabulary-practice.repository.js';
 

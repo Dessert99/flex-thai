@@ -9,23 +9,25 @@ import {
   type CreateContentProductionPresetVersionRequest,
   type PromptPreviewRequest,
   type SetContentProductionPresetEnabledRequest,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/content-production/content-production';
 import {
   buildQuestionGenerationPrompt,
-  expandQuestionGenerationPlan,
   serializeQuestionGenerationPrompt,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/ai-question-production';
+import { expandQuestionGenerationPlan } from '@flex-thia/domain/content-production/content-production.service';
 import type {
   ContentProductionJob,
   ContentProductionPresetCatalog,
   ContentProductionPresetSnapshot,
   ContentProductionService,
   QuestionGenerationParameters,
-  QuestionProductionContextRepository,
-  UploadPolicyService,
+} from '@flex-thia/domain/content-production/content-production.service';
+import type { QuestionProductionContextRepository } from '@flex-thia/domain/content-production/ai-question-production';
+import type { UploadPolicyService } from '@flex-thia/domain/uploads/upload-policy.service';
+import type {
   UploadRecord,
   UploadRepository,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/uploads/upload.repository';
 
 const MAX_JOB_INPUT_BYTES = 250 * 1024 * 1024;
 

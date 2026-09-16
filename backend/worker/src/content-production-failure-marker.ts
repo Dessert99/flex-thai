@@ -1,6 +1,6 @@
 /** 소진된 workflow의 현재 attempt를 DB terminal 실패로 닫는다 */
-import { DrizzleContentProductionRepository } from '@flex-thia/database';
-import type { ContentProductionRepository } from '@flex-thia/domain';
+import { DrizzleContentProductionRepository } from '@flex-thia/database/repositories/content-production/drizzle-content-production.repository';
+import type { ContentProductionRepository } from '@flex-thia/domain/content-production/content-production.service';
 import { createWorkerDatabase } from './database-runtime.js';
 
 /** failure marker가 요구하는 현재 attempt 조건부 저장소 */

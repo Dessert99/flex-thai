@@ -1,5 +1,5 @@
 /** local 개발에서 passwordless 메일을 메모리 outbox로 대체한다 */
-import type { EmailChallengeSender } from '@flex-thia/domain';
+import type { EmailChallengeSender } from '@flex-thia/domain/identity/passwordless-authentication';
 
 /** 외부 전송과 secret logging 없이 발송 입력만 보관하는 fake */
 export class FakeEmailChallengeSender implements EmailChallengeSender {

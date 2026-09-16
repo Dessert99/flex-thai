@@ -1,12 +1,9 @@
 /** 문제 게시 adapter의 mapping·상태 조건·transaction 경계를 고정한다 */
 import { PgDialect } from 'drizzle-orm/pg-core';
 import { describe, expect, it, vi } from 'vitest';
-import {
-  auditLogs,
-  questionVersions,
-  questions,
-  thaiSentenceVersions,
-} from '../schema/index.js';
+import { auditLogs } from '../schema/identity.schema.js';
+import { questionVersions, questions } from '../schema/questions.schema.js';
+import { thaiSentenceVersions } from '../schema/thai-content.schema.js';
 import {
   DrizzleQuestionPublicationRepository,
   QuestionPublicationPersistenceError,

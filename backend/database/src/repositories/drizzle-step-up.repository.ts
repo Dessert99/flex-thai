@@ -3,12 +3,12 @@ import { and, eq, sql } from 'drizzle-orm';
 import type {
   ChallengeStatus,
   StepUpChallenge,
-  StepUpRepository,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/auth/challenge';
+import type { StepUpRepository } from '@flex-thia/domain/auth/challenge.repository';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
-import { stepUpChallenges, stepUpGrants } from '../schema/index.js';
-import * as schema from '../schema/index.js';
+import { stepUpChallenges, stepUpGrants } from '../schema/identity.schema.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
 
 type StepUpDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 type StepUpRow = typeof stepUpChallenges.$inferSelect;

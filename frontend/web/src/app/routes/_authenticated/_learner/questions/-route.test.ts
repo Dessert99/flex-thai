@@ -1,14 +1,12 @@
 /** 문제 탐색 URL 상태가 실제 API 요청과 route 검증 경계에서 보존되는지 검증한다 */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  parseQuestionListSearch,
-  questionListQueryOptions,
-} from '@/pages/question-list';
-import { createTestQueryClient } from '@/shared/test';
+import { parseQuestionListSearch } from '@/features/learning/libs/question-list/questionListSearch';
+import { questionListQueryOptions } from '@/features/learning/apis/question-list/questionListQueries';
+import { createTestQueryClient } from '@/shared/test/renderWithProviders';
 import { Route } from './route';
 
 const mocks = vi.hoisted(() => ({ authenticatedRequest: vi.fn() }));
-vi.mock('@/shared/api', () => ({
+vi.mock('@/shared/apis/auth/authenticatedRequest', () => ({
   authenticatedRequest: mocks.authenticatedRequest,
 }));
 

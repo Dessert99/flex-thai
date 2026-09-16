@@ -1,5 +1,5 @@
 /** 공통 학습 메뉴와 관리자 전용 운영자 영역의 접근·배치를 검증한다 */
-import { renderWithProviders as render } from '@/shared/test';
+import { renderWithProviders as render } from '@/shared/test/renderWithProviders';
 import { screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { SidebarLayout } from '../layouts/SidebarLayout';

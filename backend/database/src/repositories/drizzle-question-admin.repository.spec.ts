@@ -1,26 +1,28 @@
 /** 관리자 문제 Drizzle writer의 lock·graph 교체·감사 transaction을 검증한다 */
-import type { QuestionAdminVersionGraph } from '@flex-thia/domain';
+import type { QuestionAdminVersionGraph } from '@flex-thia/domain/questions/question-admin.repository';
 import {
   QuestionAdminError,
   QuestionAdminService,
-  QuestionPublicationService,
   type ReplaceQuestionVersionCommand,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/questions/question-admin';
+import { QuestionPublicationService } from '@flex-thia/domain/questions/question-publication';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import * as schema from '../schema/index.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
+import { auditLogs } from '../schema/identity.schema.js';
 import {
-  auditLogs,
   questionBlocks,
   questionBlockSentences,
   questionOptions,
   questionVersions,
+} from '../schema/questions.schema.js';
+import {
   thaiSentences,
   thaiSentenceVersions,
-} from '../schema/index.js';
+} from '../schema/thai-content.schema.js';
 import {
   DrizzleQuestionAdminRepository,
   QuestionAdminPersistenceError,

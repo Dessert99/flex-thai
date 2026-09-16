@@ -44,4 +44,3 @@ export type CreateJobRequest = z.infer<typeof createJobRequestSchema>;
 export type JobResponse = z.infer<typeof jobResponseSchema>;
 
 /** 신규 콘텐츠 제작 계약을 기존 Job package 경계에서 호환 노출한다 */
-export * from './content-production/content-production.js';

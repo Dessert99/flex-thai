@@ -1,6 +1,9 @@
 /** 전체 관리자 import 이력의 stable page와 private-field 비노출을 고정한다 */
 import { describe, expect, it, vi } from 'vitest';
-import { contentImportItems, contentImports } from '../schema/index.js';
+import {
+  contentImportItems,
+  contentImports,
+} from '../schema/content-import.schema.js';
 import { DrizzleContentImportQuery } from './drizzle-content-import.query.js';
 
 const ids = {

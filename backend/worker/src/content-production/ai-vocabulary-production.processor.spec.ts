@@ -3,14 +3,14 @@ import { describe, expect, it } from 'vitest';
 import type {
   ContentOcrProvider,
   ContentProductionInputReader,
-  ContentProductionWorkItem,
   ExtractedVocabularyCandidate,
   VocabularyCrossValidationProvider,
   VocabularyExtractionProvider,
-  VocabularyProductionLookup,
   VocabularyProviderRunRepository,
-} from '@flex-thia/domain';
-import { VocabularyProviderCallError } from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/ai-vocabulary-production';
+import type { ContentProductionWorkItem } from '@flex-thia/domain/content-production/content-production-work-item';
+import type { VocabularyProductionLookup } from '@flex-thia/domain/vocabulary/vocabulary-production-lookup';
+import { VocabularyProviderCallError } from '@flex-thia/domain/content-production/ai-vocabulary-production';
 import { AiVocabularyProductionProcessor } from './ai-vocabulary-production.processor.js';
 
 const workItem = (

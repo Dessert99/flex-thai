@@ -1,5 +1,5 @@
 /** local deterministic dispatcher의 부분 실패·멱등·stale attempt 처리를 검증한다 */
-import { CONTENT_PRODUCTION_ITEM_LEASE_MS } from '@flex-thia/domain';
+import { CONTENT_PRODUCTION_ITEM_LEASE_MS } from '@flex-thia/domain/content-production/content-production.service';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createContentProductionProcessorRouter,
@@ -8,11 +8,13 @@ import {
 } from './content-production-dispatcher.js';
 import type {
   ContentProductionInput,
-  ContentProductionItemSeed,
   ContentProductionPresetSnapshot,
+} from '@flex-thia/domain/content-production/content-production.service';
+import type {
+  ContentProductionItemSeed,
   ContentProductionWorkItem,
   ContentProductionWorkerJob,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/content-production-work-item';
 
 type WorkerJobFixture = Omit<
   ContentProductionWorkerJob,

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type {
   GeneratedQuestionCandidate,
   QuestionCrossValidationInput,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/ai-question-production';
 import { FakeQuestionCrossValidationProvider } from './fake-question-cross-validation.provider.js';
 
 const candidate = {

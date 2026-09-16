@@ -2,12 +2,12 @@
 import {
   VocabularyRelationsMergeAdminError,
   VocabularyRelationsMergeService,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/vocabulary/vocabulary-relations-merge.service';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import * as schema from '../schema/index.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
 import { DrizzleVocabularyAdminRepository } from './drizzle-vocabulary-admin.repository.js';
 
 const databaseUrl = process.env.VOCABULARY_MERGE_TEST_DATABASE_URL;

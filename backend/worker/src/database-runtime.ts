@@ -1,9 +1,7 @@
 /** Lambda worker가 Aurora Data API Drizzle client를 지연 생성하게 한다 */
-import {
-  createDataApiDatabase,
-  createLocalDatabase,
-  DrizzleJobRepository,
-} from '@flex-thia/database';
+import { createDataApiDatabase } from '@flex-thia/database/clients/data-api';
+import { createLocalDatabase } from '@flex-thia/database/clients/local';
+import { DrizzleJobRepository } from '@flex-thia/database/repositories/drizzle-job.repository';
 
 const requireEnv = (key: string): string => {
   const value = process.env[key];

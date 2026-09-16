@@ -1,18 +1,20 @@
 /** 관리자 개념 수명주기를 Drizzle transaction으로 구현한다 */
 import type {
   ConceptAdminRepository,
-  ConceptCandidateBlock,
   ConceptCommandContext,
-  ConceptDomainErrorCode,
-  ConceptDraftBlock,
   ConceptDraftRecord,
-  ConceptValidationCandidate,
-  ConceptValidationIssue,
   ConceptValidationReport,
   CreateConceptCommand,
   ReplaceConceptDraftCommand,
-} from '@flex-thia/domain';
-import { validateConceptCandidate } from '@flex-thia/domain';
+} from '@flex-thia/domain/concepts/concept.repository';
+import type {
+  ConceptCandidateBlock,
+  ConceptDraftBlock,
+  ConceptValidationCandidate,
+  ConceptValidationIssue,
+} from '@flex-thia/domain/concepts/concept';
+import type { ConceptDomainErrorCode } from '@flex-thia/domain/concepts/concept.service';
+import { validateConceptCandidate } from '@flex-thia/domain/concepts/concept';
 import { and, asc, desc, eq, inArray, isNull, type SQL } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';

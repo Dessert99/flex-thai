@@ -1,22 +1,20 @@
 /** 도메인 오류를 안정적인 HTTP code로 바꾸고 내부 정보를 숨긴다 */
-import type { ProblemDetailsResponse } from '@flex-thia/contracts';
-import { WordbookPersistenceError } from '@flex-thia/database';
-import {
-  AuditLogError,
-  AuthDomainError,
-  ContentImportError,
-  EmailChallengeError,
-  IdentityDomainError,
-  LearningDomainError,
-  QuestionAdminError,
-  QuestionPublicationError,
-  QuestionTaxonomyError,
-  UploadPolicyError,
-  UserManagementError,
-  VocabularyAdminError,
-  VocabularyRelationsMergeAdminError,
-  WordbookDomainError,
-} from '@flex-thia/domain';
+import type { ProblemDetailsResponse } from '@flex-thia/contracts/common/problem';
+import { WordbookPersistenceError } from '@flex-thia/database/repositories/drizzle-wordbook.repository';
+import { AuditLogError } from '@flex-thia/domain/operations/audit-log.service';
+import { AuthDomainError } from '@flex-thia/domain/auth/auth-domain.error';
+import { ContentImportError } from '@flex-thia/domain/content-import/content-import.service';
+import { EmailChallengeError } from '@flex-thia/domain/identity/email-challenge';
+import { IdentityDomainError } from '@flex-thia/domain/identity/authentication.service';
+import { LearningDomainError } from '@flex-thia/domain/learning/question-attempt';
+import { QuestionAdminError } from '@flex-thia/domain/questions/question-admin';
+import { QuestionPublicationError } from '@flex-thia/domain/questions/question-publication';
+import { QuestionTaxonomyError } from '@flex-thia/domain/questions/question-taxonomy.service';
+import { UploadPolicyError } from '@flex-thia/domain/uploads/upload-policy.service';
+import { UserManagementError } from '@flex-thia/domain/identity/user-management';
+import { VocabularyAdminError } from '@flex-thia/domain/vocabulary/vocabulary-admin';
+import { VocabularyRelationsMergeAdminError } from '@flex-thia/domain/vocabulary/vocabulary-relations-merge.service';
+import { WordbookDomainError } from '@flex-thia/domain/learning/wordbook';
 import {
   ArgumentsHost,
   Catch,

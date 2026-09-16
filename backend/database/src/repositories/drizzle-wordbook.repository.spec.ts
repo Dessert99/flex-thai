@@ -4,8 +4,8 @@ import { PgDialect } from 'drizzle-orm/pg-core';
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import * as schema from '../schema/index.js';
-import { wordbookItems, wordbooks } from '../schema/index.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
+import { wordbookItems, wordbooks } from '../schema/learning.schema.js';
 import {
   DrizzleWordbookRepository,
   WordbookPersistenceError,

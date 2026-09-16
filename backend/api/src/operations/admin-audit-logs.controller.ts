@@ -6,12 +6,12 @@ import {
   auditLogListResponseSchema,
   type AuditLogDetailResponse,
   type AuditLogListResponse,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/operations/audit-logs';
+import { AuditLogService } from '@flex-thia/domain/operations/audit-log.service';
 import {
-  AuditLogService,
   type AuditLogDetail,
   type AuditLogListItem,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/operations/audit-log';
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,

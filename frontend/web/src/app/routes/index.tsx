@@ -1,6 +1,6 @@
 /** 공개 root 경로를 인증 사용자의 공통 학습 홈로 보낸다 */
 import { createFileRoute, redirect } from '@tanstack/react-router';
-import type { AuthSessionState } from '@/shared/api';
+import type { AuthSessionState } from '@/shared/apis/auth/authSessionStore';
 
 const getRootDestination = (state: AuthSessionState): '/learn' | '/login' => {
   if (state.status !== 'authenticated') return '/login';

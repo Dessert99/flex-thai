@@ -1,6 +1,6 @@
 /** AI 어휘 후보 목록·상세를 검수 lifecycle과 validation 순서로 조회한다 */
 import { and, asc, count, desc, eq, sql } from 'drizzle-orm';
-import type { VocabularyCandidateQuery } from '@flex-thia/domain';
+import type { VocabularyCandidateQuery } from '@flex-thia/domain/content-production/vocabulary-candidate-review';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import {
@@ -8,7 +8,7 @@ import {
   vocabularyProductionValidations,
 } from '../../schema/ai-vocabulary-production.schema.js';
 import { jobItems } from '../../schema/jobs.schema.js';
-import * as schema from '../../schema/index.js';
+import { databaseSchema as schema } from '../../schema/databaseSchema.js';
 
 type CandidateDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 

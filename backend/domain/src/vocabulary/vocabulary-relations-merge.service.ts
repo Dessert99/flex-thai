@@ -20,8 +20,6 @@ import {
 } from './vocabulary-relations-merge.repository.js';
 import { VocabularyAdminRepositoryError } from './vocabulary-admin.repository.js';
 
-export type { VocabularyMergeGraph } from './vocabulary-relations-merge.js';
-
 /** 관계·병합 command의 인증·감사 문맥 */
 export interface VocabularyRelationsMergeContext {
   actorSub: string;

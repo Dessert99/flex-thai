@@ -2,7 +2,8 @@
 import { getTableColumns } from 'drizzle-orm';
 import { getTableConfig } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
-import { auditLogs, authChallenges, jobs, users } from './index.js';
+import { auditLogs, authChallenges, users } from './identity.schema.js';
+import { jobs } from './jobs.schema.js';
 
 describe('기초 데이터베이스 schema', () => {
   it('사용자 신원은 변경 불가능한 cognitoSub를 가진다', () => {

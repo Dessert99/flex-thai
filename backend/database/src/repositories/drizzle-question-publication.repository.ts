@@ -2,27 +2,33 @@
 import {
   type QuestionPublicationRepository,
   type QuestionPublicationTransaction,
+} from '@flex-thia/domain/questions/question-publication.repository';
+import {
   type QuestionSentenceCandidate,
   type QuestionVersionValidationCandidate,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/questions/question-version';
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import { type PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
-import * as schema from '../schema/index.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
+import { auditLogs } from '../schema/identity.schema.js';
 import {
-  auditLogs,
   expressionOccurrences,
+  thaiSentenceVersions,
+  tokenOccurrences,
+} from '../schema/thai-content.schema.js';
+import {
   questionBlocks,
   questionBlockSentences,
   questionOptions,
   questions,
   questionTypeVersions,
   questionVersions,
-  thaiSentenceVersions,
-  tokenOccurrences,
+} from '../schema/questions.schema.js';
+import {
   vocabularies,
   vocabularyPronunciations,
-} from '../schema/index.js';
+} from '../schema/vocabulary.schema.js';
 
 type QuestionPublicationDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 type QuestionPublicationSession = Pick<

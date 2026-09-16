@@ -1,10 +1,8 @@
 /** 계약 UUID 어휘 상세 route와 prefetch를 정의한다 */
-import { adminVocabularyIdPathSchema } from '@flex-thia/contracts';
+import { adminVocabularyIdPathSchema } from '@flex-thia/contracts/admin/vocabularies';
 import { createFileRoute } from '@tanstack/react-router';
-import {
-  adminVocabularyDetailQueryOptions,
-  AdminVocabularyDetailPageContainer,
-} from '@/pages/admin-vocabulary-detail';
+import { adminVocabularyDetailQueryOptions } from '@/features/learning/apis/admin-vocabulary-detail/adminVocabularyMutations';
+import { AdminVocabularyDetailPage } from '@/pages/AdminVocabularyDetailPage';
 
 /** 검증된 UUID 상세 cache를 route와 Page가 공유한다 */
 export const Route = createFileRoute(
@@ -20,5 +18,5 @@ export const Route = createFileRoute(
 
 function VocabularyDetailRoute() {
   const { vocabularyId } = Route.useParams();
-  return <AdminVocabularyDetailPageContainer vocabularyId={vocabularyId} />;
+  return <AdminVocabularyDetailPage vocabularyId={vocabularyId} />;
 }

@@ -1,12 +1,9 @@
 /** 검증된 upload를 Job command로 바꾸고 소유한 Job만 조회한다 */
 import { Injectable } from '@nestjs/common';
-import type {
-  CreateJobService,
-  Job,
-  JobRepository,
-  JobType,
-  UploadRepository,
-} from '@flex-thia/domain';
+import type { CreateJobService } from '@flex-thia/domain/jobs/create-job.service';
+import type { Job, JobType } from '@flex-thia/domain/jobs/job';
+import type { JobRepository } from '@flex-thia/domain/jobs/job.repository';
+import type { UploadRepository } from '@flex-thia/domain/uploads/upload.repository';
 
 const MAX_JOB_INPUT_BYTES = 250 * 1024 * 1024;
 

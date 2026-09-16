@@ -1,6 +1,6 @@
 /** 관리자 step-up OTP를 SNS SMS로 전송한다 */
 import { PublishCommand, type SNSClient } from '@aws-sdk/client-sns';
-import type { SmsSender } from '@flex-thia/domain';
+import type { SmsSender } from '@flex-thia/domain/auth/challenge.repository';
 
 /** 검증된 Cognito 전화번호에 짧은 OTP message만 보내는 adapter */
 export class SnsSmsSender implements SmsSender {

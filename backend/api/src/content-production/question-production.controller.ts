@@ -31,7 +31,7 @@ import {
   questionCandidateListQuerySchema,
   questionCandidatePathSchema,
   regenerateQuestionCandidateRequestSchema,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/content-production/question-production';
 import {
   CurrentUser,
   type AuthenticatedUser,

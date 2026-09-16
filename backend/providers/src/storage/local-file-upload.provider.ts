@@ -1,10 +1,10 @@
 /** local browser upload을 HMAC policy와 private filesystem object로 구현한다 */
+import { type InputType } from '@flex-thia/domain/jobs/job';
 import {
-  type InputType,
   type UploadInspection,
   type UploadPolicy,
   type UploadStorage,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/uploads/upload-policy.service';
 import {
   createHash,
   createHmac,

@@ -32,7 +32,7 @@ import {
   type AdminConceptListResponse,
   type AdminConceptVersion,
   type ConceptValidationReport,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/concepts/concepts';
 import {
   CurrentUser,
   type AuthenticatedUser,

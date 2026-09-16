@@ -1,6 +1,6 @@
 /** 감사 기록 검색·페이지·상세 read adapter를 검증한다 */
 import { describe, expect, it, vi } from 'vitest';
-import { auditLogs, users } from '../schema/index.js';
+import { auditLogs, users } from '../schema/identity.schema.js';
 import { DrizzleAuditLogQuery } from './drizzle-audit-log.query.js';
 
 const now = new Date('2026-07-26T00:00:00.000Z');

@@ -1,7 +1,7 @@
 /** 공개 root가 session role에 따라 단일 portal로 redirect하는지 검증한다 */
 import { isRedirect } from '@tanstack/react-router';
 import { describe, expect, it } from 'vitest';
-import type { AuthSessionState } from '@/shared/api';
+import type { AuthSessionState } from '@/shared/apis/auth/authSessionStore';
 import { Route } from './index';
 
 describe('root index route', () => {

@@ -4,13 +4,13 @@ import type {
   ChangeContentErrorReportStatusRecord,
   ContentErrorReport,
   ContentErrorReportAssigneeResolver,
-  ContentErrorReportOrigin,
   ContentErrorReportRepository,
   ContentErrorReportTargetResolver,
   CreateContentErrorReportRecord,
   ResolvedContentErrorReportTarget,
-} from '@flex-thia/domain';
-import { ContentErrorReportDomainError } from '@flex-thia/domain';
+} from '@flex-thia/domain/feedback/content-error-report.repository';
+import type { ContentErrorReportOrigin } from '@flex-thia/domain/feedback/content-error-report';
+import { ContentErrorReportDomainError } from '@flex-thia/domain/feedback/content-error-report';
 import { and, asc, eq, isNull, ne, or, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
@@ -19,7 +19,7 @@ import {
   contentErrorReports,
 } from '../schema/feedback.schema.js';
 import { users } from '../schema/identity.schema.js';
-import * as baseSchema from '../schema/index.js';
+import { databaseSchema as baseSchema } from '../schema/databaseSchema.js';
 import {
   questionBlocks,
   questionBlockSentences,

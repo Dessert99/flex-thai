@@ -4,7 +4,7 @@ import type {
   PracticeMeaningCandidate,
   PracticeSessionRecord,
   PracticeSourceRecord,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/learning/vocabulary-practice.repository';
 import { sql, type SQL } from 'drizzle-orm';
 
 interface VocabularyPracticeReadDatabase {

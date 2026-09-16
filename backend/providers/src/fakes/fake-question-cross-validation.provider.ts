@@ -1,5 +1,5 @@
 /** 외부 AI 없이 정답 참조별 문제 교차 검증 결과를 반환한다 */
-import type { QuestionCrossValidationProvider } from '@flex-thia/domain';
+import type { QuestionCrossValidationProvider } from '@flex-thia/domain/content-production/ai-question-production';
 
 /** 등록한 정답 참조만 실패시키는 결정적 교차 검증 provider */
 export class FakeQuestionCrossValidationProvider implements QuestionCrossValidationProvider {

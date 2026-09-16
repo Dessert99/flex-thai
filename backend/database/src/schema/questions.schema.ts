@@ -1,5 +1,5 @@
 /** 문제 유형과 불변 문제 버전의 블록·선택지 게시 구조를 저장한다 */
-import type { QuestionValidationIssue } from '@flex-thia/domain';
+import type { QuestionValidationIssue } from '@flex-thia/domain/questions/question-version';
 import { sql } from 'drizzle-orm';
 import {
   boolean,

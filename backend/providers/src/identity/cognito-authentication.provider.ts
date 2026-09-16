@@ -13,7 +13,7 @@ import {
   AuthenticationProviderError,
   type AuthenticationProvider,
   type IdentityTokenSet,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/identity/authentication';
 
 const decodeIdToken = (idToken: string): { subject: string; email: string } => {
   try {

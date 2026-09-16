@@ -13,14 +13,14 @@ import {
   type AdminContentErrorReportListResponse,
   type CreateContentErrorReportRequest,
   type CreateContentErrorReportResponse,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/feedback/content-error-reports';
 import {
   ContentErrorReportDomainError,
-  type ContentErrorReportActor,
-  type ContentErrorReportQuery,
-  type ContentErrorReportService,
   type ContentErrorReportStatus,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/feedback/content-error-report';
+import { type ContentErrorReportActor } from '@flex-thia/domain/feedback/content-error-report.repository';
+import { type ContentErrorReportQuery } from '@flex-thia/domain/feedback/content-error-report.query';
+import { type ContentErrorReportService } from '@flex-thia/domain/feedback/content-error-report.service';
 
 /** HTTP facade가 받는 domain use case와 read query */
 export interface ContentErrorReportHttpDependencies {

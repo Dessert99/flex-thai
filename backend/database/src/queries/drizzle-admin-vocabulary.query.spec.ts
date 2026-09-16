@@ -4,8 +4,11 @@ import { PgDialect } from 'drizzle-orm/pg-core';
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import * as schema from '../schema/index.js';
-import { vocabularies, vocabularyPronunciations } from '../schema/index.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
+import {
+  vocabularies,
+  vocabularyPronunciations,
+} from '../schema/vocabulary.schema.js';
 import { DrizzleAdminVocabularyQuery } from './drizzle-admin-vocabulary.query.js';
 
 const createSelectFake = (results: Array<Array<Record<string, unknown>>>) => {

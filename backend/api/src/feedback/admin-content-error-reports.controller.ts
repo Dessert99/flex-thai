@@ -23,7 +23,7 @@ import {
   assignContentErrorReportRequestSchema,
   changeContentErrorReportStatusRequestSchema,
   contentErrorReportIdPathSchema,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/feedback/content-error-reports';
 import {
   CurrentUser,
   type AuthenticatedUser,

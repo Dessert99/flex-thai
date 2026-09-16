@@ -1,5 +1,5 @@
 /** SidebarLayout의 landmark와 shadcn Sidebar 내비게이션 경계를 검증한다 */
-import { renderWithProviders as render } from '@/shared/test';
+import { renderWithProviders as render } from '@/shared/test/renderWithProviders';
 import { fireEvent, screen } from '@testing-library/react';
 import { House, Search } from 'lucide-react';
 import { beforeEach, describe, expect, it } from 'vitest';

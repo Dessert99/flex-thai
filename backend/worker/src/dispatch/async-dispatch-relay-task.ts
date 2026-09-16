@@ -1,12 +1,10 @@
 /** shared outbox relay Lambda를 DB와 mode별 CONTENT_PRODUCTION sender에 연결한다 */
-import {
-  DrizzleAsyncDispatchOutboxRepository,
-  DrizzleContentProductionRepository,
-} from '@flex-thia/database';
+import { DrizzleAsyncDispatchOutboxRepository } from '@flex-thia/database/repositories/dispatch/drizzle-async-dispatch-outbox.repository';
+import { DrizzleContentProductionRepository } from '@flex-thia/database/repositories/content-production/drizzle-content-production.repository';
 import {
   createSqsAsyncDispatchQueue,
   type CreateSqsAsyncDispatchQueueInput,
-} from '@flex-thia/providers';
+} from '@flex-thia/providers/aws/sqs-async-dispatch.queue';
 import { createContentProductionRuntime } from '../content-production/content-production-runtime.js';
 import { createWorkerDatabase } from '../database-runtime.js';
 import { AsyncDispatchOutboxRelay } from './async-dispatch-outbox-relay.js';

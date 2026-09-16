@@ -4,7 +4,7 @@ import {
   updateOperationsCostSettingsRequestSchema,
   usageCostOverviewQuerySchema,
   usageCostOverviewResponseSchema,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/operations/usage-cost';
 import { createZodDto } from 'nestjs-zod';
 
 /** 사용량·비용 overview query DTO */

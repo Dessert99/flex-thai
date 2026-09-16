@@ -1,6 +1,6 @@
 /** 코드와 확인 링크를 함께 보내는 SES passwordless adapter */
 import { type SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
-import type { EmailChallengeSender } from '@flex-thia/domain';
+import type { EmailChallengeSender } from '@flex-thia/domain/identity/passwordless-authentication';
 
 /** SES verified identity에서 10분짜리 코드와 링크를 발송한다 */
 export class SesEmailChallengeSender implements EmailChallengeSender {

@@ -1,7 +1,7 @@
 /** 메모리 challenge가 있는 경우에만 로그인 TOTP Page를 노출한다 */
 import { createFileRoute, redirect } from '@tanstack/react-router';
-import { LoginTotpPageContainer } from '@/pages/login-totp';
-import { hasLoginTotpChallenge } from '@/shared/api';
+import { LoginTotpPage } from '@/pages/LoginTotpPage';
+import { hasLoginTotpChallenge } from '@/shared/apis/auth/authSessionStore';
 
 /** 직접 reload로 challenge가 사라진 경우 로그인 index로 되돌린다 */
 export const Route = createFileRoute('/login/mfa')({
@@ -14,9 +14,7 @@ export const Route = createFileRoute('/login/mfa')({
 function LoginTotpRoute() {
   const { redirect: redirectTo } = Route.useSearch();
   return (
-    <LoginTotpPageContainer
-      {...(redirectTo === undefined ? {} : { redirectTo })}
-    />
+    <LoginTotpPage {...(redirectTo === undefined ? {} : { redirectTo })} />
   );
 }
 

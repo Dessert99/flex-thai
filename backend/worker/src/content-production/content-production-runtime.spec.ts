@@ -1,6 +1,6 @@
 /** 콘텐츠 제작 runtime의 DB lookup·local 결정성·운영 fail-closed 조립을 검증한다 */
-import { DrizzlePublishedQuestionSimilarityLookup } from '@flex-thia/database';
-import { FakeContentInputReader } from '@flex-thia/providers';
+import { DrizzlePublishedQuestionSimilarityLookup } from '@flex-thia/database/queries/drizzle-published-question-similarity.lookup';
+import { FakeContentInputReader } from '@flex-thia/providers/fakes/fake-content-input.provider';
 import { describe, expect, it } from 'vitest';
 import { UnavailableContentProductionProcessor } from './unavailable-content-production.processor.js';
 import { createContentProductionRuntime } from './content-production-runtime.js';

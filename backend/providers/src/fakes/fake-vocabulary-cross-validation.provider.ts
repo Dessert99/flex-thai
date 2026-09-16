@@ -1,5 +1,5 @@
 /** 외부 AI 없이 Thai별 교차 검증 결과를 제공하는 local provider */
-import type { VocabularyCrossValidationProvider } from '@flex-thia/domain';
+import type { VocabularyCrossValidationProvider } from '@flex-thia/domain/content-production/ai-vocabulary-production';
 
 /** 등록한 Thai만 실패시키고 나머지는 통과시킨다 */
 export class FakeVocabularyCrossValidationProvider implements VocabularyCrossValidationProvider {

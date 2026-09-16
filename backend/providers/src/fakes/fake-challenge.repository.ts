@@ -3,8 +3,8 @@ import { randomUUID } from 'node:crypto';
 import type {
   ChallengeStatus,
   StepUpChallenge,
-  StepUpRepository,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/auth/challenge';
+import type { StepUpRepository } from '@flex-thia/domain/auth/challenge.repository';
 
 /** OTP와 grant token 원문 없이 step-up 흐름을 재현하는 fake repository */
 export class FakeStepUpRepository implements StepUpRepository {

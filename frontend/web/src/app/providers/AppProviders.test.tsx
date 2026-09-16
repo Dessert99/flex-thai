@@ -1,7 +1,10 @@
 /** 세션 bootstrap 차단과 사용자 경계 Query cache 정리를 검증한다 */
-import type { MeResponse } from '@flex-thia/contracts';
+import type { MeResponse } from '@flex-thia/contracts/identity/auth';
 import { act, render, screen } from '@testing-library/react';
-import type { AuthSessionState, AuthSessionStore } from '@/shared/api';
+import type {
+  AuthSessionState,
+  AuthSessionStore,
+} from '@/shared/apis/auth/authSessionStore';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const authMocks = vi.hoisted(() => {
@@ -27,8 +30,11 @@ const authMocks = vi.hoisted(() => {
   };
 });
 
-vi.mock('@/shared/api', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/shared/api')>();
+vi.mock('@/shared/apis/auth/authSessionStore', async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import('@/shared/apis/auth/authSessionStore')
+    >();
   return {
     ...actual,
     authSessionStore: authMocks.store,

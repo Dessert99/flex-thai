@@ -31,7 +31,7 @@ import {
   idempotencyKeyHeaderSchema,
   type ContentImportDetailResponse,
   type ContentImportListResponse,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/admin/content-imports';
 import {
   CurrentUser,
   type AuthenticatedUser,

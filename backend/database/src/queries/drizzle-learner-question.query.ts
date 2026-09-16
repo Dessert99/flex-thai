@@ -1,5 +1,5 @@
 /** 현재 게시 문제와 append-only 풀이 기록을 정답 노출 없이 탐색한다 */
-import type { QuestionMajorCategory } from '@flex-thia/domain';
+import type { QuestionMajorCategory } from '@flex-thia/domain/questions/question-taxonomy.repository';
 import {
   and,
   asc,
@@ -15,10 +15,14 @@ import {
 } from 'drizzle-orm';
 import { alias, type PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
-import * as schema from '../schema/index.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
 import {
   expressionOccurrences,
-  questionAttempts,
+  thaiSentenceVersions,
+  tokenOccurrences,
+} from '../schema/thai-content.schema.js';
+import { questionAttempts, savedQuestions } from '../schema/learning.schema.js';
+import {
   questionBlocks,
   questionBlockSentences,
   questionOptions,
@@ -29,11 +33,8 @@ import {
   questionTypeVersions,
   questionVersions,
   questionVersionTags,
-  savedQuestions,
-  thaiSentenceVersions,
-  tokenOccurrences,
-  vocabularyPronunciations,
-} from '../schema/index.js';
+} from '../schema/questions.schema.js';
+import { vocabularyPronunciations } from '../schema/vocabulary.schema.js';
 
 type LearnerQuestionDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 

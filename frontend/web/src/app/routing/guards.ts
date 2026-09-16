@@ -1,7 +1,7 @@
 /** 인증·role·관리자 TOTP 상태별 pathless route 접근을 제한한다 */
 import type { AnyRouter, ParsedLocation } from '@tanstack/react-router';
 import { redirect } from '@tanstack/react-router';
-import type { AuthSessionState } from '@/shared/api';
+import type { AuthSessionState } from '@/shared/apis/auth/authSessionStore';
 import { parseSafeRedirect } from './redirectSearch';
 
 /** 인증 완료 상태에서 route guard가 공유하는 session */

@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
+import { auditLogs } from '../../schema/identity.schema.js';
 import {
-  auditLogs,
   vocabularies,
   vocabularyMeaningPronunciations,
   vocabularyMeanings,
   vocabularyPronunciations,
-} from '../../schema/index.js';
+} from '../../schema/vocabulary.schema.js';
 import { DrizzleVocabularyCandidateReviewRepository } from './drizzle-vocabulary-candidate-review.repository.js';
 
 const commandContext = {

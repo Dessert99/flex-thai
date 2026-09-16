@@ -12,13 +12,13 @@ import {
   type WordbookNameRequest,
   type WordbookRemoveItemsRequest,
   type WordbookResponse,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/learning/wordbooks';
 import type {
   DrizzleWordbookQuery,
   WordbookItemProjection,
   WordbookSummaryProjection,
-} from '@flex-thia/database';
-import type { WordbookService } from '@flex-thia/domain';
+} from '@flex-thia/database/queries/drizzle-wordbook.query';
+import type { WordbookService } from '@flex-thia/domain/learning/wordbook';
 import { NotFoundException } from '@nestjs/common';
 import type { ZodType } from 'zod';
 

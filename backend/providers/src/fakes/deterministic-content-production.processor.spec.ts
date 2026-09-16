@@ -1,8 +1,6 @@
 /** 외부 비용 없는 processor가 sourceRef로 성공·검토·실패를 결정적으로 재현하는지 검증한다 */
-import type {
-  ContentProductionWorkItem,
-  QuestionProductionContext,
-} from '@flex-thia/domain';
+import type { ContentProductionWorkItem } from '@flex-thia/domain/content-production/content-production-work-item';
+import type { QuestionProductionContext } from '@flex-thia/domain/content-production/ai-question-production';
 import { describe, expect, it } from 'vitest';
 import { DeterministicContentProductionProcessor } from './deterministic-content-production.processor.js';
 

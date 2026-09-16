@@ -3,20 +3,20 @@ import type {
   ContentProductionItem,
   ContentProductionJobStatus,
   ContentProductionJob,
+} from '@flex-thia/domain/content-production/content-production.service';
+import type {
   ContentProductionItemSeed,
   ContentProductionWorkerJob,
   ContentProductionWorkItem,
-  VocabularyProductionArtifacts,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/content-production-work-item';
+import type { VocabularyProductionArtifacts } from '@flex-thia/domain/content-production/ai-vocabulary-production';
 import {
   CONTENT_PRODUCTION_ITEM_LEASE_MS,
-  createContentProductionWorkItem,
   expandQuestionGenerationPlan,
-} from '@flex-thia/domain';
-import type {
-  ContentProductionOperation,
-  QuestionGenerationParameters,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/content-production.service';
+import { createContentProductionWorkItem } from '@flex-thia/domain/content-production/content-production-work-item';
+import type { ContentProductionOperation } from '@flex-thia/domain/content-production/content-production-work-item';
+import type { QuestionGenerationParameters } from '@flex-thia/domain/content-production/content-production.service';
 
 const CONTENT_PRODUCTION_ITEM_HEARTBEAT_MS = Math.floor(
   CONTENT_PRODUCTION_ITEM_LEASE_MS / 3,

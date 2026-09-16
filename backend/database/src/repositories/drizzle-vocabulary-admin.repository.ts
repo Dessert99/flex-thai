@@ -2,30 +2,35 @@
 import {
   assertVocabularyMergePair,
   createVocabularyMergeFingerprint,
+  type VocabularyMergeGraph,
+} from '@flex-thia/domain/vocabulary/vocabulary-relations-merge';
+import {
   type VocabularyAdminRepository,
   VocabularyAdminRepositoryError,
   type VocabularyAdminTransaction,
-  type VocabularyMergeGraph,
+} from '@flex-thia/domain/vocabulary/vocabulary-admin.repository';
+import {
   type VocabularyRelationsMergeRelationWrite,
   type VocabularyRelationsMergeRepository,
   type VocabularyRelationsMergeStoredRelation,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/vocabulary/vocabulary-relations-merge.repository';
 import { and, asc, eq, inArray, ne, or, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
-import * as schema from '../schema/index.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
+import { auditLogs } from '../schema/identity.schema.js';
 import {
-  auditLogs,
   expressionOccurrences,
-  savedVocabularies,
   tokenOccurrences,
+} from '../schema/thai-content.schema.js';
+import { savedVocabularies, wordbookItems } from '../schema/learning.schema.js';
+import {
   vocabularies,
   vocabularyMeaningPronunciations,
   vocabularyMeanings,
-  vocabularyPracticeQuestions,
   vocabularyPronunciations,
-  wordbookItems,
-} from '../schema/index.js';
+} from '../schema/vocabulary.schema.js';
+import { vocabularyPracticeQuestions } from '../schema/learning-practice.schema.js';
 import {
   vocabularyMeaningRelations,
   vocabularyMergeHistory,

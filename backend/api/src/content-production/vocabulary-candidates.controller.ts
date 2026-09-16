@@ -8,7 +8,7 @@ import {
   vocabularyCandidateListQuerySchema,
   vocabularyCandidateListResponseSchema,
   vocabularyCandidatePathSchema,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/content-production/vocabulary-candidates';
 import {
   BadRequestException,
   Body,

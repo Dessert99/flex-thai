@@ -1,10 +1,10 @@
 /** 최초 ADMIN role 변경과 audit log를 한 Drizzle transaction에 묶는다 */
 import { eq } from 'drizzle-orm';
-import type { AdminBootstrapRepository } from '@flex-thia/domain';
+import type { AdminBootstrapRepository } from '@flex-thia/domain/auth/user.repository';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
-import { auditLogs, users } from '../schema/index.js';
-import * as schema from '../schema/index.js';
+import { auditLogs, users } from '../schema/identity.schema.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
 
 type BootstrapDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 

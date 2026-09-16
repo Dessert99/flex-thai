@@ -6,7 +6,7 @@ import {
   questionTaxonomySettingsResponseSchema,
   questionTypeApprovedExampleRequestSchema,
   replaceDifficultyCriteriaRequestSchema,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/questions/question-taxonomy-settings';
 import { createZodDto } from 'nestjs-zod';
 
 /** 세부 문제 유형 생성 DTO */

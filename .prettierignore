@@ -39,8 +39,8 @@ tmp/
 backend/database/drizzle/
 
 # shadcn registry 생성물은 upstream 포맷을 보존한다
-frontend/web/src/shared/ui/*.tsx
-!frontend/web/src/shared/ui/*.stories.tsx
+frontend/web/src/shared/components/*.tsx
+!frontend/web/src/shared/components/*.stories.tsx
 
 # TanStack Router generator 출력은 공식 포맷을 보존한다
 frontend/web/src/routeTree.gen.ts

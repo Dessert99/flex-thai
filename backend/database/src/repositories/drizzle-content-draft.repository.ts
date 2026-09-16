@@ -1,20 +1,25 @@
 /** canonical 콘텐츠 초안 graph·IMPORTED item·audit을 한 Drizzle transaction에 저장한다 */
+import { ContentDraftError } from '@flex-thia/domain/content-import/content-draft';
 import {
-  ContentDraftError,
   type ContentDraftRepository,
   type ContentDraftTransaction,
   type ResolvedContentDraftAudit,
   type ResolvedQuestionDraftGraph,
   type ResolvedVocabularyDraftGraph,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-import/content-draft.repository';
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
-import * as schema from '../schema/index.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
+import { auditLogs } from '../schema/identity.schema.js';
+import { contentImportItems } from '../schema/content-import.schema.js';
 import {
-  auditLogs,
-  contentImportItems,
   expressionOccurrences,
+  thaiSentences,
+  thaiSentenceVersions,
+  tokenOccurrences,
+} from '../schema/thai-content.schema.js';
+import {
   questionBlocks,
   questionBlockSentences,
   questionOptions,
@@ -25,14 +30,13 @@ import {
   questionTypeVersions,
   questionVersions,
   questionVersionTags,
-  thaiSentences,
-  thaiSentenceVersions,
-  tokenOccurrences,
+} from '../schema/questions.schema.js';
+import {
   vocabularies,
   vocabularyMeaningPronunciations,
   vocabularyMeanings,
   vocabularyPronunciations,
-} from '../schema/index.js';
+} from '../schema/vocabulary.schema.js';
 
 type ContentDraftDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 type ContentDraftSession = Pick<ContentDraftDatabase, 'insert' | 'select'>;

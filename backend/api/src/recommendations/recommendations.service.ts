@@ -2,8 +2,8 @@
 import {
   recommendationResponseSchema,
   type RecommendationResponse,
-} from '@flex-thia/contracts';
-import type { DrizzleRecommendationQuery } from '@flex-thia/database';
+} from '@flex-thia/contracts/recommendations/recommendations';
+import type { DrizzleRecommendationQuery } from '@flex-thia/database/queries/drizzle-recommendation.query';
 
 type RecommendationQuery = Pick<DrizzleRecommendationQuery, 'getForUser'>;
 

@@ -9,11 +9,13 @@ import {
 } from '@aws-sdk/client-cognito-identity-provider';
 import {
   AuthenticationProviderError,
-  buildCustomAuthProofMessage,
   type IdentityTokenSet,
-  type PasswordlessAuthenticationProvider,
   type ProviderLoginResult,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/identity/authentication';
+import {
+  buildCustomAuthProofMessage,
+  type PasswordlessAuthenticationProvider,
+} from '@flex-thia/domain/identity/passwordless-authentication';
 import { createHmac, randomBytes } from 'node:crypto';
 import { CognitoAuthenticationProvider } from './cognito-authentication.provider.js';
 

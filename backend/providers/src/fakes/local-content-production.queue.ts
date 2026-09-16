@@ -1,18 +1,18 @@
 /** 로컬 콘텐츠 제작 queue 실행 경계를 제공한다 */
 import type {
   ContentProductionItemSeed,
+  ContentProductionWorkItem,
+  ContentProductionWorkerJob,
+} from '@flex-thia/domain/content-production/content-production-work-item';
+import type {
   ContentProductionJob,
   ContentProductionQueue,
   ContentProductionRepository,
-  ContentProductionWorkItem,
-  ContentProductionWorkerJob,
   QuestionGenerationParameters,
-  VocabularyProductionArtifacts,
-} from '@flex-thia/domain';
-import {
-  createContentProductionWorkItem,
-  expandQuestionGenerationPlan,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/content-production.service';
+import type { VocabularyProductionArtifacts } from '@flex-thia/domain/content-production/ai-vocabulary-production';
+import { createContentProductionWorkItem } from '@flex-thia/domain/content-production/content-production-work-item';
+import { expandQuestionGenerationPlan } from '@flex-thia/domain/content-production/content-production.service';
 
 interface LocalContentProductionProcessor {
   process(

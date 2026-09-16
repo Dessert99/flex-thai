@@ -4,9 +4,6 @@ import {
   questionDetailResponseSchema,
   questionListResponseSchema,
   submitQuestionAttemptResponseSchema,
-  vocabularyDetailResponseSchema,
-  vocabularyListResponseSchema,
-  vocabularyRelatedQuestionsResponseSchema,
   type QuestionAttemptListQuery,
   type QuestionAttemptListResponse,
   type QuestionDetailResponse,
@@ -14,27 +11,32 @@ import {
   type QuestionListResponse,
   type SubmitQuestionAttemptRequest,
   type SubmitQuestionAttemptResponse,
+} from '@flex-thia/contracts/learning/questions';
+import {
+  vocabularyDetailResponseSchema,
+  vocabularyListResponseSchema,
+  vocabularyRelatedQuestionsResponseSchema,
   type VocabularyDetailResponse,
   type VocabularyListQuery,
   type VocabularyListResponse,
   type VocabularyRelatedQuestionsQuery,
   type VocabularyRelatedQuestionsResponse,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/learning/vocabularies';
 import {
   type DrizzleLearnerQuestionQuery,
-  type DrizzleLearnerVocabularyQuery,
   type LearnerQuestionBlockProjection,
   type LearnerQuestionListFacetsProjection,
   type LearnerQuestionListItemProjection,
   type LearnerQuestionListQuery,
   type LearnerQuestionSentenceProjection,
+} from '@flex-thia/database/queries/drizzle-learner-question.query';
+import {
+  type DrizzleLearnerVocabularyQuery,
   type LearnerVocabularyListQuery,
   type LearnerVocabularySummaryProjection,
-} from '@flex-thia/database';
-import {
-  type QuestionAttemptService,
-  type SavedContentService,
-} from '@flex-thia/domain';
+} from '@flex-thia/database/queries/drizzle-learner-vocabulary.query';
+import { type QuestionAttemptService } from '@flex-thia/domain/learning/question-attempt';
+import { type SavedContentService } from '@flex-thia/domain/learning/saved-content';
 import { NotFoundException } from '@nestjs/common';
 import type { ZodType } from 'zod';
 

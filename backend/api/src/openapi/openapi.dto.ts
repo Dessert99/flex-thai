@@ -8,10 +8,15 @@ import {
   adminQuestionVersionIdPathSchema,
   adminQuestionVersionPayloadSchema,
   adminQuestionVersionResponseSchema,
+} from '@flex-thia/contracts/admin/questions';
+import {
   adminVocabularyDetailResponseSchema,
   adminVocabularyIdPathSchema,
   adminVocabularyListQuerySchema,
   adminVocabularyListResponseSchema,
+  adminVocabularyReplaceRequestSchema,
+} from '@flex-thia/contracts/admin/vocabularies';
+import {
   adminVocabularyMergeExecuteRequestSchema,
   adminVocabularyMergePreviewRequestSchema,
   adminVocabularyMergePreviewResponseSchema,
@@ -20,44 +25,57 @@ import {
   adminVocabularyRelationPathSchema,
   adminVocabularyRelationSchema,
   adminVocabularyRelationUpdateRequestSchema,
-  adminVocabularyReplaceRequestSchema,
+} from '@flex-thia/contracts/admin/vocabulary-relations';
+import {
   authenticatedResponseSchema,
+  confirmEmailLinkRequestSchema,
+  emailAuthenticationChallengeResponseSchema,
+  meResponseSchema,
+  mfaRequiredResponseSchema,
+  startEmailAuthenticationRequestSchema,
+  totpChallengeRequestSchema,
+  totpSetupResponseSchema,
+  totpSetupVerifyRequestSchema,
+  verifyEmailCodeRequestSchema,
+} from '@flex-thia/contracts/identity/auth';
+import {
   betaInvitationRequestSchema,
   betaInvitationResponseSchema,
-  confirmEmailLinkRequestSchema,
+  managedIdentityUserResponseSchema,
+  userManagementListResponseSchema,
+  userStatusUpdateRequestSchema,
+} from '@flex-thia/contracts/identity/user-management';
+import {
   contentImportDetailResponseSchema,
   contentImportIdPathSchema,
   contentImportListQuerySchema,
   contentImportListResponseSchema,
   contentImportRequestSchema,
-  emailAuthenticationChallengeResponseSchema,
+} from '@flex-thia/contracts/admin/content-imports';
+import {
   healthResponseSchema,
-  managedIdentityUserResponseSchema,
-  meResponseSchema,
-  mfaRequiredResponseSchema,
-  problemDetailsSchema,
+  readinessResponseSchema,
+} from '@flex-thia/contracts/health/status';
+import { problemDetailsSchema } from '@flex-thia/contracts/common/problem';
+import {
   questionAttemptListQuerySchema,
   questionAttemptListResponseSchema,
   questionDetailResponseSchema,
   questionIdPathSchema,
   questionListQuerySchema,
   questionListResponseSchema,
-  readinessResponseSchema,
-  startEmailAuthenticationRequestSchema,
   submitQuestionAttemptRequestSchema,
   submitQuestionAttemptResponseSchema,
-  totpChallengeRequestSchema,
-  totpSetupResponseSchema,
-  totpSetupVerifyRequestSchema,
-  userManagementListResponseSchema,
-  userStatusUpdateRequestSchema,
-  verifyEmailCodeRequestSchema,
+} from '@flex-thia/contracts/learning/questions';
+import {
   vocabularyDetailResponseSchema,
   vocabularyIdPathSchema,
   vocabularyListQuerySchema,
   vocabularyListResponseSchema,
   vocabularyRelatedQuestionsQuerySchema,
   vocabularyRelatedQuestionsResponseSchema,
+} from '@flex-thia/contracts/learning/vocabularies';
+import {
   vocabularyWordbookMembershipResponseSchema,
   wordbookBulkItemsRequestSchema,
   wordbookItemListQuerySchema,
@@ -66,7 +84,7 @@ import {
   wordbookNameRequestSchema,
   wordbookRemoveItemsRequestSchema,
   wordbookResponseSchema,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/learning/wordbooks';
 import { createZodDto } from 'nestjs-zod';
 
 /** 이메일 challenge 시작 요청 Swagger DTO */

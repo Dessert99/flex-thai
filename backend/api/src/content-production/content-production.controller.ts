@@ -20,12 +20,12 @@ import {
   uploadPolicyRequestSchema,
   uploadPolicyResponseSchema,
   type ContentProductionJobDetailResponse,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/content-production/content-production';
 import {
   ContentProductionDomainError,
   ContentProductionPresetError,
   type ContentProductionJob,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/content-production.service';
 import {
   BadRequestException,
   Body,

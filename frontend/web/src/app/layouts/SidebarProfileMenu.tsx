@@ -2,7 +2,11 @@
 import { Link } from '@tanstack/react-router';
 import { Bookmark, ChevronsUpDown, History, Library } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/shared/ui/avatar';
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from '@/shared/components/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,12 +15,12 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/shared/ui/dropdown-menu';
+} from '@/shared/components/dropdown-menu';
 import {
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from '@/shared/ui/sidebar';
+} from '@/shared/components/sidebar';
 
 interface SidebarProfileMenuProps {
   identity: { email: string; role: 'ADMIN' | 'LEARNER' };

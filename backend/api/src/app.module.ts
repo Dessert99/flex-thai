@@ -3,91 +3,89 @@ import { CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-
 import { S3Client } from '@aws-sdk/client-s3';
 import { SESv2Client } from '@aws-sdk/client-sesv2';
 import { SQSClient } from '@aws-sdk/client-sqs';
-import { readApiEnv } from '@flex-thia/config';
+import { readApiEnv } from '@flex-thia/config/api-env';
+import { createDataApiDatabase } from '@flex-thia/database/clients/data-api';
+import { createLocalDatabase } from '@flex-thia/database/clients/local';
+import { DrizzleAdminConceptQuery } from '@flex-thia/database/queries/drizzle-admin-concept.query';
+import { DrizzleAdminHomeQuery } from '@flex-thia/database/queries/drizzle-admin-home.query';
+import { DrizzleAdminQuestionQuery } from '@flex-thia/database/queries/drizzle-admin-question.query';
+import { DrizzleAdminVocabularyQuery } from '@flex-thia/database/queries/drizzle-admin-vocabulary.query';
+import { DrizzleAiQuestionProductionRepository } from '@flex-thia/database/repositories/content-production/drizzle-ai-question-production.repository';
+import { DrizzleAsyncDispatchOutboxRepository } from '@flex-thia/database/repositories/dispatch/drizzle-async-dispatch-outbox.repository';
+import { DrizzleAuditLogQuery } from '@flex-thia/database/queries/drizzle-audit-log.query';
+import { DrizzleConceptAdminRepository } from '@flex-thia/database/repositories/drizzle-concept-admin.repository';
+import { DrizzleConceptErrorReportTargetLookup } from '@flex-thia/database/queries/drizzle-concept-error-report-target.lookup';
+import { DrizzleContentDraftRepository } from '@flex-thia/database/repositories/drizzle-content-draft.repository';
+import { DrizzleContentErrorReportQuery } from '@flex-thia/database/queries/drizzle-content-error-report.query';
+import { DrizzleContentErrorReportRepository } from '@flex-thia/database/repositories/drizzle-content-error-report.repository';
+import { DrizzleContentImportQuery } from '@flex-thia/database/queries/drizzle-content-import.query';
+import { DrizzleContentImportRepository } from '@flex-thia/database/repositories/drizzle-content-import.repository';
 import {
-  createDataApiDatabase,
-  createLocalDatabase,
-  DrizzleAdminConceptQuery,
-  DrizzleAdminHomeQuery,
-  DrizzleAdminQuestionQuery,
-  DrizzleAdminVocabularyQuery,
-  DrizzleAiQuestionProductionRepository,
-  DrizzleAsyncDispatchOutboxRepository,
-  DrizzleAuditLogQuery,
-  DrizzleConceptAdminRepository,
-  DrizzleConceptErrorReportTargetLookup,
-  DrizzleContentDraftRepository,
-  DrizzleContentErrorReportQuery,
-  DrizzleContentErrorReportRepository,
-  DrizzleContentImportQuery,
-  DrizzleContentImportRepository,
   DrizzleContentProductionPresetCatalog,
   DrizzleContentProductionRepository,
-  DrizzleEmailChallengeRepository,
-  DrizzleGeneratedQuestionDraftRepository,
-  DrizzleLearnerConceptQuery,
-  DrizzleLearnerQuestionQuery,
-  DrizzleLearnerVocabularyQuery,
-  DrizzleLearningRepository,
-  DrizzleOperationsCostSettingsRepository,
-  DrizzleQuestionAdminRepository,
-  DrizzleQuestionCandidateQuery,
-  DrizzleQuestionProductionContextQuery,
-  DrizzleQuestionPublicationRepository,
-  DrizzleQuestionTaxonomyQuery,
-  DrizzleQuestionTaxonomyRepository,
-  DrizzleReadinessProbe,
-  DrizzleRecommendationQuery,
-  DrizzleUploadRepository,
-  DrizzleUsageCostOperationsQuery,
-  DrizzleUserManagementQuery,
-  DrizzleUserRepository,
-  DrizzleVocabularyAdminRepository,
-  DrizzleVocabularyCandidateQuery,
-  DrizzleVocabularyCandidateReviewRepository,
-  DrizzleVocabularyPracticeQuery,
-  DrizzleVocabularyPracticeRepository,
-  DrizzleVocabularyProductionLookup,
-  DrizzleWordbookQuery,
-  DrizzleWordbookRepository,
-} from '@flex-thia/database';
+} from '@flex-thia/database/repositories/content-production/drizzle-content-production.repository';
+import { DrizzleEmailChallengeRepository } from '@flex-thia/database/repositories/drizzle-email-challenge.repository';
+import { DrizzleGeneratedQuestionDraftRepository } from '@flex-thia/database/repositories/content-production/drizzle-generated-question-draft.repository';
+import { DrizzleLearnerConceptQuery } from '@flex-thia/database/queries/drizzle-learner-concept.query';
+import { DrizzleLearnerQuestionQuery } from '@flex-thia/database/queries/drizzle-learner-question.query';
+import { DrizzleLearnerVocabularyQuery } from '@flex-thia/database/queries/drizzle-learner-vocabulary.query';
+import { DrizzleLearningRepository } from '@flex-thia/database/repositories/drizzle-learning.repository';
+import { DrizzleOperationsCostSettingsRepository } from '@flex-thia/database/repositories/drizzle-operations-cost-settings.repository';
+import { DrizzleQuestionAdminRepository } from '@flex-thia/database/repositories/drizzle-question-admin.repository';
+import { DrizzleQuestionCandidateQuery } from '@flex-thia/database/queries/drizzle-question-candidate.query';
+import { DrizzleQuestionProductionContextQuery } from '@flex-thia/database/queries/drizzle-question-production-context.query';
+import { DrizzleQuestionPublicationRepository } from '@flex-thia/database/repositories/drizzle-question-publication.repository';
+import { DrizzleQuestionTaxonomyQuery } from '@flex-thia/database/queries/drizzle-question-taxonomy.query';
+import { DrizzleQuestionTaxonomyRepository } from '@flex-thia/database/repositories/drizzle-question-taxonomy.repository';
+import { DrizzleReadinessProbe } from '@flex-thia/database/repositories/drizzle-readiness.probe';
+import { DrizzleRecommendationQuery } from '@flex-thia/database/queries/drizzle-recommendation.query';
+import { DrizzleUploadRepository } from '@flex-thia/database/repositories/drizzle-upload.repository';
+import { DrizzleUsageCostOperationsQuery } from '@flex-thia/database/queries/drizzle-usage-cost-operations.query';
+import { DrizzleUserManagementQuery } from '@flex-thia/database/queries/drizzle-user-management.query';
+import { DrizzleUserRepository } from '@flex-thia/database/repositories/drizzle-user.repository';
+import { DrizzleVocabularyAdminRepository } from '@flex-thia/database/repositories/drizzle-vocabulary-admin.repository';
+import { DrizzleVocabularyCandidateQuery } from '@flex-thia/database/queries/content-production/drizzle-vocabulary-candidate.query';
+import { DrizzleVocabularyCandidateReviewRepository } from '@flex-thia/database/repositories/content-production/drizzle-vocabulary-candidate-review.repository';
+import { DrizzleVocabularyPracticeQuery } from '@flex-thia/database/queries/drizzle-vocabulary-practice.query';
+import { DrizzleVocabularyPracticeRepository } from '@flex-thia/database/repositories/drizzle-vocabulary-practice.repository';
+import { DrizzleVocabularyProductionLookup } from '@flex-thia/database/queries/drizzle-vocabulary-production.lookup';
+import { DrizzleWordbookQuery } from '@flex-thia/database/queries/drizzle-wordbook.query';
+import { DrizzleWordbookRepository } from '@flex-thia/database/repositories/drizzle-wordbook.repository';
+import { AuditLogService } from '@flex-thia/domain/operations/audit-log.service';
+import { ConceptService } from '@flex-thia/domain/concepts/concept.service';
+import { ContentDraftService } from '@flex-thia/domain/content-import/content-draft';
+import { ContentErrorReportService } from '@flex-thia/domain/feedback/content-error-report.service';
+import { ContentImportService } from '@flex-thia/domain/content-import/content-import.service';
+import { ContentProductionService } from '@flex-thia/domain/content-production/content-production.service';
+import { IdentityAuthenticationService } from '@flex-thia/domain/identity/authentication.service';
+import { PasswordlessAuthenticationService } from '@flex-thia/domain/identity/passwordless-authentication.service';
+import { QuestionAdminService } from '@flex-thia/domain/questions/question-admin';
+import { QuestionAttemptService } from '@flex-thia/domain/learning/question-attempt';
+import { QuestionCandidateReviewService } from '@flex-thia/domain/content-production/ai-question-production';
+import { QuestionPublicationService } from '@flex-thia/domain/questions/question-publication';
+import { QuestionTaxonomyService } from '@flex-thia/domain/questions/question-taxonomy.service';
+import { SavedContentService } from '@flex-thia/domain/learning/saved-content';
+import { UploadPolicyService } from '@flex-thia/domain/uploads/upload-policy.service';
+import { UserManagementService } from '@flex-thia/domain/identity/user-management';
+import { VocabularyAdminService } from '@flex-thia/domain/vocabulary/vocabulary-admin';
+import { VocabularyCandidateReviewService } from '@flex-thia/domain/content-production/vocabulary-candidate-review';
+import { VocabularyPracticeService } from '@flex-thia/domain/learning/vocabulary-practice';
+import { WordbookService } from '@flex-thia/domain/learning/wordbook';
+import { ChallengeCrypto } from '@flex-thia/providers/crypto/challenge-crypto';
+import { CognitoPasswordlessAuthenticationProvider } from '@flex-thia/providers/identity/cognito-passwordless-authentication.provider';
+import { DeterministicContentProductionProcessor } from '@flex-thia/providers/fakes/deterministic-content-production.processor';
+import { FakeConceptContentValidator } from '@flex-thia/providers/fakes/fake-concept-content.validator';
+import { FakeEmailChallengeSender } from '@flex-thia/providers/fakes/fake-email-challenge.sender';
+import { FakePasswordlessAuthenticationProvider } from '@flex-thia/providers/identity/fake-passwordless-authentication.provider';
+import { LocalContentProductionQueue } from '@flex-thia/providers/fakes/local-content-production.queue';
 import {
-  AuditLogService,
-  ConceptService,
-  ContentDraftService,
-  ContentErrorReportService,
-  ContentImportService,
-  ContentProductionService,
-  IdentityAuthenticationService,
-  PasswordlessAuthenticationService,
-  QuestionAdminService,
-  QuestionAttemptService,
-  QuestionCandidateReviewService,
-  QuestionPublicationService,
-  QuestionTaxonomyService,
-  SavedContentService,
-  UploadPolicyService,
-  UserManagementService,
-  VocabularyAdminService,
-  VocabularyCandidateReviewService,
-  VocabularyPracticeService,
-  WordbookService,
-} from '@flex-thia/domain';
-import {
-  ChallengeCrypto,
-  CognitoPasswordlessAuthenticationProvider,
-  DeterministicContentProductionProcessor,
-  FakeConceptContentValidator,
-  FakeEmailChallengeSender,
-  FakePasswordlessAuthenticationProvider,
-  LocalContentProductionQueue,
   LocalFileUploadProvider,
   resolveLocalUploadDirectory,
-  S3UploadProvider,
-  SesEmailChallengeSender,
-  SqsJobQueue,
-  UnavailableConceptContentValidator,
-} from '@flex-thia/providers';
+} from '@flex-thia/providers/storage/local-file-upload.provider';
+import { S3UploadProvider } from '@flex-thia/providers/aws/s3-upload.provider';
+import { SesEmailChallengeSender } from '@flex-thia/providers/messaging/ses-email-challenge.sender';
+import { SqsJobQueue } from '@flex-thia/providers/aws/sqs-job.queue';
+import { UnavailableConceptContentValidator } from '@flex-thia/providers/validation/unavailable-concept-content.validator';
 import { type DynamicModule, Module } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { AdminModule } from './admin/admin.module.js';

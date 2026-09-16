@@ -1,10 +1,8 @@
 /** local deterministic 후보가 실제 Drizzle DRAFT writer 승인을 통과하는지 검증한다 */
-import { DrizzleGeneratedQuestionDraftRepository } from '@flex-thia/database';
-import type {
-  ContentProductionWorkItem,
-  QuestionProductionContext,
-} from '@flex-thia/domain';
-import { DeterministicContentProductionProcessor } from '@flex-thia/providers';
+import { DrizzleGeneratedQuestionDraftRepository } from '@flex-thia/database/repositories/content-production/drizzle-generated-question-draft.repository';
+import type { ContentProductionWorkItem } from '@flex-thia/domain/content-production/content-production-work-item';
+import type { QuestionProductionContext } from '@flex-thia/domain/content-production/ai-question-production';
+import { DeterministicContentProductionProcessor } from '@flex-thia/providers/fakes/deterministic-content-production.processor';
 import { describe, expect, it, vi } from 'vitest';
 
 const ids = {

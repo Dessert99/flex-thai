@@ -27,7 +27,7 @@ import {
   createQuestionTypeVersionRequestSchema,
   questionTypeApprovedExampleRequestSchema,
   replaceDifficultyCriteriaRequestSchema,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/questions/question-taxonomy-settings';
 import { z } from 'zod';
 import { AdminMfaGuard } from '../identity/admin-mfa.guard.js';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';

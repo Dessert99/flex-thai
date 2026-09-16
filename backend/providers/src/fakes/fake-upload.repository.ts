@@ -1,9 +1,9 @@
 /** S3 없이 업로드 소유권과 검증 상태를 재현하는 in-memory adapter */
+import type { InputType } from '@flex-thia/domain/jobs/job';
 import type {
-  InputType,
   UploadLifecycleRepository,
   UploadRecord,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/uploads/upload.repository';
 
 /** fake upload adapter가 보관하는 검증 record */
 export interface FakeUploadRecord {

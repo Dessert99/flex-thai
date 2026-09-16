@@ -3,7 +3,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import * as schema from '../schema/index.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
 import { DrizzleUserManagementQuery } from './drizzle-user-management.query.js';
 
 const databaseUrl = process.env.USER_AUDIT_TEST_DATABASE_URL;

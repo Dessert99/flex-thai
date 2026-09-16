@@ -1,10 +1,8 @@
 /** 콘텐츠 제작 작업·항목 조건부 전이와 preset 조회를 Drizzle로 구현한다 */
 import type {
   ContentProductionItem,
-  ContentProductionItemSeed,
   ContentProductionJob,
   ContentProductionJobStatus,
-  ContentProductionOperation,
   ContentProductionPresetCatalog,
   ContentProductionPresetSnapshot,
   ContentProductionPresetVersion,
@@ -14,13 +12,17 @@ import type {
   CreateNextContentProductionPresetVersionInput,
   ResolveContentProductionPresetSnapshotInput,
   SetContentProductionPresetEnabledInput,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/content-production.service';
+import type {
+  ContentProductionItemSeed,
+  ContentProductionOperation,
+} from '@flex-thia/domain/content-production/content-production-work-item';
 import {
   CONTENT_PRODUCTION_ITEM_LEASE_MS,
   ContentProductionDomainError,
   ContentProductionPresetError,
   assertContentProductionPresetPurposeParameters,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/content-production.service';
 import {
   and,
   asc,
@@ -41,17 +43,17 @@ import {
   vocabularyProductionCandidates,
   vocabularyProductionValidations,
 } from '../../schema/ai-vocabulary-production.schema.js';
-import * as schema from '../../schema/index.js';
+import { databaseSchema as schema } from '../../schema/databaseSchema.js';
+import { auditLogs } from '../../schema/identity.schema.js';
 import {
-  auditLogs,
   contentProductionPresets,
   jobInputs,
   jobItems,
   jobs,
-  questionTypeVersions,
   uploads,
-  vocabularies,
-} from '../../schema/index.js';
+} from '../../schema/jobs.schema.js';
+import { questionTypeVersions } from '../../schema/questions.schema.js';
+import { vocabularies } from '../../schema/vocabulary.schema.js';
 
 type ContentProductionDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 type ContentProductionExecutor = Pick<ContentProductionDatabase, 'select'>;
@@ -480,7 +482,7 @@ export class DrizzleContentProductionRepository implements ContentProductionRepo
       retryable: boolean;
       errorCode: string | null;
       result?: Record<string, unknown>;
-      artifacts?: import('@flex-thia/domain').VocabularyProductionArtifacts;
+      artifacts?: import('@flex-thia/domain/content-production/ai-vocabulary-production').VocabularyProductionArtifacts;
     },
   ): Promise<boolean> {
     return this.database.transaction(async (transaction) => {

@@ -1,9 +1,9 @@
 /** 운영 개념 외부 검증 미구성을 fail-closed로 처리한다 */
+import type { ConceptContentValidator } from '@flex-thia/domain/concepts/concept-content.validator';
 import type {
-  ConceptContentValidator,
   ConceptValidationCandidate,
   ConceptValidationIssue,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/concepts/concept';
 
 /** 외부 검증기가 준비되기 전 운영 게시를 차단한다 */
 export class UnavailableConceptContentValidator implements ConceptContentValidator {

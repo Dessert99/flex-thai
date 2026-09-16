@@ -1,10 +1,8 @@
 /** 관리자 문제 목록을 route prefetch와 URL 검색값에 연결한다 */
 import { createFileRoute } from '@tanstack/react-router';
-import {
-  adminQuestionListQueryOptions,
-  parseAdminQuestionSearch,
-  QuestionManagementPageContainer,
-} from '@/pages/question-management';
+import { adminQuestionListQueryOptions } from '@/features/learning/apis/question-management/adminQuestionQueries';
+import { parseAdminQuestionSearch } from '@/features/learning/libs/question-management/adminQuestionSearch';
+import { QuestionManagementPage } from '@/pages/QuestionManagementPage';
 
 /** 동일 queryOptions로 intent preload와 Page cache를 공유한다 */
 export const Route = createFileRoute(
@@ -20,7 +18,7 @@ function QuestionManagementRoute() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   return (
-    <QuestionManagementPageContainer
+    <QuestionManagementPage
       onSearchChange={(next) => void navigate({ replace: true, search: next })}
       search={search}
     />

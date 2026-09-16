@@ -1,5 +1,5 @@
 /** root route가 예상하지 못한 render 오류와 취소를 안전하게 복구하는지 검증한다 */
-import { ApiError } from '@/shared/api';
+import { ApiError } from '@/shared/apis/ApiError';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';

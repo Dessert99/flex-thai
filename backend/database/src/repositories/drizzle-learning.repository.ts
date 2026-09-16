@@ -3,20 +3,19 @@ import type {
   InsertQuestionAttemptInput,
   QuestionAttemptRepository,
   QuestionAttemptTransaction,
-  SavedContentRepository,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/learning/question-attempt.repository';
+import type { SavedContentRepository } from '@flex-thia/domain/learning/saved-content.repository';
 import { and, eq, sql } from 'drizzle-orm';
 import { alias, type PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
+import { questionAttempts, savedQuestions } from '../schema/learning.schema.js';
 import {
-  questionAttempts,
   questionOptions,
   questionVersions,
   questions,
-  savedQuestions,
-  users,
-} from '../schema/index.js';
-import * as schema from '../schema/index.js';
+} from '../schema/questions.schema.js';
+import { users } from '../schema/identity.schema.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
 
 type LearningDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 type LearningTransactionSession = Pick<

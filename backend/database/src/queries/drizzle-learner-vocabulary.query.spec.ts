@@ -3,8 +3,9 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import * as schema from '../schema/index.js';
-import { questions, vocabularies } from '../schema/index.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
+import { questions } from '../schema/questions.schema.js';
+import { vocabularies } from '../schema/vocabulary.schema.js';
 import { DrizzleLearnerVocabularyQuery } from './drizzle-learner-vocabulary.query.js';
 import { DrizzleWordbookQuery } from './drizzle-wordbook.query.js';
 

@@ -3,13 +3,13 @@ import { and, eq, isNull } from 'drizzle-orm';
 import type {
   CreateJobCommand,
   Job,
-  JobRepository,
   JobStatus,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/jobs/job';
+import type { JobRepository } from '@flex-thia/domain/jobs/job.repository';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
-import { jobInputs, jobs, uploads } from '../schema/index.js';
-import * as schema from '../schema/index.js';
+import { jobInputs, jobs, uploads } from '../schema/jobs.schema.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
 
 type JobDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 type JobRow = typeof jobs.$inferSelect;
@@ -176,4 +176,3 @@ export class DrizzleJobRepository implements JobRepository {
 }
 
 /** 신규 콘텐츠 제작 adapter를 기존 Job 공개 경계에서 호환 노출한다 */
-export * from './content-production/drizzle-content-production.repository.js';

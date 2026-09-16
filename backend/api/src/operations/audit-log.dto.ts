@@ -4,7 +4,7 @@ import {
   auditLogIdPathSchema,
   auditLogListQuerySchema,
   auditLogListResponseSchema,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/operations/audit-logs';
 import { createZodDto } from 'nestjs-zod';
 
 /** 감사 기록 목록 query DTO */

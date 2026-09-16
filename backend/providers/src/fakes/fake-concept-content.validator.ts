@@ -1,9 +1,9 @@
 /** 로컬 개념 콘텐츠 검증 adapter를 제공한다 */
+import type { ConceptContentValidator } from '@flex-thia/domain/concepts/concept-content.validator';
 import type {
-  ConceptContentValidator,
   ConceptValidationCandidate,
   ConceptValidationIssue,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/concepts/concept';
 
 /** 로컬에서는 결정적 규칙만으로 개념 수동 테스트를 허용한다 */
 export class FakeConceptContentValidator implements ConceptContentValidator {

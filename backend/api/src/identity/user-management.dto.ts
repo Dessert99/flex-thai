@@ -7,7 +7,7 @@ import {
   userManagementListResponseSchema,
   userRoleUpdateRequestSchema,
   userStatusUpdateRequestSchema,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/identity/user-management';
 import { createZodDto } from 'nestjs-zod';
 
 /** 사용자 검색 query DTO */

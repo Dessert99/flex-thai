@@ -4,7 +4,7 @@ import {
   Outlet,
   useRouterState,
 } from '@tanstack/react-router';
-import { LogoutButton } from '@/features/logout';
+import { LogoutButton } from '@/features/identity/components/logout/LogoutButton';
 import { SidebarLayout } from '../../layouts/SidebarLayout';
 import { adminNavigation } from '../../routing/adminNavigation';
 import { learnerNavigation } from '../../routing/learnerNavigation';

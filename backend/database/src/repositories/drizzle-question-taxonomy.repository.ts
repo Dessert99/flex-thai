@@ -5,8 +5,8 @@ import type {
   QuestionMajorCategory,
   QuestionTaxonomyRepository,
   QuestionTypeVersionRecord,
-} from '@flex-thia/domain';
-import { QuestionTaxonomyError } from '@flex-thia/domain';
+} from '@flex-thia/domain/questions/question-taxonomy.repository';
+import { QuestionTaxonomyError } from '@flex-thia/domain/questions/question-taxonomy.service';
 import { and, count, eq, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';

@@ -1,10 +1,8 @@
 /** 문제 후보 UUID 상세 화면과 query prefetch를 연결한다 */
-import { questionCandidatePathSchema } from '@flex-thia/contracts';
+import { questionCandidatePathSchema } from '@flex-thia/contracts/content-production/question-production';
 import { createFileRoute } from '@tanstack/react-router';
-import {
-  questionCandidateQueryOptions,
-  QuestionCandidateDetailPageContainer,
-} from '@/pages/question-candidate-detail';
+import { questionCandidateQueryOptions } from '@/features/content-production/apis/review-question-candidates/questionCandidateApi';
+import { QuestionCandidateDetailPage } from '@/pages/QuestionCandidateDetailPage';
 
 /** 검증된 후보 UUID의 상세 cache를 route와 화면이 공유한다 */
 export const Route = createFileRoute(
@@ -20,5 +18,5 @@ export const Route = createFileRoute(
 
 function QuestionCandidateDetailRoute() {
   const { candidateId } = Route.useParams();
-  return <QuestionCandidateDetailPageContainer candidateId={candidateId} />;
+  return <QuestionCandidateDetailPage candidateId={candidateId} />;
 }

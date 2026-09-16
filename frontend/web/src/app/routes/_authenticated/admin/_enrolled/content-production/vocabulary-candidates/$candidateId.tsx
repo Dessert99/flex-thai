@@ -1,11 +1,9 @@
 /** 어휘 후보 UUID 상세 화면과 query prefetch를 연결한다 */
-import { vocabularyCandidatePathSchema } from '@flex-thia/contracts';
+import { vocabularyCandidatePathSchema } from '@flex-thia/contracts/content-production/vocabulary-candidates';
 import type { QueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import {
-  vocabularyCandidateQueryOptions,
-  VocabularyCandidateDetailPageContainer,
-} from '@/pages/vocabulary-candidate-detail';
+import { vocabularyCandidateQueryOptions } from '@/features/content-production/apis/review-vocabulary-candidate/vocabularyCandidateApi';
+import { VocabularyCandidateDetailPage } from '@/pages/VocabularyCandidateDetailPage';
 
 /** 검증된 어휘 후보 UUID의 상세 cache를 route와 화면이 공유한다 */
 export const Route = createFileRoute(
@@ -28,5 +26,5 @@ function VocabularyCandidateDetailRoute() {
   const { candidateId } = vocabularyCandidatePathSchema.parse(
     Route.useParams(),
   );
-  return <VocabularyCandidateDetailPageContainer candidateId={candidateId} />;
+  return <VocabularyCandidateDetailPage candidateId={candidateId} />;
 }

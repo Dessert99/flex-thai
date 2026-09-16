@@ -581,16 +581,3 @@ export class VocabularyAdminService {
     }
   }
 }
-
-export {
-  assertVocabularyMergePair,
-  createVocabularyMergeFingerprint,
-} from './vocabulary-relations-merge.js';
-export type { VocabularyMergeGraph } from './vocabulary-relations-merge.js';
-export { VocabularyRelationsMergeAdminError } from './vocabulary-relations-merge.service.js';
-export type {
-  CreateVocabularyRelationCommand,
-  UpdateVocabularyRelationCommand,
-  VocabularyRelationsMergeContext,
-} from './vocabulary-relations-merge.service.js';
-export { VocabularyRelationsMergeService };

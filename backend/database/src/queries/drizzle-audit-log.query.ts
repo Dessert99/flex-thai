@@ -4,12 +4,12 @@ import type {
   AuditLogListItem,
   AuditLogListQuery,
   AuditLogQuery,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/operations/audit-log';
 import { and, count, desc, eq, gte, ilike, lte, or } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
-import { auditLogs, users } from '../schema/index.js';
-import * as schema from '../schema/index.js';
+import { auditLogs, users } from '../schema/identity.schema.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
 
 type AuditLogDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 

@@ -5,10 +5,8 @@ import {
   randomInt,
   timingSafeEqual,
 } from 'node:crypto';
-import type {
-  ChallengeCryptoPort,
-  ChallengeSecretsFactory,
-} from '@flex-thia/domain';
+import type { ChallengeCryptoPort } from '@flex-thia/domain/auth/challenge.repository';
+import type { ChallengeSecretsFactory } from '@flex-thia/domain/identity/passwordless-authentication';
 
 /** secret pepper를 섞은 HMAC-SHA256 challenge adapter */
 export class ChallengeCrypto

@@ -36,7 +36,7 @@ import {
   type QuestionDetailResponse,
   type QuestionListResponse,
   type SubmitQuestionAttemptResponse,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/learning/questions';
 import {
   CurrentUser,
   type AuthenticatedUser,

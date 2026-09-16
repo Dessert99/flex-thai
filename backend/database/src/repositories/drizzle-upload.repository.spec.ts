@@ -1,6 +1,6 @@
 /** upload 완료가 PENDING 조건과 실제 S3 size를 함께 저장하게 고정한다 */
 import { describe, expect, it, vi } from 'vitest';
-import { uploads } from '../schema/index.js';
+import { uploads } from '../schema/jobs.schema.js';
 import { DrizzleUploadRepository } from './drizzle-upload.repository.js';
 
 describe('DrizzleUploadRepository', () => {

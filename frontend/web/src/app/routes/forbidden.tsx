@@ -1,6 +1,6 @@
 /** 인증 세션을 변경하지 않는 접근 거부 경로를 정의한다 */
 import { createFileRoute } from '@tanstack/react-router';
-import { ForbiddenPage } from '@/pages/forbidden';
+import { ForbiddenPage } from '@/pages/ForbiddenPage';
 
 /** 서버·route 접근 거부가 이동할 공개 recovery route */
 export const Route = createFileRoute('/forbidden')({

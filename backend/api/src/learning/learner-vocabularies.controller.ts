@@ -19,7 +19,7 @@ import {
   type VocabularyDetailResponse,
   type VocabularyListResponse,
   type VocabularyRelatedQuestionsResponse,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/learning/vocabularies';
 import {
   CurrentUser,
   type AuthenticatedUser,

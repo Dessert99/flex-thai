@@ -106,13 +106,3 @@ export class VocabularyAdminRepositoryError extends Error {
     this.name = 'VocabularyAdminRepositoryError';
   }
 }
-
-export { VocabularyRelationsMergeRepositoryError } from './vocabulary-relations-merge.repository.js';
-export type {
-  VocabularyMeaningOwner,
-  VocabularyMergeMovedCounts,
-  VocabularyMergeStoredResult,
-  VocabularyRelationsMergeRelationWrite,
-  VocabularyRelationsMergeRepository,
-  VocabularyRelationsMergeStoredRelation,
-} from './vocabulary-relations-merge.repository.js';

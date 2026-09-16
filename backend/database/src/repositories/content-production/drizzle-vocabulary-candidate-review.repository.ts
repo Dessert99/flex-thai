@@ -2,14 +2,14 @@
 import {
   assertVocabularyCandidateApproval,
   assertVocabularyCandidateDiscard,
-  createVocabularyDraft,
   VocabularyCandidateReviewError,
   type ApproveVocabularyCandidateInput,
   type DiscardVocabularyCandidateInput,
   type VocabularyCandidateApprovalResult,
   type VocabularyCandidateDiscardResult,
   type VocabularyCandidateReviewRepository,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/vocabulary-candidate-review';
+import { createVocabularyDraft } from '@flex-thia/domain/vocabulary/vocabulary';
 import { and, eq, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
@@ -20,7 +20,7 @@ import {
   vocabularyProductionValidations,
 } from '../../schema/ai-vocabulary-production.schema.js';
 import { auditLogs } from '../../schema/identity.schema.js';
-import * as schema from '../../schema/index.js';
+import { databaseSchema as schema } from '../../schema/databaseSchema.js';
 import {
   vocabularies,
   vocabularyMeaningPronunciations,

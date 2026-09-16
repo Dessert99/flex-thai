@@ -2,7 +2,7 @@
 import type {
   ContentErrorReportCanonicalReference,
   ContentErrorReportSnapshot,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/feedback/content-error-report';
 import { sql } from 'drizzle-orm';
 import {
   check,

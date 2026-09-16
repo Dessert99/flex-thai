@@ -1,6 +1,6 @@
 /** unique constraint 충돌과 Job input transaction 경계를 고정하는 adapter 테스트 */
 import { describe, expect, it, vi } from 'vitest';
-import { jobs } from '../schema/index.js';
+import { jobs } from '../schema/jobs.schema.js';
 import { DrizzleJobRepository } from './drizzle-job.repository.js';
 
 describe('DrizzleJobRepository', () => {

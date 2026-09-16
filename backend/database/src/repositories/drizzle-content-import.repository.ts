@@ -8,17 +8,17 @@ import type {
   ContentImportRepository,
   ContentImportStoredItem,
   SaveRejectedContentImportItemInput,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-import/content-import.repository';
 import { and, eq, isNull } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import { DrizzleContentImportQuery } from '../queries/drizzle-content-import.query.js';
+import { auditLogs } from '../schema/identity.schema.js';
 import {
-  auditLogs,
   contentImportItems,
   contentImports,
-} from '../schema/index.js';
-import * as schema from '../schema/index.js';
+} from '../schema/content-import.schema.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
 
 type ContentImportDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 type ContentImportSession = Pick<

@@ -1,10 +1,8 @@
 /** 검증된 단어장 UUID와 검색값을 상세 Page에 연결한다 */
-import { wordbookIdPathSchema } from '@flex-thia/contracts';
+import { wordbookIdPathSchema } from '@flex-thia/contracts/learning/wordbooks';
 import { createFileRoute } from '@tanstack/react-router';
-import {
-  parseWordbookDetailSearch,
-  WordbookDetailPageContainer,
-} from '@/pages/wordbook-detail';
+import { parseWordbookDetailSearch } from '@/features/learning/libs/wordbook-detail/wordbookDetailSearch';
+import { WordbookDetailPage } from '@/pages/WordbookDetailPage';
 
 /** 계약 UUID와 검색값만 상세 Query에 전달한다 */
 export const Route = createFileRoute(
@@ -20,7 +18,7 @@ function WordbookDetailRoute() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   return (
-    <WordbookDetailPageContainer
+    <WordbookDetailPage
       onSearchChange={(next) => void navigate({ replace: true, search: next })}
       search={search}
       wordbookId={wordbookId}

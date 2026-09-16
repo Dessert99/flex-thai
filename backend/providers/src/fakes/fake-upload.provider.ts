@@ -1,10 +1,10 @@
 /** S3 없이 presigned policy와 object 검사 결과를 제공한다 */
+import type { InputType } from '@flex-thia/domain/jobs/job';
 import type {
-  InputType,
   UploadInspection,
   UploadPolicy,
   UploadStorage,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/uploads/upload-policy.service';
 
 /** 선언 metadata 또는 테스트 fixture로 object 검사를 재현하는 local storage */
 export class FakeUploadProvider implements UploadStorage {

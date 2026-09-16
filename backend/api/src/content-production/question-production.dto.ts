@@ -9,7 +9,7 @@ import {
   questionCandidatePathSchema,
   regenerateQuestionCandidateRequestSchema,
   regenerateQuestionCandidateResponseSchema,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/content-production/question-production';
 import { createZodDto } from 'nestjs-zod';
 
 /** 후보 목록 query Swagger DTO */

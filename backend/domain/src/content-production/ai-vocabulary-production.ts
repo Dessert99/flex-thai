@@ -409,9 +409,3 @@ export const evaluateVocabularyCandidate = async (input: {
     ],
   };
 };
-
-export type {
-  VocabularyProductionLookup,
-  VocabularyProductionMatch,
-  VocabularyProductionSuspect,
-};

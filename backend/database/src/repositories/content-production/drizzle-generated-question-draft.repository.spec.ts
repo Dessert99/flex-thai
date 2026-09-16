@@ -1,5 +1,5 @@
 /** 생성 문제 DRAFT adapter의 canonical 참조 검증과 graph insert 경계를 고정한다 */
-import type { GeneratedQuestionPayload } from '@flex-thia/domain';
+import type { GeneratedQuestionPayload } from '@flex-thia/domain/content-production/ai-question-production';
 import { describe, expect, it, vi } from 'vitest';
 import {
   questionOptions,
@@ -7,10 +7,12 @@ import {
   questionTags,
   questionTopics,
   questionTypeVersions,
+} from '../../schema/questions.schema.js';
+import {
   vocabularies,
   vocabularyMeanings,
   vocabularyPronunciations,
-} from '../../schema/index.js';
+} from '../../schema/vocabulary.schema.js';
 import { DrizzleGeneratedQuestionDraftRepository } from './drizzle-generated-question-draft.repository.js';
 
 const IDS = {

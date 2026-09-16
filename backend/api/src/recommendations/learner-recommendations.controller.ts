@@ -7,7 +7,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import type { RecommendationResponse } from '@flex-thia/contracts';
+import type { RecommendationResponse } from '@flex-thia/contracts/recommendations/recommendations';
 import {
   CurrentUser,
   type AuthenticatedUser,

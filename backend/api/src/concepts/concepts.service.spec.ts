@@ -1,4 +1,4 @@
-import { ConceptPersistenceError } from '@flex-thia/database';
+import { ConceptPersistenceError } from '@flex-thia/database/repositories/drizzle-concept-admin.repository';
 import { describe, expect, it, vi } from 'vitest';
 import { ConceptsService } from './concepts.service.js';
 

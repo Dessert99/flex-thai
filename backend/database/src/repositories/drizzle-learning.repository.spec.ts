@@ -2,21 +2,17 @@
 import {
   LearningDomainError,
   QuestionAttemptService,
-  SavedContentService,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/learning/question-attempt';
+import { SavedContentService } from '@flex-thia/domain/learning/saved-content';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import * as schema from '../schema/index.js';
-import {
-  questionAttempts,
-  questionOptions,
-  questions,
-  savedQuestions,
-  users,
-} from '../schema/index.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
+import { questionAttempts, savedQuestions } from '../schema/learning.schema.js';
+import { questionOptions, questions } from '../schema/questions.schema.js';
+import { users } from '../schema/identity.schema.js';
 import {
   DrizzleLearningRepository,
   LearningPersistenceError,

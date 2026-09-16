@@ -6,12 +6,12 @@ import {
   type SubmitVocabularyPracticeAnswerRequest,
   type VocabularyPracticeAnswerResponse,
   type VocabularyPracticeSessionResponse,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/learning/vocabulary-practice';
 import type {
   PracticeCardSnapshot,
   PracticeSessionRecord,
-  VocabularyPracticeService,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/learning/vocabulary-practice.repository';
+import type { VocabularyPracticeService } from '@flex-thia/domain/learning/vocabulary-practice';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import type { ZodType } from 'zod';
 

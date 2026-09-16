@@ -1,5 +1,5 @@
 /** 외부 storage 없이 inputKey별 bytes를 제공하는 local reader */
-import type { ContentProductionInputReader } from '@flex-thia/domain';
+import type { ContentProductionInputReader } from '@flex-thia/domain/content-production/ai-vocabulary-production';
 
 /** 등록된 text fixture를 UTF-8 bytes로 반환한다 */
 export class FakeContentInputReader implements ContentProductionInputReader {

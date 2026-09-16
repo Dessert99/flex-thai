@@ -2,15 +2,17 @@
 import { and, eq, gt, gte, inArray, lt, sql } from 'drizzle-orm';
 import {
   EmailChallengeError,
-  type ChallengeCryptoPort,
   type EmailChallenge,
+} from '@flex-thia/domain/identity/email-challenge';
+import { type ChallengeCryptoPort } from '@flex-thia/domain/auth/challenge.repository';
+import {
   type EmailChallengeRepository,
   type ReservedEmailChallenge,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/identity/email-challenge.repository';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
-import { authChallenges } from '../schema/index.js';
-import * as schema from '../schema/index.js';
+import { authChallenges } from '../schema/identity.schema.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
 
 type EmailChallengeDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 type EmailChallengeRow = typeof authChallenges.$inferSelect;

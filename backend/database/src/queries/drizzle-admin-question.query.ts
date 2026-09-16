@@ -1,11 +1,15 @@
 /** 관리자 문제의 모든 상태·버전·검증·정답 ref를 stable read model로 조회한다 */
-import type { QuestionValidationIssue } from '@flex-thia/domain';
+import type { QuestionValidationIssue } from '@flex-thia/domain/questions/question-version';
 import { and, asc, count, desc, eq, inArray, type SQL, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
-import * as schema from '../schema/index.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
 import {
   expressionOccurrences,
+  thaiSentenceVersions,
+  tokenOccurrences,
+} from '../schema/thai-content.schema.js';
+import {
   questionBlocks,
   questionBlockSentences,
   questionOptions,
@@ -16,9 +20,7 @@ import {
   questionTypeVersions,
   questionVersions,
   questionVersionTags,
-  thaiSentenceVersions,
-  tokenOccurrences,
-} from '../schema/index.js';
+} from '../schema/questions.schema.js';
 
 type AdminQuestionDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 

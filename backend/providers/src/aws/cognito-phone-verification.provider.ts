@@ -6,7 +6,7 @@ import {
   UpdateUserAttributesCommand,
   VerifyUserAttributeCommand,
 } from '@aws-sdk/client-cognito-identity-provider';
-import type { VerifiedPhoneProvider } from '@flex-thia/domain';
+import type { VerifiedPhoneProvider } from '@flex-thia/domain/auth/challenge.repository';
 
 /** access token 소유자의 phone_number만 등록·검증하는 Cognito adapter */
 export class CognitoPhoneVerificationProvider implements VerifiedPhoneProvider {

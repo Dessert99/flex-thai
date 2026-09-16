@@ -1,41 +1,37 @@
 import { AdminContentService } from './admin/admin-content.service.js';
 import { LearnerContentService } from './learning/learner-content.service.js';
 /** root가 학습·관리·운영 기능과 환경별 provider를 조립하는지 검증한다 */
+import { DrizzleAdminHomeQuery } from '@flex-thia/database/queries/drizzle-admin-home.query';
+import { DrizzleAiQuestionProductionRepository } from '@flex-thia/database/repositories/content-production/drizzle-ai-question-production.repository';
 import {
-  DrizzleAdminHomeQuery,
-  DrizzleAiQuestionProductionRepository,
   DrizzleContentProductionPresetCatalog,
   DrizzleContentProductionRepository,
-  DrizzleEmailChallengeRepository,
-  DrizzleOperationsCostSettingsRepository,
-  DrizzleQuestionProductionContextQuery,
-  DrizzleRecommendationQuery,
-  DrizzleUploadRepository,
-  DrizzleUsageCostOperationsQuery,
-  DrizzleUserManagementQuery,
-  DrizzleVocabularyProductionLookup,
-  DrizzleWordbookQuery,
-  DrizzleWordbookRepository,
-} from '@flex-thia/database';
-import {
-  ContentProductionService,
-  IdentityAuthenticationService,
-  PasswordlessAuthenticationService,
-  UserManagementService,
-  WordbookService,
-} from '@flex-thia/domain';
-import {
-  ChallengeCrypto,
-  CognitoPasswordlessAuthenticationProvider,
-  DeterministicContentProductionProcessor,
-  FakeEmailChallengeSender,
-  FakePasswordlessAuthenticationProvider,
-  LocalContentProductionQueue,
-  LocalFileUploadProvider,
-  S3UploadProvider,
-  SesEmailChallengeSender,
-  SqsJobQueue,
-} from '@flex-thia/providers';
+} from '@flex-thia/database/repositories/content-production/drizzle-content-production.repository';
+import { DrizzleEmailChallengeRepository } from '@flex-thia/database/repositories/drizzle-email-challenge.repository';
+import { DrizzleOperationsCostSettingsRepository } from '@flex-thia/database/repositories/drizzle-operations-cost-settings.repository';
+import { DrizzleQuestionProductionContextQuery } from '@flex-thia/database/queries/drizzle-question-production-context.query';
+import { DrizzleRecommendationQuery } from '@flex-thia/database/queries/drizzle-recommendation.query';
+import { DrizzleUploadRepository } from '@flex-thia/database/repositories/drizzle-upload.repository';
+import { DrizzleUsageCostOperationsQuery } from '@flex-thia/database/queries/drizzle-usage-cost-operations.query';
+import { DrizzleUserManagementQuery } from '@flex-thia/database/queries/drizzle-user-management.query';
+import { DrizzleVocabularyProductionLookup } from '@flex-thia/database/queries/drizzle-vocabulary-production.lookup';
+import { DrizzleWordbookQuery } from '@flex-thia/database/queries/drizzle-wordbook.query';
+import { DrizzleWordbookRepository } from '@flex-thia/database/repositories/drizzle-wordbook.repository';
+import { ContentProductionService } from '@flex-thia/domain/content-production/content-production.service';
+import { IdentityAuthenticationService } from '@flex-thia/domain/identity/authentication.service';
+import { PasswordlessAuthenticationService } from '@flex-thia/domain/identity/passwordless-authentication.service';
+import { UserManagementService } from '@flex-thia/domain/identity/user-management';
+import { WordbookService } from '@flex-thia/domain/learning/wordbook';
+import { ChallengeCrypto } from '@flex-thia/providers/crypto/challenge-crypto';
+import { CognitoPasswordlessAuthenticationProvider } from '@flex-thia/providers/identity/cognito-passwordless-authentication.provider';
+import { DeterministicContentProductionProcessor } from '@flex-thia/providers/fakes/deterministic-content-production.processor';
+import { FakeEmailChallengeSender } from '@flex-thia/providers/fakes/fake-email-challenge.sender';
+import { FakePasswordlessAuthenticationProvider } from '@flex-thia/providers/identity/fake-passwordless-authentication.provider';
+import { LocalContentProductionQueue } from '@flex-thia/providers/fakes/local-content-production.queue';
+import { LocalFileUploadProvider } from '@flex-thia/providers/storage/local-file-upload.provider';
+import { S3UploadProvider } from '@flex-thia/providers/aws/s3-upload.provider';
+import { SesEmailChallengeSender } from '@flex-thia/providers/messaging/ses-email-challenge.sender';
+import { SqsJobQueue } from '@flex-thia/providers/aws/sqs-job.queue';
 import { describe, expect, it } from 'vitest';
 import { createApplicationModule } from './app.module.js';
 import { ContentProductionApplicationService } from './content-production/content-production.service.js';

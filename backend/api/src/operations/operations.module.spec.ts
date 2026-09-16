@@ -1,10 +1,8 @@
 /** OperationsModule의 Controller와 service 조립을 검증한다 */
 import type { ValueProvider } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
-import {
-  AuditLogService,
-  type IdentityUserRepository,
-} from '@flex-thia/domain';
+import { AuditLogService } from '@flex-thia/domain/operations/audit-log.service';
+import { type IdentityUserRepository } from '@flex-thia/domain/identity/user.repository';
 import { AdminMfaGuard } from '../identity/admin-mfa.guard.js';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
 import {

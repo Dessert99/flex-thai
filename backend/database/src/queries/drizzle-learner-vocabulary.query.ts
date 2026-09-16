@@ -1,5 +1,5 @@
 /** 현재 게시 어휘와 현재 공개 문제의 어휘 사용처를 읽는다 */
-import { normalizeThaiSearchText } from '@flex-thia/domain';
+import { normalizeThaiSearchText } from '@flex-thia/domain/vocabulary/normalize-thai-search-text';
 import {
   and,
   asc,
@@ -13,10 +13,19 @@ import {
 } from 'drizzle-orm';
 import { alias, type PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
-import * as schema from '../schema/index.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
 import {
   expressionOccurrences,
+  thaiSentenceVersions,
+  tokenOccurrences,
+} from '../schema/thai-content.schema.js';
+import {
   questionAttempts,
+  savedQuestions,
+  wordbookItems,
+  wordbooks,
+} from '../schema/learning.schema.js';
+import {
   questionBlocks,
   questionBlockSentences,
   questionOptions,
@@ -24,16 +33,13 @@ import {
   questionTypes,
   questionTypeVersions,
   questionVersions,
-  savedQuestions,
-  thaiSentenceVersions,
-  tokenOccurrences,
+} from '../schema/questions.schema.js';
+import {
   vocabularies,
   vocabularyMeaningPronunciations,
   vocabularyMeanings,
   vocabularyPronunciations,
-  wordbookItems,
-  wordbooks,
-} from '../schema/index.js';
+} from '../schema/vocabulary.schema.js';
 import { vocabularyMeaningRelations } from '../schema/vocabulary.schema.js';
 import type {
   LearnerQuestionExpressionProjection,

@@ -1,8 +1,6 @@
 /** 로컬 콘텐츠 제작 queue가 실제 항목 상태 전이와 재시도를 끝내는지 검증한다 */
-import {
-  ContentProductionService,
-  type QuestionProductionContext,
-} from '@flex-thia/domain';
+import { ContentProductionService } from '@flex-thia/domain/content-production/content-production.service';
+import { type QuestionProductionContext } from '@flex-thia/domain/content-production/ai-question-production';
 import { describe, expect, it, vi } from 'vitest';
 import { DeterministicContentProductionProcessor } from './deterministic-content-production.processor.js';
 import { FakeContentProductionRepository } from './fake-content-production.repository.js';

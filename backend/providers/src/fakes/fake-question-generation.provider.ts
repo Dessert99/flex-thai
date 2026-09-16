@@ -2,7 +2,7 @@
 import type {
   GeneratedQuestionCandidate,
   QuestionGenerationProvider,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/ai-question-production';
 
 /** exact prompt version fixture를 호출 간 mutation 없이 재생한다 */
 export class FakeQuestionGenerationProvider implements QuestionGenerationProvider {

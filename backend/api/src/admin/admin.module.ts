@@ -1,5 +1,5 @@
 /** 관리자 use case·read model과 인증 guard를 네 HTTP Controller에 조립한다 */
-import type { IdentityUserRepository } from '@flex-thia/domain';
+import type { IdentityUserRepository } from '@flex-thia/domain/identity/user.repository';
 import { type DynamicModule, Module } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AdminMfaGuard } from '../identity/admin-mfa.guard.js';

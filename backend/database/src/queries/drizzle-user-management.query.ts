@@ -10,17 +10,17 @@ import {
   ne,
   sql,
 } from 'drizzle-orm';
+import type { BetaInvitationRepository } from '@flex-thia/domain/identity/user-management';
 import type {
-  BetaInvitationRepository,
   IdentityUserManagementRepository,
   ManagedIdentityUser,
   ManagedIdentityUserChangeResult,
   ManagedIdentityUserListQuery,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/identity/user.repository';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
-import { auditLogs, users } from '../schema/index.js';
-import * as schema from '../schema/index.js';
+import { auditLogs, users } from '../schema/identity.schema.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
 
 type UserManagementDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 type UserRow = typeof users.$inferSelect;

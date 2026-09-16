@@ -13,8 +13,8 @@ import {
   createJobRequestSchema,
   type CreateJobRequest,
   type JobResponse,
-} from '@flex-thia/contracts';
-import type { Job } from '@flex-thia/domain';
+} from '@flex-thia/contracts/jobs';
+import type { Job } from '@flex-thia/domain/jobs/job';
 import {
   CurrentUser,
   type AuthenticatedUser,

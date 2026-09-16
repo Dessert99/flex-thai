@@ -15,7 +15,7 @@ const validResult = {
   vocabularies: [],
 } satisfies Awaited<
   ReturnType<
-    import('@flex-thia/database').DrizzleRecommendationQuery['getForUser']
+    import('@flex-thia/database/queries/drizzle-recommendation.query').DrizzleRecommendationQuery['getForUser']
   >
 >;
 

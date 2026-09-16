@@ -9,7 +9,7 @@ import {
   savedVocabularies,
   wordbookItems,
   wordbooks,
-} from './index.js';
+} from './learning.schema.js';
 
 const questionMigrationSql = readFileSync(
   new URL('../../drizzle/0004_question-publishing.sql', import.meta.url),

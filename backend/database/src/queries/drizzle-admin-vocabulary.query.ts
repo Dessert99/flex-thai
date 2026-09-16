@@ -1,5 +1,5 @@
 /** 관리자 어휘 모든 상태 list/detail과 문장·문제 usage를 private field 없이 조회한다 */
-import { normalizeThaiSearchText } from '@flex-thia/domain';
+import { normalizeThaiSearchText } from '@flex-thia/domain/vocabulary/normalize-thai-search-text';
 import {
   and,
   asc,
@@ -14,19 +14,23 @@ import {
 } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
-import * as schema from '../schema/index.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
 import {
   expressionOccurrences,
+  tokenOccurrences,
+} from '../schema/thai-content.schema.js';
+import {
   questionBlocks,
   questionBlockSentences,
   questionOptions,
   questionVersions,
-  tokenOccurrences,
+} from '../schema/questions.schema.js';
+import {
   vocabularies,
   vocabularyMeaningPronunciations,
   vocabularyMeanings,
   vocabularyPronunciations,
-} from '../schema/index.js';
+} from '../schema/vocabulary.schema.js';
 import { vocabularyMeaningRelations } from '../schema/vocabulary.schema.js';
 
 type AdminVocabularyDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;

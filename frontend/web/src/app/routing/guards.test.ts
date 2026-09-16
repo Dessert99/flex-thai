@@ -1,9 +1,9 @@
 /** 인증·역할·관리자 TOTP enrollment 접근 경계를 검증한다 */
 import type { ParsedLocation } from '@tanstack/react-router';
 import { isRedirect } from '@tanstack/react-router';
-import type { MeResponse } from '@flex-thia/contracts';
+import type { MeResponse } from '@flex-thia/contracts/identity/auth';
 import { describe, expect, it, vi } from 'vitest';
-import type { AuthSessionState } from '@/shared/api';
+import type { AuthSessionState } from '@/shared/apis/auth/authSessionStore';
 import {
   requireAdminEnrollment,
   requireAdminPortal,

@@ -1,19 +1,30 @@
 import {
   assertGeneratedDraftSentenceInput,
   QuestionAdminError,
+} from '@flex-thia/domain/questions/question-admin';
+import {
   QuestionCandidateReviewError,
-  resolveRepresentativeExpressions,
   validateGeneratedQuestionSchema,
+} from '@flex-thia/domain/content-production/ai-question-production';
+import {
+  resolveRepresentativeExpressions,
   validateThaiSentenceVersion,
-  type ContentDraftReference,
-  type GeneratedDraftSentenceInput,
   type ThaiExpressionOccurrenceInput,
   type ThaiTokenOccurrenceInput,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/thai-content/thai-sentence-version';
+import {
+  type ContentDraftReference,
+  type GeneratedDraftSentenceInput,
+} from '@flex-thia/domain/content-import/content-import';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import {
   expressionOccurrences,
+  thaiSentences,
+  thaiSentenceVersions,
+  tokenOccurrences,
+} from '../../schema/thai-content.schema.js';
+import {
   questionBlocks,
   questionBlockSentences,
   questionOptions,
@@ -24,13 +35,12 @@ import {
   questionTypeVersions,
   questionVersions,
   questionVersionTags,
-  thaiSentences,
-  thaiSentenceVersions,
-  tokenOccurrences,
+} from '../../schema/questions.schema.js';
+import {
   vocabularies,
   vocabularyMeanings,
   vocabularyPronunciations,
-} from '../../schema/index.js';
+} from '../../schema/vocabulary.schema.js';
 import type {
   GeneratedQuestionDraftWriter,
   QuestionProductionTransaction,

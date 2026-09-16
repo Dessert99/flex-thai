@@ -8,12 +8,12 @@ import {
   createPresignedPost,
   type PresignedPostOptions,
 } from '@aws-sdk/s3-presigned-post';
+import type { InputType } from '@flex-thia/domain/jobs/job';
 import type {
-  InputType,
   UploadInspection,
   UploadPolicy,
   UploadStorage,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/uploads/upload-policy.service';
 import { PDFDocument } from 'pdf-lib';
 
 type PresignedPostSigner = (

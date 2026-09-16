@@ -1,12 +1,10 @@
 /** 환경별 Identity use case와 HTTP Controller·guard를 조립한다 */
 import { type DynamicModule, Module } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import {
-  IdentityAuthenticationService,
-  type IdentityUserRepository,
-  PasswordlessAuthenticationService,
-  UserManagementService,
-} from '@flex-thia/domain';
+import { IdentityAuthenticationService } from '@flex-thia/domain/identity/authentication.service';
+import { type IdentityUserRepository } from '@flex-thia/domain/identity/user.repository';
+import { PasswordlessAuthenticationService } from '@flex-thia/domain/identity/passwordless-authentication.service';
+import { UserManagementService } from '@flex-thia/domain/identity/user-management';
 import { AdminUserManagementController } from './admin-user-management.controller.js';
 import { AdminMfaGuard } from './admin-mfa.guard.js';
 import { ApplicationRoleGuard } from './application-role.guard.js';

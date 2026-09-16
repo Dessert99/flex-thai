@@ -1,7 +1,5 @@
-import type {
-  IdentityUserRepository,
-  VocabularyPracticeService,
-} from '@flex-thia/domain';
+import type { IdentityUserRepository } from '@flex-thia/domain/identity/user.repository';
+import type { VocabularyPracticeService } from '@flex-thia/domain/learning/vocabulary-practice';
 import { type DynamicModule, Module } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';

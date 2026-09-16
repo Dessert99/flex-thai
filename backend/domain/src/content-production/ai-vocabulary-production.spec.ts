@@ -5,8 +5,8 @@ import {
   readVocabularyProductionPolicy,
   runVocabularyProviderOperation,
   VocabularyProviderCallError,
-  type VocabularyProductionLookup,
 } from './ai-vocabulary-production.js';
+import { type VocabularyProductionLookup } from '../vocabulary/vocabulary-production-lookup.js';
 
 const candidate = {
   thai: ' สวัสดี\u200B ',

@@ -15,20 +15,22 @@ import {
   type ConceptValidationReport,
   type CreateConceptRequest,
   type ReplaceConceptVersionRequest,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/concepts/concepts';
+import { ConceptPersistenceError } from '@flex-thia/database/repositories/drizzle-concept-admin.repository';
 import {
-  ConceptPersistenceError,
   type ConceptSentenceProjection,
-  type DrizzleAdminConceptQuery,
   type DrizzleLearnerConceptQuery,
   type LearnerConceptBlockProjection,
-} from '@flex-thia/database';
+} from '@flex-thia/database/queries/drizzle-learner-concept.query';
+import { type DrizzleAdminConceptQuery } from '@flex-thia/database/queries/drizzle-admin-concept.query';
 import {
   ConceptDomainError,
+  type ConceptService,
+} from '@flex-thia/domain/concepts/concept.service';
+import {
   type ConceptCommandContext,
   type ConceptDraftRecord,
-  type ConceptService,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/concepts/concept.repository';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import type { ZodType } from 'zod';
 

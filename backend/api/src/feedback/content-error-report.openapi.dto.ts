@@ -8,7 +8,7 @@ import {
   contentErrorReportIdPathSchema,
   createContentErrorReportRequestSchema,
   createContentErrorReportResponseSchema,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/feedback/content-error-reports';
 import { createZodDto } from 'nestjs-zod';
 
 /** 신고 생성 요청 DTO */

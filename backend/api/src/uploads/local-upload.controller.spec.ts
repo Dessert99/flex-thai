@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { LocalFileUploadProvider } from '@flex-thia/providers';
+import { LocalFileUploadProvider } from '@flex-thia/providers/storage/local-file-upload.provider';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   localUploadMultipartLimits,

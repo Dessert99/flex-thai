@@ -1,5 +1,5 @@
 /** SNS 비용 없이 관리자 OTP 전송 내용을 기록한다 */
-import type { SmsSender } from '@flex-thia/domain';
+import type { SmsSender } from '@flex-thia/domain/auth/challenge.repository';
 
 /** 성공한 OTP 전송만 in-memory 배열에 남기는 fake SMS sender */
 export class FakeSmsSender implements SmsSender {

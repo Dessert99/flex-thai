@@ -29,7 +29,7 @@ import {
   vocabularyPracticeSessionPathSchema,
   type VocabularyPracticeAnswerResponse,
   type VocabularyPracticeSessionResponse,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/learning/vocabulary-practice';
 import { createZodDto } from 'nestjs-zod';
 import {
   CurrentUser,

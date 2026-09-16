@@ -5,7 +5,7 @@ import type {
   VocabularyProviderFailure,
   VocabularyProviderNormalizedResult,
   VocabularyProviderRunRepository,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/ai-vocabulary-production';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import { jobItems, providerRuns } from '../../schema/jobs.schema.js';

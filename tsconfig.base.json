@@ -15,13 +15,11 @@
     "sourceMap": true,
     "paths": {
       "@/*": ["./frontend/web/src/*"],
-      "@flex-thia/config": ["./backend/config/src/index.ts"],
-      "@flex-thia/contracts": ["./shared/contracts/src/index.ts"],
-      "@flex-thia/database": ["./backend/database/src/index.ts"],
-      "@flex-thia/domain": ["./backend/domain/src/index.ts"],
-      "@flex-thia/providers": ["./backend/providers/src/index.ts"],
-      "@flex-thia/providers/fakes": ["./backend/providers/src/fakes/index.ts"],
-      "@flex-thia/providers/*": ["./backend/providers/src/*"]
+      "@flex-thia/config/*": ["./backend/config/src/*"],
+      "@flex-thia/database/*": ["./backend/database/src/*"],
+      "@flex-thia/domain/*": ["./backend/domain/src/*"],
+      "@flex-thia/providers/*": ["./backend/providers/src/*"],
+      "@flex-thia/contracts/*": ["./shared/contracts/src/*"]
     }
   }
 }

@@ -2,7 +2,7 @@
 import type {
   ExtractedVocabularyCandidate,
   VocabularyExtractionProvider,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/ai-vocabulary-production';
 
 /** exact text fixture에 등록된 후보를 복제해 반환한다 */
 export class FakeVocabularyExtractionProvider implements VocabularyExtractionProvider {

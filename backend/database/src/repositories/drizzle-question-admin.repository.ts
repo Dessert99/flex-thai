@@ -4,14 +4,19 @@ import {
   type QuestionAdminTransaction,
   type QuestionAdminVersionGraph,
   type QuestionAdminVersionSource,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/questions/question-admin.repository';
 import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
-import * as schema from '../schema/index.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
+import { auditLogs } from '../schema/identity.schema.js';
 import {
-  auditLogs,
   expressionOccurrences,
+  thaiSentences,
+  thaiSentenceVersions,
+  tokenOccurrences,
+} from '../schema/thai-content.schema.js';
+import {
   questionBlocks,
   questionBlockSentences,
   questionOptions,
@@ -22,13 +27,12 @@ import {
   questionTypeVersions,
   questionVersions,
   questionVersionTags,
-  thaiSentences,
-  thaiSentenceVersions,
-  tokenOccurrences,
+} from '../schema/questions.schema.js';
+import {
   vocabularies,
   vocabularyMeanings,
   vocabularyPronunciations,
-} from '../schema/index.js';
+} from '../schema/vocabulary.schema.js';
 
 type QuestionAdminDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 type QuestionAdminSession = Pick<

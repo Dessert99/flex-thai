@@ -1,4 +1,4 @@
-/** production 테마와 일관된 canvas 조건을 모든 shared/ui story에 적용한다 */
+/** production 테마와 일관된 canvas 조건을 모든 shared/components story에 적용한다 */
 import type { Preview } from '@storybook/react-vite';
 import '../src/app/styles/theme.css';
 

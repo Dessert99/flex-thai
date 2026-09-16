@@ -10,7 +10,7 @@ import {
   type DiscardQuestionCandidateRequest,
   type QuestionCandidateListQuery,
   type RegenerateQuestionCandidateRequest,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/content-production/question-production';
 import type { ZodType } from 'zod';
 
 type CandidateGroup = 'NORMAL' | 'NEEDS_ATTENTION' | 'FAILED';

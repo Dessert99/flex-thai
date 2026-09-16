@@ -3,9 +3,9 @@ import { randomUUID } from 'node:crypto';
 import type {
   CreateJobCommand,
   Job,
-  JobRepository,
   JobStatus,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/jobs/job';
+import type { JobRepository } from '@flex-thia/domain/jobs/job.repository';
 
 /** 사용자와 요청 ID 복합 key로 idempotency를 재현하는 fake repository */
 export class FakeJobRepository implements JobRepository {

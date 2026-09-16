@@ -4,22 +4,25 @@ import {
   adminQuestionListResponseSchema,
   adminQuestionValidationReportSchema,
   adminQuestionVersionResponseSchema,
-  adminVocabularyDetailResponseSchema,
-  adminVocabularyListResponseSchema,
-  adminVocabularyMergePreviewResponseSchema,
-  adminVocabularyMergeResponseSchema,
-  adminVocabularyRelationSchema,
-  contentImportDetailResponseSchema,
-  contentImportListResponseSchema,
   type AdminQuestionDetailResponse,
   type AdminQuestionListQuery,
   type AdminQuestionListResponse,
   type AdminQuestionValidationReport,
   type AdminQuestionVersionPayload,
   type AdminQuestionVersionResponse,
+} from '@flex-thia/contracts/admin/questions';
+import {
+  adminVocabularyDetailResponseSchema,
+  adminVocabularyListResponseSchema,
   type AdminVocabularyDetailResponse,
   type AdminVocabularyListQuery,
   type AdminVocabularyListResponse,
+  type AdminVocabularyReplaceRequest,
+} from '@flex-thia/contracts/admin/vocabularies';
+import {
+  adminVocabularyMergePreviewResponseSchema,
+  adminVocabularyMergeResponseSchema,
+  adminVocabularyRelationSchema,
   type AdminVocabularyMergeExecuteRequest,
   type AdminVocabularyMergePreviewRequest,
   type AdminVocabularyMergePreviewResponse,
@@ -27,23 +30,22 @@ import {
   type AdminVocabularyRelation,
   type AdminVocabularyRelationCreateRequest,
   type AdminVocabularyRelationUpdateRequest,
-  type AdminVocabularyReplaceRequest,
+} from '@flex-thia/contracts/admin/vocabulary-relations';
+import {
+  contentImportDetailResponseSchema,
+  contentImportListResponseSchema,
   type ContentImportDetailResponse,
   type ContentImportListQuery,
   type ContentImportListResponse,
   type ContentImportRequest,
-} from '@flex-thia/contracts';
-import type {
-  DrizzleAdminQuestionQuery,
-  DrizzleAdminVocabularyQuery,
-  DrizzleContentImportQuery,
-} from '@flex-thia/database';
-import type {
-  ContentImportService,
-  QuestionAdminService,
-  QuestionPublicationService,
-  VocabularyAdminService,
-} from '@flex-thia/domain';
+} from '@flex-thia/contracts/admin/content-imports';
+import type { DrizzleAdminQuestionQuery } from '@flex-thia/database/queries/drizzle-admin-question.query';
+import type { DrizzleAdminVocabularyQuery } from '@flex-thia/database/queries/drizzle-admin-vocabulary.query';
+import type { DrizzleContentImportQuery } from '@flex-thia/database/queries/drizzle-content-import.query';
+import type { ContentImportService } from '@flex-thia/domain/content-import/content-import.service';
+import type { QuestionAdminService } from '@flex-thia/domain/questions/question-admin';
+import type { QuestionPublicationService } from '@flex-thia/domain/questions/question-publication';
+import type { VocabularyAdminService } from '@flex-thia/domain/vocabulary/vocabulary-admin';
 import { NotFoundException } from '@nestjs/common';
 import type { ZodType } from 'zod';
 import type { AuthenticatedUser } from '../common/auth/current-user.decorator.js';

@@ -6,7 +6,10 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import type { ChallengeCryptoPort, StepUpRepository } from '@flex-thia/domain';
+import type {
+  ChallengeCryptoPort,
+  StepUpRepository,
+} from '@flex-thia/domain/auth/challenge.repository';
 import type { AuthenticatedUser } from '../common/auth/current-user.decorator.js';
 import {
   REQUIRED_STEP_UP_KEY,

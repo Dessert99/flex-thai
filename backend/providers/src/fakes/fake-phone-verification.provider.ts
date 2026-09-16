@@ -1,5 +1,5 @@
 /** Cognito 없이 전화번호 등록과 검증 상태를 재현한다 */
-import type { VerifiedPhoneProvider } from '@flex-thia/domain';
+import type { VerifiedPhoneProvider } from '@flex-thia/domain/auth/challenge.repository';
 
 /** 로컬 관리자 전화번호 검증을 외부 SMS 없이 처리한다 */
 export class FakePhoneVerificationProvider implements VerifiedPhoneProvider {

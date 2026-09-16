@@ -5,15 +5,15 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import {
   authSessionStore,
   restoreSession,
-  shouldRetryQuery,
   type AuthSessionState,
   type AuthSessionStore,
-} from '@/shared/api';
+} from '@/shared/apis/auth/authSessionStore';
+import { shouldRetryQuery } from '@/shared/apis/retryPolicy';
 
 import { createAppRouter } from '../router';
-import { Skeleton } from '@/shared/ui/skeleton';
-import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
-import { Button } from '@/shared/ui/button';
+import { Skeleton } from '@/shared/components/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/components/alert';
+import { Button } from '@/shared/components/button';
 
 /** production cache freshness와 자동 재시도 경계를 가진 QueryClient를 생성한다 */
 export function createAppQueryClient(): QueryClient {

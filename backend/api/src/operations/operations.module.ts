@@ -1,11 +1,9 @@
 /** 환경별 감사 기록 read use case와 HTTP Controller를 조립한다 */
 import { type DynamicModule, Module } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import {
-  AuditLogService,
-  type IdentityUserRepository,
-} from '@flex-thia/domain';
-import type { DrizzleAdminHomeQuery } from '@flex-thia/database';
+import { AuditLogService } from '@flex-thia/domain/operations/audit-log.service';
+import { type IdentityUserRepository } from '@flex-thia/domain/identity/user.repository';
+import type { DrizzleAdminHomeQuery } from '@flex-thia/database/queries/drizzle-admin-home.query';
 import { AdminMfaGuard } from '../identity/admin-mfa.guard.js';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
 import {

@@ -1,5 +1,5 @@
 /** 개념 학습 화면에 실제 공개된 오류 신고 대상을 canonical snapshot으로 해석한다 */
-import type { ResolvedContentErrorReportTarget } from '@flex-thia/domain';
+import type { ResolvedContentErrorReportTarget } from '@flex-thia/domain/feedback/content-error-report.repository';
 import { and, asc, eq, isNotNull } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
@@ -10,7 +10,7 @@ import {
   concepts,
   conceptVersions,
 } from '../schema/concepts.schema.js';
-import * as baseSchema from '../schema/index.js';
+import { databaseSchema as baseSchema } from '../schema/databaseSchema.js';
 import {
   thaiSentenceVersions,
   tokenOccurrences,

@@ -1,5 +1,5 @@
 /** Drizzle 콘텐츠 제작 adapter가 stale 상태 전이를 성공처럼 처리하지 않는지 검증한다 */
-import { ContentProductionPresetError } from '@flex-thia/domain';
+import { ContentProductionPresetError } from '@flex-thia/domain/content-production/content-production.service';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import { describe, expect, it, vi } from 'vitest';
 import {

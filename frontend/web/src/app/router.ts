@@ -1,7 +1,7 @@
 /** 생성된 route tree에 애플리케이션 외부 store context를 주입한다 */
 import type { QueryClient } from '@tanstack/react-query';
 import { createRouter } from '@tanstack/react-router';
-import { authSessionStore } from '@/shared/api';
+import { authSessionStore } from '@/shared/apis/auth/authSessionStore';
 import { routeTree } from '../routeTree.gen';
 
 /** 동일 QueryClient를 route loader context와 Router에 연결한다 */

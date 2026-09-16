@@ -3,19 +3,19 @@ import {
   evaluateVocabularyCandidate,
   readVocabularyProductionPolicy,
   runVocabularyProviderOperation,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/ai-vocabulary-production';
 import type {
   ContentOcrProvider,
   ContentProductionInputReader,
-  ContentProductionWorkItem,
   VocabularyCrossValidationProvider,
   VocabularyExtractionProvider,
-  VocabularyProductionLookup,
   VocabularyProductionCandidateRecord,
   VocabularyProductionValidationRecord,
   VocabularyProviderExecution,
   VocabularyProviderRunRepository,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/ai-vocabulary-production';
+import type { ContentProductionWorkItem } from '@flex-thia/domain/content-production/content-production-work-item';
+import type { VocabularyProductionLookup } from '@flex-thia/domain/vocabulary/vocabulary-production-lookup';
 import type { ContentProductionItemOutcome } from './content-production-dispatcher.js';
 
 const executionFor = (

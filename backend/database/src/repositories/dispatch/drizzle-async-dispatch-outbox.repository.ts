@@ -2,7 +2,7 @@
 import type {
   QuestionRegenerationDispatchInput,
   QuestionRegenerationDispatchWriter,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/ai-question-production';
 import { and, asc, eq, gt, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
@@ -11,7 +11,7 @@ import {
   asyncDispatchOutbox,
   type asyncDispatchPayloadKindEnum,
 } from '../../schema/async-dispatch-outbox.schema.js';
-import * as schema from '../../schema/index.js';
+import { databaseSchema as schema } from '../../schema/databaseSchema.js';
 import { jobs } from '../../schema/jobs.schema.js';
 
 type AsyncDispatchPayloadKind =

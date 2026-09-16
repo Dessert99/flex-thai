@@ -13,8 +13,8 @@ import type {
   QuestionProductionValidationRecord,
   QuestionRegenerationDispatchWriter,
   RegenerateQuestionCandidateInput,
-} from '@flex-thia/domain';
-import { QuestionCandidateReviewError } from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/ai-question-production';
+import { QuestionCandidateReviewError } from '@flex-thia/domain/content-production/ai-question-production';
 import { and, eq, gt, isNull, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
@@ -24,7 +24,7 @@ import {
   questionProductionValidations,
 } from '../../schema/ai-question-production.schema.js';
 import { auditLogs } from '../../schema/identity.schema.js';
-import * as schema from '../../schema/index.js';
+import { databaseSchema as schema } from '../../schema/databaseSchema.js';
 import { jobItems, jobs, providerRuns } from '../../schema/jobs.schema.js';
 
 type QuestionProductionDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;

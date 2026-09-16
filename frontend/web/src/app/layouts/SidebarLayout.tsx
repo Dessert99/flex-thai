@@ -18,7 +18,7 @@ import {
   SidebarProvider,
   SidebarRail,
   SidebarTrigger,
-} from '@/shared/ui/sidebar';
+} from '@/shared/components/sidebar';
 
 /** SidebarLayout이 렌더링할 도메인 중립 내비게이션 항목 */
 export interface SidebarLayoutNavigationItem {

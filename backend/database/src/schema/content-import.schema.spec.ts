@@ -9,7 +9,7 @@ import {
   contentImportItemStatusEnum,
   contentImports,
   contentImportStatusEnum,
-} from './index.js';
+} from './content-import.schema.js';
 
 const readMigrationSql = () =>
   readFileSync(

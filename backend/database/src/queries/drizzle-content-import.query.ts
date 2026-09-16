@@ -4,12 +4,15 @@ import type {
   ContentImportFinalStatus,
   ContentImportItemError,
   ContentImportResultItem,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-import/content-import.repository';
 import { and, asc, count, desc, eq, isNotNull, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
-import { contentImportItems, contentImports } from '../schema/index.js';
-import * as schema from '../schema/index.js';
+import {
+  contentImportItems,
+  contentImports,
+} from '../schema/content-import.schema.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
 
 type ContentImportDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 

@@ -12,7 +12,7 @@ import {
   conceptVersionResponseSchema,
   createConceptRequestSchema,
   replaceConceptVersionRequestSchema,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/concepts/concepts';
 import { createZodDto } from 'nestjs-zod';
 
 /** 학습자 개념 목록 query DTO */

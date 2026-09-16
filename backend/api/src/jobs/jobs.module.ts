@@ -1,10 +1,8 @@
 /** Job API가 선택한 repository와 queue adapter를 NestJS에 조립한다 */
 import { DynamicModule, Module } from '@nestjs/common';
-import type {
-  CreateJobService,
-  JobRepository,
-  UploadRepository,
-} from '@flex-thia/domain';
+import type { CreateJobService } from '@flex-thia/domain/jobs/create-job.service';
+import type { JobRepository } from '@flex-thia/domain/jobs/job.repository';
+import type { UploadRepository } from '@flex-thia/domain/uploads/upload.repository';
 import { JobsController } from './jobs.controller.js';
 import { JobsService } from './jobs.service.js';
 

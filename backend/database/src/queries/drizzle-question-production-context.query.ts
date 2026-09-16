@@ -2,11 +2,13 @@
 import type {
   ContentProductionPresetSnapshot,
   QuestionGenerationItemPlan,
+} from '@flex-thia/domain/content-production/content-production.service';
+import type {
   QuestionProductionContext,
   QuestionProductionContextRepository,
   QuestionPromptVocabulary,
-} from '@flex-thia/domain';
-import { projectQuestionPromptApprovedExample } from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/ai-question-production';
+import { projectQuestionPromptApprovedExample } from '@flex-thia/domain/content-production/ai-question-production';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';

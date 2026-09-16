@@ -7,11 +7,13 @@ import {
   expressionOccurrences,
   thaiSentenceVersions,
   tokenOccurrences,
+} from './thai-content.schema.js';
+import {
   vocabularies,
   vocabularyMeaningPronunciations,
   vocabularyMeanings,
   vocabularyPronunciations,
-} from './index.js';
+} from './vocabulary.schema.js';
 
 const migrationSql = readFileSync(
   new URL('../../drizzle/0003_content-foundations.sql', import.meta.url),

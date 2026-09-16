@@ -1,14 +1,14 @@
 /** DB 없이 콘텐츠 제작 작업·항목의 조건부 상태 전이를 재현한다 */
 import { randomUUID } from 'node:crypto';
-import { CONTENT_PRODUCTION_ITEM_LEASE_MS } from '@flex-thia/domain';
+import { CONTENT_PRODUCTION_ITEM_LEASE_MS } from '@flex-thia/domain/content-production/content-production.service';
 import type {
   ContentProductionItem,
-  ContentProductionItemSeed,
   ContentProductionJob,
   ContentProductionJobStatus,
   ContentProductionRepository,
   CreateContentProductionCommand,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/content-production.service';
+import type { ContentProductionItemSeed } from '@flex-thia/domain/content-production/content-production-work-item';
 
 const cloneJob = (job: ContentProductionJob): ContentProductionJob => ({
   ...job,

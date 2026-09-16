@@ -12,7 +12,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import type { ReadinessResponse } from '@flex-thia/contracts';
+import type { ReadinessResponse } from '@flex-thia/contracts/health/status';
 import { ApiProblemResponse } from '../openapi/openapi.decorators.js';
 import {
   ProblemDetailsDto,

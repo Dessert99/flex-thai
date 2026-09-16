@@ -1,25 +1,21 @@
 /** 콘텐츠 제작 AI pipeline을 실행 mode별 실제 DB·provider adapter로 조립한다 */
-import {
-  DrizzleAiQuestionProductionRepository,
-  DrizzleAiVocabularyProductionRepository,
-  DrizzleContentProductionRepository,
-  DrizzlePublishedQuestionSimilarityLookup,
-  DrizzleQuestionProductionContextQuery,
-  DrizzleVocabularyProductionLookup,
-} from '@flex-thia/database';
+import { DrizzleAiQuestionProductionRepository } from '@flex-thia/database/repositories/content-production/drizzle-ai-question-production.repository';
+import { DrizzleAiVocabularyProductionRepository } from '@flex-thia/database/repositories/content-production/drizzle-ai-vocabulary-production.repository';
+import { DrizzleContentProductionRepository } from '@flex-thia/database/repositories/content-production/drizzle-content-production.repository';
+import { DrizzlePublishedQuestionSimilarityLookup } from '@flex-thia/database/queries/drizzle-published-question-similarity.lookup';
+import { DrizzleQuestionProductionContextQuery } from '@flex-thia/database/queries/drizzle-question-production-context.query';
+import { DrizzleVocabularyProductionLookup } from '@flex-thia/database/queries/drizzle-vocabulary-production.lookup';
 import type {
   ContentProductionInputReader,
   ExtractedVocabularyCandidate,
-  GeneratedQuestionCandidate,
-} from '@flex-thia/domain';
-import {
-  FakeContentInputReader,
-  FakeContentOcrProvider,
-  FakeQuestionCrossValidationProvider,
-  FakeQuestionGenerationProvider,
-  FakeVocabularyCrossValidationProvider,
-  FakeVocabularyExtractionProvider,
-} from '@flex-thia/providers';
+} from '@flex-thia/domain/content-production/ai-vocabulary-production';
+import type { GeneratedQuestionCandidate } from '@flex-thia/domain/content-production/ai-question-production';
+import { FakeContentInputReader } from '@flex-thia/providers/fakes/fake-content-input.provider';
+import { FakeContentOcrProvider } from '@flex-thia/providers/fakes/fake-content-ocr.provider';
+import { FakeQuestionCrossValidationProvider } from '@flex-thia/providers/fakes/fake-question-cross-validation.provider';
+import { FakeQuestionGenerationProvider } from '@flex-thia/providers/fakes/fake-question-generation.provider';
+import { FakeVocabularyCrossValidationProvider } from '@flex-thia/providers/fakes/fake-vocabulary-cross-validation.provider';
+import { FakeVocabularyExtractionProvider } from '@flex-thia/providers/fakes/fake-vocabulary-extraction.provider';
 import { AiQuestionProductionProcessor } from './ai-question-production.processor.js';
 import { AiVocabularyProductionProcessor } from './ai-vocabulary-production.processor.js';
 import {

@@ -1,7 +1,7 @@
 /** 검증된 UUID 어휘 상세 Page를 연결한다 */
-import { vocabularyIdPathSchema } from '@flex-thia/contracts';
+import { vocabularyIdPathSchema } from '@flex-thia/contracts/learning/vocabularies';
 import { createFileRoute } from '@tanstack/react-router';
-import { VocabularyDetailPageContainer } from '@/pages/vocabulary-detail';
+import { VocabularyDetailPage } from '@/pages/VocabularyDetailPage';
 
 /** 계약 UUID만 상세 Query에 전달한다 */
 export const Route = createFileRoute(
@@ -13,5 +13,5 @@ export const Route = createFileRoute(
 
 function VocabularyDetailRoute() {
   const { vocabularyId } = Route.useParams();
-  return <VocabularyDetailPageContainer vocabularyId={vocabularyId} />;
+  return <VocabularyDetailPage vocabularyId={vocabularyId} />;
 }

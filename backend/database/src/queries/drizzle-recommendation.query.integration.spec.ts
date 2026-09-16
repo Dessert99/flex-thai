@@ -3,7 +3,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { randomUUID } from 'node:crypto';
 import { Pool, type PoolClient } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import * as schema from '../schema/index.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
 import { DrizzleRecommendationQuery } from './drizzle-recommendation.query.js';
 
 const databaseUrl = process.env.RECOMMENDATION_TEST_DATABASE_URL;

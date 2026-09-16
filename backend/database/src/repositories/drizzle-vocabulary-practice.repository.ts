@@ -8,7 +8,7 @@ import type {
   SubmitPracticeAnswerInput,
   SubmitPracticeAnswerResult,
   VocabularyPracticeRepository,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/learning/vocabulary-practice.repository';
 import { sql, type SQL } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { DrizzleVocabularyPracticeQuery } from '../queries/drizzle-vocabulary-practice.query.js';

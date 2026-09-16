@@ -1,5 +1,5 @@
 /** AI 어휘 후보와 단계별 검증 결과를 attempt별 불변 snapshot으로 저장한다 */
-import type { ExtractedVocabularyMeaning } from '@flex-thia/domain';
+import type { ExtractedVocabularyMeaning } from '@flex-thia/domain/content-production/ai-vocabulary-production';
 import { sql } from 'drizzle-orm';
 import {
   check,

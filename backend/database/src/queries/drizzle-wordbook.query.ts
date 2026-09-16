@@ -1,16 +1,15 @@
 /** 사용자 소유 단어장 목록과 검색 가능한 항목 read model을 제공한다 */
-import { normalizeThaiSearchText } from '@flex-thia/domain';
+import { normalizeThaiSearchText } from '@flex-thia/domain/vocabulary/normalize-thai-search-text';
 import { and, asc, count, desc, eq, inArray, type SQL, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
-import * as schema from '../schema/index.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
 import {
   vocabularies,
   vocabularyMeanings,
   vocabularyPronunciations,
-  wordbookItems,
-  wordbooks,
-} from '../schema/index.js';
+} from '../schema/vocabulary.schema.js';
+import { wordbookItems, wordbooks } from '../schema/learning.schema.js';
 import {
   type LearnerVocabularyPageMetadata,
   type LearnerVocabularySummaryProjection,

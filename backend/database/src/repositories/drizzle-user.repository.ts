@@ -2,13 +2,13 @@
 import { eq } from 'drizzle-orm';
 import type {
   ApplicationUser,
-  IdentityUserRepository,
   UserRepository,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/auth/user.repository';
+import type { IdentityUserRepository } from '@flex-thia/domain/identity/user.repository';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
-import { users } from '../schema/index.js';
-import * as schema from '../schema/index.js';
+import { users } from '../schema/identity.schema.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
 
 type UserDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 type UserRow = typeof users.$inferSelect;

@@ -1,7 +1,7 @@
 /** 콘텐츠 오류 신고 learner/admin Controller와 guard를 조립한다 */
 import { type DynamicModule, Module } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import type { IdentityUserRepository } from '@flex-thia/domain';
+import type { IdentityUserRepository } from '@flex-thia/domain/identity/user.repository';
 import { AdminMfaGuard } from '../identity/admin-mfa.guard.js';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
 import {

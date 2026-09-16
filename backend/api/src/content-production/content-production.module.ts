@@ -4,11 +4,11 @@ import { Reflector } from '@nestjs/core';
 import type {
   ContentProductionPresetCatalog,
   ContentProductionService,
-  IdentityUserRepository,
-  QuestionProductionContextRepository,
-  UploadPolicyService,
-  UploadRepository,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/content-production.service';
+import type { IdentityUserRepository } from '@flex-thia/domain/identity/user.repository';
+import type { QuestionProductionContextRepository } from '@flex-thia/domain/content-production/ai-question-production';
+import type { UploadPolicyService } from '@flex-thia/domain/uploads/upload-policy.service';
+import type { UploadRepository } from '@flex-thia/domain/uploads/upload.repository';
 import { AdminMfaGuard } from '../identity/admin-mfa.guard.js';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
 import {
@@ -30,7 +30,7 @@ import {
   VocabularyCandidateApplicationService,
   type VocabularyCandidateReviewOperations,
 } from './vocabulary-candidates.service.js';
-import type { VocabularyCandidateQuery } from '@flex-thia/domain';
+import type { VocabularyCandidateQuery } from '@flex-thia/domain/content-production/vocabulary-candidate-review';
 
 /** 환경별 콘텐츠 제작 adapter를 주입하기 위한 module 옵션 */
 export interface ContentProductionModuleOptions {

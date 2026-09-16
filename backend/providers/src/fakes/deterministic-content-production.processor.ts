@@ -1,22 +1,24 @@
 /** 실제 DB port를 사용해 비용 없는 콘텐츠 제작 후보를 생성한다 */
+import type { ContentProductionWorkItem } from '@flex-thia/domain/content-production/content-production-work-item';
 import type {
-  ContentProductionWorkItem,
   GeneratedQuestionCandidate,
   GeneratedQuestionSentenceInput,
   QuestionProductionArtifacts,
   QuestionProductionCandidateRepository,
   QuestionProductionContext,
   QuestionProductionContextRepository,
-  VocabularyProductionArtifacts,
-  VocabularyProductionLookup,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/ai-question-production';
+import type { VocabularyProductionArtifacts } from '@flex-thia/domain/content-production/ai-vocabulary-production';
+import type { VocabularyProductionLookup } from '@flex-thia/domain/vocabulary/vocabulary-production-lookup';
 import {
   evaluateVocabularyCandidate,
-  normalizeQuestionProductionValidationRecord,
   readVocabularyProductionPolicy,
+} from '@flex-thia/domain/content-production/ai-vocabulary-production';
+import {
+  normalizeQuestionProductionValidationRecord,
   validateGeneratedQuestionSchema,
   validateQuestionDecisionRules,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/ai-question-production';
 import { createHash } from 'node:crypto';
 
 /** local fake processor가 artifact를 만들 때 필요한 domain repository port 묶음 */

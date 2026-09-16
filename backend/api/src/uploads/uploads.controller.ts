@@ -1,6 +1,7 @@
 /** 인증된 관리자의 private S3 upload policy와 완료 검증을 제공한다 */
 import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
-import { UploadPolicyService, type InputType } from '@flex-thia/domain';
+import { UploadPolicyService } from '@flex-thia/domain/uploads/upload-policy.service';
+import { type InputType } from '@flex-thia/domain/jobs/job';
 import {
   CurrentUser,
   type AuthenticatedUser,

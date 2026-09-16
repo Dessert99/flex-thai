@@ -1,7 +1,7 @@
 /** DB와 무관하게 API 프로세스의 생존 여부를 노출하는 Controller */
 import { Controller, Get } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import type { HealthResponse } from '@flex-thia/contracts';
+import type { HealthResponse } from '@flex-thia/contracts/health/status';
 import { HealthResponseDto } from '../openapi/openapi.dto.js';
 
 /** 배포와 알람에서 API 프로세스 생존을 확인한다 */

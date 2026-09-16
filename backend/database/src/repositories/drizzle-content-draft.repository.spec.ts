@@ -1,40 +1,46 @@
 /** canonical 콘텐츠 draft의 insert 순서·오류 변환·transaction 경계를 고정한다 */
 import { DatabaseErrorException } from '@aws-sdk/client-rds-data';
+import type { CanonicalDraftSentenceInput } from '@flex-thia/domain/content-import/content-import';
 import type {
-  CanonicalDraftSentenceInput,
   ContentDraftTransaction,
-  CreateQuestionDraftCommand,
-  CreateVocabularyDraftCommand,
   ResolvedContentDraftAudit,
   ResolvedContentImportItem,
   ResolvedQuestionDraftGraph,
   ResolvedVocabularyDraftGraph,
-} from '@flex-thia/domain';
-import { ContentDraftService } from '@flex-thia/domain';
+} from '@flex-thia/domain/content-import/content-draft.repository';
+import type {
+  CreateQuestionDraftCommand,
+  CreateVocabularyDraftCommand,
+} from '@flex-thia/domain/content-import/content-draft';
+import { ContentDraftService } from '@flex-thia/domain/content-import/content-draft';
 import { DrizzleQueryError } from 'drizzle-orm/errors';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import * as schema from '../schema/index.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
+import { auditLogs } from '../schema/identity.schema.js';
+import { contentImportItems } from '../schema/content-import.schema.js';
 import {
-  auditLogs,
-  contentImportItems,
   expressionOccurrences,
+  thaiSentences,
+  thaiSentenceVersions,
+  tokenOccurrences,
+} from '../schema/thai-content.schema.js';
+import {
   questionBlocks,
   questionBlockSentences,
   questionOptions,
   questions,
   questionTypeVersions,
   questionVersions,
-  thaiSentences,
-  thaiSentenceVersions,
-  tokenOccurrences,
+} from '../schema/questions.schema.js';
+import {
   vocabularies,
   vocabularyMeaningPronunciations,
   vocabularyMeanings,
   vocabularyPronunciations,
-} from '../schema/index.js';
+} from '../schema/vocabulary.schema.js';
 import {
   ContentDraftPersistenceError,
   DrizzleContentDraftRepository,

@@ -3,7 +3,7 @@ import type {
   ContentProductionPresetSnapshot,
   CreateContentProductionCommand,
   ResolveContentProductionPresetSnapshotInput,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/content-production.service';
 import { describe, expect, it, vi } from 'vitest';
 import {
   ContentProductionApplicationError,

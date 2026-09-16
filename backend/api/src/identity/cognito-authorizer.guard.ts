@@ -6,7 +6,7 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import type { IdentityUserRepository } from '@flex-thia/domain';
+import type { IdentityUserRepository } from '@flex-thia/domain/identity/user.repository';
 import type { AuthenticatedUser } from '../common/auth/current-user.decorator.js';
 
 /** Cognito 검증 모드와 app client 경계를 guard에 전달한다 */

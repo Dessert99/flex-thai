@@ -1,14 +1,10 @@
-import {
-  type DrizzleLearnerQuestionQuery,
-  type DrizzleLearnerVocabularyQuery,
-  type DrizzleWordbookQuery,
-} from '@flex-thia/database';
-import {
-  type IdentityUserRepository,
-  type QuestionAttemptService,
-  type SavedContentService,
-  type WordbookService,
-} from '@flex-thia/domain';
+import { type DrizzleLearnerQuestionQuery } from '@flex-thia/database/queries/drizzle-learner-question.query';
+import { type DrizzleLearnerVocabularyQuery } from '@flex-thia/database/queries/drizzle-learner-vocabulary.query';
+import { type DrizzleWordbookQuery } from '@flex-thia/database/queries/drizzle-wordbook.query';
+import { type IdentityUserRepository } from '@flex-thia/domain/identity/user.repository';
+import { type QuestionAttemptService } from '@flex-thia/domain/learning/question-attempt';
+import { type SavedContentService } from '@flex-thia/domain/learning/saved-content';
+import { type WordbookService } from '@flex-thia/domain/learning/wordbook';
 import { type DynamicModule, Module } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';

@@ -1,12 +1,10 @@
 /** 최초 관리자 지정 입력을 exact Cognito sub 하나로 제한한다 */
 import { randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
-import type { AdminBootstrapRepository } from '@flex-thia/domain';
-import {
-  createDataApiDatabase,
-  createLocalDatabase,
-  DrizzleAdminBootstrapRepository,
-} from '@flex-thia/database';
+import type { AdminBootstrapRepository } from '@flex-thia/domain/auth/user.repository';
+import { createDataApiDatabase } from '@flex-thia/database/clients/data-api';
+import { createLocalDatabase } from '@flex-thia/database/clients/local';
+import { DrizzleAdminBootstrapRepository } from '@flex-thia/database/repositories/drizzle-admin-bootstrap.repository';
 
 /** 이메일·+tag·복수 인자를 거부하고 --sub 값만 추출한다 */
 export const parseBootstrapAdminArgs = (

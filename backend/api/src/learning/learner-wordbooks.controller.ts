@@ -24,8 +24,8 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
+import { vocabularyIdPathSchema } from '@flex-thia/contracts/learning/vocabularies';
 import {
-  vocabularyIdPathSchema,
   wordbookBulkItemsRequestSchema,
   wordbookIdPathSchema,
   wordbookItemListQuerySchema,
@@ -36,7 +36,7 @@ import {
   type WordbookItemListResponse,
   type WordbookListResponse,
   type WordbookResponse,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/learning/wordbooks';
 import {
   CurrentUser,
   type AuthenticatedUser,

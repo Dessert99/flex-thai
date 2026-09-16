@@ -4,12 +4,13 @@ import type {
   WordbookRemoveInput,
   WordbookRepository,
   WordbookTransferInput,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/learning/wordbook.repository';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
-import { vocabularies, wordbookItems, wordbooks } from '../schema/index.js';
-import * as schema from '../schema/index.js';
+import { vocabularies } from '../schema/vocabulary.schema.js';
+import { wordbookItems, wordbooks } from '../schema/learning.schema.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
 
 type WordbookDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 type WordbookSession = Pick<

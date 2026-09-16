@@ -3,16 +3,16 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import * as schema from '../schema/index.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
+import { questionAttempts } from '../schema/learning.schema.js';
 import {
-  questionAttempts,
   questionBlocks,
   questionTags,
   questionTopics,
   questionTypes,
   questionVersionTags,
   questions,
-} from '../schema/index.js';
+} from '../schema/questions.schema.js';
 import { DrizzleLearnerQuestionQuery } from './drizzle-learner-question.query.js';
 
 type QueryResult = Array<Record<string, unknown>>;

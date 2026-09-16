@@ -2,9 +2,12 @@
 import { getTableColumns, getTableName } from 'drizzle-orm';
 import { getTableConfig } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
+import { auditLogs } from './identity.schema.js';
 import {
-  auditLogs,
   expressionOccurrences,
+  tokenOccurrenceRoleEnum,
+} from './thai-content.schema.js';
+import {
   questionBlockKindEnum,
   questionBlocks,
   questionBlockSentences,
@@ -25,8 +28,7 @@ import {
   questionVersions,
   questionVersionStatusEnum,
   questionVersionTags,
-  tokenOccurrenceRoleEnum,
-} from './index.js';
+} from './questions.schema.js';
 
 const indexSummaries = (table: Parameters<typeof getTableConfig>[0]) =>
   getTableConfig(table).indexes.map((index) => ({

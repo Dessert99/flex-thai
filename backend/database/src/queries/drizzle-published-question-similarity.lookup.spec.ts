@@ -1,5 +1,5 @@
 /** 게시 문제 문장 graph를 사용하는 결정적 유사도 조회를 검증한다 */
-import type { GeneratedQuestionCandidate } from '@flex-thia/domain';
+import type { GeneratedQuestionCandidate } from '@flex-thia/domain/content-production/ai-question-production';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import { describe, expect, it, vi } from 'vitest';
 import { DrizzlePublishedQuestionSimilarityLookup } from './drizzle-published-question-similarity.lookup.js';

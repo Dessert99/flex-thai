@@ -15,7 +15,7 @@ import { ApiExcludeController } from '@nestjs/swagger';
 import {
   LocalFileUploadError,
   LocalFileUploadProvider,
-} from '@flex-thia/providers';
+} from '@flex-thia/providers/storage/local-file-upload.provider';
 
 type MultipartFile = {
   buffer: Buffer;

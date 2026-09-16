@@ -1,12 +1,12 @@
 /** 로그인 redirect를 승인된 same-origin route와 search 계약으로 제한한다 */
+import { questionCandidateListQuerySchema } from '@flex-thia/contracts/content-production/question-production';
+import { questionListQuerySchema } from '@flex-thia/contracts/learning/questions';
+import { usageCostOverviewQuerySchema } from '@flex-thia/contracts/operations/usage-cost';
+import { vocabularyCandidateListQuerySchema } from '@flex-thia/contracts/content-production/vocabulary-candidates';
 import {
-  questionCandidateListQuerySchema,
-  questionListQuerySchema,
-  usageCostOverviewQuerySchema,
-  vocabularyCandidateListQuerySchema,
   wordbookIdPathSchema,
   wordbookItemListQuerySchema,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/learning/wordbooks';
 
 const approvedStaticPaths = new Set([
   '/',

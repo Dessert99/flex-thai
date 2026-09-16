@@ -1,5 +1,5 @@
 /** 콘텐츠 오류 신고 HTTP facade의 공개 응답과 workflow 위임을 검증한다 */
-import { ContentErrorReportDomainError } from '@flex-thia/domain';
+import { ContentErrorReportDomainError } from '@flex-thia/domain/feedback/content-error-report';
 import { describe, expect, it, vi } from 'vitest';
 import { buildErrorResponse } from '../common/errors/domain-exception.filter.js';
 import { ContentErrorReportHttpService } from './content-error-report.service.js';

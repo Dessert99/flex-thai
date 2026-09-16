@@ -29,6 +29,10 @@ import {
   adminVocabularyListQuerySchema,
   adminVocabularyListResponseSchema,
   adminVocabularyReplaceRequestSchema,
+  type AdminVocabularyDetailResponse,
+  type AdminVocabularyListResponse,
+} from '@flex-thia/contracts/admin/vocabularies';
+import {
   adminVocabularyMergeExecuteRequestSchema,
   adminVocabularyMergePreviewRequestSchema,
   adminVocabularyMergePreviewResponseSchema,
@@ -40,9 +44,7 @@ import {
   type AdminVocabularyMergePreviewResponse,
   type AdminVocabularyMergeResponse,
   type AdminVocabularyRelation,
-  type AdminVocabularyDetailResponse,
-  type AdminVocabularyListResponse,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/admin/vocabulary-relations';
 import {
   CurrentUser,
   type AuthenticatedUser,

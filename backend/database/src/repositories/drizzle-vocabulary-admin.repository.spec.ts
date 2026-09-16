@@ -3,25 +3,25 @@ import { DatabaseErrorException } from '@aws-sdk/client-rds-data';
 import type {
   VocabularyAdminAuditInput,
   VocabularyAdminReplacementGraph,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/vocabulary/vocabulary-admin.repository';
 import {
   VocabularyAdminError,
   VocabularyAdminService,
   type ReplaceVocabularyCommand,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/vocabulary/vocabulary-admin';
 import { DrizzleQueryError } from 'drizzle-orm/errors';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import * as schema from '../schema/index.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
+import { auditLogs } from '../schema/identity.schema.js';
 import {
-  auditLogs,
   vocabularies,
   vocabularyMeaningPronunciations,
   vocabularyMeanings,
   vocabularyPronunciations,
-} from '../schema/index.js';
+} from '../schema/vocabulary.schema.js';
 import {
   DrizzleVocabularyAdminRepository,
   translateVocabularyAdminPersistenceError,

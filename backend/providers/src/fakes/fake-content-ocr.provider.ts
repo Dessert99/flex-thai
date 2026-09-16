@@ -1,5 +1,5 @@
 /** 외부 OCR 없이 PDF·IMAGE bytes를 text로 재현하는 local provider */
-import type { ContentOcrProvider } from '@flex-thia/domain';
+import type { ContentOcrProvider } from '@flex-thia/domain/content-production/ai-vocabulary-production';
 
 /** UTF-8 fixture를 OCR 결과처럼 반환한다 */
 export class FakeContentOcrProvider implements ContentOcrProvider {

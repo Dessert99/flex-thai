@@ -2,9 +2,9 @@
 import { createFileRoute } from '@tanstack/react-router';
 import {
   contentProductionJobsQueryOptions,
-  ContentProductionConsolePageContainer,
   contentProductionPresetsQueryOptions,
-} from '@/pages/content-production-console';
+} from '@/features/content-production/apis/run-content-production/contentProductionApi';
+import { ContentProductionConsolePage } from '@/pages/ContentProductionConsolePage';
 
 /** 등록된 관리자 경계에서 콘텐츠 제작 화면 query를 함께 prefetch한다 */
 export const Route = createFileRoute(
@@ -21,5 +21,5 @@ export const Route = createFileRoute(
 });
 
 function ContentProductionConsoleRoute() {
-  return <ContentProductionConsolePageContainer />;
+  return <ContentProductionConsolePage />;
 }

@@ -31,12 +31,12 @@ import {
   type BetaInvitationResponse,
   type ManagedIdentityUserResponse,
   type UserManagementListResponse,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/identity/user-management';
 import {
   UserManagementService,
-  type ManagedIdentityUser,
   type UserManagementActor,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/identity/user-management';
+import { type ManagedIdentityUser } from '@flex-thia/domain/identity/user.repository';
 import {
   CurrentUser,
   type AuthenticatedUser,

@@ -51,4 +51,3 @@ export interface CreateJobCommand {
 }
 
 /** 신규 콘텐츠 제작 경계를 기존 Job 공개 경계에서 호환 노출한다 */
-export * from '../content-production/index.js';

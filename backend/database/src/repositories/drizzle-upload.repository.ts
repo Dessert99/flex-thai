@@ -3,11 +3,11 @@ import { and, eq, inArray } from 'drizzle-orm';
 import type {
   UploadLifecycleRepository,
   UploadRecord,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/uploads/upload.repository';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
-import { uploads } from '../schema/index.js';
-import * as schema from '../schema/index.js';
+import { uploads } from '../schema/jobs.schema.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
 
 type UploadDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 type UploadRow = typeof uploads.$inferSelect;

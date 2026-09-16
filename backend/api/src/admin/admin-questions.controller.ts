@@ -12,7 +12,7 @@ import {
   type AdminQuestionListResponse,
   type AdminQuestionValidationReport,
   type AdminQuestionVersionResponse,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/admin/questions';
 import {
   Body,
   Controller,

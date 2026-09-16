@@ -2,14 +2,13 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import { describe, expect, it, vi } from 'vitest';
-import * as schema from '../schema/index.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
 import {
   vocabularies,
   vocabularyMeanings,
   vocabularyPronunciations,
-  wordbookItems,
-  wordbooks,
-} from '../schema/index.js';
+} from '../schema/vocabulary.schema.js';
+import { wordbookItems, wordbooks } from '../schema/learning.schema.js';
 import { DrizzleWordbookQuery } from './drizzle-wordbook.query.js';
 
 type QueryResult = Array<Record<string, unknown>>;

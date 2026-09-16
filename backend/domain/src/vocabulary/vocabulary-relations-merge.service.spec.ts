@@ -7,8 +7,8 @@ import type {
 import {
   VocabularyRelationsMergeAdminError,
   VocabularyRelationsMergeService,
-  type VocabularyMergeGraph,
 } from './vocabulary-relations-merge.service.js';
+import { type VocabularyMergeGraph } from './vocabulary-relations-merge.js';
 
 const ids = {
   actor: '00000000-0000-4000-8000-000000000001',

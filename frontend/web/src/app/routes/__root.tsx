@@ -1,6 +1,6 @@
 /** 모든 file route가 공유하는 root Outlet과 복구 경계를 정의한다 */
-import { NotFoundPage } from '@/pages/not-found';
-import { toUserMessage } from '@/shared/lib/error';
+import { NotFoundPage } from '@/pages/NotFoundPage';
+import { toUserMessage } from '@/shared/libs/error/toUserMessage';
 import {
   createRootRouteWithContext,
   Outlet,
@@ -8,8 +8,8 @@ import {
   useRouterState,
 } from '@tanstack/react-router';
 
-import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert';
-import { Button } from '@/shared/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/components/alert';
+import { Button } from '@/shared/components/button';
 import { RouteAnnouncer } from '../routing/RouteAnnouncer';
 import type { RouterContext } from '../routing/routeContext';
 

@@ -3,9 +3,9 @@ import {
   AuthenticationProviderError,
   type AuthenticationProvider,
   type IdentityTokenSet,
-  type PasswordlessAuthenticationProvider,
   type ProviderLoginResult,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/identity/authentication';
+import { type PasswordlessAuthenticationProvider } from '@flex-thia/domain/identity/passwordless-authentication';
 
 /** local fake에 고정할 이메일별 subject와 role */
 export interface FakePasswordlessAccount {

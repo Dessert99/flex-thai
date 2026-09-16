@@ -1,5 +1,5 @@
 /** 로컬 upload provider가 선언 metadata로 서버측 완료 검사를 재현하는지 검증한다 */
-import { UploadPolicyService } from '@flex-thia/domain';
+import { UploadPolicyService } from '@flex-thia/domain/uploads/upload-policy.service';
 import { describe, expect, it } from 'vitest';
 import { FakeUploadProvider } from './fake-upload.provider.js';
 import { FakeUploadRepository } from './fake-upload.repository.js';

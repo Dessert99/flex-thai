@@ -1,11 +1,9 @@
 /** 문제 분류 query·command·guard를 독립 NestJS module로 조립한다 */
 import { type DynamicModule, Module } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import type { DrizzleQuestionTaxonomyQuery } from '@flex-thia/database';
-import type {
-  IdentityUserRepository,
-  QuestionTaxonomyService,
-} from '@flex-thia/domain';
+import type { DrizzleQuestionTaxonomyQuery } from '@flex-thia/database/queries/drizzle-question-taxonomy.query';
+import type { IdentityUserRepository } from '@flex-thia/domain/identity/user.repository';
+import type { QuestionTaxonomyService } from '@flex-thia/domain/questions/question-taxonomy.service';
 import { AdminMfaGuard } from '../identity/admin-mfa.guard.js';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
 import {

@@ -1,10 +1,10 @@
 /** 현재 게시 문제 문장 graph와 생성 후보의 결정적 유사도를 조회한다 */
+import { normalizeThaiSearchText } from '@flex-thia/domain/vocabulary/normalize-thai-search-text';
 import {
-  normalizeThaiSearchText,
   type GeneratedQuestionCandidate,
   type QuestionSimilarityLookup,
   type QuestionSimilarityMatch,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/ai-question-production';
 import { sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
@@ -14,9 +14,9 @@ import {
   questionOptions,
   questions,
   questionVersions,
-  thaiSentenceVersions,
-} from '../schema/index.js';
-import * as schema from '../schema/index.js';
+} from '../schema/questions.schema.js';
+import { thaiSentenceVersions } from '../schema/thai-content.schema.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
 
 type PublishedQuestionSimilarityDatabase = Pick<
   PgDatabase<PgQueryResultHKT, typeof schema>,

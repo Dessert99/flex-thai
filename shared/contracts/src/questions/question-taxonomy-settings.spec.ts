@@ -3,11 +3,11 @@ import { describe, expect, it } from 'vitest';
 import {
   createQuestionTypeRequestSchema,
   createQuestionTypeVersionRequestSchema,
-  questionMajorCategorySchema,
   questionTypeApprovedExampleRequestSchema,
   questionTypeVersionStatusSchema,
   replaceDifficultyCriteriaRequestSchema,
 } from './question-taxonomy-settings.js';
+import { questionMajorCategorySchema } from './question-major-category.js';
 
 const sentence = {
   originalText: 'สวัสดี',

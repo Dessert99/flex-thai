@@ -3,25 +3,25 @@ import type {
   CompleteContentImportInput,
   ContentImportRecord,
   SaveRejectedContentImportItemInput,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-import/content-import.repository';
+import { ContentDraftService } from '@flex-thia/domain/content-import/content-draft';
 import {
-  ContentDraftService,
   ContentImportError,
   ContentImportService,
   hashContentImportRequest,
   type ContentImportCommand,
   type ContentImportRequest,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-import/content-import.service';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import * as schema from '../schema/index.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
+import { auditLogs } from '../schema/identity.schema.js';
 import {
-  auditLogs,
   contentImportItems,
   contentImports,
-} from '../schema/index.js';
+} from '../schema/content-import.schema.js';
 import { DrizzleContentDraftRepository } from './drizzle-content-draft.repository.js';
 import {
   ContentImportPersistenceError,

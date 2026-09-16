@@ -2,8 +2,8 @@
 import {
   adminHomeOperationsResponseSchema,
   type AdminHomeOperationsResponse,
-} from '@flex-thia/contracts';
-import type { DrizzleAdminHomeQuery } from '@flex-thia/database';
+} from '@flex-thia/contracts/operations/admin-home';
+import type { DrizzleAdminHomeQuery } from '@flex-thia/database/queries/drizzle-admin-home.query';
 
 /** 관리자 홈 service가 요구하는 read adapter */
 export interface AdminHomeServiceDependencies {

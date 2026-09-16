@@ -1,6 +1,6 @@
 /** 환경별 upload repository와 S3 provider를 API Controller에 조립한다 */
 import { DynamicModule, Module } from '@nestjs/common';
-import { UploadPolicyService } from '@flex-thia/domain';
+import { UploadPolicyService } from '@flex-thia/domain/uploads/upload-policy.service';
 import { UploadsController } from './uploads.controller.js';
 
 /** local fake와 production S3가 공유하는 upload module 옵션 */

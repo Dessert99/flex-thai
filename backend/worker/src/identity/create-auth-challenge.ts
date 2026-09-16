@@ -4,7 +4,7 @@ import {
   GetSecretValueCommand,
   SecretsManagerClient,
 } from '@aws-sdk/client-secrets-manager';
-import { buildCustomAuthProofMessage } from '@flex-thia/domain';
+import { buildCustomAuthProofMessage } from '@flex-thia/domain/identity/passwordless-authentication';
 
 /** Create Auth Challenge handler가 사용하는 최소 Cognito event */
 export interface CreateAuthChallengeEvent {

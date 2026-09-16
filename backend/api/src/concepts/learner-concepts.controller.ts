@@ -14,7 +14,7 @@ import {
   conceptListQuerySchema,
   type ConceptDetailResponse,
   type ConceptListResponse,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/concepts/concepts';
 import { ApplicationRoleGuard } from '../identity/application-role.guard.js';
 import { CognitoAuthorizerGuard } from '../identity/cognito-authorizer.guard.js';
 import { RequireRole } from '../identity/require-role.decorator.js';

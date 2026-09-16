@@ -10,7 +10,7 @@ import {
 import {
   createContentErrorReportRequestSchema,
   type CreateContentErrorReportResponse,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/feedback/content-error-reports';
 import {
   CurrentUser,
   type AuthenticatedUser,

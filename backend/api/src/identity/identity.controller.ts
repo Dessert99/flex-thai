@@ -41,12 +41,12 @@ import {
   type TotpSetupVerifyInput,
   type VerifyEmailCodeInput,
   verifyEmailCodeRequestSchema,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/identity/auth';
 import {
   IdentityAuthenticationService,
-  PasswordlessAuthenticationService,
   type AuthenticationResult,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/identity/authentication.service';
+import { PasswordlessAuthenticationService } from '@flex-thia/domain/identity/passwordless-authentication.service';
 import {
   CurrentUser,
   type AuthenticatedUser,

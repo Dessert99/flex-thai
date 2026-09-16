@@ -6,7 +6,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import type { AdminHomeOperationsResponse } from '@flex-thia/contracts';
+import type { AdminHomeOperationsResponse } from '@flex-thia/contracts/operations/admin-home';
 import {
   CurrentUser,
   type AuthenticatedUser,

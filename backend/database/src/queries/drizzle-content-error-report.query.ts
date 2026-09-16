@@ -2,14 +2,14 @@
 import type {
   AdminContentErrorReportListQuery,
   AdminContentErrorReportListItem,
-  ContentErrorReport,
   ContentErrorReportDetail,
   ContentErrorReportQuery,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/feedback/content-error-report.query';
+import type { ContentErrorReport } from '@flex-thia/domain/feedback/content-error-report.repository';
 import { and, asc, count, desc, eq, type SQL } from 'drizzle-orm';
 import { alias, type PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
-import * as baseSchema from '../schema/index.js';
+import { databaseSchema as baseSchema } from '../schema/databaseSchema.js';
 import {
   contentErrorReportHistory,
   contentErrorReports,

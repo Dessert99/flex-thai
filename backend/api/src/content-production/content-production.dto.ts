@@ -13,7 +13,7 @@ import {
   setContentProductionPresetEnabledRequestSchema,
   uploadPolicyRequestSchema,
   uploadPolicyResponseSchema,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/content-production/content-production';
 import { createZodDto } from 'nestjs-zod';
 
 /** upload 정책 요청 Swagger DTO */

@@ -3,11 +3,11 @@ import type {
   GeneratedQuestionCandidate,
   QuestionGenerationInput,
   QuestionProductionContext,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/ai-question-production';
 import {
   validateGeneratedQuestionSchema,
   validateQuestionDecisionRules,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/ai-question-production';
 import { describe, expect, it } from 'vitest';
 import { FakeQuestionGenerationProvider } from './fake-question-generation.provider.js';
 

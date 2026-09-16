@@ -8,9 +8,9 @@ import {
   type QuestionTaxonomySettingsResponse,
   type QuestionTypeApprovedExampleRequest,
   type ReplaceDifficultyCriteriaRequest,
-} from '@flex-thia/contracts';
-import type { DrizzleQuestionTaxonomyQuery } from '@flex-thia/database';
-import type { QuestionTaxonomyService } from '@flex-thia/domain';
+} from '@flex-thia/contracts/questions/question-taxonomy-settings';
+import type { DrizzleQuestionTaxonomyQuery } from '@flex-thia/database/queries/drizzle-question-taxonomy.query';
+import type { QuestionTaxonomyService } from '@flex-thia/domain/questions/question-taxonomy.service';
 
 type TaxonomyQuery = Pick<DrizzleQuestionTaxonomyQuery, 'findSettings'>;
 

@@ -1,6 +1,6 @@
 /** 검증된 S3 콘텐츠 제작 object를 exact key·size로 읽는다 */
 import { GetObjectCommand, type S3Client } from '@aws-sdk/client-s3';
-import type { ContentProductionInputReader } from '@flex-thia/domain';
+import type { ContentProductionInputReader } from '@flex-thia/domain/content-production/ai-vocabulary-production';
 
 type BoundedS3Body = AsyncIterable<Uint8Array> & {
   destroy?: () => void;

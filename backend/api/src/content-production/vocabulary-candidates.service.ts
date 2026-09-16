@@ -8,14 +8,14 @@ import {
   type VocabularyCandidateApproveRequest,
   type VocabularyCandidateDiscardRequest,
   type VocabularyCandidateListQuery,
-} from '@flex-thia/contracts';
+} from '@flex-thia/contracts/content-production/vocabulary-candidates';
 import type {
   ApproveVocabularyCandidateInput,
   DiscardVocabularyCandidateInput,
   VocabularyCandidateApprovalResult,
   VocabularyCandidateDiscardResult,
   VocabularyCandidateQuery,
-} from '@flex-thia/domain';
+} from '@flex-thia/domain/content-production/vocabulary-candidate-review';
 import type { ZodType } from 'zod';
 
 /** domain 검수 service가 API 계층에 제공할 구조적 port */
