@@ -27,6 +27,7 @@ export function checkSourceArchitecture(files) {
       ? file.slice(frontendPrefix.length).split('/')
       : [];
     const [layer, feature] = parts;
+    const isTest = /\.test\.tsx?$/.test(file);
     if (layer === 'pages' && parts.length !== 2) {
       violations.push(`${file}: pages에는 조립용 페이지 파일만 둡니다.`);
     }
@@ -68,7 +69,7 @@ export function checkSourceArchitecture(files) {
           );
         }
       }
-      if (layer === 'pages' && ts.isCallExpression(node)) {
+      if (layer === 'pages' && !isTest && ts.isCallExpression(node)) {
         violations.push(
           `${file}: 페이지의 상태·조회·이벤트 처리 로직은 features로 옮기세요.`,
         );
@@ -107,6 +108,7 @@ export function checkSourceArchitecture(files) {
           }
           if (
             layer === 'pages' &&
+            !isTest &&
             targetLayer === 'features' &&
             targetFolder !== 'components'
           ) {

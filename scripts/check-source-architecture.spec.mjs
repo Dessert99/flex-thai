@@ -68,4 +68,27 @@ describe('소스 구조 검사', () => {
       }),
     ).toEqual([]);
   });
+
+  it('페이지 구현의 API 참조는 거부하고 페이지 테스트의 검증 코드는 허용한다', () => {
+    const apiFile = 'frontend/web/src/features/vocabulary/apis/list.ts';
+    const source =
+      "import { list } from '@/features/vocabulary/apis/list'; list();";
+    expect(
+      checkSourceArchitecture({
+        [apiFile]: 'export function list() { return []; }',
+        [pageFile]: source,
+      }),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('상태·조회·이벤트'),
+        expect.stringContaining('컴포넌트만 조립'),
+      ]),
+    );
+    expect(
+      checkSourceArchitecture({
+        [apiFile]: 'export function list() { return []; }',
+        [pageFile.replace('.tsx', '.test.tsx')]: source,
+      }),
+    ).toEqual([]);
+  });
 });
