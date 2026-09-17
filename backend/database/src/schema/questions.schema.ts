@@ -1,22 +1,21 @@
 /** 문제 유형과 불변 문제 버전의 블록·선택지 게시 구조를 저장한다 */
-import type { QuestionValidationIssue } from '@flex-thia/domain/questions/question-version';
+import type { QuestionOption } from '@flex-thia/domain/questions/question';
 import { sql } from 'drizzle-orm';
 import {
-  boolean,
   check,
   foreignKey,
+  index,
   integer,
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
-  unique,
   uniqueIndex,
   uuid,
-  type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
-import { thaiSentenceVersions } from './thai-content.schema.js';
+import { vocabularies, vocabularyMeanings } from './vocabulary.schema.js';
 
 /** 문제의 읽기 시험 영역 */
 export const questionSkillEnum = pgEnum('question_skill', ['READING']);
@@ -212,54 +211,26 @@ export const questionTypeApprovedExamples = pgTable(
   ],
 );
 
-/** 같은 문제의 정체성과 현재 학습자에게 공개할 버전을 관리한다 */
+/** 문제 본문과 현재 버전을 한 행에 저장한다. 과거 풀이는 attempt snapshot에 남긴다. */
 export const questions = pgTable(
   'questions',
   {
     id: uuid('id').defaultRandom().primaryKey(),
-    status: questionStatusEnum('status').default('DRAFT').notNull(),
-    currentPublishedVersionId: uuid('current_published_version_id'),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .defaultNow()
-      .notNull(),
-    updatedAt: timestamp('updated_at', { withTimezone: true })
-      .defaultNow()
-      .notNull(),
-  },
-  (table) => [
-    foreignKey({
-      name: 'questions_current_published_version_fk',
-      columns: [table.id, table.currentPublishedVersionId],
-      foreignColumns: [questionVersions.questionId, questionVersions.id],
-    }).onDelete('restrict'),
-  ],
-);
-
-/** 실제 출제 내용과 검증·게시 결과를 불변 버전으로 보존한다 */
-export const questionVersions = pgTable(
-  'question_versions',
-  {
-    id: uuid('id').defaultRandom().primaryKey(),
-    questionId: uuid('question_id')
-      .references((): AnyPgColumn => questions.id, { onDelete: 'restrict' })
-      .notNull(),
-    version: integer('version').notNull(),
     typeVersionId: uuid('type_version_id')
       .references(() => questionTypeVersions.id, { onDelete: 'restrict' })
       .notNull(),
     topicId: uuid('topic_id')
       .references(() => questionTopics.id, { onDelete: 'restrict' })
       .notNull(),
+    tagIds: uuid('tag_ids').array().default([]).notNull(),
+    passage: text('passage'),
+    prompt: text('prompt').notNull(),
+    options: jsonb('options').$type<QuestionOption[]>().notNull(),
+    correctOptionId: uuid('correct_option_id').notNull(),
+    explanation: text('explanation').notNull(),
     difficulty: integer('difficulty').notNull(),
-    status: questionVersionStatusEnum('status').default('DRAFT').notNull(),
-    validationStatus: questionValidationStatusEnum('validation_status')
-      .default('PENDING')
-      .notNull(),
-    validationIssues: jsonb('validation_issues')
-      .$type<QuestionValidationIssue[]>()
-      .default([])
-      .notNull(),
-    validatedAt: timestamp('validated_at', { withTimezone: true }),
+    version: integer('version').default(1).notNull(),
+    status: questionStatusEnum('status').default('DRAFT').notNull(),
     publishedAt: timestamp('published_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
@@ -269,129 +240,52 @@ export const questionVersions = pgTable(
       .notNull(),
   },
   (table) => [
-    uniqueIndex('question_versions_question_version_unique').on(
-      table.questionId,
-      table.version,
-    ),
-    unique('question_versions_question_id_id_unique').on(
-      table.questionId,
-      table.id,
-    ),
-    check('question_versions_version_positive', sql`${table.version} > 0`),
+    check('questions_version_positive', sql`${table.version} > 0`),
     check(
-      'question_versions_difficulty_range',
+      'questions_difficulty_range',
       sql`${table.difficulty} between 1 and 5`,
     ),
-  ],
-);
-
-/** 문제 버전과 불변 태그 사전의 다대다 연결 */
-export const questionVersionTags = pgTable(
-  'question_version_tags',
-  {
-    questionVersionId: uuid('question_version_id')
-      .references(() => questionVersions.id, { onDelete: 'restrict' })
-      .notNull(),
-    tagId: uuid('tag_id')
-      .references(() => questionTags.id, { onDelete: 'restrict' })
-      .notNull(),
-  },
-  (table) => [
-    unique('question_version_tags_version_tag_unique').on(
-      table.questionVersionId,
-      table.tagId,
-    ),
-  ],
-);
-
-/** 문제 버전 화면의 의미 단위와 표시 순서를 저장한다 */
-export const questionBlocks = pgTable(
-  'question_blocks',
-  {
-    id: uuid('id').defaultRandom().primaryKey(),
-    questionVersionId: uuid('question_version_id')
-      .references(() => questionVersions.id, { onDelete: 'restrict' })
-      .notNull(),
-    kind: questionBlockKindEnum('kind').notNull(),
-    position: integer('position').notNull(),
-  },
-  (table) => [
-    uniqueIndex('question_blocks_version_position_unique').on(
-      table.questionVersionId,
-      table.position,
-    ),
-    check('question_blocks_position_nonnegative', sql`${table.position} >= 0`),
-  ],
-);
-
-/** 블록 안에서 재사용 문장 버전과 선택적 화자 순서를 연결한다 */
-export const questionBlockSentences = pgTable(
-  'question_block_sentences',
-  {
-    id: uuid('id').defaultRandom().primaryKey(),
-    blockId: uuid('block_id')
-      .references(() => questionBlocks.id, { onDelete: 'restrict' })
-      .notNull(),
-    sentenceVersionId: uuid('sentence_version_id')
-      .references(() => thaiSentenceVersions.id, { onDelete: 'restrict' })
-      .notNull(),
-    position: integer('position').notNull(),
-    speaker: text('speaker'),
-  },
-  (table) => [
-    uniqueIndex('question_block_sentences_block_position_unique').on(
-      table.blockId,
-      table.position,
+    check(
+      'questions_options_count',
+      sql`jsonb_typeof(${table.options}) = 'array' and jsonb_array_length(${table.options}) between 2 and 10`,
     ),
     check(
-      'question_block_sentences_position_nonnegative',
-      sql`${table.position} >= 0`,
+      'questions_correct_option_exists',
+      sql`${table.options} @> jsonb_build_array(jsonb_build_object('id', ${table.correctOptionId}::text))`,
     ),
   ],
 );
 
-/** 문제 버전의 선택지 문장·순서와 비공개 정답 여부를 저장한다 */
-export const questionOptions = pgTable(
-  'question_options',
+export const questionVocabularyRoleEnum = pgEnum('question_vocabulary_role', [
+  'TARGET',
+  'CONTEXT',
+]);
+
+/** 현재 문제의 출제 목표·문맥 어휘와 실제 등장 횟수의 원본 기록. */
+export const questionVocabularies = pgTable(
+  'question_vocabularies',
   {
-    id: uuid('id').defaultRandom().primaryKey(),
-    questionVersionId: uuid('question_version_id')
-      .references(() => questionVersions.id, { onDelete: 'restrict' })
+    questionId: uuid('question_id')
+      .references(() => questions.id, { onDelete: 'cascade' })
       .notNull(),
-    sentenceVersionId: uuid('sentence_version_id').references(
-      () => thaiSentenceVersions.id,
-      { onDelete: 'restrict' },
-    ),
-    spanSentenceVersionId: uuid('span_sentence_version_id').references(
-      () => thaiSentenceVersions.id,
-      { onDelete: 'restrict' },
-    ),
-    spanStartTokenIndex: integer('span_start_token_index'),
-    spanEndTokenIndex: integer('span_end_token_index'),
-    position: integer('position').notNull(),
-    isCorrect: boolean('is_correct').default(false).notNull(),
+    vocabularyId: uuid('vocabulary_id')
+      .references(() => vocabularies.id, { onDelete: 'restrict' })
+      .notNull(),
+    meaningId: uuid('meaning_id'),
+    role: questionVocabularyRoleEnum('role').notNull(),
+    occurrenceCount: integer('occurrence_count').notNull(),
   },
   (table) => [
-    uniqueIndex('question_options_version_position_unique').on(
-      table.questionVersionId,
-      table.position,
-    ),
-    unique('question_options_question_version_id_id_unique').on(
-      table.questionVersionId,
-      table.id,
-    ),
-    uniqueIndex('question_options_one_correct_per_version')
-      .on(table.questionVersionId)
-      .where(sql`${table.isCorrect} = true`),
-    check('question_options_position_nonnegative', sql`${table.position} >= 0`),
+    primaryKey({ columns: [table.questionId, table.vocabularyId] }),
+    index('question_vocabularies_vocabulary_idx').on(table.vocabularyId),
+    foreignKey({
+      name: 'question_vocabularies_meaning_owner_fk',
+      columns: [table.meaningId, table.vocabularyId],
+      foreignColumns: [vocabularyMeanings.id, vocabularyMeanings.vocabularyId],
+    }).onDelete('restrict'),
     check(
-      'question_options_sentence_or_span',
-      sql`(${table.sentenceVersionId} is not null and ${table.spanSentenceVersionId} is null and ${table.spanStartTokenIndex} is null and ${table.spanEndTokenIndex} is null)
-        or (${table.sentenceVersionId} is null and ${table.spanSentenceVersionId} is not null and ${table.spanStartTokenIndex} is not null and ${table.spanEndTokenIndex} is not null)`,
-    ),
-    check(
-      'question_options_span_range',
-      sql`${table.spanStartTokenIndex} is null or (${table.spanStartTokenIndex} >= 0 and ${table.spanEndTokenIndex} > ${table.spanStartTokenIndex})`,
+      'question_vocabularies_occurrence_positive',
+      sql`${table.occurrenceCount} > 0`,
     ),
   ],
 );

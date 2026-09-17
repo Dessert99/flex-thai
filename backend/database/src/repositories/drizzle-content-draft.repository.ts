@@ -1,3 +1,4 @@
+import { flattenQuestionDraft } from '@flex-thia/domain/questions/flatten-question-draft';
 import { vocabularyMeaningRows } from './vocabulary-meaning-rows.js';
 /** canonical 콘텐츠 초안 graph·IMPORTED item·audit을 한 Drizzle transaction에 저장한다 */
 import { ContentDraftError } from '@flex-thia/domain/content-import/content-draft';
@@ -11,26 +12,16 @@ import {
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
+import { contentImportItems } from '../schema/content-import.schema.js';
 import { databaseSchema as schema } from '../schema/databaseSchema.js';
 import { auditLogs } from '../schema/identity.schema.js';
-import { contentImportItems } from '../schema/content-import.schema.js';
 import {
-  expressionOccurrences,
-  thaiSentences,
-  thaiSentenceVersions,
-  tokenOccurrences,
-} from '../schema/thai-content.schema.js';
-import {
-  questionBlocks,
-  questionBlockSentences,
-  questionOptions,
   questions,
   questionTags,
   questionTopics,
   questionTypes,
   questionTypeVersions,
-  questionVersions,
-  questionVersionTags,
+  questionVocabularies,
 } from '../schema/questions.schema.js';
 import {
   vocabularies,
@@ -75,22 +66,22 @@ const DATA_API_CONSTRAINTS = [
   {
     code: '23503',
     kind: 'foreign key',
-    name: 'question_versions_type_version_id_question_type_versions_id_fk',
+    name: 'questions_type_version_id_question_type_versions_id_fk',
   },
   {
     code: '23503',
     kind: 'foreign key',
-    name: 'token_occurrences_meaning_vocabulary_fk',
+    name: 'question_vocabularies_meaning_owner_fk',
   },
   {
     code: '23503',
     kind: 'foreign key',
-    name: 'token_occurrences_pronunciation_vocabulary_fk',
+    name: 'question_vocabularies_meaning_owner_fk',
   },
   {
     code: '23503',
     kind: 'foreign key',
-    name: 'token_occurrences_vocabulary_fk',
+    name: 'question_vocabularies_vocabulary_id_vocabularies_id_fk',
   },
   {
     code: '23505',
@@ -223,23 +214,25 @@ const translateQuestionSaveError = (
   if (postgresError?.code === '23503') {
     if (
       postgresError.constraint ===
-      'question_versions_type_version_id_question_type_versions_id_fk'
+      'questions_type_version_id_question_type_versions_id_fk'
     ) {
       throw new ContentDraftError(
         'IMPORT_QUESTION_TYPE_NOT_FOUND',
         'questionTypeSlug',
       );
     }
-    if (postgresError.constraint === 'token_occurrences_vocabulary_fk') {
+    if (
+      postgresError.constraint ===
+      'question_vocabularies_vocabulary_id_vocabularies_id_fk'
+    ) {
       throw new ContentDraftError(
         'IMPORT_REFERENCE_NOT_FOUND',
         'sentences.tokens.vocabulary',
       );
     }
     if (
-      postgresError.constraint === 'token_occurrences_meaning_vocabulary_fk' ||
-      postgresError.constraint ===
-        'token_occurrences_pronunciation_vocabulary_fk'
+      postgresError.constraint === 'question_vocabularies_meaning_owner_fk' ||
+      postgresError.constraint === 'question_vocabularies_meaning_owner_fk'
     ) {
       throw new ContentDraftError(
         'IMPORT_REFERENCE_MISMATCH',
@@ -307,11 +300,6 @@ const saveVocabularyDraft = async (
   }
 };
 
-const comparePosition = (
-  left: { position: number },
-  right: { position: number },
-): number => left.position - right.position;
-
 const saveQuestionDraft = async (
   transaction: ContentDraftSession,
   input: {
@@ -328,50 +316,27 @@ const saveQuestionDraft = async (
     );
   }
 
-  const sentenceVersions = input.graph.sentences.map(({ version }) => version);
-  const tokens = input.graph.sentences.flatMap(({ tokens: sentenceTokens }) =>
-    [...sentenceTokens].sort(comparePosition),
-  );
-  const expressions = input.graph.sentences.flatMap(
-    ({ expressions: sentenceExpressions }) =>
-      [...sentenceExpressions].sort(
-        (left, right) =>
-          left.startTokenIndex - right.startTokenIndex ||
-          left.endTokenIndex - right.endTokenIndex,
-      ),
-  );
-  const blocks = [...input.graph.blocks].sort(comparePosition);
-  const blockSentences = blocks.flatMap(({ sentences }) =>
-    [...sentences].sort(comparePosition),
-  );
-  const options = [...input.graph.options].sort(comparePosition);
-
   try {
-    await transaction.insert(questions).values(input.graph.question);
-    await transaction.insert(questionVersions).values(input.graph.version);
-    if (input.graph.tagIds.length > 0) {
-      await transaction.insert(questionVersionTags).values(
-        input.graph.tagIds.map((tagId) => ({
-          questionVersionId: input.graph.version.id,
-          tagId,
-        })),
-      );
-    }
+    const { vocabularies: usage, ...content } = flattenQuestionDraft(
+      input.graph,
+    );
     await transaction
-      .insert(thaiSentences)
-      .values(input.graph.sentences.map(({ sentence }) => sentence));
-    await transaction.insert(thaiSentenceVersions).values(sentenceVersions);
-    if (tokens.length > 0) {
-      await transaction.insert(tokenOccurrences).values(tokens);
-    }
-    if (expressions.length > 0) {
-      await transaction.insert(expressionOccurrences).values(expressions);
-    }
-    await transaction.insert(questionBlocks).values(blocks);
-    if (blockSentences.length > 0) {
-      await transaction.insert(questionBlockSentences).values(blockSentences);
-    }
-    await transaction.insert(questionOptions).values(options);
+      .insert(questions)
+      .values({
+        ...content,
+        id: input.graph.question.id,
+        status: 'DRAFT',
+        version: 1,
+      });
+    if (usage.length)
+      await transaction
+        .insert(questionVocabularies)
+        .values(
+          usage.map((item) => ({
+            ...item,
+            questionId: input.graph.question.id,
+          })),
+        );
     await transaction.insert(contentImportItems).values(input.item);
     await appendAudit(transaction, input.audit);
   } catch (error) {

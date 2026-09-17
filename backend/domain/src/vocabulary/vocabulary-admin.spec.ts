@@ -117,6 +117,7 @@ const createFake = (
       return Promise.resolve();
     });
   const transaction: VocabularyAdminTransaction = {
+    setImportanceWeight: vi.fn(),
     lockVocabularyGraph,
     findDuplicateVocabularyId,
     hasQuestionUsage,

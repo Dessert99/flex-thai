@@ -15,21 +15,16 @@ import {
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import { databaseSchema as schema } from '../schema/databaseSchema.js';
+import { questions, questionVocabularies } from '../schema/questions.schema.js';
 import {
   expressionOccurrences,
   tokenOccurrences,
 } from '../schema/thai-content.schema.js';
 import {
-  questionBlocks,
-  questionBlockSentences,
-  questionOptions,
-  questionVersions,
-} from '../schema/questions.schema.js';
-import {
   vocabularies,
+  vocabularyMeaningRelations,
   vocabularyMeanings,
 } from '../schema/vocabulary.schema.js';
-import { vocabularyMeaningRelations } from '../schema/vocabulary.schema.js';
 
 type AdminVocabularyDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 
@@ -97,6 +92,7 @@ export interface AdminVocabularyDetailProjection {
   kind: 'WORD' | 'EXPRESSION';
   status: 'DRAFT' | 'PUBLISHED' | 'HIDDEN' | 'MERGED';
   mergedIntoVocabularyId: string | null;
+  importanceWeight: number;
   meanings: AdminVocabularyMeaningProjection[];
   pronunciations: AdminVocabularyPronunciationProjection[];
   meaningPronunciations: AdminVocabularyMeaningPronunciationProjection[];
@@ -112,7 +108,10 @@ export interface AdminVocabularyDetailProjection {
   }>;
   usage: {
     sentenceVersionIds: string[];
-    questionVersionIds: string[];
+    questionIds: string[];
+    questionCount: number;
+    targetQuestionCount: number;
+    occurrenceCount: number;
   };
   createdAt: Date;
   updatedAt: Date;
@@ -210,6 +209,7 @@ export class DrizzleAdminVocabularyQuery {
         kind: vocabularies.kind,
         status: vocabularies.status,
         mergedIntoVocabularyId: vocabularies.mergedIntoVocabularyId,
+        importanceWeight: vocabularies.importanceWeight,
         createdAt: vocabularies.createdAt,
         updatedAt: vocabularies.updatedAt,
       })
@@ -258,34 +258,20 @@ export class DrizzleAdminVocabularyQuery {
         ({ sentenceVersionId }) => sentenceVersionId,
       ),
     ]);
-    const blockQuestionRows = await this.database
-      .select({ questionVersionId: questionVersions.id })
-      .from(questionVersions)
-      .innerJoin(
-        questionBlocks,
-        eq(questionVersions.id, questionBlocks.questionVersionId),
-      )
-      .innerJoin(
-        questionBlockSentences,
-        eq(questionBlocks.id, questionBlockSentences.blockId),
-      )
-      .where(
-        inArray(questionBlockSentences.sentenceVersionId, sentenceVersionIds),
-      )
-      .orderBy(asc(questionVersions.id));
-    const optionQuestionRows = await this.database
-      .select({ questionVersionId: questionVersions.id })
-      .from(questionVersions)
-      .innerJoin(
-        questionOptions,
-        eq(questionVersions.id, questionOptions.questionVersionId),
-      )
-      .where(inArray(questionOptions.sentenceVersionId, sentenceVersionIds))
-      .orderBy(asc(questionVersions.id));
-    const questionVersionIds = uniqueSortedIds([
-      ...blockQuestionRows.map(({ questionVersionId }) => questionVersionId),
-      ...optionQuestionRows.map(({ questionVersionId }) => questionVersionId),
-    ]);
+    const questionUsage = await this.database
+      .select({
+        questionId: questions.id,
+        status: questions.status,
+        role: questionVocabularies.role,
+        occurrenceCount: questionVocabularies.occurrenceCount,
+      })
+      .from(questionVocabularies)
+      .innerJoin(questions, eq(questionVocabularies.questionId, questions.id))
+      .where(eq(questionVocabularies.vocabularyId, vocabularyId))
+      .orderBy(asc(questions.id));
+    const publishedUsage = questionUsage.filter(
+      (item) => item.status === 'PUBLISHED',
+    );
     const meaningIds = meanings.map(({ id }) => id);
     const relations =
       meaningIds.length === 0
@@ -324,7 +310,18 @@ export class DrizzleAdminVocabularyQuery {
       pronunciations,
       meaningPronunciations,
       relations,
-      usage: { sentenceVersionIds, questionVersionIds },
+      usage: {
+        sentenceVersionIds,
+        questionIds: questionUsage.map((item) => item.questionId),
+        questionCount: publishedUsage.length,
+        targetQuestionCount: publishedUsage.filter(
+          (item) => item.role === 'TARGET',
+        ).length,
+        occurrenceCount: publishedUsage.reduce(
+          (total, item) => total + item.occurrenceCount,
+          0,
+        ),
+      },
     };
   }
 }

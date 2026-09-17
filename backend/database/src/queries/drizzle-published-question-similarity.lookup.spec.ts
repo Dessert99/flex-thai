@@ -81,12 +81,10 @@ describe('게시 문제 유사도 조회', () => {
     const compiled = new PgDialect().sqlToQuery(
       execute.mock.calls[0]?.[0] as never,
     );
-    expect(compiled.sql).toContain(
-      '"questions"."current_published_version_id"',
-    );
-    expect(compiled.sql).toContain('"question_versions"."status" = $');
-    expect(compiled.sql).toContain('"question_block_sentences"');
-    expect(compiled.sql).toContain('"question_options"');
+    expect(compiled.sql).toContain('jsonb_array_elements(q.options)');
+    expect(compiled.sql).toContain("q.status = 'PUBLISHED'");
+    expect(compiled.sql).not.toContain('question_block_sentences');
+    expect(compiled.sql).toContain('q.options');
   });
 
   it('limit이 5가 아니면 호출 전에 거절한다', async () => {

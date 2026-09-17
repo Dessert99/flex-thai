@@ -46,6 +46,7 @@ export interface VocabularyAdminAuditInput {
   actorSub: string;
   actorUserId: string;
   action:
+    | 'VOCABULARY_IMPORTANCE_CHANGED'
     | 'VOCABULARY_REPLACED'
     | 'VOCABULARY_PUBLISHED'
     | 'VOCABULARY_HIDDEN'
@@ -71,6 +72,11 @@ export interface VocabularyAdminTransaction {
     normalizedThai: string,
     excludeVocabularyId: string,
   ): Promise<string | null>;
+  setImportanceWeight(
+    vocabularyId: string,
+    importanceWeight: number,
+    updatedAt: Date,
+  ): Promise<void>;
   replaceVocabulary(graph: VocabularyAdminReplacementGraph): Promise<void>;
   transitionVocabularyStatus(input: {
     vocabularyId: string;

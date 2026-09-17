@@ -193,6 +193,14 @@ describe('AI 문제 생성 문맥 조립', () => {
         purpose: 'QUESTION_GENERATION',
         version: 1,
         parameters: {
+          targetVocabulary: [
+            {
+              thai: 'ไทย',
+              meaningKo: '태국',
+              partOfSpeech: '명사',
+              difficulty: 1,
+            },
+          ],
           newAuxiliaryVocabularyLimit: 0,
           similarityThreshold: 0.7,
         },

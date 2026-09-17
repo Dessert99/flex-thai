@@ -18,7 +18,7 @@ export type ContentErrorReportOrigin =
   | {
       kind: 'QUESTION';
       questionId: string;
-      questionVersionId: string;
+      questionVersion: number;
       blockId: string | null;
       sentenceVersionId: string | null;
     }
@@ -45,7 +45,7 @@ export interface ContentErrorReportCanonicalReference {
   kind: ContentErrorReportTargetKind;
   contentId: string;
   contentVersionId: string | null;
-  questionVersionId: string | null;
+  questionVersion: number | null;
   sentenceVersionId: string | null;
   locationId: string | null;
 }

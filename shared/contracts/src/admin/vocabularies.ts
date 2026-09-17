@@ -195,6 +195,7 @@ export const adminVocabularyDetailResponseSchema = z
     thai: z.string().min(1),
     kind: vocabularyKindSchema,
     status: vocabularyStatusSchema,
+    importanceWeight: z.number().int().min(1).max(10),
     mergedIntoVocabularyId: uuidSchema.nullable(),
     meanings: z.array(adminVocabularyMeaningSchema),
     pronunciations: z.array(adminVocabularyPronunciationSchema),
@@ -203,7 +204,10 @@ export const adminVocabularyDetailResponseSchema = z
     usage: z
       .object({
         sentenceVersionIds: z.array(uuidSchema),
-        questionVersionIds: z.array(uuidSchema),
+        questionIds: z.array(uuidSchema),
+        questionCount: z.number().int().nonnegative(),
+        targetQuestionCount: z.number().int().nonnegative(),
+        occurrenceCount: z.number().int().nonnegative(),
       })
       .strict(),
     createdAt: utcDateTimeSchema,
@@ -289,3 +293,8 @@ export type AdminVocabularyListResponse = z.infer<
 export type AdminVocabularyDetailResponse = z.infer<
   typeof adminVocabularyDetailResponseSchema
 >;
+
+/** 게시 여부와 무관하게 관리자가 출제 중요도를 조정한다. */
+export const adminVocabularyImportanceRequestSchema = z
+  .object({ importanceWeight: z.number().int().min(1).max(10) })
+  .strict();

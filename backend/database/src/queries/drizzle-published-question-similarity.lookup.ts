@@ -1,22 +1,15 @@
 /** 현재 게시 문제 문장 graph와 생성 후보의 결정적 유사도를 조회한다 */
-import { normalizeThaiSearchText } from '@flex-thia/domain/vocabulary/normalize-thai-search-text';
 import {
   type GeneratedQuestionCandidate,
   type QuestionSimilarityLookup,
   type QuestionSimilarityMatch,
 } from '@flex-thia/domain/content-production/ai-question-production';
+import { normalizeThaiSearchText } from '@flex-thia/domain/vocabulary/normalize-thai-search-text';
 import { sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
-import {
-  questionBlocks,
-  questionBlockSentences,
-  questionOptions,
-  questions,
-  questionVersions,
-} from '../schema/questions.schema.js';
-import { thaiSentenceVersions } from '../schema/thai-content.schema.js';
 import { databaseSchema as schema } from '../schema/databaseSchema.js';
+import { questions } from '../schema/questions.schema.js';
 
 type PublishedQuestionSimilarityDatabase = Pick<
   PgDatabase<PgQueryResultHKT, typeof schema>,
@@ -106,43 +99,15 @@ export class DrizzlePublishedQuestionSimilarityLookup implements QuestionSimilar
       throw new Error('QUESTION_SIMILARITY_LIMIT_INVALID');
     }
     const result = await this.database.execute(sql`
-      with published_sentence_refs as (
-        select
-          ${questionVersions.id} as question_version_id,
-          ${questionBlockSentences.sentenceVersionId} as sentence_version_id
-        from ${questions}
-        inner join ${questionVersions}
-          on ${questionVersions.questionId} = ${questions.id}
-          and ${questionVersions.id} = ${questions.currentPublishedVersionId}
-        inner join ${questionBlocks}
-          on ${questionBlocks.questionVersionId} = ${questionVersions.id}
-        inner join ${questionBlockSentences}
-          on ${questionBlockSentences.blockId} = ${questionBlocks.id}
-        where ${questions.status} = ${'PUBLISHED'}
-          and ${questionVersions.status} = ${'PUBLISHED'}
-        union
-        select
-          ${questionVersions.id} as question_version_id,
-          coalesce(
-            ${questionOptions.sentenceVersionId},
-            ${questionOptions.spanSentenceVersionId}
-          ) as sentence_version_id
-        from ${questions}
-        inner join ${questionVersions}
-          on ${questionVersions.questionId} = ${questions.id}
-          and ${questionVersions.id} = ${questions.currentPublishedVersionId}
-        inner join ${questionOptions}
-          on ${questionOptions.questionVersionId} = ${questionVersions.id}
-        where ${questions.status} = ${'PUBLISHED'}
-          and ${questionVersions.status} = ${'PUBLISHED'}
-      )
-      select
-        published_sentence_refs.question_version_id as "questionVersionId",
-        ${thaiSentenceVersions.originalText} as "originalText"
-      from published_sentence_refs
-      inner join ${thaiSentenceVersions}
-        on ${thaiSentenceVersions.id} = published_sentence_refs.sentence_version_id
-      order by published_sentence_refs.question_version_id, ${thaiSentenceVersions.id}
+      select q.id as "questionVersionId", content.text as "originalText"
+      from ${questions} q
+      cross join lateral (
+        select q.prompt as text union all select q.passage
+        union all select option->>'text' from jsonb_array_elements(q.options) option
+      ) content
+      where q.status = 'PUBLISHED' and content.text is not null
+      order by q.id, content.text
+
     `);
     return scoreMatches(
       candidate,

@@ -1,5 +1,4 @@
 /** AI 문제 processor가 생성·검증·lease 저장 pipeline과 공개 결과 경계를 지키는지 검증한다 */
-import type { ContentProductionWorkItem } from '@flex-thia/domain/content-production/content-production-work-item';
 import type {
   GeneratedQuestionCandidate,
   QuestionCrossValidationProvider,
@@ -10,6 +9,7 @@ import type {
   QuestionProductionProviderRunRepository,
   QuestionSimilarityLookup,
 } from '@flex-thia/domain/content-production/ai-question-production';
+import type { ContentProductionWorkItem } from '@flex-thia/domain/content-production/content-production-work-item';
 import { describe, expect, it } from 'vitest';
 import { AiQuestionProductionProcessor } from './ai-question-production.processor.js';
 
@@ -343,7 +343,7 @@ describe('AI 문제 제작 processor', () => {
             resultGroup: 'NORMAL',
             reviewStatus: 'PENDING',
             approvedQuestionId: null,
-            approvedQuestionVersionId: null,
+            approvedQuestionVersion: null,
           });
           return Promise.resolve(true);
         },

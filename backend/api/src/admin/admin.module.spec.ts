@@ -18,11 +18,9 @@ describe('AdminModule 조립', () => {
       contentImports: {} as never,
       contentImportQuery: {} as never,
       questions: {} as never,
-      questionPublication: {} as never,
       questionQuery: {} as never,
       vocabularies: {} as never,
       vocabularyQuery: {} as never,
-      findQuestionIdByVersionId: () => Promise.resolve(null),
       users: {} as never,
       authorizer: {
         authMode: 'fake',

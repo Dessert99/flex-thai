@@ -109,46 +109,32 @@ const dependencies = () => ({
 });
 
 describe('AdminContentService 감사 문맥', () => {
-  it('FAILED 검증 보고서를 HTTP 성공용 공개 응답으로 반환한다', async () => {
-    const fakes = dependencies();
+  it('문제 상태와 어휘 중요도 command에 감사 문맥을 보존한다', async () => {
+    const fakes = {
+      ...dependencies(),
+      questions: { changeStatus: vi.fn() },
+      vocabularies: { ...dependencies().vocabularies, setImportance: vi.fn() },
+    };
     const service = new AdminContentService(fakes as never);
-
-    await expect(
-      service.validateQuestionVersion(actor, ids.version),
-    ).resolves.toEqual({
-      status: 'FAILED',
-      issues: [{ path: 'x', code: 'THAI_CONTENT_INVALID' }],
+    await service.changeQuestionStatus(actor, ids.question, {
+      status: 'PUBLISHED',
+      expectedUpdatedAt: occurredAt.toISOString(),
     });
-    expect(fakes.questionPublication.validateVersion).toHaveBeenCalledWith({
-      versionId: ids.version,
-      actorSub: 'subject-1',
-      actorUserId: 'user-1',
-      requestId: 'request-1',
-      occurredAt,
-    });
-  });
-
-  it('문제와 어휘 command에 Cognito sub를 보존한다', async () => {
-    const fakes = dependencies();
-    const service = new AdminContentService(fakes as never);
-
-    await service.cloneQuestionVersion(actor, ids.question);
-    await service.publishVocabulary(actor, ids.vocabulary);
-
-    expect(fakes.questions.cloneVersion).toHaveBeenCalledWith({
-      questionId: ids.question,
-      actorSub: 'subject-1',
-      actorUserId: 'user-1',
-      requestId: 'request-1',
-      occurredAt,
-    });
-    expect(fakes.vocabularies.publish).toHaveBeenCalledWith({
-      vocabularyId: ids.vocabulary,
-      actorSub: 'subject-1',
-      actorUserId: 'user-1',
-      requestId: 'request-1',
-      occurredAt,
-    });
+    await service.setVocabularyImportance(actor, ids.vocabulary, 7);
+    expect(fakes.questions.changeStatus).toHaveBeenCalledWith(
+      expect.objectContaining({
+        questionId: ids.question,
+        actorSub: actor.sub,
+        expectedUpdatedAt: occurredAt,
+      }),
+    );
+    expect(fakes.vocabularies.setImportance).toHaveBeenCalledWith(
+      expect.objectContaining({
+        vocabularyId: ids.vocabulary,
+        importanceWeight: 7,
+        actorSub: actor.sub,
+      }),
+    );
   });
 
   it('저장소 relation shape를 internal vocabularyId 없이 strict 공개 응답으로 변환한다', async () => {

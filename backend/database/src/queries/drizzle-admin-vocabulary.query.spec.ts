@@ -320,7 +320,10 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
         id: vocabularyId,
         usage: {
           sentenceVersionIds,
-          questionVersionIds: [questionVersionId],
+          questionCount: 0,
+          targetQuestionCount: 0,
+          occurrenceCount: 0,
+          questionIds: [questionVersionId],
         },
       });
       expect(detail).not.toHaveProperty('normalizedThai');
@@ -374,6 +377,7 @@ describe('DrizzleAdminVocabularyQuery 상세', () => {
           thai: 'สวัสดี',
           kind: 'WORD',
           status: 'DRAFT',
+          importanceWeight: 5,
           mergedIntoVocabularyId: null,
           createdAt,
           updatedAt,
@@ -396,10 +400,20 @@ describe('DrizzleAdminVocabularyQuery 상세', () => {
         { sentenceVersionId: ids.sentenceB },
       ],
       [
-        { questionVersionId: ids.questionB },
-        { questionVersionId: ids.questionA },
+        {
+          questionId: ids.questionA,
+          status: 'PUBLISHED',
+          role: 'TARGET',
+          occurrenceCount: 2,
+        },
+        {
+          questionId: ids.questionB,
+          status: 'PUBLISHED',
+          role: 'CONTEXT',
+          occurrenceCount: 1,
+        },
       ],
-      [{ questionVersionId: ids.questionB }],
+      [],
     ]);
     const query = new DrizzleAdminVocabularyQuery(fake.database as never);
 
@@ -410,6 +424,7 @@ describe('DrizzleAdminVocabularyQuery 상세', () => {
       thai: 'สวัสดี',
       kind: 'WORD',
       status: 'DRAFT',
+      importanceWeight: 5,
       mergedIntoVocabularyId: null,
       meanings: [
         {
@@ -433,7 +448,10 @@ describe('DrizzleAdminVocabularyQuery 상세', () => {
       relations: [],
       usage: {
         sentenceVersionIds: [ids.sentenceA, ids.sentenceB],
-        questionVersionIds: [ids.questionA, ids.questionB],
+        questionCount: 2,
+        targetQuestionCount: 1,
+        occurrenceCount: 3,
+        questionIds: [ids.questionA, ids.questionB],
       },
       createdAt,
       updatedAt,

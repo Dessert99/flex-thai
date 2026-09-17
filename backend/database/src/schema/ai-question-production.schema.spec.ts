@@ -57,7 +57,7 @@ describe('AI 문제 제작 schema', () => {
     expect(columns.reviewStatus.notNull).toBe(true);
     expect(columns.revision.notNull).toBe(true);
     expect(columns.approvedQuestionId.notNull).toBe(false);
-    expect(columns.approvedQuestionVersionId.notNull).toBe(false);
+    expect(columns.approvedQuestionVersion.notNull).toBe(false);
   });
 
   it('redacted 후보는 FK 없는 nullable snapshot으로 저장할 수 있다', () => {

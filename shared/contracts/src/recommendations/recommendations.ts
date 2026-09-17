@@ -25,7 +25,7 @@ export const vocabularyRecommendationReasonCodeSchema = z.enum([
 const questionRecommendationSchema = z
   .object({
     questionId: uuidSchema,
-    questionVersionId: uuidSchema,
+    questionVersion: z.number().int().positive(),
     questionType: z
       .object({
         id: uuidSchema,
@@ -53,7 +53,7 @@ const vocabularyRecommendationSchema = z
 const homeQuestionSchema = z
   .object({
     questionId: uuidSchema,
-    questionVersionId: uuidSchema,
+    questionVersion: z.number().int().positive(),
     questionTypeDisplayName: z.string().min(1),
     skill: z.enum(['READING']),
     difficulty: z.number().int().min(1).max(5),

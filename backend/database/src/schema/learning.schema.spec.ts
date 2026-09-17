@@ -232,94 +232,9 @@ describe('학습 기록 데이터베이스 schema', () => {
     ]);
   });
 
-  it('답안은 제출 당시 사실만 append-only column으로 보존한다', () => {
-    const columns = getTableColumns(questionAttempts);
-
-    expect(columnSummaries(questionAttempts)).toEqual({
-      id: {
-        name: 'id',
-        sqlType: 'uuid',
-        dataType: 'string',
-        notNull: true,
-        hasDefault: true,
-        primary: true,
-      },
-      userId: {
-        name: 'user_id',
-        sqlType: 'uuid',
-        dataType: 'string',
-        notNull: true,
-        hasDefault: false,
-        primary: false,
-      },
-      questionId: {
-        name: 'question_id',
-        sqlType: 'uuid',
-        dataType: 'string',
-        notNull: true,
-        hasDefault: false,
-        primary: false,
-      },
-      questionVersionId: {
-        name: 'question_version_id',
-        sqlType: 'uuid',
-        dataType: 'string',
-        notNull: true,
-        hasDefault: false,
-        primary: false,
-      },
-      attemptNo: {
-        name: 'attempt_no',
-        sqlType: 'integer',
-        dataType: 'number',
-        notNull: true,
-        hasDefault: false,
-        primary: false,
-      },
-      selectedOptionId: {
-        name: 'selected_option_id',
-        sqlType: 'uuid',
-        dataType: 'string',
-        notNull: true,
-        hasDefault: false,
-        primary: false,
-      },
-      clientAttemptId: {
-        name: 'client_attempt_id',
-        sqlType: 'uuid',
-        dataType: 'string',
-        notNull: true,
-        hasDefault: false,
-        primary: false,
-      },
-      durationMs: {
-        name: 'duration_ms',
-        sqlType: 'bigint',
-        dataType: 'number',
-        notNull: true,
-        hasDefault: false,
-        primary: false,
-      },
-      isCorrect: {
-        name: 'is_correct',
-        sqlType: 'boolean',
-        dataType: 'boolean',
-        notNull: true,
-        hasDefault: false,
-        primary: false,
-      },
-      submittedAt: {
-        name: 'submitted_at',
-        sqlType: 'timestamp with time zone',
-        dataType: 'date',
-        notNull: true,
-        hasDefault: false,
-        primary: false,
-      },
-    });
-    expect(columns).not.toHaveProperty('updatedAt');
-    expect(columns).not.toHaveProperty('deletedAt');
-    expect(columns).not.toHaveProperty('deletedBy');
+  it('풀이 당시 문제 snapshot과 숫자 버전을 필수로 보존한다', () => {
+    expect(questionAttempts.questionSnapshot.notNull).toBe(true);
+    expect(questionAttempts.questionVersion.notNull).toBe(true);
   });
 
   it('사용자별 답안 순서와 clientAttemptId 재전송을 exact unique로 막는다', () => {
@@ -365,41 +280,13 @@ describe('학습 기록 데이터베이스 schema', () => {
     );
   });
 
-  it('답안의 문제 버전과 선택지가 같은 소유 관계일 때만 참조한다', () => {
-    expect(foreignKeySummaries(questionAttempts)).toEqual([
-      {
-        name: 'question_attempts_user_id_users_id_fk',
-        sourceTable: 'question_attempts',
-        targetTable: 'users',
-        columns: ['user_id'],
-        foreignColumns: ['id'],
-        onDelete: 'restrict',
-      },
-      {
-        name: 'question_attempts_question_version_fk',
-        sourceTable: 'question_attempts',
-        targetTable: 'question_versions',
-        columns: ['question_id', 'question_version_id'],
-        foreignColumns: ['question_id', 'id'],
-        onDelete: 'restrict',
-      },
-      {
-        name: 'question_attempts_selected_option_fk',
-        sourceTable: 'question_attempts',
-        targetTable: 'question_options',
-        columns: ['question_version_id', 'selected_option_id'],
-        foreignColumns: ['question_version_id', 'id'],
-        onDelete: 'restrict',
-      },
-    ]);
-  });
-
   it('답안 번호는 양수이고 durationMs는 JavaScript safe integer 범위다', () => {
     const migrationSql = readMigrationSql();
 
     expect(
       getTableConfig(questionAttempts).checks.map(({ name }) => name),
     ).toEqual([
+      'question_attempts_version_positive',
       'question_attempts_attempt_no_positive',
       'question_attempts_duration_ms_safe_integer',
     ]);

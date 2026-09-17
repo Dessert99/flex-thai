@@ -359,6 +359,43 @@ export class VocabularyAdminService {
   }
 
   /** 미사용 DRAFT만 새 child UUID와 명시적 mapping으로 전체 교체한다 */
+  async setImportance(
+    command: VocabularyAdminCommandContext & {
+      vocabularyId: string;
+      importanceWeight: number;
+    },
+  ): Promise<void> {
+    if (
+      !Number.isSafeInteger(command.importanceWeight) ||
+      command.importanceWeight < 1 ||
+      command.importanceWeight > 10
+    )
+      throw new VocabularyAdminError(
+        'VOCABULARY_CONTENT_INVALID',
+        'importanceWeight',
+      );
+    await this.repository.runInTransaction(async (transaction) => {
+      const current = await transaction.lockVocabularyGraph(
+        command.vocabularyId,
+      );
+      if (!current) throw new VocabularyAdminError('VOCABULARY_NOT_FOUND');
+      if (current.vocabulary.status === 'MERGED')
+        throw new VocabularyAdminError('VOCABULARY_STATE_CONFLICT');
+      await transaction.setImportanceWeight(
+        command.vocabularyId,
+        command.importanceWeight,
+        command.occurredAt,
+      );
+      await transaction.appendAuditLog({
+        ...command,
+        action: 'VOCABULARY_IMPORTANCE_CHANGED',
+        targetType: 'VOCABULARY',
+        targetId: command.vocabularyId,
+        summary: { importanceWeight: command.importanceWeight },
+      });
+    });
+  }
+
   async replace(
     command: ReplaceVocabularyCommand,
   ): Promise<VocabularyAdminResult> {

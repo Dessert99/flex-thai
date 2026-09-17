@@ -60,7 +60,7 @@ describe('DrizzleConceptErrorReportTargetLookup', () => {
         kind: 'CONCEPT',
         contentId: publishedConcept.conceptId,
         contentVersionId: publishedConcept.conceptVersionId,
-        questionVersionId: null,
+        questionVersion: null,
         sentenceVersionId: null,
         locationId: null,
       },

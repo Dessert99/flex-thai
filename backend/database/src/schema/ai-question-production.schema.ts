@@ -2,7 +2,6 @@
 import { sql } from 'drizzle-orm';
 import {
   check,
-  foreignKey,
   integer,
   jsonb,
   pgEnum,
@@ -17,7 +16,7 @@ import { jobItems } from './jobs.schema.js';
 import {
   questionTopics,
   questionTypeVersions,
-  questionVersions,
+  questions,
 } from './questions.schema.js';
 
 /** AI 문제 후보의 검토 우선순위 그룹 */
@@ -83,8 +82,11 @@ export const questionProductionCandidates = pgTable(
     ).references((): AnyPgColumn => questionProductionCandidates.id, {
       onDelete: 'restrict',
     }),
-    approvedQuestionId: uuid('approved_question_id'),
-    approvedQuestionVersionId: uuid('approved_question_version_id'),
+    approvedQuestionId: uuid('approved_question_id').references(
+      () => questions.id,
+      { onDelete: 'restrict' },
+    ),
+    approvedQuestionVersion: integer('approved_question_version'),
     revision: integer('revision').default(0).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
@@ -97,11 +99,7 @@ export const questionProductionCandidates = pgTable(
     uniqueIndex(
       'question_production_candidates_item_attempt_ordinal_unique',
     ).on(table.jobItemId, table.jobAttempt, table.ordinal),
-    foreignKey({
-      name: 'question_production_candidates_approved_question_version_fk',
-      columns: [table.approvedQuestionId, table.approvedQuestionVersionId],
-      foreignColumns: [questionVersions.questionId, questionVersions.id],
-    }).onDelete('restrict'),
+
     check(
       'question_production_candidates_attempt_nonnegative',
       sql`${table.jobAttempt} >= 0`,
@@ -120,7 +118,7 @@ export const questionProductionCandidates = pgTable(
     ),
     check(
       'question_production_candidates_payload_representation_consistency',
-      sql`(${table.payloadState} = 'CANONICAL' and ${table.topicId} is not null and ${table.difficulty} is not null and ${table.payload} is not null) or (${table.payloadState} = 'REDACTED_INVALID' and ${table.topicId} is null and ${table.difficulty} is null and ${table.payload} is null and ${table.resultGroup} = 'FAILED' and ${table.reviewStatus} <> 'APPROVED' and ${table.approvedQuestionId} is null and ${table.approvedQuestionVersionId} is null)`,
+      sql`(${table.payloadState} = 'CANONICAL' and ${table.topicId} is not null and ${table.difficulty} is not null and ${table.payload} is not null) or (${table.payloadState} = 'REDACTED_INVALID' and ${table.topicId} is null and ${table.difficulty} is null and ${table.payload} is null and ${table.resultGroup} = 'FAILED' and ${table.reviewStatus} <> 'APPROVED' and ${table.approvedQuestionId} is null and ${table.approvedQuestionVersion} is null)`,
     ),
     check(
       'question_production_candidates_revision_nonnegative',
@@ -128,7 +126,7 @@ export const questionProductionCandidates = pgTable(
     ),
     check(
       'question_production_candidates_review_approval_consistency',
-      sql`(${table.reviewStatus} = 'APPROVED' and ${table.approvedQuestionId} is not null and ${table.approvedQuestionVersionId} is not null) or (${table.reviewStatus} <> 'APPROVED' and ${table.approvedQuestionId} is null and ${table.approvedQuestionVersionId} is null)`,
+      sql`(${table.reviewStatus} = 'APPROVED' and ${table.approvedQuestionId} is not null and ${table.approvedQuestionVersion} is not null) or (${table.reviewStatus} <> 'APPROVED' and ${table.approvedQuestionId} is null and ${table.approvedQuestionVersion} is null)`,
     ),
   ],
 );

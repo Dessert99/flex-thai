@@ -1,5 +1,28 @@
 /** 관리자 어휘 모든 상태 조회·전체 교체·공개 수명 HTTP 경계를 제공한다 */
 import {
+  adminVocabularyDetailResponseSchema,
+  adminVocabularyIdPathSchema,
+  adminVocabularyImportanceRequestSchema,
+  adminVocabularyListQuerySchema,
+  adminVocabularyListResponseSchema,
+  adminVocabularyReplaceRequestSchema,
+  type AdminVocabularyDetailResponse,
+  type AdminVocabularyListResponse,
+} from '@flex-thia/contracts/admin/vocabularies';
+import {
+  adminVocabularyMergeExecuteRequestSchema,
+  adminVocabularyMergePreviewRequestSchema,
+  adminVocabularyMergePreviewResponseSchema,
+  adminVocabularyMergeResponseSchema,
+  adminVocabularyRelationCreateRequestSchema,
+  adminVocabularyRelationPathSchema,
+  adminVocabularyRelationSchema,
+  adminVocabularyRelationUpdateRequestSchema,
+  type AdminVocabularyMergePreviewResponse,
+  type AdminVocabularyMergeResponse,
+  type AdminVocabularyRelation,
+} from '@flex-thia/contracts/admin/vocabulary-relations';
+import {
   Body,
   Controller,
   Delete,
@@ -24,28 +47,6 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
-  adminVocabularyDetailResponseSchema,
-  adminVocabularyIdPathSchema,
-  adminVocabularyListQuerySchema,
-  adminVocabularyListResponseSchema,
-  adminVocabularyReplaceRequestSchema,
-  type AdminVocabularyDetailResponse,
-  type AdminVocabularyListResponse,
-} from '@flex-thia/contracts/admin/vocabularies';
-import {
-  adminVocabularyMergeExecuteRequestSchema,
-  adminVocabularyMergePreviewRequestSchema,
-  adminVocabularyMergePreviewResponseSchema,
-  adminVocabularyMergeResponseSchema,
-  adminVocabularyRelationCreateRequestSchema,
-  adminVocabularyRelationPathSchema,
-  adminVocabularyRelationSchema,
-  adminVocabularyRelationUpdateRequestSchema,
-  type AdminVocabularyMergePreviewResponse,
-  type AdminVocabularyMergeResponse,
-  type AdminVocabularyRelation,
-} from '@flex-thia/contracts/admin/vocabulary-relations';
-import {
   CurrentUser,
   type AuthenticatedUser,
 } from '../common/auth/current-user.decorator.js';
@@ -57,10 +58,10 @@ import { RequireRole } from '../identity/require-role.decorator.js';
 import { ApiProblemResponses } from '../openapi/openapi.decorators.js';
 import {
   AdminVocabularyDetailResponseDto,
+  AdminVocabularyImportanceRequestDto,
   AdminVocabularyIdPathDto,
   AdminVocabularyListQueryDto,
   AdminVocabularyListResponseDto,
-  AdminVocabularyReplaceRequestDto,
   AdminVocabularyMergeExecuteRequestDto,
   AdminVocabularyMergePreviewRequestDto,
   AdminVocabularyMergePreviewResponseDto,
@@ -69,6 +70,7 @@ import {
   AdminVocabularyRelationDto,
   AdminVocabularyRelationPathDto,
   AdminVocabularyRelationUpdateRequestDto,
+  AdminVocabularyReplaceRequestDto,
   ProblemDetailsDto,
 } from '../openapi/openapi.dto.js';
 import {
@@ -101,6 +103,25 @@ import {
 @RequireRole('ADMIN')
 export class AdminVocabulariesController {
   constructor(private readonly admin: AdminContentService) {}
+  @ApiParam({ name: 'vocabularyId', type: 'string', format: 'uuid' })
+  @ApiBody({ type: AdminVocabularyImportanceRequestDto })
+  @ApiNoContentResponse()
+  @Put(':vocabularyId/importance')
+  @HttpCode(204)
+  async setImportance(
+    @CurrentUser() user: AuthenticatedUser,
+    @AdminRequestId() requestId: string,
+    @Param() rawPath: Record<string, unknown>,
+    @Body() rawBody: unknown,
+  ): Promise<void> {
+    const path = adminVocabularyIdPathSchema.parse(rawPath);
+    const body = adminVocabularyImportanceRequestSchema.parse(rawBody);
+    await this.admin.setVocabularyImportance(
+      createAdminActorContext(user, requestId),
+      path.vocabularyId,
+      body.importanceWeight,
+    );
+  }
 
   /** 모든 어휘 상태와 정규화 표기 조건을 stable page로 조회한다 */
   @ApiOperation({ summary: '모든 상태의 어휘를 검색한다' })

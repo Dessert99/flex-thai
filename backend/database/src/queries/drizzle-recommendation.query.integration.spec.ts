@@ -88,7 +88,7 @@ const insertQuestion = async (
 
 const attachTargetVocabulary = async (
   client: PoolClient,
-  questionVersionId: string,
+  questionVersion: string,
   vocabulary: VocabularyFixture,
   label: string,
 ): Promise<void> => {
@@ -109,7 +109,7 @@ const attachTargetVocabulary = async (
     `insert into question_blocks (
        id, question_version_id, kind, position
      ) values ($1, $2, 'QUESTION', 0)`,
-    [blockId, questionVersionId],
+    [blockId, questionVersion],
   );
   await client.query(
     `insert into question_block_sentences (

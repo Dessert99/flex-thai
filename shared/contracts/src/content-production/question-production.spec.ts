@@ -94,7 +94,7 @@ const detail = {
       revision: 3,
       regeneratedFromCandidateId: null,
       approvedQuestionId: null,
-      approvedQuestionVersionId: null,
+      approvedQuestionVersion: null,
     },
     createdAt: '2026-07-27T00:00:00.000Z',
     updatedAt: '2026-07-27T00:01:00.000Z',
@@ -612,14 +612,14 @@ describe('AI 문제 후보 관리자 검수 계약', () => {
             revision: 4,
             regeneratedFromCandidateId: null,
             approvedQuestionId: questionId,
-            approvedQuestionVersionId: questionVersionId,
+            approvedQuestionVersion: 1,
           },
         },
       }).candidate.review,
     ).toMatchObject({
       status: 'APPROVED',
       approvedQuestionId: questionId,
-      approvedQuestionVersionId: questionVersionId,
+      approvedQuestionVersion: 1,
     });
   });
 
@@ -658,7 +658,7 @@ describe('AI 문제 후보 관리자 검수 계약', () => {
           status: 'APPROVED',
           revision: 1,
           questionId,
-          questionVersionId,
+          questionVersion: 1,
         },
       }),
     ).toMatchObject({ candidateId });
@@ -716,7 +716,7 @@ describe('AI 문제 후보 관리자 검수 계약', () => {
             status: 'APPROVED',
             revision: -1,
             questionId: 'not-a-uuid',
-            questionVersionId,
+            questionVersion: 1,
           },
         },
       ],
@@ -747,7 +747,7 @@ describe('AI 문제 후보 관리자 검수 계약', () => {
         status: 'APPROVED' as const,
         revision: 1,
         questionId,
-        questionVersionId,
+        questionVersion: 1,
       },
     };
     const discarded = {
@@ -868,7 +868,7 @@ describe('AI 문제 후보 관리자 검수 계약', () => {
             status: 'APPROVED',
             revision: 1,
             questionId,
-            questionVersionId,
+            questionVersion: 1,
           },
         },
       ],

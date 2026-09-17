@@ -1,5 +1,4 @@
 /** 콘텐츠 제작 work item을 멱등한 AI 문제 후보 pipeline으로 처리한다 */
-import type { ContentProductionWorkItem } from '@flex-thia/domain/content-production/content-production-work-item';
 import type {
   GeneratedQuestionCandidate,
   QuestionCrossValidationProvider,
@@ -27,6 +26,7 @@ import {
   validateGeneratedQuestionSchema,
   validateQuestionDecisionRules,
 } from '@flex-thia/domain/content-production/ai-question-production';
+import type { ContentProductionWorkItem } from '@flex-thia/domain/content-production/content-production-work-item';
 import { createHash } from 'node:crypto';
 
 type QuestionWorkItem = ContentProductionWorkItem & {
@@ -687,7 +687,7 @@ export class AiQuestionProductionProcessor {
         reviewCode: classification.code,
         regeneratedFromCandidateId: null,
         approvedQuestionId: null,
-        approvedQuestionVersionId: null,
+        approvedQuestionVersion: null,
       });
       validations.push(...candidateValidations);
     }

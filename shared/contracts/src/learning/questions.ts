@@ -1,7 +1,6 @@
 /** 학습자 문제 조회·답안 제출의 정답 비노출 공개 JSON 계약을 정의한다 */
 import { z } from 'zod';
 import { questionMajorCategorySchema } from '../questions/question-major-category.js';
-import { publicThaiSentenceSchema } from '../thai-content/sentences.js';
 
 const uuidSchema = z.uuid();
 const nonnegativeSafeIntegerSchema = z.number().safe().nonnegative();
@@ -32,22 +31,14 @@ const pageQueryShape = {
 };
 
 const questionSkillSchema = z.enum(['READING']);
-const firstResultSchema = z.enum(['CORRECT', 'INCORRECT', 'UNANSWERED']);
+const firstResultSchema = z.enum([
+  'CORRECT',
+  'INCORRECT',
+  'UNANSWERED',
+  'UPDATED',
+]);
 /** 문제 목록의 현재 지원 정렬 기준 */
 export const questionListSortSchema = z.enum(['LATEST']);
-const questionTemplateSchema = z.enum([
-  'STANDARD_CHOICE',
-  'PASSAGE_CHOICE',
-  'DIALOGUE_CHOICE',
-  'INLINE_SPAN_CHOICE',
-]);
-const publicQuestionBlockKindSchema = z.enum([
-  'INSTRUCTION',
-  'PASSAGE',
-  'DIALOGUE',
-  'QUESTION',
-]);
-
 const questionTypeSchema = z
   .object({
     id: uuidSchema,
@@ -90,32 +81,6 @@ const questionListFacetsSchema = z
   })
   .strict();
 
-const questionBlockSentenceSchema = z
-  .object({
-    position: positionSchema,
-    speaker: z.string().min(1).nullable(),
-    sentence: publicThaiSentenceSchema,
-  })
-  .strict();
-
-const publicQuestionBlockSchema = z
-  .object({
-    id: uuidSchema,
-    kind: publicQuestionBlockKindSchema,
-    position: positionSchema,
-    sentences: z.array(questionBlockSentenceSchema),
-  })
-  .strict();
-
-const explanationBlockSchema = z
-  .object({
-    id: uuidSchema,
-    kind: z.literal('EXPLANATION'),
-    position: positionSchema,
-    sentences: z.array(questionBlockSentenceSchema),
-  })
-  .strict();
-
 /** 문장 token 범위에 연결된 inline 선택지 계약 */
 export const questionOptionSpanSchema = z
   .object({
@@ -125,29 +90,6 @@ export const questionOptionSpanSchema = z
   })
   .strict();
 
-const questionOptionBaseShape = {
-  id: uuidSchema,
-  position: positionSchema,
-};
-
-const questionOptionSchema = z.union([
-  z
-    .object({
-      ...questionOptionBaseShape,
-      sentence: publicThaiSentenceSchema,
-      span: z.null(),
-    })
-    .strict(),
-  z
-    .object({
-      ...questionOptionBaseShape,
-      sentence: z.null(),
-      span: questionOptionSpanSchema,
-    })
-    .strict(),
-]);
-
-/** 페이지 번호 방식의 공통 응답 metadata */
 export const pageMetadataSchema = z
   .object({
     page: positiveSafeIntegerSchema,
@@ -177,7 +119,7 @@ export const questionListQuerySchema = z
 export const questionListItemSchema = z
   .object({
     questionId: uuidSchema,
-    questionVersionId: uuidSchema,
+    questionVersion: positiveSafeIntegerSchema,
     questionType: questionTypeSchema,
     skill: questionSkillSchema,
     difficulty: difficultySchema,
@@ -204,41 +146,28 @@ export const questionListResponseSchema = z
   })
   .strict();
 
-/** 현재 게시 버전의 공개 블록·선택지·문장 피드백 응답 */
+/** 정답·해설은 포함하지 않는 현재 문제 본문. */
 export const questionDetailResponseSchema = z
   .object({
     questionId: uuidSchema,
-    questionVersionId: uuidSchema,
+    questionVersion: positiveSafeIntegerSchema,
     questionType: questionTypeSchema,
     skill: questionSkillSchema,
     difficulty: difficultySchema,
-    template: questionTemplateSchema,
-    blocks: z.array(publicQuestionBlockSchema),
-    options: z.array(questionOptionSchema),
+    passage: z.string().nullable(),
+    prompt: z.string().min(1),
+    options: z
+      .array(z.object({ id: uuidSchema, text: z.string().min(1) }).strict())
+      .min(2),
     saved: z.boolean(),
+    firstResult: firstResultSchema,
   })
-  .strict()
-  .superRefine((detail, context) => {
-    const inline = detail.template === 'INLINE_SPAN_CHOICE';
-    detail.options.forEach((option, index) => {
-      if (
-        (inline && option.sentence !== null) ||
-        (!inline && option.span !== null)
-      ) {
-        context.addIssue({
-          code: 'custom',
-          message:
-            '문제 template과 선택지 sentence·span 조합이 일치해야 합니다.',
-          path: ['options', index],
-        });
-      }
-    });
-  });
+  .strict();
 
 /** 첫 답·재시도와 멱등 재전송에 사용하는 답안 요청 */
 export const submitQuestionAttemptRequestSchema = z
   .object({
-    questionVersionId: uuidSchema,
+    questionVersion: positiveSafeIntegerSchema,
     selectedOptionId: uuidSchema,
     clientAttemptId: uuidSchema,
     durationMs: nonnegativeSafeIntegerSchema,
@@ -261,7 +190,7 @@ export const submitQuestionAttemptResponseSchema = z
     feedback: z
       .object({
         correctOptionId: uuidSchema,
-        explanationBlocks: z.array(explanationBlockSchema),
+        explanation: z.string(),
       })
       .strict(),
   })
@@ -278,11 +207,26 @@ export const questionAttemptListResponseSchema = z
         .object({
           id: uuidSchema,
           questionId: uuidSchema,
-          questionVersionId: uuidSchema,
+          questionVersion: positiveSafeIntegerSchema,
           attemptNo: positiveSafeIntegerSchema,
           selectedOptionId: uuidSchema,
           clientAttemptId: uuidSchema,
           durationMs: nonnegativeSafeIntegerSchema,
+          questionSnapshot: z
+            .object({
+              updatedAt: z.string().datetime(),
+              version: positiveSafeIntegerSchema,
+              typeVersionId: uuidSchema,
+              difficulty: difficultySchema,
+              passage: z.string().nullable(),
+              prompt: z.string(),
+              options: z.array(
+                z.object({ id: uuidSchema, text: z.string() }).strict(),
+              ),
+              correctOptionId: uuidSchema,
+              explanation: z.string(),
+            })
+            .strict(),
           isCorrect: z.boolean(),
           submittedAt: utcDateTimeSchema,
         })

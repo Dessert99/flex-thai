@@ -1,6 +1,5 @@
 /** canonical 콘텐츠 draft의 insert 순서·오류 변환·transaction 경계를 고정한다 */
 import { DatabaseErrorException } from '@aws-sdk/client-rds-data';
-import type { CanonicalDraftSentenceInput } from '@flex-thia/domain/content-import/content-import';
 import type {
   ContentDraftTransaction,
   ResolvedContentDraftAudit,
@@ -8,32 +7,14 @@ import type {
   ResolvedQuestionDraftGraph,
   ResolvedVocabularyDraftGraph,
 } from '@flex-thia/domain/content-import/content-draft.repository';
-import type {
-  CreateQuestionDraftCommand,
-  CreateVocabularyDraftCommand,
-} from '@flex-thia/domain/content-import/content-draft';
-import { ContentDraftService } from '@flex-thia/domain/content-import/content-draft';
 import { DrizzleQueryError } from 'drizzle-orm/errors';
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { randomUUID } from 'node:crypto';
-import { Pool } from 'pg';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { databaseSchema as schema } from '../schema/databaseSchema.js';
-import { auditLogs } from '../schema/identity.schema.js';
+import { describe, expect, it, vi } from 'vitest';
 import { contentImportItems } from '../schema/content-import.schema.js';
+import { auditLogs } from '../schema/identity.schema.js';
 import {
-  expressionOccurrences,
-  thaiSentences,
-  thaiSentenceVersions,
-  tokenOccurrences,
-} from '../schema/thai-content.schema.js';
-import {
-  questionBlocks,
-  questionBlockSentences,
-  questionOptions,
   questions,
   questionTypeVersions,
-  questionVersions,
+  questionVocabularies,
 } from '../schema/questions.schema.js';
 import {
   vocabularies,
@@ -538,34 +519,19 @@ describe('DrizzleContentDraftRepository 문제 저장', () => {
     expect(fake.database.transaction).toHaveBeenCalledTimes(1);
     expect(fake.inserts.map(({ table }) => table)).toEqual([
       questions,
-      questionVersions,
-      thaiSentences,
-      thaiSentenceVersions,
-      tokenOccurrences,
-      expressionOccurrences,
-      questionBlocks,
-      questionBlockSentences,
-      questionOptions,
+      questionVocabularies,
       contentImportItems,
       auditLogs,
     ]);
-    expect(fake.inserts[8]?.values).toEqual(questionGraph.options);
-    expect(
-      (fake.inserts[8]?.values as Array<{ isCorrect: boolean }>).filter(
-        ({ isCorrect }) => isCorrect,
-      ),
-    ).toHaveLength(1);
-    expect(
-      Object.hasOwn(
-        (fake.inserts[9]?.values as ResolvedContentImportItem).referenceMap,
-        '__proto__',
-      ),
-    ).toBe(true);
-    expect(fake.inserts[10]?.values).toMatchObject({
+    expect(fake.inserts[0]?.values).toMatchObject({
+      id: ids.question,
+      correctOptionId: ids.optionTwo,
+      version: 1,
+    });
+    expect(fake.inserts[3]?.values).toMatchObject({
       action: questionAudit.action,
       targetType: 'QUESTION',
       targetId: ids.question,
-      createdAt: questionAudit.occurredAt,
     });
   });
 
@@ -692,32 +658,31 @@ describe('DrizzleContentDraftRepository 문제 저장', () => {
 
   it.each([
     {
-      table: questionVersions,
-      constraint:
-        'question_versions_type_version_id_question_type_versions_id_fk',
+      table: questions,
+      constraint: 'questions_type_version_id_question_type_versions_id_fk',
       code: 'IMPORT_QUESTION_TYPE_NOT_FOUND',
       path: 'questionTypeSlug',
     },
     {
-      table: tokenOccurrences,
-      constraint: 'token_occurrences_vocabulary_fk',
+      table: questionVocabularies,
+      constraint: 'question_vocabularies_vocabulary_id_vocabularies_id_fk',
       code: 'IMPORT_REFERENCE_NOT_FOUND',
       path: 'sentences.tokens.vocabulary',
     },
     {
-      table: tokenOccurrences,
-      constraint: 'token_occurrences_meaning_vocabulary_fk',
+      table: questionVocabularies,
+      constraint: 'question_vocabularies_meaning_owner_fk',
       code: 'IMPORT_REFERENCE_MISMATCH',
       path: 'sentences.tokens',
     },
     {
-      table: tokenOccurrences,
-      constraint: 'token_occurrences_pronunciation_vocabulary_fk',
+      table: questionVocabularies,
+      constraint: 'question_vocabularies_meaning_owner_fk',
       code: 'IMPORT_REFERENCE_MISMATCH',
       path: 'sentences.tokens',
     },
     {
-      table: expressionOccurrences,
+      table: questionVocabularies,
       constraint: 'expression_occurrences_vocabulary_kind_fk',
       code: 'IMPORT_REFERENCE_MISMATCH',
       path: 'sentences.expressions',
@@ -780,16 +745,16 @@ describe('DrizzleContentDraftRepository Aurora Data API 오류 변환', () => {
       operation: 'saveVocabularyDraft',
     },
     {
-      table: tokenOccurrences,
+      table: questionVocabularies,
       saveKind: 'QUESTION',
       sqlState: '23503',
-      constraint: 'token_occurrences_meaning_vocabulary_fk',
+      constraint: 'question_vocabularies_meaning_owner_fk',
       constraintKind: 'foreign key',
       code: 'IMPORT_REFERENCE_MISMATCH',
       path: 'sentences.tokens',
     },
     {
-      table: expressionOccurrences,
+      table: questionVocabularies,
       saveKind: 'QUESTION',
       sqlState: '23514',
       constraint: 'expression_occurrences_vocabulary_kind_expression',
@@ -893,16 +858,16 @@ describe('DrizzleContentDraftRepository Aurora Data API 오류 변환', () => {
       operation: 'saveVocabularyDraft',
     },
     {
-      table: tokenOccurrences,
+      table: questionVocabularies,
       saveKind: 'QUESTION',
       sqlState: '23503',
       constraintKind: 'foreign key',
       headerConstraint: 'unknown_private_fk',
-      detailConstraint: 'token_occurrences_meaning_vocabulary_fk',
+      detailConstraint: 'question_vocabularies_meaning_owner_fk',
       operation: 'saveQuestionDraft',
     },
     {
-      table: expressionOccurrences,
+      table: questionVocabularies,
       saveKind: 'QUESTION',
       sqlState: '23514',
       constraintKind: 'check',
@@ -960,15 +925,15 @@ describe('DrizzleContentDraftRepository Aurora Data API 오류 변환', () => {
       operation: 'saveVocabularyDraft',
     },
     {
-      table: tokenOccurrences,
+      table: questionVocabularies,
       saveKind: 'QUESTION',
       sqlState: '23503',
       constraintKind: 'unique',
-      constraint: 'token_occurrences_meaning_vocabulary_fk',
+      constraint: 'question_vocabularies_meaning_owner_fk',
       operation: 'saveQuestionDraft',
     },
     {
-      table: expressionOccurrences,
+      table: questionVocabularies,
       saveKind: 'QUESTION',
       sqlState: '23514',
       constraintKind: 'unique',
@@ -1008,512 +973,3 @@ describe('DrizzleContentDraftRepository Aurora Data API 오류 변환', () => {
     },
   );
 });
-
-const integrationDatabaseUrl =
-  process.env.CONTENT_DRAFT_REPOSITORY_TEST_DATABASE_URL;
-
-interface IntegrationFixture {
-  importId: string;
-  repository: DrizzleContentDraftRepository;
-  typeSlug: string;
-  typeVersionId: string;
-  userId: string;
-  wordText: string;
-}
-
-const createIntegrationFixture = async (
-  pool: Pool,
-): Promise<IntegrationFixture> => {
-  const userId = randomUUID();
-  const importId = randomUUID();
-  const typeId = randomUUID();
-  const typeVersionId = randomUUID();
-  const typeSlug = `standard-${randomUUID()}`;
-  const wordText = `ก${randomUUID().replaceAll('-', '')}`;
-
-  await pool.query(
-    `insert into users (id, cognito_sub, email, role, status)
-     values ($1, $2, $3, 'ADMIN', 'ACTIVE')`,
-    [userId, `draft-${userId}`, `${userId}@example.com`],
-  );
-  await pool.query(
-    `insert into content_imports (
-       id, requested_by, idempotency_key, request_hash,
-       vocabulary_count, question_count
-     ) values ($1, $2, $3, $4, 1, 1)`,
-    [importId, userId, randomUUID(), 'a'.repeat(64)],
-  );
-  await pool.query(
-    `insert into question_types (id, slug, display_name, skill)
-     values ($1, $2, '통합 유형', 'READING')`,
-    [typeId, typeSlug],
-  );
-  await pool.query(
-    `insert into question_type_versions (
-       id, question_type_id, version, template, option_count, decision_rules
-     ) values ($1, $2, 1, 'STANDARD_CHOICE', 2, '{}')`,
-    [typeVersionId, typeId],
-  );
-
-  return {
-    importId,
-    repository: new DrizzleContentDraftRepository(
-      drizzle({ client: pool, schema }),
-    ),
-    typeSlug,
-    typeVersionId,
-    userId,
-    wordText,
-  };
-};
-
-const integrationContext = (fixture: IntegrationFixture) => ({
-  actorSub: `draft-${fixture.userId}`,
-  actorUserId: fixture.userId,
-  requestId: `request-${fixture.importId}`,
-  occurredAt: new Date('2026-07-24T00:00:00.000Z'),
-});
-
-const integrationVocabularyCommand = (
-  fixture: IntegrationFixture,
-): CreateVocabularyDraftCommand => ({
-  importId: fixture.importId,
-  sourceIndex: 0,
-  context: integrationContext(fixture),
-  input: {
-    clientRef: `word-${fixture.importId}`,
-    thai: fixture.wordText,
-    kind: 'WORD',
-    meanings: [
-      {
-        clientRef: '__proto__',
-        meaningKo: '통합 뜻',
-        partOfSpeech: '명사',
-      },
-    ],
-    pronunciations: [
-      {
-        clientRef: 'toString',
-        pronunciationKo: '통합 발음',
-        toneMarks: '-',
-      },
-    ],
-  },
-});
-
-const integrationSentence = (
-  fixture: IntegrationFixture,
-): CanonicalDraftSentenceInput => ({
-  originalText: fixture.wordText,
-  translationKo: '통합 문장',
-  pronunciationKo: '통합 발음',
-  toneMarks: '-',
-  tokens: [
-    {
-      surface: fixture.wordText,
-      startOffset: 0,
-      endOffset: Array.from(fixture.wordText).length,
-      vocabulary: { clientRef: `word-${fixture.importId}` },
-      meaning: { clientRef: '__proto__' },
-      pronunciation: { clientRef: 'toString' },
-      contextMeaningKo: '통합 뜻',
-      role: 'TARGET',
-    },
-  ],
-  expressions: [],
-});
-
-const integrationQuestionCommand = (
-  fixture: IntegrationFixture,
-  typeSlug = fixture.typeSlug,
-): CreateQuestionDraftCommand => ({
-  importId: fixture.importId,
-  sourceIndex: 0,
-  context: integrationContext(fixture),
-  input: {
-    clientRef: `question-${fixture.importId}`,
-    questionTypeSlug: typeSlug,
-    questionTypeVersion: 1,
-    difficulty: 2,
-    blocks: [
-      {
-        kind: 'QUESTION',
-        sentences: [{ sentence: integrationSentence(fixture) }],
-      },
-    ],
-    options: [
-      {
-        clientRef: '__proto__',
-        position: 0,
-        sentence: integrationSentence(fixture),
-        span: null,
-      },
-      {
-        clientRef: 'constructor',
-        position: 1,
-        sentence: integrationSentence(fixture),
-        span: null,
-      },
-    ],
-    correctOptionRef: 'constructor',
-  },
-});
-
-const createCrossOwnershipGraph = (
-  fixture: IntegrationFixture,
-  input: {
-    vocabularyId: string;
-    meaningId: string;
-    pronunciationId: string;
-  },
-): ResolvedQuestionDraftGraph => {
-  const questionId = randomUUID();
-  const questionVersionId = randomUUID();
-  const createSentence = (withToken: boolean) => {
-    const sentenceId = randomUUID();
-    const sentenceVersionId = randomUUID();
-    return {
-      sentence: { id: sentenceId },
-      version: {
-        id: sentenceVersionId,
-        sentenceId,
-        version: 1 as const,
-        originalText: fixture.wordText,
-        translationKo: '교차 참조',
-        pronunciationKo: '교차 참조',
-        toneMarks: '-',
-        frozenAt: null,
-      },
-      tokens: withToken
-        ? [
-            {
-              id: randomUUID(),
-              sentenceVersionId,
-              position: 0,
-              surface: fixture.wordText,
-              startOffset: 0,
-              endOffset: Array.from(fixture.wordText).length,
-              vocabularyId: input.vocabularyId,
-              meaningId: input.meaningId,
-              pronunciationId: input.pronunciationId,
-              contextMeaningKo: '교차 참조',
-              role: 'TARGET' as const,
-            },
-          ]
-        : [],
-      expressions: [],
-    };
-  };
-  const blockSentence = createSentence(true);
-  const firstOptionSentence = createSentence(false);
-  const secondOptionSentence = createSentence(false);
-  const blockId = randomUUID();
-
-  return {
-    question: {
-      id: questionId,
-      status: 'DRAFT',
-      currentPublishedVersionId: null,
-    },
-    version: {
-      id: questionVersionId,
-      questionId,
-      version: 1,
-      typeVersionId: fixture.typeVersionId,
-      topicId: fixture.typeVersionId,
-      difficulty: 2,
-      status: 'DRAFT',
-      validationStatus: 'PENDING',
-      validationIssues: [],
-      validatedAt: null,
-      publishedAt: null,
-    },
-    tagIds: [],
-    sentences: [blockSentence, firstOptionSentence, secondOptionSentence],
-    blocks: [
-      {
-        id: blockId,
-        questionVersionId,
-        kind: 'QUESTION',
-        position: 0,
-        sentences: [
-          {
-            id: randomUUID(),
-            blockId,
-            sentenceVersionId: blockSentence.version.id,
-            position: 0,
-            speaker: null,
-          },
-        ],
-      },
-    ],
-    options: [
-      {
-        id: randomUUID(),
-        questionVersionId,
-        sentenceVersionId: firstOptionSentence.version.id,
-        position: 0,
-        isCorrect: false,
-        spanSentenceVersionId: null,
-        spanStartTokenIndex: null,
-        spanEndTokenIndex: null,
-      },
-      {
-        id: randomUUID(),
-        questionVersionId,
-        sentenceVersionId: secondOptionSentence.version.id,
-        position: 1,
-        isCorrect: true,
-        spanSentenceVersionId: null,
-        spanStartTokenIndex: null,
-        spanEndTokenIndex: null,
-      },
-    ],
-  };
-};
-
-describe.runIf(integrationDatabaseUrl !== undefined)(
-  'DrizzleContentDraftRepository PostgreSQL 16 통합',
-  () => {
-    let pool: Pool;
-
-    beforeAll(async () => {
-      if (!integrationDatabaseUrl) {
-        throw new Error('CONTENT_DRAFT_REPOSITORY_TEST_DATABASE_URL_REQUIRED');
-      }
-      pool = new Pool({ connectionString: integrationDatabaseUrl });
-      const version = await pool.query<{ serverVersionNum: string }>(
-        `select current_setting('server_version_num') "serverVersionNum"`,
-      );
-      expect(Number(version.rows[0]?.serverVersionNum)).toBeGreaterThanOrEqual(
-        160000,
-      );
-      expect(Number(version.rows[0]?.serverVersionNum)).toBeLessThan(170000);
-    });
-
-    afterAll(async () => {
-      await pool.end();
-    });
-
-    it('어휘 map 재조회 뒤 같은 import 참조 문제를 DRAFT와 정답 하나로 저장한다', async () => {
-      const fixture = await createIntegrationFixture(pool);
-      const service = new ContentDraftService(fixture.repository);
-
-      const vocabulary = await service.createVocabularyItem(
-        integrationVocabularyCommand(fixture),
-      );
-      const storedVocabularyItem = await pool.query<{
-        referenceMap: Record<string, string>;
-      }>(
-        `select reference_map "referenceMap"
-           from content_import_items
-          where import_id = $1 and kind = 'VOCABULARY'`,
-        [fixture.importId],
-      );
-      expect(storedVocabularyItem.rows[0]?.referenceMap).toEqual(
-        vocabulary.referenceMap,
-      );
-      expect(
-        Object.hasOwn(
-          storedVocabularyItem.rows[0]?.referenceMap ?? {},
-          '__proto__',
-        ),
-      ).toBe(true);
-      const duplicateCommand = integrationVocabularyCommand(fixture);
-      duplicateCommand.sourceIndex = 1;
-      duplicateCommand.input.clientRef = `duplicate-${fixture.importId}`;
-      await expect(
-        service.createVocabularyItem(duplicateCommand),
-      ).rejects.toMatchObject({
-        code: 'IMPORT_DUPLICATE_VOCABULARY',
-        path: 'thai',
-      });
-
-      const question = await service.createQuestionItem(
-        integrationQuestionCommand(fixture),
-      );
-
-      const stored = await pool.query<{
-        auditCount: string;
-        correctCount: string;
-        itemCount: string;
-        questionStatus: string;
-        versionStatus: string;
-      }>(
-        `select
-           (select count(*) from audit_logs
-             where summary ->> 'importId' = $1::text) "auditCount",
-           (select count(*) from question_options
-             where question_version_id = (
-               select id from question_versions where question_id = $2
-             ) and is_correct) "correctCount",
-           (select count(*) from content_import_items
-             where import_id = $1::uuid) "itemCount",
-           (select status from questions where id = $2) "questionStatus",
-           (select status from question_versions
-             where question_id = $2) "versionStatus"`,
-        [fixture.importId, question.targetId],
-      );
-      expect(stored.rows[0]).toEqual({
-        auditCount: '2',
-        correctCount: '1',
-        itemCount: '2',
-        questionStatus: 'DRAFT',
-        versionStatus: 'DRAFT',
-      });
-      const optionOrder = await pool.query<{
-        isCorrect: boolean;
-        position: number;
-      }>(
-        `select position, is_correct "isCorrect"
-           from question_options
-          where question_version_id = (
-            select id from question_versions where question_id = $1
-          )
-          order by position`,
-        [question.targetId],
-      );
-      expect(optionOrder.rows).toEqual([
-        { position: 0, isCorrect: false },
-        { position: 1, isCorrect: true },
-      ]);
-    });
-
-    it('동시 같은 question item은 graph와 item을 각각 하나만 commit한다', async () => {
-      const fixture = await createIntegrationFixture(pool);
-      const service = new ContentDraftService(fixture.repository);
-      await service.createVocabularyItem(integrationVocabularyCommand(fixture));
-      const before = await pool.query<{ count: string }>(
-        `select count(*) from questions`,
-      );
-      const command = integrationQuestionCommand(fixture);
-
-      const settled = await Promise.allSettled([
-        service.createQuestionItem(command),
-        service.createQuestionItem(command),
-      ]);
-
-      expect(
-        settled.filter(({ status }) => status === 'fulfilled'),
-      ).toHaveLength(1);
-      expect(settled.find(({ status }) => status === 'rejected')).toMatchObject(
-        {
-          status: 'rejected',
-          reason: { code: 'CONTENT_DRAFT_ITEM_CONFLICT' },
-        },
-      );
-      const after = await pool.query<{ count: string }>(
-        `select count(*) from questions`,
-      );
-      expect(Number(after.rows[0]?.count) - Number(before.rows[0]?.count)).toBe(
-        1,
-      );
-      const itemCount = await pool.query<{ count: string }>(
-        `select count(*) from content_import_items
-          where import_id = $1 and kind = 'QUESTION'`,
-        [fixture.importId],
-      );
-      expect(itemCount.rows[0]?.count).toBe('1');
-    });
-
-    it('다른 vocabulary의 meaning·pronunciation 교차 참조 FK는 각 question graph를 rollback한다', async () => {
-      const fixture = await createIntegrationFixture(pool);
-      const service = new ContentDraftService(fixture.repository);
-      const vocabulary = await service.createVocabularyItem(
-        integrationVocabularyCommand(fixture),
-      );
-      const otherVocabularyId = randomUUID();
-      const otherMeaningId = randomUUID();
-      const otherPronunciationId = randomUUID();
-      await pool.query(
-        `insert into vocabularies (id, thai, normalized_thai, kind, status)
-         values ($1, $2, $2, 'WORD', 'DRAFT')`,
-        [otherVocabularyId, `ข${randomUUID().replaceAll('-', '')}`],
-      );
-      await pool.query(
-        `insert into vocabulary_meanings (
-           id, vocabulary_id, meaning_ko, part_of_speech
-         ) values ($1, $2, '다른 뜻', '명사')`,
-        [otherMeaningId, otherVocabularyId],
-      );
-      await pool.query(
-        `insert into vocabulary_pronunciations (
-           id, vocabulary_id, pronunciation_ko, tone_marks) values ($1, $2, '다른 발음', '-')`,
-        [otherPronunciationId, otherVocabularyId],
-      );
-      const correctMeaningId = vocabulary.referenceMap['__proto__']!;
-      const correctPronunciationId = vocabulary.referenceMap['toString']!;
-      const graphs = [
-        createCrossOwnershipGraph(fixture, {
-          vocabularyId: vocabulary.targetId,
-          meaningId: otherMeaningId,
-          pronunciationId: correctPronunciationId,
-        }),
-        createCrossOwnershipGraph(fixture, {
-          vocabularyId: vocabulary.targetId,
-          meaningId: correctMeaningId,
-          pronunciationId: otherPronunciationId,
-        }),
-      ];
-
-      for (const [sourceIndex, graph] of graphs.entries()) {
-        const targetId = graph.question.id;
-        await expect(
-          fixture.repository.runInTransaction((transaction) =>
-            transaction.saveQuestionDraft({
-              graph,
-              item: {
-                id: randomUUID(),
-                importId: fixture.importId,
-                kind: 'QUESTION',
-                sourceIndex,
-                clientRef: `cross-${sourceIndex}-${fixture.importId}`,
-                status: 'IMPORTED',
-                targetId,
-                errors: [],
-                referenceMap: {
-                  [`cross-${sourceIndex}-${fixture.importId}`]: targetId,
-                },
-              },
-              audit: {
-                ...integrationContext(fixture),
-                action: 'CONTENT_QUESTION_DRAFT_IMPORTED',
-                targetType: 'QUESTION',
-                targetId,
-                summary: { importId: fixture.importId, sourceIndex },
-              },
-            }),
-          ),
-        ).rejects.toMatchObject({
-          code: 'IMPORT_REFERENCE_MISMATCH',
-          path: 'sentences.tokens',
-        });
-      }
-      const counts = await pool.query<{
-        itemCount: string;
-        questionCount: string;
-        sentenceCount: string;
-      }>(
-        `select
-           (select count(*) from content_import_items
-             where import_id = $1 and kind = 'QUESTION') "itemCount",
-           (select count(*) from questions
-             where id = any($2::uuid[])) "questionCount",
-           (select count(*) from thai_sentences
-             where id = any($3::uuid[])) "sentenceCount"`,
-        [
-          fixture.importId,
-          graphs.map(({ question }) => question.id),
-          graphs.flatMap(({ sentences }) =>
-            sentences.map(({ sentence }) => sentence.id),
-          ),
-        ],
-      );
-      expect(counts.rows[0]).toEqual({
-        itemCount: '0',
-        questionCount: '0',
-        sentenceCount: '0',
-      });
-    });
-  },
-);

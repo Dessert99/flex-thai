@@ -1,492 +1,137 @@
-/** 관리자 문제의 모든 상태 조회·초안 교체·검증 공개 계약을 정의한다 */
+/** 관리자 문제 본문·보기·사용 어휘와 수정 충돌 방지 계약. */
 import { z } from 'zod';
 import { pageMetadataSchema } from '../learning/questions.js';
-import { canonicalQuestionVersionInputSchema } from './content-imports.js';
-
-const uuidSchema = z.uuid();
-const utcDateTimeSchema = z.string().datetime();
-const positiveIntegerSchema = z.number().int().safe().positive();
-const difficultySchema = z.number().int().safe().min(1).max(5);
-const questionStatusSchema = z.enum(['DRAFT', 'PUBLISHED', 'HIDDEN']);
-const questionVersionStatusSchema = z.enum([
-  'DRAFT',
-  'PUBLISHED',
-  'RETIRED',
-  'INVALIDATED',
-]);
-const questionValidationStatusSchema = z.enum(['PENDING', 'PASSED', 'FAILED']);
-
-const httpIntegerSchema = (minimum: number, maximum: number) =>
+const status = z.enum(['DRAFT', 'PUBLISHED', 'HIDDEN']);
+const positiveInteger = z.number().int().safe().positive();
+const httpInteger = (max: number) =>
   z
     .union([
       z.number(),
       z
         .string()
-        .regex(/^(?:0|[1-9]\d*)$/u)
-        .transform((value) => Number(value)),
+        .regex(/^[1-9]\d*$/u)
+        .transform(Number),
     ])
-    .pipe(z.number().int().safe().min(minimum).max(maximum));
-
-/** 모든 문제·버전·검증 상태를 찾는 관리자 페이지 query */
+    .pipe(positiveInteger.max(max));
 export const adminQuestionListQuerySchema = z
   .object({
-    status: questionStatusSchema.optional(),
-    versionStatus: questionVersionStatusSchema.optional(),
-    validationStatus: questionValidationStatusSchema.optional(),
+    status: status.optional(),
     questionTypeSlug: z.string().trim().min(1).optional(),
-    skill: z.enum(['READING']).optional(),
-    difficulty: httpIntegerSchema(1, 5).optional(),
-    page: httpIntegerSchema(1, Number.MAX_SAFE_INTEGER).default(1),
-    pageSize: httpIntegerSchema(1, 100).default(20),
+    skill: z.literal('READING').optional(),
+    difficulty: httpInteger(5).optional(),
+    page: httpInteger(Number.MAX_SAFE_INTEGER).default(1),
+    pageSize: httpInteger(100).default(20),
   })
   .strict();
-
-/** 문제 단건·복제·숨김·복구 경로의 UUID parameter */
 export const adminQuestionIdPathSchema = z
-  .object({ questionId: uuidSchema })
+  .object({ questionId: z.uuid() })
   .strict();
-
-/** 문제 버전 교체·검증·게시·무효화 경로의 UUID parameter */
-export const adminQuestionVersionIdPathSchema = z
-  .object({ versionId: uuidSchema })
-  .strict();
-
-const adminContentReferenceSchema = z
+export const questionVocabularySchema = z
   .object({
-    id: uuidSchema,
+    vocabularyId: z.uuid(),
+    meaningId: z.uuid().nullable(),
+    role: z.enum(['TARGET', 'CONTEXT']),
+    occurrenceCount: positiveInteger,
   })
   .strict();
-
-const adminQuestionTokenInputSchema = z
+export const adminQuestionPayloadSchema = z
   .object({
-    surface: z.string().min(1),
-    startOffset: z.number().int().safe().nonnegative(),
-    endOffset: positiveIntegerSchema,
-    vocabulary: adminContentReferenceSchema,
-    meaning: adminContentReferenceSchema,
-    pronunciation: adminContentReferenceSchema,
-    contextMeaningKo: z.string().min(1),
-    role: z.enum(['TARGET', 'REQUIRED', 'SUPPORTING', 'INSTRUCTION']),
-  })
-  .strict();
-
-const adminQuestionExpressionInputSchema = z
-  .object({
-    startTokenIndex: z.number().int().safe().nonnegative(),
-    endTokenIndex: positiveIntegerSchema,
-    vocabulary: adminContentReferenceSchema,
-    meaning: adminContentReferenceSchema,
-    pronunciation: adminContentReferenceSchema,
-    contextMeaningKo: z.string().min(1),
-    representative: z.boolean().optional(),
-  })
-  .strict();
-
-const adminQuestionSentenceInputSchema = z
-  .object({
-    originalText: z.string().min(1),
-    translationKo: z.string().min(1),
-    pronunciationKo: z.string().min(1),
-    toneMarks: z.string(),
-    tokens: z.array(adminQuestionTokenInputSchema),
-    expressions: z.array(adminQuestionExpressionInputSchema),
-  })
-  .strict();
-
-const adminQuestionBlockInputSchema = z
-  .object({
-    kind: z.enum([
-      'INSTRUCTION',
-      'PASSAGE',
-      'DIALOGUE',
-      'QUESTION',
-      'EXPLANATION',
-    ]),
-    sentences: z
+    typeVersionId: z.uuid(),
+    topicId: z.uuid(),
+    tagIds: z.array(z.uuid()),
+    difficulty: positiveInteger.max(5),
+    passage: z.string().nullable(),
+    prompt: z.string().trim().min(1),
+    options: z
       .array(
-        z
-          .object({
-            speaker: z.string().min(1).nullable().optional(),
-            sentence: adminQuestionSentenceInputSchema,
-          })
-          .strict(),
+        z.object({ id: z.uuid(), text: z.string().trim().min(1) }).strict(),
       )
-      .min(1),
-  })
-  .strict();
-
-const adminQuestionOptionBaseShape = {
-  clientRef: z.string().min(1),
-  position: z.number().int().safe().nonnegative(),
-};
-const adminQuestionOptionSpanInputSchema = z
-  .object({
-    blockPosition: z.number().int().safe().nonnegative(),
-    sentencePosition: z.number().int().safe().nonnegative(),
-    startTokenIndex: z.number().int().safe().nonnegative(),
-    endTokenIndex: positiveIntegerSchema,
-  })
-  .strict();
-const adminQuestionOptionInputSchema = z.union([
-  z
-    .object({
-      ...adminQuestionOptionBaseShape,
-      sentence: adminQuestionSentenceInputSchema,
-      span: z.null().default(null),
-    })
-    .strict(),
-  z
-    .object({
-      ...adminQuestionOptionBaseShape,
-      sentence: z.null(),
-      span: adminQuestionOptionSpanInputSchema,
-    })
-    .strict(),
-]);
-
-/** 초안 문제 버전을 기존 콘텐츠 UUID 전용 canonical 구조로 전체 교체하는 요청 */
-export const adminQuestionVersionPayloadSchema = z
-  .object({
-    questionTypeSlug: z.string().min(1),
-    questionTypeVersion: positiveIntegerSchema,
-    difficulty: difficultySchema,
-    topicSlug: z.string().trim().min(1).default('general'),
-    tagSlugs: z.array(z.string().trim().min(1)).default([]),
-    blocks: z.array(adminQuestionBlockInputSchema).min(1),
-    options: z.array(adminQuestionOptionInputSchema).min(1),
-    correctOptionRef: z.string().min(1),
+      .min(2)
+      .max(10),
+    correctOptionId: z.uuid(),
+    explanation: z.string().trim().min(1),
+    vocabularies: z.array(questionVocabularySchema),
   })
   .strict()
-  .superRefine((payload, context) => {
-    // import와 공유하는 offset·option 관계 규칙은 한 원본에서 검증한다.
-    const result = canonicalQuestionVersionInputSchema.safeParse({
-      ...payload,
-      blocks: payload.blocks.map((block) => ({
-        ...block,
-        sentences: block.sentences.map((entry) => ({
-          ...entry,
-          sentence: entry.sentence,
-        })),
-      })),
-      options: payload.options.map((option) =>
-        option.sentence === null
-          ? option
-          : {
-              ...option,
-              sentence: option.sentence,
-            },
-      ),
-    });
-    if (!result.success) {
-      result.error.issues.forEach((issue) =>
-        context.addIssue({
-          code: 'custom',
-          message: issue.message,
-          path: issue.path,
-        }),
-      );
-    }
-  });
-
-const questionValidationIssueSchema = z
-  .object({
-    path: z.string(),
-    code: z.enum([
-      'DIFFICULTY_INVALID',
-      'BLOCK_POSITION_INVALID',
-      'OPTION_POSITION_INVALID',
-      'OPTION_COUNT_INVALID',
-      'CORRECT_OPTION_COUNT_INVALID',
-      'QUESTION_TEMPLATE_INVALID',
-      'DIALOGUE_SPEAKER_REQUIRED',
-      'THAI_CONTENT_INVALID',
-      'VOCABULARY_NOT_PUBLISHED',
-      'INLINE_SPAN_INVALID',
-    ]),
-  })
-  .strict();
-
-/** 검증 실패를 HTTP 실패로 바꾸지 않는 결정 규칙 보고서 */
-export const adminQuestionValidationReportSchema = z
-  .object({
-    status: z.enum(['PASSED', 'FAILED']),
-    issues: z.array(questionValidationIssueSchema),
-  })
-  .strict()
-  .superRefine((report, context) => {
+  .superRefine((value, context) => {
     if (
-      (report.status === 'PASSED' && report.issues.length !== 0) ||
-      (report.status === 'FAILED' && report.issues.length === 0)
-    ) {
+      new Set(value.options.map((item) => item.id)).size !==
+        value.options.length ||
+      !value.options.some((item) => item.id === value.correctOptionId)
+    )
       context.addIssue({
         code: 'custom',
-        message: '검증 상태와 issue 존재 여부가 일치해야 합니다.',
-        path: ['issues'],
+        message: '선택지 ID는 중복 없이 정답을 포함해야 합니다.',
+        path: ['options'],
       });
-    }
+    if (new Set(value.tagIds).size !== value.tagIds.length)
+      context.addIssue({
+        code: 'custom',
+        message: '태그는 중복할 수 없습니다.',
+        path: ['tagIds'],
+      });
+    if (
+      new Set(value.vocabularies.map((item) => item.vocabularyId)).size !==
+      value.vocabularies.length
+    )
+      context.addIssue({
+        code: 'custom',
+        message: '단어별 사용 정보를 하나로 합쳐주세요.',
+        path: ['vocabularies'],
+      });
   });
-
-/** 새 문제 버전 생성과 초안 교체가 반환하는 버전 요약 */
-export const adminQuestionVersionResponseSchema = z
+export const adminQuestionUpdateRequestSchema = z
   .object({
-    questionId: uuidSchema,
-    versionId: uuidSchema,
-    version: positiveIntegerSchema,
-    status: z.literal('DRAFT'),
-    validationStatus: z.literal('PENDING'),
+    input: adminQuestionPayloadSchema,
+    expectedVersion: positiveInteger,
+    expectedUpdatedAt: z.string().datetime(),
+    requiresRetry: z.boolean(),
   })
   .strict();
-
-const adminQuestionListItemSchema = z
-  .object({
-    questionId: uuidSchema,
-    status: questionStatusSchema,
-    currentPublishedVersionId: uuidSchema.nullable(),
-    latestVersion: positiveIntegerSchema,
-    latestVersionId: uuidSchema,
-    latestVersionStatus: questionVersionStatusSchema,
-    validationStatus: questionValidationStatusSchema,
-    questionTypeSlug: z.string().min(1),
-    difficulty: difficultySchema,
-    updatedAt: utcDateTimeSchema,
-  })
+export const adminQuestionStatusRequestSchema = z
+  .object({ status, expectedUpdatedAt: z.string().datetime() })
   .strict();
-
-/** 모든 상태의 관리자 문제 목록 페이지 응답 */
+export const adminQuestionDetailResponseSchema =
+  adminQuestionPayloadSchema.safeExtend({
+    questionId: z.uuid(),
+    version: positiveInteger,
+    status,
+    createdAt: z.string().datetime(),
+    updatedAt: z.string().datetime(),
+    publishedAt: z.string().datetime().nullable(),
+  });
 export const adminQuestionListResponseSchema = z
   .object({
-    items: z.array(adminQuestionListItemSchema),
+    items: z.array(
+      z
+        .object({
+          questionId: z.uuid(),
+          version: positiveInteger,
+          status,
+          prompt: z.string(),
+          questionTypeSlug: z.string(),
+          difficulty: positiveInteger.max(5),
+          updatedAt: z.string().datetime(),
+        })
+        .strict(),
+    ),
     page: pageMetadataSchema,
   })
   .strict();
-
-const adminQuestionTypeVersionSchema = z
-  .object({
-    id: uuidSchema,
-    slug: z.string().min(1),
-    version: positiveIntegerSchema,
-    skill: z.enum(['READING']),
-    template: z.enum([
-      'STANDARD_CHOICE',
-      'PASSAGE_CHOICE',
-      'DIALOGUE_CHOICE',
-      'INLINE_SPAN_CHOICE',
-    ]),
-  })
-  .strict();
-
-const adminQuestionResolvedSentenceSchema = z
-  .object({
-    id: uuidSchema,
-    originalText: z.string().min(1),
-    translationKo: z.string().min(1),
-    pronunciationKo: z.string().min(1),
-    toneMarks: z.string(),
-    tokens: z.array(
-      z
-        .object({
-          position: z.number().int().safe().nonnegative(),
-          surface: z.string().min(1),
-          startOffset: z.number().int().safe().nonnegative(),
-          endOffset: positiveIntegerSchema,
-          vocabularyId: uuidSchema,
-          meaningId: uuidSchema,
-          pronunciationId: uuidSchema,
-          contextMeaningKo: z.string().min(1),
-          role: z.enum(['TARGET', 'REQUIRED', 'SUPPORTING', 'INSTRUCTION']),
-        })
-        .strict(),
-    ),
-    expressions: z.array(
-      z
-        .object({
-          startTokenIndex: z.number().int().safe().nonnegative(),
-          endTokenIndex: positiveIntegerSchema,
-          vocabularyId: uuidSchema,
-          meaningId: uuidSchema,
-          pronunciationId: uuidSchema,
-          contextMeaningKo: z.string().min(1),
-          representative: z.boolean(),
-        })
-        .strict(),
-    ),
-  })
-  .strict();
-
-const adminQuestionBlockSchema = z
-  .object({
-    id: uuidSchema,
-    kind: z.enum([
-      'INSTRUCTION',
-      'PASSAGE',
-      'DIALOGUE',
-      'QUESTION',
-      'EXPLANATION',
-    ]),
-    position: z.number().int().safe().nonnegative(),
-    sentences: z.array(
-      z
-        .object({
-          position: z.number().int().safe().nonnegative(),
-          speaker: z.string().min(1).nullable(),
-          sentenceVersionId: uuidSchema,
-          sentence: adminQuestionResolvedSentenceSchema,
-        })
-        .strict(),
-    ),
-  })
-  .strict();
-
-const adminQuestionOptionBase = {
-  id: uuidSchema,
-  position: z.number().int().safe().nonnegative(),
-};
-const adminQuestionOptionSpanSchema = z
-  .object({
-    sentenceVersionId: uuidSchema,
-    startTokenIndex: z.number().int().safe().nonnegative(),
-    endTokenIndex: positiveIntegerSchema,
-  })
-  .strict();
-const adminQuestionOptionSchema = z.union([
-  z
-    .object({
-      ...adminQuestionOptionBase,
-      sentenceVersionId: uuidSchema,
-      span: z.null(),
-      displayText: z.string().min(1),
-      sentence: adminQuestionResolvedSentenceSchema,
-    })
-    .strict(),
-  z
-    .object({
-      ...adminQuestionOptionBase,
-      sentenceVersionId: z.null(),
-      span: adminQuestionOptionSpanSchema,
-      displayText: z.string().min(1),
-      sentence: adminQuestionResolvedSentenceSchema,
-    })
-    .strict(),
-]);
-
-const adminQuestionValidationStateSchema = z.discriminatedUnion('status', [
-  z
-    .object({
-      status: z.literal('PENDING'),
-      issues: z.tuple([]),
-      validatedAt: z.null(),
-    })
-    .strict(),
-  z
-    .object({
-      status: z.literal('PASSED'),
-      issues: z.tuple([]),
-      validatedAt: utcDateTimeSchema,
-    })
-    .strict(),
-  z
-    .object({
-      status: z.literal('FAILED'),
-      issues: z.array(questionValidationIssueSchema).min(1),
-      validatedAt: utcDateTimeSchema,
-    })
-    .strict(),
-]);
-
-const adminQuestionTaxonomyTermSchema = z
-  .object({
-    id: uuidSchema,
-    slug: z.string().min(1),
-    displayName: z.string().min(1),
-  })
-  .strict();
-
-const adminQuestionVersionDetailSchema = z
-  .object({
-    id: uuidSchema,
-    version: positiveIntegerSchema,
-    status: questionVersionStatusSchema,
-    validation: adminQuestionValidationStateSchema,
-    questionType: adminQuestionTypeVersionSchema,
-    difficulty: difficultySchema,
-    topic: adminQuestionTaxonomyTermSchema,
-    tags: z.array(adminQuestionTaxonomyTermSchema),
-    blocks: z.array(adminQuestionBlockSchema),
-    options: z.array(adminQuestionOptionSchema),
-    correctOptionId: uuidSchema,
-    createdAt: utcDateTimeSchema,
-    publishedAt: utcDateTimeSchema.nullable(),
-  })
-  .strict()
-  .superRefine((version, context) => {
-    const correctMatches = version.options.filter(
-      ({ id }) => id === version.correctOptionId,
-    );
-    if (correctMatches.length !== 1) {
-      context.addIssue({
-        code: 'custom',
-        message: 'correctOptionId는 해당 버전 선택지 하나를 가리켜야 합니다.',
-        path: ['correctOptionId'],
-      });
-    }
-    const inline = version.questionType.template === 'INLINE_SPAN_CHOICE';
-    version.options.forEach((option, index) => {
-      if (inline !== (option.sentenceVersionId === null)) {
-        context.addIssue({
-          code: 'custom',
-          message: '문제 유형과 선택지 표현 방식이 일치해야 합니다.',
-          path: ['options', index],
-        });
-      }
-    });
-  });
-
-/** 문제의 모든 버전·검증·정답 option ID를 공개하는 관리자 상세 */
-export const adminQuestionDetailResponseSchema = z
-  .object({
-    questionId: uuidSchema,
-    status: questionStatusSchema,
-    currentPublishedVersionId: uuidSchema.nullable(),
-    versions: z.array(adminQuestionVersionDetailSchema),
-    createdAt: utcDateTimeSchema,
-    updatedAt: utcDateTimeSchema,
-  })
-  .strict();
-
-/** 검증된 관리자 문제 목록 query type */
 export type AdminQuestionListQuery = z.infer<
   typeof adminQuestionListQuerySchema
 >;
-
-/** 검증된 관리자 문제 UUID path type */
 export type AdminQuestionIdPath = z.infer<typeof adminQuestionIdPathSchema>;
-
-/** 검증된 관리자 문제 버전 UUID path type */
-export type AdminQuestionVersionIdPath = z.infer<
-  typeof adminQuestionVersionIdPathSchema
+export type AdminQuestionPayload = z.infer<typeof adminQuestionPayloadSchema>;
+export type AdminQuestionUpdateRequest = z.infer<
+  typeof adminQuestionUpdateRequestSchema
 >;
-
-/** canonical 관리자 문제 버전 교체 요청 type */
-export type AdminQuestionVersionPayload = z.infer<
-  typeof adminQuestionVersionPayloadSchema
+export type AdminQuestionStatusRequest = z.infer<
+  typeof adminQuestionStatusRequestSchema
 >;
-
-/** 생성·교체된 관리자 문제 버전 요약 응답 type */
-export type AdminQuestionVersionResponse = z.infer<
-  typeof adminQuestionVersionResponseSchema
->;
-
-/** 관리자 문제 결정 규칙 검증 보고서 type */
-export type AdminQuestionValidationReport = z.infer<
-  typeof adminQuestionValidationReportSchema
->;
-
-/** 관리자 문제 목록 응답 type */
-export type AdminQuestionListResponse = z.infer<
-  typeof adminQuestionListResponseSchema
->;
-
-/** 관리자 문제 상세 응답 type */
 export type AdminQuestionDetailResponse = z.infer<
   typeof adminQuestionDetailResponseSchema
+>;
+export type AdminQuestionListResponse = z.infer<
+  typeof adminQuestionListResponseSchema
 >;

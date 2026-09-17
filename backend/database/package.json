@@ -43,7 +43,6 @@
     "./repositories/drizzle-learning.repository": "./src/repositories/drizzle-learning.repository.ts",
     "./repositories/drizzle-operations-cost-settings.repository": "./src/repositories/drizzle-operations-cost-settings.repository.ts",
     "./repositories/drizzle-question-admin.repository": "./src/repositories/drizzle-question-admin.repository.ts",
-    "./repositories/drizzle-question-publication.repository": "./src/repositories/drizzle-question-publication.repository.ts",
     "./repositories/drizzle-question-taxonomy.repository": "./src/repositories/drizzle-question-taxonomy.repository.ts",
     "./repositories/drizzle-readiness.probe": "./src/repositories/drizzle-readiness.probe.ts",
     "./repositories/drizzle-step-up.repository": "./src/repositories/drizzle-step-up.repository.ts",

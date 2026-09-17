@@ -77,7 +77,7 @@ const tag = {
 
 const questionListItem = {
   questionId: ids.question,
-  questionVersionId: ids.version,
+  questionVersion: 1,
   questionType,
   majorCategory: 'READING_PASSAGE',
   topic,
@@ -117,21 +117,18 @@ const dependencies = () => ({
     listQuestionFacets: vi.fn().mockResolvedValue(questionListFacets),
     getQuestionDetail: vi.fn().mockResolvedValue({
       questionId: ids.question,
-      questionVersionId: ids.version,
+      questionVersion: 1,
       questionType,
       skill: 'READING',
       difficulty: 2,
-      template: 'STANDARD_CHOICE',
-      blocks: [
-        {
-          id: ids.block,
-          kind: 'QUESTION',
-          position: 0,
-          sentences: [{ position: 0, speaker: null, sentence }],
-        },
+      passage: null,
+      prompt: 'คำถาม',
+      options: [
+        { id: ids.option, text: 'ก' },
+        { id: ids.block, text: 'ข' },
       ],
-      options: [{ id: ids.option, position: 0, sentence, span: null }],
       saved: false,
+      firstResult: 'UNANSWERED',
     }),
     getExplanation: vi.fn().mockResolvedValue([
       {
@@ -146,7 +143,21 @@ const dependencies = () => ({
         {
           id: ids.attempt,
           questionId: ids.question,
-          questionVersionId: ids.version,
+          questionVersion: 1,
+          questionSnapshot: {
+            version: 1,
+            updatedAt: '2026-07-24T00:00:00.000Z',
+            typeVersionId: ids.type,
+            difficulty: 2,
+            passage: null,
+            prompt: '질문',
+            options: [
+              { id: ids.option, text: '가' },
+              { id: ids.block, text: '나' },
+            ],
+            correctOptionId: ids.option,
+            explanation: '해설',
+          },
           attemptNo: 1,
           selectedOptionId: ids.option,
           clientAttemptId: ids.clientAttempt,
@@ -238,7 +249,7 @@ const dependencies = () => ({
       items: [
         {
           questionId: ids.question,
-          questionVersionId: ids.version,
+          questionVersion: 1,
           questionType,
           skill: 'READING',
           difficulty: 2,
@@ -255,7 +266,7 @@ const dependencies = () => ({
         id: ids.attempt,
         userId: 'user-1',
         questionId: ids.question,
-        questionVersionId: ids.persistedVersion,
+        questionVersion: 1,
         attemptNo: 1,
         selectedOptionId: ids.option,
         clientAttemptId: ids.clientAttempt,
@@ -263,7 +274,7 @@ const dependencies = () => ({
         isCorrect: true,
         submittedAt: new Date('2026-07-24T00:00:00.000Z'),
       },
-      feedback: { correctOptionId: ids.option },
+      feedback: { correctOptionId: ids.option, explanation: '풀이 당시 해설' },
     }),
   },
   savedContent: {
@@ -295,7 +306,7 @@ describe('LearnerContentService 문제 응답', () => {
       items: [
         {
           questionId: ids.question,
-          questionVersionId: ids.version,
+          questionVersion: 1,
           questionType,
           majorCategory: 'READING_PASSAGE',
           topic,
@@ -346,15 +357,13 @@ describe('LearnerContentService 문제 응답', () => {
     });
 
     const result = await service.submitQuestionAttempt('user-1', ids.question, {
-      questionVersionId: ids.requestedVersion,
+      questionVersion: 1,
       selectedOptionId: ids.option,
       clientAttemptId: ids.clientAttempt,
       durationMs: 1_000,
     });
 
-    expect(fakes.questionQuery.getExplanation).toHaveBeenCalledWith(
-      ids.persistedVersion,
-    );
+    expect(fakes.questionQuery.getExplanation).not.toHaveBeenCalled();
     expect(result).toMatchObject({
       attempt: {
         id: ids.attempt,
@@ -364,7 +373,7 @@ describe('LearnerContentService 문제 응답', () => {
       },
       feedback: {
         correctOptionId: ids.option,
-        explanationBlocks: [{ kind: 'EXPLANATION' }],
+        explanation: '풀이 당시 해설',
       },
     });
   });

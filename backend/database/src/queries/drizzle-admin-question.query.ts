@@ -1,717 +1,101 @@
-/** 관리자 문제의 모든 상태·버전·검증·정답 ref를 stable read model로 조회한다 */
-import type { QuestionValidationIssue } from '@flex-thia/domain/questions/question-version';
-import { and, asc, count, desc, eq, inArray, type SQL, sql } from 'drizzle-orm';
+/** 현재 문제와 사용 어휘를 관리자에게 조회한다. */
+import { and, desc, eq, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import { databaseSchema as schema } from '../schema/databaseSchema.js';
 import {
-  expressionOccurrences,
-  thaiSentenceVersions,
-  tokenOccurrences,
-} from '../schema/thai-content.schema.js';
-import {
-  questionBlocks,
-  questionBlockSentences,
-  questionOptions,
   questions,
-  questionTags,
-  questionTopics,
   questionTypes,
   questionTypeVersions,
-  questionVersions,
-  questionVersionTags,
+  questionVocabularies,
 } from '../schema/questions.schema.js';
-
-type AdminQuestionDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
-
-/** 관리자 문제 목록이 지원하는 모든 상태와 유형 필터 */
 export interface AdminQuestionListQuery {
-  status?: 'DRAFT' | 'PUBLISHED' | 'HIDDEN';
-  versionStatus?: 'DRAFT' | 'PUBLISHED' | 'RETIRED' | 'INVALIDATED';
-  validationStatus?: 'PENDING' | 'PASSED' | 'FAILED';
-  questionTypeSlug?: string;
-  skill?: 'READING';
-  difficulty?: number;
   page: number;
   pageSize: number;
+  status?: 'DRAFT' | 'PUBLISHED' | 'HIDDEN' | undefined;
+  questionTypeSlug?: string | undefined;
+  skill?: 'READING' | undefined;
+  difficulty?: number | undefined;
 }
-
-/** 관리자 문제 목록의 latest version 한 건 */
-export interface AdminQuestionListItemProjection {
-  questionId: string;
-  status: 'DRAFT' | 'PUBLISHED' | 'HIDDEN';
-  currentPublishedVersionId: string | null;
-  latestVersion: number;
-  latestVersionId: string;
-  latestVersionStatus: 'DRAFT' | 'PUBLISHED' | 'RETIRED' | 'INVALIDATED';
-  validationStatus: 'PENDING' | 'PASSED' | 'FAILED';
-  questionTypeSlug: string;
-  difficulty: number;
-  updatedAt: Date;
-}
-
-/** 관리자 문제 목록의 stable page metadata */
-export interface AdminQuestionPageMetadata {
-  page: number;
-  pageSize: number;
-  totalItems: number;
-  totalPages: number;
-}
-
-/** 관리자 문제 목록 page projection */
-export interface AdminQuestionListProjection {
-  items: AdminQuestionListItemProjection[];
-  page: AdminQuestionPageMetadata;
-}
-
-/** 관리자 상세의 버전별 저장된 validation 상태 */
-export type AdminQuestionValidationProjection =
-  | { status: 'PENDING'; issues: []; validatedAt: null }
-  | { status: 'PASSED'; issues: []; validatedAt: Date }
-  | {
-      status: 'FAILED';
-      issues: QuestionValidationIssue[];
-      validatedAt: Date;
-    };
-
-/** 관리자 상세의 block 안 sentence version 불변 참조 */
-export interface AdminQuestionBlockSentenceProjection {
-  position: number;
-  speaker: string | null;
-  sentenceVersionId: string;
-  sentence: AdminQuestionResolvedSentenceProjection;
-}
-
-/** 관리자 preview와 구조화 편집이 공유하는 해석된 문장 graph */
-export interface AdminQuestionResolvedSentenceProjection {
-  id: string;
-  originalText: string;
-  translationKo: string;
-  pronunciationKo: string;
-  toneMarks: string;
-  tokens: Array<{
-    position: number;
-    surface: string;
-    startOffset: number;
-    endOffset: number;
-    vocabularyId: string;
-    meaningId: string;
-    pronunciationId: string;
-    contextMeaningKo: string;
-    role: 'TARGET' | 'REQUIRED' | 'SUPPORTING' | 'INSTRUCTION';
-  }>;
-  expressions: Array<{
-    startTokenIndex: number;
-    endTokenIndex: number;
-    vocabularyId: string;
-    meaningId: string;
-    pronunciationId: string;
-    contextMeaningKo: string;
-    representative: boolean;
-  }>;
-}
-
-/** 관리자 상세의 버전 block */
-export interface AdminQuestionBlockProjection {
-  id: string;
-  kind: 'INSTRUCTION' | 'PASSAGE' | 'DIALOGUE' | 'QUESTION' | 'EXPLANATION';
-  position: number;
-  sentences: AdminQuestionBlockSentenceProjection[];
-}
-
-interface AdminQuestionOptionProjectionBase {
-  id: string;
-  position: number;
-}
-
-/** isCorrect 대신 문장 또는 inline 범위를 조립할 관리자 option */
-export type AdminQuestionOptionProjection =
-  | (AdminQuestionOptionProjectionBase & {
-      sentenceVersionId: string;
-      span: null;
-      displayText: string;
-      sentence: AdminQuestionResolvedSentenceProjection;
-    })
-  | (AdminQuestionOptionProjectionBase & {
-      sentenceVersionId: null;
-      span: {
-        sentenceVersionId: string;
-        startTokenIndex: number;
-        endTokenIndex: number;
-      };
-      displayText: string;
-      sentence: AdminQuestionResolvedSentenceProjection;
-    });
-
-/** 문제 유형 version과 템플릿을 고정한 관리자 projection */
-export interface AdminQuestionTypeVersionProjection {
-  id: string;
-  slug: string;
-  version: number;
-  skill: 'READING';
-  template:
-    | 'STANDARD_CHOICE'
-    | 'PASSAGE_CHOICE'
-    | 'DIALOGUE_CHOICE'
-    | 'INLINE_SPAN_CHOICE';
-}
-
-/** 관리자 상세의 불변 문제 버전 projection */
-export interface AdminQuestionVersionDetailProjection {
-  id: string;
-  version: number;
-  status: 'DRAFT' | 'PUBLISHED' | 'RETIRED' | 'INVALIDATED';
-  validation: AdminQuestionValidationProjection;
-  questionType: AdminQuestionTypeVersionProjection;
-  difficulty: number;
-  topic: AdminQuestionTaxonomyTermProjection;
-  tags: AdminQuestionTaxonomyTermProjection[];
-  blocks: AdminQuestionBlockProjection[];
-  options: AdminQuestionOptionProjection[];
-  correctOptionId: string;
-  createdAt: Date;
-  publishedAt: Date | null;
-}
-
-/** 관리자 상세에서 과거 참조까지 보존하는 주제·태그 projection */
-export interface AdminQuestionTaxonomyTermProjection {
-  id: string;
-  slug: string;
-  displayName: string;
-}
-
-/** 모든 버전을 포함한 관리자 문제 상세 projection */
-export interface AdminQuestionDetailProjection {
-  questionId: string;
-  status: 'DRAFT' | 'PUBLISHED' | 'HIDDEN';
-  currentPublishedVersionId: string | null;
-  versions: AdminQuestionVersionDetailProjection[];
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-/** DB 저장 상태가 관리자 공개 계약을 만족하지 않음을 stable code로 전달한다 */
-export class AdminQuestionQueryError extends Error {
-  readonly code = 'ADMIN_QUESTION_QUERY_INTEGRITY_ERROR';
-
-  constructor(readonly operation: string) {
-    super(`ADMIN_QUESTION_QUERY_INTEGRITY_ERROR:${operation}`);
-    this.name = 'AdminQuestionQueryError';
-  }
-}
-
-const comparePosition = (
-  left: { position: number },
-  right: { position: number },
-): number => left.position - right.position;
-
-const toValidation = (row: {
-  validationStatus: 'PENDING' | 'PASSED' | 'FAILED';
-  validationIssues: QuestionValidationIssue[];
-  validatedAt: Date | null;
-}): AdminQuestionValidationProjection => {
-  if (
-    row.validationStatus === 'PENDING' &&
-    row.validationIssues.length === 0 &&
-    row.validatedAt === null
-  ) {
-    return { status: 'PENDING', issues: [], validatedAt: null };
-  }
-  if (
-    row.validationStatus === 'PASSED' &&
-    row.validationIssues.length === 0 &&
-    row.validatedAt !== null
-  ) {
-    return {
-      status: 'PASSED',
-      issues: [],
-      validatedAt: row.validatedAt,
-    };
-  }
-  if (
-    row.validationStatus === 'FAILED' &&
-    row.validationIssues.length > 0 &&
-    row.validatedAt !== null
-  ) {
-    return {
-      status: 'FAILED',
-      issues: row.validationIssues,
-      validatedAt: row.validatedAt,
-    };
-  }
-  throw new AdminQuestionQueryError('mapValidation');
-};
-
-const latestVersions = (database: AdminQuestionDatabase, alias: string) =>
-  database
-    .select({
-      questionId: questionVersions.questionId,
-      latestVersion: sql<number>`max(${questionVersions.version})`.as(
-        'latest_version',
-      ),
-    })
-    .from(questionVersions)
-    .groupBy(questionVersions.questionId)
-    .as(alias);
-
-const listSelection = {
-  questionId: questions.id,
-  status: questions.status,
-  currentPublishedVersionId: questions.currentPublishedVersionId,
-  latestVersion: questionVersions.version,
-  latestVersionId: questionVersions.id,
-  latestVersionStatus: questionVersions.status,
-  validationStatus: questionVersions.validationStatus,
-  questionTypeSlug: questionTypes.slug,
-  difficulty: questionVersions.difficulty,
-  updatedAt: questions.updatedAt,
-};
-
-/** public 관리자 계약에 필요한 문제·버전 필드만 조회한다 */
 export class DrizzleAdminQuestionQuery {
-  constructor(private readonly database: AdminQuestionDatabase) {}
-
-  /** latest version 기준 필터와 updatedAt·ID stable page를 반환한다 */
-  async list(
-    query: AdminQuestionListQuery,
-  ): Promise<AdminQuestionListProjection> {
-    const countLatest = latestVersions(this.database, 'count_latest_versions');
-    const countConditions: Array<SQL<unknown> | undefined> = [
+  constructor(
+    private readonly database: PgDatabase<PgQueryResultHKT, typeof schema>,
+  ) {}
+  async list(query: AdminQuestionListQuery) {
+    const conditions = [
       query.status ? eq(questions.status, query.status) : undefined,
-      query.versionStatus
-        ? eq(questionVersions.status, query.versionStatus)
-        : undefined,
-      query.validationStatus
-        ? eq(questionVersions.validationStatus, query.validationStatus)
-        : undefined,
+      query.difficulty ? eq(questions.difficulty, query.difficulty) : undefined,
       query.questionTypeSlug
         ? eq(questionTypes.slug, query.questionTypeSlug)
         : undefined,
-      query.skill ? eq(questionTypes.skill, query.skill) : undefined,
-      query.difficulty
-        ? eq(questionVersions.difficulty, query.difficulty)
-        : undefined,
     ];
-    const [totalRow] = await this.database
-      .select({ totalItems: count() })
+    const [{ count } = { count: 0 }] = await this.database
+      .select({ count: sql<number>`count(*)::int` })
       .from(questions)
-      .innerJoin(countLatest, eq(questions.id, countLatest.questionId))
-      .innerJoin(
-        questionVersions,
-        and(
-          eq(questionVersions.questionId, countLatest.questionId),
-          eq(questionVersions.version, countLatest.latestVersion),
-        ),
-      )
       .innerJoin(
         questionTypeVersions,
-        eq(questionVersions.typeVersionId, questionTypeVersions.id),
+        eq(questions.typeVersionId, questionTypeVersions.id),
       )
       .innerJoin(
         questionTypes,
         eq(questionTypeVersions.questionTypeId, questionTypes.id),
       )
-      .where(and(...countConditions));
-
-    const listLatest = latestVersions(this.database, 'list_latest_versions');
-    const listConditions: Array<SQL<unknown> | undefined> = [
-      query.status ? eq(questions.status, query.status) : undefined,
-      query.versionStatus
-        ? eq(questionVersions.status, query.versionStatus)
-        : undefined,
-      query.validationStatus
-        ? eq(questionVersions.validationStatus, query.validationStatus)
-        : undefined,
-      query.questionTypeSlug
-        ? eq(questionTypes.slug, query.questionTypeSlug)
-        : undefined,
-      query.skill ? eq(questionTypes.skill, query.skill) : undefined,
-      query.difficulty
-        ? eq(questionVersions.difficulty, query.difficulty)
-        : undefined,
-    ];
-    const rows = await this.database
-      .select(listSelection)
-      .from(questions)
-      .innerJoin(listLatest, eq(questions.id, listLatest.questionId))
-      .innerJoin(
-        questionVersions,
-        and(
-          eq(questionVersions.questionId, listLatest.questionId),
-          eq(questionVersions.version, listLatest.latestVersion),
-        ),
-      )
-      .innerJoin(
-        questionTypeVersions,
-        eq(questionVersions.typeVersionId, questionTypeVersions.id),
-      )
-      .innerJoin(
-        questionTypes,
-        eq(questionTypeVersions.questionTypeId, questionTypes.id),
-      )
-      .where(and(...listConditions))
-      .orderBy(desc(questions.updatedAt), desc(questions.id))
-      .limit(query.pageSize)
-      .offset((query.page - 1) * query.pageSize);
-    const totalItems = totalRow?.totalItems ?? 0;
-    return {
-      items: rows,
-      page: {
-        page: query.page,
-        pageSize: query.pageSize,
-        totalItems,
-        totalPages: Math.ceil(totalItems / query.pageSize),
-      },
-    };
-  }
-
-  /** 모든 version의 validation·block·option 정답 ID를 private field 없이 반환한다 */
-  async findById(
-    questionId: string,
-  ): Promise<AdminQuestionDetailProjection | null> {
-    const [question] = await this.database
+      .where(and(...conditions));
+    const items = await this.database
       .select({
         questionId: questions.id,
+        version: questions.version,
         status: questions.status,
-        currentPublishedVersionId: questions.currentPublishedVersionId,
-        createdAt: questions.createdAt,
+        prompt: questions.prompt,
+        questionTypeSlug: questionTypes.slug,
+        difficulty: questions.difficulty,
         updatedAt: questions.updatedAt,
       })
       .from(questions)
-      .where(eq(questions.id, questionId))
-      .limit(1);
-    if (!question) return null;
-
-    const versionRows = await this.database
-      .select({
-        id: questionVersions.id,
-        version: questionVersions.version,
-        status: questionVersions.status,
-        validationStatus: questionVersions.validationStatus,
-        validationIssues: questionVersions.validationIssues,
-        validatedAt: questionVersions.validatedAt,
-        typeVersionId: questionTypeVersions.id,
-        questionTypeSlug: questionTypes.slug,
-        questionTypeVersion: questionTypeVersions.version,
-        skill: questionTypes.skill,
-        template: questionTypeVersions.template,
-        difficulty: questionVersions.difficulty,
-        topicId: questionTopics.id,
-        topicSlug: questionTopics.slug,
-        topicDisplayName: questionTopics.displayName,
-        createdAt: questionVersions.createdAt,
-        publishedAt: questionVersions.publishedAt,
-      })
-      .from(questionVersions)
       .innerJoin(
         questionTypeVersions,
-        eq(questionVersions.typeVersionId, questionTypeVersions.id),
+        eq(questions.typeVersionId, questionTypeVersions.id),
       )
       .innerJoin(
         questionTypes,
         eq(questionTypeVersions.questionTypeId, questionTypes.id),
       )
-      .innerJoin(
-        questionTopics,
-        eq(questionVersions.topicId, questionTopics.id),
-      )
-      .where(eq(questionVersions.questionId, questionId))
-      .orderBy(desc(questionVersions.version), desc(questionVersions.id));
-    if (versionRows.length === 0) {
-      throw new AdminQuestionQueryError('findById.versions');
-    }
-    const versionIds = versionRows.map(({ id }) => id);
-    const blockRows = await this.database
-      .select({
-        id: questionBlocks.id,
-        questionVersionId: questionBlocks.questionVersionId,
-        kind: questionBlocks.kind,
-        position: questionBlocks.position,
-      })
-      .from(questionBlocks)
-      .where(inArray(questionBlocks.questionVersionId, versionIds))
-      .orderBy(
-        asc(questionBlocks.questionVersionId),
-        asc(questionBlocks.position),
-        asc(questionBlocks.id),
-      );
-    const blockSentenceRows = await this.database
-      .select({
-        blockId: questionBlockSentences.blockId,
-        sentenceVersionId: questionBlockSentences.sentenceVersionId,
-        position: questionBlockSentences.position,
-        speaker: questionBlockSentences.speaker,
-      })
-      .from(questionBlockSentences)
-      .innerJoin(
-        questionBlocks,
-        eq(questionBlockSentences.blockId, questionBlocks.id),
-      )
-      .where(inArray(questionBlocks.questionVersionId, versionIds))
-      .orderBy(
-        asc(questionBlocks.questionVersionId),
-        asc(questionBlocks.position),
-        asc(questionBlockSentences.position),
-      );
-    const optionRows = await this.database
-      .select({
-        id: questionOptions.id,
-        questionVersionId: questionOptions.questionVersionId,
-        sentenceVersionId: questionOptions.sentenceVersionId,
-        position: questionOptions.position,
-        isCorrect: questionOptions.isCorrect,
-        spanSentenceVersionId: questionOptions.spanSentenceVersionId,
-        spanStartTokenIndex: questionOptions.spanStartTokenIndex,
-        spanEndTokenIndex: questionOptions.spanEndTokenIndex,
-      })
-      .from(questionOptions)
-      .where(inArray(questionOptions.questionVersionId, versionIds))
-      .orderBy(
-        asc(questionOptions.questionVersionId),
-        asc(questionOptions.position),
-        asc(questionOptions.id),
-      );
-    const sentenceVersionIds = [
-      ...new Set([
-        ...blockSentenceRows.map(({ sentenceVersionId }) => sentenceVersionId),
-        ...optionRows.flatMap(
-          ({ sentenceVersionId, spanSentenceVersionId }) => [
-            ...(sentenceVersionId === null ? [] : [sentenceVersionId]),
-            ...(spanSentenceVersionId === null ? [] : [spanSentenceVersionId]),
-          ],
-        ),
-      ]),
-    ].sort();
-    const sentenceRows =
-      sentenceVersionIds.length === 0
-        ? []
-        : await this.database
-            .select({
-              id: thaiSentenceVersions.id,
-              originalText: thaiSentenceVersions.originalText,
-              translationKo: thaiSentenceVersions.translationKo,
-              pronunciationKo: thaiSentenceVersions.pronunciationKo,
-              toneMarks: thaiSentenceVersions.toneMarks,
-            })
-            .from(thaiSentenceVersions)
-            .where(inArray(thaiSentenceVersions.id, sentenceVersionIds))
-            .orderBy(asc(thaiSentenceVersions.id));
-    const tokenRows =
-      sentenceVersionIds.length === 0
-        ? []
-        : await this.database
-            .select({
-              sentenceVersionId: tokenOccurrences.sentenceVersionId,
-              position: tokenOccurrences.position,
-              surface: tokenOccurrences.surface,
-              startOffset: tokenOccurrences.startOffset,
-              endOffset: tokenOccurrences.endOffset,
-              vocabularyId: tokenOccurrences.vocabularyId,
-              meaningId: tokenOccurrences.meaningId,
-              pronunciationId: tokenOccurrences.pronunciationId,
-              contextMeaningKo: tokenOccurrences.contextMeaningKo,
-              role: tokenOccurrences.role,
-            })
-            .from(tokenOccurrences)
-            .where(
-              inArray(tokenOccurrences.sentenceVersionId, sentenceVersionIds),
-            )
-            .orderBy(
-              asc(tokenOccurrences.sentenceVersionId),
-              asc(tokenOccurrences.position),
-            );
-    const expressionRows =
-      sentenceVersionIds.length === 0
-        ? []
-        : await this.database
-            .select({
-              sentenceVersionId: expressionOccurrences.sentenceVersionId,
-              startTokenIndex: expressionOccurrences.startTokenIndex,
-              endTokenIndex: expressionOccurrences.endTokenIndex,
-              vocabularyId: expressionOccurrences.vocabularyId,
-              meaningId: expressionOccurrences.meaningId,
-              pronunciationId: expressionOccurrences.pronunciationId,
-              contextMeaningKo: expressionOccurrences.contextMeaningKo,
-              representative: expressionOccurrences.representative,
-            })
-            .from(expressionOccurrences)
-            .where(
-              inArray(
-                expressionOccurrences.sentenceVersionId,
-                sentenceVersionIds,
-              ),
-            )
-            .orderBy(
-              asc(expressionOccurrences.sentenceVersionId),
-              asc(expressionOccurrences.startTokenIndex),
-              asc(expressionOccurrences.endTokenIndex),
-            );
-    const tagRows = await this.database
-      .select({
-        questionVersionId: questionVersionTags.questionVersionId,
-        tagId: questionTags.id,
-        tagSlug: questionTags.slug,
-        tagDisplayName: questionTags.displayName,
-      })
-      .from(questionVersionTags)
-      .innerJoin(questionTags, eq(questionVersionTags.tagId, questionTags.id))
-      .where(inArray(questionVersionTags.questionVersionId, versionIds))
-      .orderBy(
-        asc(questionVersionTags.questionVersionId),
-        asc(questionTags.slug),
-        asc(questionTags.id),
-      );
-    const sentencesById = new Map<
-      string,
-      AdminQuestionResolvedSentenceProjection
-    >(
-      sentenceRows.map((sentence) => [
-        sentence.id,
-        {
-          ...sentence,
-          tokens: tokenRows
-            .filter(
-              ({ sentenceVersionId }) => sentenceVersionId === sentence.id,
-            )
-            .map((token) => ({
-              position: token.position,
-              surface: token.surface,
-              startOffset: token.startOffset,
-              endOffset: token.endOffset,
-              vocabularyId: token.vocabularyId,
-              meaningId: token.meaningId,
-              pronunciationId: token.pronunciationId,
-              contextMeaningKo: token.contextMeaningKo,
-              role: token.role,
-            })),
-          expressions: expressionRows
-            .filter(
-              ({ sentenceVersionId }) => sentenceVersionId === sentence.id,
-            )
-            .map((expression) => ({
-              startTokenIndex: expression.startTokenIndex,
-              endTokenIndex: expression.endTokenIndex,
-              vocabularyId: expression.vocabularyId,
-              meaningId: expression.meaningId,
-              pronunciationId: expression.pronunciationId,
-              contextMeaningKo: expression.contextMeaningKo,
-              representative: expression.representative,
-            })),
-        },
-      ]),
-    );
-    const requireSentence = (
-      sentenceVersionId: string,
-    ): AdminQuestionResolvedSentenceProjection => {
-      const sentence = sentencesById.get(sentenceVersionId);
-      if (!sentence) {
-        throw new AdminQuestionQueryError('findById.sentence');
-      }
-      return sentence;
-    };
-
+      .where(and(...conditions))
+      .orderBy(desc(questions.updatedAt), questions.id)
+      .limit(query.pageSize)
+      .offset((query.page - 1) * query.pageSize);
     return {
-      ...question,
-      versions: versionRows.map((version) => {
-        const blocks = blockRows
-          .filter(({ questionVersionId }) => questionVersionId === version.id)
-          .sort(comparePosition)
-          .map((block) => ({
-            id: block.id,
-            kind: block.kind,
-            position: block.position,
-            sentences: blockSentenceRows
-              .filter(({ blockId }) => blockId === block.id)
-              .sort(comparePosition)
-              .map(({ position, speaker, sentenceVersionId }) => ({
-                position,
-                speaker,
-                sentenceVersionId,
-                sentence: requireSentence(sentenceVersionId),
-              })),
-          }));
-        const storedOptions = optionRows
-          .filter(({ questionVersionId }) => questionVersionId === version.id)
-          .sort(comparePosition);
-        const correctOptions = storedOptions.filter(
-          ({ isCorrect }) => isCorrect,
-        );
-        if (correctOptions.length !== 1) {
-          throw new AdminQuestionQueryError('findById.correctOption');
-        }
-        return {
-          id: version.id,
-          version: version.version,
-          status: version.status,
-          validation: toValidation(version),
-          questionType: {
-            id: version.typeVersionId,
-            slug: version.questionTypeSlug,
-            version: version.questionTypeVersion,
-            skill: version.skill,
-            template: version.template,
-          },
-          difficulty: version.difficulty,
-          topic: {
-            id: version.topicId,
-            slug: version.topicSlug,
-            displayName: version.topicDisplayName,
-          },
-          tags: tagRows
-            .filter(({ questionVersionId }) => questionVersionId === version.id)
-            .map(({ tagId, tagSlug, tagDisplayName }) => ({
-              id: tagId,
-              slug: tagSlug,
-              displayName: tagDisplayName,
-            })),
-          blocks,
-          options: storedOptions.map(
-            (option): AdminQuestionOptionProjection => {
-              if (option.sentenceVersionId !== null) {
-                const sentence = requireSentence(option.sentenceVersionId);
-                return {
-                  id: option.id,
-                  position: option.position,
-                  sentenceVersionId: option.sentenceVersionId,
-                  span: null,
-                  displayText: sentence.originalText,
-                  sentence,
-                };
-              }
-              if (
-                option.spanSentenceVersionId === null ||
-                option.spanStartTokenIndex === null ||
-                option.spanEndTokenIndex === null
-              ) {
-                throw new AdminQuestionQueryError('findById.option');
-              }
-              const sentence = requireSentence(option.spanSentenceVersionId);
-              const displayText = sentence.tokens
-                .slice(option.spanStartTokenIndex, option.spanEndTokenIndex)
-                .map(({ surface }) => surface)
-                .join('');
-              if (displayText.length === 0) {
-                throw new AdminQuestionQueryError('findById.optionSpan');
-              }
-              return {
-                id: option.id,
-                position: option.position,
-                sentenceVersionId: null,
-                span: {
-                  sentenceVersionId: option.spanSentenceVersionId,
-                  startTokenIndex: option.spanStartTokenIndex,
-                  endTokenIndex: option.spanEndTokenIndex,
-                },
-                displayText,
-                sentence,
-              };
-            },
-          ),
-          correctOptionId: correctOptions[0]!.id,
-          createdAt: version.createdAt,
-          publishedAt: version.publishedAt,
-        };
-      }),
+      items,
+      page: {
+        page: query.page,
+        pageSize: query.pageSize,
+        totalItems: count,
+        totalPages: Math.ceil(count / query.pageSize),
+      },
+    };
+  }
+  async findById(id: string) {
+    const [row] = await this.database
+      .select()
+      .from(questions)
+      .where(eq(questions.id, id));
+    if (!row) return null;
+    const usage = await this.database
+      .select()
+      .from(questionVocabularies)
+      .where(eq(questionVocabularies.questionId, id));
+    const { id: questionId, ...content } = row;
+    return {
+      questionId,
+      ...content,
+      vocabularies: usage.map(
+        ({ vocabularyId, meaningId, role, occurrenceCount }) => ({
+          vocabularyId,
+          meaningId,
+          role,
+          occurrenceCount,
+        }),
+      ),
     };
   }
 }

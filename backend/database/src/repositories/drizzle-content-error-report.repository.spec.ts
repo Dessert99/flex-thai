@@ -1,5 +1,4 @@
 /** 콘텐츠 오류 신고 adapter의 concept 격리와 원자 생성 저장을 검증한다 */
-import { PgDialect } from 'drizzle-orm/pg-core';
 import { describe, expect, it, vi } from 'vitest';
 import {
   contentErrorReportHistory,
@@ -88,7 +87,7 @@ describe('DrizzleContentErrorReportRepository', () => {
         kind: 'CONCEPT' as const,
         contentId: 'concept-id',
         contentVersionId: 'version-id',
-        questionVersionId: null,
+        questionVersion: null,
         sentenceVersionId: null,
         locationId: null,
       },
@@ -125,8 +124,8 @@ describe('DrizzleContentErrorReportRepository', () => {
         reference: {
           kind: 'CONCEPT',
           contentId: 'concept-id',
-          contentVersionId: 'version-id',
-          questionVersionId: null,
+          contentVersionId: null,
+          questionVersion: null,
           sentenceVersionId: null,
           locationId: null,
           internalStatus: 'DRAFT',
@@ -162,8 +161,8 @@ describe('DrizzleContentErrorReportRepository', () => {
         reference: {
           kind: 'CONCEPT',
           contentId: 'other-concept-id',
-          contentVersionId: 'version-id',
-          questionVersionId: null,
+          contentVersionId: null,
+          questionVersion: null,
           sentenceVersionId: null,
           locationId: null,
         },
@@ -213,7 +212,7 @@ describe('DrizzleContentErrorReportRepository', () => {
       repository.resolve({
         kind: 'QUESTION',
         questionId: 'question-id',
-        questionVersionId: 'version-id',
+        questionVersion: 1,
         blockId: null,
         sentenceVersionId: 'sentence-id',
       }),
@@ -221,7 +220,9 @@ describe('DrizzleContentErrorReportRepository', () => {
   });
 
   it('위치 없는 문제 신고는 임의 문장을 선택하지 않고 문제 버전 자체를 snapshot한다', async () => {
-    const database = createSelectDatabase([[{ version: 3 }]]);
+    const database = createSelectDatabase([
+      [{ version: 3, prompt: 'question-id', passage: null }],
+    ]);
     const repository = new DrizzleContentErrorReportRepository(
       database as never,
     );
@@ -230,14 +231,14 @@ describe('DrizzleContentErrorReportRepository', () => {
       repository.resolve({
         kind: 'QUESTION',
         questionId: 'question-id',
-        questionVersionId: 'version-id',
+        questionVersion: 1,
         blockId: null,
         sentenceVersionId: null,
       }),
     ).resolves.toMatchObject({
       reference: {
         contentId: 'question-id',
-        contentVersionId: 'version-id',
+        contentVersionId: null,
         sentenceVersionId: null,
         locationId: null,
       },
@@ -249,176 +250,6 @@ describe('DrizzleContentErrorReportRepository', () => {
       },
     });
     expect(database.select).toHaveBeenCalledOnce();
-  });
-
-  it('blockId만 있으면 공개 block의 모든 문장을 position 순서로 snapshot한다', async () => {
-    const database = createSelectDatabase([
-      [{ version: 1 }],
-      [
-        {
-          blockId: 'block-id',
-          kind: 'PASSAGE',
-          blockPosition: 2,
-          sentencePosition: 0,
-          sentenceVersionId: 'sentence-1',
-          originalText: '첫 문장',
-          translationKo: '첫 해석',
-        },
-        {
-          blockId: 'block-id',
-          kind: 'PASSAGE',
-          blockPosition: 2,
-          sentencePosition: 1,
-          sentenceVersionId: 'sentence-2',
-          originalText: '둘째 문장',
-          translationKo: '둘째 해석',
-        },
-      ],
-    ]);
-    const repository = new DrizzleContentErrorReportRepository(
-      database as never,
-    );
-
-    await expect(
-      repository.resolve({
-        kind: 'QUESTION',
-        questionId: 'question-id',
-        questionVersionId: 'version-id',
-        blockId: 'block-id',
-        sentenceVersionId: null,
-      }),
-    ).resolves.toMatchObject({
-      reference: {
-        sentenceVersionId: null,
-        locationId: 'block-id',
-      },
-      snapshot: {
-        title: '첫 문장\n둘째 문장',
-        primaryText: '첫 해석\n둘째 해석',
-        locationLabel: 'PASSAGE 블록 3',
-      },
-    });
-    const blockWhere = database.whereCalls[1];
-    const query = new PgDialect().sqlToQuery(blockWhere as never);
-    expect(query.params).not.toContain('EXPLANATION');
-    expect(query.sql).not.toContain('<>');
-  });
-
-  it('공개 답안의 EXPLANATION block을 문제 신고 대상으로 snapshot한다', async () => {
-    const database = createSelectDatabase([
-      [{ version: 1 }],
-      [
-        {
-          blockId: 'explanation-block-id',
-          kind: 'EXPLANATION',
-          blockPosition: 3,
-          sentencePosition: 0,
-          sentenceVersionId: 'sentence-id',
-          originalText: '정답 해설',
-          translationKo: '해설 번역',
-        },
-      ],
-    ]);
-    const repository = new DrizzleContentErrorReportRepository(
-      database as never,
-    );
-
-    await expect(
-      repository.resolve({
-        kind: 'QUESTION',
-        questionId: 'question-id',
-        questionVersionId: 'version-id',
-        blockId: 'explanation-block-id',
-        sentenceVersionId: null,
-      }),
-    ).resolves.toMatchObject({
-      reference: {
-        contentId: 'question-id',
-        contentVersionId: 'version-id',
-        locationId: 'explanation-block-id',
-      },
-      snapshot: {
-        title: '정답 해설',
-        primaryText: '해설 번역',
-        locationLabel: 'EXPLANATION 블록 4',
-      },
-    });
-    const blockWhere = database.whereCalls[1];
-    const query = new PgDialect().sqlToQuery(blockWhere as never);
-    expect(query.params).not.toContain('EXPLANATION');
-    expect(query.sql).not.toContain('<>');
-  });
-
-  it.each([
-    ['sentenceVersionId', '일반 선택지'],
-    ['spanSentenceVersionId', 'inline 선택지'],
-  ] as const)(
-    '문제 선택지의 %s 관계를 정확히 snapshot한다',
-    async (field, label) => {
-      const database = createSelectDatabase([
-        [{ version: 1 }],
-        [],
-        [
-          {
-            optionId: 'option-id',
-            optionPosition: 2,
-            sentenceVersionId: 'sentence-id',
-            originalText: label,
-            translationKo: '선택지 해석',
-          },
-        ],
-      ]);
-      const repository = new DrizzleContentErrorReportRepository(
-        database as never,
-      );
-
-      await expect(
-        repository.resolve({
-          kind: 'QUESTION',
-          questionId: 'question-id',
-          questionVersionId: 'version-id',
-          blockId: null,
-          sentenceVersionId: 'sentence-id',
-        }),
-      ).resolves.toMatchObject({
-        reference: {
-          sentenceVersionId: 'sentence-id',
-          locationId: 'option-id',
-        },
-        snapshot: {
-          title: label,
-          locationLabel: '선택지 3',
-        },
-      });
-      const optionWhere = database.whereCalls[2];
-      const query = new PgDialect().sqlToQuery(optionWhere as never);
-      expect(query.sql).toContain(
-        field === 'sentenceVersionId'
-          ? '"sentence_version_id"'
-          : '"span_sentence_version_id"',
-      );
-    },
-  );
-
-  it('blockId가 지정되면 다른 위치의 선택지 문장으로 대체하지 않는다', async () => {
-    const database = createSelectDatabase([
-      [{ version: 1 }],
-      [],
-      [{ originalText: '선택지', translationKo: '오답' }],
-    ]);
-    const repository = new DrizzleContentErrorReportRepository(
-      database as never,
-    );
-    await expect(
-      repository.resolve({
-        kind: 'QUESTION',
-        questionId: 'question-id',
-        questionVersionId: 'version-id',
-        blockId: 'block-id',
-        sentenceVersionId: 'sentence-id',
-      }),
-    ).resolves.toBeNull();
-    expect(database.select).toHaveBeenCalledTimes(2);
   });
 
   it('어휘 뜻 소유 관계가 다르면 대상을 거부한다', async () => {
@@ -469,7 +300,7 @@ describe('DrizzleContentErrorReportRepository', () => {
         kind: 'SENTENCE' as const,
         contentId: 'sentence-id',
         contentVersionId: 'sentence-version-id',
-        questionVersionId: null,
+        questionVersion: null,
         sentenceVersionId: 'sentence-version-id',
         locationId: null,
       },
@@ -515,62 +346,6 @@ describe('DrizzleContentErrorReportRepository', () => {
       sentenceVersionId: 'sentence-version-id',
       tokenPosition: 2,
     });
-  });
-
-  it('일반·inline 선택지에 노출된 문장을 공개 SENTENCE 대상으로 허용한다', async () => {
-    const sentence = {
-      id: 'sentence-version-id',
-      sentenceId: 'sentence-id',
-      version: 1,
-      originalText: '선택지 문장',
-      translationKo: '선택지 해석',
-      pronunciationKo: null,
-      frozenAt: new Date(),
-    };
-    const database = createSelectDatabase([[sentence], [], [{ id: 'qv-id' }]]);
-    const repository = new DrizzleContentErrorReportRepository(
-      database as never,
-    );
-
-    await expect(
-      repository.resolve({
-        kind: 'SENTENCE',
-        sentenceVersionId: 'sentence-version-id',
-        tokenPosition: null,
-      }),
-    ).resolves.toMatchObject({
-      reference: {
-        kind: 'SENTENCE',
-        sentenceVersionId: 'sentence-version-id',
-      },
-    });
-  });
-
-  it('문장 공개 block 검사는 EXPLANATION을 제외한다', async () => {
-    const sentence = {
-      id: 'sentence-version-id',
-      sentenceId: 'sentence-id',
-      version: 1,
-      originalText: '문장',
-      translationKo: '해석',
-      pronunciationKo: null,
-      frozenAt: new Date(),
-    };
-    const database = createSelectDatabase([[sentence], [{ questionId: 'q' }]]);
-    const repository = new DrizzleContentErrorReportRepository(
-      database as never,
-    );
-
-    await repository.resolve({
-      kind: 'SENTENCE',
-      sentenceVersionId: 'sentence-version-id',
-      tokenPosition: null,
-    });
-
-    const exposureWhere = database.whereCalls[1];
-    const query = new PgDialect().sqlToQuery(exposureWhere as never);
-    expect(query.params).toContain('EXPLANATION');
-    expect(query.sql).toContain('<>');
   });
 
   it('신고와 SUBMITTED 이력을 한 transaction에 저장하고 중복 신고도 허용한다', async () => {

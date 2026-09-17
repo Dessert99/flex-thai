@@ -213,7 +213,7 @@ export const questionCandidateReviewStateSchema = z.discriminatedUnion(
         ...questionCandidateReviewBaseShape,
         status: z.literal('PENDING'),
         approvedQuestionId: z.null(),
-        approvedQuestionVersionId: z.null(),
+        approvedQuestionVersion: z.null(),
       })
       .strict(),
     z
@@ -221,7 +221,7 @@ export const questionCandidateReviewStateSchema = z.discriminatedUnion(
         ...questionCandidateReviewBaseShape,
         status: z.literal('DISCARDED'),
         approvedQuestionId: z.null(),
-        approvedQuestionVersionId: z.null(),
+        approvedQuestionVersion: z.null(),
       })
       .strict(),
     z
@@ -229,7 +229,7 @@ export const questionCandidateReviewStateSchema = z.discriminatedUnion(
         ...questionCandidateReviewBaseShape,
         status: z.literal('APPROVED'),
         approvedQuestionId: uuidSchema,
-        approvedQuestionVersionId: uuidSchema,
+        approvedQuestionVersion: positiveIntegerSchema,
       })
       .strict(),
   ],
@@ -457,7 +457,7 @@ export const approveQuestionCandidateResponseSchema = z
         status: z.literal('APPROVED'),
         revision: nonnegativeIntegerSchema,
         questionId: uuidSchema,
-        questionVersionId: uuidSchema,
+        questionVersion: positiveIntegerSchema,
       })
       .strict(),
   })

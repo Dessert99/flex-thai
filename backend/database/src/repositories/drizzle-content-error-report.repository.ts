@@ -1,4 +1,6 @@
 /** 콘텐츠 오류 신고의 canonical target 해석과 workflow transaction을 구현한다 */
+import type { ContentErrorReportOrigin } from '@flex-thia/domain/feedback/content-error-report';
+import { ContentErrorReportDomainError } from '@flex-thia/domain/feedback/content-error-report';
 import type {
   ChangeContentErrorReportAssigneeRecord,
   ChangeContentErrorReportStatusRecord,
@@ -9,28 +11,16 @@ import type {
   CreateContentErrorReportRecord,
   ResolvedContentErrorReportTarget,
 } from '@flex-thia/domain/feedback/content-error-report.repository';
-import type { ContentErrorReportOrigin } from '@flex-thia/domain/feedback/content-error-report';
-import { ContentErrorReportDomainError } from '@flex-thia/domain/feedback/content-error-report';
-import { and, asc, eq, isNull, ne, or, sql } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
+import { databaseSchema as baseSchema } from '../schema/databaseSchema.js';
 import {
   contentErrorReportHistory,
   contentErrorReports,
 } from '../schema/feedback.schema.js';
 import { users } from '../schema/identity.schema.js';
-import { databaseSchema as baseSchema } from '../schema/databaseSchema.js';
-import {
-  questionBlocks,
-  questionBlockSentences,
-  questionOptions,
-  questions,
-  questionVersions,
-} from '../schema/questions.schema.js';
-import {
-  thaiSentenceVersions,
-  tokenOccurrences,
-} from '../schema/thai-content.schema.js';
+import { questions } from '../schema/questions.schema.js';
 import {
   vocabularies,
   vocabularyMeanings,
@@ -75,7 +65,7 @@ const referenceKeys = [
   'kind',
   'contentId',
   'contentVersionId',
-  'questionVersionId',
+  'questionVersion',
   'sentenceVersionId',
   'locationId',
 ] as const;
@@ -132,7 +122,13 @@ const strictResolvedTarget = (
     referenceRecord.contentId.length === 0 ||
     !referenceKeys
       .slice(2)
-      .every((key) => isNullableString(referenceRecord[key])) ||
+      .every((key) =>
+        key === 'questionVersion'
+          ? referenceRecord[key] === null ||
+            (Number.isSafeInteger(referenceRecord[key]) &&
+              Number(referenceRecord[key]) > 0)
+          : isNullableString(referenceRecord[key]),
+      ) ||
     typeof snapshotRecord.title !== 'string' ||
     snapshotRecord.title.length === 0 ||
     typeof snapshotRecord.primaryText !== 'string' ||
@@ -146,18 +142,6 @@ const strictResolvedTarget = (
   }
   return value as ResolvedContentErrorReportTarget;
 };
-
-interface QuestionContextRow {
-  blockId?: string;
-  kind?: string;
-  blockPosition?: number;
-  sentencePosition?: number;
-  optionId?: string;
-  optionPosition?: number;
-  sentenceVersionId: string;
-  originalText: string;
-  translationKo: string;
-}
 
 export class DrizzleContentErrorReportRepository
   implements
@@ -371,228 +355,39 @@ export class DrizzleContentErrorReportRepository
   private async resolveQuestion(
     origin: Extract<ContentErrorReportOrigin, { kind: 'QUESTION' }>,
   ): Promise<ResolvedContentErrorReportTarget | null> {
-    const rows = await this.database
+    if (origin.blockId !== null || origin.sentenceVersionId !== null)
+      return null;
+    const [row] = await this.database
       .select({
-        version: questionVersions.version,
-        currentPublishedVersionId: questions.currentPublishedVersionId,
+        version: questions.version,
+        prompt: questions.prompt,
+        passage: questions.passage,
       })
-      .from(questionVersions)
-      .innerJoin(questions, eq(questions.id, questionVersions.questionId))
+      .from(questions)
       .where(
         and(
           eq(questions.id, origin.questionId),
-          eq(questionVersions.id, origin.questionVersionId),
+          eq(questions.version, origin.questionVersion),
           eq(questions.status, 'PUBLISHED'),
-          eq(questionVersions.status, 'PUBLISHED'),
-          eq(questions.currentPublishedVersionId, origin.questionVersionId),
         ),
       )
       .limit(1);
-    const row = rows[0];
     if (!row) return null;
-    if (origin.blockId === null && origin.sentenceVersionId === null) {
-      return {
-        reference: {
-          kind: 'QUESTION',
-          contentId: origin.questionId,
-          contentVersionId: origin.questionVersionId,
-          questionVersionId: origin.questionVersionId,
-          sentenceVersionId: null,
-          locationId: null,
-        },
-        snapshot: {
-          title: '문제',
-          primaryText: origin.questionId,
-          secondaryText: null,
-          versionLabel: `버전 ${row.version}`,
-          locationLabel: '문제 전체',
-        },
-      };
-    }
-
-    const blockContexts = await this.loadQuestionBlockContexts(origin);
-    if (origin.blockId !== null) {
-      if (blockContexts.length === 0) return null;
-      return origin.sentenceVersionId === null
-        ? this.buildQuestionBlockTarget(origin, row.version, blockContexts)
-        : this.buildQuestionSentenceTarget(
-            origin,
-            row.version,
-            blockContexts[0]!,
-          );
-    }
-    if (blockContexts[0]) {
-      return this.buildQuestionSentenceTarget(
-        origin,
-        row.version,
-        blockContexts[0],
-      );
-    }
-    const optionContexts = await this.loadQuestionOptionContexts(origin);
-    const option = optionContexts[0];
-    return option
-      ? this.buildQuestionOptionTarget(origin, row.version, option)
-      : null;
-  }
-
-  private loadQuestionBlockContexts(
-    origin: Extract<ContentErrorReportOrigin, { kind: 'QUESTION' }>,
-  ): Promise<QuestionContextRow[]> {
-    return this.database
-      .select({
-        blockId: questionBlocks.id,
-        kind: questionBlocks.kind,
-        blockPosition: questionBlocks.position,
-        sentencePosition: questionBlockSentences.position,
-        sentenceVersionId: questionBlockSentences.sentenceVersionId,
-        originalText: thaiSentenceVersions.originalText,
-        translationKo: thaiSentenceVersions.translationKo,
-      })
-      .from(questionBlocks)
-      .innerJoin(
-        questionBlockSentences,
-        eq(questionBlockSentences.blockId, questionBlocks.id),
-      )
-      .innerJoin(
-        thaiSentenceVersions,
-        eq(thaiSentenceVersions.id, questionBlockSentences.sentenceVersionId),
-      )
-      .where(
-        and(
-          eq(questionBlocks.questionVersionId, origin.questionVersionId),
-          // block 전체 신고에는 공개 해설을 포함하되 문장 단위 공개성에는 기존 제외 정책을 유지한다.
-          origin.blockId !== null && origin.sentenceVersionId === null
-            ? undefined
-            : ne(questionBlocks.kind, 'EXPLANATION'),
-          origin.blockId === null
-            ? undefined
-            : eq(questionBlocks.id, origin.blockId),
-          origin.sentenceVersionId === null
-            ? undefined
-            : eq(
-                questionBlockSentences.sentenceVersionId,
-                origin.sentenceVersionId,
-              ),
-        ),
-      )
-      .orderBy(
-        asc(questionBlocks.position),
-        asc(questionBlockSentences.position),
-      );
-  }
-
-  private loadQuestionOptionContexts(
-    origin: Extract<ContentErrorReportOrigin, { kind: 'QUESTION' }>,
-  ): Promise<QuestionContextRow[]> {
-    if (origin.sentenceVersionId === null) return Promise.resolve([]);
-    return this.database
-      .select({
-        optionId: questionOptions.id,
-        optionPosition: questionOptions.position,
-        sentenceVersionId: thaiSentenceVersions.id,
-        originalText: thaiSentenceVersions.originalText,
-        translationKo: thaiSentenceVersions.translationKo,
-      })
-      .from(questionOptions)
-      .innerJoin(
-        thaiSentenceVersions,
-        or(
-          eq(thaiSentenceVersions.id, questionOptions.sentenceVersionId),
-          eq(thaiSentenceVersions.id, questionOptions.spanSentenceVersionId),
-        ),
-      )
-      .where(
-        and(
-          eq(questionOptions.questionVersionId, origin.questionVersionId),
-          or(
-            eq(questionOptions.sentenceVersionId, origin.sentenceVersionId),
-            eq(questionOptions.spanSentenceVersionId, origin.sentenceVersionId),
-          ),
-        ),
-      )
-      .orderBy(asc(questionOptions.position));
-  }
-
-  private buildQuestionBlockTarget(
-    origin: Extract<ContentErrorReportOrigin, { kind: 'QUESTION' }>,
-    version: number,
-    contexts: QuestionContextRow[],
-  ): ResolvedContentErrorReportTarget {
-    const first = contexts[0]!;
     return {
       reference: {
         kind: 'QUESTION',
         contentId: origin.questionId,
-        contentVersionId: origin.questionVersionId,
-        questionVersionId: origin.questionVersionId,
+        contentVersionId: null,
+        questionVersion: row.version,
         sentenceVersionId: null,
-        locationId: origin.blockId,
+        locationId: null,
       },
       snapshot: {
-        title: contexts.map(({ originalText }) => originalText).join('\n'),
-        primaryText: contexts
-          .map(({ translationKo }) => translationKo)
-          .join('\n'),
-        secondaryText: null,
-        versionLabel: `버전 ${version}`,
-        locationLabel: `${first.kind} 블록 ${(first.blockPosition ?? 0) + 1}`,
-      },
-    };
-  }
-
-  private buildQuestionSentenceTarget(
-    origin: Extract<ContentErrorReportOrigin, { kind: 'QUESTION' }>,
-    version: number,
-    context: QuestionContextRow,
-  ): ResolvedContentErrorReportTarget {
-    return this.buildQuestionTarget(
-      origin,
-      version,
-      context,
-      context.blockId ?? null,
-      `${context.kind} 블록 ${(context.blockPosition ?? 0) + 1} · 문장 ${(context.sentencePosition ?? 0) + 1}`,
-    );
-  }
-
-  private buildQuestionOptionTarget(
-    origin: Extract<ContentErrorReportOrigin, { kind: 'QUESTION' }>,
-    version: number,
-    context: QuestionContextRow,
-  ): ResolvedContentErrorReportTarget {
-    return this.buildQuestionTarget(
-      origin,
-      version,
-      context,
-      context.optionId ?? null,
-      `선택지 ${(context.optionPosition ?? 0) + 1}`,
-    );
-  }
-
-  private buildQuestionTarget(
-    origin: Extract<ContentErrorReportOrigin, { kind: 'QUESTION' }>,
-    version: number,
-    context: {
-      originalText: string;
-      translationKo: string;
-    },
-    locationId: string | null,
-    locationLabel: string,
-  ): ResolvedContentErrorReportTarget {
-    return {
-      reference: {
-        kind: 'QUESTION',
-        contentId: origin.questionId,
-        contentVersionId: origin.questionVersionId,
-        questionVersionId: origin.questionVersionId,
-        sentenceVersionId: origin.sentenceVersionId,
-        locationId,
-      },
-      snapshot: {
-        title: context.originalText,
-        primaryText: context.translationKo,
-        secondaryText: null,
-        versionLabel: `버전 ${version}`,
-        locationLabel,
+        title: '문제',
+        primaryText: row.prompt,
+        secondaryText: row.passage,
+        versionLabel: `버전 ${row.version}`,
+        locationLabel: '문제 전체',
       },
     };
   }
@@ -680,7 +475,7 @@ export class DrizzleContentErrorReportRepository
         kind: 'VOCABULARY',
         contentId: origin.vocabularyId,
         contentVersionId: null,
-        questionVersionId: null,
+        questionVersion: null,
         sentenceVersionId: null,
         locationId: origin.meaningId ?? origin.pronunciationId,
       },
@@ -698,115 +493,16 @@ export class DrizzleContentErrorReportRepository
     sentenceVersionId: string,
     tokenPosition: number | null,
   ): Promise<ResolvedContentErrorReportTarget | null> {
-    const rows = await this.database
-      .select()
-      .from(thaiSentenceVersions)
-      .where(
-        and(
-          eq(thaiSentenceVersions.id, sentenceVersionId),
-          sql`${thaiSentenceVersions.frozenAt} is not null`,
-        ),
-      )
-      .limit(1);
-    const row = rows[0];
-    if (!row) return null;
-    const blockExposures = await this.database
-      .select({ questionId: questions.id })
-      .from(questionBlockSentences)
-      .innerJoin(
-        questionBlocks,
-        eq(questionBlocks.id, questionBlockSentences.blockId),
-      )
-      .innerJoin(
-        questionVersions,
-        eq(questionVersions.id, questionBlocks.questionVersionId),
-      )
-      .innerJoin(
-        questions,
-        and(
-          eq(questions.id, questionVersions.questionId),
-          eq(questions.currentPublishedVersionId, questionVersions.id),
-        ),
-      )
-      .where(
-        and(
-          eq(questionBlockSentences.sentenceVersionId, sentenceVersionId),
-          ne(questionBlocks.kind, 'EXPLANATION'),
-          eq(questions.status, 'PUBLISHED'),
-          eq(questionVersions.status, 'PUBLISHED'),
-        ),
-      )
-      .limit(1);
-    const optionExposures = blockExposures[0]
-      ? blockExposures
-      : await this.database
-          .select({ questionVersionId: questionVersions.id })
-          .from(questionOptions)
-          .innerJoin(
-            questionVersions,
-            eq(questionVersions.id, questionOptions.questionVersionId),
-          )
-          .innerJoin(
-            questions,
-            and(
-              eq(questions.id, questionVersions.questionId),
-              eq(questions.currentPublishedVersionId, questionVersions.id),
-            ),
-          )
-          .where(
-            and(
-              or(
-                eq(questionOptions.sentenceVersionId, sentenceVersionId),
-                eq(questionOptions.spanSentenceVersionId, sentenceVersionId),
-              ),
-              eq(questions.status, 'PUBLISHED'),
-              eq(questionVersions.status, 'PUBLISHED'),
-            ),
-          )
-          .limit(1);
-    if (!optionExposures[0]) {
-      const target = strictResolvedTarget(
-        await this.conceptLookup?.resolveSentence({
-          sentenceVersionId,
-          tokenPosition,
-        }),
-      );
-      return target?.reference.kind === 'SENTENCE' &&
-        target.reference.contentVersionId === sentenceVersionId &&
-        target.reference.sentenceVersionId === sentenceVersionId
-        ? target
-        : null;
-    }
-    if (tokenPosition !== null) {
-      const tokens = await this.database
-        .select({ id: tokenOccurrences.id })
-        .from(tokenOccurrences)
-        .where(
-          and(
-            eq(tokenOccurrences.sentenceVersionId, sentenceVersionId),
-            eq(tokenOccurrences.position, tokenPosition),
-          ),
-        )
-        .limit(1);
-      if (!tokens[0]) return null;
-    }
-    return {
-      reference: {
-        kind: 'SENTENCE',
-        contentId: row.sentenceId,
-        contentVersionId: row.id,
-        questionVersionId: null,
-        sentenceVersionId: row.id,
-        locationId: null,
-      },
-      snapshot: {
-        title: row.originalText,
-        primaryText: row.translationKo,
-        secondaryText: row.pronunciationKo,
-        versionLabel: `버전 ${row.version}`,
-        locationLabel:
-          tokenPosition === null ? '문장' : `토큰 ${tokenPosition}`,
-      },
-    };
+    const target = strictResolvedTarget(
+      await this.conceptLookup?.resolveSentence({
+        sentenceVersionId,
+        tokenPosition,
+      }),
+    );
+    return target?.reference.kind === 'SENTENCE' &&
+      target.reference.contentVersionId === sentenceVersionId &&
+      target.reference.sentenceVersionId === sentenceVersionId
+      ? target
+      : null;
   }
 }

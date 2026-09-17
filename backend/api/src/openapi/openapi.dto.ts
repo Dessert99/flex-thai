@@ -1,16 +1,23 @@
 /** 공개 Zod 계약을 Nest Swagger reflection DTO로 연결한다 */
 import {
+  contentImportDetailResponseSchema,
+  contentImportIdPathSchema,
+  contentImportListQuerySchema,
+  contentImportListResponseSchema,
+  contentImportRequestSchema,
+} from '@flex-thia/contracts/admin/content-imports';
+import {
   adminQuestionDetailResponseSchema,
   adminQuestionIdPathSchema,
   adminQuestionListQuerySchema,
   adminQuestionListResponseSchema,
-  adminQuestionValidationReportSchema,
-  adminQuestionVersionIdPathSchema,
-  adminQuestionVersionPayloadSchema,
-  adminQuestionVersionResponseSchema,
+  adminQuestionPayloadSchema,
+  adminQuestionUpdateRequestSchema,
+  adminQuestionStatusRequestSchema,
 } from '@flex-thia/contracts/admin/questions';
 import {
   adminVocabularyDetailResponseSchema,
+  adminVocabularyImportanceRequestSchema,
   adminVocabularyIdPathSchema,
   adminVocabularyListQuerySchema,
   adminVocabularyListResponseSchema,
@@ -26,6 +33,11 @@ import {
   adminVocabularyRelationSchema,
   adminVocabularyRelationUpdateRequestSchema,
 } from '@flex-thia/contracts/admin/vocabulary-relations';
+import { problemDetailsSchema } from '@flex-thia/contracts/common/problem';
+import {
+  healthResponseSchema,
+  readinessResponseSchema,
+} from '@flex-thia/contracts/health/status';
 import {
   authenticatedResponseSchema,
   confirmEmailLinkRequestSchema,
@@ -45,18 +57,6 @@ import {
   userManagementListResponseSchema,
   userStatusUpdateRequestSchema,
 } from '@flex-thia/contracts/identity/user-management';
-import {
-  contentImportDetailResponseSchema,
-  contentImportIdPathSchema,
-  contentImportListQuerySchema,
-  contentImportListResponseSchema,
-  contentImportRequestSchema,
-} from '@flex-thia/contracts/admin/content-imports';
-import {
-  healthResponseSchema,
-  readinessResponseSchema,
-} from '@flex-thia/contracts/health/status';
-import { problemDetailsSchema } from '@flex-thia/contracts/common/problem';
 import {
   questionAttemptListQuerySchema,
   questionAttemptListResponseSchema,
@@ -320,26 +320,6 @@ export class AdminQuestionIdPathDto extends createZodDto(
   adminQuestionIdPathSchema,
 ) {}
 
-/** 관리자 문제 버전 UUID path Swagger DTO */
-export class AdminQuestionVersionIdPathDto extends createZodDto(
-  adminQuestionVersionIdPathSchema,
-) {}
-
-/** 관리자 문제 버전 전체 교체 Swagger DTO */
-export class AdminQuestionVersionPayloadDto extends createZodDto(
-  adminQuestionVersionPayloadSchema,
-) {}
-
-/** 관리자 문제 DRAFT 요약 Swagger DTO */
-export class AdminQuestionVersionResponseDto extends createZodDto(
-  adminQuestionVersionResponseSchema,
-) {}
-
-/** 관리자 문제 검증 보고서 Swagger DTO */
-export class AdminQuestionValidationReportDto extends createZodDto(
-  adminQuestionValidationReportSchema,
-) {}
-
 /** 관리자 어휘 목록 query Swagger DTO */
 export class AdminVocabularyListQueryDto extends createZodDto(
   adminVocabularyListQuerySchema,
@@ -403,4 +383,17 @@ export class AdminVocabularyMergeExecuteRequestDto extends createZodDto(
 /** 관리자 어휘 병합 결과 Swagger DTO */
 export class AdminVocabularyMergeResponseDto extends createZodDto(
   adminVocabularyMergeResponseSchema,
+) {}
+
+export class AdminQuestionCreateRequestDto extends createZodDto(
+  adminQuestionPayloadSchema,
+) {}
+export class AdminQuestionUpdateRequestDto extends createZodDto(
+  adminQuestionUpdateRequestSchema,
+) {}
+export class AdminQuestionStatusRequestDto extends createZodDto(
+  adminQuestionStatusRequestSchema,
+) {}
+export class AdminVocabularyImportanceRequestDto extends createZodDto(
+  adminVocabularyImportanceRequestSchema,
 ) {}

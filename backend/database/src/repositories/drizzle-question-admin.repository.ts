@@ -1,405 +1,158 @@
-/** 관리자 문제 버전 복제·전체 교체를 Drizzle transaction으로 구현한다 */
-import {
-  type QuestionAdminRepository,
-  type QuestionAdminTransaction,
-  type QuestionAdminVersionGraph,
-  type QuestionAdminVersionSource,
+/** 현재 문제·어휘 사용·감사를 원자적으로 저장한다. */
+import type {
+  QuestionAdminRepository,
+  QuestionAdminTransaction,
 } from '@flex-thia/domain/questions/question-admin.repository';
-import { and, asc, desc, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import { databaseSchema as schema } from '../schema/databaseSchema.js';
 import { auditLogs } from '../schema/identity.schema.js';
 import {
-  expressionOccurrences,
-  thaiSentences,
-  thaiSentenceVersions,
-  tokenOccurrences,
-} from '../schema/thai-content.schema.js';
-import {
-  questionBlocks,
-  questionBlockSentences,
-  questionOptions,
   questions,
   questionTags,
   questionTopics,
-  questionTypes,
   questionTypeVersions,
-  questionVersions,
-  questionVersionTags,
+  questionVocabularies,
 } from '../schema/questions.schema.js';
 import {
   vocabularies,
   vocabularyMeanings,
 } from '../schema/vocabulary.schema.js';
-
-type QuestionAdminDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
-type QuestionAdminSession = Pick<
-  QuestionAdminDatabase,
-  'delete' | 'insert' | 'select' | 'update'
->;
-
-/** 관리자 문제 graph의 조건부 저장 충돌을 stable code로 전달한다 */
 export class QuestionAdminPersistenceError extends Error {
   readonly code = 'QUESTION_ADMIN_PERSISTENCE_CONFLICT';
-
   constructor(readonly operation: string) {
-    super(`QUESTION_ADMIN_PERSISTENCE_CONFLICT:${operation}`);
-    this.name = 'QuestionAdminPersistenceError';
+    super(operation);
   }
 }
-
-const comparePosition = (
-  left: { position: number },
-  right: { position: number },
-): number => left.position - right.position;
-
-const loadSourceChildren = async (
-  transaction: QuestionAdminSession,
-  version: Omit<QuestionAdminVersionSource, 'blocks' | 'options' | 'tagIds'>,
-): Promise<QuestionAdminVersionSource> => {
-  const blockRows = await transaction
-    .select({
-      id: questionBlocks.id,
-      kind: questionBlocks.kind,
-      position: questionBlocks.position,
-    })
-    .from(questionBlocks)
-    .where(eq(questionBlocks.questionVersionId, version.id))
-    .orderBy(asc(questionBlocks.position));
-  const blockSentenceRows = await transaction
-    .select({
-      blockId: questionBlockSentences.blockId,
-      sentenceVersionId: questionBlockSentences.sentenceVersionId,
-      position: questionBlockSentences.position,
-      speaker: questionBlockSentences.speaker,
-    })
-    .from(questionBlockSentences)
-    .innerJoin(
-      questionBlocks,
-      eq(questionBlockSentences.blockId, questionBlocks.id),
-    )
-    .where(eq(questionBlocks.questionVersionId, version.id))
-    .orderBy(
-      asc(questionBlocks.position),
-      asc(questionBlockSentences.position),
-    );
-  const optionRows = await transaction
-    .select({
-      sentenceVersionId: questionOptions.sentenceVersionId,
-      position: questionOptions.position,
-      isCorrect: questionOptions.isCorrect,
-      spanSentenceVersionId: questionOptions.spanSentenceVersionId,
-      spanStartTokenIndex: questionOptions.spanStartTokenIndex,
-      spanEndTokenIndex: questionOptions.spanEndTokenIndex,
-    })
-    .from(questionOptions)
-    .where(eq(questionOptions.questionVersionId, version.id))
-    .orderBy(asc(questionOptions.position));
-  const tagRows = await transaction
-    .select({ tagId: questionVersionTags.tagId })
-    .from(questionVersionTags)
-    .where(eq(questionVersionTags.questionVersionId, version.id));
-  return {
-    ...version,
-    tagIds: tagRows.map(({ tagId }) => tagId),
-    blocks: [...blockRows].sort(comparePosition).map((block) => ({
-      kind: block.kind,
-      position: block.position,
-      sentences: blockSentenceRows
-        .filter(({ blockId }) => blockId === block.id)
-        .sort(comparePosition)
-        .map(({ sentenceVersionId, position, speaker }) => ({
-          sentenceVersionId,
-          position,
-          speaker,
-        })),
-    })),
-    options: [...optionRows].sort(comparePosition),
-  };
-};
-
-const insertVersionGraph = async (
-  transaction: QuestionAdminSession,
-  graph: QuestionAdminVersionGraph,
-  includeVersion: boolean,
-): Promise<void> => {
-  if (includeVersion) {
-    await transaction.insert(questionVersions).values(graph.version);
-  }
-  if (graph.tagIds.length > 0) {
-    await transaction.insert(questionVersionTags).values(
-      graph.tagIds.map((tagId) => ({
-        questionVersionId: graph.version.id,
-        tagId,
-      })),
-    );
-  }
-  if (graph.sentences.length > 0) {
-    await transaction
-      .insert(thaiSentences)
-      .values(graph.sentences.map(({ sentence }) => sentence));
-    await transaction
-      .insert(thaiSentenceVersions)
-      .values(graph.sentences.map(({ version }) => version));
-    const tokens = graph.sentences.flatMap(({ tokens: rows }) =>
-      [...rows].sort(comparePosition),
-    );
-    const expressions = graph.sentences.flatMap(({ expressions: rows }) =>
-      [...rows].sort(
-        (left, right) =>
-          left.startTokenIndex - right.startTokenIndex ||
-          left.endTokenIndex - right.endTokenIndex,
-      ),
-    );
-    if (tokens.length > 0) {
-      await transaction.insert(tokenOccurrences).values(tokens);
-    }
-    if (expressions.length > 0) {
-      await transaction.insert(expressionOccurrences).values(expressions);
-    }
-  }
-  const blocks = [...graph.blocks].sort(comparePosition);
-  const blockSentences = blocks.flatMap(({ sentences }) =>
-    [...sentences].sort(comparePosition),
-  );
-  const options = [...graph.options].sort(comparePosition);
-  await transaction.insert(questionBlocks).values(blocks);
-  if (blockSentences.length > 0) {
-    await transaction.insert(questionBlockSentences).values(blockSentences);
-  }
-  await transaction.insert(questionOptions).values(options);
-};
-
-const createQuestionAdminTransaction = (
-  transaction: QuestionAdminSession,
-): QuestionAdminTransaction => ({
-  async loadQuestion(questionId) {
-    const [row] = await transaction
-      .select({
-        id: questions.id,
-        status: questions.status,
-        currentPublishedVersionId: questions.currentPublishedVersionId,
-      })
-      .from(questions)
-      .where(eq(questions.id, questionId))
-      .for('update')
-      .limit(1);
-    return row ?? null;
-  },
-
-  async loadLatestVersion(questionId) {
-    const [row] = await transaction
-      .select({
-        id: questionVersions.id,
-        questionId: questionVersions.questionId,
-        version: questionVersions.version,
-        typeVersionId: questionVersions.typeVersionId,
-        topicId: questionVersions.topicId,
-        difficulty: questionVersions.difficulty,
-        status: questionVersions.status,
-        validationStatus: questionVersions.validationStatus,
-        publishedAt: questionVersions.publishedAt,
-      })
-      .from(questionVersions)
-      .where(eq(questionVersions.questionId, questionId))
-      .orderBy(desc(questionVersions.version), desc(questionVersions.id))
-      .for('update')
-      .limit(1);
-    return row ? loadSourceChildren(transaction, row) : null;
-  },
-
-  async loadVersionSource(versionId) {
-    const [row] = await transaction
-      .select({
-        id: questionVersions.id,
-        questionId: questionVersions.questionId,
-        version: questionVersions.version,
-        typeVersionId: questionVersions.typeVersionId,
-        topicId: questionVersions.topicId,
-        difficulty: questionVersions.difficulty,
-        status: questionVersions.status,
-        validationStatus: questionVersions.validationStatus,
-        publishedAt: questionVersions.publishedAt,
-      })
-      .from(questionVersions)
-      .where(eq(questionVersions.id, versionId))
-      .for('update')
-      .limit(1);
-    return row ? loadSourceChildren(transaction, row) : null;
-  },
-
-  async findQuestionTypeVersion(slug, version) {
-    const [row] = await transaction
-      .select({
-        id: questionTypeVersions.id,
-        slug: questionTypes.slug,
-        version: questionTypeVersions.version,
-        template: questionTypeVersions.template,
-        optionCount: questionTypeVersions.optionCount,
-      })
-      .from(questionTypeVersions)
-      .innerJoin(
-        questionTypes,
-        eq(questionTypeVersions.questionTypeId, questionTypes.id),
-      )
-      .where(
-        and(
-          eq(questionTypes.slug, slug),
-          eq(questionTypeVersions.version, version),
-          eq(questionTypeVersions.status, 'ACTIVE'),
-        ),
-      )
-      .for('key share')
-      .limit(1);
-    return row ?? null;
-  },
-
-  async findActiveQuestionTopic(slug) {
-    const [row] = await transaction
-      .select({ id: questionTopics.id })
-      .from(questionTopics)
-      .where(
-        and(eq(questionTopics.slug, slug), eq(questionTopics.status, 'ACTIVE')),
-      )
-      .for('key share')
-      .limit(1);
-    return row ?? null;
-  },
-
-  async findActiveQuestionTags(slugs) {
-    if (slugs.length === 0) return [];
-    return transaction
-      .select({ id: questionTags.id })
-      .from(questionTags)
-      .where(
-        and(
-          inArray(questionTags.slug, slugs),
-          eq(questionTags.status, 'ACTIVE'),
-        ),
-      )
-      .for('key share');
-  },
-
-  async findVocabularyById(vocabularyId) {
-    const [row] = await transaction
-      .select({
-        id: vocabularies.id,
-        kind: vocabularies.kind,
-        status: vocabularies.status,
-      })
-      .from(vocabularies)
-      .where(eq(vocabularies.id, vocabularyId))
-      .for('key share')
-      .limit(1);
-    return row ?? null;
-  },
-
-  async findVocabularyMeaningById(meaningId) {
-    const [row] = await transaction
-      .select({
-        id: vocabularyMeanings.id,
-        vocabularyId: vocabularyMeanings.vocabularyId,
-      })
-      .from(vocabularyMeanings)
-      .where(eq(vocabularyMeanings.id, meaningId))
-      .for('key share')
-      .limit(1);
-    return row ?? null;
-  },
-
-  async findVocabularyPronunciationById(pronunciationId) {
-    const [row] = await transaction
-      .select({
-        id: vocabularyMeanings.id,
-        vocabularyId: vocabularyMeanings.vocabularyId,
-      })
-      .from(vocabularyMeanings)
-      .where(eq(vocabularyMeanings.id, pronunciationId))
-      .for('key share')
-      .limit(1);
-    return row ?? null;
-  },
-
-  async createVersion(graph) {
-    await insertVersionGraph(transaction, graph, true);
-  },
-
-  async replaceVersion(graph) {
-    const rows = await transaction
-      .update(questionVersions)
-      .set({
-        typeVersionId: graph.version.typeVersionId,
-        topicId: graph.version.topicId,
-        difficulty: graph.version.difficulty,
-        validationStatus: 'PENDING',
-        validationIssues: [],
-        validatedAt: null,
-        publishedAt: null,
-        updatedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(questionVersions.id, graph.version.id),
-          eq(questionVersions.status, 'DRAFT'),
-        ),
-      )
-      .returning({ id: questionVersions.id });
-    if (rows.length !== 1) {
-      throw new QuestionAdminPersistenceError('replaceVersion');
-    }
-
-    const oldBlocks = await transaction
-      .select({ id: questionBlocks.id })
-      .from(questionBlocks)
-      .where(eq(questionBlocks.questionVersionId, graph.version.id))
-      .orderBy(asc(questionBlocks.position));
-    if (oldBlocks.length > 0) {
-      await transaction.delete(questionBlockSentences).where(
-        inArray(
-          questionBlockSentences.blockId,
-          oldBlocks.map(({ id }) => id),
-        ),
-      );
-    }
-    await transaction
-      .delete(questionBlocks)
-      .where(eq(questionBlocks.questionVersionId, graph.version.id));
-    await transaction
-      .delete(questionOptions)
-      .where(eq(questionOptions.questionVersionId, graph.version.id));
-    await transaction
-      .delete(questionVersionTags)
-      .where(eq(questionVersionTags.questionVersionId, graph.version.id));
-    // 문장 snapshot은 clone과 게시 버전에서 공유될 수 있어 연결 교체가 삭제 권한을 확장하지 않는다.
-    await insertVersionGraph(transaction, graph, false);
-  },
-
-  async appendAuditLog(input) {
-    await transaction.insert(auditLogs).values({
-      actorSub: input.actorSub,
-      actorUserId: input.actorUserId,
-      action: input.action,
-      target: input.targetId,
-      targetType: input.targetType,
-      targetId: input.targetId,
-      summary: input.summary,
-      requestId: input.requestId,
-      createdAt: input.occurredAt,
-    });
-  },
-});
-
-/** PostgreSQL transaction에서 관리자 문제 복제·교체 port를 실행한다 */
 export class DrizzleQuestionAdminRepository implements QuestionAdminRepository {
-  constructor(private readonly database: QuestionAdminDatabase) {}
-
-  /** callback 예외가 graph와 audit 일부를 commit하지 못하도록 transaction을 유지한다 */
-  async runInTransaction<T>(
+  constructor(
+    private readonly database: PgDatabase<PgQueryResultHKT, typeof schema>,
+  ) {}
+  runInTransaction<T>(
     work: (transaction: QuestionAdminTransaction) => Promise<T>,
   ): Promise<T> {
-    return this.database.transaction((transaction) =>
-      work(createQuestionAdminTransaction(transaction)),
+    return this.database.transaction(async (tx) =>
+      work({
+        async loadQuestion(id) {
+          const [row] = await tx
+            .select()
+            .from(questions)
+            .where(eq(questions.id, id))
+            .for('update');
+          if (!row) return null;
+          const usage = await tx
+            .select()
+            .from(questionVocabularies)
+            .where(eq(questionVocabularies.questionId, id));
+          return {
+            ...row,
+            vocabularies: usage.map(
+              ({ vocabularyId, meaningId, role, occurrenceCount }) => ({
+                vocabularyId,
+                meaningId,
+                role,
+                occurrenceCount,
+              }),
+            ),
+          };
+        },
+        async validateReferences(input) {
+          const [type] = await tx
+            .select()
+            .from(questionTypeVersions)
+            .where(
+              and(
+                eq(questionTypeVersions.id, input.typeVersionId),
+                eq(questionTypeVersions.status, 'ACTIVE'),
+              ),
+            )
+            .for('share');
+          const [topic] = await tx
+            .select()
+            .from(questionTopics)
+            .where(
+              and(
+                eq(questionTopics.id, input.topicId),
+                eq(questionTopics.status, 'ACTIVE'),
+              ),
+            )
+            .for('share');
+          if (!type || !topic || type.optionCount !== input.options.length)
+            return false;
+          if (input.tagIds.length) {
+            const tags = await tx
+              .select()
+              .from(questionTags)
+              .where(
+                and(
+                  inArray(questionTags.id, input.tagIds),
+                  eq(questionTags.status, 'ACTIVE'),
+                ),
+              )
+              .for('share');
+            if (tags.length !== input.tagIds.length) return false;
+          }
+          for (const usage of [...input.vocabularies].sort((a, b) =>
+            a.vocabularyId.localeCompare(b.vocabularyId),
+          )) {
+            const [word] = await tx
+              .select()
+              .from(vocabularies)
+              .where(
+                and(
+                  eq(vocabularies.id, usage.vocabularyId),
+                  eq(vocabularies.status, 'PUBLISHED'),
+                ),
+              )
+              .for('share');
+            if (!word) return false;
+            if (usage.meaningId !== null) {
+              const [meaning] = await tx
+                .select()
+                .from(vocabularyMeanings)
+                .where(
+                  and(
+                    eq(vocabularyMeanings.id, usage.meaningId),
+                    eq(vocabularyMeanings.vocabularyId, usage.vocabularyId),
+                  ),
+                )
+                .for('share');
+              if (!meaning) return false;
+            }
+          }
+          return true;
+        },
+        async saveQuestion(record) {
+          const { vocabularies: usage, ...row } = record;
+          await tx
+            .insert(questions)
+            .values(row)
+            .onConflictDoUpdate({ target: questions.id, set: row });
+          await tx
+            .delete(questionVocabularies)
+            .where(eq(questionVocabularies.questionId, row.id));
+          if (usage.length)
+            await tx
+              .insert(questionVocabularies)
+              .values(usage.map((item) => ({ ...item, questionId: row.id })));
+        },
+        async appendAuditLog(input) {
+          await tx
+            .insert(auditLogs)
+            .values({
+              actorSub: input.actorSub,
+              actorUserId: input.actorUserId,
+              action: input.action,
+              target: input.targetId,
+              targetType: 'QUESTION',
+              targetId: input.targetId,
+              summary: input.summary,
+              requestId: input.requestId,
+              createdAt: input.occurredAt,
+            });
+        },
+      }),
     );
   }
 }

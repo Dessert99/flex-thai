@@ -27,7 +27,8 @@
     "./questions/question-major-category": "./src/questions/question-major-category.ts",
     "./questions/question-taxonomy-settings": "./src/questions/question-taxonomy-settings.ts",
     "./recommendations/recommendations": "./src/recommendations/recommendations.ts",
-    "./thai-content/sentences": "./src/thai-content/sentences.ts"
+    "./thai-content/sentences": "./src/thai-content/sentences.ts",
+    "./questions/legacy-question-payload": "./src/questions/legacy-question-payload.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",

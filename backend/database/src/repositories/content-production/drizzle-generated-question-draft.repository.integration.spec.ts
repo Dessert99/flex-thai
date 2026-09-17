@@ -546,13 +546,13 @@ describe.runIf(databaseUrl !== undefined)(
       const after = await graphTotals(pool);
       const candidate = await pool.query<{
         approvedQuestionId: string | null;
-        approvedQuestionVersionId: string | null;
+        approvedQuestionVersion: number | null;
         reviewStatus: string;
         revision: number;
       }>(
         `select
            approved_question_id "approvedQuestionId",
-           approved_question_version_id "approvedQuestionVersionId",
+           approved_question_version_id "approvedQuestionVersion",
            review_status "reviewStatus",
            revision
          from question_production_candidates where id = $1`,
@@ -561,7 +561,7 @@ describe.runIf(databaseUrl !== undefined)(
       expect(after).toEqual(before);
       expect(candidate.rows[0]).toEqual({
         approvedQuestionId: null,
-        approvedQuestionVersionId: null,
+        approvedQuestionVersion: null,
         reviewStatus: 'PENDING',
         revision: 0,
       });

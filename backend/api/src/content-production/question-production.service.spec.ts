@@ -46,7 +46,7 @@ const candidate: QuestionCandidateReadRecord = {
   reviewCode: null,
   regeneratedFromCandidateId: null,
   approvedQuestionId: null,
-  approvedQuestionVersionId: null,
+  approvedQuestionVersion: null,
   revision: 3,
   createdAt: new Date('2026-07-27T00:00:00.000Z'),
   updatedAt: new Date('2026-07-27T00:01:00.000Z'),
@@ -126,7 +126,7 @@ const createService = (options?: {
       .mockResolvedValue(options?.found === undefined ? detail : options.found),
   };
   const review = {
-    approve: vi.fn().mockResolvedValue({ questionId, questionVersionId }),
+    approve: vi.fn().mockResolvedValue({ questionId, questionVersion: 1 }),
     discard: vi.fn().mockResolvedValue(undefined),
     regenerate: vi.fn().mockResolvedValue({
       jobId: '7cd69d0d-6d40-4ac4-a87a-bec70be80478',
@@ -314,7 +314,7 @@ describe('QuestionCandidateApplicationService 공개 경계', () => {
           status: 'APPROVED',
           revision: 4,
           questionId,
-          questionVersionId,
+          questionVersion: 1,
         },
       },
     );
@@ -362,12 +362,12 @@ describe('QuestionCandidateApplicationService 공개 경계', () => {
     review.approve
       .mockResolvedValueOnce({
         questionId,
-        questionVersionId,
+        questionVersion: 1,
         replayed: false,
       })
       .mockResolvedValueOnce({
         questionId,
-        questionVersionId,
+        questionVersion: 1,
         replayed: true,
       });
 

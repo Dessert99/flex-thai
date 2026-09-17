@@ -1,5 +1,4 @@
 /** 실제 DB port를 사용해 비용 없는 콘텐츠 제작 후보를 생성한다 */
-import type { ContentProductionWorkItem } from '@flex-thia/domain/content-production/content-production-work-item';
 import type {
   GeneratedQuestionCandidate,
   GeneratedQuestionSentenceInput,
@@ -8,17 +7,18 @@ import type {
   QuestionProductionContext,
   QuestionProductionContextRepository,
 } from '@flex-thia/domain/content-production/ai-question-production';
-import type { VocabularyProductionArtifacts } from '@flex-thia/domain/content-production/ai-vocabulary-production';
-import type { VocabularyProductionLookup } from '@flex-thia/domain/vocabulary/vocabulary-production-lookup';
-import {
-  evaluateVocabularyCandidate,
-  readVocabularyProductionPolicy,
-} from '@flex-thia/domain/content-production/ai-vocabulary-production';
 import {
   normalizeQuestionProductionValidationRecord,
   validateGeneratedQuestionSchema,
   validateQuestionDecisionRules,
 } from '@flex-thia/domain/content-production/ai-question-production';
+import type { VocabularyProductionArtifacts } from '@flex-thia/domain/content-production/ai-vocabulary-production';
+import {
+  evaluateVocabularyCandidate,
+  readVocabularyProductionPolicy,
+} from '@flex-thia/domain/content-production/ai-vocabulary-production';
+import type { ContentProductionWorkItem } from '@flex-thia/domain/content-production/content-production-work-item';
+import type { VocabularyProductionLookup } from '@flex-thia/domain/vocabulary/vocabulary-production-lookup';
 import { createHash } from 'node:crypto';
 
 /** local fake processor가 artifact를 만들 때 필요한 domain repository port 묶음 */
@@ -156,7 +156,7 @@ const failedQuestionArtifacts = (
       reviewCode: 'QUESTION_RULE_INVALID',
       regeneratedFromCandidateId: null,
       approvedQuestionId: null,
-      approvedQuestionVersionId: null,
+      approvedQuestionVersion: null,
     },
   ],
   validations: [
@@ -220,7 +220,7 @@ const questionArtifacts = (
         reviewCode: null,
         regeneratedFromCandidateId: null,
         approvedQuestionId: null,
-        approvedQuestionVersionId: null,
+        approvedQuestionVersion: null,
       },
     ],
     validations: [

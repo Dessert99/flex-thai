@@ -1,324 +1,36 @@
-/** 문제 게시 schema의 버전 소유 관계와 불변 제약을 검증한다 */
-import { getTableColumns, getTableName } from 'drizzle-orm';
 import { getTableConfig } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
-import { auditLogs } from './identity.schema.js';
-import {
-  expressionOccurrences,
-  tokenOccurrenceRoleEnum,
-} from './thai-content.schema.js';
-import {
-  questionBlockKindEnum,
-  questionBlocks,
-  questionBlockSentences,
-  questionMajorCategoryEnum,
-  questionOptions,
-  questions,
-  questionSkillEnum,
-  questionStatusEnum,
-  questionTags,
-  questionTemplateEnum,
-  questionTopics,
-  questionTypeApprovedExamples,
-  questionTypeDifficultyCriteria,
-  questionTypes,
-  questionTypeVersions,
-  questionTypeVersionStatusEnum,
-  questionValidationStatusEnum,
-  questionVersions,
-  questionVersionStatusEnum,
-  questionVersionTags,
-} from './questions.schema.js';
-
-const indexSummaries = (table: Parameters<typeof getTableConfig>[0]) =>
-  getTableConfig(table).indexes.map((index) => ({
-    name: index.config.name,
-    columns: index.config.columns.map((column) => {
-      if ('name' in column) {
-        return column.name;
-      }
-
-      return undefined;
-    }),
-    unique: index.config.unique,
-    partial: index.config.where !== undefined,
-  }));
-
-const uniqueConstraintSummaries = (
-  table: Parameters<typeof getTableConfig>[0],
-) =>
-  getTableConfig(table).uniqueConstraints.map((constraint) => ({
-    name: constraint.name,
-    columns: constraint.columns.map((column) => column.name),
-  }));
-
-const foreignKeySummaries = (table: Parameters<typeof getTableConfig>[0]) =>
-  getTableConfig(table).foreignKeys.map((foreignKey) => {
-    const reference = foreignKey.reference();
-
-    return {
-      sourceTable: getTableName(foreignKey.table),
-      targetTable: getTableName(reference.foreignTable),
-      columns: reference.columns.map((column) => column.name),
-      foreignColumns: reference.foreignColumns.map((column) => column.name),
-      onDelete: foreignKey.onDelete,
-    };
-  });
-
-describe('문제 게시 데이터베이스 schema', () => {
-  it('태국어 표현 피드백과 지시문 token 역할을 저장한다', () => {
-    expect(tokenOccurrenceRoleEnum.enumValues).toContain('INSTRUCTION');
+import { questionAttempts } from './learning.schema.js';
+import { questions, questionVocabularies } from './questions.schema.js';
+describe('문제·사용 어휘·풀이 저장 제약', () => {
+  it('문제·어휘 쌍을 중복 저장할 수 없다', () => {
     expect(
-      Object.values(getTableColumns(expressionOccurrences)).map(
+      getTableConfig(questionVocabularies).primaryKeys[0]?.columns.map(
         (column) => column.name,
       ),
-    ).toEqual(
-      expect.arrayContaining([
-        'meaning_id',
-        'pronunciation_id',
-        'context_meaning_ko',
-      ]),
-    );
+    ).toEqual(['question_id', 'vocabulary_id']);
   });
-
-  it('문제 enum의 허용 값을 고정한다', () => {
-    expect(questionSkillEnum.enumValues).toEqual(['READING']);
-    expect(questionTemplateEnum.enumValues).toEqual([
-      'STANDARD_CHOICE',
-      'PASSAGE_CHOICE',
-      'DIALOGUE_CHOICE',
-      'INLINE_SPAN_CHOICE',
+  it('뜻은 연결된 어휘의 뜻이어야 한다', () => {
+    const fk = getTableConfig(questionVocabularies).foreignKeys.find(
+      (key) => key.getName() === 'question_vocabularies_meaning_owner_fk',
+    )!;
+    expect(fk.reference().columns.map((column) => column.name)).toEqual([
+      'meaning_id',
+      'vocabulary_id',
     ]);
-    expect(questionStatusEnum.enumValues).toEqual([
-      'DRAFT',
-      'PUBLISHED',
-      'HIDDEN',
-    ]);
-    expect(questionVersionStatusEnum.enumValues).toEqual([
-      'DRAFT',
-      'PUBLISHED',
-      'RETIRED',
-      'INVALIDATED',
-    ]);
-    expect(questionValidationStatusEnum.enumValues).toEqual([
-      'PENDING',
-      'PASSED',
-      'FAILED',
-    ]);
-    expect(questionBlockKindEnum.enumValues).toEqual([
-      'INSTRUCTION',
-      'PASSAGE',
-      'DIALOGUE',
-      'QUESTION',
-      'EXPLANATION',
-    ]);
-    expect(questionMajorCategoryEnum.enumValues).toHaveLength(4);
-    expect(questionTypeVersionStatusEnum.enumValues).toEqual([
-      'DRAFT',
-      'ACTIVE',
-      'RETIRED',
+    expect(fk.reference().foreignColumns.map((column) => column.name)).toEqual([
+      'id',
+      'vocabulary_id',
     ]);
   });
-
-  it('세부 유형 버전의 설정과 승인 예시를 불변 참조로 저장한다', () => {
-    expect(getTableColumns(questionTypes).majorCategory.notNull).toBe(true);
-    expect(getTableColumns(questionTypeVersions).status.notNull).toBe(true);
-    expect(indexSummaries(questionTypeVersions)).toContainEqual({
-      name: 'question_type_versions_one_active_per_type',
-      columns: ['question_type_id'],
-      unique: true,
-      partial: true,
-    });
+  it('풀이 기록이 있는 문제 삭제를 막고 당시 내용을 필수 보존한다', () => {
+    expect(questionAttempts.questionSnapshot.notNull).toBe(true);
     expect(
-      Object.values(getTableColumns(questionTypeDifficultyCriteria)).map(
-        (column) => column.name,
+      getTableConfig(questionAttempts).foreignKeys.some(
+        (key) =>
+          key.reference().foreignTable === questions &&
+          key.onDelete === 'restrict',
       ),
-    ).toEqual(
-      expect.arrayContaining(['type_version_id', 'difficulty', 'criteria']),
-    );
-    expect(
-      Object.values(getTableColumns(questionTypeApprovedExamples)).map(
-        (column) => column.name,
-      ),
-    ).toEqual(
-      expect.arrayContaining([
-        'type_version_id',
-        'title',
-        'payload',
-        'payload_hash',
-      ]),
-    );
-  });
-
-  it('문제 버전에 필수 주제와 선택 태그를 연결한다', () => {
-    expect(getTableColumns(questionVersions).topicId.notNull).toBe(true);
-    expect(indexSummaries(questionTopics)).toContainEqual({
-      name: 'question_topics_slug_unique',
-      columns: ['slug'],
-      unique: true,
-      partial: false,
-    });
-    expect(indexSummaries(questionTags)).toContainEqual({
-      name: 'question_tags_slug_unique',
-      columns: ['slug'],
-      unique: true,
-      partial: false,
-    });
-    expect(uniqueConstraintSummaries(questionVersionTags)).toContainEqual({
-      name: 'question_version_tags_version_tag_unique',
-      columns: ['question_version_id', 'tag_id'],
-    });
-  });
-
-  it('문제 유형 slug와 유형·문제 버전 번호의 중복을 차단한다', () => {
-    expect(indexSummaries(questionTypes)).toContainEqual({
-      name: 'question_types_slug_unique',
-      columns: ['slug'],
-      unique: true,
-      partial: false,
-    });
-    expect(indexSummaries(questionTypeVersions)).toContainEqual({
-      name: 'question_type_versions_type_version_unique',
-      columns: ['question_type_id', 'version'],
-      unique: true,
-      partial: false,
-    });
-    expect(indexSummaries(questionVersions)).toContainEqual({
-      name: 'question_versions_question_version_unique',
-      columns: ['question_id', 'version'],
-      unique: true,
-      partial: false,
-    });
-  });
-
-  it('현재 게시 버전은 같은 문제가 소유한 버전만 가리킨다', () => {
-    expect(uniqueConstraintSummaries(questionVersions)).toContainEqual({
-      name: 'question_versions_question_id_id_unique',
-      columns: ['question_id', 'id'],
-    });
-    expect(foreignKeySummaries(questions)).toContainEqual({
-      sourceTable: 'questions',
-      targetTable: 'question_versions',
-      columns: ['id', 'current_published_version_id'],
-      foreignColumns: ['question_id', 'id'],
-      onDelete: 'restrict',
-    });
-  });
-
-  it('블록·문장·선택지 위치와 선택지 소유 복합 키를 고정한다', () => {
-    expect(indexSummaries(questionBlocks)).toContainEqual({
-      name: 'question_blocks_version_position_unique',
-      columns: ['question_version_id', 'position'],
-      unique: true,
-      partial: false,
-    });
-    expect(indexSummaries(questionBlockSentences)).toContainEqual({
-      name: 'question_block_sentences_block_position_unique',
-      columns: ['block_id', 'position'],
-      unique: true,
-      partial: false,
-    });
-    expect(indexSummaries(questionOptions)).toContainEqual({
-      name: 'question_options_version_position_unique',
-      columns: ['question_version_id', 'position'],
-      unique: true,
-      partial: false,
-    });
-    expect(uniqueConstraintSummaries(questionOptions)).toContainEqual({
-      name: 'question_options_question_version_id_id_unique',
-      columns: ['question_version_id', 'id'],
-    });
-  });
-
-  it('inline option 범위를 문장 버전과 token index로 함께 저장한다', () => {
-    expect(
-      Object.values(getTableColumns(questionOptions)).map(
-        (column) => column.name,
-      ),
-    ).toEqual(
-      expect.arrayContaining([
-        'span_sentence_version_id',
-        'span_start_token_index',
-        'span_end_token_index',
-      ]),
-    );
-  });
-
-  it('문제 버전마다 정답 선택지는 최대 하나만 허용한다', () => {
-    expect(indexSummaries(questionOptions)).toContainEqual({
-      name: 'question_options_one_correct_per_version',
-      columns: ['question_version_id'],
-      unique: true,
-      partial: true,
-    });
-  });
-
-  it('모든 문제 콘텐츠 FK는 삭제를 제한한다', () => {
-    const tables = [
-      questionTypeVersions,
-      questions,
-      questionVersions,
-      questionTypeDifficultyCriteria,
-      questionTypeApprovedExamples,
-      questionVersionTags,
-      questionBlocks,
-      questionBlockSentences,
-      questionOptions,
-    ];
-    const foreignKeys = tables.flatMap(foreignKeySummaries);
-
-    expect(foreignKeys).toHaveLength(15);
-    expect(foreignKeys.every(({ onDelete }) => onDelete === 'restrict')).toBe(
-      true,
-    );
-  });
-
-  it('버전과 선택지 수는 양수이고 난이도와 위치 범위를 제한한다', () => {
-    expect(
-      getTableConfig(questionTypeVersions).checks.map(({ name }) => name),
-    ).toEqual(
-      expect.arrayContaining([
-        'question_type_versions_version_positive',
-        'question_type_versions_option_count_positive',
-      ]),
-    );
-    expect(
-      getTableConfig(questionVersions).checks.map(({ name }) => name),
-    ).toEqual(
-      expect.arrayContaining([
-        'question_versions_version_positive',
-        'question_versions_difficulty_range',
-      ]),
-    );
-    expect(
-      getTableConfig(questionBlocks).checks.map(({ name }) => name),
-    ).toEqual(expect.arrayContaining(['question_blocks_position_nonnegative']));
-    expect(
-      getTableConfig(questionBlockSentences).checks.map(({ name }) => name),
-    ).toEqual(
-      expect.arrayContaining(['question_block_sentences_position_nonnegative']),
-    );
-    expect(
-      getTableConfig(questionOptions).checks.map(({ name }) => name),
-    ).toEqual(
-      expect.arrayContaining([
-        'question_options_position_nonnegative',
-        'question_options_sentence_or_span',
-      ]),
-    );
-    expect(getTableColumns(questionOptions).sentenceVersionId.notNull).toBe(
-      false,
-    );
-  });
-
-  it('감사 로그에 nullable 구조화 대상을 추가한다', () => {
-    const columns = getTableColumns(auditLogs);
-
-    expect(Object.keys(columns)).toEqual(
-      expect.arrayContaining(['actorUserId', 'targetType', 'targetId']),
-    );
-    expect(columns.actorUserId.notNull).toBe(false);
-    expect(columns.targetType.notNull).toBe(false);
-    expect(columns.targetId.notNull).toBe(false);
+    ).toBe(true);
   });
 });

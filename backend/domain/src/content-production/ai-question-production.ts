@@ -129,7 +129,7 @@ export interface QuestionProductionCandidateRecord {
   reviewCode: string | null;
   regeneratedFromCandidateId: string | null;
   approvedQuestionId: string | null;
-  approvedQuestionVersionId: string | null;
+  approvedQuestionVersion: number | null;
 }
 
 /** 문제 생성 item의 terminal 전이와 함께 보존할 후보 artifact */
@@ -1058,7 +1058,7 @@ export type ApproveQuestionCandidateInput = QuestionCandidateReviewCommand;
 /** 후보 승인으로 만든 게시 전 문제 DRAFT 식별자 */
 export interface ApprovedQuestionDraft {
   questionId: string;
-  questionVersionId: string;
+  questionVersion: number;
 }
 
 /** 후보 검토 실패를 HTTP 계층이 안정적인 상태 code로 변환하게 한다 */
@@ -1123,11 +1123,11 @@ export interface QuestionSimilarityLookup {
 /** 승인·폐기·재생성을 원자적으로 기록하는 후보 초안 저장 port */
 export interface GeneratedQuestionDraftRepository {
   approve(input: ApproveQuestionCandidateInput): Promise<
-    | { kind: 'APPROVED'; questionId: string; questionVersionId: string }
+    | { kind: 'APPROVED'; questionId: string; questionVersion: number }
     | {
         kind: 'ALREADY_APPROVED';
         questionId: string;
-        questionVersionId: string;
+        questionVersion: number;
       }
     | { kind: 'CONFLICT' }
   >;
@@ -1153,7 +1153,7 @@ export class QuestionCandidateReviewService {
     }
     return {
       questionId: result.questionId,
-      questionVersionId: result.questionVersionId,
+      questionVersion: result.questionVersion,
     };
   }
 

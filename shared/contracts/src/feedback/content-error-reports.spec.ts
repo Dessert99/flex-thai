@@ -14,7 +14,7 @@ describe('콘텐츠 오류 신고 계약', () => {
     {
       kind: 'QUESTION',
       questionId: id,
-      questionVersionId: id,
+      questionVersion: 1,
       blockId: null,
       sentenceVersionId: null,
     },
@@ -82,7 +82,7 @@ describe('콘텐츠 오류 신고 계약', () => {
         kind: 'VOCABULARY',
         contentId: id,
         contentVersionId: null,
-        questionVersionId: null,
+        questionVersion: null,
         sentenceVersionId: null,
         locationId: null,
       },

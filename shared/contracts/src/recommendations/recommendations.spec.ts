@@ -14,7 +14,7 @@ const response = {
     questions: [
       {
         questionId: '01933b6a-8f13-7a19-b7e5-536d70f57aae',
-        questionVersionId: '01933b6a-8f13-7a19-b7e5-536d70f57aaf',
+        questionVersion: 1,
         questionTypeDisplayName: '오늘 게시 문제',
         skill: 'READING',
         difficulty: 1,
@@ -37,7 +37,7 @@ const response = {
   questions: [
     {
       questionId: '01933b6a-8f13-7a19-b7e5-536d70f57aaa',
-      questionVersionId: '01933b6a-8f13-7a19-b7e5-536d70f57aab',
+      questionVersion: 1,
       questionType: {
         id: '01933b6a-8f13-7a19-b7e5-536d70f57aac',
         slug: 'reading-context',

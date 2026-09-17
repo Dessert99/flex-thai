@@ -138,7 +138,7 @@ describe('AI 문제 후보 저장 port', () => {
       reviewStatus: 'PENDING' | 'APPROVED' | 'DISCARDED';
       regeneratedFromCandidateId: string | null;
       approvedQuestionId: string | null;
-      approvedQuestionVersionId: string | null;
+      approvedQuestionVersion: number | null;
     }>();
   });
 
@@ -170,12 +170,12 @@ describe('AI 문제 후보 검토 서비스', () => {
       {
         kind: 'APPROVED' as const,
         questionId: 'question-id',
-        questionVersionId: 'version-id',
+        questionVersion: 1,
       },
       {
         kind: 'ALREADY_APPROVED' as const,
         questionId: 'question-id',
-        questionVersionId: 'version-id',
+        questionVersion: 1,
       },
     ];
     const repository: GeneratedQuestionDraftRepository = {
@@ -188,11 +188,11 @@ describe('AI 문제 후보 검토 서비스', () => {
 
     await expect(service.approve(command)).resolves.toEqual({
       questionId: 'question-id',
-      questionVersionId: 'version-id',
+      questionVersion: 1,
     });
     await expect(service.approve(command)).resolves.toEqual({
       questionId: 'question-id',
-      questionVersionId: 'version-id',
+      questionVersion: 1,
     });
   });
 

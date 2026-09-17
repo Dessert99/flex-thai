@@ -47,9 +47,9 @@ export const contentErrorReportOriginSchema = z.discriminatedUnion('kind', [
     .object({
       kind: z.literal('QUESTION'),
       questionId: uuidSchema,
-      questionVersionId: uuidSchema,
-      blockId: nullableUuidSchema,
-      sentenceVersionId: nullableUuidSchema,
+      questionVersion: z.number().int().safe().positive(),
+      blockId: z.null(),
+      sentenceVersionId: z.null(),
     })
     .strict(),
   z
@@ -128,7 +128,7 @@ export const contentErrorReportCanonicalReferenceSchema = z
     kind: contentErrorReportTargetKindSchema,
     contentId: uuidSchema,
     contentVersionId: nullableUuidSchema,
-    questionVersionId: nullableUuidSchema,
+    questionVersion: z.number().int().safe().positive().nullable(),
     sentenceVersionId: nullableUuidSchema,
     locationId: nullableUuidSchema,
   })

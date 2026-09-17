@@ -1,6 +1,6 @@
 /** FLEX 문제 분류·유형 버전·주제·태그 관리자 계약을 정의한다 */
 import { z } from 'zod';
-import { adminQuestionVersionPayloadSchema } from '../admin/questions.js';
+import { adminQuestionVersionPayloadSchema } from './legacy-question-payload.js';
 import {
   questionMajorCategorySchema,
   type QuestionMajorCategory,

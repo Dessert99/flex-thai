@@ -1,20 +1,21 @@
 /** 도메인 오류를 안정적인 HTTP code로 바꾸고 내부 정보를 숨긴다 */
 import type { ProblemDetailsResponse } from '@flex-thia/contracts/common/problem';
 import { WordbookPersistenceError } from '@flex-thia/database/repositories/drizzle-wordbook.repository';
-import { AuditLogError } from '@flex-thia/domain/operations/audit-log.service';
 import { AuthDomainError } from '@flex-thia/domain/auth/auth-domain.error';
 import { ContentImportError } from '@flex-thia/domain/content-import/content-import.service';
-import { EmailChallengeError } from '@flex-thia/domain/identity/email-challenge';
 import { IdentityDomainError } from '@flex-thia/domain/identity/authentication.service';
+import { EmailChallengeError } from '@flex-thia/domain/identity/email-challenge';
+import { UserManagementError } from '@flex-thia/domain/identity/user-management';
 import { LearningDomainError } from '@flex-thia/domain/learning/question-attempt';
+import { WordbookDomainError } from '@flex-thia/domain/learning/wordbook';
+import { AuditLogError } from '@flex-thia/domain/operations/audit-log.service';
+import { QuestionContentError } from '@flex-thia/domain/questions/question';
 import { QuestionAdminError } from '@flex-thia/domain/questions/question-admin';
 import { QuestionPublicationError } from '@flex-thia/domain/questions/question-publication';
 import { QuestionTaxonomyError } from '@flex-thia/domain/questions/question-taxonomy.service';
 import { UploadPolicyError } from '@flex-thia/domain/uploads/upload-policy.service';
-import { UserManagementError } from '@flex-thia/domain/identity/user-management';
 import { VocabularyAdminError } from '@flex-thia/domain/vocabulary/vocabulary-admin';
 import { VocabularyRelationsMergeAdminError } from '@flex-thia/domain/vocabulary/vocabulary-relations-merge.service';
-import { WordbookDomainError } from '@flex-thia/domain/learning/wordbook';
 import {
   ArgumentsHost,
   Catch,
@@ -92,6 +93,7 @@ const EMAIL_CHALLENGE_STATUS: Record<EmailChallengeError['code'], number> = {
 };
 
 const LEARNING_STATUS: Record<LearningDomainError['code'], number> = {
+  QUESTION_VERSION_CONFLICT: HttpStatus.CONFLICT,
   QUESTION_UNAVAILABLE: HttpStatus.CONFLICT,
   QUESTION_OPTION_MISMATCH: HttpStatus.CONFLICT,
   ATTEMPT_IDEMPOTENCY_CONFLICT: HttpStatus.CONFLICT,
@@ -107,14 +109,9 @@ const WORDBOOK_STATUS: Record<WordbookDomainError['code'], number> = {
 
 const QUESTION_ADMIN_STATUS: Record<QuestionAdminError['code'], number> = {
   QUESTION_NOT_FOUND: HttpStatus.NOT_FOUND,
-  QUESTION_VERSION_NOT_FOUND: HttpStatus.NOT_FOUND,
-  QUESTION_VERSION_MISMATCH: HttpStatus.CONFLICT,
-  QUESTION_TYPE_NOT_FOUND: HttpStatus.NOT_FOUND,
-  QUESTION_TAXONOMY_NOT_FOUND: HttpStatus.NOT_FOUND,
-  QUESTION_REFERENCE_NOT_FOUND: HttpStatus.NOT_FOUND,
   QUESTION_REFERENCE_MISMATCH: HttpStatus.CONFLICT,
   QUESTION_CONTENT_INVALID: HttpStatus.BAD_REQUEST,
-  IMMUTABLE_VERSION: HttpStatus.CONFLICT,
+  QUESTION_VERSION_CONFLICT: HttpStatus.CONFLICT,
 };
 
 const QUESTION_TAXONOMY_STATUS: Record<QuestionTaxonomyError['code'], number> =
@@ -269,7 +266,10 @@ export const buildErrorResponse = (
     };
   }
 
-  if (error instanceof QuestionAdminError) {
+  if (
+    error instanceof QuestionAdminError ||
+    error instanceof QuestionContentError
+  ) {
     const status = QUESTION_ADMIN_STATUS[error.code];
     return {
       status,

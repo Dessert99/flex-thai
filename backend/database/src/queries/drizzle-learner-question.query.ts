@@ -1,51 +1,32 @@
-/** 현재 게시 문제와 append-only 풀이 기록을 정답 노출 없이 탐색한다 */
+/** 현재 문제를 한 행에서 읽고 사용자별 마지막 풀이 버전을 비교한다. */
+import type {
+  QuestionLearningStatus,
+  QuestionSnapshot,
+} from '@flex-thia/domain/questions/question';
 import type { QuestionMajorCategory } from '@flex-thia/domain/questions/question-taxonomy.repository';
-import {
-  and,
-  asc,
-  count,
-  desc,
-  eq,
-  inArray,
-  isNotNull,
-  isNull,
-  ne,
-  type SQL,
-  sql,
-} from 'drizzle-orm';
+import { and, asc, count, desc, eq, sql } from 'drizzle-orm';
 import { alias, type PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
-import { databaseSchema as schema } from '../schema/databaseSchema.js';
-import {
-  expressionOccurrences,
-  thaiSentenceVersions,
-  tokenOccurrences,
-} from '../schema/thai-content.schema.js';
+import { databaseSchema } from '../schema/databaseSchema.js';
 import { questionAttempts, savedQuestions } from '../schema/learning.schema.js';
 import {
-  questionBlocks,
-  questionBlockSentences,
-  questionOptions,
   questions,
   questionTags,
   questionTopics,
   questionTypes,
   questionTypeVersions,
-  questionVersions,
-  questionVersionTags,
+  questionVocabularies,
 } from '../schema/questions.schema.js';
-import { vocabularyMeanings } from '../schema/vocabulary.schema.js';
 
-type LearnerQuestionDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
-
-/** 문제 목록의 시험 영역 */
+type Database = PgDatabase<PgQueryResultHKT, typeof databaseSchema>;
 export type LearnerQuestionSkill = 'READING';
-
-/** 첫 답의 유효 결과 */
-export type LearnerQuestionFirstResult = 'CORRECT' | 'INCORRECT' | 'UNANSWERED';
-
-/** database query가 소비하는 검증 완료 문제 목록 조건 */
-export interface LearnerQuestionListQuery {
+export type LearnerQuestionFirstResult = QuestionLearningStatus;
+export interface LearnerQuestionPageQuery {
+  page: number;
+  pageSize: number;
+}
+export interface LearnerQuestionListQuery extends LearnerQuestionPageQuery {
+  vocabularyId?: string;
   skill?: LearnerQuestionSkill;
   majorCategory?: QuestionMajorCategory;
   questionTypeId?: string;
@@ -55,42 +36,21 @@ export interface LearnerQuestionListQuery {
   saved?: boolean;
   firstResult?: LearnerQuestionFirstResult;
   sort: 'LATEST';
-  page: number;
-  pageSize: number;
 }
-
-/** database query가 소비하는 검증 완료 공통 page 조건 */
-export interface LearnerQuestionPageQuery {
-  page: number;
-  pageSize: number;
-}
-
-/** API mapper가 재사용하는 내부 page metadata */
-export interface LearnerQuestionPageMetadata {
-  page: number;
-  pageSize: number;
-  totalItems: number;
-  totalPages: number;
-}
-
-/** 정답 없이 문제 유형을 식별하는 내부 projection */
 export interface LearnerQuestionTypeProjection {
   id: string;
   slug: string;
   displayName: string;
 }
-
-/** 현재 게시 문제에 고정된 주제·태그의 내부 projection */
-export interface LearnerQuestionTaxonomyTermProjection {
-  id: string;
-  slug: string;
-  displayName: string;
+export type LearnerQuestionTaxonomyTermProjection =
+  LearnerQuestionTypeProjection;
+export interface LearnerQuestionPageMetadata extends LearnerQuestionPageQuery {
+  totalItems: number;
+  totalPages: number;
 }
-
-/** 현재 게시 문제 목록 한 건의 내부 projection */
 export interface LearnerQuestionListItemProjection {
   questionId: string;
-  questionVersionId: string;
+  questionVersion: number;
   questionType: LearnerQuestionTypeProjection;
   majorCategory: QuestionMajorCategory;
   topic: LearnerQuestionTaxonomyTermProjection;
@@ -100,124 +60,245 @@ export interface LearnerQuestionListItemProjection {
   saved: boolean;
   firstResult: LearnerQuestionFirstResult;
 }
-
-/** 현재 게시 문제 목록의 내부 page projection */
 export interface LearnerQuestionListProjection {
   items: LearnerQuestionListItemProjection[];
   page: LearnerQuestionPageMetadata;
 }
-
-/** 현재 공개 문제에서 실제 선택 가능한 탐색 filter projection */
 export interface LearnerQuestionListFacetsProjection {
-  majorCategories: Array<{
-    value: QuestionMajorCategory;
-    label: string;
-  }>;
+  majorCategories: Array<{ value: QuestionMajorCategory; label: string }>;
   questionTypes: Array<
-    LearnerQuestionTypeProjection & {
-      majorCategory: QuestionMajorCategory;
-    }
+    LearnerQuestionTypeProjection & { majorCategory: QuestionMajorCategory }
   >;
   topics: LearnerQuestionTaxonomyTermProjection[];
   tags: LearnerQuestionTaxonomyTermProjection[];
 }
-
-/** 문장 안 공용 어휘 출현의 내부 projection */
-export interface LearnerQuestionTokenProjection {
-  position: number;
-  surface: string;
-  startOffset: number;
-  endOffset: number;
-  vocabularyId: string;
-  meaningId: string;
-  pronunciationId: string;
-  contextMeaningKo: string;
-  pronunciationKo: string;
-  toneMarks: string;
-  role: 'TARGET' | 'REQUIRED' | 'SUPPORTING' | 'INSTRUCTION';
+const pageOf = (query: LearnerQuestionPageQuery, totalItems: number) => ({
+  ...query,
+  totalItems,
+  totalPages: Math.ceil(totalItems / query.pageSize),
+});
+const savedFor = (userId: string) =>
+  sql<boolean>`exists (select 1 from ${savedQuestions} where ${savedQuestions.userId} = ${userId} and ${savedQuestions.questionId} = ${questions.id})`;
+const lastAttempt = alias(questionAttempts, 'latest_question_attempt');
+const lastFor = (userId: string) =>
+  and(
+    eq(lastAttempt.userId, userId),
+    eq(lastAttempt.questionId, questions.id),
+    sql`${lastAttempt.attemptNo} = (select max(a.attempt_no) from question_attempts a where a.user_id = ${userId} and a.question_id = ${questions.id})`,
+  );
+const learningStatus = sql<LearnerQuestionFirstResult>`case when ${lastAttempt.id} is null then 'UNANSWERED' when ${lastAttempt.questionVersion} <> ${questions.version} then 'UPDATED' when ${lastAttempt.isCorrect} then 'CORRECT' else 'INCORRECT' end`;
+const labels = {
+  READING_VOCABULARY_GRAMMAR: '어휘·문법',
+  READING_SYNONYM_RELATION: '동의·유의 관계',
+  READING_ERROR_IDENTIFICATION: '비문 찾기',
+  READING_PASSAGE: '지문 독해',
+} as const;
+export class DrizzleLearnerQuestionQuery {
+  constructor(private readonly database: Database) {}
+  async listQuestions(
+    userId: string,
+    query: LearnerQuestionListQuery,
+  ): Promise<LearnerQuestionListProjection> {
+    const conditions = and(
+      eq(questions.status, 'PUBLISHED'),
+      query.vocabularyId
+        ? sql`exists(select 1 from ${questionVocabularies} where ${questionVocabularies.questionId} = ${questions.id} and ${questionVocabularies.vocabularyId} = ${query.vocabularyId})`
+        : undefined,
+      query.majorCategory
+        ? eq(questionTypes.majorCategory, query.majorCategory)
+        : undefined,
+      query.questionTypeId
+        ? eq(questionTypes.id, query.questionTypeId)
+        : undefined,
+      query.topicId ? eq(questions.topicId, query.topicId) : undefined,
+      query.tagId
+        ? sql`${query.tagId}::uuid = any(${questions.tagIds})`
+        : undefined,
+      query.difficulty ? eq(questions.difficulty, query.difficulty) : undefined,
+      query.saved === undefined
+        ? undefined
+        : sql`${savedFor(userId)} = ${query.saved}`,
+      query.firstResult
+        ? sql`${learningStatus} = ${query.firstResult}`
+        : undefined,
+    );
+    const totals = await this.database
+      .select({ total: count() })
+      .from(questions)
+      .innerJoin(
+        questionTypeVersions,
+        eq(questions.typeVersionId, questionTypeVersions.id),
+      )
+      .innerJoin(
+        questionTypes,
+        eq(questionTypeVersions.questionTypeId, questionTypes.id),
+      )
+      .leftJoin(lastAttempt, lastFor(userId))
+      .where(conditions);
+    const rows = await this.database
+      .select({
+        questionId: questions.id,
+        questionVersion: questions.version,
+        questionType: {
+          id: questionTypes.id,
+          slug: questionTypes.slug,
+          displayName: questionTypes.displayName,
+        },
+        majorCategory: questionTypes.majorCategory,
+        skill: questionTypes.skill,
+        topic: {
+          id: questionTopics.id,
+          slug: questionTopics.slug,
+          displayName: questionTopics.displayName,
+        },
+        tagIds: questions.tagIds,
+        difficulty: questions.difficulty,
+        saved: savedFor(userId),
+        firstResult: learningStatus,
+      })
+      .from(questions)
+      .innerJoin(
+        questionTypeVersions,
+        eq(questions.typeVersionId, questionTypeVersions.id),
+      )
+      .innerJoin(
+        questionTypes,
+        eq(questionTypeVersions.questionTypeId, questionTypes.id),
+      )
+      .innerJoin(questionTopics, eq(questions.topicId, questionTopics.id))
+      .leftJoin(lastAttempt, lastFor(userId))
+      .where(conditions)
+      .orderBy(desc(questions.publishedAt), asc(questions.id))
+      .limit(query.pageSize)
+      .offset((query.page - 1) * query.pageSize);
+    const tags = await this.database
+      .select({
+        id: questionTags.id,
+        slug: questionTags.slug,
+        displayName: questionTags.displayName,
+      })
+      .from(questionTags);
+    return {
+      items: rows.map(({ tagIds, ...row }) => ({
+        ...row,
+        tags: tags.filter((tag) => tagIds.includes(tag.id)),
+      })),
+      page: pageOf(
+        { page: query.page, pageSize: query.pageSize },
+        totals[0]?.total ?? 0,
+      ),
+    };
+  }
+  async getQuestionDetail(userId: string, questionId: string) {
+    const [row] = await this.database
+      .select({
+        questionId: questions.id,
+        questionVersion: questions.version,
+        questionType: {
+          id: questionTypes.id,
+          slug: questionTypes.slug,
+          displayName: questionTypes.displayName,
+        },
+        skill: questionTypes.skill,
+        difficulty: questions.difficulty,
+        passage: questions.passage,
+        prompt: questions.prompt,
+        options: questions.options,
+        saved: savedFor(userId),
+        firstResult: learningStatus,
+      })
+      .from(questions)
+      .innerJoin(
+        questionTypeVersions,
+        eq(questions.typeVersionId, questionTypeVersions.id),
+      )
+      .innerJoin(
+        questionTypes,
+        eq(questionTypeVersions.questionTypeId, questionTypes.id),
+      )
+      .leftJoin(lastAttempt, lastFor(userId))
+      .where(
+        and(eq(questions.id, questionId), eq(questions.status, 'PUBLISHED')),
+      );
+    return row ?? null;
+  }
+  async listAttempts(userId: string, query: LearnerQuestionPageQuery) {
+    const [total] = await this.database
+      .select({ count: count() })
+      .from(questionAttempts)
+      .where(eq(questionAttempts.userId, userId));
+    const rows = await this.database
+      .select()
+      .from(questionAttempts)
+      .where(eq(questionAttempts.userId, userId))
+      .orderBy(desc(questionAttempts.submittedAt), desc(questionAttempts.id))
+      .limit(query.pageSize)
+      .offset((query.page - 1) * query.pageSize);
+    return {
+      items: rows.map(({ userId, ...row }) => {
+        void userId;
+        return row;
+      }),
+      page: pageOf(query, total?.count ?? 0),
+    };
+  }
+  async listQuestionFacets(): Promise<LearnerQuestionListFacetsProjection> {
+    const types = await this.database
+      .selectDistinct({
+        id: questionTypes.id,
+        slug: questionTypes.slug,
+        displayName: questionTypes.displayName,
+        majorCategory: questionTypes.majorCategory,
+      })
+      .from(questions)
+      .innerJoin(
+        questionTypeVersions,
+        eq(questions.typeVersionId, questionTypeVersions.id),
+      )
+      .innerJoin(
+        questionTypes,
+        eq(questionTypeVersions.questionTypeId, questionTypes.id),
+      )
+      .where(eq(questions.status, 'PUBLISHED'))
+      .orderBy(asc(questionTypes.slug));
+    const topics = await this.database
+      .selectDistinct({
+        id: questionTopics.id,
+        slug: questionTopics.slug,
+        displayName: questionTopics.displayName,
+      })
+      .from(questions)
+      .innerJoin(questionTopics, eq(questions.topicId, questionTopics.id))
+      .where(eq(questions.status, 'PUBLISHED'))
+      .orderBy(asc(questionTopics.slug));
+    const tags = await this.database
+      .selectDistinct({
+        id: questionTags.id,
+        slug: questionTags.slug,
+        displayName: questionTags.displayName,
+      })
+      .from(questionTags)
+      .innerJoin(questions, sql`${questionTags.id} = any(${questions.tagIds})`)
+      .where(eq(questions.status, 'PUBLISHED'))
+      .orderBy(asc(questionTags.slug));
+    return {
+      questionTypes: types,
+      topics,
+      tags,
+      majorCategories: [
+        ...new Set(types.map((type) => type.majorCategory)),
+      ].map((value) => ({ value, label: labels[value] })),
+    };
+  }
 }
-
-/** 문장 안 다단어 표현 범위의 내부 projection */
-export interface LearnerQuestionExpressionProjection {
-  startTokenIndex: number;
-  endTokenIndex: number;
-  vocabularyId: string;
-  meaningId: string;
-  pronunciationId: string;
-  contextMeaningKo: string;
-  pronunciationKo: string;
-  toneMarks: string;
-  representative: boolean;
-}
-
-/** 블록과 선택지가 같은 객체로 공유하는 불변 문장 projection */
-export interface LearnerQuestionSentenceProjection {
-  sentenceVersionId: string;
-  originalText: string;
-  translationKo: string;
-  pronunciationKo: string;
-  toneMarks: string;
-  tokens: LearnerQuestionTokenProjection[];
-  expressions: LearnerQuestionExpressionProjection[];
-}
-
-/** 블록 안 문장 연결의 위치와 화자를 보존하는 projection */
-export interface LearnerQuestionBlockSentenceProjection {
-  position: number;
-  speaker: string | null;
-  sentence: LearnerQuestionSentenceProjection;
-}
-
-/** 제출 전 공개 블록과 제출 후 해설 블록이 공유하는 내부 projection */
-export interface LearnerQuestionBlockProjection {
-  id: string;
-  kind: 'INSTRUCTION' | 'PASSAGE' | 'DIALOGUE' | 'QUESTION' | 'EXPLANATION';
-  position: number;
-  sentences: LearnerQuestionBlockSentenceProjection[];
-}
-
-interface LearnerQuestionOptionProjectionBase {
-  id: string;
-  position: number;
-}
-
-/** 정답 flag를 제외한 일반 문장 또는 inline 범위 선택지 projection */
-export type LearnerQuestionOptionProjection =
-  | (LearnerQuestionOptionProjectionBase & {
-      sentence: LearnerQuestionSentenceProjection;
-      span: null;
-    })
-  | (LearnerQuestionOptionProjectionBase & {
-      sentence: null;
-      span: {
-        sentenceVersionId: string;
-        startTokenIndex: number;
-        endTokenIndex: number;
-      };
-    });
-
-/** 현재 게시 버전의 제출 전 문제 상세 projection */
-export interface LearnerQuestionDetailProjection {
-  questionId: string;
-  questionVersionId: string;
-  questionType: LearnerQuestionTypeProjection;
-  skill: LearnerQuestionSkill;
-  difficulty: number;
-  template:
-    | 'STANDARD_CHOICE'
-    | 'PASSAGE_CHOICE'
-    | 'DIALOGUE_CHOICE'
-    | 'INLINE_SPAN_CHOICE';
-  blocks: LearnerQuestionBlockProjection[];
-  options: LearnerQuestionOptionProjection[];
-  saved: boolean;
-}
-
-/** 현재 콘텐츠 상태와 무관하게 보존하는 원시 답안 projection */
+export type LearnerQuestionDetailProjection = NonNullable<
+  Awaited<ReturnType<DrizzleLearnerQuestionQuery['getQuestionDetail']>>
+>;
 export interface LearnerQuestionAttemptProjection {
   id: string;
   questionId: string;
-  questionVersionId: string;
+  questionVersion: number;
+  questionSnapshot: QuestionSnapshot;
   attemptNo: number;
   selectedOptionId: string;
   clientAttemptId: string;
@@ -225,793 +306,7 @@ export interface LearnerQuestionAttemptProjection {
   isCorrect: boolean;
   submittedAt: Date;
 }
-
-/** 원시 풀이 기록의 내부 page projection */
 export interface LearnerQuestionAttemptListProjection {
   items: LearnerQuestionAttemptProjection[];
   page: LearnerQuestionPageMetadata;
-}
-
-const toPageMetadata = (
-  query: LearnerQuestionPageQuery,
-  totalItems: number,
-): LearnerQuestionPageMetadata => ({
-  page: query.page,
-  pageSize: query.pageSize,
-  totalItems,
-  totalPages: Math.ceil(totalItems / query.pageSize),
-});
-
-const comparePosition = (
-  left: { position: number },
-  right: { position: number },
-): number => left.position - right.position;
-
-const questionMajorCategoryLabels = {
-  READING_VOCABULARY_GRAMMAR: '어휘·문법',
-  READING_SYNONYM_RELATION: '동의·유의 관계',
-  READING_ERROR_IDENTIFICATION: '비문 찾기',
-  READING_PASSAGE: '지문 독해',
-} as const satisfies Record<QuestionMajorCategory, string>;
-
-const compareExpressionPosition = (
-  left: {
-    occurrenceId: string;
-    startTokenIndex: number;
-    endTokenIndex: number;
-  },
-  right: {
-    occurrenceId: string;
-    startTokenIndex: number;
-    endTokenIndex: number;
-  },
-): number =>
-  left.startTokenIndex - right.startTokenIndex ||
-  left.endTokenIndex - right.endTokenIndex ||
-  (left.occurrenceId < right.occurrenceId
-    ? -1
-    : left.occurrenceId > right.occurrenceId
-      ? 1
-      : 0);
-
-const requireSentence = (
-  sentences: Map<string, LearnerQuestionSentenceProjection>,
-  sentenceVersionId: string,
-): LearnerQuestionSentenceProjection => {
-  const sentence = sentences.get(sentenceVersionId);
-  if (!sentence) {
-    throw new Error(`LEARNER_QUESTION_SENTENCE_MISSING:${sentenceVersionId}`);
-  }
-  return sentence;
-};
-
-/** SQL projection을 API mapper용 계층 구조로 조립하는 read-only query */
-export class DrizzleLearnerQuestionQuery {
-  constructor(private readonly database: LearnerQuestionDatabase) {}
-
-  /** 현재 공개 버전에서 실제 사용되는 taxonomy facet만 안정 순서로 반환한다 */
-  async listQuestionFacets(): Promise<LearnerQuestionListFacetsProjection> {
-    const publicCurrentQuestionVersions = this.database
-      .$with('public_current_question_versions')
-      .as(
-        this.database
-          .select({
-            questionVersionId: questionVersions.id,
-            questionTypeId: questionTypeVersions.questionTypeId,
-            majorCategory: questionTypes.majorCategory,
-            topicId: questionVersions.topicId,
-          })
-          .from(questions)
-          .innerJoin(
-            questionVersions,
-            and(
-              eq(questionVersions.questionId, questions.id),
-              eq(questionVersions.id, questions.currentPublishedVersionId),
-            ),
-          )
-          .innerJoin(
-            questionTypeVersions,
-            eq(questionVersions.typeVersionId, questionTypeVersions.id),
-          )
-          .innerJoin(
-            questionTypes,
-            eq(questionTypeVersions.questionTypeId, questionTypes.id),
-          )
-          .where(
-            and(
-              eq(questions.status, 'PUBLISHED'),
-              eq(questionVersions.status, 'PUBLISHED'),
-            ),
-          ),
-      );
-    const categoryOrder = sql<number>`case ${publicCurrentQuestionVersions.majorCategory}
-      when 'READING_VOCABULARY_GRAMMAR' then 4
-      when 'READING_SYNONYM_RELATION' then 5
-      when 'READING_ERROR_IDENTIFICATION' then 6
-      when 'READING_PASSAGE' then 7
-    end`;
-    const [majorCategoryRows, questionTypeRows, topicRows, tagRows] =
-      await Promise.all([
-        this.database
-          .with(publicCurrentQuestionVersions)
-          .selectDistinct({
-            majorCategory: publicCurrentQuestionVersions.majorCategory,
-            sortRank: categoryOrder,
-          })
-          .from(publicCurrentQuestionVersions)
-          .orderBy(categoryOrder),
-        this.database
-          .with(publicCurrentQuestionVersions)
-          .selectDistinct({
-            id: questionTypes.id,
-            slug: questionTypes.slug,
-            displayName: questionTypes.displayName,
-            majorCategory: questionTypes.majorCategory,
-          })
-          .from(questionTypes)
-          .innerJoin(
-            publicCurrentQuestionVersions,
-            eq(questionTypes.id, publicCurrentQuestionVersions.questionTypeId),
-          )
-          .orderBy(asc(questionTypes.displayName), asc(questionTypes.id)),
-        this.database
-          .with(publicCurrentQuestionVersions)
-          .selectDistinct({
-            id: questionTopics.id,
-            slug: questionTopics.slug,
-            displayName: questionTopics.displayName,
-          })
-          .from(questionTopics)
-          .innerJoin(
-            publicCurrentQuestionVersions,
-            eq(questionTopics.id, publicCurrentQuestionVersions.topicId),
-          )
-          .orderBy(asc(questionTopics.displayName), asc(questionTopics.id)),
-        this.database
-          .with(publicCurrentQuestionVersions)
-          .selectDistinct({
-            id: questionTags.id,
-            slug: questionTags.slug,
-            displayName: questionTags.displayName,
-          })
-          .from(questionVersionTags)
-          .innerJoin(
-            publicCurrentQuestionVersions,
-            eq(
-              questionVersionTags.questionVersionId,
-              publicCurrentQuestionVersions.questionVersionId,
-            ),
-          )
-          .innerJoin(
-            questionTags,
-            eq(questionVersionTags.tagId, questionTags.id),
-          )
-          .orderBy(asc(questionTags.displayName), asc(questionTags.id)),
-      ]);
-
-    return {
-      majorCategories: majorCategoryRows.map(({ majorCategory }) => ({
-        value: majorCategory,
-        label: questionMajorCategoryLabels[majorCategory],
-      })),
-      questionTypes: questionTypeRows,
-      topics: topicRows,
-      tags: tagRows,
-    };
-  }
-
-  /** 현재 게시 문제만 first-result와 저장 상태까지 계산해 page로 반환한다 */
-  async listQuestions(
-    userId: string,
-    query: LearnerQuestionListQuery,
-  ): Promise<LearnerQuestionListProjection> {
-    const firstAttempts = alias(questionAttempts, 'first_question_attempts');
-    const firstAttemptVersions = alias(
-      questionVersions,
-      'first_attempt_question_versions',
-    );
-    const firstResult = sql<LearnerQuestionFirstResult>`case
-      when ${firstAttempts.id} is null
-        or ${firstAttemptVersions.status} = ${'INVALIDATED'}
-        then 'UNANSWERED'
-      when ${firstAttempts.isCorrect} then 'CORRECT'
-      else 'INCORRECT'
-    end`;
-    const saved = sql<boolean>`${savedQuestions.questionId} is not null`;
-    const conditions: SQL[] = [
-      eq(questions.status, 'PUBLISHED'),
-      eq(questionVersions.status, 'PUBLISHED'),
-    ];
-    if (query.skill !== undefined) {
-      conditions.push(eq(questionTypes.skill, query.skill));
-    }
-    if (query.majorCategory !== undefined) {
-      conditions.push(eq(questionTypes.majorCategory, query.majorCategory));
-    }
-    if (query.questionTypeId !== undefined) {
-      conditions.push(eq(questionTypes.id, query.questionTypeId));
-    }
-    if (query.topicId !== undefined) {
-      conditions.push(eq(questionVersions.topicId, query.topicId));
-    }
-    if (query.tagId !== undefined) {
-      // 태그 다대다 join이 목록 row와 count를 늘리지 않도록 상관 EXISTS를 사용
-      conditions.push(sql`exists (
-        select 1 from ${questionVersionTags}
-        where ${questionVersionTags.questionVersionId} = ${questionVersions.id}
-          and ${questionVersionTags.tagId} = ${query.tagId}
-      )`);
-    }
-    if (query.difficulty !== undefined) {
-      conditions.push(eq(questionVersions.difficulty, query.difficulty));
-    }
-    if (query.saved !== undefined) {
-      conditions.push(
-        query.saved
-          ? isNotNull(savedQuestions.questionId)
-          : isNull(savedQuestions.questionId),
-      );
-    }
-    if (query.firstResult !== undefined) {
-      conditions.push(sql`${firstResult} = ${query.firstResult}`);
-    }
-
-    const [totalRow] = await this.database
-      .select({ totalItems: count() })
-      .from(questions)
-      .innerJoin(
-        questionVersions,
-        and(
-          eq(questionVersions.questionId, questions.id),
-          eq(questionVersions.id, questions.currentPublishedVersionId),
-        ),
-      )
-      .innerJoin(
-        questionTypeVersions,
-        eq(questionVersions.typeVersionId, questionTypeVersions.id),
-      )
-      .innerJoin(
-        questionTypes,
-        eq(questionTypeVersions.questionTypeId, questionTypes.id),
-      )
-      .innerJoin(
-        questionTopics,
-        eq(questionVersions.topicId, questionTopics.id),
-      )
-      .leftJoin(
-        savedQuestions,
-        and(
-          eq(savedQuestions.questionId, questions.id),
-          eq(savedQuestions.userId, userId),
-        ),
-      )
-      .leftJoin(
-        firstAttempts,
-        and(
-          eq(firstAttempts.userId, userId),
-          eq(firstAttempts.questionId, questions.id),
-          eq(firstAttempts.attemptNo, 1),
-        ),
-      )
-      .leftJoin(
-        firstAttemptVersions,
-        and(
-          eq(firstAttemptVersions.questionId, firstAttempts.questionId),
-          eq(firstAttemptVersions.id, firstAttempts.questionVersionId),
-        ),
-      )
-      .where(and(...conditions));
-    const totalItems = totalRow?.totalItems ?? 0;
-    const rows = await this.database
-      .select({
-        questionId: questions.id,
-        questionVersionId: questionVersions.id,
-        questionTypeId: questionTypes.id,
-        questionTypeSlug: questionTypes.slug,
-        questionTypeDisplayName: questionTypes.displayName,
-        majorCategory: questionTypes.majorCategory,
-        topicId: questionTopics.id,
-        topicSlug: questionTopics.slug,
-        topicDisplayName: questionTopics.displayName,
-        skill: questionTypes.skill,
-        difficulty: questionVersions.difficulty,
-        saved,
-        firstResult,
-      })
-      .from(questions)
-      .innerJoin(
-        questionVersions,
-        and(
-          eq(questionVersions.questionId, questions.id),
-          eq(questionVersions.id, questions.currentPublishedVersionId),
-        ),
-      )
-      .innerJoin(
-        questionTypeVersions,
-        eq(questionVersions.typeVersionId, questionTypeVersions.id),
-      )
-      .innerJoin(
-        questionTypes,
-        eq(questionTypeVersions.questionTypeId, questionTypes.id),
-      )
-      .innerJoin(
-        questionTopics,
-        eq(questionVersions.topicId, questionTopics.id),
-      )
-      .leftJoin(
-        savedQuestions,
-        and(
-          eq(savedQuestions.questionId, questions.id),
-          eq(savedQuestions.userId, userId),
-        ),
-      )
-      .leftJoin(
-        firstAttempts,
-        and(
-          eq(firstAttempts.userId, userId),
-          eq(firstAttempts.questionId, questions.id),
-          eq(firstAttempts.attemptNo, 1),
-        ),
-      )
-      .leftJoin(
-        firstAttemptVersions,
-        and(
-          eq(firstAttemptVersions.questionId, firstAttempts.questionId),
-          eq(firstAttemptVersions.id, firstAttempts.questionVersionId),
-        ),
-      )
-      .where(and(...conditions))
-      .orderBy(desc(questionVersions.publishedAt), desc(questions.id))
-      .limit(query.pageSize)
-      .offset((query.page - 1) * query.pageSize);
-
-    const questionVersionIds = rows.map((row) => row.questionVersionId);
-    const tagRows =
-      questionVersionIds.length === 0
-        ? []
-        : await this.database
-            .select({
-              questionVersionId: questionVersionTags.questionVersionId,
-              tagId: questionTags.id,
-              tagSlug: questionTags.slug,
-              tagDisplayName: questionTags.displayName,
-            })
-            .from(questionVersionTags)
-            .innerJoin(
-              questionTags,
-              eq(questionVersionTags.tagId, questionTags.id),
-            )
-            .where(
-              inArray(
-                questionVersionTags.questionVersionId,
-                questionVersionIds,
-              ),
-            )
-            .orderBy(
-              asc(questionVersionTags.questionVersionId),
-              asc(questionTags.slug),
-              asc(questionTags.id),
-            );
-    const tagsByQuestionVersionId = new Map<
-      string,
-      LearnerQuestionTaxonomyTermProjection[]
-    >();
-    for (const tag of tagRows) {
-      const tags = tagsByQuestionVersionId.get(tag.questionVersionId) ?? [];
-      tags.push({
-        id: tag.tagId,
-        slug: tag.tagSlug,
-        displayName: tag.tagDisplayName,
-      });
-      tagsByQuestionVersionId.set(tag.questionVersionId, tags);
-    }
-
-    return {
-      items: rows.map((row) => ({
-        questionId: row.questionId,
-        questionVersionId: row.questionVersionId,
-        questionType: {
-          id: row.questionTypeId,
-          slug: row.questionTypeSlug,
-          displayName: row.questionTypeDisplayName,
-        },
-        majorCategory: row.majorCategory,
-        topic: {
-          id: row.topicId,
-          slug: row.topicSlug,
-          displayName: row.topicDisplayName,
-        },
-        tags: tagsByQuestionVersionId.get(row.questionVersionId) ?? [],
-        skill: row.skill,
-        difficulty: row.difficulty,
-        saved: row.saved,
-        firstResult: row.firstResult,
-      })),
-      page: toPageMetadata(query, totalItems),
-    };
-  }
-
-  /** 현재 공개 버전의 블록·선택지를 정답과 해설 없이 조립한다 */
-  async getQuestionDetail(
-    userId: string,
-    questionId: string,
-  ): Promise<LearnerQuestionDetailProjection | null> {
-    const [base] = await this.database
-      .select({
-        questionId: questions.id,
-        questionVersionId: questionVersions.id,
-        questionTypeId: questionTypes.id,
-        questionTypeSlug: questionTypes.slug,
-        questionTypeDisplayName: questionTypes.displayName,
-        skill: questionTypes.skill,
-        difficulty: questionVersions.difficulty,
-        template: questionTypeVersions.template,
-        saved: sql<boolean>`${savedQuestions.questionId} is not null`,
-      })
-      .from(questions)
-      .innerJoin(
-        questionVersions,
-        and(
-          eq(questionVersions.questionId, questions.id),
-          eq(questionVersions.id, questions.currentPublishedVersionId),
-        ),
-      )
-      .innerJoin(
-        questionTypeVersions,
-        eq(questionVersions.typeVersionId, questionTypeVersions.id),
-      )
-      .innerJoin(
-        questionTypes,
-        eq(questionTypeVersions.questionTypeId, questionTypes.id),
-      )
-      .leftJoin(
-        savedQuestions,
-        and(
-          eq(savedQuestions.questionId, questions.id),
-          eq(savedQuestions.userId, userId),
-        ),
-      )
-      .where(
-        and(
-          eq(questions.id, questionId),
-          eq(questions.status, 'PUBLISHED'),
-          eq(questionVersions.status, 'PUBLISHED'),
-        ),
-      )
-      .limit(1);
-    if (!base) {
-      return null;
-    }
-
-    const blockRows = await this.loadBlockRows(
-      base.questionVersionId,
-      'PUBLIC',
-    );
-    const blockSentenceRows = await this.loadBlockSentenceRows(blockRows);
-    const optionRows = await this.database
-      .select({
-        id: questionOptions.id,
-        sentenceVersionId: questionOptions.sentenceVersionId,
-        spanSentenceVersionId: questionOptions.spanSentenceVersionId,
-        spanStartTokenIndex: questionOptions.spanStartTokenIndex,
-        spanEndTokenIndex: questionOptions.spanEndTokenIndex,
-        position: questionOptions.position,
-      })
-      .from(questionOptions)
-      .where(eq(questionOptions.questionVersionId, base.questionVersionId))
-      .orderBy(asc(questionOptions.position));
-    const sentenceIds = [
-      ...new Set([
-        ...blockSentenceRows.map((row) => row.sentenceVersionId),
-        ...optionRows
-          .map((row) => row.sentenceVersionId)
-          .filter((id): id is string => id !== null),
-      ]),
-    ];
-    const sentences = await this.loadSentences(sentenceIds);
-
-    return {
-      questionId: base.questionId,
-      questionVersionId: base.questionVersionId,
-      questionType: {
-        id: base.questionTypeId,
-        slug: base.questionTypeSlug,
-        displayName: base.questionTypeDisplayName,
-      },
-      skill: base.skill,
-      difficulty: base.difficulty,
-      template: base.template,
-      blocks: this.assembleBlocks(blockRows, blockSentenceRows, sentences),
-      options: optionRows
-        .sort(comparePosition)
-        .map((option): LearnerQuestionOptionProjection => {
-          if (option.sentenceVersionId !== null) {
-            return {
-              id: option.id,
-              position: option.position,
-              sentence: requireSentence(sentences, option.sentenceVersionId),
-              span: null,
-            };
-          }
-          if (
-            option.spanSentenceVersionId === null ||
-            option.spanSentenceVersionId === undefined ||
-            option.spanStartTokenIndex === null ||
-            option.spanStartTokenIndex === undefined ||
-            option.spanEndTokenIndex === null ||
-            option.spanEndTokenIndex === undefined
-          ) {
-            throw new Error('inline option span projection is incomplete');
-          }
-          return {
-            id: option.id,
-            position: option.position,
-            sentence: null,
-            span: {
-              sentenceVersionId: option.spanSentenceVersionId,
-              startTokenIndex: option.spanStartTokenIndex,
-              endTokenIndex: option.spanEndTokenIndex,
-            },
-          };
-        }),
-      saved: base.saved,
-    };
-  }
-
-  /** 제출 뒤 historical immutable version의 해설만 수명 상태 제한 없이 복원한다 */
-  async getExplanation(
-    questionVersionId: string,
-  ): Promise<LearnerQuestionBlockProjection[]> {
-    const blockRows = await this.loadBlockRows(
-      questionVersionId,
-      'EXPLANATION',
-    );
-    const blockSentenceRows = await this.loadBlockSentenceRows(blockRows);
-    const sentences = await this.loadSentences([
-      ...new Set(blockSentenceRows.map((row) => row.sentenceVersionId)),
-    ]);
-    return this.assembleBlocks(blockRows, blockSentenceRows, sentences);
-  }
-
-  /** append-only 답안을 콘텐츠 수명 상태와 무관하게 원시 page로 반환한다 */
-  async listAttempts(
-    userId: string,
-    query: LearnerQuestionPageQuery,
-  ): Promise<LearnerQuestionAttemptListProjection> {
-    const [totalRow] = await this.database
-      .select({ totalItems: count() })
-      .from(questionAttempts)
-      .where(eq(questionAttempts.userId, userId));
-    const totalItems = totalRow?.totalItems ?? 0;
-    const items = await this.database
-      .select({
-        id: questionAttempts.id,
-        questionId: questionAttempts.questionId,
-        questionVersionId: questionAttempts.questionVersionId,
-        attemptNo: questionAttempts.attemptNo,
-        selectedOptionId: questionAttempts.selectedOptionId,
-        clientAttemptId: questionAttempts.clientAttemptId,
-        durationMs: questionAttempts.durationMs,
-        isCorrect: questionAttempts.isCorrect,
-        submittedAt: questionAttempts.submittedAt,
-      })
-      .from(questionAttempts)
-      .where(eq(questionAttempts.userId, userId))
-      .orderBy(desc(questionAttempts.submittedAt), desc(questionAttempts.id))
-      .limit(query.pageSize)
-      .offset((query.page - 1) * query.pageSize);
-    return { items, page: toPageMetadata(query, totalItems) };
-  }
-
-  private async loadBlockRows(
-    questionVersionId: string,
-    scope: 'PUBLIC' | 'EXPLANATION',
-  ) {
-    return this.database
-      .select({
-        id: questionBlocks.id,
-        kind: questionBlocks.kind,
-        position: questionBlocks.position,
-      })
-      .from(questionBlocks)
-      .where(
-        and(
-          eq(questionBlocks.questionVersionId, questionVersionId),
-          scope === 'PUBLIC'
-            ? ne(questionBlocks.kind, 'EXPLANATION')
-            : eq(questionBlocks.kind, 'EXPLANATION'),
-        ),
-      )
-      .orderBy(asc(questionBlocks.position));
-  }
-
-  private async loadBlockSentenceRows(
-    blocks: Array<{ id: string; position: number }>,
-  ) {
-    if (blocks.length === 0) {
-      return [];
-    }
-    return this.database
-      .select({
-        blockId: questionBlockSentences.blockId,
-        sentenceVersionId: questionBlockSentences.sentenceVersionId,
-        position: questionBlockSentences.position,
-        speaker: questionBlockSentences.speaker,
-      })
-      .from(questionBlockSentences)
-      .where(
-        inArray(
-          questionBlockSentences.blockId,
-          blocks.map((block) => block.id),
-        ),
-      )
-      .orderBy(
-        asc(questionBlockSentences.blockId),
-        asc(questionBlockSentences.position),
-      );
-  }
-
-  private async loadSentences(
-    sentenceVersionIds: string[],
-  ): Promise<Map<string, LearnerQuestionSentenceProjection>> {
-    if (sentenceVersionIds.length === 0) {
-      return new Map();
-    }
-    const tokenPronunciations = alias(
-      vocabularyMeanings,
-      'learner_question_token_pronunciations',
-    );
-    const expressionPronunciations = alias(
-      vocabularyMeanings,
-      'learner_question_expression_pronunciations',
-    );
-    const sentenceRows = await this.database
-      .select({
-        sentenceVersionId: thaiSentenceVersions.id,
-        originalText: thaiSentenceVersions.originalText,
-        translationKo: thaiSentenceVersions.translationKo,
-        pronunciationKo: thaiSentenceVersions.pronunciationKo,
-        toneMarks: thaiSentenceVersions.toneMarks,
-      })
-      .from(thaiSentenceVersions)
-      .where(and(inArray(thaiSentenceVersions.id, sentenceVersionIds)))
-      .orderBy(asc(thaiSentenceVersions.id));
-    const tokenRows = await this.database
-      .select({
-        sentenceVersionId: tokenOccurrences.sentenceVersionId,
-        position: tokenOccurrences.position,
-        surface: tokenOccurrences.surface,
-        startOffset: tokenOccurrences.startOffset,
-        endOffset: tokenOccurrences.endOffset,
-        vocabularyId: tokenOccurrences.vocabularyId,
-        meaningId: tokenOccurrences.meaningId,
-        pronunciationId: tokenOccurrences.pronunciationId,
-        contextMeaningKo: tokenOccurrences.contextMeaningKo,
-        pronunciationKo: tokenPronunciations.pronunciationKo,
-        toneMarks: tokenPronunciations.toneMarks,
-        role: tokenOccurrences.role,
-      })
-      .from(tokenOccurrences)
-      .innerJoin(
-        tokenPronunciations,
-        and(
-          eq(tokenOccurrences.pronunciationId, tokenPronunciations.id),
-          eq(tokenOccurrences.vocabularyId, tokenPronunciations.vocabularyId),
-        ),
-      )
-      .where(inArray(tokenOccurrences.sentenceVersionId, sentenceVersionIds))
-      .orderBy(
-        asc(tokenOccurrences.sentenceVersionId),
-        asc(tokenOccurrences.position),
-      );
-    const expressionRows = await this.database
-      .select({
-        occurrenceId: expressionOccurrences.id,
-        sentenceVersionId: expressionOccurrences.sentenceVersionId,
-        startTokenIndex: expressionOccurrences.startTokenIndex,
-        endTokenIndex: expressionOccurrences.endTokenIndex,
-        vocabularyId: expressionOccurrences.vocabularyId,
-        meaningId: expressionOccurrences.meaningId,
-        pronunciationId: expressionOccurrences.pronunciationId,
-        contextMeaningKo: expressionOccurrences.contextMeaningKo,
-        pronunciationKo: expressionPronunciations.pronunciationKo,
-        toneMarks: expressionPronunciations.toneMarks,
-        representative: expressionOccurrences.representative,
-      })
-      .from(expressionOccurrences)
-      .innerJoin(
-        expressionPronunciations,
-        and(
-          eq(
-            expressionOccurrences.pronunciationId,
-            expressionPronunciations.id,
-          ),
-          eq(
-            expressionOccurrences.vocabularyId,
-            expressionPronunciations.vocabularyId,
-          ),
-        ),
-      )
-      .where(
-        inArray(expressionOccurrences.sentenceVersionId, sentenceVersionIds),
-      )
-      .orderBy(
-        asc(expressionOccurrences.sentenceVersionId),
-        asc(expressionOccurrences.startTokenIndex),
-        asc(expressionOccurrences.endTokenIndex),
-        asc(expressionOccurrences.id),
-      );
-
-    return new Map(
-      sentenceRows.map((sentence) => [
-        sentence.sentenceVersionId,
-        {
-          sentenceVersionId: sentence.sentenceVersionId,
-          originalText: sentence.originalText,
-          translationKo: sentence.translationKo,
-          pronunciationKo: sentence.pronunciationKo,
-          toneMarks: sentence.toneMarks,
-          tokens: tokenRows
-            .filter(
-              (token) => token.sentenceVersionId === sentence.sentenceVersionId,
-            )
-            .sort(comparePosition)
-            .map((token) => ({
-              position: token.position,
-              surface: token.surface,
-              startOffset: token.startOffset,
-              endOffset: token.endOffset,
-              vocabularyId: token.vocabularyId,
-              meaningId: token.meaningId,
-              pronunciationId: token.pronunciationId,
-              contextMeaningKo: token.contextMeaningKo,
-              pronunciationKo: token.pronunciationKo,
-              toneMarks: token.toneMarks,
-              role: token.role,
-            })),
-          expressions: expressionRows
-            .filter(
-              (expression) =>
-                expression.sentenceVersionId === sentence.sentenceVersionId,
-            )
-            .sort(compareExpressionPosition)
-            .map((expression) => ({
-              startTokenIndex: expression.startTokenIndex,
-              endTokenIndex: expression.endTokenIndex,
-              vocabularyId: expression.vocabularyId,
-              meaningId: expression.meaningId,
-              pronunciationId: expression.pronunciationId,
-              contextMeaningKo: expression.contextMeaningKo,
-              pronunciationKo: expression.pronunciationKo,
-              toneMarks: expression.toneMarks,
-              representative: expression.representative,
-            })),
-        },
-      ]),
-    );
-  }
-
-  private assembleBlocks(
-    blockRows: Awaited<
-      ReturnType<DrizzleLearnerQuestionQuery['loadBlockRows']>
-    >,
-    blockSentenceRows: Awaited<
-      ReturnType<DrizzleLearnerQuestionQuery['loadBlockSentenceRows']>
-    >,
-    sentences: Map<string, LearnerQuestionSentenceProjection>,
-  ): LearnerQuestionBlockProjection[] {
-    return blockRows.sort(comparePosition).map((block) => ({
-      id: block.id,
-      kind: block.kind,
-      position: block.position,
-      sentences: blockSentenceRows
-        .filter((blockSentence) => blockSentence.blockId === block.id)
-        .sort(comparePosition)
-        .map((blockSentence) => ({
-          position: blockSentence.position,
-          speaker: blockSentence.speaker,
-          sentence: requireSentence(sentences, blockSentence.sentenceVersionId),
-        })),
-    }));
-  }
 }

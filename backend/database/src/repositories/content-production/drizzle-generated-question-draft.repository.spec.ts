@@ -2,11 +2,11 @@
 import type { GeneratedQuestionPayload } from '@flex-thia/domain/content-production/ai-question-production';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  questionOptions,
   questions,
   questionTags,
   questionTopics,
   questionTypeVersions,
+  questionVocabularies,
 } from '../../schema/questions.schema.js';
 import {
   vocabularies,
@@ -300,14 +300,14 @@ describe('Drizzle 생성 문제 DRAFT 저장소', () => {
   });
 
   it('graph 중간 insert 실패를 삼키지 않아 outer transaction rollback을 유지한다', async () => {
-    const fake = createFake({ insertFailureTable: questionOptions });
+    const fake = createFake({ insertFailureTable: questionVocabularies });
 
     await expect(
       createRepository().createDraft(fake.transaction as never, input()),
     ).rejects.toThrow('insert failed');
     expect(fake.inserts.some(({ table }) => table === questions)).toBe(true);
-    expect(fake.inserts.some(({ table }) => table === questionOptions)).toBe(
-      false,
-    );
+    expect(
+      fake.inserts.some(({ table }) => table === questionVocabularies),
+    ).toBe(false);
   });
 });

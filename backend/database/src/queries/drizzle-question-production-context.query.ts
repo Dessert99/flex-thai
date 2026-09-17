@@ -1,24 +1,27 @@
 /** 활성 문제 taxonomy와 preset의 공개 정책만 AI 생성 prompt 문맥으로 조회한다 */
 import type {
-  ContentProductionPresetSnapshot,
-  QuestionGenerationItemPlan,
-} from '@flex-thia/domain/content-production/content-production.service';
-import type {
   QuestionProductionContext,
   QuestionProductionContextRepository,
   QuestionPromptVocabulary,
 } from '@flex-thia/domain/content-production/ai-question-production';
 import { projectQuestionPromptApprovedExample } from '@flex-thia/domain/content-production/ai-question-production';
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import type {
+  ContentProductionPresetSnapshot,
+  QuestionGenerationItemPlan,
+} from '@flex-thia/domain/content-production/content-production.service';
+import { selectVocabularyForQuestions } from '@flex-thia/domain/vocabulary/vocabulary-selection';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import {
+  questions,
   questionTags,
   questionTopics,
   questionTypeApprovedExamples,
   questionTypeDifficultyCriteria,
   questionTypes,
   questionTypeVersions,
+  questionVocabularies,
 } from '../schema/questions.schema.js';
 import {
   vocabularies,
@@ -348,6 +351,37 @@ export class DrizzleQuestionProductionContextQuery implements QuestionProduction
       )
       .limit(1);
     const policy = readQuestionProductionPresetPolicy(input.preset.parameters);
+    if (
+      policy.targetVocabularyIds.length === 0 &&
+      policy.targetVocabulary.length === 0
+    ) {
+      const pool = await this.database
+        .select({
+          vocabularyId: vocabularies.id,
+          importanceWeight: vocabularies.importanceWeight,
+          targetQuestionCount: sql<number>`(select count(*)::int from ${questionVocabularies} usage join ${questions} q on q.id = usage.question_id where usage.vocabulary_id = ${vocabularies.id} and usage.role = 'TARGET' and q.status = 'PUBLISHED')`,
+        })
+        .from(vocabularies)
+        .where(
+          and(
+            eq(vocabularies.status, 'PUBLISHED'),
+            sql`exists (select 1 from ${vocabularyMeanings} m where m.vocabulary_id = ${vocabularies.id})`,
+          ),
+        );
+      const excluded = new Set(policy.excludedVocabularyIds);
+      const wordsPerQuestion = input.preset.parameters['wordsPerQuestion'] ?? 1;
+      if (
+        !Number.isSafeInteger(wordsPerQuestion) ||
+        Number(wordsPerQuestion) < 1 ||
+        Number(wordsPerQuestion) > 10
+      )
+        throw new Error('WORDS_PER_QUESTION_INVALID');
+      policy.targetVocabularyIds = selectVocabularyForQuestions(
+        pool.filter((item) => !excluded.has(item.vocabularyId)),
+        input.questionPlan.questionPlanIndex + 1,
+        Number(wordsPerQuestion),
+      )[input.questionPlan.questionPlanIndex]!;
+    }
     const vocabularyIds = [
       ...policy.targetVocabularyIds,
       ...policy.requiredVocabularyIds,

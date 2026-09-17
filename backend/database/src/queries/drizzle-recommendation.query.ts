@@ -8,7 +8,7 @@ interface RecommendationReadDatabase {
 /** 추천 계산에 필요한 현재 게시 문제와 기여 신호 */
 export interface QuestionRecommendationCandidate {
   questionId: string;
-  questionVersionId: string;
+  questionVersion: number;
   questionTypeId: string;
   questionTypeSlug: string;
   questionTypeDisplayName: string;
@@ -55,7 +55,7 @@ type VocabularyReasonCode =
 /** 추천 read model의 문제 요약 */
 export interface QuestionRecommendationProjection {
   questionId: string;
-  questionVersionId: string;
+  questionVersion: number;
   questionType: {
     id: string;
     slug: string;
@@ -91,7 +91,7 @@ export interface RecommendationProjection {
 export interface HomeContentProjection {
   questions: Array<{
     questionId: string;
-    questionVersionId: string;
+    questionVersion: number;
     questionTypeDisplayName: string;
     skill: 'READING';
     difficulty: number;
@@ -237,7 +237,7 @@ const toQuestion = (
   reasonCode: QuestionReasonCode,
 ): QuestionRecommendationProjection => ({
   questionId: candidate.questionId,
-  questionVersionId: candidate.questionVersionId,
+  questionVersion: candidate.questionVersion,
   questionType: {
     id: candidate.questionTypeId,
     slug: candidate.questionTypeSlug,
@@ -300,7 +300,7 @@ const buildHomeContentGroup = (
     .slice(0, RESULT_LIMIT)
     .map((candidate) => ({
       questionId: candidate.questionId,
-      questionVersionId: candidate.questionVersionId,
+      questionVersion: candidate.questionVersion,
       questionTypeDisplayName: candidate.questionTypeDisplayName,
       skill: candidate.skill,
       difficulty: candidate.difficulty,
@@ -422,23 +422,16 @@ const signalCountQuery = (userId: string): SQL => sql`
   with current_questions as (
     select q.id
     from questions q
-    join question_versions qv
-      on qv.id = q.current_published_version_id
-     and qv.question_id = q.id
     where q.status = 'PUBLISHED'
-      and qv.status = 'PUBLISHED'
-      and qv.validation_status = 'PASSED'
-      and qv.published_at is not null
+      and q.published_at is not null
   ),
   valid_first_attempts as (
-    select qa.question_id
+    select qa.question_id, qa.question_version, attempted_type.question_type_id, qa.is_correct
     from question_attempts qa
-    join question_versions attempted_version
-      on attempted_version.id = qa.question_version_id
-     and attempted_version.question_id = qa.question_id
+    join questions current_q on current_q.id = qa.question_id and current_q.version = qa.question_version and current_q.status = 'PUBLISHED'
+    join question_type_versions attempted_type on attempted_type.id = current_q.type_version_id
     where qa.user_id = ${userId}
-      and qa.attempt_no = 1
-      and attempted_version.status <> 'INVALIDATED'
+      and qa.attempt_no = (select max(a.attempt_no) from question_attempts a where a.user_id = qa.user_id and a.question_id = qa.question_id)
   )
   select (
     (select count(distinct first_attempt.question_id)
@@ -477,84 +470,38 @@ const questionCandidateQuery = (userId: string): SQL => sql`
   with current_questions as (
     select
       q.id as question_id,
-      qv.id as question_version_id,
-      qv.published_at,
-      qv.published_at::date = current_date as published_today,
-      qv.difficulty,
+      q.version as question_version,
+      q.published_at,
+      q.published_at::date = current_date as published_today,
+      q.difficulty,
       qt.id as question_type_id,
       qt.slug as question_type_slug,
       qt.display_name as question_type_display_name,
       qt.skill
     from questions q
-    join question_versions qv
-      on qv.id = q.current_published_version_id
-     and qv.question_id = q.id
-    join question_type_versions qtv on qtv.id = qv.type_version_id
+    join question_type_versions qtv on qtv.id = q.type_version_id
     join question_types qt on qt.id = qtv.question_type_id
     where q.status = 'PUBLISHED'
-      and qv.status = 'PUBLISHED'
-      and qv.validation_status = 'PASSED'
-      and qv.published_at is not null
+      and q.published_at is not null
   ),
   valid_first_attempts as (
-    select
-      qa.question_id,
-      qa.question_version_id,
-      attempted_type.question_type_id,
-      qa.is_correct
+    select qa.question_id, qa.question_version, attempted_type.question_type_id, qa.is_correct
     from question_attempts qa
-    join question_versions attempted_version
-      on attempted_version.id = qa.question_version_id
-     and attempted_version.question_id = qa.question_id
-    join question_type_versions attempted_type
-      on attempted_type.id = attempted_version.type_version_id
+    join questions current_q on current_q.id = qa.question_id and current_q.version = qa.question_version and current_q.status = 'PUBLISHED'
+    join question_type_versions attempted_type on attempted_type.id = current_q.type_version_id
     where qa.user_id = ${userId}
-      and qa.attempt_no = 1
-      and attempted_version.status <> 'INVALIDATED'
-  ),
-  question_sentences as (
-    select cq.question_id, block_sentence.sentence_version_id
-    from current_questions cq
-    join question_blocks block
-      on block.question_version_id = cq.question_version_id
-    join question_block_sentences block_sentence
-      on block_sentence.block_id = block.id
-    union
-    select
-      cq.question_id,
-      coalesce(option.sentence_version_id, option.span_sentence_version_id)
-    from current_questions cq
-    join question_options option
-      on option.question_version_id = cq.question_version_id
+      and qa.attempt_no = (select max(a.attempt_no) from question_attempts a where a.user_id = qa.user_id and a.question_id = qa.question_id)
   ),
   question_vocabulary as (
-    select distinct sentence.question_id, token.vocabulary_id
-    from question_sentences sentence
-    join token_occurrences token
-      on token.sentence_version_id = sentence.sentence_version_id
-     and token.role in ('TARGET', 'REQUIRED')
-    join vocabularies signal_vocabulary
-      on signal_vocabulary.id = token.vocabulary_id
-     and signal_vocabulary.status = 'PUBLISHED'
-     and signal_vocabulary.published_at is not null
-    union
-    select distinct sentence.question_id, expression.vocabulary_id
-    from question_sentences sentence
-    join expression_occurrences expression
-      on expression.sentence_version_id = sentence.sentence_version_id
-    join vocabularies signal_vocabulary
-      on signal_vocabulary.id = expression.vocabulary_id
-     and signal_vocabulary.status = 'PUBLISHED'
-     and signal_vocabulary.published_at is not null
-    where exists (
-      select 1
-      from token_occurrences overlapping_token
-      where overlapping_token.sentence_version_id =
-          expression.sentence_version_id
-        and overlapping_token.position >= expression.start_token_index
-        and overlapping_token.position < expression.end_token_index
-        and overlapping_token.role in ('TARGET', 'REQUIRED')
-    )
+    select usage.question_id, usage.vocabulary_id
+    from question_vocabularies usage
+    join current_questions cq on cq.question_id = usage.question_id
+    join vocabularies v on v.id = usage.vocabulary_id and v.status = 'PUBLISHED'
+    where usage.role = 'TARGET'
+  ),
+  attempted_question_vocabulary as (
+    select usage.question_id, usage.vocabulary_id from question_vocabulary usage
+    join valid_first_attempts attempt on attempt.question_id = usage.question_id
   ),
   practice_incorrect_vocabulary as (
     select distinct practice_question.vocabulary_id
@@ -590,7 +537,7 @@ const questionCandidateQuery = (userId: string): SQL => sql`
   )
   select
     candidate.question_id as "questionId",
-    candidate.question_version_id as "questionVersionId",
+    candidate.question_version as "questionVersion",
     candidate.question_type_id as "questionTypeId",
     candidate.question_type_slug as "questionTypeSlug",
     candidate.question_type_display_name as "questionTypeDisplayName",
@@ -639,121 +586,29 @@ const vocabularyCandidateQuery = (userId: string): SQL => sql`
   with current_questions as (
     select
       q.id as question_id,
-      qv.id as question_version_id
+      q.version as question_version
     from questions q
-    join question_versions qv
-      on qv.id = q.current_published_version_id
-     and qv.question_id = q.id
     where q.status = 'PUBLISHED'
-      and qv.status = 'PUBLISHED'
-      and qv.validation_status = 'PASSED'
-      and qv.published_at is not null
+      and q.published_at is not null
   ),
   valid_first_attempts as (
-    select
-      qa.question_id,
-      qa.question_version_id,
-      attempted_type.question_type_id,
-      qa.is_correct
+    select qa.question_id, qa.question_version, attempted_type.question_type_id, qa.is_correct
     from question_attempts qa
-    join question_versions attempted_version
-      on attempted_version.id = qa.question_version_id
-     and attempted_version.question_id = qa.question_id
-    join question_type_versions attempted_type
-      on attempted_type.id = attempted_version.type_version_id
+    join questions current_q on current_q.id = qa.question_id and current_q.version = qa.question_version and current_q.status = 'PUBLISHED'
+    join question_type_versions attempted_type on attempted_type.id = current_q.type_version_id
     where qa.user_id = ${userId}
-      and qa.attempt_no = 1
-      and attempted_version.status <> 'INVALIDATED'
-  ),
-  question_sentences as (
-    select cq.question_id, block_sentence.sentence_version_id
-    from current_questions cq
-    join question_blocks block
-      on block.question_version_id = cq.question_version_id
-    join question_block_sentences block_sentence
-      on block_sentence.block_id = block.id
-    union
-    select
-      cq.question_id,
-      coalesce(option.sentence_version_id, option.span_sentence_version_id)
-    from current_questions cq
-    join question_options option
-      on option.question_version_id = cq.question_version_id
+      and qa.attempt_no = (select max(a.attempt_no) from question_attempts a where a.user_id = qa.user_id and a.question_id = qa.question_id)
   ),
   question_vocabulary as (
-    select distinct sentence.question_id, token.vocabulary_id
-    from question_sentences sentence
-    join token_occurrences token
-      on token.sentence_version_id = sentence.sentence_version_id
-     and token.role in ('TARGET', 'REQUIRED')
-    join vocabularies signal_vocabulary
-      on signal_vocabulary.id = token.vocabulary_id
-     and signal_vocabulary.status = 'PUBLISHED'
-     and signal_vocabulary.published_at is not null
-    union
-    select distinct sentence.question_id, expression.vocabulary_id
-    from question_sentences sentence
-    join expression_occurrences expression
-      on expression.sentence_version_id = sentence.sentence_version_id
-    join vocabularies signal_vocabulary
-      on signal_vocabulary.id = expression.vocabulary_id
-     and signal_vocabulary.status = 'PUBLISHED'
-     and signal_vocabulary.published_at is not null
-    where exists (
-      select 1
-      from token_occurrences overlapping_token
-      where overlapping_token.sentence_version_id =
-          expression.sentence_version_id
-        and overlapping_token.position >= expression.start_token_index
-        and overlapping_token.position < expression.end_token_index
-      and overlapping_token.role in ('TARGET', 'REQUIRED')
-    )
-  ),
-  attempted_question_sentences as (
-    select
-      first_attempt.question_id,
-      block_sentence.sentence_version_id
-    from valid_first_attempts first_attempt
-    join question_blocks block
-      on block.question_version_id = first_attempt.question_version_id
-    join question_block_sentences block_sentence
-      on block_sentence.block_id = block.id
-    union
-    select
-      first_attempt.question_id,
-      coalesce(option.sentence_version_id, option.span_sentence_version_id)
-    from valid_first_attempts first_attempt
-    join question_options option
-      on option.question_version_id = first_attempt.question_version_id
+    select usage.question_id, usage.vocabulary_id
+    from question_vocabularies usage
+    join current_questions cq on cq.question_id = usage.question_id
+    join vocabularies v on v.id = usage.vocabulary_id and v.status = 'PUBLISHED'
+    where usage.role = 'TARGET'
   ),
   attempted_question_vocabulary as (
-    select distinct sentence.question_id, token.vocabulary_id
-    from attempted_question_sentences sentence
-    join token_occurrences token
-      on token.sentence_version_id = sentence.sentence_version_id
-     and token.role in ('TARGET', 'REQUIRED')
-    join vocabularies signal_vocabulary
-      on signal_vocabulary.id = token.vocabulary_id
-     and signal_vocabulary.status = 'PUBLISHED'
-     and signal_vocabulary.published_at is not null
-    union
-    select distinct sentence.question_id, expression.vocabulary_id
-    from attempted_question_sentences sentence
-    join expression_occurrences expression
-      on expression.sentence_version_id = sentence.sentence_version_id
-    join vocabularies signal_vocabulary
-      on signal_vocabulary.id = expression.vocabulary_id
-     and signal_vocabulary.status = 'PUBLISHED'
-     and signal_vocabulary.published_at is not null
-    where exists (
-      select 1
-      from token_occurrences overlapping_token
-      where overlapping_token.sentence_version_id =
-          expression.sentence_version_id
-        and overlapping_token.position >= expression.start_token_index
-        and overlapping_token.position < expression.end_token_index
-        and overlapping_token.role in ('TARGET', 'REQUIRED')
-    )
+    select usage.question_id, usage.vocabulary_id from question_vocabulary usage
+    join valid_first_attempts attempt on attempt.question_id = usage.question_id
   ),
   practice_incorrect_vocabulary as (
     select distinct practice_question.vocabulary_id

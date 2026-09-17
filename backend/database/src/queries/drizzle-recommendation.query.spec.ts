@@ -26,7 +26,7 @@ const question = (
   > = {},
 ): QuestionRecommendationCandidate => ({
   questionId: uuid(id),
-  questionVersionId: uuid(id + 100),
+  questionVersion: 1,
   questionTypeId: uuid(id + 200),
   questionTypeSlug: `type-${id}`,
   questionTypeDisplayName: `문제 유형 ${id}`,

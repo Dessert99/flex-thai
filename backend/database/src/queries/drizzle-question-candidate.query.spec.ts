@@ -21,7 +21,7 @@ const candidate = {
   reviewCode: null,
   regeneratedFromCandidateId: null,
   approvedQuestionId: null,
-  approvedQuestionVersionId: null,
+  approvedQuestionVersion: null,
   revision: 0,
   createdAt: new Date('2026-07-28T00:00:00.000Z'),
   updatedAt: new Date('2026-07-28T00:00:00.000Z'),

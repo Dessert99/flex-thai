@@ -1,48 +1,20 @@
+import { DrizzleLearnerQuestionQuery } from './drizzle-learner-question.query.js';
 /** 현재 게시 어휘와 현재 공개 문제의 어휘 사용처를 읽는다 */
 import { normalizeThaiSearchText } from '@flex-thia/domain/vocabulary/normalize-thai-search-text';
-import {
-  and,
-  asc,
-  count,
-  eq,
-  inArray,
-  isNotNull,
-  or,
-  type SQL,
-  sql,
-} from 'drizzle-orm';
+import { and, asc, count, eq, inArray, or, type SQL, sql } from 'drizzle-orm';
 import { alias, type PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import { databaseSchema as schema } from '../schema/databaseSchema.js';
-import {
-  expressionOccurrences,
-  thaiSentenceVersions,
-  tokenOccurrences,
-} from '../schema/thai-content.schema.js';
-import {
-  questionAttempts,
-  savedQuestions,
-  wordbookItems,
-  wordbooks,
-} from '../schema/learning.schema.js';
-import {
-  questionBlocks,
-  questionBlockSentences,
-  questionOptions,
-  questions,
-  questionTypes,
-  questionTypeVersions,
-  questionVersions,
-} from '../schema/questions.schema.js';
+import { wordbookItems, wordbooks } from '../schema/learning.schema.js';
 import {
   vocabularies,
+  vocabularyMeaningRelations,
   vocabularyMeanings,
 } from '../schema/vocabulary.schema.js';
-import { vocabularyMeaningRelations } from '../schema/vocabulary.schema.js';
 import type {
   LearnerQuestionExpressionProjection,
   LearnerQuestionTokenProjection,
-} from './drizzle-learner-question.query.js';
+} from './thai-sentence-projection.js';
 
 type LearnerVocabularyDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 
@@ -143,7 +115,7 @@ export type LearnerVocabularyQuestionSkill = 'READING';
 
 /** 관련 문제 첫 답의 유효 결과 */
 export type LearnerVocabularyQuestionFirstResult =
-  'CORRECT' | 'INCORRECT' | 'UNANSWERED';
+  'CORRECT' | 'INCORRECT' | 'UNANSWERED' | 'UPDATED';
 
 /** 관련 문제 유형의 정답 없는 내부 projection */
 export interface LearnerVocabularyQuestionTypeProjection {
@@ -155,7 +127,7 @@ export interface LearnerVocabularyQuestionTypeProjection {
 /** 어휘를 사용하는 현재 게시 문제의 내부 projection */
 export interface LearnerVocabularyRelatedQuestionProjection {
   questionId: string;
-  questionVersionId: string;
+  questionVersion: number;
   questionType: LearnerVocabularyQuestionTypeProjection;
   skill: LearnerVocabularyQuestionSkill;
   difficulty: number;
@@ -250,97 +222,6 @@ const savedInAnyWordbook = (
     and saved_wordbooks.user_id = ${userId}
 )`;
 
-const currentQuestionUsesSentence = (): SQL => sql`(
-  exists (
-    select 1
-    from ${questionBlockSentences}
-    inner join ${questionBlocks}
-      on ${questionBlocks.id} = ${questionBlockSentences.blockId}
-    inner join ${questionVersions}
-      on ${questionVersions.id} = ${questionBlocks.questionVersionId}
-    inner join ${questions}
-      on ${questions.id} = ${questionVersions.questionId}
-      and ${questions.currentPublishedVersionId} = ${questionVersions.id}
-    where ${questionBlockSentences.sentenceVersionId} = ${thaiSentenceVersions.id}
-      and ${questions.status} = ${'PUBLISHED'}
-      and ${questionVersions.status} = ${'PUBLISHED'}
-  )
-  or exists (
-    select 1
-    from ${questionOptions}
-    inner join ${questionVersions}
-      on ${questionVersions.id} = ${questionOptions.questionVersionId}
-    inner join ${questions}
-      on ${questions.id} = ${questionVersions.questionId}
-      and ${questions.currentPublishedVersionId} = ${questionVersions.id}
-    where ${questionOptions.sentenceVersionId} = ${thaiSentenceVersions.id}
-      and ${questions.status} = ${'PUBLISHED'}
-      and ${questionVersions.status} = ${'PUBLISHED'}
-  )
-)`;
-
-const sentenceUsesVocabulary = (vocabularyId: string): SQL => sql`(
-  exists (
-    select 1
-    from ${tokenOccurrences}
-    where ${tokenOccurrences.sentenceVersionId} = ${thaiSentenceVersions.id}
-      and ${tokenOccurrences.vocabularyId} = ${vocabularyId}
-  )
-  or exists (
-    select 1
-    from ${expressionOccurrences}
-    where ${expressionOccurrences.sentenceVersionId} = ${thaiSentenceVersions.id}
-      and ${expressionOccurrences.vocabularyId} = ${vocabularyId}
-  )
-)`;
-
-const questionVersionUsesVocabulary = (vocabularyId: string): SQL => sql`(
-  exists (
-    select 1
-    from ${questionBlockSentences}
-    inner join ${questionBlocks}
-      on ${questionBlocks.id} = ${questionBlockSentences.blockId}
-    where ${questionBlocks.questionVersionId} = ${questionVersions.id}
-      and (
-        exists (
-          select 1
-          from ${tokenOccurrences}
-          where ${tokenOccurrences.sentenceVersionId} =
-            ${questionBlockSentences.sentenceVersionId}
-            and ${tokenOccurrences.vocabularyId} = ${vocabularyId}
-        )
-        or exists (
-          select 1
-          from ${expressionOccurrences}
-          where ${expressionOccurrences.sentenceVersionId} =
-            ${questionBlockSentences.sentenceVersionId}
-            and ${expressionOccurrences.vocabularyId} = ${vocabularyId}
-        )
-      )
-  )
-  or exists (
-    select 1
-    from ${questionOptions}
-    where ${questionOptions.questionVersionId} = ${questionVersions.id}
-      and (
-        exists (
-          select 1
-          from ${tokenOccurrences}
-          where ${tokenOccurrences.sentenceVersionId} =
-            ${questionOptions.sentenceVersionId}
-            and ${tokenOccurrences.vocabularyId} = ${vocabularyId}
-        )
-        or exists (
-          select 1
-          from ${expressionOccurrences}
-          where ${expressionOccurrences.sentenceVersionId} =
-            ${questionOptions.sentenceVersionId}
-            and ${expressionOccurrences.vocabularyId} = ${vocabularyId}
-        )
-      )
-  )
-)`;
-
 /** SQL projection을 API mapper용 계층 구조로 조립하는 read-only query */
 export class DrizzleLearnerVocabularyQuery {
   constructor(private readonly database: LearnerVocabularyDatabase) {}
@@ -408,7 +289,7 @@ export class DrizzleLearnerVocabularyQuery {
     }));
     this.assertLinksValid(summary, links);
 
-    const exampleSentences = await this.loadExampleSentences(vocabularyId);
+    const exampleSentences: LearnerVocabularyExampleSentenceProjection[] = [];
     const relations = await this.loadPassedRelations(vocabularyId);
     return {
       ...summary,
@@ -428,142 +309,17 @@ export class DrizzleLearnerVocabularyQuery {
     vocabularyId: string,
     query: LearnerVocabularyPageQuery,
   ): Promise<LearnerVocabularyRelatedQuestionsProjection> {
-    const firstAttempts = alias(questionAttempts, 'vocabulary_first_attempts');
-    const firstAttemptVersions = alias(
-      questionVersions,
-      'vocabulary_first_attempt_versions',
-    );
-    const firstResult = sql<LearnerVocabularyQuestionFirstResult>`case
-      when ${firstAttempts.id} is null
-        or ${firstAttemptVersions.status} = ${'INVALIDATED'}
-        then 'UNANSWERED'
-      when ${firstAttempts.isCorrect} then 'CORRECT'
-      else 'INCORRECT'
-    end`;
-    const saved = sql<boolean>`${savedQuestions.questionId} is not null`;
-    const conditions = and(
-      eq(questions.status, 'PUBLISHED'),
-      eq(questionVersions.status, 'PUBLISHED'),
-      sql`exists (
-        select 1
-        from ${vocabularies}
-        where ${vocabularies.id} = ${vocabularyId}
-          and ${vocabularies.status} = ${'PUBLISHED'}
-      )`,
-      questionVersionUsesVocabulary(vocabularyId),
-    );
-    const [totalRow] = await this.database
-      .select({ totalItems: count() })
-      .from(questions)
-      .innerJoin(
-        questionVersions,
-        and(
-          eq(questionVersions.questionId, questions.id),
-          eq(questionVersions.id, questions.currentPublishedVersionId),
-        ),
-      )
-      .innerJoin(
-        questionTypeVersions,
-        eq(questionVersions.typeVersionId, questionTypeVersions.id),
-      )
-      .innerJoin(
-        questionTypes,
-        eq(questionTypeVersions.questionTypeId, questionTypes.id),
-      )
-      .leftJoin(
-        savedQuestions,
-        and(
-          eq(savedQuestions.questionId, questions.id),
-          eq(savedQuestions.userId, userId),
-        ),
-      )
-      .leftJoin(
-        firstAttempts,
-        and(
-          eq(firstAttempts.userId, userId),
-          eq(firstAttempts.questionId, questions.id),
-          eq(firstAttempts.attemptNo, 1),
-        ),
-      )
-      .leftJoin(
-        firstAttemptVersions,
-        and(
-          eq(firstAttemptVersions.questionId, firstAttempts.questionId),
-          eq(firstAttemptVersions.id, firstAttempts.questionVersionId),
-        ),
-      )
-      .where(conditions);
-    const totalItems = totalRow?.totalItems ?? 0;
-    const rows = await this.database
-      .select({
-        questionId: questions.id,
-        questionVersionId: questionVersions.id,
-        questionTypeId: questionTypes.id,
-        questionTypeSlug: questionTypes.slug,
-        questionTypeDisplayName: questionTypes.displayName,
-        skill: questionTypes.skill,
-        difficulty: questionVersions.difficulty,
-        saved,
-        firstResult,
-      })
-      .from(questions)
-      .innerJoin(
-        questionVersions,
-        and(
-          eq(questionVersions.questionId, questions.id),
-          eq(questionVersions.id, questions.currentPublishedVersionId),
-        ),
-      )
-      .innerJoin(
-        questionTypeVersions,
-        eq(questionVersions.typeVersionId, questionTypeVersions.id),
-      )
-      .innerJoin(
-        questionTypes,
-        eq(questionTypeVersions.questionTypeId, questionTypes.id),
-      )
-      .leftJoin(
-        savedQuestions,
-        and(
-          eq(savedQuestions.questionId, questions.id),
-          eq(savedQuestions.userId, userId),
-        ),
-      )
-      .leftJoin(
-        firstAttempts,
-        and(
-          eq(firstAttempts.userId, userId),
-          eq(firstAttempts.questionId, questions.id),
-          eq(firstAttempts.attemptNo, 1),
-        ),
-      )
-      .leftJoin(
-        firstAttemptVersions,
-        and(
-          eq(firstAttemptVersions.questionId, firstAttempts.questionId),
-          eq(firstAttemptVersions.id, firstAttempts.questionVersionId),
-        ),
-      )
-      .where(conditions)
-      .orderBy(asc(questions.id))
-      .limit(query.pageSize)
-      .offset((query.page - 1) * query.pageSize);
-
+    const result = await new DrizzleLearnerQuestionQuery(
+      this.database,
+    ).listQuestions(userId, { ...query, vocabularyId, sort: 'LATEST' });
     return {
-      items: rows.map((row) => ({
-        questionId: row.questionId,
-        questionVersionId: row.questionVersionId,
-        questionType: {
-          id: row.questionTypeId,
-          slug: row.questionTypeSlug,
-          displayName: row.questionTypeDisplayName,
-        },
-        skill: row.skill,
-        difficulty: row.difficulty,
-        saved: row.saved,
-        firstResult: row.firstResult,
-      })),
-      page: toPageMetadata(query, totalItems),
+      ...result,
+      items: result.items.map(({ majorCategory, topic, tags, ...item }) => {
+        void majorCategory;
+        void topic;
+        void tags;
+        return item;
+      }),
     };
   }
 
@@ -733,142 +489,5 @@ export class DrizzleLearnerVocabularyQuery {
             relatedMeaningKo: row.sourceMeaningKo,
           },
     );
-  }
-
-  private async loadExampleSentences(
-    vocabularyId: string,
-  ): Promise<LearnerVocabularyExampleSentenceProjection[]> {
-    const rows = await this.database
-      .select({
-        sentenceVersionId: thaiSentenceVersions.id,
-        originalText: thaiSentenceVersions.originalText,
-        translationKo: thaiSentenceVersions.translationKo,
-        pronunciationKo: thaiSentenceVersions.pronunciationKo,
-        toneMarks: thaiSentenceVersions.toneMarks,
-        frozenAt: thaiSentenceVersions.frozenAt,
-      })
-      .from(thaiSentenceVersions)
-      .where(
-        and(
-          isNotNull(thaiSentenceVersions.frozenAt),
-          sentenceUsesVocabulary(vocabularyId),
-          currentQuestionUsesSentence(),
-        ),
-      )
-      .orderBy(asc(thaiSentenceVersions.id));
-    const sentenceVersionIds = rows.map((row) => row.sentenceVersionId);
-    const tokenPronunciations = alias(
-      vocabularyMeanings,
-      'learner_vocabulary_token_pronunciations',
-    );
-    const expressionPronunciations = alias(
-      vocabularyMeanings,
-      'learner_vocabulary_expression_pronunciations',
-    );
-    const tokenRows = await this.database
-      .select({
-        sentenceVersionId: tokenOccurrences.sentenceVersionId,
-        position: tokenOccurrences.position,
-        surface: tokenOccurrences.surface,
-        startOffset: tokenOccurrences.startOffset,
-        endOffset: tokenOccurrences.endOffset,
-        vocabularyId: tokenOccurrences.vocabularyId,
-        meaningId: tokenOccurrences.meaningId,
-        pronunciationId: tokenOccurrences.pronunciationId,
-        contextMeaningKo: tokenOccurrences.contextMeaningKo,
-        pronunciationKo: tokenPronunciations.pronunciationKo,
-        toneMarks: tokenPronunciations.toneMarks,
-        role: tokenOccurrences.role,
-      })
-      .from(tokenOccurrences)
-      .innerJoin(
-        tokenPronunciations,
-        and(
-          eq(tokenOccurrences.pronunciationId, tokenPronunciations.id),
-          eq(tokenOccurrences.vocabularyId, tokenPronunciations.vocabularyId),
-        ),
-      )
-      .where(inArray(tokenOccurrences.sentenceVersionId, sentenceVersionIds))
-      .orderBy(
-        asc(tokenOccurrences.sentenceVersionId),
-        asc(tokenOccurrences.position),
-      );
-    const expressionRows = await this.database
-      .select({
-        sentenceVersionId: expressionOccurrences.sentenceVersionId,
-        startTokenIndex: expressionOccurrences.startTokenIndex,
-        endTokenIndex: expressionOccurrences.endTokenIndex,
-        vocabularyId: expressionOccurrences.vocabularyId,
-        meaningId: expressionOccurrences.meaningId,
-        pronunciationId: expressionOccurrences.pronunciationId,
-        contextMeaningKo: expressionOccurrences.contextMeaningKo,
-        pronunciationKo: expressionPronunciations.pronunciationKo,
-        toneMarks: expressionPronunciations.toneMarks,
-        representative: expressionOccurrences.representative,
-      })
-      .from(expressionOccurrences)
-      .innerJoin(
-        expressionPronunciations,
-        and(
-          eq(
-            expressionOccurrences.pronunciationId,
-            expressionPronunciations.id,
-          ),
-          eq(
-            expressionOccurrences.vocabularyId,
-            expressionPronunciations.vocabularyId,
-          ),
-        ),
-      )
-      .where(
-        inArray(expressionOccurrences.sentenceVersionId, sentenceVersionIds),
-      )
-      .orderBy(
-        asc(expressionOccurrences.sentenceVersionId),
-        asc(expressionOccurrences.startTokenIndex),
-        asc(expressionOccurrences.endTokenIndex),
-      );
-    return [...rows]
-      .sort((left, right) =>
-        left.sentenceVersionId.localeCompare(right.sentenceVersionId),
-      )
-      .map((row) => ({
-        sentenceVersionId: row.sentenceVersionId,
-        originalText: row.originalText,
-        translationKo: row.translationKo,
-        pronunciationKo: row.pronunciationKo,
-        toneMarks: row.toneMarks,
-        tokens: tokenRows
-          .filter((token) => token.sentenceVersionId === row.sentenceVersionId)
-          .map((token) => ({
-            position: token.position,
-            surface: token.surface,
-            startOffset: token.startOffset,
-            endOffset: token.endOffset,
-            vocabularyId: token.vocabularyId,
-            meaningId: token.meaningId,
-            pronunciationId: token.pronunciationId,
-            contextMeaningKo: token.contextMeaningKo,
-            pronunciationKo: token.pronunciationKo,
-            toneMarks: token.toneMarks,
-            role: token.role,
-          })),
-        expressions: expressionRows
-          .filter(
-            (expression) =>
-              expression.sentenceVersionId === row.sentenceVersionId,
-          )
-          .map((expression) => ({
-            startTokenIndex: expression.startTokenIndex,
-            endTokenIndex: expression.endTokenIndex,
-            vocabularyId: expression.vocabularyId,
-            meaningId: expression.meaningId,
-            pronunciationId: expression.pronunciationId,
-            contextMeaningKo: expression.contextMeaningKo,
-            pronunciationKo: expression.pronunciationKo,
-            toneMarks: expression.toneMarks,
-            representative: expression.representative,
-          })),
-      }));
   }
 }

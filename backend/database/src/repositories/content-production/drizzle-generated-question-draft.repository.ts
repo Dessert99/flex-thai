@@ -1,40 +1,29 @@
 import {
-  assertGeneratedDraftSentenceInput,
-  QuestionAdminError,
-} from '@flex-thia/domain/questions/question-admin';
+  type ContentDraftReference,
+  type GeneratedDraftSentenceInput,
+} from '@flex-thia/domain/content-import/content-import';
 import {
   QuestionCandidateReviewError,
   validateGeneratedQuestionSchema,
 } from '@flex-thia/domain/content-production/ai-question-production';
+import { flattenQuestionDraft } from '@flex-thia/domain/questions/flatten-question-draft';
+import { QuestionAdminError } from '@flex-thia/domain/questions/question-admin';
+import { assertGeneratedDraftSentenceInput } from '@flex-thia/domain/questions/question-draft-validation';
 import {
   resolveRepresentativeExpressions,
   validateThaiSentenceVersion,
   type ThaiExpressionOccurrenceInput,
   type ThaiTokenOccurrenceInput,
 } from '@flex-thia/domain/thai-content/thai-sentence-version';
-import {
-  type ContentDraftReference,
-  type GeneratedDraftSentenceInput,
-} from '@flex-thia/domain/content-import/content-import';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import {
-  expressionOccurrences,
-  thaiSentences,
-  thaiSentenceVersions,
-  tokenOccurrences,
-} from '../../schema/thai-content.schema.js';
-import {
-  questionBlocks,
-  questionBlockSentences,
-  questionOptions,
   questions,
   questionTags,
   questionTopics,
   questionTypes,
   questionTypeVersions,
-  questionVersions,
-  questionVersionTags,
+  questionVocabularies,
 } from '../../schema/questions.schema.js';
 import {
   vocabularies,
@@ -84,11 +73,6 @@ const requireReferenceId = (reference: ContentDraftReference): string => {
   }
   return reference.id;
 };
-
-const comparePosition = (
-  left: { position: number },
-  right: { position: number },
-): number => left.position - right.position;
 
 const assertCandidatePayload = (input: DraftInput): void => {
   const { candidate } = input;
@@ -373,44 +357,16 @@ const insertGraph = async (
   transaction: QuestionProductionTransaction,
   graph: ReturnType<typeof createGraph>,
 ): Promise<void> => {
-  await transaction.insert(questions).values(graph.question);
-  await transaction.insert(questionVersions).values(graph.version);
-  if (graph.tagIds.length > 0) {
-    await transaction.insert(questionVersionTags).values(
-      graph.tagIds.map((tagId) => ({
-        questionVersionId: graph.version.id,
-        tagId,
-      })),
-    );
-  }
+  const { vocabularies: usage, ...content } = flattenQuestionDraft(graph);
   await transaction
-    .insert(thaiSentences)
-    .values(graph.sentences.map(({ sentence }) => sentence));
-  await transaction
-    .insert(thaiSentenceVersions)
-    .values(graph.sentences.map(({ version }) => version));
-  const tokens = graph.sentences.flatMap(({ tokens: rows }) =>
-    [...rows].sort(comparePosition),
-  );
-  if (tokens.length > 0) {
-    await transaction.insert(tokenOccurrences).values(tokens);
-  }
-  const expressions = graph.sentences.flatMap(({ expressions: rows }) => rows);
-  if (expressions.length > 0) {
-    await transaction.insert(expressionOccurrences).values(expressions);
-  }
-  await transaction
-    .insert(questionBlocks)
-    .values([...graph.blocks].sort(comparePosition));
-  const blockSentences = graph.blocks.flatMap(({ sentences }) =>
-    [...sentences].sort(comparePosition),
-  );
-  if (blockSentences.length > 0) {
-    await transaction.insert(questionBlockSentences).values(blockSentences);
-  }
-  await transaction
-    .insert(questionOptions)
-    .values([...graph.options].sort(comparePosition));
+    .insert(questions)
+    .values({ ...content, id: graph.question.id, status: 'DRAFT', version: 1 });
+  if (usage.length)
+    await transaction
+      .insert(questionVocabularies)
+      .values(
+        usage.map((item) => ({ ...item, questionId: graph.question.id })),
+      );
 };
 
 const createGraph = (input: {
@@ -518,13 +474,13 @@ const createGraph = (input: {
     version: {
       id: questionVersionId,
       questionId,
-      version: 1,
+      version: 1 as const,
       typeVersionId: input.typeVersion.id,
       topicId: input.topicId,
       difficulty: input.candidate.difficulty,
       status: 'DRAFT' as const,
       validationStatus: 'PENDING' as const,
-      validationIssues: [],
+      validationIssues: [] as [],
       validatedAt: null,
       publishedAt: null,
     },
@@ -640,7 +596,7 @@ export class DrizzleGeneratedQuestionDraftRepository implements GeneratedQuestio
     await insertGraph(transaction, graph);
     return {
       questionId: graph.question.id,
-      questionVersionId: graph.version.id,
+      questionVersion: 1,
     };
   }
 }

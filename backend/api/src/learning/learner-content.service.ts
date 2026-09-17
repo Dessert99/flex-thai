@@ -24,11 +24,9 @@ import {
 } from '@flex-thia/contracts/learning/vocabularies';
 import {
   type DrizzleLearnerQuestionQuery,
-  type LearnerQuestionBlockProjection,
   type LearnerQuestionListFacetsProjection,
   type LearnerQuestionListItemProjection,
   type LearnerQuestionListQuery,
-  type LearnerQuestionSentenceProjection,
 } from '@flex-thia/database/queries/drizzle-learner-question.query';
 import {
   type DrizzleLearnerVocabularyQuery,
@@ -42,11 +40,7 @@ import type { ZodType } from 'zod';
 
 type QuestionQuery = Pick<
   DrizzleLearnerQuestionQuery,
-  | 'getExplanation'
-  | 'getQuestionDetail'
-  | 'listAttempts'
-  | 'listQuestionFacets'
-  | 'listQuestions'
+  'getQuestionDetail' | 'listAttempts' | 'listQuestionFacets' | 'listQuestions'
 >;
 
 type VocabularyQuery = Pick<
@@ -113,7 +107,7 @@ const toQuestionListQuery = (
 /** DB 탐색 projection을 공개 계약 필드만 남겨 직렬화한다 */
 const mapQuestionListItem = (item: LearnerQuestionListItemProjection) => ({
   questionId: item.questionId,
-  questionVersionId: item.questionVersionId,
+  questionVersion: item.questionVersion,
   questionType: {
     id: item.questionType.id,
     slug: item.questionType.slug,
@@ -175,36 +169,6 @@ const toVocabularyListQuery = (
   ...(query.difficulty === undefined ? {} : { difficulty: query.difficulty }),
 });
 
-const mapSentence = (sentence: LearnerQuestionSentenceProjection) => {
-  const mapFeedback = <Feedback extends object>(feedback: Feedback) => {
-    return {
-      ...feedback,
-    };
-  };
-
-  return {
-    sentenceVersionId: sentence.sentenceVersionId,
-    originalText: sentence.originalText,
-    translationKo: sentence.translationKo,
-    pronunciationKo: sentence.pronunciationKo,
-    toneMarks: sentence.toneMarks,
-    tokens: sentence.tokens.map(mapFeedback),
-    expressions: sentence.expressions.map(mapFeedback),
-  };
-};
-
-const mapBlocks = (blocks: LearnerQuestionBlockProjection[]) =>
-  blocks.map((block) => ({
-    id: block.id,
-    kind: block.kind,
-    position: block.position,
-    sentences: block.sentences.map((item) => ({
-      position: item.position,
-      speaker: item.speaker,
-      sentence: mapSentence(item.sentence),
-    })),
-  }));
-
 const mapVocabularySummary = (
   vocabulary: LearnerVocabularySummaryProjection,
 ) => ({
@@ -263,25 +227,7 @@ export class LearnerContentService {
     if (!detail) {
       throw new NotFoundException({ code: 'QUESTION_NOT_FOUND' });
     }
-    return parseLearnerPublicResponse(questionDetailResponseSchema, {
-      ...detail,
-      blocks: mapBlocks(detail.blocks),
-      options: detail.options.map((option) =>
-        option.sentence === null
-          ? {
-              id: option.id,
-              position: option.position,
-              sentence: null,
-              span: option.span,
-            }
-          : {
-              id: option.id,
-              position: option.position,
-              sentence: mapSentence(option.sentence),
-              span: null,
-            },
-      ),
-    });
+    return parseLearnerPublicResponse(questionDetailResponseSchema, detail);
   }
 
   /** 답안을 저장한 historical version의 정답과 해설만 제출 뒤 반환한다 */
@@ -295,9 +241,6 @@ export class LearnerContentService {
       questionId,
       ...request,
     });
-    const explanation = await this.dependencies.questionQuery.getExplanation(
-      result.attempt.questionVersionId,
-    );
     return parseLearnerPublicResponse(submitQuestionAttemptResponseSchema, {
       attempt: {
         id: result.attempt.id,
@@ -309,7 +252,7 @@ export class LearnerContentService {
       },
       feedback: {
         correctOptionId: result.feedback.correctOptionId,
-        explanationBlocks: mapBlocks(explanation),
+        explanation: result.feedback.explanation,
       },
     });
   }
@@ -377,9 +320,7 @@ export class LearnerContentService {
       ...mapVocabularySummary(detail),
       meaningPronunciations: detail.meaningPronunciations,
       relations: detail.relations,
-      exampleSentences: detail.exampleSentences.map((example) =>
-        mapSentence(example),
-      ),
+      exampleSentences: detail.exampleSentences,
     });
   }
 

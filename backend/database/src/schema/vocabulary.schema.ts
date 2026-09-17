@@ -54,6 +54,7 @@ export const vocabularies = pgTable(
     id: uuid('id').defaultRandom().primaryKey(),
     thai: text('thai').notNull(),
     normalizedThai: text('normalized_thai').notNull(),
+    importanceWeight: integer('importance_weight').default(5).notNull(),
     kind: vocabularyKindEnum('kind').notNull(),
     status: vocabularyStatusEnum('status').default('DRAFT').notNull(),
     mergedIntoVocabularyId: uuid('merged_into_vocabulary_id'),
@@ -66,6 +67,10 @@ export const vocabularies = pgTable(
       .notNull(),
   },
   (table) => [
+    check(
+      'vocabularies_importance_weight_range',
+      sql`${table.importanceWeight} between 1 and 10`,
+    ),
     uniqueIndex('vocabularies_normalized_thai_unique').on(table.normalizedThai),
     unique('vocabularies_id_kind_unique').on(table.id, table.kind),
     foreignKey({

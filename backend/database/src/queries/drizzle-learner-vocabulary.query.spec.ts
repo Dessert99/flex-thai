@@ -4,7 +4,6 @@ import { PgDialect } from 'drizzle-orm/pg-core';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { databaseSchema as schema } from '../schema/databaseSchema.js';
-import { questions } from '../schema/questions.schema.js';
 import { vocabularies } from '../schema/vocabulary.schema.js';
 import { DrizzleLearnerVocabularyQuery } from './drizzle-learner-vocabulary.query.js';
 import { DrizzleWordbookQuery } from './drizzle-wordbook.query.js';
@@ -197,10 +196,7 @@ describe('DrizzleLearnerVocabularyQuery 공용 어휘 검색', () => {
     });
 
     expect(relatedCapture.queries[0]).toContain(
-      '"question_blocks"."question_version_id" = "question_versions"."id"',
-    );
-    expect(relatedCapture.queries[0]).toMatch(
-      /"token_occurrences"\."sentence_version_id"\s*=\s*"question_block_sentences"\."sentence_version_id"/u,
+      '"question_vocabularies"."question_id" = "questions"."id"',
     );
 
     const createdAt = new Date('2026-07-27T00:00:00.000Z');
@@ -215,12 +211,10 @@ describe('DrizzleLearnerVocabularyQuery 공용 어휘 검색', () => {
       detailCapture.database,
     ).getVocabularyDetail('user-id', 'vocabulary-id');
 
-    expect(detailCapture.queries[2]).toMatch(
-      /"token_occurrences"\."sentence_version_id"\s*=\s*"thai_sentence_versions"\."id"/u,
+    expect(detailCapture.queries.join(' ')).not.toContain(
+      'question_block_sentences',
     );
-    expect(detailCapture.queries[2]).toMatch(
-      /"question_block_sentences"\."sentence_version_id"\s*=\s*"thai_sentence_versions"\."id"/u,
-    );
+    expect(detailCapture.queries.join(' ')).not.toContain('token_occurrences');
   });
 
   it('저장 여부는 사용자 소유 단어장 membership으로 계산한다', async () => {
@@ -333,54 +327,6 @@ describe('DrizzleLearnerVocabularyQuery 상세와 예문', () => {
       [...summaryRows.meanings.slice(0, 2)],
       [
         {
-          sentenceVersionId: 'sentence-2',
-          originalText: 'สวัสดีอีกครั้ง',
-          translationKo: '다시 안녕하세요',
-          pronunciationKo: '싸왓디 익 크랑',
-          toneMarks: '-',
-          frozenAt: new Date('2026-07-24T00:00:00.000Z'),
-        },
-        {
-          sentenceVersionId: 'sentence-1',
-          originalText: 'สวัสดี',
-          translationKo: '안녕하세요',
-          pronunciationKo: '싸왓디',
-          toneMarks: '-',
-          frozenAt: new Date('2026-07-24T00:00:00.000Z'),
-        },
-      ],
-      [
-        {
-          sentenceVersionId: 'sentence-1',
-          position: 0,
-          surface: 'สวัสดี',
-          startOffset: 0,
-          endOffset: 6,
-          vocabularyId: 'vocabulary-1',
-          meaningId: 'meaning-1',
-          pronunciationId: 'meaning-1',
-          contextMeaningKo: '안녕하세요',
-          pronunciationKo: '싸왓디',
-          toneMarks: '-',
-          role: 'TARGET',
-        },
-      ],
-      [
-        {
-          sentenceVersionId: 'sentence-1',
-          startTokenIndex: 0,
-          endTokenIndex: 2,
-          vocabularyId: 'expression-1',
-          meaningId: 'expression-meaning-1',
-          pronunciationId: 'expression-pronunciation-1',
-          contextMeaningKo: '인사 표현',
-          pronunciationKo: '싸왓디',
-          toneMarks: '-',
-          representative: true,
-        },
-      ],
-      [
-        {
           id: 'relation-1',
           type: 'SYNONYM',
           direction: 'BIDIRECTIONAL',
@@ -403,16 +349,7 @@ describe('DrizzleLearnerVocabularyQuery 상세와 예문', () => {
       { meaningId: 'meaning-1', pronunciationId: 'meaning-1' },
       { meaningId: 'meaning-2', pronunciationId: 'meaning-2' },
     ]);
-    expect(
-      detail?.exampleSentences.map((sentence) => sentence.sentenceVersionId),
-    ).toEqual(['sentence-1', 'sentence-2']);
-    expect(detail?.exampleSentences[0]?.tokens[0]).toMatchObject({
-      contextMeaningKo: '안녕하세요',
-    });
-    expect(detail?.exampleSentences[0]?.expressions[0]).toMatchObject({
-      contextMeaningKo: '인사 표현',
-      representative: true,
-    });
+    expect(detail?.exampleSentences).toEqual([]);
     expect(detail?.relations).toEqual([
       {
         id: 'relation-1',
@@ -425,7 +362,7 @@ describe('DrizzleLearnerVocabularyQuery 상세와 예문', () => {
         relatedMeaningKo: '안녕',
       },
     ]);
-    const relationCondition = toSql(fake.selectCalls[5]?.condition);
+    const relationCondition = toSql(fake.selectCalls[2]?.condition);
     expect(relationCondition.params).toEqual(
       expect.arrayContaining([
         'PASSED',
@@ -434,15 +371,6 @@ describe('DrizzleLearnerVocabularyQuery 상세와 예문', () => {
         'vocabulary-1',
       ]),
     );
-    const exampleCondition = toSql(fake.selectCalls[2]?.condition);
-    expect(exampleCondition.params).toEqual(
-      expect.arrayContaining(['vocabulary-1', 'PUBLISHED', 'PUBLISHED']),
-    );
-    expect(exampleCondition.sql).toContain('token_occurrences');
-    expect(exampleCondition.sql).toContain('expression_occurrences');
-    expect(exampleCondition.sql).toContain('question_block_sentences');
-    expect(exampleCondition.sql).toContain('question_options');
-    expect(exampleCondition.sql).toContain('frozen_at');
   });
 
   it('게시되지 않은 어휘는 상세을 반환하지 않는다', async () => {
@@ -484,70 +412,41 @@ describe('DrizzleLearnerVocabularyQuery 관련 문제와 저장 목록', () => {
     expect(query).not.toHaveProperty('listSavedVocabularies');
   });
 
-  it('token 또는 expression을 쓰는 현재 게시 문제를 공개 summary 의미로 읽는다', async () => {
+  it('현재 문제의 어휘 연결로 관련 문제와 마지막 풀이 상태를 조회한다', async () => {
+    const question = {
+      questionId: 'question-id',
+      questionVersion: 2,
+      questionType: {
+        id: 'type-id',
+        slug: 'reading-choice',
+        displayName: '독해 선택',
+      },
+      skill: 'READING',
+      difficulty: 2,
+      saved: true,
+      firstResult: 'UPDATED',
+    };
     const fake = createSelectFake([
-      [{ totalItems: 1 }],
+      [{ total: 1 }],
       [
         {
-          questionId: 'question-id',
-          questionVersionId: 'version-id',
-          questionTypeId: 'type-id',
-          questionTypeSlug: 'reading-choice',
-          questionTypeDisplayName: '독해 선택',
-          skill: 'READING',
-          difficulty: 2,
-          saved: true,
-          firstResult: 'UNANSWERED',
+          ...question,
+          tagIds: [],
+          majorCategory: 'READING_PASSAGE',
+          topic: { id: 'topic' },
         },
       ],
+      [],
     ]);
     const query = new DrizzleLearnerVocabularyQuery(fake.database as never);
-
     const result = await query.listRelatedQuestions(
       'user-id',
       'vocabulary-id',
       { page: 1, pageSize: 20 },
     );
-
-    expect(result.items).toEqual([
-      {
-        questionId: 'question-id',
-        questionVersionId: 'version-id',
-        questionType: {
-          id: 'type-id',
-          slug: 'reading-choice',
-          displayName: '독해 선택',
-        },
-        skill: 'READING',
-        difficulty: 2,
-        saved: true,
-        firstResult: 'UNANSWERED',
-      },
-    ]);
-    for (const call of fake.selectCalls) {
-      const sqlQuery = [
-        ...call.joins.map((join) => toSql(join.condition)),
-        toSql(call.condition),
-      ];
-      expect(sqlQuery.flatMap((part) => part.params)).toEqual(
-        expect.arrayContaining([
-          'vocabulary-id',
-          'PUBLISHED',
-          'PUBLISHED',
-          'user-id',
-          1,
-        ]),
-      );
-      expect(sqlQuery.map((part) => part.sql).join(' ')).toContain(
-        'expression_occurrences',
-      );
-    }
-    expect(toSql(fake.selectCalls[1]?.fields.firstResult).params).toContain(
-      'INVALIDATED',
-    );
-    expect(fake.selectCalls[0]?.from).toBe(questions);
-    expect(toSql(fake.selectCalls[1]?.orderBy[0]).sql).toContain(
-      '"questions"."id" asc',
+    expect(result.items).toEqual([question]);
+    expect(toSql(fake.selectCalls[0]?.condition).sql).toContain(
+      'question_vocabularies',
     );
   });
 });

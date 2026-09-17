@@ -1,15 +1,21 @@
 /** 관리자 use case와 read model을 strict 공개 응답·감사 문맥으로 조립한다 */
 import {
+  contentImportDetailResponseSchema,
+  contentImportListResponseSchema,
+  type ContentImportDetailResponse,
+  type ContentImportListQuery,
+  type ContentImportListResponse,
+  type ContentImportRequest,
+} from '@flex-thia/contracts/admin/content-imports';
+import {
   adminQuestionDetailResponseSchema,
   adminQuestionListResponseSchema,
-  adminQuestionValidationReportSchema,
-  adminQuestionVersionResponseSchema,
   type AdminQuestionDetailResponse,
   type AdminQuestionListQuery,
   type AdminQuestionListResponse,
-  type AdminQuestionValidationReport,
-  type AdminQuestionVersionPayload,
-  type AdminQuestionVersionResponse,
+  type AdminQuestionPayload,
+  type AdminQuestionStatusRequest,
+  type AdminQuestionUpdateRequest,
 } from '@flex-thia/contracts/admin/questions';
 import {
   adminVocabularyDetailResponseSchema,
@@ -31,20 +37,11 @@ import {
   type AdminVocabularyRelationCreateRequest,
   type AdminVocabularyRelationUpdateRequest,
 } from '@flex-thia/contracts/admin/vocabulary-relations';
-import {
-  contentImportDetailResponseSchema,
-  contentImportListResponseSchema,
-  type ContentImportDetailResponse,
-  type ContentImportListQuery,
-  type ContentImportListResponse,
-  type ContentImportRequest,
-} from '@flex-thia/contracts/admin/content-imports';
 import type { DrizzleAdminQuestionQuery } from '@flex-thia/database/queries/drizzle-admin-question.query';
 import type { DrizzleAdminVocabularyQuery } from '@flex-thia/database/queries/drizzle-admin-vocabulary.query';
 import type { DrizzleContentImportQuery } from '@flex-thia/database/queries/drizzle-content-import.query';
 import type { ContentImportService } from '@flex-thia/domain/content-import/content-import.service';
 import type { QuestionAdminService } from '@flex-thia/domain/questions/question-admin';
-import type { QuestionPublicationService } from '@flex-thia/domain/questions/question-publication';
 import type { VocabularyAdminService } from '@flex-thia/domain/vocabulary/vocabulary-admin';
 import { NotFoundException } from '@nestjs/common';
 import type { ZodType } from 'zod';
@@ -52,18 +49,14 @@ import type { AuthenticatedUser } from '../common/auth/current-user.decorator.js
 
 type ContentImports = Pick<ContentImportService, 'execute'>;
 type ContentImportQuery = Pick<DrizzleContentImportQuery, 'findById' | 'list'>;
-type Questions = Pick<QuestionAdminService, 'cloneVersion' | 'replaceVersion'>;
-type QuestionPublication = Pick<
-  QuestionPublicationService,
-  | 'hideQuestion'
-  | 'invalidateVersion'
-  | 'publishVersion'
-  | 'restoreQuestion'
-  | 'validateVersion'
+type Questions = Pick<
+  QuestionAdminService,
+  'create' | 'update' | 'changeStatus'
 >;
 type QuestionQuery = Pick<DrizzleAdminQuestionQuery, 'findById' | 'list'>;
 type Vocabularies = Pick<
   VocabularyAdminService,
+  | 'setImportance'
   | 'createRelation'
   | 'deleteRelation'
   | 'hide'
@@ -98,11 +91,9 @@ export interface AdminContentDependencies {
   contentImports: ContentImports;
   contentImportQuery: ContentImportQuery;
   questions: Questions;
-  questionPublication: QuestionPublication;
   questionQuery: QuestionQuery;
   vocabularies: Vocabularies;
   vocabularyQuery: VocabularyQuery;
-  findQuestionIdByVersionId(versionId: string): Promise<string | null>;
   now?: () => Date;
 }
 
@@ -146,25 +137,6 @@ const mapImportSummary = <T extends { createdAt: Date; completedAt: Date }>(
   ...summary,
   createdAt: summary.createdAt.toISOString(),
   completedAt: summary.completedAt.toISOString(),
-});
-
-const toQuestionListQuery = (
-  query: AdminQuestionListQuery,
-): Parameters<QuestionQuery['list']>[0] => ({
-  page: query.page,
-  pageSize: query.pageSize,
-  ...(query.status === undefined ? {} : { status: query.status }),
-  ...(query.versionStatus === undefined
-    ? {}
-    : { versionStatus: query.versionStatus }),
-  ...(query.validationStatus === undefined
-    ? {}
-    : { validationStatus: query.validationStatus }),
-  ...(query.questionTypeSlug === undefined
-    ? {}
-    : { questionTypeSlug: query.questionTypeSlug }),
-  ...(query.skill === undefined ? {} : { skill: query.skill }),
-  ...(query.difficulty === undefined ? {} : { difficulty: query.difficulty }),
 });
 
 const toVocabularyListQuery = (
@@ -235,9 +207,7 @@ export class AdminContentService {
   async listQuestions(
     query: AdminQuestionListQuery,
   ): Promise<AdminQuestionListResponse> {
-    const result = await this.dependencies.questionQuery.list(
-      toQuestionListQuery(query),
-    );
+    const result = await this.dependencies.questionQuery.list(query);
     return parseAdminPublicResponse(adminQuestionListResponseSchema, {
       ...result,
       items: result.items.map((item) => ({
@@ -246,148 +216,64 @@ export class AdminContentService {
       })),
     });
   }
-
-  /** 모든 문제 버전의 검증·정답 ID를 관리자 공개 상세로 반환한다 */
   async getQuestion(questionId: string): Promise<AdminQuestionDetailResponse> {
-    const question = await this.dependencies.questionQuery.findById(questionId);
-    if (!question) {
-      throw new NotFoundException({ code: 'QUESTION_NOT_FOUND' });
-    }
-
-    const mapSentence = (
-      sentence: (typeof question.versions)[number]['blocks'][number]['sentences'][number]['sentence'],
-    ) => {
-      return {
-        id: sentence.id,
-        originalText: sentence.originalText,
-        translationKo: sentence.translationKo,
-        pronunciationKo: sentence.pronunciationKo,
-        toneMarks: sentence.toneMarks,
-        tokens: sentence.tokens,
-        expressions: sentence.expressions,
-      };
-    };
+    const row = await this.dependencies.questionQuery.findById(questionId);
+    if (!row) throw new NotFoundException({ code: 'QUESTION_NOT_FOUND' });
     return parseAdminPublicResponse(adminQuestionDetailResponseSchema, {
-      ...question,
-      createdAt: question.createdAt.toISOString(),
-      updatedAt: question.updatedAt.toISOString(),
-      versions: question.versions.map((version) => ({
-        ...version,
-        createdAt: version.createdAt.toISOString(),
-        publishedAt: version.publishedAt?.toISOString() ?? null,
-        validation: {
-          ...version.validation,
-          validatedAt: version.validation.validatedAt?.toISOString() ?? null,
-        },
-        blocks: version.blocks.map((block) => ({
-          ...block,
-          sentences: block.sentences.map((sentence) => ({
-            ...sentence,
-            sentence: mapSentence(sentence.sentence),
-          })),
-        })),
-        options: version.options.map((option) => ({
-          ...option,
-          sentence: mapSentence(option.sentence),
-        })),
-      })),
+      ...row,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+      publishedAt: row.publishedAt?.toISOString() ?? null,
     });
   }
-
-  /** 현재 게시 또는 latest version을 복제한 새 DRAFT 요약을 반환한다 */
-  async cloneQuestionVersion(
+  async createQuestion(
+    actor: AdminActorContext,
+    input: AdminQuestionPayload,
+  ): Promise<AdminQuestionDetailResponse> {
+    const row = await this.dependencies.questions.create({
+      ...toAuditContext(actor, this.now()),
+      input,
+    });
+    return this.getQuestion(row.id);
+  }
+  async updateQuestion(
     actor: AdminActorContext,
     questionId: string,
-  ): Promise<AdminQuestionVersionResponse> {
-    return parseAdminPublicResponse(
-      adminQuestionVersionResponseSchema,
-      await this.dependencies.questions.cloneVersion({
-        questionId,
-        ...toAuditContext(actor, this.now()),
-      }),
-    );
-  }
-
-  /** canonical payload로 DRAFT 전체를 교체하고 PENDING 요약을 반환한다 */
-  async replaceQuestionVersion(
-    actor: AdminActorContext,
-    versionId: string,
-    input: AdminQuestionVersionPayload,
-  ): Promise<AdminQuestionVersionResponse> {
-    return parseAdminPublicResponse(
-      adminQuestionVersionResponseSchema,
-      await this.dependencies.questions.replaceVersion({
-        versionId,
-        // 공개 Zod와 domain canonical 구조의 exact-optional 표현 차이만 좁힌다.
-        input: input as Parameters<Questions['replaceVersion']>[0]['input'],
-        ...toAuditContext(actor, this.now()),
-      }),
-    );
-  }
-
-  /** FAILED도 정상 결과로 보존한 최신 검증 보고서를 반환한다 */
-  async validateQuestionVersion(
-    actor: AdminActorContext,
-    versionId: string,
-  ): Promise<AdminQuestionValidationReport> {
-    return parseAdminPublicResponse(
-      adminQuestionValidationReportSchema,
-      await this.dependencies.questionPublication.validateVersion({
-        versionId,
-        ...toAuditContext(actor, this.now()),
-      }),
-    );
-  }
-
-  /** version 소유 문제를 안전하게 해석한 뒤 DRAFT를 게시한다 */
-  async publishQuestionVersion(
-    actor: AdminActorContext,
-    versionId: string,
-  ): Promise<void> {
-    const questionId = await this.requireQuestionIdByVersion(versionId);
-    await this.dependencies.questionPublication.publishVersion({
-      questionId,
-      versionId,
+    request: AdminQuestionUpdateRequest,
+  ): Promise<AdminQuestionDetailResponse> {
+    await this.dependencies.questions.update({
       ...toAuditContext(actor, this.now()),
-    });
-  }
-
-  /** version 소유 문제를 안전하게 해석한 뒤 현재 게시 버전을 무효화한다 */
-  async invalidateQuestionVersion(
-    actor: AdminActorContext,
-    versionId: string,
-  ): Promise<void> {
-    const questionId = await this.requireQuestionIdByVersion(versionId);
-    await this.dependencies.questionPublication.invalidateVersion({
+      ...request,
       questionId,
-      versionId,
-      ...toAuditContext(actor, this.now()),
+      expectedUpdatedAt: new Date(request.expectedUpdatedAt),
     });
+    return this.getQuestion(questionId);
   }
-
-  /** 게시 문제를 즉시 숨기고 audit 문맥을 전달한다 */
-  async hideQuestion(
+  async changeQuestionStatus(
     actor: AdminActorContext,
     questionId: string,
+    request: AdminQuestionStatusRequest,
   ): Promise<void> {
-    await this.dependencies.questionPublication.hideQuestion({
-      questionId,
+    await this.dependencies.questions.changeStatus({
       ...toAuditContext(actor, this.now()),
+      ...request,
+      questionId,
+      expectedUpdatedAt: new Date(request.expectedUpdatedAt),
     });
   }
 
-  /** 유효한 current version이 있는 숨김 문제를 복구한다 */
-  async restoreQuestion(
+  setVocabularyImportance(
     actor: AdminActorContext,
-    questionId: string,
+    vocabularyId: string,
+    importanceWeight: number,
   ): Promise<void> {
-    await this.dependencies.questionPublication.restoreQuestion({
-      questionId,
+    return this.dependencies.vocabularies.setImportance({
       ...toAuditContext(actor, this.now()),
+      vocabularyId,
+      importanceWeight,
     });
   }
 
-  /** 모든 상태 어휘 page의 Date를 공개 ISO 시각으로 제한한다 */
   async listVocabularies(
     query: AdminVocabularyListQuery,
   ): Promise<AdminVocabularyListResponse> {
@@ -550,14 +436,5 @@ export class AdminContentService {
         ...toAuditContext(actor, this.now()),
       }),
     );
-  }
-
-  private async requireQuestionIdByVersion(versionId: string): Promise<string> {
-    const questionId =
-      await this.dependencies.findQuestionIdByVersionId(versionId);
-    if (!questionId) {
-      throw new NotFoundException({ code: 'QUESTION_VERSION_NOT_FOUND' });
-    }
-    return questionId;
   }
 }

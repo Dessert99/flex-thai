@@ -1,7 +1,7 @@
 /** 실제 PostgreSQL에서 AI 문제 artifact replay와 transaction rollback을 검증한다 */
-import { randomUUID } from 'node:crypto';
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { DrizzleAsyncDispatchOutboxRepository } from '../dispatch/drizzle-async-dispatch-outbox.repository.js';
@@ -154,7 +154,7 @@ describe.runIf(databaseUrl !== undefined)(
             reviewCode: null,
             regeneratedFromCandidateId: null,
             approvedQuestionId: null,
-            approvedQuestionVersionId: null,
+            approvedQuestionVersion: null,
           },
         ],
         validations: [
@@ -249,7 +249,7 @@ describe.runIf(databaseUrl !== undefined)(
               reviewCode: 'QUESTION_SCHEMA_INVALID',
               regeneratedFromCandidateId: null,
               approvedQuestionId: null,
-              approvedQuestionVersionId: null,
+              approvedQuestionVersion: null,
             },
           ],
           validations: [

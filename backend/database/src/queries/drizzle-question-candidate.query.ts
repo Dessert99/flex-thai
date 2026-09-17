@@ -2,11 +2,11 @@
 import { and, asc, count, desc, eq, inArray } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
-import { databaseSchema as schema } from '../schema/databaseSchema.js';
 import {
   questionProductionCandidates,
   questionProductionValidations,
 } from '../schema/ai-question-production.schema.js';
+import { databaseSchema as schema } from '../schema/databaseSchema.js';
 import { jobItems } from '../schema/jobs.schema.js';
 import { questionTags } from '../schema/questions.schema.js';
 
@@ -39,8 +39,7 @@ const candidateSelection = {
   regeneratedFromCandidateId:
     questionProductionCandidates.regeneratedFromCandidateId,
   approvedQuestionId: questionProductionCandidates.approvedQuestionId,
-  approvedQuestionVersionId:
-    questionProductionCandidates.approvedQuestionVersionId,
+  approvedQuestionVersion: questionProductionCandidates.approvedQuestionVersion,
   revision: questionProductionCandidates.revision,
   createdAt: questionProductionCandidates.createdAt,
   updatedAt: questionProductionCandidates.updatedAt,
@@ -62,7 +61,7 @@ type CandidateRow = {
   reviewCode: string | null;
   regeneratedFromCandidateId: string | null;
   approvedQuestionId: string | null;
-  approvedQuestionVersionId: string | null;
+  approvedQuestionVersion: number | null;
   revision: number;
   createdAt: Date;
   updatedAt: Date;

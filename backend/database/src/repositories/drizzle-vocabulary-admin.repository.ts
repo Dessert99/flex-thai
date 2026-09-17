@@ -1,15 +1,16 @@
+import { questionVocabularies } from '../schema/questions.schema.js';
 import { vocabularyMeaningRows } from './vocabulary-meaning-rows.js';
 /** 관리자 어휘 child 잠금·전체 교체·상태 전이·audit을 Drizzle transaction으로 구현한다 */
-import {
-  assertVocabularyMergePair,
-  createVocabularyMergeFingerprint,
-  type VocabularyMergeGraph,
-} from '@flex-thia/domain/vocabulary/vocabulary-relations-merge';
 import {
   type VocabularyAdminRepository,
   VocabularyAdminRepositoryError,
   type VocabularyAdminTransaction,
 } from '@flex-thia/domain/vocabulary/vocabulary-admin.repository';
+import {
+  assertVocabularyMergePair,
+  createVocabularyMergeFingerprint,
+  type VocabularyMergeGraph,
+} from '@flex-thia/domain/vocabulary/vocabulary-relations-merge';
 import {
   type VocabularyRelationsMergeRelationWrite,
   type VocabularyRelationsMergeRepository,
@@ -20,18 +21,16 @@ import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import { databaseSchema as schema } from '../schema/databaseSchema.js';
 import { auditLogs } from '../schema/identity.schema.js';
+import { vocabularyPracticeQuestions } from '../schema/learning-practice.schema.js';
+import { savedVocabularies, wordbookItems } from '../schema/learning.schema.js';
 import {
   expressionOccurrences,
   tokenOccurrences,
 } from '../schema/thai-content.schema.js';
-import { savedVocabularies, wordbookItems } from '../schema/learning.schema.js';
 import {
   vocabularies,
-  vocabularyMeanings,
-} from '../schema/vocabulary.schema.js';
-import { vocabularyPracticeQuestions } from '../schema/learning-practice.schema.js';
-import {
   vocabularyMeaningRelations,
+  vocabularyMeanings,
   vocabularyMergeHistory,
 } from '../schema/vocabulary.schema.js';
 
@@ -245,7 +244,19 @@ const createVocabularyAdminTransaction = (
     return { vocabulary, meanings, pronunciations: meanings };
   },
 
+  async setImportanceWeight(vocabularyId, importanceWeight, updatedAt) {
+    await transaction
+      .update(vocabularies)
+      .set({ importanceWeight, updatedAt })
+      .where(eq(vocabularies.id, vocabularyId));
+  },
   async hasQuestionUsage(input) {
+    const usage = await transaction
+      .select({ id: questionVocabularies.questionId })
+      .from(questionVocabularies)
+      .where(eq(questionVocabularies.vocabularyId, input.vocabularyId))
+      .limit(1);
+    if (usage.length) return true;
     const tokenCondition = or(
       eq(tokenOccurrences.vocabularyId, input.vocabularyId),
       input.meaningIds.length > 0
@@ -691,11 +702,36 @@ export class DrizzleVocabularyAdminRepository
             vocabulary_practice_questions_pronunciation_vocabulary_fk
           deferred
         `);
+          const questionUsage = await transaction
+            .delete(questionVocabularies)
+            .where(
+              eq(questionVocabularies.vocabularyId, input.sourceVocabularyId),
+            )
+            .returning();
           await transaction.execute(sql`
           update vocabulary_meanings
           set vocabulary_id = ${input.representativeVocabularyId}
           where vocabulary_id = ${input.sourceVocabularyId}
         `);
+          for (const usage of questionUsage) {
+            await transaction
+              .insert(questionVocabularies)
+              .values({
+                ...usage,
+                vocabularyId: input.representativeVocabularyId,
+              })
+              .onConflictDoUpdate({
+                target: [
+                  questionVocabularies.questionId,
+                  questionVocabularies.vocabularyId,
+                ],
+                set: {
+                  occurrenceCount: sql`${questionVocabularies.occurrenceCount} + ${usage.occurrenceCount}`,
+                  role: sql`case when ${questionVocabularies.role} = 'TARGET' or ${usage.role} = 'TARGET' then 'TARGET'::question_vocabulary_role else 'CONTEXT'::question_vocabulary_role end`,
+                  meaningId: sql`case when ${questionVocabularies.meaningId} = ${usage.meaningId}::uuid then ${questionVocabularies.meaningId} else null end`,
+                },
+              });
+          }
           await transaction.execute(sql`
           update token_occurrences
           set vocabulary_id = ${input.representativeVocabularyId}

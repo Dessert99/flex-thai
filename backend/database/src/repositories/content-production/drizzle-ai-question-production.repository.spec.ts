@@ -36,7 +36,7 @@ const input = {
         reviewCode: 'QUESTION_SIMILARITY_REVIEW',
         regeneratedFromCandidateId: null,
         approvedQuestionId: null,
-        approvedQuestionVersionId: null,
+        approvedQuestionVersion: null,
       },
     ],
     validations: [
@@ -73,7 +73,7 @@ const pendingCandidate = {
   reviewStatus: 'PENDING',
   revision: 0,
   approvedQuestionId: null,
-  approvedQuestionVersionId: null,
+  approvedQuestionVersion: null,
 };
 
 const withReviewRequestLock = <T extends object>(executor: T) => ({
@@ -114,7 +114,7 @@ const reviewReplayCases = [
       reviewStatus: 'APPROVED',
       revision: 1,
       approvedQuestionId: 'question-id',
-      approvedQuestionVersionId: 'version-id',
+      approvedQuestionVersion: 1,
     },
     audit: {
       action: 'QUESTION_CANDIDATE_APPROVED',
@@ -125,7 +125,7 @@ const reviewReplayCases = [
       summary: {
         expectedRevision: reviewCommand.expectedRevision,
         questionId: 'question-id',
-        questionVersionId: 'version-id',
+        questionVersion: 1,
       },
     },
     invoke: (
@@ -135,7 +135,7 @@ const reviewReplayCases = [
     expected: {
       kind: 'ALREADY_APPROVED',
       questionId: 'question-id',
-      questionVersionId: 'version-id',
+      questionVersion: 1,
     },
   },
   {
@@ -279,7 +279,7 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
     );
     const createDraft = vi.fn().mockResolvedValue({
       questionId: 'question-id',
-      questionVersionId: 'version-id',
+      questionVersion: 1,
     });
 
     const repository = new DrizzleAiQuestionProductionRepository(
@@ -292,7 +292,7 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
     await expect(repository.approve(reviewCommand)).resolves.toEqual({
       kind: 'APPROVED',
       questionId: 'question-id',
-      questionVersionId: 'version-id',
+      questionVersion: 1,
     });
     expect(candidateFor).toHaveBeenCalledWith('update');
     expect(createDraft).toHaveBeenCalledOnce();
@@ -312,7 +312,7 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
       expect.objectContaining({
         reviewStatus: 'APPROVED',
         approvedQuestionId: 'question-id',
-        approvedQuestionVersionId: 'version-id',
+        approvedQuestionVersion: 1,
         revision: 1,
       }),
     );
@@ -326,7 +326,7 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
           previousRevision: 0,
           revision: 1,
           questionId: 'question-id',
-          questionVersionId: 'version-id',
+          questionVersion: 1,
         },
       }),
     );
@@ -554,7 +554,7 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
         reviewStatus: 'APPROVED',
         revision: 1,
         approvedQuestionId: 'question-id',
-        approvedQuestionVersionId: 'version-id',
+        approvedQuestionVersion: 1,
       },
     ];
     const transaction = vi.fn(
@@ -1160,7 +1160,7 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
         reviewStatus: 'PENDING',
         regeneratedFromCandidateId: null,
         approvedQuestionId: null,
-        approvedQuestionVersionId: null,
+        approvedQuestionVersion: null,
       }),
     ]);
     expect(candidateConflict).toHaveBeenCalledOnce();
@@ -1316,7 +1316,7 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
           reviewCode: 'QUESTION_SIMILARITY_REVIEW',
           regeneratedFromCandidateId: null,
           approvedQuestionId: null,
-          approvedQuestionVersionId: null,
+          approvedQuestionVersion: null,
         },
       ])
       .mockResolvedValueOnce([
@@ -1410,7 +1410,7 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
         reviewCode: 'QUESTION_SCHEMA_INVALID',
         regeneratedFromCandidateId: null,
         approvedQuestionId: null,
-        approvedQuestionVersionId: null,
+        approvedQuestionVersion: null,
       },
     ]);
     const select = vi.fn(() => ({
@@ -1452,7 +1452,7 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
         reviewCode: 'QUESTION_SIMILARITY_REVIEW',
         regeneratedFromCandidateId: null,
         approvedQuestionId: null,
-        approvedQuestionVersionId: null,
+        approvedQuestionVersion: null,
       },
     ]);
     const where = vi.fn(() => ({ limit }));
@@ -1498,7 +1498,7 @@ describe('AI 문제 제작 Drizzle 저장소', () => {
         reviewCode: 'QUESTION_SIMILARITY_REVIEW',
         regeneratedFromCandidateId: null,
         approvedQuestionId: null,
-        approvedQuestionVersionId: null,
+        approvedQuestionVersion: null,
       },
     ]);
     const where = vi.fn(() => ({ limit }));

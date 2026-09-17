@@ -1,5 +1,4 @@
 /** AI 문제 후보 read model과 검수 명령을 strict 공개 계약으로 조립한다 */
-import { Injectable } from '@nestjs/common';
 import {
   approveQuestionCandidateResponseSchema,
   questionCandidateDetailResponseSchema,
@@ -11,6 +10,7 @@ import {
   type QuestionCandidateListQuery,
   type RegenerateQuestionCandidateRequest,
 } from '@flex-thia/contracts/content-production/question-production';
+import { Injectable } from '@nestjs/common';
 import type { ZodType } from 'zod';
 
 type CandidateGroup = 'NORMAL' | 'NEEDS_ATTENTION' | 'FAILED';
@@ -32,7 +32,7 @@ interface QuestionCandidateReadRecordBase {
   reviewCode: string | null;
   regeneratedFromCandidateId: string | null;
   approvedQuestionId: string | null;
-  approvedQuestionVersionId: string | null;
+  approvedQuestionVersion: number | null;
   revision: number;
   createdAt: Date;
   updatedAt: Date;
@@ -85,7 +85,7 @@ export interface QuestionCandidateReadRepository {
 export interface QuestionCandidateReviewOperations {
   approve(input: QuestionCandidateReviewCommand): Promise<{
     questionId: string;
-    questionVersionId: string;
+    questionVersion: number;
   }>;
   discard(input: QuestionCandidateReviewCommand): Promise<void>;
   regenerate(input: QuestionCandidateReviewCommand): Promise<{
@@ -141,7 +141,7 @@ const toReview = (candidate: QuestionCandidateReadRecord) => ({
   revision: candidate.revision,
   regeneratedFromCandidateId: candidate.regeneratedFromCandidateId,
   approvedQuestionId: candidate.approvedQuestionId,
-  approvedQuestionVersionId: candidate.approvedQuestionVersionId,
+  approvedQuestionVersion: candidate.approvedQuestionVersion,
 });
 
 const toSummary = (candidate: QuestionCandidateReadRecord) => ({
@@ -292,7 +292,7 @@ export class QuestionCandidateApplicationService {
         status: 'APPROVED',
         revision: request.expectedRevision + 1,
         questionId: draft.questionId,
-        questionVersionId: draft.questionVersionId,
+        questionVersion: draft.questionVersion,
       },
     });
   }

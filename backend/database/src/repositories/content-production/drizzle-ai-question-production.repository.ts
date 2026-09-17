@@ -23,8 +23,8 @@ import {
   questionProductionCandidates,
   questionProductionValidations,
 } from '../../schema/ai-question-production.schema.js';
-import { auditLogs } from '../../schema/identity.schema.js';
 import { databaseSchema as schema } from '../../schema/databaseSchema.js';
+import { auditLogs } from '../../schema/identity.schema.js';
 import { jobItems, jobs, providerRuns } from '../../schema/jobs.schema.js';
 
 type QuestionProductionDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
@@ -67,7 +67,7 @@ type ReviewCandidate = {
   reviewStatus: 'PENDING' | 'APPROVED' | 'DISCARDED';
   revision: number;
   approvedQuestionId: string | null;
-  approvedQuestionVersionId: string | null;
+  approvedQuestionVersion: number | null;
   presetSnapshot?: { parameters?: Record<string, unknown> } | null;
 };
 
@@ -113,8 +113,8 @@ const readReviewCandidate = async (
       reviewStatus: questionProductionCandidates.reviewStatus,
       revision: questionProductionCandidates.revision,
       approvedQuestionId: questionProductionCandidates.approvedQuestionId,
-      approvedQuestionVersionId:
-        questionProductionCandidates.approvedQuestionVersionId,
+      approvedQuestionVersion:
+        questionProductionCandidates.approvedQuestionVersion,
       presetSnapshot: sql`(
         select "jobs"."preset_snapshot"
         from "job_items"
@@ -205,13 +205,13 @@ const isApprovedReplay = (
   replay: ReviewReplay,
 ): candidate is ReviewCandidate & {
   approvedQuestionId: string;
-  approvedQuestionVersionId: string;
+  approvedQuestionVersion: number;
 } =>
   candidate.reviewStatus === 'APPROVED' &&
   candidate.approvedQuestionId !== null &&
-  candidate.approvedQuestionVersionId !== null &&
+  candidate.approvedQuestionVersion !== null &&
   replay.summary['questionId'] === candidate.approvedQuestionId &&
-  replay.summary['questionVersionId'] === candidate.approvedQuestionVersionId;
+  replay.summary['questionVersion'] === candidate.approvedQuestionVersion;
 
 const hasAllPassedValidations = (
   validations: Array<{ stage: string; status: string }>,
@@ -269,7 +269,7 @@ const candidateValues = (
     regeneratedFromCandidateId:
       record.regeneratedFromCandidateId ?? regeneratedFromCandidateId,
     approvedQuestionId: record.approvedQuestionId,
-    approvedQuestionVersionId: record.approvedQuestionVersionId,
+    approvedQuestionVersion: record.approvedQuestionVersion,
   }));
 
 const existingCandidateIds = async (
@@ -294,8 +294,8 @@ const existingCandidateIds = async (
         regeneratedFromCandidateId:
           questionProductionCandidates.regeneratedFromCandidateId,
         approvedQuestionId: questionProductionCandidates.approvedQuestionId,
-        approvedQuestionVersionId:
-          questionProductionCandidates.approvedQuestionVersionId,
+        approvedQuestionVersion:
+          questionProductionCandidates.approvedQuestionVersion,
       })
       .from(questionProductionCandidates)
       .where(
@@ -323,7 +323,7 @@ const existingCandidateIds = async (
       reviewCode: record.reviewCode,
       regeneratedFromCandidateId: record.regeneratedFromCandidateId,
       approvedQuestionId: record.approvedQuestionId,
-      approvedQuestionVersionId: record.approvedQuestionVersionId,
+      approvedQuestionVersion: record.approvedQuestionVersion,
     };
     const { id, ordinal, payload, ...actual } = existing;
     const { payload: expectedPayload, ...expectedFields } = expected;
@@ -489,7 +489,7 @@ export class DrizzleAiQuestionProductionRepository
           ? {
               kind: 'ALREADY_APPROVED',
               questionId: candidate.approvedQuestionId,
-              questionVersionId: candidate.approvedQuestionVersionId,
+              questionVersion: candidate.approvedQuestionVersion,
             }
           : { kind: 'CONFLICT' };
       }
@@ -547,7 +547,7 @@ export class DrizzleAiQuestionProductionRepository
         .set({
           reviewStatus: 'APPROVED',
           approvedQuestionId: draft.questionId,
-          approvedQuestionVersionId: draft.questionVersionId,
+          approvedQuestionVersion: draft.questionVersion,
           revision: nextRevision,
           updatedAt: this.now(),
         })
@@ -573,13 +573,13 @@ export class DrizzleAiQuestionProductionRepository
           previousRevision: candidate.revision,
           revision: nextRevision,
           questionId: draft.questionId,
-          questionVersionId: draft.questionVersionId,
+          questionVersion: draft.questionVersion,
         },
       });
       return {
         kind: 'APPROVED',
         questionId: draft.questionId,
-        questionVersionId: draft.questionVersionId,
+        questionVersion: draft.questionVersion,
       };
     });
   }

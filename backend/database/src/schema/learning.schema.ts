@@ -1,12 +1,13 @@
+import type { QuestionSnapshot } from '@flex-thia/domain/questions/question';
 /** 학습자의 append-only 답안과 저장 문제·어휘 연결을 저장한다 */
 import { sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
   check,
-  foreignKey,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   timestamp,
@@ -15,11 +16,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 import { users } from './identity.schema.js';
-import {
-  questionOptions,
-  questions,
-  questionVersions,
-} from './questions.schema.js';
+import { questions } from './questions.schema.js';
 import { vocabularies } from './vocabulary.schema.js';
 
 /** 제출 당시 정답 여부를 이후 콘텐츠 상태와 무관하게 보존하는 원시 답안 */
@@ -30,8 +27,13 @@ export const questionAttempts = pgTable(
     userId: uuid('user_id')
       .references(() => users.id, { onDelete: 'restrict' })
       .notNull(),
-    questionId: uuid('question_id').notNull(),
-    questionVersionId: uuid('question_version_id').notNull(),
+    questionId: uuid('question_id')
+      .references(() => questions.id, { onDelete: 'restrict' })
+      .notNull(),
+    questionVersion: integer('question_version').notNull(),
+    questionSnapshot: jsonb('question_snapshot')
+      .$type<QuestionSnapshot>()
+      .notNull(),
     attemptNo: integer('attempt_no').notNull(),
     selectedOptionId: uuid('selected_option_id').notNull(),
     clientAttemptId: uuid('client_attempt_id').notNull(),
@@ -53,16 +55,10 @@ export const questionAttempts = pgTable(
       table.userId,
       table.submittedAt,
     ),
-    foreignKey({
-      name: 'question_attempts_question_version_fk',
-      columns: [table.questionId, table.questionVersionId],
-      foreignColumns: [questionVersions.questionId, questionVersions.id],
-    }).onDelete('restrict'),
-    foreignKey({
-      name: 'question_attempts_selected_option_fk',
-      columns: [table.questionVersionId, table.selectedOptionId],
-      foreignColumns: [questionOptions.questionVersionId, questionOptions.id],
-    }).onDelete('restrict'),
+    check(
+      'question_attempts_version_positive',
+      sql`${table.questionVersion} > 0`,
+    ),
     check('question_attempts_attempt_no_positive', sql`${table.attemptNo} > 0`),
     check(
       'question_attempts_duration_ms_safe_integer',
