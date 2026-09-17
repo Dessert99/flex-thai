@@ -65,7 +65,8 @@
     "./vocabulary/vocabulary-relations-merge.repository": "./src/vocabulary/vocabulary-relations-merge.repository.ts",
     "./vocabulary/vocabulary-relations-merge.service": "./src/vocabulary/vocabulary-relations-merge.service.ts",
     "./vocabulary/vocabulary-relations-merge": "./src/vocabulary/vocabulary-relations-merge.ts",
-    "./vocabulary/vocabulary": "./src/vocabulary/vocabulary.ts"
+    "./vocabulary/vocabulary": "./src/vocabulary/vocabulary.ts",
+    "./vocabulary/vocabulary-selection": "./src/vocabulary/vocabulary-selection.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
