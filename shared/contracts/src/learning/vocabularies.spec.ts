@@ -12,13 +12,11 @@ import {
 const ids = {
   vocabulary: '00000000-0000-4000-8000-000000000021',
   meaning: '00000000-0000-4000-8000-000000000022',
-  pronunciation: '00000000-0000-4000-8000-000000000023',
   sentence: '00000000-0000-4000-8000-000000000024',
   question: '00000000-0000-4000-8000-000000000025',
   version: '00000000-0000-4000-8000-000000000026',
   type: '00000000-0000-4000-8000-000000000027',
   secondMeaning: '00000000-0000-4000-8000-000000000028',
-  secondPronunciation: '00000000-0000-4000-8000-000000000029',
   dangling: '00000000-0000-4000-8000-000000000030',
   relation: '00000000-0000-4000-8000-000000000031',
   relatedVocabulary: '00000000-0000-4000-8000-000000000032',
@@ -36,13 +34,6 @@ const vocabulary = {
       partOfSpeech: '감탄사',
       difficulty: 1,
       contextNote: null,
-    },
-  ],
-  pronunciations: [
-    {
-      id: ids.pronunciation,
-      pronunciationKo: '싸왓디',
-      toneMarks: 'L-L-M',
     },
   ],
   saved: true,
@@ -109,9 +100,6 @@ describe('학습자 어휘 공개 응답 계약', () => {
   it('어휘 상세에 게시 문장의 공개 예문을 허용한다', () => {
     const detail = {
       ...vocabulary,
-      meaningPronunciations: [
-        { meaningId: ids.meaning, pronunciationId: ids.pronunciation },
-      ],
       relations: [
         {
           id: ids.relation,
@@ -129,8 +117,6 @@ describe('학습자 어휘 공개 응답 계약', () => {
           sentenceVersionId: ids.sentence,
           originalText: 'เขาพูดว่าสวัสดี',
           translationKo: '그는 안녕하세요라고 말했다',
-          pronunciationKo: '카오 풋 와 싸왓디',
-          toneMarks: 'R-F-F-L-L-M',
           tokens: [],
           expressions: [],
         },
@@ -139,7 +125,7 @@ describe('학습자 어휘 공개 응답 계약', () => {
     expect(vocabularyDetailResponseSchema.parse(detail)).toEqual(detail);
   });
 
-  it('뜻 2개와 발음 2개의 비대칭 연결을 그대로 보존한다', () => {
+  it('서로 다른 두 뜻과 문맥 설명을 그대로 보존한다', () => {
     const detail = {
       ...vocabulary,
       meanings: [
@@ -152,22 +138,6 @@ describe('학습자 어휘 공개 응답 계약', () => {
           contextNote: '친근한 상황',
         },
       ],
-      pronunciations: [
-        ...vocabulary.pronunciations,
-        {
-          id: ids.secondPronunciation,
-          pronunciationKo: '싸왓디이',
-          toneMarks: 'L-L-M',
-        },
-      ],
-      meaningPronunciations: [
-        { meaningId: ids.meaning, pronunciationId: ids.pronunciation },
-        { meaningId: ids.meaning, pronunciationId: ids.secondPronunciation },
-        {
-          meaningId: ids.secondMeaning,
-          pronunciationId: ids.secondPronunciation,
-        },
-      ],
       relations: [],
       exampleSentences: [],
     };
@@ -175,12 +145,9 @@ describe('학습자 어휘 공개 응답 계약', () => {
     expect(vocabularyDetailResponseSchema.parse(detail)).toEqual(detail);
   });
 
-  it('존재하지 않는 뜻·발음 연결과 중복 pair를 거부한다', () => {
+  it('제거된 발음·성조 필드는 공개 응답에서 거부한다', () => {
     const detail = {
       ...vocabulary,
-      meaningPronunciations: [
-        { meaningId: ids.meaning, pronunciationId: ids.pronunciation },
-      ],
       relations: [],
       exampleSentences: [],
     };
@@ -188,25 +155,24 @@ describe('학습자 어휘 공개 응답 계약', () => {
     expect(() =>
       vocabularyDetailResponseSchema.parse({
         ...detail,
-        meaningPronunciations: [
-          { meaningId: ids.dangling, pronunciationId: ids.pronunciation },
-        ],
+        pronunciations: [],
       }),
     ).toThrow();
     expect(() =>
       vocabularyDetailResponseSchema.parse({
         ...detail,
-        meaningPronunciations: [
-          { meaningId: ids.meaning, pronunciationId: ids.dangling },
-        ],
+        meaningPronunciations: [],
       }),
     ).toThrow();
     expect(() =>
       vocabularyDetailResponseSchema.parse({
         ...detail,
-        meaningPronunciations: [
-          ...detail.meaningPronunciations,
-          ...detail.meaningPronunciations,
+        meanings: [
+          {
+            ...vocabulary.meanings[0],
+            pronunciationKo: '한글 표기',
+            toneMarks: 'M',
+          },
         ],
       }),
     ).toThrow();
@@ -224,12 +190,7 @@ describe('학습자 어휘 공개 응답 계약', () => {
         items: [
           {
             ...vocabulary,
-            pronunciations: [
-              {
-                ...vocabulary.pronunciations[0],
-                storageKey: 'private/vocabularies/greeting.bin',
-              },
-            ],
+            storageKey: 'private',
           },
         ],
         page,
@@ -240,7 +201,7 @@ describe('학습자 어휘 공개 응답 계약', () => {
   it('관련 게시 문제 페이지를 공개 형태로 검증한다', () => {
     const relatedQuestion = {
       questionId: ids.question,
-      questionVersionId: ids.version,
+      questionVersion: 1,
       questionType: {
         id: ids.type,
         slug: 'reading-standard-choice',

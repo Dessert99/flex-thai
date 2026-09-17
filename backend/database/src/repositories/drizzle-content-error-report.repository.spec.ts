@@ -262,7 +262,6 @@ describe('DrizzleContentErrorReportRepository', () => {
         kind: 'VOCABULARY',
         vocabularyId: 'vocabulary-id',
         meaningId: 'other-meaning-id',
-        pronunciationId: null,
       }),
     ).resolves.toBeNull();
   });
@@ -276,7 +275,6 @@ describe('DrizzleContentErrorReportRepository', () => {
           version: 1,
           originalText: 'ไทย',
           translationKo: '태국어',
-          pronunciationKo: '타이',
           frozenAt: new Date(),
         },
       ],
@@ -320,7 +318,6 @@ describe('DrizzleContentErrorReportRepository', () => {
           version: 1,
           originalText: '개념 문장',
           translationKo: '개념 해석',
-          pronunciationKo: null,
           frozenAt: new Date(),
         },
       ],

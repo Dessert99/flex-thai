@@ -32,7 +32,7 @@ type LearnerConceptDatabase = PgDatabase<
   typeof conceptQuerySchema
 >;
 
-export type LearnerConceptCategory = 'THAI_SCRIPT_PRONUNCIATION' | 'GRAMMAR';
+export type LearnerConceptCategory = 'THAI_SCRIPT' | 'GRAMMAR';
 
 /** 게시 graph 훼손을 부분 응답 대신 fail-closed 오류로 전달한다 */
 export class LearnerConceptQueryError extends Error {
@@ -52,10 +52,7 @@ export interface ConceptTokenProjection {
   endOffset: number;
   vocabularyId: string;
   meaningId: string;
-  pronunciationId: string;
   contextMeaningKo: string;
-  pronunciationKo: string;
-  toneMarks: string;
   role: 'TARGET' | 'REQUIRED' | 'SUPPORTING' | 'INSTRUCTION';
 }
 
@@ -65,10 +62,7 @@ export interface ConceptExpressionProjection {
   endTokenIndex: number;
   vocabularyId: string;
   meaningId: string;
-  pronunciationId: string;
   contextMeaningKo: string;
-  pronunciationKo: string;
-  toneMarks: string;
   representative: boolean;
 }
 
@@ -77,8 +71,6 @@ export interface ConceptSentenceProjection {
   sentenceVersionId: string;
   originalText: string;
   translationKo: string;
-  pronunciationKo: string;
-  toneMarks: string;
   tokens: ConceptTokenProjection[];
   expressions: ConceptExpressionProjection[];
 }
@@ -317,8 +309,6 @@ export class DrizzleLearnerConceptQuery {
         sentenceVersionId: thaiSentenceVersions.id,
         originalText: thaiSentenceVersions.originalText,
         translationKo: thaiSentenceVersions.translationKo,
-        pronunciationKo: thaiSentenceVersions.pronunciationKo,
-        toneMarks: thaiSentenceVersions.toneMarks,
       })
       .from(conceptBlockExamples)
       .innerJoin(
@@ -349,16 +339,13 @@ export class DrizzleLearnerConceptQuery {
               endOffset: tokenOccurrences.endOffset,
               vocabularyId: tokenOccurrences.vocabularyId,
               meaningId: tokenOccurrences.meaningId,
-              pronunciationId: tokenOccurrences.pronunciationId,
               contextMeaningKo: tokenOccurrences.contextMeaningKo,
-              pronunciationKo: vocabularyMeanings.pronunciationKo,
-              toneMarks: vocabularyMeanings.toneMarks,
               role: tokenOccurrences.role,
             })
             .from(tokenOccurrences)
             .innerJoin(
               vocabularyMeanings,
-              eq(tokenOccurrences.pronunciationId, vocabularyMeanings.id),
+              eq(tokenOccurrences.meaningId, vocabularyMeanings.id),
             )
             .where(inArray(tokenOccurrences.sentenceVersionId, sentenceIds))
             .orderBy(
@@ -375,16 +362,13 @@ export class DrizzleLearnerConceptQuery {
               endTokenIndex: expressionOccurrences.endTokenIndex,
               vocabularyId: expressionOccurrences.vocabularyId,
               meaningId: expressionOccurrences.meaningId,
-              pronunciationId: expressionOccurrences.pronunciationId,
               contextMeaningKo: expressionOccurrences.contextMeaningKo,
-              pronunciationKo: vocabularyMeanings.pronunciationKo,
-              toneMarks: vocabularyMeanings.toneMarks,
               representative: expressionOccurrences.representative,
             })
             .from(expressionOccurrences)
             .innerJoin(
               vocabularyMeanings,
-              eq(expressionOccurrences.pronunciationId, vocabularyMeanings.id),
+              eq(expressionOccurrences.meaningId, vocabularyMeanings.id),
             )
             .where(
               inArray(expressionOccurrences.sentenceVersionId, sentenceIds),
@@ -425,8 +409,6 @@ export class DrizzleLearnerConceptQuery {
         sentenceVersionId: row.sentenceVersionId,
         originalText: row.originalText,
         translationKo: row.translationKo,
-        pronunciationKo: row.pronunciationKo,
-        toneMarks: row.toneMarks,
         tokens: tokenRows
           .filter(
             ({ sentenceVersionId }) =>

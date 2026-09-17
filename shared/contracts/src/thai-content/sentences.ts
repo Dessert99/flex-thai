@@ -14,10 +14,7 @@ export const thaiTokenFeedbackSchema = z
     endOffset: positivePositionSchema,
     vocabularyId: uuidSchema,
     meaningId: uuidSchema,
-    pronunciationId: uuidSchema,
     contextMeaningKo: z.string().min(1),
-    pronunciationKo: z.string().min(1),
-    toneMarks: z.string(),
     role: z.enum(['TARGET', 'REQUIRED', 'SUPPORTING', 'INSTRUCTION']),
   })
   .strict();
@@ -29,10 +26,7 @@ export const thaiExpressionFeedbackSchema = z
     endTokenIndex: positivePositionSchema,
     vocabularyId: uuidSchema,
     meaningId: uuidSchema,
-    pronunciationId: uuidSchema,
     contextMeaningKo: z.string().min(1),
-    pronunciationKo: z.string().min(1),
-    toneMarks: z.string(),
     representative: z.boolean(),
   })
   .strict();
@@ -43,8 +37,6 @@ export const publicThaiSentenceSchema = z
     sentenceVersionId: uuidSchema,
     originalText: z.string().min(1),
     translationKo: z.string().min(1),
-    pronunciationKo: z.string().min(1),
-    toneMarks: z.string(),
     tokens: z.array(thaiTokenFeedbackSchema),
     expressions: z.array(thaiExpressionFeedbackSchema),
   })

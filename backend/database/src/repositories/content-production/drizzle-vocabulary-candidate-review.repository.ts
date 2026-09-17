@@ -1,4 +1,3 @@
-import { vocabularyMeaningRows } from '../vocabulary-meaning-rows.js';
 /** AI 어휘 후보 승인·폐기와 DRAFT graph·audit을 한 PostgreSQL transaction으로 저장한다 */
 import {
   assertVocabularyCandidateApproval,
@@ -463,10 +462,8 @@ export class DrizzleVocabularyCandidateReviewRepository implements VocabularyCan
       createdAt: input.occurredAt,
       updatedAt: input.occurredAt,
     });
-    const meaningIds = new Map<string, string>();
     const meanings = input.draft.meanings.map((meaning) => {
       const id = this.generateId();
-      meaningIds.set(meaning.clientRef, id);
       return {
         id,
         vocabularyId,
@@ -477,31 +474,7 @@ export class DrizzleVocabularyCandidateReviewRepository implements VocabularyCan
         createdAt: input.occurredAt,
       };
     });
-    const pronunciationIds = new Map<string, string>();
-    const pronunciations = input.draft.pronunciations.map((pronunciation) => {
-      const id = this.generateId();
-      pronunciationIds.set(pronunciation.clientRef, id);
-      return {
-        id,
-        vocabularyId,
-        pronunciationKo: pronunciation.pronunciationKo,
-        toneMarks: pronunciation.toneMarks,
-        createdAt: input.occurredAt,
-      };
-    });
-    await transaction.insert(vocabularyMeanings).values(
-      vocabularyMeaningRows({
-        meanings,
-        pronunciations,
-        meaningPronunciations: input.draft.meaningPronunciations.map(
-          ({ meaningRef, pronunciationRef }) => ({
-            vocabularyId,
-            meaningId: meaningIds.get(meaningRef)!,
-            pronunciationId: pronunciationIds.get(pronunciationRef)!,
-          }),
-        ),
-      }),
-    );
+    await transaction.insert(vocabularyMeanings).values(meanings);
     const result: VocabularyCandidateApprovalResult = {
       candidateId: candidate.id,
       reviewStatus: 'APPROVED',

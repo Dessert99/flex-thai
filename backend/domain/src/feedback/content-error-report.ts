@@ -8,11 +8,7 @@ export type ContentErrorReportTargetKind =
   'QUESTION' | 'VOCABULARY' | 'SENTENCE' | 'CONCEPT';
 /** 콘텐츠 오류 신고 분류 */
 export type ContentErrorReportCategory =
-  | 'MEANING_TRANSLATION'
-  | 'PRONUNCIATION_TONE'
-  | 'ANSWER_EXPLANATION'
-  | 'TOKENIZATION'
-  | 'OTHER';
+  'MEANING_TRANSLATION' | 'ANSWER_EXPLANATION' | 'TOKENIZATION' | 'OTHER';
 /** 공개 화면에서 전달하는 대상 origin */
 export type ContentErrorReportOrigin =
   | {
@@ -26,7 +22,6 @@ export type ContentErrorReportOrigin =
       kind: 'VOCABULARY';
       vocabularyId: string;
       meaningId: string | null;
-      pronunciationId: string | null;
     }
   | {
       kind: 'SENTENCE';

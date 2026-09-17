@@ -64,12 +64,6 @@ const mapCard = (card: PracticeCardSnapshot): PracticeCard => ({
   thai: card.thai,
   kind: card.kind,
   meanings: card.meanings,
-  pronunciations: card.pronunciations.map((pronunciation) => ({
-    id: pronunciation.id,
-    pronunciationKo: pronunciation.pronunciationKo,
-    toneMarks: pronunciation.toneMarks,
-  })),
-  meaningPronunciations: card.meaningPronunciations,
 });
 
 /** 단어 연습 use case를 진행 복구 가능한 공개 응답으로 제한한다 */

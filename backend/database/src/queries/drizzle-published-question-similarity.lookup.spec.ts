@@ -8,8 +8,6 @@ const sentence = (originalText: string) =>
   ({
     originalText,
     translationKo: '',
-    pronunciationKo: '',
-    toneMarks: '',
     tokens: [],
     expressions: [],
   }) as never;

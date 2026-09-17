@@ -22,7 +22,6 @@ describe('콘텐츠 오류 신고 계약', () => {
       kind: 'VOCABULARY',
       vocabularyId: id,
       meaningId: null,
-      pronunciationId: null,
     },
     { kind: 'SENTENCE', sentenceVersionId: id, tokenPosition: null },
     { kind: 'CONCEPT', conceptId: id, conceptVersionId: id, blockId: null },

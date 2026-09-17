@@ -117,14 +117,6 @@ describe('콘텐츠 기반 데이터베이스 schema', () => {
         onDelete: 'restrict',
       },
       {
-        name: 'token_occurrences_pronunciation_vocabulary_fk',
-        sourceTable: 'token_occurrences',
-        targetTable: 'vocabulary_meanings',
-        columns: ['pronunciation_id', 'vocabulary_id'],
-        foreignColumns: ['id', 'vocabulary_id'],
-        onDelete: 'restrict',
-      },
-      {
         name: 'expression_occurrences_sentence_version_id_thai_sentence_versions_id_fk',
         sourceTable: 'expression_occurrences',
         targetTable: 'thai_sentence_versions',
@@ -148,14 +140,6 @@ describe('콘텐츠 기반 데이터베이스 schema', () => {
         foreignColumns: ['id', 'vocabulary_id'],
         onDelete: 'restrict',
       },
-      {
-        name: 'expression_occurrences_pronunciation_vocabulary_fk',
-        sourceTable: 'expression_occurrences',
-        targetTable: 'vocabulary_meanings',
-        columns: ['pronunciation_id', 'vocabulary_id'],
-        foreignColumns: ['id', 'vocabulary_id'],
-        onDelete: 'restrict',
-      },
     ]);
   });
 
@@ -172,8 +156,6 @@ describe('콘텐츠 기반 데이터베이스 schema', () => {
       'version',
       'originalText',
       'translationKo',
-      'pronunciationKo',
-      'toneMarks',
       'frozenAt',
       'createdAt',
     ]);

@@ -24,13 +24,6 @@ const createSource = (count = 10): PracticeSourceRecord => ({
     thai: `태국어-${index + 1}`,
     meaningId: `meaning-${index + 1}`,
     meaningKo: `뜻-${index + 1}`,
-    pronunciations: [
-      {
-        id: `pronunciation-${index + 1}`,
-        pronunciationKo: `발음-${index + 1}`,
-        toneMarks: 'M',
-      },
-    ],
     card: {
       id: `vocabulary-${index + 1}`,
       thai: `태국어-${index + 1}`,
@@ -42,19 +35,6 @@ const createSource = (count = 10): PracticeSourceRecord => ({
           partOfSpeech: '명사',
           difficulty: 1,
           contextNote: null,
-        },
-      ],
-      pronunciations: [
-        {
-          id: `pronunciation-${index + 1}`,
-          pronunciationKo: `발음-${index + 1}`,
-          toneMarks: 'M',
-        },
-      ],
-      meaningPronunciations: [
-        {
-          meaningId: `meaning-${index + 1}`,
-          pronunciationId: `pronunciation-${index + 1}`,
         },
       ],
     },

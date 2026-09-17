@@ -7,13 +7,6 @@ const candidateRow = {
   thai: 'เรียน',
   meaningId: 'meaning-1',
   meaningKo: '배우다',
-  pronunciations: [
-    {
-      id: 'pronunciation-1',
-      pronunciationKo: '리안',
-      toneMarks: 'M',
-    },
-  ],
   card: {
     id: 'vocabulary-1',
     thai: 'เรียน',
@@ -26,16 +19,6 @@ const candidateRow = {
         difficulty: 1,
         contextNote: null,
       },
-    ],
-    pronunciations: [
-      {
-        id: 'pronunciation-1',
-        pronunciationKo: '리안',
-        toneMarks: 'M',
-      },
-    ],
-    meaningPronunciations: [
-      { meaningId: 'meaning-1', pronunciationId: 'pronunciation-1' },
     ],
   },
 };
@@ -71,10 +54,10 @@ describe('DrizzleVocabularyPracticeQuery source 조회', () => {
     const sqlText = toSql(fake.queries[0]);
     expect(sqlText).toContain('published');
     expect(sqlText).not.toContain('vocabulary_meaning_pronunciations');
-    expect(sqlText).toContain('m.pronunciation_ko');
+    expect(sqlText).not.toContain('m.pronunciation_ko');
     expect(sqlText).toContain('array_position');
-    expect(sqlText).toContain('jsonb_build_array');
-    expect(sqlText).toContain('m.tone_marks');
+    expect(sqlText).toContain('jsonb_build_object');
+    expect(sqlText).not.toContain('m.tone_marks');
     expect(sqlText).not.toContain('where emp.meaning_id = m.id');
   });
 
@@ -126,7 +109,6 @@ describe('DrizzleVocabularyPracticeQuery 세션 조회', () => {
           position: 1,
           vocabularyId: 'vocabulary-1',
           meaningId: 'meaning-1',
-          pronunciationId: null,
           mode: 'THAI_TO_MEANING',
           promptText: 'เรียน',
           options: [

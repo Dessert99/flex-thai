@@ -5,7 +5,6 @@ import type { Vocabulary } from './vocabulary.js';
 export interface VocabularyAdminLockedGraph {
   vocabulary: Vocabulary;
   meanings: Array<{ id: string }>;
-  pronunciations: Array<{ id: string }>;
 }
 
 /** 교체할 새 뜻 row */
@@ -18,27 +17,10 @@ export interface VocabularyAdminMeaningGraph {
   contextNote: string | null;
 }
 
-/** 교체할 새 발음 row */
-export interface VocabularyAdminPronunciationGraph {
-  id: string;
-  vocabularyId: string;
-  pronunciationKo: string;
-  toneMarks: string;
-}
-
-/** 새 뜻과 발음의 명시적 연결 row */
-export interface VocabularyAdminMeaningPronunciationGraph {
-  vocabularyId: string;
-  meaningId: string;
-  pronunciationId: string;
-}
-
 /** DRAFT 어휘와 child 전체를 바꿀 resolved graph */
 export interface VocabularyAdminReplacementGraph {
   vocabulary: Vocabulary & { updatedAt: Date };
   meanings: VocabularyAdminMeaningGraph[];
-  pronunciations: VocabularyAdminPronunciationGraph[];
-  meaningPronunciations: VocabularyAdminMeaningPronunciationGraph[];
 }
 
 /** 관리자 어휘 변경과 같은 transaction에 append할 감사 입력 */
@@ -66,7 +48,6 @@ export interface VocabularyAdminTransaction {
   hasQuestionUsage(input: {
     vocabularyId: string;
     meaningIds: string[];
-    pronunciationIds: string[];
   }): Promise<boolean>;
   findDuplicateVocabularyId(
     normalizedThai: string,

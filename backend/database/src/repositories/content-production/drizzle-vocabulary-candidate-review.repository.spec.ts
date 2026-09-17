@@ -30,19 +30,6 @@ const createDraftCommand = {
         contextNote: null,
       },
     ],
-    pronunciations: [
-      {
-        clientRef: 'pronunciation.main',
-        pronunciationKo: '싸왓디',
-        toneMarks: 'L-L-M',
-      },
-    ],
-    meaningPronunciations: [
-      {
-        meaningRef: 'meaning.greeting',
-        pronunciationRef: 'pronunciation.main',
-      },
-    ],
   },
 };
 

@@ -36,7 +36,6 @@ interface QuestionRow {
   position: number;
   vocabularyId: string;
   meaningId: string;
-  pronunciationId: string | null;
   mode: PracticeSessionRecord['modes'][number];
   promptText: string | null;
   options: PracticeSessionRecord['questions'][number]['options'];
@@ -69,9 +68,6 @@ const candidateSelect = (
     v.thai as "thai",
     m.id as "meaningId",
     m.meaning_ko as "meaningKo",
-    jsonb_build_array(jsonb_build_object(
-      'id', m.id, 'pronunciationKo', m.pronunciation_ko, 'toneMarks', m.tone_marks
-    )) as "pronunciations",
     jsonb_build_object(
       'id', v.id,
       'thai', v.thai,
@@ -86,20 +82,6 @@ const candidateSelect = (
         ) order by cm.id)
         from vocabulary_meanings cm
         where cm.vocabulary_id = v.id
-      ),
-      'pronunciations', (
-        select jsonb_agg(jsonb_build_object(
-          'id', cp.id,
-          'pronunciationKo', cp.pronunciation_ko,
-          'toneMarks', cp.tone_marks
-        ) order by cp.id)
-        from vocabulary_meanings cp
-
-        where cp.vocabulary_id = v.id
-      ),
-      'meaningPronunciations', (
-        select jsonb_agg(jsonb_build_object('meaningId', cm.id, 'pronunciationId', cm.id) order by cm.id)
-        from vocabulary_meanings cm where cm.vocabulary_id = v.id
       )
     ) as "card"
   from vocabularies v
@@ -200,7 +182,6 @@ export class DrizzleVocabularyPracticeQuery {
         position,
         vocabulary_id as "vocabularyId",
         meaning_id as "meaningId",
-        pronunciation_id as "pronunciationId",
         mode,
         prompt_text as "promptText",
         options,

@@ -37,7 +37,7 @@ describe('로컬 seed SQL', () => {
 
   it('개념 block 신고 snapshot을 현재 canonical 위치와 문맥으로 저장한다', () => {
     expect(seedSql).toContain(
-      '"primaryText":"인사말 예문","secondaryText":"기본 인사말의 발음과 성조를 실제 문장으로 익힙니다."',
+      '"primaryText":"인사말 예문","secondaryText":"기본 인사말의 뜻과 쓰임을 실제 문장으로 익힙니다."',
     );
     expect(seedSql).toContain('"locationLabel":"개념 블록 2"');
   });
@@ -48,7 +48,7 @@ describe('로컬 seed SQL', () => {
     expect(seedSql).toContain("'ACTIVE'");
     expect(seedSql).toContain("'general'");
     expect(seedSql).toMatch(
-      /insert into question_versions \([\s\S]*topic_id[\s\S]*'00000000-0000-4000-8000-000000000320'/iu,
+      /insert into questions \([\s\S]*topic_id[\s\S]*'00000000-0000-4000-8000-000000000320'/iu,
     );
   });
 

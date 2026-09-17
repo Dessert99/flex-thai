@@ -390,8 +390,6 @@ const createIntegrationFixture = async (
   const sentence = {
     originalText: 'ก',
     translationKo: '뜻',
-    pronunciationKo: '꺼',
-    toneMarks: '-',
     tokens: [],
     expressions: [],
   };

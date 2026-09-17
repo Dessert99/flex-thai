@@ -29,7 +29,6 @@ describe('Vocabulary 공용 어휘 상태 전이', () => {
         thai: 'สวัสดี',
         kind: 'WORD',
       }),
-      [{ pronunciationKo: '싸왓디', toneMarks: '' }],
     );
 
     expect(restoreVocabulary(hideVocabulary(published)).status).toBe(

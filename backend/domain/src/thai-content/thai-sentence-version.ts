@@ -12,7 +12,6 @@ export interface ThaiTokenOccurrenceInput {
   endOffset: number;
   vocabularyId: string;
   meaningId: string;
-  pronunciationId: string;
   contextMeaningKo: string;
   role: ThaiTokenRole;
 }
@@ -24,7 +23,6 @@ export interface ThaiExpressionOccurrenceInput {
   vocabularyId: string;
   vocabularyKind: 'WORD' | 'EXPRESSION';
   meaningId: string;
-  pronunciationId: string;
   contextMeaningKo: string;
   adminSelected: boolean;
 }
@@ -33,8 +31,6 @@ export interface ThaiExpressionOccurrenceInput {
 export interface ThaiSentenceVersionInput {
   originalText: string;
   translationKo: string;
-  pronunciationKo: string;
-  toneMarks: string;
   tokens: ThaiTokenOccurrenceInput[];
   expressions: ThaiExpressionOccurrenceInput[];
 }

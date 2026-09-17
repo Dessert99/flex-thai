@@ -59,7 +59,7 @@ interface CandidateVersionRow {
   status: 'DRAFT' | 'PUBLISHED' | 'RETIRED';
   validationStatus: 'PENDING' | 'PASSED' | 'FAILED';
   validatedRevision: number | null;
-  category: 'THAI_SCRIPT_PRONUNCIATION' | 'GRAMMAR';
+  category: 'THAI_SCRIPT' | 'GRAMMAR';
   position: number;
   title: string;
   summary: string;
@@ -237,7 +237,6 @@ const loadCandidate = async (
             sentenceVersionId: tokenOccurrences.sentenceVersionId,
             index: tokenOccurrences.position,
             meaningReferenceId: vocabularyMeanings.id,
-            pronunciationReferenceId: vocabularyMeanings.id,
           })
           .from(tokenOccurrences)
           .leftJoin(
@@ -260,7 +259,6 @@ const loadCandidate = async (
             sentenceVersionId: expressionOccurrences.sentenceVersionId,
             index: expressionOccurrences.startTokenIndex,
             meaningReferenceId: vocabularyMeanings.id,
-            pronunciationReferenceId: vocabularyMeanings.id,
           })
           .from(expressionOccurrences)
           .leftJoin(
@@ -293,9 +291,7 @@ const loadCandidate = async (
           .map((feedback) => ({
             kind: 'TOKEN' as const,
             index: feedback.index,
-            referenceValid:
-              feedback.meaningReferenceId !== null &&
-              feedback.pronunciationReferenceId !== null,
+            referenceValid: feedback.meaningReferenceId !== null,
           })),
         ...expressionFeedback
           .filter(
@@ -305,9 +301,7 @@ const loadCandidate = async (
           .map((feedback) => ({
             kind: 'EXPRESSION' as const,
             index: feedback.index,
-            referenceValid:
-              feedback.meaningReferenceId !== null &&
-              feedback.pronunciationReferenceId !== null,
+            referenceValid: feedback.meaningReferenceId !== null,
           })),
       ],
     })),
@@ -354,7 +348,6 @@ export const lockConceptReferencedContent = async (
   const tokenRows = await session
     .select({
       meaningId: tokenOccurrences.meaningId,
-      pronunciationId: tokenOccurrences.meaningId,
     })
     .from(tokenOccurrences)
     .where(inArray(tokenOccurrences.sentenceVersionId, sentenceIds))
@@ -363,7 +356,6 @@ export const lockConceptReferencedContent = async (
   const expressionRows = await session
     .select({
       meaningId: expressionOccurrences.meaningId,
-      pronunciationId: expressionOccurrences.meaningId,
     })
     .from(expressionOccurrences)
     .where(inArray(expressionOccurrences.sentenceVersionId, sentenceIds))
@@ -372,26 +364,11 @@ export const lockConceptReferencedContent = async (
   const meaningIds = uniqueSorted(
     [...tokenRows, ...expressionRows].map(({ meaningId }) => meaningId),
   );
-  const pronunciationIds = uniqueSorted(
-    [...tokenRows, ...expressionRows].map(
-      ({ pronunciationId }) => pronunciationId,
-    ),
-  );
   if (meaningIds.length > 0) {
     await session
       .select({ id: vocabularyMeanings.id })
       .from(vocabularyMeanings)
       .where(inArray(vocabularyMeanings.id, meaningIds))
-      .orderBy(asc(vocabularyMeanings.id))
-      .for('update');
-  }
-  if (pronunciationIds.length > 0) {
-    await session
-      .select({
-        id: vocabularyMeanings.id,
-      })
-      .from(vocabularyMeanings)
-      .where(inArray(vocabularyMeanings.id, pronunciationIds))
       .orderBy(asc(vocabularyMeanings.id))
       .for('update');
   }

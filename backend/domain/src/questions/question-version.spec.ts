@@ -33,8 +33,6 @@ const candidate = (): QuestionVersionValidationCandidate => ({
         input: {
           originalText: 'กข',
           translationKo: '정답',
-          pronunciationKo: '꼬 커',
-          toneMarks: '- -',
           tokens: [],
           expressions: [],
         },
@@ -51,8 +49,6 @@ const candidate = (): QuestionVersionValidationCandidate => ({
         input: {
           originalText: 'คง',
           translationKo: '오답',
-          pronunciationKo: '커 응어',
-          toneMarks: '- -',
           tokens: [],
           expressions: [],
         },
@@ -74,7 +70,6 @@ describe('QuestionVersion 문제 버전 게시 검증', () => {
       endOffset: position + 1,
       vocabularyId: `vocabulary-${position}`,
       meaningId: `meaning-${position}`,
-      pronunciationId: `pronunciation-${position}`,
       contextMeaningKo: `뜻-${position}`,
       role: 'TARGET' as const,
     }));
@@ -234,7 +229,6 @@ describe('QuestionVersion 문제 버전 게시 검증', () => {
         endOffset: 1,
         vocabularyId: 'vocabulary-id',
         meaningId: 'meaning-id',
-        pronunciationId: 'pronunciation-id',
         contextMeaningKo: '뜻',
         role: 'TARGET',
       },

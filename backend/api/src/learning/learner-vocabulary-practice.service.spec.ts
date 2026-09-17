@@ -6,7 +6,6 @@ const ids = {
   user: '00000000-0000-4000-8000-000000000802',
   vocabulary: '00000000-0000-4000-8000-000000000803',
   meaning: '00000000-0000-4000-8000-000000000804',
-  pronunciation: '00000000-0000-4000-8000-000000000805',
   question: '00000000-0000-4000-8000-000000000807',
   option: '00000000-0000-4000-8000-000000000808',
   secondOption: '00000000-0000-4000-8000-000000000809',
@@ -29,16 +28,6 @@ const card = {
       contextNote: null,
     },
   ],
-  pronunciations: [
-    {
-      id: ids.pronunciation,
-      pronunciationKo: '리안',
-      toneMarks: 'M',
-    },
-  ],
-  meaningPronunciations: [
-    { meaningId: ids.meaning, pronunciationId: ids.pronunciation },
-  ],
 } as const;
 const question = {
   id: ids.question,
@@ -46,7 +35,6 @@ const question = {
   position: 1,
   vocabularyId: ids.vocabulary,
   meaningId: ids.meaning,
-  pronunciationId: ids.pronunciation,
   mode: 'THAI_TO_MEANING',
   prompt: { type: 'TEXT', text: 'เรียน' },
   options: [

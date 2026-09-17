@@ -24,10 +24,6 @@ const sourceGraph = (
     ...overrides,
   },
   meanings: ['00000000-0000-4000-8000-000000000011'],
-  pronunciations: ['00000000-0000-4000-8000-000000000021'],
-  meaningPronunciations: [
-    '00000000-0000-4000-8000-000000000011:00000000-0000-4000-8000-000000000021',
-  ],
   relations: [],
   incomingMergeSourceIds: [],
   tokenOccurrenceIds: [],

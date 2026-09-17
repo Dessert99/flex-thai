@@ -29,7 +29,6 @@ interface StoredQuestionRow {
   position: number;
   vocabularyId: string;
   meaningId: string;
-  pronunciationId: string | null;
   mode: MaterializedPracticeQuestion['mode'];
   promptText: string | null;
   options: MaterializedPracticeQuestion['options'];
@@ -109,7 +108,6 @@ const replayQuery = (userId: string, clientAnswerId: string): SQL => sql`
     q.position,
     q.vocabulary_id as "vocabularyId",
     q.meaning_id as "meaningId",
-    q.pronunciation_id as "pronunciationId",
     q.mode,
     q.prompt_text as "promptText",
     q.options,
@@ -171,12 +169,11 @@ export class DrizzleVocabularyPracticeRepository implements VocabularyPracticeRe
         )
       `);
       for (const question of input.questions) {
-        const targetPronunciation = question.card.pronunciations[0];
         await transaction.execute(sql`
           insert into vocabulary_practice_questions (
             id, session_id, position, vocabulary_id, meaning_id,
             mode, prompt_text, thai_snapshot, meaning_ko_snapshot,
-            pronunciation_ko_snapshot, tone_marks_snapshot, options,
+            options,
             correct_option_id, card_snapshot
           ) values (
             ${question.id}, ${question.sessionId}, ${question.position},
@@ -185,8 +182,6 @@ export class DrizzleVocabularyPracticeRepository implements VocabularyPracticeRe
             ${question.prompt.text},
             ${question.card.thai},
             ${question.card.meanings.find(({ id }) => id === question.meaningId)?.meaningKo ?? ''},
-            ${targetPronunciation?.pronunciationKo ?? null},
-            ${targetPronunciation?.toneMarks ?? null},
             ${JSON.stringify(question.options)}::jsonb,
             ${question.correctOptionId},
             ${JSON.stringify(question.card)}::jsonb
@@ -228,7 +223,6 @@ export class DrizzleVocabularyPracticeRepository implements VocabularyPracticeRe
           q.position,
           q.vocabulary_id as "vocabularyId",
           q.meaning_id as "meaningId",
-          q.pronunciation_id as "pronunciationId",
           q.mode,
           q.prompt_text as "promptText",
           q.options,

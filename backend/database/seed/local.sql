@@ -186,9 +186,7 @@ insert into vocabulary_meanings (
   part_of_speech,
   difficulty,
   context_note,
-  created_at,
-  pronunciation_ko,
-  tone_marks
+  created_at
 ) values
   (
     '00000000-0000-4000-8000-000000000111',
@@ -197,9 +195,7 @@ insert into vocabulary_meanings (
     '감탄사',
     1,
     '태국어의 기본 인사말',
-    '2026-07-01T00:00:00Z',
-    '싸왓디',
-    'L-H-M'
+    '2026-07-01T00:00:00Z'
   ),
   (
     '00000000-0000-4000-8000-000000000112',
@@ -208,9 +204,7 @@ insert into vocabulary_meanings (
     '감탄사',
     1,
     '감사를 표현할 때 사용',
-    '2026-07-02T00:00:00Z',
-    '컵쿤',
-    'L-M'
+    '2026-07-02T00:00:00Z'
   ),
   (
     '00000000-0000-4000-8000-000000000113',
@@ -219,9 +213,7 @@ insert into vocabulary_meanings (
     '표현',
     2,
     '사과나 감사에 답할 때 사용',
-    '2026-07-03T00:00:00Z',
-    '마이뺀라이',
-    'F-M-M'
+    '2026-07-03T00:00:00Z'
   ),
   (
     '00000000-0000-4000-8000-000000000114',
@@ -230,9 +222,7 @@ insert into vocabulary_meanings (
     '동사',
     2,
     null,
-    '2026-07-04T00:00:00Z',
-    '리안',
-    'M'
+    '2026-07-04T00:00:00Z'
   ),
   (
     '00000000-0000-4000-8000-000000000115',
@@ -241,9 +231,7 @@ insert into vocabulary_meanings (
     '감탄사',
     1,
     '사과할 때 사용',
-    '2026-07-05T00:00:00Z',
-    '커톳',
-    'L-F'
+    '2026-07-05T00:00:00Z'
   ),
   (
     '00000000-0000-4000-8000-000000000116',
@@ -252,9 +240,7 @@ insert into vocabulary_meanings (
     '부사',
     1,
     '긍정할 때 사용',
-    '2026-07-05T00:00:00Z',
-    '차이',
-    'F'
+    '2026-07-05T00:00:00Z'
   ),
   (
     '00000000-0000-4000-8000-000000000117',
@@ -263,9 +249,7 @@ insert into vocabulary_meanings (
     '부사',
     1,
     '부정할 때 사용',
-    '2026-07-05T00:00:00Z',
-    '마이',
-    'F'
+    '2026-07-05T00:00:00Z'
   ),
   (
     '00000000-0000-4000-8000-000000000118',
@@ -274,9 +258,7 @@ insert into vocabulary_meanings (
     '동사',
     1,
     null,
-    '2026-07-05T00:00:00Z',
-    '낀',
-    'M'
+    '2026-07-05T00:00:00Z'
   ),
   (
     '00000000-0000-4000-8000-000000000119',
@@ -285,9 +267,7 @@ insert into vocabulary_meanings (
     '동사',
     1,
     null,
-    '2026-07-05T00:00:00Z',
-    '듬',
-    'L'
+    '2026-07-05T00:00:00Z'
   ),
   (
     '00000000-0000-4000-8000-000000000120',
@@ -296,9 +276,7 @@ insert into vocabulary_meanings (
     '동사',
     1,
     null,
-    '2026-07-05T00:00:00Z',
-    '빠이',
-    'M'
+    '2026-07-05T00:00:00Z'
   ),
   (
     '00000000-0000-4000-8000-000000000121',
@@ -307,9 +285,7 @@ insert into vocabulary_meanings (
     '동사',
     1,
     null,
-    '2026-07-05T00:00:00Z',
-    '마',
-    'M'
+    '2026-07-05T00:00:00Z'
   ),
   (
     '00000000-0000-4000-8000-000000000122',
@@ -318,9 +294,7 @@ insert into vocabulary_meanings (
     '명사',
     1,
     null,
-    '2026-07-05T00:00:00Z',
-    '반',
-    'F'
+    '2026-07-05T00:00:00Z'
   );
 
 
@@ -344,8 +318,6 @@ insert into thai_sentence_versions (
   version,
   original_text,
   translation_ko,
-  pronunciation_ko,
-  tone_marks,
   frozen_at,
   created_at
 ) values
@@ -355,8 +327,6 @@ insert into thai_sentence_versions (
     1,
     'สวัสดี',
     '다음 태국어의 뜻을 고르세요.',
-    '싸왓디',
-    'L-H-M',
     '2026-07-01T00:00:00Z',
     '2026-07-01T00:00:00Z'
   ),
@@ -366,8 +336,6 @@ insert into thai_sentence_versions (
     1,
     '안녕하세요',
     '안녕하세요',
-    '안녕하세요',
-    '-',
     '2026-07-01T00:00:00Z',
     '2026-07-01T00:00:00Z'
   ),
@@ -377,8 +345,6 @@ insert into thai_sentence_versions (
     1,
     '감사합니다',
     '감사합니다',
-    '감사합니다',
-    '-',
     '2026-07-01T00:00:00Z',
     '2026-07-01T00:00:00Z'
   ),
@@ -388,8 +354,6 @@ insert into thai_sentence_versions (
     1,
     '괜찮습니다',
     '괜찮습니다',
-    '괜찮습니다',
-    '-',
     '2026-07-01T00:00:00Z',
     '2026-07-01T00:00:00Z'
   ),
@@ -399,8 +363,6 @@ insert into thai_sentence_versions (
     1,
     '미안합니다',
     '미안합니다',
-    '미안합니다',
-    '-',
     '2026-07-01T00:00:00Z',
     '2026-07-01T00:00:00Z'
   ),
@@ -410,8 +372,6 @@ insert into thai_sentence_versions (
     1,
     'ขอบคุณ',
     '다음 태국어의 뜻을 고르세요.',
-    '컵쿤',
-    'L-M',
     '2026-07-01T00:00:00Z',
     '2026-07-01T00:00:00Z'
   ),
@@ -421,8 +381,6 @@ insert into thai_sentence_versions (
     1,
     'สวัสดี는 기본 인사말입니다.',
     'สวัสดี는 안녕하세요라는 뜻입니다.',
-    '싸왓디',
-    'L-H-M',
     '2026-07-01T00:00:00Z',
     '2026-07-01T00:00:00Z'
   ),
@@ -432,8 +390,6 @@ insert into thai_sentence_versions (
     1,
     'ขอบคุณ은 감사를 표현합니다.',
     'ขอบคุณ은 감사합니다라는 뜻입니다.',
-    '컵쿤',
-    'L-M',
     '2026-07-01T00:00:00Z',
     '2026-07-01T00:00:00Z'
   ),
@@ -443,8 +399,6 @@ insert into thai_sentence_versions (
     1,
     'สวัสดี',
     '다음 태국어의 뜻을 고르세요.',
-    '싸왓디',
-    'L-H-M',
     null,
     '2026-07-01T00:01:00Z'
   );
@@ -458,7 +412,6 @@ insert into token_occurrences (
   end_offset,
   vocabulary_id,
   meaning_id,
-  pronunciation_id,
   context_meaning_ko,
   role
 ) values
@@ -470,7 +423,6 @@ insert into token_occurrences (
     0,
     6,
     '00000000-0000-4000-8000-000000000101',
-    '00000000-0000-4000-8000-000000000111',
     '00000000-0000-4000-8000-000000000111',
     '안녕하세요',
     'TARGET'
@@ -484,7 +436,6 @@ insert into token_occurrences (
     6,
     '00000000-0000-4000-8000-000000000102',
     '00000000-0000-4000-8000-000000000112',
-    '00000000-0000-4000-8000-000000000112',
     '감사합니다',
     'TARGET'
   ),
@@ -496,7 +447,6 @@ insert into token_occurrences (
     0,
     6,
     '00000000-0000-4000-8000-000000000101',
-    '00000000-0000-4000-8000-000000000111',
     '00000000-0000-4000-8000-000000000111',
     '안녕하세요',
     'TARGET'
@@ -916,16 +866,17 @@ insert into question_type_approved_examples (
           "sentence": {
             "originalText": "สวัสดี",
             "translationKo": "다음 태국어의 뜻을 고르세요.",
-            "pronunciationKo": "싸왓디",
-            "toneMarks": "L-H-M",
             "tokens": [
               {
                 "surface": "สวัสดี",
                 "startOffset": 0,
                 "endOffset": 6,
-                "vocabulary": { "id": "00000000-0000-4000-8000-000000000101" },
-                "meaning": { "id": "00000000-0000-4000-8000-000000000111" },
-                "pronunciation": { "id": "00000000-0000-4000-8000-000000000121" },
+                "vocabulary": {
+                  "id": "00000000-0000-4000-8000-000000000101"
+                },
+                "meaning": {
+                  "id": "00000000-0000-4000-8000-000000000111"
+                },
                 "contextMeaningKo": "안녕하세요",
                 "role": "TARGET"
               }
@@ -942,8 +893,6 @@ insert into question_type_approved_examples (
           "sentence": {
             "originalText": "สวัสดี는 기본 인사말입니다.",
             "translationKo": "สวัสดี는 안녕하세요라는 뜻입니다.",
-            "pronunciationKo": "싸왓디",
-            "toneMarks": "L-H-M",
             "tokens": [],
             "expressions": []
           }
@@ -958,8 +907,6 @@ insert into question_type_approved_examples (
       "sentence": {
         "originalText": "안녕하세요",
         "translationKo": "안녕하세요",
-        "pronunciationKo": "안녕하세요",
-        "toneMarks": "-",
         "tokens": [],
         "expressions": []
       },
@@ -971,8 +918,6 @@ insert into question_type_approved_examples (
       "sentence": {
         "originalText": "감사합니다",
         "translationKo": "감사합니다",
-        "pronunciationKo": "감사합니다",
-        "toneMarks": "-",
         "tokens": [],
         "expressions": []
       },
@@ -984,8 +929,6 @@ insert into question_type_approved_examples (
       "sentence": {
         "originalText": "괜찮습니다",
         "translationKo": "괜찮습니다",
-        "pronunciationKo": "괜찮습니다",
-        "toneMarks": "-",
         "tokens": [],
         "expressions": []
       },
@@ -997,8 +940,6 @@ insert into question_type_approved_examples (
       "sentence": {
         "originalText": "미안합니다",
         "translationKo": "미안합니다",
-        "pronunciationKo": "미안합니다",
-        "toneMarks": "-",
         "tokens": [],
         "expressions": []
       },
@@ -1008,7 +949,7 @@ insert into question_type_approved_examples (
   "correctOptionRef": "option-1"
 }
 $readingVocabularyExample$::jsonb,
-  '5963e9e5ee0530a7684d863bcc399fea91c086eb93aa3b1a6878e8e131c0218e',
+  '4f8d889208185a1c356a922bd350eafa881fc7ea5e0bb9082c29bf12eed810a8',
   '2026-07-10T00:00:00Z'
 );
 
@@ -1158,10 +1099,10 @@ insert into concept_versions (
     '00000000-0000-4000-8000-000000000701',
     1,
     0,
-    'THAI_SCRIPT_PRONUNCIATION',
+    'THAI_SCRIPT',
     0,
-    '태국어 인사말의 소리',
-    '기본 인사말의 발음과 성조를 실제 문장으로 익힙니다.',
+    '태국어 인사말의 쓰임',
+    '기본 인사말의 뜻과 쓰임을 실제 문장으로 익힙니다.',
     'PUBLISHED',
     'PASSED',
     '[]',
@@ -1260,7 +1201,7 @@ insert into concept_block_examples (
     '00000000-0000-4000-8000-000000000722',
     0,
     '00000000-0000-4000-8000-000000000217',
-    '인사말의 뜻과 발음을 함께 확인합니다.'
+    '인사말의 뜻과 쓰임을 함께 확인합니다.'
   ),
   (
     '00000000-0000-4000-8000-000000000732',
@@ -1300,12 +1241,12 @@ insert into content_error_reports (
     '00000000-0000-4000-8000-000000000802',
     '00000000-0000-4000-8000-000000000002',
     'CONCEPT',
-    'PRONUNCIATION_TONE',
+    'MEANING_TRANSLATION',
     'IN_PROGRESS',
     '00000000-0000-4000-8000-000000000001',
-    '예문 발음 설명을 확인해 주세요.',
+    '예문 뜻 설명을 확인해 주세요.',
     '{"kind":"CONCEPT","contentId":"00000000-0000-4000-8000-000000000701","contentVersionId":"00000000-0000-4000-8000-000000000711","questionVersionId":null,"sentenceVersionId":null,"locationId":"00000000-0000-4000-8000-000000000722"}',
-    '{"title":"태국어 인사말의 소리","primaryText":"인사말 예문","secondaryText":"기본 인사말의 발음과 성조를 실제 문장으로 익힙니다.","versionLabel":"버전 1","locationLabel":"개념 블록 2"}',
+    '{"title":"태국어 인사말의 쓰임","primaryText":"인사말 예문","secondaryText":"기본 인사말의 뜻과 쓰임을 실제 문장으로 익힙니다.","versionLabel":"버전 1","locationLabel":"개념 블록 2"}',
     '2026-07-18T01:00:00Z',
     '2026-07-18T01:02:00Z'
   );

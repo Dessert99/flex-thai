@@ -12,7 +12,6 @@ import {
 const ids = {
   vocabulary: '00000000-0000-4000-8000-000000000001',
   meaning: '00000000-0000-4000-8000-000000000002',
-  pronunciation: '00000000-0000-4000-8000-000000000003',
   sentence: '00000000-0000-4000-8000-000000000005',
   questionVersion: '00000000-0000-4000-8000-000000000006',
   relation: '00000000-0000-4000-8000-000000000007',
@@ -45,7 +44,7 @@ describe('관리자 어휘 path·query·교체 계약', () => {
     ).toThrow();
   });
 
-  it('어휘 전체 교체는 strict 뜻·발음과 명시적 mapping을 검증한다', () => {
+  it('어휘 전체 교체는 중복 뜻과 지원하지 않는 필드를 거부한다', () => {
     const request = {
       thai: 'สวัสดี',
       kind: 'WORD',
@@ -56,19 +55,6 @@ describe('관리자 어휘 path·query·교체 계약', () => {
           partOfSpeech: '감탄사',
           difficulty: 1,
           contextNote: null,
-        },
-      ],
-      pronunciations: [
-        {
-          clientRef: 'pronunciation.greeting',
-          pronunciationKo: '싸왓디',
-          toneMarks: 'L-L-M',
-        },
-      ],
-      meaningPronunciations: [
-        {
-          meaningRef: 'meaning.greeting',
-          pronunciationRef: 'pronunciation.greeting',
         },
       ],
     } as const;
@@ -83,12 +69,7 @@ describe('관리자 어휘 path·query·교체 계약', () => {
     expect(() =>
       adminVocabularyReplaceRequestSchema.parse({
         ...request,
-        meaningPronunciations: [
-          {
-            meaningRef: 'meaning.missing',
-            pronunciationRef: 'pronunciation.greeting',
-          },
-        ],
+        internal: true,
       }),
     ).toThrow();
   });
@@ -105,7 +86,6 @@ describe('관리자 어휘 공개 응답 계약', () => {
           status: 'DRAFT',
           mergedIntoVocabularyId: null,
           meaningCount: 1,
-          pronunciationCount: 1,
           updatedAt: '2026-07-24T00:00:00.000Z',
         },
       ],
@@ -115,7 +95,7 @@ describe('관리자 어휘 공개 응답 계약', () => {
     expect(adminVocabularyListResponseSchema.parse(response)).toEqual(response);
   });
 
-  it('뜻·발음 mapping과 사용처를 공개하되 storage key와 DB row를 거부한다', () => {
+  it('뜻과 사용처를 공개하되 내부 필드와 제거된 발음 필드를 거부한다', () => {
     const detail = {
       id: ids.vocabulary,
       thai: 'สวัสดี',
@@ -130,16 +110,6 @@ describe('관리자 어휘 공개 응답 계약', () => {
           difficulty: 1,
           contextNote: null,
         },
-      ],
-      pronunciations: [
-        {
-          id: ids.pronunciation,
-          pronunciationKo: '싸왓디',
-          toneMarks: 'L-L-M',
-        },
-      ],
-      meaningPronunciations: [
-        { meaningId: ids.meaning, pronunciationId: ids.pronunciation },
       ],
       relations: [
         {
@@ -181,38 +151,25 @@ describe('관리자 어휘 공개 응답 계약', () => {
     expect(() =>
       adminVocabularyDetailResponseSchema.parse({
         ...detail,
-        pronunciations: [detail.pronunciations[0], detail.pronunciations[0]],
+        pronunciations: [],
       }),
     ).toThrow();
     expect(() =>
       adminVocabularyDetailResponseSchema.parse({
         ...detail,
-        meaningPronunciations: [
-          {
-            meaningId: ids.sentence,
-            pronunciationId: ids.pronunciation,
-          },
-        ],
+        meaningPronunciations: [],
       }),
     ).toThrow();
     expect(() =>
       adminVocabularyDetailResponseSchema.parse({
         ...detail,
-        meaningPronunciations: [
-          {
-            meaningId: ids.meaning,
-            pronunciationId: ids.sentence,
-          },
-        ],
+        meanings: [{ ...detail.meanings[0], pronunciationKo: '한글 표기' }],
       }),
     ).toThrow();
     expect(() =>
       adminVocabularyDetailResponseSchema.parse({
         ...detail,
-        meaningPronunciations: [
-          detail.meaningPronunciations[0],
-          detail.meaningPronunciations[0],
-        ],
+        meanings: [{ ...detail.meanings[0], toneMarks: 'M' }],
       }),
     ).toThrow();
   });

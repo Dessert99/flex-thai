@@ -289,7 +289,6 @@ export class AdminContentService {
     });
   }
 
-  /** 뜻·발음·사용처를 storage key 없는 관리자 상세로 반환한다 */
   async getVocabulary(
     vocabularyId: string,
   ): Promise<AdminVocabularyDetailResponse> {
@@ -324,7 +323,6 @@ export class AdminContentService {
     });
   }
 
-  /** READY 발음이 있는 DRAFT 어휘를 게시한다 */
   async publishVocabulary(
     actor: AdminActorContext,
     vocabularyId: string,

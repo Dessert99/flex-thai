@@ -79,14 +79,9 @@ describe('어휘 관계와 병합 schema', () => {
 
   it('병합 중 같은 vocabulary 복합 FK를 원자적으로 옮길 수 있게 지연한다', () => {
     const constraintNames = [
-      'vocabulary_meaning_pronunciations_meaning_fk',
-      'vocabulary_meaning_pronunciations_pronunciation_fk',
       'token_occurrences_meaning_vocabulary_fk',
-      'token_occurrences_pronunciation_vocabulary_fk',
       'expression_occurrences_meaning_vocabulary_fk',
-      'expression_occurrences_pronunciation_vocabulary_fk',
       'vocabulary_practice_questions_meaning_vocabulary_fk',
-      'vocabulary_practice_questions_pronunciation_vocabulary_fk',
     ];
 
     for (const constraintName of constraintNames) {

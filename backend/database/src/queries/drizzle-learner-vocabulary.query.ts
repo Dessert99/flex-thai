@@ -54,20 +54,12 @@ export interface LearnerVocabularyMeaningProjection {
   contextNote: string | null;
 }
 
-/** 공용 어휘의 준비된 발음 projection */
-export interface LearnerVocabularyPronunciationProjection {
-  id: string;
-  pronunciationKo: string;
-  toneMarks: string;
-}
-
 /** 게시 어휘 목록과 상세가 공유하는 내부 projection */
 export interface LearnerVocabularySummaryProjection {
   id: string;
   thai: string;
   kind: LearnerVocabularyKind;
   meanings: LearnerVocabularyMeaningProjection[];
-  pronunciations: LearnerVocabularyPronunciationProjection[];
   saved: boolean;
 }
 
@@ -77,26 +69,17 @@ export interface LearnerVocabularyListProjection {
   page: LearnerVocabularyPageMetadata;
 }
 
-/** 뜻과 발음의 exact 연결 projection */
-export interface LearnerVocabularyMeaningPronunciationProjection {
-  meaningId: string;
-  pronunciationId: string;
-}
-
 /** 현재 게시 문제에서 사용하는 불변 예문 projection */
 export interface LearnerVocabularyExampleSentenceProjection {
   sentenceVersionId: string;
   originalText: string;
   translationKo: string;
-  pronunciationKo: string;
-  toneMarks: string;
   tokens: LearnerQuestionTokenProjection[];
   expressions: LearnerQuestionExpressionProjection[];
 }
 
 /** 공용 어휘 상세의 내부 projection */
 export interface LearnerVocabularyDetailProjection extends LearnerVocabularySummaryProjection {
-  meaningPronunciations: LearnerVocabularyMeaningPronunciationProjection[];
   exampleSentences: LearnerVocabularyExampleSentenceProjection[];
   relations: Array<{
     id: string;
@@ -200,12 +183,6 @@ const buildVocabularyFilter = (query: LearnerVocabularyListQuery): SQL[] => {
         where ${vocabularyMeanings.vocabularyId} = ${vocabularies.id}
           and ${vocabularyMeanings.meaningKo} ilike ${koreanPattern}
       )
-      or exists (
-        select 1
-        from ${vocabularyMeanings}
-        where ${vocabularyMeanings.vocabularyId} = ${vocabularies.id}
-          and ${vocabularyMeanings.pronunciationKo} ilike ${koreanPattern}
-      )
     )`);
   }
   return conditions;
@@ -256,7 +233,6 @@ export class DrizzleLearnerVocabularyQuery {
     };
   }
 
-  /** 게시 어휘의 exact 뜻·발음 연결과 현재 공개 문제 예문을 반환한다 */
   async getVocabularyDetail(
     userId: string,
     vocabularyId: string,
@@ -283,21 +259,11 @@ export class DrizzleLearnerVocabularyQuery {
     if (!summary) {
       return null;
     }
-    const links = summary.meanings.map(({ id }) => ({
-      meaningId: id,
-      pronunciationId: id,
-    }));
-    this.assertLinksValid(summary, links);
 
     const exampleSentences: LearnerVocabularyExampleSentenceProjection[] = [];
     const relations = await this.loadPassedRelations(vocabularyId);
     return {
       ...summary,
-      meaningPronunciations: [...links].sort(
-        (left, right) =>
-          left.meaningId.localeCompare(right.meaningId) ||
-          left.pronunciationId.localeCompare(right.pronunciationId),
-      ),
       exampleSentences,
       relations,
     };
@@ -335,8 +301,6 @@ export class DrizzleLearnerVocabularyQuery {
         id: vocabularyMeanings.id,
         vocabularyId: vocabularyMeanings.vocabularyId,
         meaningKo: vocabularyMeanings.meaningKo,
-        pronunciationKo: vocabularyMeanings.pronunciationKo,
-        toneMarks: vocabularyMeanings.toneMarks,
         partOfSpeech: vocabularyMeanings.partOfSpeech,
         difficulty: vocabularyMeanings.difficulty,
         contextNote: vocabularyMeanings.contextNote,
@@ -349,12 +313,8 @@ export class DrizzleLearnerVocabularyQuery {
         asc(vocabularyMeanings.createdAt),
         asc(vocabularyMeanings.id),
       );
-    const pronunciations = meanings;
 
     return bases.map((base) => {
-      const vocabularyPronunciationRows = pronunciations
-        .filter((pronunciation) => pronunciation.vocabularyId === base.id)
-        .sort(compareCreatedAtThenId);
       return {
         id: base.id,
         thai: base.thai,
@@ -369,35 +329,9 @@ export class DrizzleLearnerVocabularyQuery {
             difficulty: meaning.difficulty,
             contextNote: meaning.contextNote,
           })),
-        pronunciations: vocabularyPronunciationRows.map((pronunciation) => ({
-          id: pronunciation.id,
-          pronunciationKo: pronunciation.pronunciationKo,
-          toneMarks: pronunciation.toneMarks,
-        })),
         saved: base.saved,
       };
     });
-  }
-
-  private assertLinksValid(
-    summary: LearnerVocabularySummaryProjection,
-    links: LearnerVocabularyMeaningPronunciationProjection[],
-  ): void {
-    const meaningIds = new Set(summary.meanings.map((meaning) => meaning.id));
-    const pronunciationIds = new Set(
-      summary.pronunciations.map((pronunciation) => pronunciation.id),
-    );
-    if (
-      links.some(
-        (link) =>
-          !meaningIds.has(link.meaningId) ||
-          !pronunciationIds.has(link.pronunciationId),
-      )
-    ) {
-      throw new LearnerVocabularyQueryError(
-        'PUBLISHED_VOCABULARY_LINK_INVALID',
-      );
-    }
   }
 
   private async loadPassedRelations(vocabularyId: string) {

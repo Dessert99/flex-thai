@@ -41,8 +41,6 @@ export interface VocabularyMergeGraph {
     updatedAt: string;
   };
   meanings: string[];
-  pronunciations: string[];
-  meaningPronunciations: string[];
   relations: VocabularyMergeGraphRelation[];
   incomingMergeSourceIds: string[];
   tokenOccurrenceIds: string[];
@@ -134,8 +132,6 @@ export const assertVocabularyMergePair = (
 const stableGraph = (graph: VocabularyMergeGraph) => ({
   ...graph,
   meanings: [...graph.meanings].sort(),
-  pronunciations: [...graph.pronunciations].sort(),
-  meaningPronunciations: [...graph.meaningPronunciations].sort(),
   relations: graph.relations
     .map(
       ({

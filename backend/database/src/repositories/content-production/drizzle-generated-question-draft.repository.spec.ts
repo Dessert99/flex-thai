@@ -22,13 +22,10 @@ const IDS = {
   tag: '00000000-0000-4000-8000-000000000005',
   vocabulary: '00000000-0000-4000-8000-000000000006',
   meaning: '00000000-0000-4000-8000-000000000007',
-  pronunciation: '00000000-0000-4000-8000-000000000008',
   vocabularyTwo: '00000000-0000-4000-8000-000000000009',
   meaningTwo: '00000000-0000-4000-8000-000000000010',
-  pronunciationTwo: '00000000-0000-4000-8000-000000000011',
   expression: '00000000-0000-4000-8000-000000000012',
   expressionMeaning: '00000000-0000-4000-8000-000000000013',
-  expressionPronunciation: '00000000-0000-4000-8000-000000000014',
 } as const;
 
 const generatedIds = Array.from(
@@ -40,8 +37,6 @@ const generatedIds = Array.from(
 const sentence = {
   originalText: 'ภาษาไทย',
   translationKo: '태국어',
-  pronunciationKo: '파싸 타이',
-  toneMarks: '',
   tokens: [
     {
       surface: 'ภาษา',
@@ -49,7 +44,6 @@ const sentence = {
       endOffset: 4,
       vocabulary: { id: IDS.vocabularyTwo },
       meaning: { id: IDS.meaningTwo },
-      pronunciation: { id: IDS.meaningTwo },
       contextMeaningKo: '언어',
       role: 'SUPPORTING' as const,
     },
@@ -59,7 +53,6 @@ const sentence = {
       endOffset: 7,
       vocabulary: { id: IDS.vocabulary },
       meaning: { id: IDS.meaning },
-      pronunciation: { id: IDS.meaning },
       contextMeaningKo: '태국',
       role: 'TARGET' as const,
     },
@@ -70,7 +63,6 @@ const sentence = {
       endTokenIndex: 2,
       vocabulary: { id: IDS.expression },
       meaning: { id: IDS.expressionMeaning },
-      pronunciation: { id: IDS.expressionMeaning },
       contextMeaningKo: '태국어',
       representative: true,
     },
@@ -235,7 +227,6 @@ describe('Drizzle 생성 문제 DRAFT 저장소', () => {
       { mode: 'share', table: questionTopics },
       { mode: 'share', table: questionTags },
       { mode: 'share', table: vocabularies },
-      { mode: 'key share', table: vocabularyMeanings },
       { mode: 'key share', table: vocabularyMeanings },
     ]);
   });

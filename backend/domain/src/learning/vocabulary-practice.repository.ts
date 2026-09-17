@@ -14,12 +14,6 @@ export interface CreateVocabularyPracticeInput {
   order: 'RANDOM' | 'SOURCE';
 }
 
-export interface PracticePronunciationSnapshot {
-  id: string;
-  pronunciationKo: string;
-  toneMarks: string;
-}
-
 /** 콘텐츠 변경 뒤에도 학습 당시 표시를 보존하는 카드 snapshot */
 export interface PracticeCardSnapshot {
   id: string;
@@ -32,11 +26,6 @@ export interface PracticeCardSnapshot {
     difficulty: number | null;
     contextNote: string | null;
   }>;
-  pronunciations: PracticePronunciationSnapshot[];
-  meaningPronunciations: Array<{
-    meaningId: string;
-    pronunciationId: string;
-  }>;
 }
 
 /** 한 어의를 출제 후보로 표현한 source record */
@@ -45,7 +34,6 @@ export interface PracticeMeaningCandidate {
   thai: string;
   meaningId: string;
   meaningKo: string;
-  pronunciations: PracticePronunciationSnapshot[];
   card: PracticeCardSnapshot;
 }
 

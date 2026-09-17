@@ -122,21 +122,6 @@ const replacement: VocabularyAdminReplacementGraph = {
       contextNote: null,
     },
   ],
-  pronunciations: [
-    {
-      id: 'pronunciation-new',
-      vocabularyId: 'vocabulary-id',
-      pronunciationKo: '마이',
-      toneMarks: 'F',
-    },
-  ],
-  meaningPronunciations: [
-    {
-      vocabularyId: 'vocabulary-id',
-      meaningId: 'meaning-new',
-      pronunciationId: 'pronunciation-new',
-    },
-  ],
 };
 
 const audit: VocabularyAdminAuditInput = {
@@ -218,7 +203,6 @@ describe('DrizzleVocabularyAdminRepository 잠금·전체 교체', () => {
         status: 'DRAFT',
       },
       meanings: [{ id: 'meaning-old' }],
-      pronunciations: [{ id: 'meaning-old' }],
     });
     expect(fake.lockModes).toEqual(['update', 'update']);
   });
@@ -308,7 +292,6 @@ const integrationDatabaseUrl = process.env.VOCABULARY_ADMIN_TEST_DATABASE_URL;
 interface IntegrationFixture {
   actorUserId: string;
   meaningId: string;
-  pronunciationId: string;
   vocabularyId: string;
 }
 
@@ -322,7 +305,6 @@ const createIntegrationFixture = async (
   const actorUserId = randomUUID();
   const vocabularyId = randomUUID();
   const meaningId = randomUUID();
-  const pronunciationId = randomUUID();
   const normalizedThai = input.normalizedThai ?? `เดิม-${randomUUID()}`;
   await pool.query(
     `insert into users (id, cognito_sub, email, role, status, mfa_enrolled_at)
@@ -340,21 +322,9 @@ const createIntegrationFixture = async (
      ) values ($1, $2, '기존 뜻', '명사')`,
     [meaningId, vocabularyId],
   );
-  await pool.query(
-    `insert into vocabulary_pronunciations (
-       id, vocabulary_id, pronunciation_ko, tone_marks) values ($1, $2, '기존 발음', '-')`,
-    [pronunciationId, vocabularyId],
-  );
-  await pool.query(
-    `insert into vocabulary_meaning_pronunciations (
-       vocabulary_id, meaning_id, pronunciation_id
-     ) values ($1, $2, $3)`,
-    [vocabularyId, meaningId, pronunciationId],
-  );
   return {
     actorUserId,
     meaningId,
-    pronunciationId,
     vocabularyId,
   };
 };
@@ -371,16 +341,6 @@ const replacementInput = (
       meaningKo: '새 뜻',
       partOfSpeech: '명사',
     },
-  ],
-  pronunciations: [
-    {
-      clientRef: 'pronunciation',
-      pronunciationKo: '새 발음',
-      toneMarks: '-',
-    },
-  ],
-  meaningPronunciations: [
-    { meaningRef: 'meaning', pronunciationRef: 'pronunciation' },
   ],
 });
 
@@ -506,22 +466,16 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
         sentenceId,
       ]);
       await pool.query(
-        `insert into thai_sentence_versions (
-           id, sentence_id, version, original_text, translation_ko,
-           pronunciation_ko, tone_marks) values ($1, $2, 1, 'ก', '뜻', '꺼', '-')`,
+        "insert into thai_sentence_versions (id, sentence_id, version, original_text, translation_ko) values ($1, $2, 1, 'ก', '뜻')",
         [sentenceVersionId, sentenceId],
       );
       await pool.query(
-        `insert into token_occurrences (
-           id, sentence_version_id, position, surface, start_offset, end_offset,
-           vocabulary_id, meaning_id, pronunciation_id, context_meaning_ko, role
-         ) values ($1, $2, 0, 'ก', 0, 1, $3, $4, $5, '뜻', 'TARGET')`,
+        "insert into token_occurrences (id, sentence_version_id, position, surface, start_offset, end_offset, vocabulary_id, meaning_id, context_meaning_ko, role) values ($1, $2, 0, 'ก', 0, 1, $3, $4, '뜻', 'TARGET')",
         [
           randomUUID(),
           sentenceVersionId,
           fixture.vocabularyId,
           fixture.meaningId,
-          fixture.pronunciationId,
         ],
       );
       const database = drizzle({ client: pool, schema });
@@ -539,20 +493,16 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       const stored = await pool.query<{
         audits: string;
         meanings: string;
-        pronunciations: string;
       }>(
         `select
            (select count(*) from vocabulary_meanings
              where vocabulary_id = $1) "meanings",
-           (select count(*) from vocabulary_pronunciations
-             where vocabulary_id = $1) "pronunciations",
            (select count(*) from audit_logs
              where target_id = $1 and action = 'VOCABULARY_REPLACED') "audits"`,
         [fixture.vocabularyId],
       );
       expect(stored.rows[0]).toEqual({
         meanings: '1',
-        pronunciations: '1',
         audits: '0',
       });
     });
@@ -567,23 +517,16 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
         sentenceId,
       ]);
       await pool.query(
-        `insert into thai_sentence_versions (
-           id, sentence_id, version, original_text, translation_ko,
-           pronunciation_ko, tone_marks) values ($1, $2, 1, 'กข', '뜻', '꺼커', '--')`,
+        "insert into thai_sentence_versions (id, sentence_id, version, original_text, translation_ko) values ($1, $2, 1, 'กข', '뜻')",
         [sentenceVersionId, sentenceId],
       );
       await pool.query(
-        `insert into expression_occurrences (
-           id, sentence_version_id, start_token_index, end_token_index,
-           vocabulary_id, vocabulary_kind, meaning_id, pronunciation_id,
-           context_meaning_ko, representative
-         ) values ($1, $2, 0, 2, $3, 'EXPRESSION', $4, $5, '기존 뜻', true)`,
+        "insert into expression_occurrences (id, sentence_version_id, start_token_index, end_token_index, vocabulary_id, vocabulary_kind, meaning_id, context_meaning_ko, representative) values ($1, $2, 0, 2, $3, 'EXPRESSION', $4, '기존 뜻', true)",
         [
           randomUUID(),
           sentenceVersionId,
           fixture.vocabularyId,
           fixture.meaningId,
-          fixture.pronunciationId,
         ],
       );
       const service = new VocabularyAdminService(
@@ -607,9 +550,7 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
         sentenceId,
       ]);
       await pool.query(
-        `insert into thai_sentence_versions (
-           id, sentence_id, version, original_text, translation_ko,
-           pronunciation_ko, tone_marks) values ($1, $2, 1, 'ก', '뜻', '꺼', '-')`,
+        "insert into thai_sentence_versions (id, sentence_id, version, original_text, translation_ko) values ($1, $2, 1, 'ก', '뜻')",
         [sentenceVersionId, sentenceId],
       );
       const saveClient = await pool.connect();
@@ -624,22 +565,12 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
           [fixture.meaningId],
         );
         await saveClient.query(
-          `select id from vocabulary_pronunciations
-            where id = $1 for key share`,
-          [fixture.pronunciationId],
-        );
-        await saveClient.query(
-          `insert into token_occurrences (
-             id, sentence_version_id, position, surface, start_offset,
-             end_offset, vocabulary_id, meaning_id, pronunciation_id,
-             context_meaning_ko, role
-           ) values ($1, $2, 0, 'ก', 0, 1, $3, $4, $5, '뜻', 'TARGET')`,
+          "insert into token_occurrences (id, sentence_version_id, position, surface, start_offset, end_offset, vocabulary_id, meaning_id, context_meaning_ko, role) values ($1, $2, 0, 'ก', 0, 1, $3, $4, '뜻', 'TARGET')",
           [
             randomUUID(),
             sentenceVersionId,
             fixture.vocabularyId,
             fixture.meaningId,
-            fixture.pronunciationId,
           ],
         );
         const service = new VocabularyAdminService(
@@ -765,22 +696,18 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       const stored = await pool.query<{
         auditCount: string;
         meaningId: string;
-        pronunciationId: string;
       }>(
         `select
            vm.id "meaningId",
-           vp.id "pronunciationId",
            (select count(*) from audit_logs where target_id = v.id)
              "auditCount"
          from vocabularies v
          join vocabulary_meanings vm on vm.vocabulary_id = v.id
-         join vocabulary_pronunciations vp on vp.vocabulary_id = v.id
          where v.id = $1`,
         [fixture.vocabularyId],
       );
       expect(stored.rows[0]).toEqual({
         meaningId: fixture.meaningId,
-        pronunciationId: fixture.pronunciationId,
         auditCount: '0',
       });
     });

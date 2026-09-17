@@ -36,7 +36,6 @@ const ids = {
   item: '00000000-0000-4000-8000-000000000003',
   vocabulary: '00000000-0000-4000-8000-000000000005',
   meaning: '00000000-0000-4000-8000-000000000006',
-  pronunciation: '00000000-0000-4000-8000-000000000007',
   expression: '00000000-0000-4000-8000-000000000008',
   question: '00000000-0000-4000-8000-000000000009',
   questionVersion: '00000000-0000-4000-8000-000000000010',
@@ -74,21 +73,6 @@ const vocabularyGraph: ResolvedVocabularyDraftGraph = {
       contextNote: null,
     },
   ],
-  pronunciations: [
-    {
-      id: ids.pronunciation,
-      vocabularyId: ids.vocabulary,
-      pronunciationKo: '싸왓디',
-      toneMarks: 'LHL',
-    },
-  ],
-  meaningPronunciations: [
-    {
-      vocabularyId: ids.vocabulary,
-      meaningId: ids.meaning,
-      pronunciationId: ids.pronunciation,
-    },
-  ],
 };
 
 const vocabularyItem: ResolvedContentImportItem = {
@@ -103,7 +87,6 @@ const vocabularyItem: ResolvedContentImportItem = {
   referenceMap: Object.fromEntries([
     ['vocabulary-ref', ids.vocabulary],
     ['__proto__', ids.meaning],
-    ['pronunciation-ref', ids.pronunciation],
   ]),
 };
 
@@ -150,8 +133,6 @@ const questionGraph: ResolvedQuestionDraftGraph = {
         version: 1,
         originalText: 'ก',
         translationKo: '질문',
-        pronunciationKo: '꺼',
-        toneMarks: '-',
         frozenAt: null,
       },
       tokens: [
@@ -164,7 +145,6 @@ const questionGraph: ResolvedQuestionDraftGraph = {
           endOffset: 1,
           vocabularyId: ids.vocabulary,
           meaningId: ids.meaning,
-          pronunciationId: ids.pronunciation,
           contextMeaningKo: '질문',
           role: 'TARGET',
         },
@@ -178,7 +158,6 @@ const questionGraph: ResolvedQuestionDraftGraph = {
           vocabularyId: ids.expression,
           vocabularyKind: 'EXPRESSION',
           meaningId: ids.meaning,
-          pronunciationId: ids.pronunciation,
           contextMeaningKo: '질문 표현',
           representative: true,
         },
@@ -192,8 +171,6 @@ const questionGraph: ResolvedQuestionDraftGraph = {
         version: 1,
         originalText: 'ข',
         translationKo: '오답',
-        pronunciationKo: '커',
-        toneMarks: '-',
         frozenAt: null,
       },
       tokens: [],
@@ -207,8 +184,6 @@ const questionGraph: ResolvedQuestionDraftGraph = {
         version: 1,
         originalText: 'ค',
         translationKo: '정답',
-        pronunciationKo: '커',
-        toneMarks: '-',
         frozenAt: null,
       },
       tokens: [],
@@ -559,7 +534,6 @@ describe('DrizzleContentDraftRepository 문제 저장', () => {
     const referenceMap = Object.fromEntries([
       ['word-ref', ids.vocabulary],
       ['__proto__', ids.meaning],
-      ['pronunciation-ref', ids.pronunciation],
     ]);
     const fake = createLookupDatabase([
       [
@@ -572,12 +546,6 @@ describe('DrizzleContentDraftRepository 문제 저장', () => {
       ],
       [{ id: ids.vocabulary, kind: 'WORD', status: 'DRAFT' }],
       [{ id: ids.meaning, vocabularyId: ids.vocabulary }],
-      [
-        {
-          id: ids.pronunciation,
-          vocabularyId: ids.vocabulary,
-        },
-      ],
       [
         {
           id: ids.questionTypeVersion,
@@ -600,9 +568,6 @@ describe('DrizzleContentDraftRepository 문제 저장', () => {
         ),
       vocabulary: await transaction.findVocabularyById(ids.vocabulary),
       meaning: await transaction.findVocabularyMeaningById(ids.meaning),
-      pronunciation: await transaction.findVocabularyPronunciationById(
-        ids.pronunciation,
-      ),
       typeVersion: await transaction.findQuestionTypeVersion(
         'standard-choice',
         1,
@@ -629,10 +594,6 @@ describe('DrizzleContentDraftRepository 문제 저장', () => {
       id: ids.meaning,
       vocabularyId: ids.vocabulary,
     });
-    expect(result.pronunciation).toEqual({
-      id: ids.pronunciation,
-      vocabularyId: ids.vocabulary,
-    });
     expect(result.typeVersion).toEqual({
       id: ids.questionTypeVersion,
       slug: 'standard-choice',
@@ -644,11 +605,9 @@ describe('DrizzleContentDraftRepository 문제 저장', () => {
       contentImportItems,
       vocabularies,
       vocabularyMeanings,
-      vocabularyMeanings,
       questionTypeVersions,
     ]);
     expect(fake.lockModes).toEqual([
-      'key share',
       'key share',
       'key share',
       'key share',

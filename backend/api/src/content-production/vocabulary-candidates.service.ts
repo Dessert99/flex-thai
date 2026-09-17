@@ -173,8 +173,6 @@ export class VocabularyCandidateApplicationService {
                 ...meaning,
                 contextNote: meaning.contextNote ?? null,
               })),
-              pronunciations: request.pronunciations,
-              meaningPronunciations: request.meaningPronunciations,
             },
             ...(request.confirmDuplicate
               ? { confirmDuplicate: true as const }

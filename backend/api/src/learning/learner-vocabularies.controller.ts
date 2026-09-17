@@ -80,7 +80,6 @@ export class LearnerVocabulariesController {
     );
   }
 
-  /** 게시 어휘의 뜻·발음·예문 상세를 조회한다 */
   @ApiOperation({ summary: '공용 어휘 상세를 조회한다' })
   @ApiParam({ name: 'vocabularyId', type: 'string', format: 'uuid' })
   @ApiOkResponse({ type: VocabularyDetailResponseDto })

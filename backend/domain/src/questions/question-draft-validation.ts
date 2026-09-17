@@ -109,14 +109,7 @@ const assertSentenceInput = (value: unknown, path: string): void => {
   const sentence = requireRecord(value, path);
   requireExactKeys(
     sentence,
-    [
-      'originalText',
-      'translationKo',
-      'pronunciationKo',
-      'toneMarks',
-      'tokens',
-      'expressions',
-    ],
+    ['originalText', 'translationKo', 'tokens', 'expressions'],
     [],
     path,
   );
@@ -125,10 +118,6 @@ const assertSentenceInput = (value: unknown, path: string): void => {
     `${path}.originalText`,
   );
   requireNonemptyString(sentence.translationKo, `${path}.translationKo`);
-  requireNonemptyString(sentence.pronunciationKo, `${path}.pronunciationKo`);
-  if (typeof sentence.toneMarks !== 'string') {
-    failInvalidContent(`${path}.toneMarks`);
-  }
 
   const codePoints = Array.from(originalText);
   let previousEnd = 0;
@@ -144,7 +133,6 @@ const assertSentenceInput = (value: unknown, path: string): void => {
         'endOffset',
         'vocabulary',
         'meaning',
-        'pronunciation',
         'contextMeaningKo',
         'role',
       ],
@@ -169,7 +157,6 @@ const assertSentenceInput = (value: unknown, path: string): void => {
     );
     assertReference(token.vocabulary, `${tokenPath}.vocabulary`);
     assertReference(token.meaning, `${tokenPath}.meaning`);
-    assertReference(token.pronunciation, `${tokenPath}.pronunciation`);
     requireNonemptyString(
       token.contextMeaningKo,
       `${tokenPath}.contextMeaningKo`,
@@ -203,7 +190,6 @@ const assertSentenceInput = (value: unknown, path: string): void => {
         'endTokenIndex',
         'vocabulary',
         'meaning',
-        'pronunciation',
         'contextMeaningKo',
       ],
       ['representative'],
@@ -223,10 +209,6 @@ const assertSentenceInput = (value: unknown, path: string): void => {
     );
     assertReference(expression.vocabulary, `${expressionPath}.vocabulary`);
     assertReference(expression.meaning, `${expressionPath}.meaning`);
-    assertReference(
-      expression.pronunciation,
-      `${expressionPath}.pronunciation`,
-    );
     requireNonemptyString(
       expression.contextMeaningKo,
       `${expressionPath}.contextMeaningKo`,

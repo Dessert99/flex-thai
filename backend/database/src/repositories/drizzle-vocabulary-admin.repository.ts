@@ -1,5 +1,4 @@
 import { questionVocabularies } from '../schema/questions.schema.js';
-import { vocabularyMeaningRows } from './vocabulary-meaning-rows.js';
 /** 관리자 어휘 child 잠금·전체 교체·상태 전이·audit을 Drizzle transaction으로 구현한다 */
 import {
   type VocabularyAdminRepository,
@@ -58,7 +57,6 @@ const DUPLICATE_CONSTRAINT = 'vocabularies_normalized_thai_unique';
 const USAGE_CONSTRAINTS = new Set([
   'expression_occurrences_vocabulary_kind_fk',
   'token_occurrences_meaning_vocabulary_fk',
-  'token_occurrences_pronunciation_vocabulary_fk',
   'token_occurrences_vocabulary_fk',
 ]);
 const DATA_API_CONSTRAINTS = [
@@ -78,12 +76,6 @@ const DATA_API_CONSTRAINTS = [
     header:
       'ERROR: update or delete on table "vocabulary_meanings" violates foreign key constraint "token_occurrences_meaning_vocabulary_fk"',
     name: 'token_occurrences_meaning_vocabulary_fk',
-  },
-  {
-    code: '23503',
-    header:
-      'ERROR: update or delete on table "vocabulary_meanings" violates foreign key constraint "token_occurrences_pronunciation_vocabulary_fk"',
-    name: 'token_occurrences_pronunciation_vocabulary_fk',
   },
   {
     code: '23503',
@@ -205,9 +197,7 @@ const replaceVocabulary = async (
   await transaction
     .delete(vocabularyMeanings)
     .where(eq(vocabularyMeanings.vocabularyId, graph.vocabulary.id));
-  await transaction
-    .insert(vocabularyMeanings)
-    .values(vocabularyMeaningRows(graph));
+  await transaction.insert(vocabularyMeanings).values(graph.meanings);
 };
 
 const createVocabularyAdminTransaction = (
@@ -241,9 +231,8 @@ const createVocabularyAdminTransaction = (
       .where(eq(vocabularyMeanings.vocabularyId, vocabularyId))
       .orderBy(asc(vocabularyMeanings.id))
       .for('update');
-    return { vocabulary, meanings, pronunciations: meanings };
+    return { vocabulary, meanings };
   },
-
   async setImportanceWeight(vocabularyId, importanceWeight, updatedAt) {
     await transaction
       .update(vocabularies)
@@ -262,9 +251,6 @@ const createVocabularyAdminTransaction = (
       input.meaningIds.length > 0
         ? inArray(tokenOccurrences.meaningId, input.meaningIds)
         : undefined,
-      input.pronunciationIds.length > 0
-        ? inArray(tokenOccurrences.pronunciationId, input.pronunciationIds)
-        : undefined,
     );
     const tokenRows = await transaction
       .select({ id: tokenOccurrences.id })
@@ -279,7 +265,6 @@ const createVocabularyAdminTransaction = (
       .limit(1);
     return expressionRows.length > 0;
   },
-
   async findDuplicateVocabularyId(normalizedThai, excludeVocabularyId) {
     const rows = await transaction
       .select({ id: vocabularies.id })
@@ -299,11 +284,9 @@ const createVocabularyAdminTransaction = (
     }
     return rows[0]?.id ?? null;
   },
-
   async replaceVocabulary(graph) {
     await replaceVocabulary(transaction, graph);
   },
-
   async transitionVocabularyStatus(input) {
     const updated = await transaction
       .update(vocabularies)
@@ -328,7 +311,6 @@ const createVocabularyAdminTransaction = (
       );
     }
   },
-
   async appendAuditLog(input) {
     await transaction.insert(auditLogs).values({
       actorSub: input.actorSub,
@@ -371,11 +353,6 @@ const loadMergeGraph = async (
     .from(vocabularyMeanings)
     .where(eq(vocabularyMeanings.vocabularyId, vocabularyId))
     .orderBy(asc(vocabularyMeanings.id));
-  const pronunciations = meanings;
-  const mappings = meanings.map(({ id }) => ({
-    meaningId: id,
-    pronunciationId: id,
-  }));
   const meaningIds = meanings.map(({ id }) => id);
   const relations =
     meaningIds.length === 0
@@ -441,10 +418,6 @@ const loadMergeGraph = async (
       updatedAt: toIsoString(vocabulary.updatedAt),
     },
     meanings: meaningIds,
-    pronunciations: pronunciations.map(({ id }) => id),
-    meaningPronunciations: mappings.map(
-      ({ meaningId, pronunciationId }) => `${meaningId}:${pronunciationId}`,
-    ),
     relations: relations.map((relation) => ({
       ...relation,
       updatedAt: toIsoString(relation.updatedAt),
@@ -464,8 +437,6 @@ const loadMergeGraph = async (
 
 const mergeMovedCounts = (source: VocabularyMergeGraph) => ({
   meanings: source.meanings.length,
-  pronunciations: source.pronunciations.length,
-  meaningPronunciations: source.meaningPronunciations.length,
   tokenOccurrences: source.tokenOccurrenceIds.length,
   expressionOccurrences: source.expressionOccurrenceIds.length,
   savedMemberships: source.savedMemberships.length,
@@ -695,11 +666,8 @@ export class DrizzleVocabularyAdminRepository
           await transaction.execute(sql`
           set constraints
             token_occurrences_meaning_vocabulary_fk,
-            token_occurrences_pronunciation_vocabulary_fk,
             expression_occurrences_meaning_vocabulary_fk,
-            expression_occurrences_pronunciation_vocabulary_fk,
-            vocabulary_practice_questions_meaning_vocabulary_fk,
-            vocabulary_practice_questions_pronunciation_vocabulary_fk
+            vocabulary_practice_questions_meaning_vocabulary_fk
           deferred
         `);
           const questionUsage = await transaction

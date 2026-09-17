@@ -54,7 +54,6 @@ const createSelectFake = (results: Array<Array<Record<string, unknown>>>) => {
 const ids = {
   vocabulary: '00000000-0000-4000-8000-000000000001',
   meaning: '00000000-0000-4000-8000-000000000002',
-  pronunciation: '00000000-0000-4000-8000-000000000003',
   sentenceA: '00000000-0000-4000-8000-000000000005',
   sentenceB: '00000000-0000-4000-8000-000000000006',
   questionA: '00000000-0000-4000-8000-000000000007',
@@ -73,7 +72,6 @@ describe('DrizzleAdminVocabularyQuery 모든 상태 목록', () => {
           kind: 'EXPRESSION',
           status: 'HIDDEN',
           meaningCount: 2,
-          pronunciationCount: 1,
           updatedAt,
         },
       ],
@@ -96,7 +94,6 @@ describe('DrizzleAdminVocabularyQuery 모든 상태 목록', () => {
           kind: 'EXPRESSION',
           status: 'HIDDEN',
           meaningCount: 2,
-          pronunciationCount: 1,
           updatedAt,
         },
       ],
@@ -161,7 +158,6 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       const vocabularyId = randomUUID();
       const otherVocabularyId = randomUUID();
       const meaningId = randomUUID();
-      const pronunciationId = randomUUID();
       const suffix = randomUUID();
       const thai = `สวัสดี ครับ ${suffix}`;
       await pool.query(
@@ -200,17 +196,6 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
          ) values ($1, $2, '안녕하세요', '감탄사', 1)`,
         [meaningId, vocabularyId],
       );
-      await pool.query(
-        `insert into vocabulary_pronunciations (
-           id, vocabulary_id, pronunciation_ko, tone_marks) values ($1, $2, '싸왓디 크랍', 'L-L-M-H')`,
-        [pronunciationId, vocabularyId],
-      );
-      await pool.query(
-        `insert into vocabulary_meaning_pronunciations (
-           vocabulary_id, meaning_id, pronunciation_id
-         ) values ($1, $2, $3)`,
-        [vocabularyId, meaningId, pronunciationId],
-      );
 
       const sentenceVersionIds = [randomUUID(), randomUUID()].sort();
       for (const sentenceVersionId of sentenceVersionIds) {
@@ -219,25 +204,16 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
           sentenceId,
         ]);
         await pool.query(
-          `insert into thai_sentence_versions (
-             id, sentence_id, version, original_text, translation_ko,
-             pronunciation_ko, tone_marks) values ($1, $2, 1, 'กข', '뜻', '꺼커', '--')`,
+          "insert into thai_sentence_versions (id, sentence_id, version, original_text, translation_ko) values ($1, $2, 1, 'กข', '뜻')",
           [sentenceVersionId, sentenceId],
         );
         await pool.query(
-          `insert into token_occurrences (
-             id, sentence_version_id, position, surface, start_offset, end_offset,
-             vocabulary_id, meaning_id, pronunciation_id,
-             context_meaning_ko, role
-           ) values
-             ($1, $2, 0, 'ก', 0, 1, $3, $4, $5, '뜻', 'TARGET'),
-             ($6, $2, 1, 'ข', 1, 2, $3, $4, $5, '뜻', 'SUPPORTING')`,
+          "insert into token_occurrences (id, sentence_version_id, position, surface, start_offset, end_offset, vocabulary_id, meaning_id, context_meaning_ko, role) values\n             ($1, $2, 0, 'ก', 0, 1, $3, $4, '뜻', 'TARGET'),\n($5, $2, 1, 'ข', 1, 2, $3, $4, '뜻', 'SUPPORTING')",
           [
             randomUUID(),
             sentenceVersionId,
             vocabularyId,
             meaningId,
-            pronunciationId,
             randomUUID(),
           ],
         );
@@ -313,7 +289,6 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       );
       expect(list.items.find(({ id }) => id === vocabularyId)).toMatchObject({
         meaningCount: 1,
-        pronunciationCount: 1,
         status: 'HIDDEN',
       });
       expect(detail).toMatchObject({
@@ -387,8 +362,6 @@ describe('DrizzleAdminVocabularyQuery 상세', () => {
         {
           id: ids.meaning,
           meaningKo: '안녕하세요',
-          pronunciationKo: '싸왓디',
-          toneMarks: 'L-L-M',
           partOfSpeech: '감탄사',
           difficulty: 1,
           contextNote: null,
@@ -434,16 +407,6 @@ describe('DrizzleAdminVocabularyQuery 상세', () => {
           difficulty: 1,
           contextNote: null,
         },
-      ],
-      pronunciations: [
-        {
-          id: ids.meaning,
-          pronunciationKo: '싸왓디',
-          toneMarks: 'L-L-M',
-        },
-      ],
-      meaningPronunciations: [
-        { meaningId: ids.meaning, pronunciationId: ids.meaning },
       ],
       relations: [],
       usage: {

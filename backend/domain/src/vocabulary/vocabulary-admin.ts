@@ -30,26 +30,11 @@ export interface VocabularyAdminMeaningInput {
   contextNote?: string | null;
 }
 
-/** 관리자 어휘 command가 받는 발음 입력 */
-export interface VocabularyAdminPronunciationInput {
-  clientRef: string;
-  pronunciationKo: string;
-  toneMarks: string;
-}
-
-/** 관리자 어휘 command가 받는 뜻·발음 연결 입력 */
-export interface VocabularyAdminMeaningPronunciationInput {
-  meaningRef: string;
-  pronunciationRef: string;
-}
-
 /** 공개 계약을 통과한 관리자 어휘 전체 교체 입력 */
 export interface VocabularyAdminReplaceInput {
   thai: string;
   kind: Vocabulary['kind'];
   meanings: VocabularyAdminMeaningInput[];
-  pronunciations: VocabularyAdminPronunciationInput[];
-  meaningPronunciations: VocabularyAdminMeaningPronunciationInput[];
 }
 
 /** 관리자 어휘 command의 인증·감사 문맥 */
@@ -131,13 +116,6 @@ const requireNonemptyString = (value: unknown, path: string): string => {
   return value;
 };
 
-const requireString = (value: unknown, path: string): string => {
-  if (typeof value !== 'string') {
-    return failInvalidContent(path);
-  }
-  return value;
-};
-
 const requireArray = (value: unknown, path: string, minimum = 1): unknown[] => {
   if (!Array.isArray(value) || value.length < minimum) {
     return failInvalidContent(path);
@@ -179,12 +157,7 @@ const assertUnique = (values: readonly string[], path: string): void => {
 
 const assertReplaceInput = (value: unknown): VocabularyAdminReplaceInput => {
   const input = requireRecord(value, 'vocabulary');
-  requireExactKeys(
-    input,
-    ['thai', 'kind', 'meanings', 'pronunciations', 'meaningPronunciations'],
-    [],
-    'vocabulary',
-  );
+  requireExactKeys(input, ['thai', 'kind', 'meanings'], [], 'vocabulary');
   const thai = requireNonemptyString(input.thai, 'thai');
   const kind: Vocabulary['kind'] =
     input.kind === 'WORD'
@@ -224,92 +197,15 @@ const assertReplaceInput = (value: unknown): VocabularyAdminReplaceInput => {
       };
     },
   );
-  const pronunciations = requireArray(
-    input.pronunciations,
-    'pronunciations',
-  ).map((value, index): VocabularyAdminPronunciationInput => {
-    const path = `pronunciations.${index}`;
-    const pronunciation = requireRecord(value, path);
-    requireExactKeys(
-      pronunciation,
-      ['clientRef', 'pronunciationKo', 'toneMarks'],
-      [],
-      path,
-    );
-    return {
-      clientRef: requireNonemptyString(
-        pronunciation.clientRef,
-        `${path}.clientRef`,
-      ),
-      pronunciationKo: requireNonemptyString(
-        pronunciation.pronunciationKo,
-        `${path}.pronunciationKo`,
-      ),
-      toneMarks: requireString(pronunciation.toneMarks, `${path}.toneMarks`),
-    };
-  });
+
   assertUnique(
-    [
-      ...meanings.map(({ clientRef }) => clientRef),
-      ...pronunciations.map(({ clientRef }) => clientRef),
-    ],
+    meanings.map(({ clientRef }) => clientRef),
     'meanings',
   );
-
-  const meaningRefs = new Set(meanings.map(({ clientRef }) => clientRef));
-  const pronunciationRefs = new Set(
-    pronunciations.map(({ clientRef }) => clientRef),
-  );
-  const meaningPronunciations = requireArray(
-    input.meaningPronunciations,
-    'meaningPronunciations',
-  ).map((value, index): VocabularyAdminMeaningPronunciationInput => {
-    const path = `meaningPronunciations.${index}`;
-    const mapping = requireRecord(value, path);
-    requireExactKeys(mapping, ['meaningRef', 'pronunciationRef'], [], path);
-    const meaningRef = requireNonemptyString(
-      mapping.meaningRef,
-      `${path}.meaningRef`,
-    );
-    const pronunciationRef = requireNonemptyString(
-      mapping.pronunciationRef,
-      `${path}.pronunciationRef`,
-    );
-    if (!meaningRefs.has(meaningRef)) {
-      failInvalidContent(`${path}.meaningRef`);
-    }
-    if (!pronunciationRefs.has(pronunciationRef)) {
-      failInvalidContent(`${path}.pronunciationRef`);
-    }
-    return { meaningRef, pronunciationRef };
-  });
-  assertUnique(
-    meaningPronunciations.map(
-      ({ meaningRef, pronunciationRef }) => `${meaningRef}:${pronunciationRef}`,
-    ),
-    'meaningPronunciations',
-  );
-  if (
-    meanings.some(
-      ({ clientRef }) =>
-        meaningPronunciations.filter((link) => link.meaningRef === clientRef)
-          .length !== 1,
-    ) ||
-    pronunciations.some(
-      ({ clientRef }) =>
-        !meaningPronunciations.some(
-          (link) => link.pronunciationRef === clientRef,
-        ),
-    )
-  ) {
-    failInvalidContent('meaningPronunciations');
-  }
   return {
     thai,
     kind,
     meanings,
-    pronunciations,
-    meaningPronunciations,
   };
 };
 
@@ -429,7 +325,6 @@ export class VocabularyAdminService {
           await transaction.hasQuestionUsage({
             vocabularyId: current.vocabulary.id,
             meaningIds: current.meanings.map(({ id }) => id),
-            pronunciationIds: current.pronunciations.map(({ id }) => id),
           })
         ) {
           throw new VocabularyAdminError('VOCABULARY_IN_USE');
@@ -443,13 +338,10 @@ export class VocabularyAdminService {
           throw new VocabularyAdminError('VOCABULARY_DUPLICATE', 'thai');
         }
 
-        const meaningIds = new Map<string, string>();
-        const pronunciationIds = new Map<string, string>();
         const graph: VocabularyAdminReplacementGraph = {
           vocabulary: { ...draft, updatedAt: command.occurredAt },
           meanings: input.meanings.map((meaning) => {
             const id = assertGeneratedId(this.generateId);
-            meaningIds.set(meaning.clientRef, id);
             return {
               id,
               vocabularyId: current.vocabulary.id,
@@ -459,31 +351,10 @@ export class VocabularyAdminService {
               contextNote: meaning.contextNote ?? null,
             };
           }),
-          pronunciations: input.pronunciations.map((pronunciation) => {
-            const id = assertGeneratedId(this.generateId);
-            pronunciationIds.set(pronunciation.clientRef, id);
-            return {
-              id,
-              vocabularyId: current.vocabulary.id,
-              pronunciationKo: pronunciation.pronunciationKo,
-              toneMarks: pronunciation.toneMarks,
-            };
-          }),
-          meaningPronunciations: [],
         };
         assertUnique(
-          [
-            ...graph.meanings.map(({ id }) => id),
-            ...graph.pronunciations.map(({ id }) => id),
-          ],
+          graph.meanings.map(({ id }) => id),
           'generatedId',
-        );
-        graph.meaningPronunciations = input.meaningPronunciations.map(
-          ({ meaningRef, pronunciationRef }) => ({
-            vocabularyId: current.vocabulary.id,
-            meaningId: meaningIds.get(meaningRef)!,
-            pronunciationId: pronunciationIds.get(pronunciationRef)!,
-          }),
         );
         await transaction.replaceVocabulary(graph);
         await transaction.appendAuditLog(
@@ -492,7 +363,6 @@ export class VocabularyAdminService {
             summary: {
               kind: input.kind,
               meaningCount: graph.meanings.length,
-              pronunciationCount: graph.pronunciations.length,
             },
           }),
         );
@@ -518,7 +388,6 @@ export class VocabularyAdminService {
     }
   }
 
-  /** 발음이 있고 모든 current media가 READY인 DRAFT만 게시한다 */
   async publish(
     command: TransitionVocabularyCommand,
   ): Promise<VocabularyAdminResult> {

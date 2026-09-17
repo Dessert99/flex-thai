@@ -6,15 +6,12 @@ const ids = {
   sentence: '00000000-0000-4000-8000-000000000001',
   vocabulary: '00000000-0000-4000-8000-000000000002',
   meaning: '00000000-0000-4000-8000-000000000003',
-  pronunciation: '00000000-0000-4000-8000-000000000004',
 } as const;
 
 const sentence = {
   sentenceVersionId: ids.sentence,
   originalText: 'ฉันรักภาษาไทย',
   translationKo: '나는 태국어를 사랑한다',
-  pronunciationKo: '찬 락 파싸 타이',
-  toneMarks: 'R H M M',
   tokens: [
     {
       position: 0,
@@ -23,10 +20,7 @@ const sentence = {
       endOffset: 3,
       vocabularyId: ids.vocabulary,
       meaningId: ids.meaning,
-      pronunciationId: ids.pronunciation,
       contextMeaningKo: '나',
-      pronunciationKo: '찬',
-      toneMarks: 'R',
       role: 'TARGET',
     },
   ],
@@ -36,10 +30,7 @@ const sentence = {
       endTokenIndex: 1,
       vocabularyId: ids.vocabulary,
       meaningId: ids.meaning,
-      pronunciationId: ids.pronunciation,
       contextMeaningKo: '나',
-      pronunciationKo: '찬',
-      toneMarks: 'R',
       representative: true,
     },
   ],

@@ -68,8 +68,6 @@ const generatedSentenceSchema = z
   .object({
     originalText: z.string().min(1),
     translationKo: z.string().min(1),
-    pronunciationKo: z.string().min(1),
-    toneMarks: z.string(),
     tokens: z.array(
       z
         .object({
@@ -78,7 +76,6 @@ const generatedSentenceSchema = z
           endOffset: positiveIntegerSchema,
           vocabulary: contentReferenceSchema,
           meaning: contentReferenceSchema,
-          pronunciation: contentReferenceSchema,
           contextMeaningKo: z.string().min(1),
           role: z.enum(['TARGET', 'REQUIRED', 'SUPPORTING', 'INSTRUCTION']),
         })
@@ -91,7 +88,6 @@ const generatedSentenceSchema = z
           endTokenIndex: positiveIntegerSchema,
           vocabulary: contentReferenceSchema,
           meaning: contentReferenceSchema,
-          pronunciation: contentReferenceSchema,
           contextMeaningKo: z.string().min(1),
           representative: z.boolean().optional(),
         })

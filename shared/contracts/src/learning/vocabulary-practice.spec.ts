@@ -11,7 +11,6 @@ const ids = {
   session: '00000000-0000-4000-8000-000000000201',
   vocabulary: '00000000-0000-4000-8000-000000000202',
   meaning: '00000000-0000-4000-8000-000000000203',
-  pronunciation: '00000000-0000-4000-8000-000000000204',
   question: '00000000-0000-4000-8000-000000000205',
   option: '00000000-0000-4000-8000-000000000206',
   secondOption: '00000000-0000-4000-8000-000000000207',
@@ -31,16 +30,6 @@ const card = {
       difficulty: 1,
       contextNote: null,
     },
-  ],
-  pronunciations: [
-    {
-      id: ids.pronunciation,
-      pronunciationKo: '리안',
-      toneMarks: 'M',
-    },
-  ],
-  meaningPronunciations: [
-    { meaningId: ids.meaning, pronunciationId: ids.pronunciation },
   ],
 } as const;
 
@@ -245,9 +234,7 @@ describe('단어 연습 공개 응답 계약', () => {
         correctOptionId: ids.option,
         card: {
           ...card,
-          pronunciations: [
-            { ...card.pronunciations[0], storageKey: 'private/learn.bin' },
-          ],
+          storageKey: 'private',
         },
         sessionCompleted: false,
         answeredAt: '2026-07-26T00:10:00.000Z',
@@ -350,7 +337,7 @@ describe('단어 연습 공개 응답 계약', () => {
     ).toThrow();
   });
 
-  it('카드는 최소 한 뜻·발음과 유효한 뜻-발음 관계를 요구한다', () => {
+  it('카드는 최소 한 뜻을 요구하고 지원하지 않는 필드를 거부한다', () => {
     const answer = {
       questionId: ids.question,
       selectedOptionId: ids.option,
@@ -371,7 +358,7 @@ describe('단어 연습 공개 응답 계약', () => {
     expect(() =>
       vocabularyPracticeAnswerResponseSchema.parse({
         ...answer,
-        card: { ...card, pronunciations: [] },
+        card: { ...card, storageKey: 'private' },
       }),
     ).toThrow();
     expect(() =>
@@ -379,9 +366,7 @@ describe('단어 연습 공개 응답 계약', () => {
         ...answer,
         card: {
           ...card,
-          meaningPronunciations: [
-            { meaningId: ids.meaning, pronunciationId: ids.option },
-          ],
+          storageKey: 'private',
         },
       }),
     ).toThrow();

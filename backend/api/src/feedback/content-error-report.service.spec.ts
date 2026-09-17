@@ -45,7 +45,6 @@ describe('ContentErrorReportHttpService', () => {
           kind: 'VOCABULARY',
           vocabularyId: report.canonicalReference.contentId,
           meaningId: null,
-          pronunciationId: null,
         },
         category: 'OTHER',
       }),
@@ -163,7 +162,6 @@ describe('ContentErrorReportHttpService', () => {
             kind: 'VOCABULARY',
             vocabularyId: report.canonicalReference.contentId,
             meaningId: null,
-            pronunciationId: null,
           },
           category: 'OTHER',
         }),
@@ -195,7 +193,6 @@ describe('ContentErrorReportHttpService', () => {
           kind: 'VOCABULARY',
           vocabularyId: report.canonicalReference.contentId,
           meaningId: null,
-          pronunciationId: null,
         },
         category: 'OTHER',
       });

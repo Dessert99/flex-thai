@@ -93,8 +93,6 @@ const mapSentence = (sentence: ConceptSentenceProjection) => {
     sentenceVersionId: sentence.sentenceVersionId,
     originalText: sentence.originalText,
     translationKo: sentence.translationKo,
-    pronunciationKo: sentence.pronunciationKo,
-    toneMarks: sentence.toneMarks,
     tokens: sentence.tokens,
     expressions: sentence.expressions,
   };

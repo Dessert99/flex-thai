@@ -25,7 +25,6 @@ export const contentErrorReportTargetKindSchema = z.enum([
 /** 학습자가 선택하는 오류 분류 */
 export const contentErrorReportCategorySchema = z.enum([
   'MEANING_TRANSLATION',
-  'PRONUNCIATION_TONE',
   'ANSWER_EXPLANATION',
   'TOKENIZATION',
   'OTHER',
@@ -57,7 +56,6 @@ export const contentErrorReportOriginSchema = z.discriminatedUnion('kind', [
       kind: z.literal('VOCABULARY'),
       vocabularyId: uuidSchema,
       meaningId: nullableUuidSchema,
-      pronunciationId: nullableUuidSchema,
     })
     .strict(),
   z

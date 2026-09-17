@@ -14,7 +14,6 @@ const ids = {
   option: '00000000-0000-4000-8000-000000000006',
   vocabulary: '00000000-0000-4000-8000-000000000007',
   meaning: '00000000-0000-4000-8000-000000000008',
-  pronunciation: '00000000-0000-4000-8000-000000000009',
   attempt: '00000000-0000-4000-8000-000000000010',
   clientAttempt: '00000000-0000-4000-8000-000000000011',
   requestedVersion: '00000000-0000-4000-8000-000000000012',
@@ -25,8 +24,6 @@ const sentence = {
   sentenceVersionId: ids.sentence,
   originalText: 'สวัสดี',
   translationKo: '안녕하세요',
-  pronunciationKo: '싸왓디',
-  toneMarks: 'L-L-M',
   tokens: [
     {
       position: 0,
@@ -35,10 +32,7 @@ const sentence = {
       endOffset: 6,
       vocabularyId: ids.vocabulary,
       meaningId: ids.meaning,
-      pronunciationId: ids.pronunciation,
       contextMeaningKo: '안녕하세요',
-      pronunciationKo: '싸왓디',
-      toneMarks: 'L-L-M',
       role: 'TARGET',
     },
   ],
@@ -48,10 +42,7 @@ const sentence = {
       endTokenIndex: 1,
       vocabularyId: ids.vocabulary,
       meaningId: ids.meaning,
-      pronunciationId: ids.pronunciation,
       contextMeaningKo: '안녕하세요',
-      pronunciationKo: '싸왓디',
-      toneMarks: 'L-L-M',
       representative: true,
     },
   ],
@@ -185,13 +176,6 @@ const dependencies = () => ({
               contextNote: null,
             },
           ],
-          pronunciations: [
-            {
-              id: ids.pronunciation,
-              pronunciationKo: '싸왓디',
-              toneMarks: 'L-L-M',
-            },
-          ],
           saved: true,
         },
       ],
@@ -210,17 +194,7 @@ const dependencies = () => ({
           contextNote: null,
         },
       ],
-      pronunciations: [
-        {
-          id: ids.pronunciation,
-          pronunciationKo: '싸왓디',
-          toneMarks: 'L-L-M',
-        },
-      ],
       saved: true,
-      meaningPronunciations: [
-        { meaningId: ids.meaning, pronunciationId: ids.pronunciation },
-      ],
       relations: [
         {
           id: '00000000-0000-4000-8000-000000000099',
@@ -238,8 +212,6 @@ const dependencies = () => ({
           sentenceVersionId: ids.sentence,
           originalText: 'เขาพูดว่าสวัสดี',
           translationKo: '그는 안녕하세요라고 말했다',
-          pronunciationKo: '카오 풋 와 싸왓디',
-          toneMarks: 'R-F-F-L-L-M',
           tokens: sentence.tokens,
           expressions: sentence.expressions,
         },

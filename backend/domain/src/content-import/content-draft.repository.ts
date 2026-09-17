@@ -30,11 +30,6 @@ export interface VocabularyMeaningReferenceRecord {
   vocabularyId: string;
 }
 
-export interface VocabularyPronunciationReferenceRecord {
-  id: string;
-  vocabularyId: string;
-}
-
 /** slug와 version으로 고정한 문제 유형 버전의 현재 정보 */
 export interface QuestionTypeVersionReferenceRecord {
   id: string;
@@ -60,26 +55,10 @@ export interface ResolvedVocabularyMeaning {
   contextNote: string | null;
 }
 
-export interface ResolvedVocabularyPronunciation {
-  id: string;
-  vocabularyId: string;
-  pronunciationKo: string;
-  toneMarks: string;
-}
-
-/** 같은 vocabulary의 뜻과 발음을 잇는 resolved mapping */
-export interface ResolvedVocabularyMeaningPronunciation {
-  vocabularyId: string;
-  meaningId: string;
-  pronunciationId: string;
-}
-
 /** adapter가 그대로 삽입할 canonical vocabulary draft graph */
 export interface ResolvedVocabularyDraftGraph {
   vocabulary: Vocabulary;
   meanings: ResolvedVocabularyMeaning[];
-  pronunciations: ResolvedVocabularyPronunciation[];
-  meaningPronunciations: ResolvedVocabularyMeaningPronunciation[];
 }
 
 /** 문제 초안에 함께 생성할 논리 문장과 version 1 graph */
@@ -93,8 +72,6 @@ export interface ResolvedQuestionSentenceGraph {
     version: 1;
     originalText: string;
     translationKo: string;
-    pronunciationKo: string;
-    toneMarks: string;
     frozenAt: null;
   };
   tokens: Array<
@@ -209,10 +186,6 @@ export interface ContentDraftTransaction {
     this: void,
     meaningId: string,
   ): Promise<VocabularyMeaningReferenceRecord | null>;
-  findVocabularyPronunciationById(
-    this: void,
-    pronunciationId: string,
-  ): Promise<VocabularyPronunciationReferenceRecord | null>;
   findQuestionTypeVersion(
     this: void,
     slug: string,

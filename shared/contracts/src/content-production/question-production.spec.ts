@@ -36,8 +36,6 @@ const payload = {
           sentence: {
             originalText: 'สวัสดี',
             translationKo: '안녕하세요',
-            pronunciationKo: '싸왓디',
-            toneMarks: '',
             tokens: [
               {
                 surface: 'สวัสดี',
@@ -45,7 +43,6 @@ const payload = {
                 endOffset: 6,
                 vocabulary: { clientRef: 'vocabulary-1' },
                 meaning: { clientRef: 'meaning-1' },
-                pronunciation: { clientRef: 'pronunciation-1' },
                 contextMeaningKo: '안녕하세요',
                 role: 'TARGET',
               },
@@ -63,8 +60,6 @@ const payload = {
       sentence: {
         originalText: '안녕하세요',
         translationKo: '안녕하세요',
-        pronunciationKo: '안녕하세요',
-        toneMarks: '',
         tokens: [],
         expressions: [],
       },

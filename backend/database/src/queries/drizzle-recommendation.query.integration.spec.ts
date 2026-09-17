@@ -11,7 +11,6 @@ const databaseUrl = process.env.RECOMMENDATION_TEST_DATABASE_URL;
 interface VocabularyFixture {
   id: string;
   meaningId: string;
-  pronunciationId: string;
 }
 
 interface QuestionFixture {
@@ -29,7 +28,6 @@ const insertVocabulary = async (
 ): Promise<VocabularyFixture> => {
   const id = randomUUID();
   const meaningId = randomUUID();
-  const pronunciationId = randomUUID();
   await client.query(
     `insert into vocabularies (
        id, thai, normalized_thai, kind, status, published_at
@@ -42,12 +40,7 @@ const insertVocabulary = async (
      ) values ($1, $2, $3, '명사', 2)`,
     [meaningId, id, `뜻-${label}`],
   );
-  await client.query(
-    `insert into vocabulary_pronunciations (
-       id, vocabulary_id, pronunciation_ko, tone_marks) values ($1, $2, $3, 'M')`,
-    [pronunciationId, id, `발음-${label}`],
-  );
-  return { id, meaningId, pronunciationId };
+  return { id, meaningId };
 };
 
 const insertQuestion = async (
@@ -99,10 +92,7 @@ const attachTargetVocabulary = async (
     sentenceId,
   ]);
   await client.query(
-    `insert into thai_sentence_versions (
-       id, sentence_id, version, original_text, translation_ko,
-       pronunciation_ko, tone_marks, frozen_at
-     ) values ($1, $2, 1, $3, $3, $3, 'M', now())`,
+    'insert into thai_sentence_versions (id, sentence_id, version, original_text, translation_ko, frozen_at) values ($1, $2, 1, $3, $3, now())',
     [sentenceVersionId, sentenceId, label],
   );
   await client.query(
@@ -118,17 +108,13 @@ const attachTargetVocabulary = async (
     [randomUUID(), blockId, sentenceVersionId],
   );
   await client.query(
-    `insert into token_occurrences (
-       id, sentence_version_id, position, surface, start_offset, end_offset,
-       vocabulary_id, meaning_id, pronunciation_id, context_meaning_ko, role
-     ) values ($1, $2, 0, $3, 0, 1, $4, $5, $6, $3, 'TARGET')`,
+    "insert into token_occurrences (id, sentence_version_id, position, surface, start_offset, end_offset, vocabulary_id, meaning_id, context_meaning_ko, role) values ($1, $2, 0, $3, 0, 1, $4, $5, $3, 'TARGET')",
     [
       randomUUID(),
       sentenceVersionId,
       label,
       vocabulary.id,
       vocabulary.meaningId,
-      vocabulary.pronunciationId,
     ],
   );
 };
@@ -168,10 +154,7 @@ describe.runIf(databaseUrl !== undefined)(
           baseSentenceId,
         ]);
         await client.query(
-          `insert into thai_sentence_versions (
-             id, sentence_id, version, original_text, translation_ko,
-             pronunciation_ko, tone_marks, frozen_at
-           ) values ($1, $2, 1, 'ตัวเลือก', '선택지', '선택지', 'M', now())`,
+          "insert into thai_sentence_versions (id, sentence_id, version, original_text, translation_ko, frozen_at) values ($1, $2, 1, 'ตัวเลือก', '선택지', now())",
           [baseSentenceVersionId, baseSentenceId],
         );
         await client.query(
@@ -403,10 +386,7 @@ describe.runIf(databaseUrl !== undefined)(
           contentSentenceId,
         ]);
         await client.query(
-          `insert into thai_sentence_versions (
-             id, sentence_id, version, original_text, translation_ko,
-             pronunciation_ko, tone_marks, frozen_at
-           ) values ($1, $2, 1, 'หนึ่งสองสามสี่', '문장', '문장', 'M', now())`,
+          "insert into thai_sentence_versions (id, sentence_id, version, original_text, translation_ko, frozen_at) values ($1, $2, 1, 'หนึ่งสองสามสี่', '문장', now())",
           [contentSentenceVersionId, contentSentenceId],
         );
         await client.query(
@@ -428,11 +408,7 @@ describe.runIf(databaseUrl !== undefined)(
           [3, 'SUPPORTING'],
         ] as const) {
           await client.query(
-            `insert into token_occurrences (
-               id, sentence_version_id, position, surface, start_offset,
-               end_offset, vocabulary_id, meaning_id, pronunciation_id,
-               context_meaning_ko, role
-             ) values ($1, $2, $3, $4, $3, $3 + 1, $5, $6, $7, '핵심', $8)`,
+            "insert into token_occurrences (id, sentence_version_id, position, surface, start_offset, end_offset, vocabulary_id, meaning_id, context_meaning_ko, role) values ($1, $2, $3, $4, $3, $3 + 1, $5, $6, '핵심', $7)",
             [
               randomUUID(),
               contentSentenceVersionId,
@@ -440,7 +416,6 @@ describe.runIf(databaseUrl !== undefined)(
               `token-${position}`,
               targetVocabulary.id,
               targetVocabulary.meaningId,
-              targetVocabulary.pronunciationId,
               role,
             ],
           );
@@ -450,11 +425,7 @@ describe.runIf(databaseUrl !== undefined)(
           [supportingExpression, 2, 4],
         ] as const) {
           await client.query(
-            `insert into expression_occurrences (
-               id, sentence_version_id, start_token_index, end_token_index,
-               vocabulary_id, vocabulary_kind, meaning_id, pronunciation_id,
-               context_meaning_ko, representative
-             ) values ($1, $2, $3, $4, $5, 'EXPRESSION', $6, $7, '표현', true)`,
+            "insert into expression_occurrences (id, sentence_version_id, start_token_index, end_token_index, vocabulary_id, vocabulary_kind, meaning_id, context_meaning_ko, representative) values ($1, $2, $3, $4, $5, 'EXPRESSION', $6, '표현', true)",
             [
               randomUUID(),
               contentSentenceVersionId,
@@ -462,7 +433,6 @@ describe.runIf(databaseUrl !== undefined)(
               endTokenIndex,
               expression.id,
               expression.meaningId,
-              expression.pronunciationId,
             ],
           );
         }
@@ -527,10 +497,7 @@ describe.runIf(databaseUrl !== undefined)(
           baseSentenceId,
         ]);
         await client.query(
-          `insert into thai_sentence_versions (
-             id, sentence_id, version, original_text, translation_ko,
-             pronunciation_ko, tone_marks, frozen_at
-           ) values ($1, $2, 1, '선택지', '선택지', '선택지', 'M', now())`,
+          "insert into thai_sentence_versions (id, sentence_id, version, original_text, translation_ko, frozen_at) values ($1, $2, 1, '선택지', '선택지', now())",
           [baseSentenceVersionId, baseSentenceId],
         );
 

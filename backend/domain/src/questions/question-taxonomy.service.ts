@@ -138,8 +138,6 @@ const toExampleSentence = (
   input: {
     originalText: sentence.originalText,
     translationKo: sentence.translationKo,
-    pronunciationKo: sentence.pronunciationKo,
-    toneMarks: sentence.toneMarks,
     tokens: sentence.tokens.map((token, position) => ({
       position,
       surface: token.surface,
@@ -147,7 +145,6 @@ const toExampleSentence = (
       endOffset: token.endOffset,
       vocabularyId: token.vocabulary.id,
       meaningId: token.meaning.id,
-      pronunciationId: token.pronunciation.id,
       contextMeaningKo: token.contextMeaningKo,
       role: token.role,
     })),
@@ -157,7 +154,6 @@ const toExampleSentence = (
       vocabularyId: expression.vocabulary.id,
       vocabularyKind: 'EXPRESSION',
       meaningId: expression.meaning.id,
-      pronunciationId: expression.pronunciation.id,
       contextMeaningKo: expression.contextMeaningKo,
       adminSelected: expression.representative ?? false,
     })),

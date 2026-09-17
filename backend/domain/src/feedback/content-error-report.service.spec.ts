@@ -76,7 +76,6 @@ describe('ContentErrorReportService', () => {
         kind: 'VOCABULARY' as const,
         vocabularyId: 'vocabulary-id',
         meaningId: null,
-        pronunciationId: null,
       },
       category: 'MEANING_TRANSLATION' as const,
       description: '  뜻이 달라요 ',

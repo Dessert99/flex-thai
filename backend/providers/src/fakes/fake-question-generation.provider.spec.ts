@@ -14,8 +14,6 @@ import { FakeQuestionGenerationProvider } from './fake-question-generation.provi
 const sentence = {
   originalText: 'ข้อใดถูกต้อง',
   translationKo: '어느 것이 맞습니까?',
-  pronunciationKo: '커 다이 툭 떵',
-  toneMarks: '',
   tokens: [
     {
       surface: 'ข้อใดถูกต้อง',
@@ -23,7 +21,6 @@ const sentence = {
       endOffset: 12,
       vocabulary: { clientRef: 'vocabulary-question' },
       meaning: { clientRef: 'meaning-question' },
-      pronunciation: { clientRef: 'pronunciation-question' },
       contextMeaningKo: '어느 것이 맞는가',
       role: 'TARGET' as const,
     },

@@ -54,90 +54,20 @@ const adminVocabularyMeaningInputSchema = z
   })
   .strict();
 
-const adminVocabularyPronunciationInputSchema = z
-  .object({
-    clientRef: z.string().min(1),
-    pronunciationKo: z.string().min(1),
-    toneMarks: z.string(),
-  })
-  .strict();
-
-const adminVocabularyMeaningPronunciationInputSchema = z
-  .object({
-    meaningRef: z.string().min(1),
-    pronunciationRef: z.string().min(1),
-  })
-  .strict();
-
-/** 미사용 DRAFT 어휘와 하위 뜻·발음·mapping 전체 교체 요청 */
 export const adminVocabularyReplaceRequestSchema = z
   .object({
     thai: z.string().min(1),
     kind: vocabularyKindSchema,
     meanings: z.array(adminVocabularyMeaningInputSchema).min(1),
-    pronunciations: z.array(adminVocabularyPronunciationInputSchema).min(1),
-    meaningPronunciations: z
-      .array(adminVocabularyMeaningPronunciationInputSchema)
-      .min(1),
   })
   .strict()
   .superRefine((vocabulary, context) => {
     const meaningRefs = vocabulary.meanings.map(({ clientRef }) => clientRef);
-    const pronunciationRefs = vocabulary.pronunciations.map(
-      ({ clientRef }) => clientRef,
-    );
-    if (hasDuplicates([...meaningRefs, ...pronunciationRefs])) {
+    if (hasDuplicates(meaningRefs)) {
       context.addIssue({
         code: 'custom',
         message: '어휘 하위 clientRef는 중복될 수 없습니다.',
         path: ['meanings'],
-      });
-    }
-
-    if (
-      meaningRefs.some(
-        (ref) =>
-          vocabulary.meaningPronunciations.filter(
-            (link) => link.meaningRef === ref,
-          ).length !== 1,
-      ) ||
-      pronunciationRefs.some(
-        (ref) =>
-          !vocabulary.meaningPronunciations.some(
-            (link) => link.pronunciationRef === ref,
-          ),
-      )
-    ) {
-      context.addIssue({
-        code: 'custom',
-        message:
-          '각 뜻에는 발음 하나가 필요하며, 연결되지 않은 발음은 저장할 수 없습니다.',
-        path: ['meaningPronunciations'],
-      });
-    }
-    const mappingKeys: string[] = [];
-    vocabulary.meaningPronunciations.forEach((mapping, index) => {
-      if (!meaningRefs.includes(mapping.meaningRef)) {
-        context.addIssue({
-          code: 'custom',
-          message: 'mapping은 요청 안의 뜻을 가리켜야 합니다.',
-          path: ['meaningPronunciations', index, 'meaningRef'],
-        });
-      }
-      if (!pronunciationRefs.includes(mapping.pronunciationRef)) {
-        context.addIssue({
-          code: 'custom',
-          message: 'mapping은 요청 안의 발음을 가리켜야 합니다.',
-          path: ['meaningPronunciations', index, 'pronunciationRef'],
-        });
-      }
-      mappingKeys.push(`${mapping.meaningRef}:${mapping.pronunciationRef}`);
-    });
-    if (hasDuplicates(mappingKeys)) {
-      context.addIssue({
-        code: 'custom',
-        message: '뜻과 발음 mapping은 중복될 수 없습니다.',
-        path: ['meaningPronunciations'],
       });
     }
   });
@@ -150,7 +80,6 @@ const adminVocabularyListItemSchema = z
     status: vocabularyStatusSchema,
     mergedIntoVocabularyId: uuidSchema.nullable(),
     meaningCount: z.number().int().safe().nonnegative(),
-    pronunciationCount: z.number().int().safe().nonnegative(),
     updatedAt: utcDateTimeSchema,
   })
   .strict();
@@ -173,22 +102,6 @@ const adminVocabularyMeaningSchema = z
   })
   .strict();
 
-const adminVocabularyPronunciationSchema = z
-  .object({
-    id: uuidSchema,
-    pronunciationKo: z.string().min(1),
-    toneMarks: z.string(),
-  })
-  .strict();
-
-const adminVocabularyMeaningPronunciationSchema = z
-  .object({
-    meaningId: uuidSchema,
-    pronunciationId: uuidSchema,
-  })
-  .strict();
-
-/** 뜻·발음 mapping과 문장·문제 버전 사용처를 반환하는 관리자 상세 */
 export const adminVocabularyDetailResponseSchema = z
   .object({
     id: uuidSchema,
@@ -198,8 +111,6 @@ export const adminVocabularyDetailResponseSchema = z
     importanceWeight: z.number().int().min(1).max(10),
     mergedIntoVocabularyId: uuidSchema.nullable(),
     meanings: z.array(adminVocabularyMeaningSchema),
-    pronunciations: z.array(adminVocabularyPronunciationSchema),
-    meaningPronunciations: z.array(adminVocabularyMeaningPronunciationSchema),
     relations: z.array(adminVocabularyRelationSchema),
     usage: z
       .object({
@@ -216,45 +127,11 @@ export const adminVocabularyDetailResponseSchema = z
   .strict()
   .superRefine((vocabulary, context) => {
     const meaningIds = vocabulary.meanings.map(({ id }) => id);
-    const pronunciationIds = vocabulary.pronunciations.map(({ id }) => id);
     if (hasDuplicates(meaningIds)) {
       context.addIssue({
         code: 'custom',
         message: '뜻 ID는 중복될 수 없습니다.',
         path: ['meanings'],
-      });
-    }
-    if (hasDuplicates(pronunciationIds)) {
-      context.addIssue({
-        code: 'custom',
-        message: '발음 ID는 중복될 수 없습니다.',
-        path: ['pronunciations'],
-      });
-    }
-
-    const mappingPairs: string[] = [];
-    vocabulary.meaningPronunciations.forEach((mapping, index) => {
-      if (!meaningIds.includes(mapping.meaningId)) {
-        context.addIssue({
-          code: 'custom',
-          message: 'mapping은 상세 응답 안의 뜻을 가리켜야 합니다.',
-          path: ['meaningPronunciations', index, 'meaningId'],
-        });
-      }
-      if (!pronunciationIds.includes(mapping.pronunciationId)) {
-        context.addIssue({
-          code: 'custom',
-          message: 'mapping은 상세 응답 안의 발음을 가리켜야 합니다.',
-          path: ['meaningPronunciations', index, 'pronunciationId'],
-        });
-      }
-      mappingPairs.push(`${mapping.meaningId}:${mapping.pronunciationId}`);
-    });
-    if (hasDuplicates(mappingPairs)) {
-      context.addIssue({
-        code: 'custom',
-        message: '뜻과 발음 mapping은 중복될 수 없습니다.',
-        path: ['meaningPronunciations'],
       });
     }
     vocabulary.relations.forEach((relation, index) => {

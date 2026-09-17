@@ -148,6 +148,13 @@
       "when": 1789632143689,
       "tag": "0020_question_bank_mvp",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1789655548261,
+      "tag": "0021_remove_pronunciation",
+      "breakpoints": true
     }
   ]
 }

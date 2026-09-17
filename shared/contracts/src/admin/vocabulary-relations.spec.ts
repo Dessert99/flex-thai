@@ -49,7 +49,6 @@ describe('관리자 어휘 병합 계약', () => {
           kind: 'WORD',
           status: 'DRAFT',
           meaningCount: 1,
-          pronunciationCount: 1,
           usage: {
             tokenOccurrences: 0,
             expressionOccurrences: 0,
@@ -65,7 +64,6 @@ describe('관리자 어휘 병합 계약', () => {
           kind: 'WORD',
           status: 'PUBLISHED',
           meaningCount: 1,
-          pronunciationCount: 1,
           usage: {
             tokenOccurrences: 0,
             expressionOccurrences: 0,

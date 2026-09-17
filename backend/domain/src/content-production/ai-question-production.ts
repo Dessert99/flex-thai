@@ -215,9 +215,6 @@ export interface QuestionPromptVocabulary {
   meaningKo: string;
   partOfSpeech: string;
   difficulty: number;
-  pronunciationId?: string | undefined;
-  pronunciationKo?: string | undefined;
-  toneMarks?: string | undefined;
 }
 
 /** 기존 게시 문제를 재생성 없이 구분할 제한된 요약 */
@@ -302,15 +299,12 @@ const projectGeneratedSentence = (
 ): GeneratedQuestionSentenceInput => ({
   originalText: sentence.originalText,
   translationKo: sentence.translationKo,
-  pronunciationKo: sentence.pronunciationKo,
-  toneMarks: sentence.toneMarks,
   tokens: sentence.tokens.map((token) => ({
     surface: token.surface,
     startOffset: token.startOffset,
     endOffset: token.endOffset,
     vocabulary: projectContentReference(token.vocabulary),
     meaning: projectContentReference(token.meaning),
-    pronunciation: projectContentReference(token.pronunciation),
     contextMeaningKo: token.contextMeaningKo,
     role: token.role,
   })),
@@ -319,7 +313,6 @@ const projectGeneratedSentence = (
     endTokenIndex: expression.endTokenIndex,
     vocabulary: projectContentReference(expression.vocabulary),
     meaning: projectContentReference(expression.meaning),
-    pronunciation: projectContentReference(expression.pronunciation),
     contextMeaningKo: expression.contextMeaningKo,
     ...(expression.representative === undefined
       ? {}
@@ -386,8 +379,6 @@ const projectUnknownSentence = (value: unknown): unknown => {
   return {
     originalText: value.originalText,
     translationKo: value.translationKo,
-    pronunciationKo: value.pronunciationKo,
-    toneMarks: value.toneMarks,
     tokens: isUnknownArray(value.tokens)
       ? value.tokens.map((token) =>
           isRecord(token)
@@ -397,7 +388,6 @@ const projectUnknownSentence = (value: unknown): unknown => {
                 endOffset: token.endOffset,
                 vocabulary: projectUnknownReference(token.vocabulary),
                 meaning: projectUnknownReference(token.meaning),
-                pronunciation: projectUnknownReference(token.pronunciation),
                 contextMeaningKo: token.contextMeaningKo,
                 role: token.role,
               }
@@ -412,9 +402,6 @@ const projectUnknownSentence = (value: unknown): unknown => {
                 endTokenIndex: expression.endTokenIndex,
                 vocabulary: projectUnknownReference(expression.vocabulary),
                 meaning: projectUnknownReference(expression.meaning),
-                pronunciation: projectUnknownReference(
-                  expression.pronunciation,
-                ),
                 contextMeaningKo: expression.contextMeaningKo,
                 ...(typeof expression.representative === 'boolean'
                   ? { representative: expression.representative }
@@ -522,9 +509,6 @@ const sortVocabulary = (
       meaningKo: item.meaningKo,
       partOfSpeech: item.partOfSpeech,
       difficulty: item.difficulty,
-      pronunciationId: item.pronunciationId,
-      pronunciationKo: item.pronunciationKo,
-      toneMarks: item.toneMarks,
     }))
     .sort(compareStablePromptValue);
 
@@ -557,7 +541,6 @@ const generatedSentenceSchema = {
           contextMeaningKo: { type: 'string' },
           endTokenIndex: { type: 'integer' },
           meaning: contentReferenceSchema,
-          pronunciation: contentReferenceSchema,
           representative: { type: 'boolean' },
           startTokenIndex: { type: 'integer' },
           vocabulary: contentReferenceSchema,
@@ -567,7 +550,6 @@ const generatedSentenceSchema = {
           'endTokenIndex',
           'vocabulary',
           'meaning',
-          'pronunciation',
           'contextMeaningKo',
         ],
         type: 'object',
@@ -575,7 +557,6 @@ const generatedSentenceSchema = {
       type: 'array',
     },
     originalText: { type: 'string' },
-    pronunciationKo: { type: 'string' },
     tokens: {
       items: {
         additionalProperties: false,
@@ -583,7 +564,6 @@ const generatedSentenceSchema = {
           contextMeaningKo: { type: 'string' },
           endOffset: { type: 'integer' },
           meaning: contentReferenceSchema,
-          pronunciation: contentReferenceSchema,
           role: {
             enum: ['TARGET', 'REQUIRED', 'SUPPORTING', 'INSTRUCTION'],
             type: 'string',
@@ -598,7 +578,6 @@ const generatedSentenceSchema = {
           'endOffset',
           'vocabulary',
           'meaning',
-          'pronunciation',
           'contextMeaningKo',
           'role',
         ],
@@ -606,17 +585,9 @@ const generatedSentenceSchema = {
       },
       type: 'array',
     },
-    toneMarks: { type: 'string' },
     translationKo: { type: 'string' },
   },
-  required: [
-    'originalText',
-    'translationKo',
-    'pronunciationKo',
-    'toneMarks',
-    'tokens',
-    'expressions',
-  ],
+  required: ['originalText', 'translationKo', 'tokens', 'expressions'],
   type: 'object',
 };
 
@@ -1217,7 +1188,6 @@ const isCanonicalToken = (value: unknown): boolean => {
       'endOffset',
       'vocabulary',
       'meaning',
-      'pronunciation',
       'contextMeaningKo',
       'role',
     ]) &&
@@ -1226,7 +1196,6 @@ const isCanonicalToken = (value: unknown): boolean => {
     isSafeInteger(value.endOffset) &&
     isContentDraftReference(value.vocabulary) &&
     isContentDraftReference(value.meaning) &&
-    isContentDraftReference(value.pronunciation) &&
     isNonemptyString(value.contextMeaningKo) &&
     ['TARGET', 'REQUIRED', 'SUPPORTING', 'INSTRUCTION'].includes(
       value.role as string,
@@ -1242,7 +1211,6 @@ const isCanonicalExpression = (value: unknown): boolean => {
     'endTokenIndex',
     'vocabulary',
     'meaning',
-    'pronunciation',
     'contextMeaningKo',
   ];
   const keys = Object.keys(value);
@@ -1253,7 +1221,6 @@ const isCanonicalExpression = (value: unknown): boolean => {
     isSafeInteger(value.endTokenIndex) &&
     isContentDraftReference(value.vocabulary) &&
     isContentDraftReference(value.meaning) &&
-    isContentDraftReference(value.pronunciation) &&
     isNonemptyString(value.contextMeaningKo) &&
     (value.representative === undefined ||
       typeof value.representative === 'boolean')
@@ -1320,15 +1287,11 @@ const isGeneratedSentence = (
     hasExactKeys(value, [
       'originalText',
       'translationKo',
-      'pronunciationKo',
-      'toneMarks',
       'tokens',
       'expressions',
     ]) &&
     isNonemptyString(value.originalText) &&
     isNonemptyString(value.translationKo) &&
-    isNonemptyString(value.pronunciationKo) &&
-    typeof value.toneMarks === 'string' &&
     Array.isArray(value.tokens) &&
     value.tokens.every(isCanonicalToken) &&
     Array.isArray(value.expressions) &&

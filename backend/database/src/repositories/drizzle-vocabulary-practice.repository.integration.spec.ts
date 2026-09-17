@@ -16,7 +16,6 @@ const ids = {
   user: uuid(701),
   vocabulary: uuid(702),
   meaning: uuid(703),
-  pronunciation: uuid(705),
   option: uuid(706),
   secondOption: uuid(707),
   thirdOption: uuid(708),
@@ -35,16 +34,6 @@ const card = {
       difficulty: 1,
       contextNote: null,
     },
-  ],
-  pronunciations: [
-    {
-      id: ids.pronunciation,
-      pronunciationKo: '리안',
-      toneMarks: 'M',
-    },
-  ],
-  meaningPronunciations: [
-    { meaningId: ids.meaning, pronunciationId: ids.pronunciation },
   ],
 };
 
@@ -122,15 +111,6 @@ integration('DrizzleVocabularyPracticeRepository PostgreSQL', () => {
       `insert into vocabulary_meanings (id, vocabulary_id, meaning_ko, part_of_speech, difficulty) values ($1, $2, '배우다', '동사', 1)`,
       [ids.meaning, ids.vocabulary],
     );
-
-    await pool.query(
-      `insert into vocabulary_pronunciations (id, vocabulary_id, pronunciation_ko, tone_marks) values ($1, $2, '리안', 'M')`,
-      [ids.pronunciation, ids.vocabulary],
-    );
-    await pool.query(
-      `insert into vocabulary_meaning_pronunciations (vocabulary_id, meaning_id, pronunciation_id) values ($1, $2, $3)`,
-      [ids.vocabulary, ids.meaning, ids.pronunciation],
-    );
   });
 
   beforeEach(async () => {
@@ -165,13 +145,6 @@ integration('DrizzleVocabularyPracticeRepository PostgreSQL', () => {
       `delete from vocabulary_practice_sessions where user_id = $1`,
       [ids.user],
     );
-    await pool.query(
-      `delete from vocabulary_meaning_pronunciations where meaning_id = $1`,
-      [ids.meaning],
-    );
-    await pool.query(`delete from vocabulary_pronunciations where id = $1`, [
-      ids.pronunciation,
-    ]);
 
     await pool.query(`delete from vocabulary_meanings where id = $1`, [
       ids.meaning,

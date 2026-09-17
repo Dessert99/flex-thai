@@ -96,7 +96,6 @@ const toPreviewVocabulary = (graph: VocabularyMergeGraph) => ({
   kind: graph.vocabulary.kind,
   status: graph.vocabulary.status as 'DRAFT' | 'PUBLISHED' | 'HIDDEN',
   meaningCount: graph.meanings.length,
-  pronunciationCount: graph.pronunciations.length,
   usage: {
     tokenOccurrences: graph.tokenOccurrenceIds.length,
     expressionOccurrences: graph.expressionOccurrenceIds.length,

@@ -62,8 +62,6 @@ const candidate = (): QuestionVersionValidationCandidate => ({
         input: {
           originalText: 'กข',
           translationKo: '정답',
-          pronunciationKo: '꼬 커',
-          toneMarks: '- -',
           tokens: [],
           expressions: [],
         },
@@ -80,8 +78,6 @@ const candidate = (): QuestionVersionValidationCandidate => ({
         input: {
           originalText: 'คง',
           translationKo: '오답',
-          pronunciationKo: '커 응어',
-          toneMarks: '- -',
           tokens: [],
           expressions: [],
         },

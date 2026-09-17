@@ -171,8 +171,6 @@ describe('DrizzleWordbookQuery 검색·필터·페이지', () => {
         {
           id: 'meaning-2',
           vocabularyId: 'vocabulary-id',
-          pronunciationKo: '싸왓디',
-          toneMarks: 'L-L-M',
           meaningKo: '안녕',
           partOfSpeech: '감탄사',
           difficulty: 2,
@@ -182,8 +180,6 @@ describe('DrizzleWordbookQuery 검색·필터·페이지', () => {
         {
           id: 'meaning-1',
           vocabularyId: 'vocabulary-id',
-          pronunciationKo: '싸왓디',
-          toneMarks: 'L-L-M',
           meaningKo: '안녕하세요',
           partOfSpeech: '감탄사',
           difficulty: 1,
@@ -229,14 +225,6 @@ describe('DrizzleWordbookQuery 검색·필터·페이지', () => {
             difficulty: 2,
             contextNote: null,
           },
-        ],
-        pronunciations: [
-          {
-            id: 'meaning-1',
-            pronunciationKo: '싸왓디',
-            toneMarks: 'L-L-M',
-          },
-          { id: 'meaning-2', pronunciationKo: '싸왓디', toneMarks: 'L-L-M' },
         ],
         saved: true,
         addedAt,

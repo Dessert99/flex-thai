@@ -439,37 +439,6 @@ export class DrizzleContentErrorReportRepository
         )[0]
       : null;
     if (origin.meaningId && !meaning) return null;
-    const pronunciation = origin.pronunciationId
-      ? (
-          await this.database
-            .select({
-              value: vocabularyMeanings.pronunciationKo,
-            })
-            .from(vocabularyMeanings)
-            .where(
-              and(
-                eq(vocabularyMeanings.id, origin.pronunciationId),
-                eq(vocabularyMeanings.vocabularyId, origin.vocabularyId),
-              ),
-            )
-            .limit(1)
-        )[0]
-      : null;
-    if (origin.pronunciationId && !pronunciation) return null;
-    if (origin.meaningId && origin.pronunciationId) {
-      const links = await this.database
-        .select({ vocabularyId: vocabularyMeanings.vocabularyId })
-        .from(vocabularyMeanings)
-        .where(
-          and(
-            eq(vocabularyMeanings.vocabularyId, origin.vocabularyId),
-            eq(vocabularyMeanings.id, origin.meaningId),
-            eq(vocabularyMeanings.id, origin.pronunciationId),
-          ),
-        )
-        .limit(1);
-      if (!links[0]) return null;
-    }
     return {
       reference: {
         kind: 'VOCABULARY',
@@ -477,12 +446,12 @@ export class DrizzleContentErrorReportRepository
         contentVersionId: null,
         questionVersion: null,
         sentenceVersionId: null,
-        locationId: origin.meaningId ?? origin.pronunciationId,
+        locationId: origin.meaningId,
       },
       snapshot: {
         title: vocabulary.thai,
         primaryText: meaning?.value ?? vocabulary.thai,
-        secondaryText: pronunciation?.value ?? null,
+        secondaryText: null,
         versionLabel: null,
         locationLabel: '어휘 상세',
       },

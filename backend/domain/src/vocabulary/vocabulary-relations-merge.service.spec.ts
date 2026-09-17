@@ -42,8 +42,6 @@ const graph = (
   meanings: [
     id === ids.sourceVocabulary ? ids.sourceMeaning : ids.targetMeaning,
   ],
-  pronunciations: [],
-  meaningPronunciations: [],
   relations: [],
   incomingMergeSourceIds: [],
   tokenOccurrenceIds: [],
@@ -75,8 +73,6 @@ const createFake = () => {
     representativeVocabularyId: ids.representativeVocabulary,
     movedCounts: {
       meanings: 1,
-      pronunciations: 0,
-      meaningPronunciations: 0,
       tokenOccurrences: 0,
       expressionOccurrences: 0,
       savedMemberships: 0,

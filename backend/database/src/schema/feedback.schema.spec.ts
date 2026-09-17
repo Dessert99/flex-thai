@@ -19,7 +19,7 @@ describe('콘텐츠 오류 신고 schema', () => {
       'SENTENCE',
       'CONCEPT',
     ]);
-    expect(contentErrorReportCategoryEnum.enumValues).toHaveLength(5);
+    expect(contentErrorReportCategoryEnum.enumValues).toHaveLength(4);
     expect(contentErrorReportStatusEnum.enumValues).toEqual([
       'OPEN',
       'IN_PROGRESS',

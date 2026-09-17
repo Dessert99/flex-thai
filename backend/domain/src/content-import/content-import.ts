@@ -13,19 +13,12 @@ export interface CanonicalDraftVocabularyMeaningInput {
   contextNote?: string | null;
 }
 
-export interface CanonicalDraftVocabularyPronunciationInput {
-  clientRef: string;
-  pronunciationKo: string;
-  toneMarks: string;
-}
-
 /** 한 import item이 생성할 canonical 어휘 입력 */
 export interface CanonicalDraftVocabularyInput {
   clientRef: string;
   thai: string;
   kind: 'WORD' | 'EXPRESSION';
   meanings: CanonicalDraftVocabularyMeaningInput[];
-  pronunciations: CanonicalDraftVocabularyPronunciationInput[];
 }
 
 /** 문장 원문 한 번의 어휘 출현 입력 */
@@ -35,7 +28,6 @@ export interface CanonicalDraftTokenInput {
   endOffset: number;
   vocabulary: ContentDraftReference;
   meaning: ContentDraftReference;
-  pronunciation: ContentDraftReference;
   contextMeaningKo: string;
   role: 'TARGET' | 'REQUIRED' | 'SUPPORTING' | 'INSTRUCTION';
 }
@@ -46,7 +38,6 @@ export interface CanonicalDraftExpressionInput {
   endTokenIndex: number;
   vocabulary: ContentDraftReference;
   meaning: ContentDraftReference;
-  pronunciation: ContentDraftReference;
   contextMeaningKo: string;
   representative?: boolean;
 }
@@ -55,8 +46,6 @@ export interface CanonicalDraftExpressionInput {
 export interface CanonicalDraftSentenceInput {
   originalText: string;
   translationKo: string;
-  pronunciationKo: string;
-  toneMarks: string;
   tokens: CanonicalDraftTokenInput[];
   expressions: CanonicalDraftExpressionInput[];
 }

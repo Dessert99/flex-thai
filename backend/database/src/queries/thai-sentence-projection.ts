@@ -6,10 +6,7 @@ export interface LearnerQuestionTokenProjection {
   endOffset: number;
   vocabularyId: string;
   meaningId: string;
-  pronunciationId: string;
   contextMeaningKo: string;
-  pronunciationKo: string;
-  toneMarks: string;
   role: 'TARGET' | 'REQUIRED' | 'SUPPORTING' | 'INSTRUCTION';
 }
 
@@ -19,10 +16,7 @@ export interface LearnerQuestionExpressionProjection {
   endTokenIndex: number;
   vocabularyId: string;
   meaningId: string;
-  pronunciationId: string;
   contextMeaningKo: string;
-  pronunciationKo: string;
-  toneMarks: string;
   representative: boolean;
 }
 
@@ -31,8 +25,6 @@ export interface LearnerQuestionSentenceProjection {
   sentenceVersionId: string;
   originalText: string;
   translationKo: string;
-  pronunciationKo: string;
-  toneMarks: string;
   tokens: LearnerQuestionTokenProjection[];
   expressions: LearnerQuestionExpressionProjection[];
 }

@@ -32,8 +32,6 @@ export interface VocabularyRelationsMergeRelationWrite extends VocabularyRelatio
 /** 병합 후 이동 수 */
 export interface VocabularyMergeMovedCounts {
   meanings: number;
-  pronunciations: number;
-  meaningPronunciations: number;
   tokenOccurrences: number;
   expressionOccurrences: number;
   savedMemberships: number;

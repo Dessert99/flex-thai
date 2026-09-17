@@ -31,21 +31,6 @@ const vocabularyMeaningSchema = z
   })
   .strict();
 
-const vocabularyPronunciationSchema = z
-  .object({
-    id: uuidSchema,
-    pronunciationKo: z.string().min(1),
-    toneMarks: z.string(),
-  })
-  .strict();
-
-const vocabularyMeaningPronunciationSchema = z
-  .object({
-    meaningId: uuidSchema,
-    pronunciationId: uuidSchema,
-  })
-  .strict();
-
 const vocabularyMeaningRelationSchema = z
   .object({
     id: uuidSchema,
@@ -64,7 +49,6 @@ const vocabularySummaryShape = {
   thai: z.string().min(1),
   kind: z.enum(['WORD', 'EXPRESSION']),
   meanings: z.array(vocabularyMeaningSchema),
-  pronunciations: z.array(vocabularyPronunciationSchema),
   saved: z.boolean(),
 };
 
@@ -79,7 +63,6 @@ export const vocabularyListQuerySchema = z
   })
   .strict();
 
-/** 어휘 목록과 단어장이 공유하는 공개 뜻·발음 요약 */
 export const vocabularySummarySchema = z
   .object(vocabularySummaryShape)
   .strict();
@@ -95,44 +78,13 @@ export const vocabularyListResponseSchema = z
 export const vocabularyDetailResponseSchema = z
   .object({
     ...vocabularySummaryShape,
-    meaningPronunciations: z.array(vocabularyMeaningPronunciationSchema),
     relations: z.array(vocabularyMeaningRelationSchema),
     exampleSentences: z.array(publicThaiSentenceSchema),
   })
   .strict()
   .superRefine((detail, context) => {
     const meaningIds = new Set(detail.meanings.map((meaning) => meaning.id));
-    const pronunciationIds = new Set(
-      detail.pronunciations.map((pronunciation) => pronunciation.id),
-    );
-    const pairs = new Set<string>();
 
-    detail.meaningPronunciations.forEach((link, index) => {
-      if (!meaningIds.has(link.meaningId)) {
-        context.addIssue({
-          code: 'custom',
-          message: '상세에 존재하는 뜻만 연결할 수 있습니다.',
-          path: ['meaningPronunciations', index, 'meaningId'],
-        });
-      }
-      if (!pronunciationIds.has(link.pronunciationId)) {
-        context.addIssue({
-          code: 'custom',
-          message: '상세에 존재하는 발음만 연결할 수 있습니다.',
-          path: ['meaningPronunciations', index, 'pronunciationId'],
-        });
-      }
-
-      const pair = `${link.meaningId}:${link.pronunciationId}`;
-      if (pairs.has(pair)) {
-        context.addIssue({
-          code: 'custom',
-          message: '같은 뜻과 발음 연결을 중복할 수 없습니다.',
-          path: ['meaningPronunciations', index],
-        });
-      }
-      pairs.add(pair);
-    });
     detail.relations.forEach((relation, index) => {
       if (!meaningIds.has(relation.meaningId)) {
         context.addIssue({

@@ -29,9 +29,7 @@ const detail = {
   thai: 'สวัสดี',
   kind: 'WORD',
   meanings: [],
-  pronunciations: [],
   saved: false,
-  meaningPronunciations: [],
   exampleSentences: [],
   relations: [],
 } as const;

@@ -33,8 +33,6 @@ const draft = (
 const canonicalSentence: ApprovedExampleSentence = {
   originalText: 'ก',
   translationKo: '뜻',
-  pronunciationKo: '꺼',
-  toneMarks: '-',
   tokens: [
     {
       surface: 'ก',
@@ -42,7 +40,6 @@ const canonicalSentence: ApprovedExampleSentence = {
       endOffset: 1,
       vocabulary: { id: '00000000-0000-4000-8000-000000000011' },
       meaning: { id: '00000000-0000-4000-8000-000000000012' },
-      pronunciation: { id: '00000000-0000-4000-8000-000000000013' },
       contextMeaningKo: '뜻',
       role: 'TARGET' as const,
     },

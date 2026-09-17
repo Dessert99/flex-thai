@@ -68,8 +68,6 @@ const makeValidationFixture = (
 const singleTokenSentence = {
   originalText: 'ใช่',
   translationKo: '예',
-  pronunciationKo: '차이',
-  toneMarks: '',
   tokens: [
     {
       surface: 'ใช่',
@@ -77,7 +75,6 @@ const singleTokenSentence = {
       endOffset: 3,
       vocabulary: { clientRef: 'vocabulary-yes' },
       meaning: { clientRef: 'meaning-yes' },
-      pronunciation: { clientRef: 'pronunciation-yes' },
       contextMeaningKo: '예',
       role: 'TARGET' as const,
     },
@@ -232,8 +229,6 @@ describe('AI 문제 후보 검토 서비스', () => {
 const tokenizedSentence = {
   originalText: 'ไปไหน',
   translationKo: '어디에 가나요?',
-  pronunciationKo: '빠이 나이',
-  toneMarks: '',
   tokens: [
     {
       surface: 'ไป',
@@ -241,7 +236,6 @@ const tokenizedSentence = {
       endOffset: 2,
       vocabulary: { clientRef: 'vocabulary-go' },
       meaning: { clientRef: 'meaning-go' },
-      pronunciation: { clientRef: 'pronunciation-go' },
       contextMeaningKo: '가다',
       role: 'TARGET' as const,
     },
@@ -251,7 +245,6 @@ const tokenizedSentence = {
       endOffset: 5,
       vocabulary: { clientRef: 'vocabulary-where' },
       meaning: { clientRef: 'meaning-where' },
-      pronunciation: { clientRef: 'pronunciation-where' },
       contextMeaningKo: '어디',
       role: 'REQUIRED' as const,
     },
@@ -262,7 +255,6 @@ const tokenizedSentence = {
       endTokenIndex: 2,
       vocabulary: { clientRef: 'vocabulary-expression' },
       meaning: { clientRef: 'meaning-expression' },
-      pronunciation: { clientRef: 'pronunciation-expression' },
       contextMeaningKo: '어디에 가다',
       representative: true,
     },
@@ -429,7 +421,6 @@ const instructionSentence = {
   ...singleTokenSentence,
   originalText: 'จง',
   translationKo: '다음 지시에 따르세요.',
-  pronunciationKo: '쫑',
   tokens: [
     {
       ...singleTokenSentence.tokens[0]!,
@@ -547,7 +538,7 @@ describe('AI 문제 후보 검증 규칙', () => {
         expressions: [
           {
             ...tokenizedSentence.expressions[0],
-            pronunciation: undefined,
+            meaning: undefined,
           },
         ],
       },
@@ -595,6 +586,7 @@ describe('AI 문제 후보 검증 규칙', () => {
         expressions: [
           {
             ...tokenizedSentence.expressions[0],
+            meaning: undefined,
             vocabulary: { id: 'not-a-uuid' },
           },
         ],
@@ -703,7 +695,11 @@ describe('AI 문제 후보 검증 규칙', () => {
       {
         ...tokenizedSentence,
         expressions: [
-          { ...tokenizedSentence.expressions[0], startTokenIndex: 2 },
+          {
+            ...tokenizedSentence.expressions[0],
+            meaning: undefined,
+            startTokenIndex: 2,
+          },
         ],
       },
     ],
@@ -712,7 +708,11 @@ describe('AI 문제 후보 검증 규칙', () => {
       {
         ...tokenizedSentence,
         expressions: [
-          { ...tokenizedSentence.expressions[0], endTokenIndex: 3 },
+          {
+            ...tokenizedSentence.expressions[0],
+            meaning: undefined,
+            endTokenIndex: 3,
+          },
         ],
       },
     ],
@@ -1009,9 +1009,6 @@ describe('AI 문제 후보 검증 규칙', () => {
                       meaning: {
                         clientRef: 'meaning-expression-alternative',
                       },
-                      pronunciation: {
-                        clientRef: 'pronunciation-expression-alternative',
-                      },
                       representative: false,
                     },
                   ],
@@ -1175,9 +1172,6 @@ describe('AI 문제 후보 검증 규칙', () => {
                             clientRef: 'vocabulary-new',
                           },
                           meaning: { clientRef: 'meaning-new' },
-                          pronunciation: {
-                            clientRef: 'pronunciation-new',
-                          },
                           contextMeaningKo: '새롭다',
                           role: 'TARGET',
                         },
@@ -1610,8 +1604,6 @@ describe('AI 문제 생성 prompt 조립', () => {
                                 required: [
                                   'originalText',
                                   'translationKo',
-                                  'pronunciationKo',
-                                  'toneMarks',
                                   'tokens',
                                   'expressions',
                                 ],
@@ -1700,7 +1692,6 @@ describe('AI 문제 생성 prompt 조립', () => {
                                       properties: {
                                         vocabulary: uuidReference,
                                         meaning: uuidReference,
-                                        pronunciation: uuidReference,
                                       },
                                     },
                                   },
@@ -1709,7 +1700,6 @@ describe('AI 문제 생성 prompt 조립', () => {
                                       properties: {
                                         vocabulary: uuidReference,
                                         meaning: uuidReference,
-                                        pronunciation: uuidReference,
                                       },
                                     },
                                   },

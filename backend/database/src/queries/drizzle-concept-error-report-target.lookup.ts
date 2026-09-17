@@ -32,7 +32,6 @@ interface PublishedConceptSentenceRow {
   version: number;
   originalText: string;
   translationKo: string;
-  pronunciationKo: string;
 }
 
 /** 현재 게시된 개념 graph만 콘텐츠 오류 신고 target으로 공개한다 */
@@ -137,7 +136,6 @@ export class DrizzleConceptErrorReportTargetLookup implements ConceptErrorReport
         version: thaiSentenceVersions.version,
         originalText: thaiSentenceVersions.originalText,
         translationKo: thaiSentenceVersions.translationKo,
-        pronunciationKo: thaiSentenceVersions.pronunciationKo,
       })
       .from(conceptBlockExamples)
       .innerJoin(
@@ -218,7 +216,7 @@ export class DrizzleConceptErrorReportTargetLookup implements ConceptErrorReport
       snapshot: {
         title: sentence.originalText,
         primaryText: sentence.translationKo,
-        secondaryText: sentence.pronunciationKo,
+        secondaryText: null,
         versionLabel: `버전 ${sentence.version}`,
         locationLabel:
           tokenPosition === null ? '문장' : `토큰 ${tokenPosition}`,

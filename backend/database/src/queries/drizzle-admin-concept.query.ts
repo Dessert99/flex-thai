@@ -21,7 +21,7 @@ type AdminConceptDatabase = PgDatabase<
   PgQueryResultHKT,
   typeof adminConceptSchema
 >;
-type ConceptCategory = 'THAI_SCRIPT_PRONUNCIATION' | 'GRAMMAR';
+type ConceptCategory = 'THAI_SCRIPT' | 'GRAMMAR';
 type ConceptStatus = 'DRAFT' | 'PUBLISHED' | 'HIDDEN';
 type VersionStatus = 'DRAFT' | 'PUBLISHED' | 'RETIRED';
 type ValidationStatus = 'PENDING' | 'PASSED' | 'FAILED';

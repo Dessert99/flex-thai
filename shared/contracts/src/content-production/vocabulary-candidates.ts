@@ -84,101 +84,22 @@ const vocabularyDraftMeaningSchema = vocabularyMeaningSnapshotSchema
   })
   .strict();
 
-const vocabularyDraftPronunciationSchema = z
-  .object({
-    clientRef: z.string().trim().min(1),
-    pronunciationKo: z.string().trim().min(1),
-    toneMarks: z.string(),
-  })
-  .strict();
-
-const vocabularyMeaningPronunciationSchema = z
-  .object({
-    meaningRef: z.string().trim().min(1),
-    pronunciationRef: z.string().trim().min(1),
-  })
-  .strict();
-
 const assertCompleteDraftGraph = (
   graph: {
     meanings: Array<{ clientRef: string }>;
-    pronunciations: Array<{ clientRef: string }>;
-    meaningPronunciations: Array<{
-      meaningRef: string;
-      pronunciationRef: string;
-    }>;
   },
   context: z.RefinementCtx,
 ) => {
   const meaningRefs = graph.meanings.map(({ clientRef }) => clientRef);
-  const pronunciationRefs = graph.pronunciations.map(
-    ({ clientRef }) => clientRef,
-  );
-  const duplicateRef = [...meaningRefs, ...pronunciationRefs].find(
+  const duplicateRef = meaningRefs.find(
     (reference, index, references) => references.indexOf(reference) !== index,
   );
   if (duplicateRef) {
     context.addIssue({
       code: 'custom',
-      message: '뜻과 발음 clientRef는 graph 전체에서 유일해야 합니다.',
+      message: '뜻 clientRef는 graph 전체에서 유일해야 합니다.',
       path: ['meanings'],
     });
-  }
-
-  const knownMeanings = new Set(meaningRefs);
-  const knownPronunciations = new Set(pronunciationRefs);
-  const pairs = new Set<string>();
-  graph.meaningPronunciations.forEach((mapping, index) => {
-    const pair = `${mapping.meaningRef}:${mapping.pronunciationRef}`;
-    if (pairs.has(pair)) {
-      context.addIssue({
-        code: 'custom',
-        message: '뜻과 발음 mapping은 중복될 수 없습니다.',
-        path: ['meaningPronunciations', index],
-      });
-    }
-    pairs.add(pair);
-    if (!knownMeanings.has(mapping.meaningRef)) {
-      context.addIssue({
-        code: 'custom',
-        message: 'mapping은 존재하는 뜻만 참조해야 합니다.',
-        path: ['meaningPronunciations', index, 'meaningRef'],
-      });
-    }
-    if (!knownPronunciations.has(mapping.pronunciationRef)) {
-      context.addIssue({
-        code: 'custom',
-        message: 'mapping은 존재하는 발음만 참조해야 합니다.',
-        path: ['meaningPronunciations', index, 'pronunciationRef'],
-      });
-    }
-  });
-
-  for (const meaningRef of meaningRefs) {
-    if (
-      graph.meaningPronunciations.filter(
-        (mapping) => mapping.meaningRef === meaningRef,
-      ).length !== 1
-    ) {
-      context.addIssue({
-        code: 'custom',
-        message: '모든 뜻은 정확히 하나의 발음과 연결되어야 합니다.',
-        path: ['meaningPronunciations'],
-      });
-    }
-  }
-  for (const pronunciationRef of pronunciationRefs) {
-    if (
-      !graph.meaningPronunciations.some(
-        (mapping) => mapping.pronunciationRef === pronunciationRef,
-      )
-    ) {
-      context.addIssue({
-        code: 'custom',
-        message: '모든 발음은 하나 이상의 뜻과 연결되어야 합니다.',
-        path: ['meaningPronunciations'],
-      });
-    }
   }
 };
 
@@ -190,8 +111,6 @@ const createDraftApprovalSchema = z
     thai: z.string().trim().min(1),
     kind: z.enum(['WORD', 'EXPRESSION']),
     meanings: z.array(vocabularyDraftMeaningSchema).min(1),
-    pronunciations: z.array(vocabularyDraftPronunciationSchema).min(1),
-    meaningPronunciations: z.array(vocabularyMeaningPronunciationSchema).min(1),
     confirmDuplicate: z.literal(true).optional(),
   })
   .strict()

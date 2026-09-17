@@ -12,7 +12,6 @@ const ids = {
   topic: '00000000-0000-4000-8000-000000000320',
   vocabulary: '00000000-0000-4000-8000-000000000101',
   meaning: '00000000-0000-4000-8000-000000000201',
-  pronunciation: '00000000-0000-4000-8000-000000000211',
 } as const;
 
 const context: QuestionProductionContext = {
@@ -41,8 +40,6 @@ const context: QuestionProductionContext = {
       meaningKo: '안녕하세요',
       partOfSpeech: '감탄사',
       difficulty: 1,
-      pronunciationId: ids.pronunciation,
-      pronunciationKo: '싸왓디',
     },
   ],
   requiredVocabulary: [],
@@ -110,7 +107,6 @@ const draftTransaction = () => {
     [{ id: ids.topic, slug: 'general' }],
     [{ id: ids.vocabulary, kind: 'WORD', status: 'PUBLISHED' }],
     [{ id: ids.meaning, vocabularyId: ids.vocabulary }],
-    [{ id: ids.pronunciation, vocabularyId: ids.vocabulary }],
   ];
   const select = vi.fn(() => {
     const rows = selectedRows.shift() ?? [];
@@ -187,7 +183,7 @@ describe('local 문제 후보 DRAFT 경계', () => {
       ),
     ).resolves.toEqual({
       questionId: '10000000-0000-4000-8000-000000000001',
-      questionVersionId: '10000000-0000-4000-8000-000000000002',
+      questionVersion: 1,
     });
   });
 });

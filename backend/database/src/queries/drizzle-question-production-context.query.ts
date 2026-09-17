@@ -207,9 +207,6 @@ export const readQuestionProductionPresetPolicy = (
 type PromptVocabularyRow = QuestionPromptVocabulary & {
   id: string;
   meaningId: string;
-  pronunciationId: string;
-  pronunciationKo: string;
-  toneMarks: string;
 };
 
 const resolvePromptVocabulary = (
@@ -225,10 +222,8 @@ const resolvePromptVocabulary = (
     if (meaningIds.size !== 1) {
       throw new Error('QUESTION_VOCABULARY_MEANING_AMBIGUOUS');
     }
-    const [selected] = [...candidates].sort(
-      (left, right) =>
-        compareText(left.pronunciationId, right.pronunciationId) ||
-        compareText(left.id, right.id),
+    const [selected] = [...candidates].sort((left, right) =>
+      compareText(left.id, right.id),
     );
     if (
       !selected ||
@@ -439,9 +434,6 @@ export class DrizzleQuestionProductionContextQuery implements QuestionProduction
                 meaningKo: vocabularyMeanings.meaningKo,
                 partOfSpeech: vocabularyMeanings.partOfSpeech,
                 difficulty: vocabularyMeanings.difficulty,
-                pronunciationId: vocabularyMeanings.id,
-                pronunciationKo: vocabularyMeanings.pronunciationKo,
-                toneMarks: vocabularyMeanings.toneMarks,
               })
               .from(vocabularies)
               .innerJoin(

@@ -65,8 +65,6 @@ describe('AdminVocabulariesController 공개 경계', () => {
         importanceWeight: 5,
         mergedIntoVocabularyId: null,
         meanings: [],
-        pronunciations: [],
-        meaningPronunciations: [],
         relations: [],
         usage: {
           sentenceVersionIds: [],
@@ -102,7 +100,6 @@ describe('AdminVocabulariesController 공개 경계', () => {
           kind: 'WORD',
           status: 'DRAFT',
           meaningCount: 1,
-          pronunciationCount: 0,
           usage: {
             tokenOccurrences: 0,
             expressionOccurrences: 0,
@@ -118,7 +115,6 @@ describe('AdminVocabulariesController 공개 경계', () => {
           kind: 'WORD',
           status: 'PUBLISHED',
           meaningCount: 1,
-          pronunciationCount: 0,
           usage: {
             tokenOccurrences: 0,
             expressionOccurrences: 0,
@@ -135,8 +131,6 @@ describe('AdminVocabulariesController 공개 경계', () => {
         representativeVocabularyId,
         movedCounts: {
           meanings: 1,
-          pronunciations: 0,
-          meaningPronunciations: 0,
           tokenOccurrences: 0,
           expressionOccurrences: 0,
           savedMemberships: 0,
@@ -198,7 +192,6 @@ describe('AdminVocabulariesController 공개 경계', () => {
           kind: 'WORD',
           status: 'DRAFT',
           meaningCount: 1,
-          pronunciationCount: 0,
           usage: {
             tokenOccurrences: 0,
             expressionOccurrences: 0,
@@ -214,7 +207,6 @@ describe('AdminVocabulariesController 공개 경계', () => {
           kind: 'WORD',
           status: 'PUBLISHED',
           meaningCount: 1,
-          pronunciationCount: 0,
           usage: {
             tokenOccurrences: 0,
             expressionOccurrences: 0,
@@ -231,8 +223,6 @@ describe('AdminVocabulariesController 공개 경계', () => {
         representativeVocabularyId,
         movedCounts: {
           meanings: 1,
-          pronunciations: 0,
-          meaningPronunciations: 0,
           tokenOccurrences: 0,
           expressionOccurrences: 0,
           savedMemberships: 0,

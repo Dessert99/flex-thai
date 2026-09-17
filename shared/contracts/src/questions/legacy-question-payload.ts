@@ -17,7 +17,6 @@ const adminQuestionTokenInputSchema = z
     endOffset: positiveIntegerSchema,
     vocabulary: adminContentReferenceSchema,
     meaning: adminContentReferenceSchema,
-    pronunciation: adminContentReferenceSchema,
     contextMeaningKo: z.string().min(1),
     role: z.enum(['TARGET', 'REQUIRED', 'SUPPORTING', 'INSTRUCTION']),
   })
@@ -29,7 +28,6 @@ const adminQuestionExpressionInputSchema = z
     endTokenIndex: positiveIntegerSchema,
     vocabulary: adminContentReferenceSchema,
     meaning: adminContentReferenceSchema,
-    pronunciation: adminContentReferenceSchema,
     contextMeaningKo: z.string().min(1),
     representative: z.boolean().optional(),
   })
@@ -39,8 +37,6 @@ const adminQuestionSentenceInputSchema = z
   .object({
     originalText: z.string().min(1),
     translationKo: z.string().min(1),
-    pronunciationKo: z.string().min(1),
-    toneMarks: z.string(),
     tokens: z.array(adminQuestionTokenInputSchema),
     expressions: z.array(adminQuestionExpressionInputSchema),
   })

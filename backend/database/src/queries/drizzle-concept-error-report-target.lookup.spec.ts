@@ -40,7 +40,6 @@ const publishedSentence = {
   version: 2,
   originalText: 'ฉันเรียนภาษาไทย',
   translationKo: '나는 태국어를 공부한다',
-  pronunciationKo: '찬 리안 파싸 타이',
 };
 
 describe('DrizzleConceptErrorReportTargetLookup', () => {

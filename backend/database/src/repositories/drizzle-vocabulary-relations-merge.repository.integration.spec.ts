@@ -15,10 +15,8 @@ const databaseUrl = process.env.VOCABULARY_MERGE_TEST_DATABASE_URL;
 interface MergeFixture {
   actorUserId: string;
   representativeMeaningId: string;
-  representativePronunciationId: string;
   representativeVocabularyId: string;
   sourceMeaningId: string;
-  sourcePronunciationId: string;
   sourceVocabularyId: string;
 }
 
@@ -26,10 +24,8 @@ const createMergeFixture = async (pool: Pool): Promise<MergeFixture> => {
   const fixture = {
     actorUserId: randomUUID(),
     representativeMeaningId: randomUUID(),
-    representativePronunciationId: randomUUID(),
     representativeVocabularyId: randomUUID(),
     sourceMeaningId: randomUUID(),
-    sourcePronunciationId: randomUUID(),
     sourceVocabularyId: randomUUID(),
   };
   await pool.query(
@@ -67,31 +63,6 @@ const createMergeFixture = async (pool: Pool): Promise<MergeFixture> => {
       fixture.representativeVocabularyId,
     ],
   );
-  await pool.query(
-    `insert into vocabulary_pronunciations (
-       id, vocabulary_id, pronunciation_ko, tone_marks) values
-       ($1, $2, '원본 발음', 'M'),
-       ($4, $5, '대표 발음', 'M')`,
-    [
-      fixture.sourcePronunciationId,
-      fixture.sourceVocabularyId,
-      fixture.representativePronunciationId,
-      fixture.representativeVocabularyId,
-    ],
-  );
-  await pool.query(
-    `insert into vocabulary_meaning_pronunciations (
-       vocabulary_id, meaning_id, pronunciation_id
-     ) values ($1, $2, $3), ($4, $5, $6)`,
-    [
-      fixture.sourceVocabularyId,
-      fixture.sourceMeaningId,
-      fixture.sourcePronunciationId,
-      fixture.representativeVocabularyId,
-      fixture.representativeMeaningId,
-      fixture.representativePronunciationId,
-    ],
-  );
   return fixture;
 };
 
@@ -113,23 +84,16 @@ const addTokenOccurrence = async (pool: Pool, fixture: MergeFixture) => {
   const tokenId = randomUUID();
   await pool.query(`insert into thai_sentences (id) values ($1)`, [sentenceId]);
   await pool.query(
-    `insert into thai_sentence_versions (
-       id, sentence_id, version, original_text, translation_ko,
-       pronunciation_ko, tone_marks, frozen_at
-     ) values ($1, $2, 1, 'หนึ่งสองสาม', '하나 둘 셋', '능 송 쌈', 'MMM', now())`,
+    "insert into thai_sentence_versions (id, sentence_id, version, original_text, translation_ko, frozen_at) values ($1, $2, 1, 'หนึ่งสองสาม', '하나 둘 셋', now())",
     [sentenceVersionId, sentenceId],
   );
   await pool.query(
-    `insert into token_occurrences (
-       id, sentence_version_id, position, surface, start_offset, end_offset,
-       vocabulary_id, meaning_id, pronunciation_id, context_meaning_ko, role
-     ) values ($1, $2, 0, 'หนึ่ง', 0, 5, $3, $4, $5, '하나', 'TARGET')`,
+    "insert into token_occurrences (id, sentence_version_id, position, surface, start_offset, end_offset, vocabulary_id, meaning_id, context_meaning_ko, role) values ($1, $2, 0, 'หนึ่ง', 0, 5, $3, $4, '하나', 'TARGET')",
     [
       tokenId,
       sentenceVersionId,
       fixture.sourceVocabularyId,
       fixture.sourceMeaningId,
-      fixture.sourcePronunciationId,
     ],
   );
   return { sentenceVersionId, tokenId };
@@ -151,23 +115,14 @@ const addPracticeQuestion = async (pool: Pool, fixture: MergeFixture) => {
     [sessionId, fixture.actorUserId],
   );
   await pool.query(
-    `insert into vocabulary_practice_questions (
-       id, session_id, position, vocabulary_id, meaning_id, pronunciation_id, mode, thai_snapshot,
-       meaning_ko_snapshot, pronunciation_ko_snapshot, tone_marks_snapshot,
-       options, correct_option_id, card_snapshot
-     ) values (
-       $1, $2, 1, $3, $4, $5, 'THAI_TO_MEANING',
-       '원본 태국어', '원본 뜻', '원본 발음', 'M', $8::jsonb, $9, $10::jsonb
-     )`,
+    "insert into vocabulary_practice_questions (id, session_id, position, vocabulary_id, meaning_id, mode, thai_snapshot, meaning_ko_snapshot, options, correct_option_id, card_snapshot) values ($1, $2, 1, $3, $4, 'THAI_TO_MEANING', '원본 태국어', '원본 뜻', $5::jsonb, $6, $7::jsonb)",
     [
       practiceQuestionId,
       sessionId,
       fixture.sourceVocabularyId,
       fixture.sourceMeaningId,
-      fixture.sourcePronunciationId,
-      JSON.stringify([{ id: correctOptionId, label: '원본 뜻' }]),
-      correctOptionId,
       JSON.stringify({ immutable: '원본 snapshot' }),
+      ,
     ],
   );
   return { correctOptionId, practiceQuestionId, sessionId };
@@ -184,17 +139,12 @@ const addLiveReferences = async (pool: Pool, fixture: MergeFixture) => {
   const representativeAddedAt = '2026-07-22T00:00:00.000Z';
 
   await pool.query(
-    `insert into expression_occurrences (
-       id, sentence_version_id, start_token_index, end_token_index,
-       vocabulary_id, vocabulary_kind, meaning_id, pronunciation_id,
-       context_meaning_ko, representative
-     ) values ($1, $2, 0, 2, $3, 'EXPRESSION', $4, $5, '원본 표현', true)`,
+    "insert into expression_occurrences (id, sentence_version_id, start_token_index, end_token_index, vocabulary_id, vocabulary_kind, meaning_id, context_meaning_ko, representative) values ($1, $2, 0, 2, $3, 'EXPRESSION', $4, '원본 표현', true)",
     [
       randomUUID(),
       token.sentenceVersionId,
       fixture.sourceVocabularyId,
       fixture.sourceMeaningId,
-      fixture.sourcePronunciationId,
     ],
   );
   await pool.query(
@@ -299,8 +249,6 @@ describe.runIf(databaseUrl !== undefined)(
         representativeVocabularyId: fixture.representativeVocabularyId,
         movedCounts: {
           meanings: 1,
-          pronunciations: 1,
-          meaningPronunciations: 1,
           tokenOccurrences: 1,
           expressionOccurrences: 1,
           savedMemberships: 1,
@@ -313,36 +261,17 @@ describe.runIf(databaseUrl !== undefined)(
         expressionVocabularyId: string;
         auditCount: string;
         historyMovedCounts: Record<string, number>;
-        mappingVocabularyId: string;
         meaningVocabularyId: string;
         practiceCard: { immutable: string };
         practiceVocabularyId: string;
-        pronunciationVocabularyId: string;
         relationCount: string;
         sourceMergedInto: string;
         sourceStatus: string;
         tokenVocabularyId: string;
       }>(
-        `select
-           (select vocabulary_id from vocabulary_meanings where id = $1) "meaningVocabularyId",
-           (select vocabulary_id from vocabulary_pronunciations where id = $2) "pronunciationVocabularyId",
-           (select vocabulary_id from vocabulary_meaning_pronunciations where meaning_id = $1) "mappingVocabularyId",
-           (select vocabulary_id from token_occurrences where meaning_id = $1) "tokenVocabularyId",
-           (select vocabulary_id from expression_occurrences where meaning_id = $1) "expressionVocabularyId",
-           (select vocabulary_id from vocabulary_practice_questions where id = $3) "practiceVocabularyId",
-           (select card_snapshot from vocabulary_practice_questions where id = $3) "practiceCard",
-           (select count(*)::text from vocabulary_meaning_relations
-             where source_meaning_id = $1 and target_meaning_id = $5) "relationCount",
-           (select moved_counts from vocabulary_merge_history
-             where source_vocabulary_id = $4) "historyMovedCounts",
-           (select count(*)::text from audit_logs
-             where target_id = $4 and action = 'VOCABULARY_MERGED') "auditCount",
-           status "sourceStatus",
-           merged_into_vocabulary_id "sourceMergedInto"
-         from vocabularies where id = $4`,
+        'select\n           (select vocabulary_id from vocabulary_meanings where id = $1) "meaningVocabularyId",\n           (select vocabulary_id from token_occurrences where meaning_id = $1) "tokenVocabularyId",\n           (select vocabulary_id from expression_occurrences where meaning_id = $1) "expressionVocabularyId",\n           (select vocabulary_id from vocabulary_practice_questions where id = $2) "practiceVocabularyId",\n           (select card_snapshot from vocabulary_practice_questions where id = $2) "practiceCard",\n           (select count(*)::text from vocabulary_meaning_relations\n             where source_meaning_id = $1 and target_meaning_id = $4) "relationCount",\n           (select moved_counts from vocabulary_merge_history\n             where source_vocabulary_id = $3) "historyMovedCounts",\n           (select count(*)::text from audit_logs\n             where target_id = $3 and action = \'VOCABULARY_MERGED\') "auditCount",\n           status "sourceStatus",\n           merged_into_vocabulary_id "sourceMergedInto"\n         from vocabularies where id = $3',
         [
           fixture.sourceMeaningId,
-          fixture.sourcePronunciationId,
           references.practiceQuestionId,
           fixture.sourceVocabularyId,
           fixture.representativeMeaningId,
@@ -353,19 +282,15 @@ describe.runIf(databaseUrl !== undefined)(
         expressionVocabularyId: fixture.representativeVocabularyId,
         historyMovedCounts: {
           expressionOccurrences: 1,
-          meaningPronunciations: 1,
           meanings: 1,
           practiceQuestions: 1,
-          pronunciations: 1,
           savedMemberships: 1,
           tokenOccurrences: 1,
           wordbookMemberships: 1,
         },
-        mappingVocabularyId: fixture.representativeVocabularyId,
         meaningVocabularyId: fixture.representativeVocabularyId,
         practiceCard: { immutable: '원본 snapshot' },
         practiceVocabularyId: fixture.representativeVocabularyId,
-        pronunciationVocabularyId: fixture.representativeVocabularyId,
         relationCount: '1',
         sourceMergedInto: fixture.representativeVocabularyId,
         sourceStatus: 'MERGED',
@@ -493,34 +418,17 @@ describe.runIf(databaseUrl !== undefined)(
         histories: string;
         meaningVocabularyId: string;
         mergedInto: string | null;
-        pronunciationVocabularyId: string;
         sourceStatus: string;
         tokenVocabularyId: string;
       }>(
-        `select
-           status "sourceStatus",
-           merged_into_vocabulary_id "mergedInto",
-           (select vocabulary_id from vocabulary_meanings where id = $2) "meaningVocabularyId",
-           (select vocabulary_id from vocabulary_pronunciations where id = $3) "pronunciationVocabularyId",
-           (select vocabulary_id from token_occurrences where id = $4) "tokenVocabularyId",
-           (select count(*)::text from vocabulary_merge_history
-             where source_vocabulary_id = $1) "histories",
-           (select count(*)::text from audit_logs
-             where target_id = $1 and action = 'VOCABULARY_MERGED') "audits"
-         from vocabularies where id = $1`,
-        [
-          fixture.sourceVocabularyId,
-          fixture.sourceMeaningId,
-          fixture.sourcePronunciationId,
-          token.tokenId,
-        ],
+        'select\n           status "sourceStatus",\n           merged_into_vocabulary_id "mergedInto",\n           (select vocabulary_id from vocabulary_meanings where id = $2) "meaningVocabularyId",\n           (select vocabulary_id from token_occurrences where id = $3) "tokenVocabularyId",\n           (select count(*)::text from vocabulary_merge_history\n             where source_vocabulary_id = $1) "histories",\n           (select count(*)::text from audit_logs\n             where target_id = $1 and action = \'VOCABULARY_MERGED\') "audits"\n         from vocabularies where id = $1',
+        [fixture.sourceVocabularyId, fixture.sourceMeaningId, token.tokenId],
       );
       expect(stored.rows[0]).toEqual({
         audits: '0',
         histories: '0',
         meaningVocabularyId: fixture.sourceVocabularyId,
         mergedInto: null,
-        pronunciationVocabularyId: fixture.sourceVocabularyId,
         sourceStatus: 'DRAFT',
         tokenVocabularyId: fixture.sourceVocabularyId,
       });
@@ -551,25 +459,12 @@ describe.runIf(databaseUrl !== undefined)(
         meaningVocabularyId: string;
         mergedInto: string | null;
         practiceVocabularyId: string;
-        pronunciationVocabularyId: string;
         sourceStatus: string;
       }>(
-        `select
-           status "sourceStatus",
-           merged_into_vocabulary_id "mergedInto",
-           (select vocabulary_id from vocabulary_meanings where id = $2) "meaningVocabularyId",
-           (select vocabulary_id from vocabulary_pronunciations where id = $3) "pronunciationVocabularyId",
-           (select vocabulary_id from vocabulary_practice_questions
-             where id = $4) "practiceVocabularyId",
-           (select count(*)::text from vocabulary_merge_history
-             where source_vocabulary_id = $1) "histories",
-           (select count(*)::text from audit_logs
-             where target_id = $1 and action = 'VOCABULARY_MERGED') "audits"
-         from vocabularies where id = $1`,
+        'select\n           status "sourceStatus",\n           merged_into_vocabulary_id "mergedInto",\n           (select vocabulary_id from vocabulary_meanings where id = $2) "meaningVocabularyId",\n           (select vocabulary_id from vocabulary_practice_questions\n             where id = $3) "practiceVocabularyId",\n           (select count(*)::text from vocabulary_merge_history\n             where source_vocabulary_id = $1) "histories",\n           (select count(*)::text from audit_logs\n             where target_id = $1 and action = \'VOCABULARY_MERGED\') "audits"\n         from vocabularies where id = $1',
         [
           fixture.sourceVocabularyId,
           fixture.sourceMeaningId,
-          fixture.sourcePronunciationId,
           practice.practiceQuestionId,
         ],
       );
@@ -579,7 +474,6 @@ describe.runIf(databaseUrl !== undefined)(
         meaningVocabularyId: fixture.sourceVocabularyId,
         mergedInto: null,
         practiceVocabularyId: fixture.sourceVocabularyId,
-        pronunciationVocabularyId: fixture.sourceVocabularyId,
         sourceStatus: 'DRAFT',
       });
     });

@@ -17,7 +17,6 @@ const ids = {
   vocabulary: '00000000-0000-4000-8000-000000000103',
   secondVocabulary: '00000000-0000-4000-8000-000000000104',
   meaning: '00000000-0000-4000-8000-000000000105',
-  pronunciation: '00000000-0000-4000-8000-000000000106',
 } as const;
 
 describe('단어장 요청 계약', () => {
@@ -147,13 +146,6 @@ describe('단어장 공개 응답 계약', () => {
             contextNote: null,
           },
         ],
-        pronunciations: [
-          {
-            id: ids.pronunciation,
-            pronunciationKo: '싸왓디',
-            toneMarks: 'L-L-M',
-          },
-        ],
         saved: true,
         addedAt: '2026-07-26T00:30:00.000Z',
       },
@@ -182,12 +174,7 @@ describe('단어장 공개 응답 계약', () => {
         items: [
           {
             ...response.items[0],
-            pronunciations: [
-              {
-                ...response.items[0].pronunciations[0],
-                storageKey: 'private/greeting.bin',
-              },
-            ],
+            storageKey: 'private',
           },
         ],
       }),

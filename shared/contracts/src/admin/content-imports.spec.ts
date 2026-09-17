@@ -33,20 +33,11 @@ const vocabulary = {
       partOfSpeech: '감탄사',
     },
   ],
-  pronunciations: [
-    {
-      clientRef: 'pronunciation.greeting',
-      pronunciationKo: '싸왓디',
-      toneMarks: 'L-L-M',
-    },
-  ],
 } as const;
 
 const sentence = {
   originalText: 'สวัสดี',
   translationKo: '안녕하세요',
-  pronunciationKo: '싸왓디',
-  toneMarks: 'L-L-M',
   tokens: [
     {
       surface: 'สวัสดี',
@@ -54,7 +45,6 @@ const sentence = {
       endOffset: 6,
       vocabulary: { clientRef: vocabulary.clientRef },
       meaning: { clientRef: vocabulary.meanings[0].clientRef },
-      pronunciation: { clientRef: vocabulary.pronunciations[0].clientRef },
       contextMeaningKo: '안녕하세요',
       role: 'TARGET',
     },
@@ -197,7 +187,6 @@ describe('관리자 콘텐츠 가져오기 canonical 요청 계약', () => {
           endTokenIndex: 2,
           vocabulary: { clientRef: 'expression.greeting' },
           meaning: { clientRef: 'expression.meaning' },
-          pronunciation: { clientRef: 'expression.pronunciation' },
           contextMeaningKo: '안녕하세요',
         },
       ],

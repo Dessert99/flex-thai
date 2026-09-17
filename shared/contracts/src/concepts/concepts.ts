@@ -8,10 +8,7 @@ const utcDateTimeSchema = z.string().datetime();
 const nullableDateTimeSchema = utcDateTimeSchema.nullable();
 
 /** 개념 영역 */
-export const conceptCategorySchema = z.enum([
-  'THAI_SCRIPT_PRONUNCIATION',
-  'GRAMMAR',
-]);
+export const conceptCategorySchema = z.enum(['THAI_SCRIPT', 'GRAMMAR']);
 
 /** 논리 개념 상태 */
 export const conceptStatusSchema = z.enum(['DRAFT', 'PUBLISHED', 'HIDDEN']);

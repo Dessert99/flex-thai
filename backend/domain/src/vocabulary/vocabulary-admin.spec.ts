@@ -15,9 +15,7 @@ const ids = {
   actor: '00000000-0000-4000-8000-000000000001',
   vocabulary: '00000000-0000-4000-8000-000000000002',
   oldMeaning: '00000000-0000-4000-8000-000000000003',
-  oldPronunciation: '00000000-0000-4000-8000-000000000004',
   newMeaning: '00000000-0000-4000-8000-000000000006',
-  newPronunciation: '00000000-0000-4000-8000-000000000007',
   nil: '00000000-0000-0000-0000-000000000000',
   max: 'ffffffff-ffff-ffff-ffff-ffffffffffff',
 } as const;
@@ -40,7 +38,6 @@ const lockedGraph = (
     status,
   },
   meanings: [{ id: ids.oldMeaning }],
-  pronunciations: [{ id: ids.oldPronunciation }],
 });
 
 const replaceInput = (): ReplaceVocabularyCommand['input'] => ({
@@ -53,19 +50,6 @@ const replaceInput = (): ReplaceVocabularyCommand['input'] => ({
       partOfSpeech: '감탄사',
       difficulty: 1,
       contextNote: null,
-    },
-  ],
-  pronunciations: [
-    {
-      clientRef: 'pronunciation.greeting',
-      pronunciationKo: '싸왓디 크랍',
-      toneMarks: 'L-L-M-H',
-    },
-  ],
-  meaningPronunciations: [
-    {
-      meaningRef: 'meaning.greeting',
-      pronunciationRef: 'pronunciation.greeting',
     },
   ],
 });
@@ -153,7 +137,7 @@ const createFake = (
 describe('VocabularyAdminService 어휘 전체 교체', () => {
   it('DRAFT와 기존 child 사용 여부를 확인하고 새 UUID·mapping graph와 audit을 저장한다', async () => {
     const fake = createFake();
-    const generatedIds = [ids.newMeaning, ids.newPronunciation];
+    const generatedIds = [ids.newMeaning];
     const service = new VocabularyAdminService(fake.repository, () =>
       generatedIds.shift()!,
     );
@@ -171,7 +155,6 @@ describe('VocabularyAdminService 어휘 전체 교체', () => {
     expect(fake.hasQuestionUsage).toHaveBeenCalledWith({
       vocabularyId: ids.vocabulary,
       meaningIds: [ids.oldMeaning],
-      pronunciationIds: [ids.oldPronunciation],
     });
     expect(fake.replaceVocabulary).toHaveBeenCalledWith({
       vocabulary: {
@@ -192,21 +175,6 @@ describe('VocabularyAdminService 어휘 전체 교체', () => {
           contextNote: null,
         },
       ],
-      pronunciations: [
-        {
-          id: ids.newPronunciation,
-          vocabularyId: ids.vocabulary,
-          pronunciationKo: '싸왓디 크랍',
-          toneMarks: 'L-L-M-H',
-        },
-      ],
-      meaningPronunciations: [
-        {
-          vocabularyId: ids.vocabulary,
-          meaningId: ids.newMeaning,
-          pronunciationId: ids.newPronunciation,
-        },
-      ],
     });
     expect(fake.appendAuditLog).toHaveBeenCalledWith({
       actorSub: 'cognito-sub',
@@ -217,7 +185,6 @@ describe('VocabularyAdminService 어휘 전체 교체', () => {
       summary: {
         kind: 'EXPRESSION',
         meaningCount: 1,
-        pronunciationCount: 1,
       },
       requestId: 'request-id',
       occurredAt: context.occurredAt,
@@ -259,26 +226,12 @@ describe('VocabularyAdminService 어휘 전체 교체', () => {
     expect(fake.replaceVocabulary).not.toHaveBeenCalled();
   });
 
-  it('명시적 mapping의 모든 ref를 해석하고 child ref·mapping pair 중복을 거절한다', async () => {
+  it('중복 뜻 clientRef를 거절한다', async () => {
     const fake = createFake();
     const service = new VocabularyAdminService(fake.repository);
-    const missing = replaceInput();
-    missing.meaningPronunciations[0]!.meaningRef = 'meaning.missing';
     const duplicate = replaceInput();
     duplicate.meanings.push({ ...duplicate.meanings[0]! });
 
-    await expect(
-      service.replace({
-        vocabularyId: ids.vocabulary,
-        input: missing,
-        ...context,
-      }),
-    ).rejects.toEqual(
-      new VocabularyAdminError(
-        'VOCABULARY_CONTENT_INVALID',
-        'meaningPronunciations.0.meaningRef',
-      ),
-    );
     await expect(
       service.replace({
         vocabularyId: ids.vocabulary,
@@ -329,13 +282,8 @@ describe('VocabularyAdminService 어휘 전체 교체', () => {
     const input = replaceInput();
     delete input.meanings[0]!.difficulty;
     delete input.meanings[0]!.contextNote;
-    input.pronunciations = [{ ...input.pronunciations[0]!, clientRef: 'nil' }];
-    input.meaningPronunciations = [
-      { meaningRef: 'meaning.greeting', pronunciationRef: 'nil' },
-    ];
     const generatedIds = [
       ids.newMeaning,
-      ids.newPronunciation,
       '00000000-0000-4000-8000-000000000008',
     ];
     const service = new VocabularyAdminService(fake.repository, () =>
@@ -358,7 +306,7 @@ describe('VocabularyAdminService 어휘 전체 교체', () => {
     );
   });
 
-  it('새 meaning·pronunciation에 생성된 UUID가 서로 중복되면 graph를 저장하지 않는다', async () => {
+  it('새 뜻에 생성된 UUID가 서로 중복되면 graph를 저장하지 않는다', async () => {
     const fake = createFake();
     const service = new VocabularyAdminService(
       fake.repository,
@@ -368,7 +316,13 @@ describe('VocabularyAdminService 어휘 전체 교체', () => {
     await expect(
       service.replace({
         vocabularyId: ids.vocabulary,
-        input: replaceInput(),
+        input: {
+          ...replaceInput(),
+          meanings: [
+            ...replaceInput().meanings,
+            { ...replaceInput().meanings[0]!, clientRef: 'second' },
+          ],
+        },
         ...context,
       }),
     ).rejects.toEqual(

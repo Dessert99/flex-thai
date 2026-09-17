@@ -45,7 +45,6 @@ type VocabularyRecord = {
   status: 'DRAFT' | 'PUBLISHED' | 'HIDDEN' | 'MERGED';
 };
 type MeaningRecord = { id: string; vocabularyId: string };
-type PronunciationRecord = { id: string; vocabularyId: string };
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -155,23 +154,19 @@ const nullableSentence = (
 const referenceIds = (sentences: GeneratedDraftSentenceInput[]) => {
   const vocabularyIds = new Set<string>();
   const meaningIds = new Set<string>();
-  const pronunciationIds = new Set<string>();
   for (const sentence of sentences) {
     for (const token of sentence.tokens) {
       vocabularyIds.add(requireReferenceId(token.vocabulary));
       meaningIds.add(requireReferenceId(token.meaning));
-      pronunciationIds.add(requireReferenceId(token.pronunciation));
     }
     for (const expression of sentence.expressions) {
       vocabularyIds.add(requireReferenceId(expression.vocabulary));
       meaningIds.add(requireReferenceId(expression.meaning));
-      pronunciationIds.add(requireReferenceId(expression.pronunciation));
     }
   }
   return {
     vocabularyIds: [...vocabularyIds],
     meaningIds: [...meaningIds],
-    pronunciationIds: [...pronunciationIds],
   };
 };
 
@@ -205,23 +200,10 @@ const loadCanonicalReferences = async (
           .where(inArray(vocabularyMeanings.id, ids.meaningIds))
           .orderBy(asc(vocabularyMeanings.id))
           .for('key share');
-  const pronunciationRows =
-    ids.pronunciationIds.length === 0
-      ? []
-      : await transaction
-          .select({
-            id: vocabularyMeanings.id,
-            vocabularyId: vocabularyMeanings.vocabularyId,
-          })
-          .from(vocabularyMeanings)
-          .where(inArray(vocabularyMeanings.id, ids.pronunciationIds))
-          .orderBy(asc(vocabularyMeanings.id))
-          .for('key share');
 
   if (
     vocabularyRows.length !== ids.vocabularyIds.length ||
-    meaningRows.length !== ids.meaningIds.length ||
-    pronunciationRows.length !== ids.pronunciationIds.length
+    meaningRows.length !== ids.meaningIds.length
   ) {
     notApprovable();
   }
@@ -231,18 +213,12 @@ const loadCanonicalReferences = async (
   const meaningById = new Map(
     (meaningRows as MeaningRecord[]).map((record) => [record.id, record]),
   );
-  const pronunciationById = new Map(
-    (pronunciationRows as PronunciationRecord[]).map((record) => [
-      record.id,
-      record,
-    ]),
-  );
   if (
     [...vocabularyById.values()].some(({ status }) => status !== 'PUBLISHED')
   ) {
     notApprovable();
   }
-  return { meaningById, pronunciationById, vocabularyById };
+  return { meaningById, vocabularyById };
 };
 
 type CanonicalReferences = Awaited<ReturnType<typeof loadCanonicalReferences>>;
@@ -259,17 +235,9 @@ const resolveSentence = (input: {
   > = input.sentence.tokens.map((token, position) => {
     const vocabularyId = requireReferenceId(token.vocabulary);
     const meaningId = requireReferenceId(token.meaning);
-    const pronunciationId = requireReferenceId(token.pronunciation);
     const vocabulary = input.references.vocabularyById.get(vocabularyId);
     const meaning = input.references.meaningById.get(meaningId);
-    const pronunciation =
-      input.references.pronunciationById.get(pronunciationId);
-    if (
-      !vocabulary ||
-      meaning?.vocabularyId !== vocabulary.id ||
-      pronunciation?.vocabularyId !== vocabulary.id ||
-      meaningId !== pronunciationId
-    ) {
+    if (!vocabulary || meaning?.vocabularyId !== vocabulary.id) {
       return notApprovable();
     }
     return {
@@ -281,7 +249,6 @@ const resolveSentence = (input: {
       endOffset: token.endOffset,
       vocabularyId,
       meaningId,
-      pronunciationId: meaningId,
       contextMeaningKo: token.contextMeaningKo,
       role: token.role,
     };
@@ -290,16 +257,11 @@ const resolveSentence = (input: {
     input.sentence.expressions.map((expression) => {
       const vocabularyId = requireReferenceId(expression.vocabulary);
       const meaningId = requireReferenceId(expression.meaning);
-      const pronunciationId = requireReferenceId(expression.pronunciation);
       const vocabulary = input.references.vocabularyById.get(vocabularyId);
       const meaning = input.references.meaningById.get(meaningId);
-      const pronunciation =
-        input.references.pronunciationById.get(pronunciationId);
       if (
         vocabulary?.kind !== 'EXPRESSION' ||
-        meaning?.vocabularyId !== vocabulary.id ||
-        pronunciation?.vocabularyId !== vocabulary.id ||
-        meaningId !== pronunciationId
+        meaning?.vocabularyId !== vocabulary.id
       ) {
         return notApprovable();
       }
@@ -309,7 +271,6 @@ const resolveSentence = (input: {
         vocabularyId,
         vocabularyKind: vocabulary.kind,
         meaningId,
-        pronunciationId,
         contextMeaningKo: expression.contextMeaningKo,
         adminSelected: expression.representative ?? false,
       };
@@ -329,8 +290,6 @@ const resolveSentence = (input: {
       version: 1 as const,
       originalText: input.sentence.originalText,
       translationKo: input.sentence.translationKo,
-      pronunciationKo: input.sentence.pronunciationKo,
-      toneMarks: input.sentence.toneMarks,
       frozenAt: null,
     },
     tokens,
@@ -343,7 +302,6 @@ const resolveSentence = (input: {
         vocabularyId: expression.vocabularyId,
         vocabularyKind: expression.vocabularyKind,
         meaningId: expression.meaningId,
-        pronunciationId: expression.meaningId,
         contextMeaningKo: expression.contextMeaningKo,
         representative: expression.representative,
       }),

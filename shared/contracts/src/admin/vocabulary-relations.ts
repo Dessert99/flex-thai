@@ -76,7 +76,6 @@ const mergeVocabularySchema = z
     kind: vocabularyKindSchema,
     status: sourceVocabularyStatusSchema,
     meaningCount: z.number().int().safe().nonnegative(),
-    pronunciationCount: z.number().int().safe().nonnegative(),
     usage: mergeUsageSchema,
   })
   .strict();
@@ -113,8 +112,6 @@ export const adminVocabularyMergeResponseSchema = z
     representativeVocabularyId: uuidSchema,
     movedCounts: mergeUsageSchema.extend({
       meanings: z.number().int().safe().nonnegative(),
-      pronunciations: z.number().int().safe().nonnegative(),
-      meaningPronunciations: z.number().int().safe().nonnegative(),
     }),
   })
   .strict();

@@ -67,10 +67,6 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
          join wordbook_items wi on wi.wordbook_id = w.id
          join vocabularies v on v.id = wi.vocabulary_id and v.status = 'PUBLISHED'
          join vocabulary_meanings vm on vm.vocabulary_id = v.id
-         join vocabulary_meaning_pronunciations vmp
-           on vmp.vocabulary_id = v.id and vmp.meaning_id = vm.id
-         join vocabulary_pronunciations vp
-           on vp.id = vmp.pronunciation_id and vp.vocabulary_id = v.id
          where w.user_id = '00000000-0000-4000-8000-000000000002'`,
       );
       const concepts = await pool.query(
@@ -96,7 +92,7 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       });
       expect(concepts.rows).toEqual([
         { category: 'GRAMMAR', count: 1 },
-        { category: 'THAI_SCRIPT_PRONUNCIATION', count: 1 },
+        { category: 'THAI_SCRIPT', count: 1 },
       ]);
       expect(feedback.rows[0]).toMatchObject({
         report_count: 2,

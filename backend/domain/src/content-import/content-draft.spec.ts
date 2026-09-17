@@ -22,12 +22,10 @@ const ids = {
   import: '00000000-0000-4000-8000-000000000002',
   vocabulary: '00000000-0000-4000-8000-000000000004',
   meaning: '00000000-0000-4000-8000-000000000005',
-  pronunciation: '00000000-0000-4000-8000-000000000005',
   expression: '00000000-0000-4000-8000-000000000007',
   typeVersion: '00000000-0000-4000-8000-000000000008',
   otherVocabulary: '00000000-0000-4000-8000-000000000009',
   expressionMeaning: '00000000-0000-4000-8000-000000000012',
-  expressionPronunciation: '00000000-0000-4000-8000-000000000012',
 } as const;
 
 const occurredAt = new Date('2026-07-24T00:00:00.000Z');
@@ -45,7 +43,6 @@ const importedWord: ImportedVocabularyReferenceItem = {
   referenceMap: {
     'word-ref': ids.vocabulary,
     'meaning-ref': ids.meaning,
-    'pronunciation-ref': ids.pronunciation,
   },
 };
 
@@ -56,7 +53,6 @@ const importedExpression: ImportedVocabularyReferenceItem = {
   referenceMap: {
     'expression-ref': ids.expression,
     'expression-meaning-ref': ids.expressionMeaning,
-    'expression-pronunciation-ref': ids.expressionPronunciation,
   },
 };
 
@@ -65,10 +61,6 @@ interface TransactionOptions {
   importedItems?: ImportedVocabularyReferenceItem[];
   vocabularies?: VocabularyReferenceRecord[];
   meanings?: Array<{ id: string; vocabularyId: string }>;
-  pronunciations?: Array<{
-    id: string;
-    vocabularyId: string;
-  }>;
   questionTypeExists?: boolean;
   questionTypeVersion?: QuestionTypeVersionReferenceRecord;
 }
@@ -87,16 +79,6 @@ const createTransaction = (
   const meanings = options.meanings ?? [
     { id: ids.meaning, vocabularyId: ids.vocabulary },
     { id: ids.expressionMeaning, vocabularyId: ids.expression },
-  ];
-  const pronunciations = options.pronunciations ?? [
-    {
-      id: ids.pronunciation,
-      vocabularyId: ids.vocabulary,
-    },
-    {
-      id: ids.expressionPronunciation,
-      vocabularyId: ids.expression,
-    },
   ];
 
   return {
@@ -127,14 +109,6 @@ const createTransaction = (
       .fn()
       .mockImplementation((id: string) =>
         Promise.resolve(meanings.find((meaning) => meaning.id === id) ?? null),
-      ),
-    findVocabularyPronunciationById: vi
-      .fn()
-      .mockImplementation((id: string) =>
-        Promise.resolve(
-          pronunciations.find((pronunciation) => pronunciation.id === id) ??
-            null,
-        ),
       ),
     findQuestionTypeVersion: vi.fn().mockResolvedValue(
       options.questionTypeExists === false
@@ -202,13 +176,6 @@ const vocabularyCommand = (
         contextNote: null,
       },
     ],
-    pronunciations: [
-      {
-        clientRef: 'pronunciation-1',
-        pronunciationKo: '싸왓디',
-        toneMarks: 'LHL',
-      },
-    ],
     ...overrides,
   },
 });
@@ -216,8 +183,6 @@ const vocabularyCommand = (
 const sentenceInput = (): CanonicalDraftSentenceInput => ({
   originalText: 'กข',
   translationKo: '번역',
-  pronunciationKo: '발음',
-  toneMarks: '성조',
   tokens: [
     {
       surface: 'ก',
@@ -225,7 +190,6 @@ const sentenceInput = (): CanonicalDraftSentenceInput => ({
       endOffset: 1,
       vocabulary: { clientRef: 'word-ref' },
       meaning: { clientRef: 'meaning-ref' },
-      pronunciation: { clientRef: 'pronunciation-ref' },
       contextMeaningKo: '첫째',
       role: 'TARGET',
     },
@@ -235,7 +199,6 @@ const sentenceInput = (): CanonicalDraftSentenceInput => ({
       endOffset: 2,
       vocabulary: { clientRef: 'word-ref' },
       meaning: { clientRef: 'meaning-ref' },
-      pronunciation: { clientRef: 'pronunciation-ref' },
       contextMeaningKo: '둘째',
       role: 'SUPPORTING',
     },
@@ -246,7 +209,6 @@ const sentenceInput = (): CanonicalDraftSentenceInput => ({
       endTokenIndex: 2,
       vocabulary: { clientRef: 'expression-ref' },
       meaning: { clientRef: 'expression-meaning-ref' },
-      pronunciation: { clientRef: 'expression-pronunciation-ref' },
       contextMeaningKo: '표현 뜻',
       representative: true,
     },
@@ -289,7 +251,7 @@ const questionCommand = (
 });
 
 describe('ContentDraftService 어휘 초안', () => {
-  it('정규화와 뜻별 단일 발음을 원자 저장하고 내부 참조 map을 반환한다', async () => {
+  it('정규화와 뜻을 원자 저장하고 내부 참조 map을 반환한다', async () => {
     const transaction = createTransaction({});
     const repository = createRepository(transaction);
     const service = new ContentDraftService(repository, createIdGenerator());
@@ -306,7 +268,6 @@ describe('ContentDraftService 어휘 초안', () => {
       kind: 'EXPRESSION',
       status: 'DRAFT',
     });
-    expect(saved.graph.meaningPronunciations).toHaveLength(2);
     expect(saved.item).toMatchObject({
       importId: ids.import,
       kind: 'VOCABULARY',
@@ -321,7 +282,6 @@ describe('ContentDraftService 어휘 초안', () => {
       'vocabulary-ref',
       'meaning-1',
       'meaning-2',
-      'pronunciation-1',
     ]);
     expect(saved.audit).toEqual({
       ...context,
@@ -356,7 +316,6 @@ describe('ContentDraftService 어휘 초안', () => {
         ['vocabulary-ref', result.targetId],
         ['__proto__', meaningId],
         ['meaning-2', saved.graph.meanings[1]!.id],
-        ['pronunciation-1', saved.graph.pronunciations[0]!.id],
       ]),
     );
     expect(JSON.parse(JSON.stringify(result.referenceMap))).toMatchObject({
@@ -376,36 +335,29 @@ describe('ContentDraftService 어휘 초안', () => {
       ...command.input.meanings[0]!,
       clientRef: 'constructor',
     };
-    command.input.pronunciations[0] = {
-      ...command.input.pronunciations[0]!,
-      clientRef: 'toString',
-    };
 
     const result = await service.createVocabularyItem(command);
 
     expect(
-      ['__proto__', 'constructor', 'toString'].every((key) =>
+      ['__proto__', 'constructor', 'meaning-2'].every((key) =>
         Object.hasOwn(result.referenceMap, key),
       ),
     ).toBe(true);
     const serialized = JSON.stringify(result.referenceMap);
     expect(serialized).toContain(`"__proto__":"${result.targetId}"`);
     expect(serialized).toContain('"constructor":"');
-    expect(serialized).toContain('"toString":"');
+    expect(serialized).toContain('"meaning-2":"');
   });
 
-  it('뜻과 발음 사이의 중복 clientRef를 저장 전에 거절한다', async () => {
+  it('뜻 사이의 중복 clientRef를 저장 전에 거절한다', async () => {
     const transaction = createTransaction();
     const service = new ContentDraftService(
       createRepository(transaction),
       createIdGenerator(),
     );
     const command = vocabularyCommand();
-    command.input.pronunciations[0] = {
-      ...command.input.pronunciations[0]!,
-      clientRef: 'meaning-1',
-    };
 
+    command.input.meanings.push({ ...command.input.meanings[0]! });
     await expect(service.createVocabularyItem(command)).rejects.toMatchObject({
       code: 'IMPORT_CONTENT_INVALID',
       path: 'meanings',
@@ -425,6 +377,7 @@ describe('ContentDraftService 어휘 초안', () => {
       clientRef: command.input.clientRef,
     };
 
+    command.input.meanings.push({ ...command.input.meanings[0] });
     await expect(service.createVocabularyItem(command)).rejects.toMatchObject({
       code: 'IMPORT_CONTENT_INVALID',
       path: 'meanings',
@@ -500,7 +453,6 @@ describe('ContentDraftService 문제 초안', () => {
         position: 0,
         vocabularyId: ids.vocabulary,
         meaningId: ids.meaning,
-        pronunciationId: ids.meaning,
       }),
       expect.objectContaining({
         position: 1,
@@ -512,7 +464,6 @@ describe('ContentDraftService 문제 초안', () => {
         vocabularyId: ids.expression,
         vocabularyKind: 'EXPRESSION',
         meaningId: ids.expressionMeaning,
-        pronunciationId: ids.expressionMeaning,
         contextMeaningKo: '표현 뜻',
         representative: true,
       }),
@@ -685,14 +636,12 @@ describe('ContentDraftService 문제 초안', () => {
       ...token,
       vocabulary: { id: ids.vocabulary },
       meaning: { id: ids.meaning },
-      pronunciation: { id: ids.pronunciation },
     }));
     sentence.expressions = [
       {
         ...sentence.expressions[0]!,
         vocabulary: { id: ids.expression },
         meaning: { id: ids.expressionMeaning },
-        pronunciation: { id: ids.expressionPronunciation },
       },
     ];
     const command = questionCommand(sentence);
@@ -756,7 +705,7 @@ describe('ContentDraftService 문제 초안', () => {
     expect(transaction.saveQuestionDraft).not.toHaveBeenCalled();
   });
 
-  it('뜻과 발음은 token 어휘의 소유 항목이어야 한다', async () => {
+  it('뜻은 token 어휘의 소유 항목이어야 한다', async () => {
     const transaction = createTransaction({
       meanings: [{ id: ids.meaning, vocabularyId: ids.otherVocabulary }],
     });
@@ -770,29 +719,6 @@ describe('ContentDraftService 문제 초안', () => {
     ).rejects.toMatchObject({
       code: 'IMPORT_REFERENCE_MISMATCH',
       path: 'blocks.0.sentences.0.sentence.tokens.0.meaning',
-    });
-    expect(transaction.saveQuestionDraft).not.toHaveBeenCalled();
-  });
-
-  it('다른 어휘가 소유한 발음 참조도 mismatch로 거절한다', async () => {
-    const transaction = createTransaction({
-      pronunciations: [
-        {
-          id: ids.pronunciation,
-          vocabularyId: ids.otherVocabulary,
-        },
-      ],
-    });
-    const service = new ContentDraftService(
-      createRepository(transaction),
-      createIdGenerator(),
-    );
-
-    await expect(
-      service.createQuestionItem(questionCommand()),
-    ).rejects.toMatchObject({
-      code: 'IMPORT_REFERENCE_MISMATCH',
-      path: 'blocks.0.sentences.0.sentence.tokens.0.pronunciation',
     });
     expect(transaction.saveQuestionDraft).not.toHaveBeenCalled();
   });

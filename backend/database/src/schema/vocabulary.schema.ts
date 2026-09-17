@@ -1,4 +1,3 @@
-/** 공용 어휘의 뜻·발음과 동일 어휘 소유 관계를 저장한다 */
 import { sql } from 'drizzle-orm';
 import {
   check,
@@ -94,8 +93,6 @@ export const vocabularyMeanings = pgTable(
       .references(() => vocabularies.id, { onDelete: 'restrict' })
       .notNull(),
     meaningKo: text('meaning_ko').notNull(),
-    pronunciationKo: text('pronunciation_ko').notNull(),
-    toneMarks: text('tone_marks').notNull(),
     partOfSpeech: text('part_of_speech').notNull(),
     difficulty: integer('difficulty'),
     contextNote: text('context_note'),

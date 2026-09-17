@@ -41,7 +41,6 @@ const canonicalTokenInputSchema = z
     endOffset: positiveIntegerSchema,
     vocabulary: refSchema,
     meaning: refSchema,
-    pronunciation: refSchema,
     contextMeaningKo: z.string().min(1),
     role: z.enum(['TARGET', 'REQUIRED', 'SUPPORTING', 'INSTRUCTION']),
   })
@@ -53,7 +52,6 @@ const canonicalExpressionInputSchema = z
     endTokenIndex: positiveIntegerSchema,
     vocabulary: refSchema,
     meaning: refSchema,
-    pronunciation: refSchema,
     contextMeaningKo: z.string().min(1),
     representative: z.boolean().optional(),
   })
@@ -64,8 +62,6 @@ export const canonicalSentenceInputSchema = z
   .object({
     originalText: z.string().min(1),
     translationKo: z.string().min(1),
-    pronunciationKo: z.string().min(1),
-    toneMarks: z.string(),
     tokens: z.array(canonicalTokenInputSchema),
     expressions: z.array(canonicalExpressionInputSchema),
   })
@@ -130,14 +126,6 @@ const vocabularyMeaningInputSchema = z
   })
   .strict();
 
-const vocabularyPronunciationInputSchema = z
-  .object({
-    clientRef: clientRefSchema,
-    pronunciationKo: z.string().min(1),
-    toneMarks: z.string(),
-  })
-  .strict();
-
 /** 한 가져오기 항목에서 생성할 어휘 초안 전체 입력 */
 export const canonicalVocabularyInputSchema = z
   .object({
@@ -145,13 +133,11 @@ export const canonicalVocabularyInputSchema = z
     thai: z.string().min(1),
     kind: z.enum(['WORD', 'EXPRESSION']),
     meanings: z.array(vocabularyMeaningInputSchema).min(1),
-    pronunciations: z.array(vocabularyPronunciationInputSchema).length(1),
   })
   .strict()
   .superRefine((vocabulary, context) => {
     const childRefs = [
       ...vocabulary.meanings.map(({ clientRef }) => clientRef),
-      ...vocabulary.pronunciations.map(({ clientRef }) => clientRef),
     ];
     if (hasDuplicates(childRefs)) {
       context.addIssue({

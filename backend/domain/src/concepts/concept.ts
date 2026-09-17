@@ -9,7 +9,7 @@ export interface ConceptValidationIssue {
 }
 
 /** 개념 영역 */
-export type ConceptCategory = 'THAI_SCRIPT_PRONUNCIATION' | 'GRAMMAR';
+export type ConceptCategory = 'THAI_SCRIPT' | 'GRAMMAR';
 /** 개념 버전 상태 */
 export type ConceptVersionStatus = 'DRAFT' | 'PUBLISHED' | 'RETIRED';
 /** 개념 검증 상태 */
@@ -249,7 +249,7 @@ export const validateConceptCandidate = (
                 'REFERENCE',
                 interactionPath,
                 'CONCEPT_FEEDBACK_REFERENCE_NOT_FOUND',
-                '단어·표현의 뜻 또는 발음 참조를 찾을 수 없습니다.',
+                '단어·표현의 뜻 참조를 찾을 수 없습니다.',
               ),
             );
           }

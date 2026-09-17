@@ -10,7 +10,6 @@ const ids = {
   target: '00000000-0000-4000-8000-000000000102',
   vocabulary: '00000000-0000-4000-8000-000000000103',
   meaning: '00000000-0000-4000-8000-000000000104',
-  pronunciation: '00000000-0000-4000-8000-000000000105',
 } as const;
 const now = new Date('2026-07-26T00:00:00.000Z');
 const wordbook = {
@@ -38,18 +37,6 @@ const dependencies = () => ({
               partOfSpeech: '감탄사',
               difficulty: 1,
               contextNote: null,
-            },
-          ],
-          pronunciations: [
-            {
-              id: ids.pronunciation,
-              pronunciationKo: '싸왓디',
-              toneMarks: 'L-L-M',
-            },
-            {
-              id: '00000000-0000-4000-8000-000000000106',
-              pronunciationKo: '사왓디',
-              toneMarks: 'L-L-M',
             },
           ],
           saved: true,
@@ -96,10 +83,6 @@ describe('LearnerWordbooksService 공개 응답', () => {
 
     expect(result.wordbook.createdAt).toBe(now.toISOString());
     expect(result.items[0]?.addedAt).toBe(now.toISOString());
-    expect(result.items[0]?.pronunciations).toEqual([
-      expect.objectContaining({}),
-      expect.objectContaining({}),
-    ]);
     expect(JSON.stringify(result)).not.toContain('storageKey');
   });
 

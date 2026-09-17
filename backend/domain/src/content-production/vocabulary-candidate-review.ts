@@ -26,26 +26,11 @@ export interface VocabularyCandidateMeaningInput {
   contextNote: string | null;
 }
 
-/** 새 DRAFT 발음 graph 입력 */
-export interface VocabularyCandidatePronunciationInput {
-  clientRef: string;
-  pronunciationKo: string;
-  toneMarks: string;
-}
-
-/** 새 DRAFT 뜻·발음 연결 입력 */
-export interface VocabularyCandidateMeaningPronunciationInput {
-  meaningRef: string;
-  pronunciationRef: string;
-}
-
 /** 새 DRAFT로 materialize할 완전한 어휘 graph */
 export interface VocabularyCandidateDraftGraph {
   thai: string;
   kind: 'WORD' | 'EXPRESSION';
   meanings: VocabularyCandidateMeaningInput[];
-  pronunciations: VocabularyCandidatePronunciationInput[];
-  meaningPronunciations: VocabularyCandidateMeaningPronunciationInput[];
 }
 
 /** 후보 검수의 서버 소유 감사 문맥 */

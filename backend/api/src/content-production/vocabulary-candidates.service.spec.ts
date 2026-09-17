@@ -55,19 +55,6 @@ const createDraftRequest = {
       difficulty: 1,
     },
   ],
-  pronunciations: [
-    {
-      clientRef: 'pronunciation.main',
-      pronunciationKo: '싸왓디',
-      toneMarks: 'L-L-M',
-    },
-  ],
-  meaningPronunciations: [
-    {
-      meaningRef: 'meaning.greeting',
-      pronunciationRef: 'pronunciation.main',
-    },
-  ],
 };
 
 const createService = (found: typeof candidate | null = candidate) => {
@@ -191,8 +178,6 @@ describe('VocabularyCandidateApplicationService 공개 경계', () => {
             contextNote: null,
           },
         ],
-        pronunciations: createDraftRequest.pronunciations,
-        meaningPronunciations: createDraftRequest.meaningPronunciations,
       },
     });
   });

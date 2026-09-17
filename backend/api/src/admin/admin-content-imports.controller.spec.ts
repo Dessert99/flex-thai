@@ -79,13 +79,6 @@ describe('AdminContentImportsController 공개 계약', () => {
               partOfSpeech: '명사',
             },
           ],
-          pronunciations: [
-            {
-              clientRef: 'pronunciation',
-              pronunciationKo: '꺼',
-              toneMarks: 'L',
-            },
-          ],
         },
       ],
       questions: [],

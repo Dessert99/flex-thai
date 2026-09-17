@@ -33,10 +33,7 @@ const foreignKeys = (table: Parameters<typeof getTableConfig>[0]) =>
 
 describe('개념 학습 데이터베이스 schema', () => {
   it('개념 상태 enum 값을 고정한다', () => {
-    expect(conceptCategoryEnum.enumValues).toEqual([
-      'THAI_SCRIPT_PRONUNCIATION',
-      'GRAMMAR',
-    ]);
+    expect(conceptCategoryEnum.enumValues).toEqual(['THAI_SCRIPT', 'GRAMMAR']);
     expect(conceptStatusEnum.enumValues).toEqual([
       'DRAFT',
       'PUBLISHED',

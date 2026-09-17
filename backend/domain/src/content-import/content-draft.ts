@@ -20,7 +20,6 @@ import type {
   ResolvedQuestionSentenceGraph,
   ResolvedVocabularyDraftGraph,
   VocabularyMeaningReferenceRecord,
-  VocabularyPronunciationReferenceRecord,
   VocabularyReferenceRecord,
 } from './content-draft.repository.js';
 import type {
@@ -136,15 +135,11 @@ const createAudit = (
 });
 
 const assertVocabularyInput = (input: CanonicalDraftVocabularyInput): void => {
-  if (input.meanings.length === 0 || input.pronunciations.length !== 1) {
+  if (input.meanings.length === 0) {
     throw new ContentDraftError('IMPORT_CONTENT_INVALID', 'meanings');
   }
   assertUniqueNonemptyRefs(
-    [
-      input.clientRef,
-      ...input.meanings.map(({ clientRef }) => clientRef),
-      ...input.pronunciations.map(({ clientRef }) => clientRef),
-    ],
+    [input.clientRef, ...input.meanings.map(({ clientRef }) => clientRef)],
     'meanings',
   );
 };
@@ -215,10 +210,6 @@ class CurrentReferenceResolver {
   private readonly meanings = new Map<
     string,
     VocabularyMeaningReferenceRecord
-  >();
-  private readonly pronunciations = new Map<
-    string,
-    VocabularyPronunciationReferenceRecord
   >();
 
   constructor(
@@ -304,51 +295,19 @@ class CurrentReferenceResolver {
     }
     return { record, importedItem: resolved.importedItem };
   }
-
-  /** pronunciation 참조를 성공 item map 또는 current UUID row로 해석한다 */
-  async pronunciation(
-    reference: ContentDraftReference,
-    path: string,
-  ): Promise<ResolvedReference<VocabularyPronunciationReferenceRecord>> {
-    const resolved = await this.resolveId(reference, path);
-    let record = this.pronunciations.get(resolved.id);
-    if (!record) {
-      record =
-        (await this.transaction.findVocabularyPronunciationById(resolved.id)) ??
-        undefined;
-      if (!record) {
-        throw new ContentDraftError('IMPORT_REFERENCE_NOT_FOUND', path);
-      }
-      this.pronunciations.set(record.id, record);
-    }
-    return { record, importedItem: resolved.importedItem };
-  }
 }
 
 const assertSameVocabulary = (
   vocabulary: ResolvedReference<VocabularyReferenceRecord>,
   meaning: ResolvedReference<VocabularyMeaningReferenceRecord>,
-  pronunciation: ResolvedReference<VocabularyPronunciationReferenceRecord>,
   path: string,
 ): void => {
   if (meaning.record.vocabularyId !== vocabulary.record.id) {
     throw new ContentDraftError('IMPORT_REFERENCE_MISMATCH', `${path}.meaning`);
   }
-  if (
-    pronunciation.record.vocabularyId !== vocabulary.record.id ||
-    (pronunciation.record.id !== meaning.record.id &&
-      pronunciation.importedItem === null)
-  ) {
-    throw new ContentDraftError(
-      'IMPORT_REFERENCE_MISMATCH',
-      `${path}.pronunciation`,
-    );
-  }
-  const imported = [
-    vocabulary.importedItem,
-    meaning.importedItem,
-    pronunciation.importedItem,
-  ].filter((item): item is ImportedVocabularyReferenceItem => item !== null);
+  const imported = [vocabulary.importedItem, meaning.importedItem].filter(
+    (item): item is ImportedVocabularyReferenceItem => item !== null,
+  );
   if (
     new Set(imported.map(({ itemId }) => itemId)).size > 1 ||
     imported.some(({ targetId }) => targetId !== vocabulary.record.id)
@@ -377,11 +336,7 @@ const resolveSentence = async (input: {
       token.meaning,
       `${tokenPath}.meaning`,
     );
-    const pronunciation = await input.resolver.pronunciation(
-      token.pronunciation,
-      `${tokenPath}.pronunciation`,
-    );
-    assertSameVocabulary(vocabulary, meaning, pronunciation, tokenPath);
+    assertSameVocabulary(vocabulary, meaning, tokenPath);
     tokens.push({
       id: input.newId(),
       sentenceVersionId,
@@ -391,7 +346,6 @@ const resolveSentence = async (input: {
       endOffset: token.endOffset,
       vocabularyId: vocabulary.record.id,
       meaningId: meaning.record.id,
-      pronunciationId: meaning.record.id,
       contextMeaningKo: token.contextMeaningKo,
       role: token.role,
     });
@@ -414,18 +368,13 @@ const resolveSentence = async (input: {
       expression.meaning,
       `${expressionPath}.meaning`,
     );
-    const pronunciation = await input.resolver.pronunciation(
-      expression.pronunciation,
-      `${expressionPath}.pronunciation`,
-    );
-    assertSameVocabulary(vocabulary, meaning, pronunciation, expressionPath);
+    assertSameVocabulary(vocabulary, meaning, expressionPath);
     expressionCandidates.push({
       startTokenIndex: expression.startTokenIndex,
       endTokenIndex: expression.endTokenIndex,
       vocabularyId: vocabulary.record.id,
       vocabularyKind: vocabulary.record.kind,
       meaningId: meaning.record.id,
-      pronunciationId: meaning.record.id,
       contextMeaningKo: expression.contextMeaningKo,
       adminSelected: expression.representative ?? false,
     });
@@ -434,8 +383,6 @@ const resolveSentence = async (input: {
   const validationInput: ThaiSentenceVersionInput = {
     originalText: input.sentence.originalText,
     translationKo: input.sentence.translationKo,
-    pronunciationKo: input.sentence.pronunciationKo,
-    toneMarks: input.sentence.toneMarks,
     tokens,
     expressions: expressionCandidates,
   };
@@ -455,7 +402,6 @@ const resolveSentence = async (input: {
     vocabularyId: expression.vocabularyId,
     vocabularyKind: expression.vocabularyKind,
     meaningId: expression.meaningId,
-    pronunciationId: expression.pronunciationId,
     contextMeaningKo: expression.contextMeaningKo,
     representative: expression.representative,
     id: input.newId(),
@@ -469,8 +415,6 @@ const resolveSentence = async (input: {
       version: 1,
       originalText: input.sentence.originalText,
       translationKo: input.sentence.translationKo,
-      pronunciationKo: input.sentence.pronunciationKo,
-      toneMarks: input.sentence.toneMarks,
       frozenAt: null,
     },
     tokens,
@@ -526,31 +470,15 @@ export class ContentDraftService {
         difficulty: meaning.difficulty ?? null,
         contextNote: meaning.contextNote ?? null,
       }));
-      const pronunciations = meanings.map((meaning) => ({
-        id: meaning.id,
-        vocabularyId,
-        pronunciationKo: command.input.pronunciations[0]!.pronunciationKo,
-        toneMarks: command.input.pronunciations[0]!.toneMarks,
-      }));
       const graph: ResolvedVocabularyDraftGraph = {
         vocabulary,
         meanings,
-        pronunciations,
-        meaningPronunciations: meanings.map((meaning) => ({
-          vocabularyId,
-          meaningId: meaning.id,
-          pronunciationId: meaning.id,
-        })),
       };
       // Object.fromEntries는 __proto__도 setter가 아닌 own data property로 만든다.
       const referenceMap = Object.fromEntries([
         [command.input.clientRef, vocabularyId],
         ...command.input.meanings.map(
           (meaning, index) => [meaning.clientRef, meanings[index]!.id] as const,
-        ),
-        ...command.input.pronunciations.map(
-          (pronunciation, index) =>
-            [pronunciation.clientRef, pronunciations[index]!.id] as const,
         ),
       ]);
       await transaction.saveVocabularyDraft({

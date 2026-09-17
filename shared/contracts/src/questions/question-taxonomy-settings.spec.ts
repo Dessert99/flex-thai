@@ -12,8 +12,6 @@ import { questionMajorCategorySchema } from './question-major-category.js';
 const sentence = {
   originalText: 'สวัสดี',
   translationKo: '안녕하세요',
-  pronunciationKo: '싸왓디',
-  toneMarks: 'L-L-M',
   tokens: [],
   expressions: [],
 } as const;

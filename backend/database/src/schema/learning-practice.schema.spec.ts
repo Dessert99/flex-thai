@@ -122,19 +122,12 @@ describe('단어 연습 데이터베이스 schema', () => {
     expect(sessionIndex).toBeLessThan(sessionForeignKey);
   });
 
-  it('문항 meaning과 pronunciation이 같은 vocabulary에 속하게 고정한다', () => {
+  it('문항 meaning이 같은 vocabulary에 속하게 고정한다', () => {
     expect(foreignKeys(vocabularyPracticeQuestions)).toEqual(
       expect.arrayContaining([
         {
           name: 'vocabulary_practice_questions_meaning_vocabulary_fk',
           columns: ['meaning_id', 'vocabulary_id'],
-          foreignColumns: ['id', 'vocabulary_id'],
-          target: 'vocabulary_meanings',
-          onDelete: 'restrict',
-        },
-        {
-          name: 'vocabulary_practice_questions_pronunciation_vocabulary_fk',
-          columns: ['pronunciation_id', 'vocabulary_id'],
           foreignColumns: ['id', 'vocabulary_id'],
           target: 'vocabulary_meanings',
           onDelete: 'restrict',

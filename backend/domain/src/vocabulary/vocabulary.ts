@@ -12,12 +12,7 @@ export interface Vocabulary {
 
 /** 어휘 상태 전이 위반을 안정적인 code로 전달한다 */
 export class VocabularyDomainError extends Error {
-  constructor(
-    readonly code:
-      | 'VOCABULARY_EMPTY'
-      | 'VOCABULARY_PRONUNCIATION_REQUIRED'
-      | 'VOCABULARY_STATE_CONFLICT',
-  ) {
+  constructor(readonly code: 'VOCABULARY_EMPTY' | 'VOCABULARY_STATE_CONFLICT') {
     super(code);
     this.name = 'VocabularyDomainError';
   }
@@ -36,15 +31,9 @@ export const createVocabularyDraft = (input: {
   return { ...input, normalizedThai, status: 'DRAFT' };
 };
 
-export const publishVocabulary = (
-  vocabulary: Vocabulary,
-  pronunciations: readonly { pronunciationKo: string; toneMarks: string }[],
-): Vocabulary => {
+export const publishVocabulary = (vocabulary: Vocabulary): Vocabulary => {
   if (vocabulary.status !== 'DRAFT') {
     throw new VocabularyDomainError('VOCABULARY_STATE_CONFLICT');
-  }
-  if (pronunciations.length === 0) {
-    throw new VocabularyDomainError('VOCABULARY_PRONUNCIATION_REQUIRED');
   }
   return { ...vocabulary, status: 'PUBLISHED' };
 };

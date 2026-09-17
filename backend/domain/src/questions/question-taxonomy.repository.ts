@@ -14,7 +14,6 @@ interface ApprovedExampleToken {
   endOffset: number;
   vocabulary: ApprovedExampleReference;
   meaning: ApprovedExampleReference;
-  pronunciation: ApprovedExampleReference;
   contextMeaningKo: string;
   role: 'TARGET' | 'REQUIRED' | 'SUPPORTING' | 'INSTRUCTION';
 }
@@ -24,7 +23,6 @@ interface ApprovedExampleExpression {
   endTokenIndex: number;
   vocabulary: ApprovedExampleReference;
   meaning: ApprovedExampleReference;
-  pronunciation: ApprovedExampleReference;
   contextMeaningKo: string;
   representative?: boolean | undefined;
 }
@@ -32,8 +30,6 @@ interface ApprovedExampleExpression {
 interface ApprovedExampleSentence {
   originalText: string;
   translationKo: string;
-  pronunciationKo: string;
-  toneMarks: string;
   tokens: ApprovedExampleToken[];
   expressions: ApprovedExampleExpression[];
 }

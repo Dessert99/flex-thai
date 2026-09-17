@@ -9,7 +9,6 @@ const questionRow = {
   position: 1,
   vocabularyId: 'vocabulary-1',
   meaningId: 'meaning-1',
-  pronunciationId: null,
   mode: 'THAI_TO_MEANING',
   promptText: 'เรียน',
   options: [
@@ -31,16 +30,6 @@ const questionRow = {
         difficulty: 1,
         contextNote: null,
       },
-    ],
-    pronunciations: [
-      {
-        id: 'pronunciation-1',
-        pronunciationKo: '리안',
-        toneMarks: 'M',
-      },
-    ],
-    meaningPronunciations: [
-      { meaningId: 'meaning-1', pronunciationId: 'pronunciation-1' },
     ],
   },
 };

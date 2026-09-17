@@ -139,7 +139,6 @@ export class AdminVocabulariesController {
     );
   }
 
-  /** 뜻·발음 mapping과 문장·문제 version 사용처를 조회한다 */
   @ApiOperation({ summary: '관리자 어휘 상세와 사용처를 조회한다' })
   @ApiParam({ name: 'vocabularyId', type: 'string', format: 'uuid' })
   @ApiOkResponse({ type: AdminVocabularyDetailResponseDto })
@@ -178,8 +177,7 @@ export class AdminVocabulariesController {
     );
   }
 
-  /** READY 발음을 가진 DRAFT 어휘를 게시하고 204를 반환한다 */
-  @ApiOperation({ summary: 'READY 발음을 가진 DRAFT 어휘를 게시한다' })
+  @ApiOperation({ summary: 'DRAFT 어휘를 게시한다' })
   @ApiParam({ name: 'vocabularyId', type: 'string', format: 'uuid' })
   @ApiNoContentResponse()
   @ApiProblemResponses(400, 401, 403, 404, 409, 500)

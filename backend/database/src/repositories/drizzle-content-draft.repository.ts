@@ -1,5 +1,4 @@
 import { flattenQuestionDraft } from '@flex-thia/domain/questions/flatten-question-draft';
-import { vocabularyMeaningRows } from './vocabulary-meaning-rows.js';
 /** canonical 콘텐츠 초안 graph·IMPORTED item·audit을 한 Drizzle transaction에 저장한다 */
 import { ContentDraftError } from '@flex-thia/domain/content-import/content-draft';
 import {
@@ -290,9 +289,7 @@ const saveVocabularyDraft = async (
   const operation = 'saveVocabularyDraft';
   try {
     await transaction.insert(vocabularies).values(input.graph.vocabulary);
-    await transaction
-      .insert(vocabularyMeanings)
-      .values(vocabularyMeaningRows(input.graph));
+    await transaction.insert(vocabularyMeanings).values(input.graph.meanings);
     await transaction.insert(contentImportItems).values(input.item);
     await appendAudit(transaction, input.audit);
   } catch (error) {
@@ -320,23 +317,19 @@ const saveQuestionDraft = async (
     const { vocabularies: usage, ...content } = flattenQuestionDraft(
       input.graph,
     );
-    await transaction
-      .insert(questions)
-      .values({
-        ...content,
-        id: input.graph.question.id,
-        status: 'DRAFT',
-        version: 1,
-      });
+    await transaction.insert(questions).values({
+      ...content,
+      id: input.graph.question.id,
+      status: 'DRAFT',
+      version: 1,
+    });
     if (usage.length)
-      await transaction
-        .insert(questionVocabularies)
-        .values(
-          usage.map((item) => ({
-            ...item,
-            questionId: input.graph.question.id,
-          })),
-        );
+      await transaction.insert(questionVocabularies).values(
+        usage.map((item) => ({
+          ...item,
+          questionId: input.graph.question.id,
+        })),
+      );
     await transaction.insert(contentImportItems).values(input.item);
     await appendAudit(transaction, input.audit);
   } catch (error) {
@@ -362,7 +355,6 @@ const createContentDraftTransaction = (
     }
     return rows[0]?.id ?? null;
   },
-
   async findSuccessfulVocabularyImportItemsByReference(importId, clientRef) {
     const rows = await transaction
       .select({
@@ -398,7 +390,6 @@ const createContentDraftTransaction = (
       };
     });
   },
-
   async findVocabularyById(vocabularyId) {
     const rows = await transaction
       .select({
@@ -418,7 +409,6 @@ const createContentDraftTransaction = (
     }
     return rows[0] ?? null;
   },
-
   async findVocabularyMeaningById(meaningId) {
     const rows = await transaction
       .select({
@@ -437,26 +427,6 @@ const createContentDraftTransaction = (
     }
     return rows[0] ?? null;
   },
-
-  async findVocabularyPronunciationById(pronunciationId) {
-    const rows = await transaction
-      .select({
-        id: vocabularyMeanings.id,
-        vocabularyId: vocabularyMeanings.vocabularyId,
-      })
-      .from(vocabularyMeanings)
-      .where(eq(vocabularyMeanings.id, pronunciationId))
-      .for('key share')
-      .limit(2);
-    if (rows.length > 1) {
-      throw new ContentDraftPersistenceError(
-        'CONTENT_DRAFT_PERSISTENCE_CONFLICT',
-        'findVocabularyPronunciationById',
-      );
-    }
-    return rows[0] ?? null;
-  },
-
   async findQuestionTypeVersion(slug, version) {
     const rows = await transaction
       .select({
@@ -488,7 +458,6 @@ const createContentDraftTransaction = (
     }
     return rows[0] ?? null;
   },
-
   async findActiveQuestionTopic(slug) {
     const rows = await transaction
       .select({ id: questionTopics.id, slug: questionTopics.slug })
@@ -500,7 +469,6 @@ const createContentDraftTransaction = (
       .limit(2);
     return rows.length === 1 ? rows[0]! : null;
   },
-
   async findActiveQuestionTags(slugs) {
     if (slugs.length === 0) return [];
     return transaction
@@ -514,11 +482,9 @@ const createContentDraftTransaction = (
       )
       .for('key share');
   },
-
   async saveVocabularyDraft(input) {
     await saveVocabularyDraft(transaction, input);
   },
-
   async saveQuestionDraft(input) {
     await saveQuestionDraft(transaction, input);
   },

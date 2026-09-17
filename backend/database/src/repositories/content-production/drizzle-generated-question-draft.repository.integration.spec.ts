@@ -12,13 +12,10 @@ type Fixture = Awaited<ReturnType<typeof createFixture>>;
 
 const sentencePayload = (input: {
   meaningId: string;
-  pronunciationId: string;
   vocabularyId: string;
 }) => ({
   originalText: 'ไทย',
   translationKo: '태국',
-  pronunciationKo: '타이',
-  toneMarks: '',
   tokens: [
     {
       surface: 'ไทย',
@@ -26,7 +23,6 @@ const sentencePayload = (input: {
       endOffset: 3,
       vocabulary: { id: input.vocabularyId },
       meaning: { id: input.meaningId },
-      pronunciation: { id: input.pronunciationId },
       contextMeaningKo: '태국',
       role: 'TARGET',
     },
@@ -50,7 +46,6 @@ async function createFixture(
     tag: randomUUID(),
     vocabulary: randomUUID(),
     meaning: randomUUID(),
-    pronunciation: randomUUID(),
     candidate: randomUUID(),
   };
   const typeSlug = `generated-${ids.questionType}`;
@@ -127,14 +122,8 @@ async function createFixture(
       [ids.meaning, ids.vocabulary],
     );
   }
-  await pool.query(
-    `insert into vocabulary_pronunciations (
-       id, vocabulary_id, pronunciation_ko, tone_marks) values ($1, $2, '타이', '')`,
-    [ids.pronunciation, ids.vocabulary],
-  );
   const sentence = sentencePayload({
     meaningId: ids.meaning,
-    pronunciationId: ids.pronunciation,
     vocabularyId: ids.vocabulary,
   });
   const payload = {

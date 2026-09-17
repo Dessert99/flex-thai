@@ -37,20 +37,11 @@ const vocabularyInput = (clientRef: string) => ({
       partOfSpeech: '명사',
     },
   ],
-  pronunciations: [
-    {
-      clientRef: `${clientRef}-pronunciation`,
-      pronunciationKo: '발음',
-      toneMarks: '-',
-    },
-  ],
 });
 
 const sentenceInput = {
   originalText: 'ก',
   translationKo: '뜻',
-  pronunciationKo: '꺼',
-  toneMarks: '-',
   tokens: [],
   expressions: [],
 };
@@ -246,7 +237,6 @@ describe('canonical 콘텐츠 가져오기 hash', () => {
     const reordered = {
       questions: original.questions,
       vocabularies: original.vocabularies.map((vocabulary) => ({
-        pronunciations: vocabulary.pronunciations,
         kind: vocabulary.kind,
         meanings: vocabulary.meanings.map((meaning) => ({
           partOfSpeech: meaning.partOfSpeech,

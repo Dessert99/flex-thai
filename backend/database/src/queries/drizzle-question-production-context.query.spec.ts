@@ -239,7 +239,6 @@ describe('AI 문제 생성 문맥 조립', () => {
   it('preset의 게시 어휘 ID를 뜻·발음이 포함된 prompt 요약으로 확장한다', async () => {
     const vocabularyId = '00000000-0000-4000-8000-000000000010';
     const meaningId = '00000000-0000-4000-8000-000000000011';
-    const pronunciationId = '00000000-0000-4000-8000-000000000012';
     const query = new DrizzleQuestionProductionContextQuery({
       select: queuedContextSelect([
         [rows.typeVersion],
@@ -255,9 +254,6 @@ describe('AI 문제 생성 문맥 조립', () => {
             meaningKo: '가다',
             partOfSpeech: '동사',
             difficulty: 1,
-            pronunciationId,
-            pronunciationKo: '빠이',
-            toneMarks: 'M',
           },
         ],
       ]),
@@ -286,9 +282,6 @@ describe('AI 문제 생성 문맥 조립', () => {
           meaningKo: '가다',
           partOfSpeech: '동사',
           difficulty: 1,
-          pronunciationId,
-          pronunciationKo: '빠이',
-          toneMarks: 'M',
         },
       ],
     });
@@ -372,7 +365,4 @@ const promptVocabularyRow = (id: string, meaningId: string) => ({
   meaningKo: meaningId.endsWith('11') ? '가다' : '떠나다',
   partOfSpeech: '동사',
   difficulty: 1,
-  pronunciationId: '00000000-0000-4000-8000-000000000012',
-  pronunciationKo: '빠이',
-  toneMarks: 'M',
 });

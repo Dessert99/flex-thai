@@ -26,7 +26,7 @@ export interface StoredConceptValidationIssue {
 
 /** 개념 영역 */
 export const conceptCategoryEnum = pgEnum('concept_category', [
-  'THAI_SCRIPT_PRONUNCIATION',
+  'THAI_SCRIPT',
   'GRAMMAR',
 ]);
 

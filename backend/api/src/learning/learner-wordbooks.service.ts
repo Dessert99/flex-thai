@@ -71,11 +71,6 @@ const mapItem = (item: WordbookItemProjection) => ({
   thai: item.thai,
   kind: item.kind,
   meanings: item.meanings,
-  pronunciations: item.pronunciations.map((pronunciation) => ({
-    id: pronunciation.id,
-    pronunciationKo: pronunciation.pronunciationKo,
-    toneMarks: pronunciation.toneMarks,
-  })),
   saved: item.saved,
   addedAt: item.addedAt.toISOString(),
 });

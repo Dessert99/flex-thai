@@ -53,15 +53,6 @@ type PracticeCardJson = {
     difficulty: number | null;
     contextNote: string | null;
   }>;
-  pronunciations: Array<{
-    id: string;
-    pronunciationKo: string;
-    toneMarks: string;
-  }>;
-  meaningPronunciations: Array<{
-    meaningId: string;
-    pronunciationId: string;
-  }>;
 };
 
 /** source 설정과 완료 시각을 보존하는 단어 연습 세션 */
@@ -130,13 +121,10 @@ export const vocabularyPracticeQuestions = pgTable(
       .references(() => vocabularies.id, { onDelete: 'restrict' })
       .notNull(),
     meaningId: uuid('meaning_id').notNull(),
-    pronunciationId: uuid('pronunciation_id'),
     mode: vocabularyPracticeModeEnum('mode').notNull(),
     promptText: text('prompt_text').notNull(),
     thaiSnapshot: text('thai_snapshot').notNull(),
     meaningKoSnapshot: text('meaning_ko_snapshot').notNull(),
-    pronunciationKoSnapshot: text('pronunciation_ko_snapshot'),
-    toneMarksSnapshot: text('tone_marks_snapshot'),
     options: jsonb('options').$type<PracticeOptionJson>().notNull(),
     correctOptionId: uuid('correct_option_id').notNull(),
     cardSnapshot: jsonb('card_snapshot').$type<PracticeCardJson>().notNull(),
@@ -153,15 +141,6 @@ export const vocabularyPracticeQuestions = pgTable(
     foreignKey({
       name: 'vocabulary_practice_questions_meaning_vocabulary_fk',
       columns: [table.meaningId, table.vocabularyId],
-      foreignColumns: [vocabularyMeanings.id, vocabularyMeanings.vocabularyId],
-    }).onDelete('restrict'),
-    check(
-      'vocabulary_practice_questions_pronunciation_matches_meaning',
-      sql`${table.pronunciationId} = ${table.meaningId}`,
-    ),
-    foreignKey({
-      name: 'vocabulary_practice_questions_pronunciation_vocabulary_fk',
-      columns: [table.pronunciationId, table.vocabularyId],
       foreignColumns: [vocabularyMeanings.id, vocabularyMeanings.vocabularyId],
     }).onDelete('restrict'),
     check(

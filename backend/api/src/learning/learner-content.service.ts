@@ -176,11 +176,6 @@ const mapVocabularySummary = (
   thai: vocabulary.thai,
   kind: vocabulary.kind,
   meanings: vocabulary.meanings,
-  pronunciations: vocabulary.pronunciations.map((pronunciation) => ({
-    id: pronunciation.id,
-    pronunciationKo: pronunciation.pronunciationKo,
-    toneMarks: pronunciation.toneMarks,
-  })),
   saved: vocabulary.saved,
 });
 
@@ -304,7 +299,6 @@ export class LearnerContentService {
     });
   }
 
-  /** 게시 어휘 상세의 발음과 예문 media만 5분 URL로 바꾼다 */
   async getVocabularyDetail(
     userId: string,
     vocabularyId: string,
@@ -318,7 +312,6 @@ export class LearnerContentService {
     }
     return parseLearnerPublicResponse(vocabularyDetailResponseSchema, {
       ...mapVocabularySummary(detail),
-      meaningPronunciations: detail.meaningPronunciations,
       relations: detail.relations,
       exampleSentences: detail.exampleSentences,
     });

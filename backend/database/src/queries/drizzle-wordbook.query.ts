@@ -97,12 +97,6 @@ const buildItemFilter = (
         where ${vocabularyMeanings.vocabularyId} = ${vocabularies.id}
           and ${vocabularyMeanings.meaningKo} ilike ${koreanPattern}
       )
-      or exists (
-        select 1
-        from ${vocabularyMeanings}
-        where ${vocabularyMeanings.vocabularyId} = ${vocabularies.id}
-          and ${vocabularyMeanings.pronunciationKo} ilike ${koreanPattern}
-      )
     )`);
   }
   return conditions;
@@ -133,7 +127,6 @@ export class DrizzleWordbookQuery {
       .orderBy(asc(wordbooks.createdAt), asc(wordbooks.id));
   }
 
-  /** 소유 단어장의 게시 항목과 전체 뜻·준비 발음을 반환한다 */
   async listItems(
     userId: string,
     wordbookId: string,
@@ -207,8 +200,6 @@ export class DrizzleWordbookQuery {
         id: vocabularyMeanings.id,
         vocabularyId: vocabularyMeanings.vocabularyId,
         meaningKo: vocabularyMeanings.meaningKo,
-        pronunciationKo: vocabularyMeanings.pronunciationKo,
-        toneMarks: vocabularyMeanings.toneMarks,
         partOfSpeech: vocabularyMeanings.partOfSpeech,
         difficulty: vocabularyMeanings.difficulty,
         contextNote: vocabularyMeanings.contextNote,
@@ -221,12 +212,8 @@ export class DrizzleWordbookQuery {
         asc(vocabularyMeanings.createdAt),
         asc(vocabularyMeanings.id),
       );
-    const pronunciations = meanings;
 
     return bases.map((base) => {
-      const vocabularyMeanings = pronunciations
-        .filter(({ vocabularyId }) => vocabularyId === base.id)
-        .sort(compareCreatedAtThenId);
       return {
         id: base.id,
         thai: base.thai,
@@ -241,13 +228,6 @@ export class DrizzleWordbookQuery {
             difficulty,
             contextNote,
           })),
-        pronunciations: vocabularyMeanings.map(
-          ({ id, pronunciationKo, toneMarks }) => ({
-            id,
-            pronunciationKo,
-            toneMarks,
-          }),
-        ),
         saved: true,
         addedAt: base.addedAt,
       };

@@ -45,8 +45,6 @@ export const thaiSentenceVersions = pgTable(
     version: integer('version').notNull(),
     originalText: text('original_text').notNull(),
     translationKo: text('translation_ko').notNull(),
-    pronunciationKo: text('pronunciation_ko').notNull(),
-    toneMarks: text('tone_marks').notNull(),
     frozenAt: timestamp('frozen_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
@@ -61,7 +59,6 @@ export const thaiSentenceVersions = pgTable(
   ],
 );
 
-/** 문장 안 한 번의 토큰 출현과 선택된 공용 뜻·발음 */
 export const tokenOccurrences = pgTable(
   'token_occurrences',
   {
@@ -75,7 +72,6 @@ export const tokenOccurrences = pgTable(
     endOffset: integer('end_offset').notNull(),
     vocabularyId: uuid('vocabulary_id').notNull(),
     meaningId: uuid('meaning_id').notNull(),
-    pronunciationId: uuid('pronunciation_id').notNull(),
     contextMeaningKo: text('context_meaning_ko').notNull(),
     role: tokenOccurrenceRoleEnum('role').notNull(),
   },
@@ -92,15 +88,6 @@ export const tokenOccurrences = pgTable(
     foreignKey({
       name: 'token_occurrences_meaning_vocabulary_fk',
       columns: [table.meaningId, table.vocabularyId],
-      foreignColumns: [vocabularyMeanings.id, vocabularyMeanings.vocabularyId],
-    }).onDelete('restrict'),
-    check(
-      'token_occurrences_pronunciation_matches_meaning',
-      sql`${table.pronunciationId} = ${table.meaningId}`,
-    ),
-    foreignKey({
-      name: 'token_occurrences_pronunciation_vocabulary_fk',
-      columns: [table.pronunciationId, table.vocabularyId],
       foreignColumns: [vocabularyMeanings.id, vocabularyMeanings.vocabularyId],
     }).onDelete('restrict'),
     check(
@@ -127,7 +114,6 @@ export const expressionOccurrences = pgTable(
     vocabularyId: uuid('vocabulary_id').notNull(),
     vocabularyKind: vocabularyKindEnum('vocabulary_kind').notNull(),
     meaningId: uuid('meaning_id').notNull(),
-    pronunciationId: uuid('pronunciation_id').notNull(),
     contextMeaningKo: text('context_meaning_ko').notNull(),
     representative: boolean('representative').default(false).notNull(),
   },
@@ -141,15 +127,6 @@ export const expressionOccurrences = pgTable(
     foreignKey({
       name: 'expression_occurrences_meaning_vocabulary_fk',
       columns: [table.meaningId, table.vocabularyId],
-      foreignColumns: [vocabularyMeanings.id, vocabularyMeanings.vocabularyId],
-    }).onDelete('restrict'),
-    check(
-      'expression_occurrences_pronunciation_matches_meaning',
-      sql`${table.pronunciationId} = ${table.meaningId}`,
-    ),
-    foreignKey({
-      name: 'expression_occurrences_pronunciation_vocabulary_fk',
-      columns: [table.pronunciationId, table.vocabularyId],
       foreignColumns: [vocabularyMeanings.id, vocabularyMeanings.vocabularyId],
     }).onDelete('restrict'),
     check(

@@ -76,55 +76,14 @@ export const vocabularyPracticeQuestionPathSchema = z
   })
   .strict();
 
-const meaningPronunciationSchema = z
-  .object({
-    meaningId: z.uuid(),
-    pronunciationId: z.uuid(),
-  })
-  .strict();
-
-/** 전체 뜻·발음·성조·뜻-발음 관계를 공개하는 단어 연습 카드 */
 export const practiceCardSchema = z
   .object({
     ...vocabularySummarySchema.omit({
       saved: true,
     }).shape,
     meanings: vocabularySummarySchema.shape.meanings.min(1),
-    pronunciations: vocabularySummarySchema.shape.pronunciations.min(1),
-    meaningPronunciations: z.array(meaningPronunciationSchema).min(1),
   })
-  .strict()
-  .superRefine((card, context) => {
-    const meaningIds = new Set(card.meanings.map(({ id }) => id));
-    const pronunciationIds = new Set(card.pronunciations.map(({ id }) => id));
-    const pairs = new Set<string>();
-
-    card.meaningPronunciations.forEach((link, index) => {
-      if (!meaningIds.has(link.meaningId)) {
-        context.addIssue({
-          code: 'custom',
-          message: '카드에 존재하는 뜻만 발음과 연결할 수 있습니다.',
-          path: ['meaningPronunciations', index, 'meaningId'],
-        });
-      }
-      if (!pronunciationIds.has(link.pronunciationId)) {
-        context.addIssue({
-          code: 'custom',
-          message: '카드에 존재하는 발음만 뜻과 연결할 수 있습니다.',
-          path: ['meaningPronunciations', index, 'pronunciationId'],
-        });
-      }
-      const pair = `${link.meaningId}:${link.pronunciationId}`;
-      if (pairs.has(pair)) {
-        context.addIssue({
-          code: 'custom',
-          message: '같은 뜻과 발음 관계를 중복할 수 없습니다.',
-          path: ['meaningPronunciations', index],
-        });
-      }
-      pairs.add(pair);
-    });
-  });
+  .strict();
 
 const textPromptSchema = z
   .object({

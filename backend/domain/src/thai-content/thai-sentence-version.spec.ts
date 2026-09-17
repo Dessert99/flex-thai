@@ -11,8 +11,6 @@ import {
 const sentence = (): ThaiSentenceVersionInput => ({
   originalText: 'ก😀ข',
   translationKo: '번역',
-  pronunciationKo: '발음',
-  toneMarks: '성조',
   tokens: [
     {
       position: 0,
@@ -21,7 +19,6 @@ const sentence = (): ThaiSentenceVersionInput => ({
       endOffset: 1,
       vocabularyId: 'vocabulary-1',
       meaningId: 'meaning-1',
-      pronunciationId: 'pronunciation-1',
       contextMeaningKo: '뜻',
       role: 'TARGET',
     },
@@ -32,7 +29,6 @@ const sentence = (): ThaiSentenceVersionInput => ({
       endOffset: 2,
       vocabularyId: 'vocabulary-2',
       meaningId: 'meaning-2',
-      pronunciationId: 'pronunciation-2',
       contextMeaningKo: '표정',
       role: 'SUPPORTING',
     },
@@ -42,26 +38,23 @@ const sentence = (): ThaiSentenceVersionInput => ({
 
 const expressionFeedback = {
   meaningId: 'expression-meaning',
-  pronunciationId: 'expression-pronunciation',
   contextMeaningKo: '표현 뜻',
 } as const;
 
 describe('ThaiSentenceVersion 문장 버전 검증', () => {
-  it('표현의 선택 뜻과 발음 및 문맥상 뜻을 보존한다', () => {
+  it('표현의 선택 뜻과 문맥상 뜻을 보존한다', () => {
     const expression: ThaiExpressionOccurrenceInput = {
       startTokenIndex: 0,
       endTokenIndex: 2,
       vocabularyId: 'expression',
       vocabularyKind: 'EXPRESSION',
       meaningId: 'expression-meaning',
-      pronunciationId: 'expression-pronunciation',
       contextMeaningKo: '태국어 표현',
       adminSelected: true,
     };
 
     expect(resolveRepresentativeExpressions([expression])[0]).toMatchObject({
       meaningId: 'expression-meaning',
-      pronunciationId: 'expression-pronunciation',
       contextMeaningKo: '태국어 표현',
       representative: true,
     });

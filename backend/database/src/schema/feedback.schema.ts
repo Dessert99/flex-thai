@@ -24,13 +24,7 @@ export const contentErrorReportTargetKindEnum = pgEnum(
 /** 콘텐츠 오류 신고 분류 enum */
 export const contentErrorReportCategoryEnum = pgEnum(
   'content_error_report_category',
-  [
-    'MEANING_TRANSLATION',
-    'PRONUNCIATION_TONE',
-    'ANSWER_EXPLANATION',
-    'TOKENIZATION',
-    'OTHER',
-  ],
+  ['MEANING_TRANSLATION', 'ANSWER_EXPLANATION', 'TOKENIZATION', 'OTHER'],
 );
 /** 콘텐츠 오류 신고 처리 상태 enum */
 export const contentErrorReportStatusEnum = pgEnum(

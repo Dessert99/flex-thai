@@ -45,7 +45,6 @@ export interface AdminVocabularyListItemProjection {
   status: 'DRAFT' | 'PUBLISHED' | 'HIDDEN' | 'MERGED';
   mergedIntoVocabularyId: string | null;
   meaningCount: number;
-  pronunciationCount: number;
   updatedAt: Date;
 }
 
@@ -72,19 +71,6 @@ export interface AdminVocabularyMeaningProjection {
   contextNote: string | null;
 }
 
-/** storage key 없는 관리자 어휘 발음 projection */
-export interface AdminVocabularyPronunciationProjection {
-  id: string;
-  pronunciationKo: string;
-  toneMarks: string;
-}
-
-/** 관리자 어휘 뜻·발음 명시 mapping projection */
-export interface AdminVocabularyMeaningPronunciationProjection {
-  meaningId: string;
-  pronunciationId: string;
-}
-
 /** 모든 상태와 distinct version usage를 포함한 관리자 어휘 상세 */
 export interface AdminVocabularyDetailProjection {
   id: string;
@@ -94,8 +80,6 @@ export interface AdminVocabularyDetailProjection {
   mergedIntoVocabularyId: string | null;
   importanceWeight: number;
   meanings: AdminVocabularyMeaningProjection[];
-  pronunciations: AdminVocabularyPronunciationProjection[];
-  meaningPronunciations: AdminVocabularyMeaningPronunciationProjection[];
   relations: Array<{
     id: string;
     sourceMeaningId: string;
@@ -142,7 +126,6 @@ const listSelection = {
   status: vocabularies.status,
   mergedIntoVocabularyId: vocabularies.mergedIntoVocabularyId,
   meaningCount: countDistinct(vocabularyMeanings.id),
-  pronunciationCount: countDistinct(vocabularyMeanings.id),
   updatedAt: vocabularies.updatedAt,
 };
 
@@ -198,7 +181,6 @@ export class DrizzleAdminVocabularyQuery {
     };
   }
 
-  /** 뜻·발음·mapping과 distinct sentence/question version usage만 반환한다 */
   async findById(
     vocabularyId: string,
   ): Promise<AdminVocabularyDetailProjection | null> {
@@ -222,8 +204,6 @@ export class DrizzleAdminVocabularyQuery {
       .select({
         id: vocabularyMeanings.id,
         meaningKo: vocabularyMeanings.meaningKo,
-        pronunciationKo: vocabularyMeanings.pronunciationKo,
-        toneMarks: vocabularyMeanings.toneMarks,
         partOfSpeech: vocabularyMeanings.partOfSpeech,
         difficulty: vocabularyMeanings.difficulty,
         contextNote: vocabularyMeanings.contextNote,
@@ -231,17 +211,6 @@ export class DrizzleAdminVocabularyQuery {
       .from(vocabularyMeanings)
       .where(eq(vocabularyMeanings.vocabularyId, vocabularyId))
       .orderBy(asc(vocabularyMeanings.createdAt), asc(vocabularyMeanings.id));
-    const pronunciations = meanings.map(
-      ({ id, pronunciationKo, toneMarks }) => ({
-        id,
-        pronunciationKo,
-        toneMarks,
-      }),
-    );
-    const meaningPronunciations = meanings.map(({ id }) => ({
-      meaningId: id,
-      pronunciationId: id,
-    }));
     const tokenSentenceRows = await this.database
       .select({ sentenceVersionId: tokenOccurrences.sentenceVersionId })
       .from(tokenOccurrences)
@@ -307,8 +276,6 @@ export class DrizzleAdminVocabularyQuery {
           contextNote,
         }),
       ),
-      pronunciations,
-      meaningPronunciations,
       relations,
       usage: {
         sentenceVersionIds,
