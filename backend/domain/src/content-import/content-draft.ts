@@ -136,7 +136,7 @@ const createAudit = (
 });
 
 const assertVocabularyInput = (input: CanonicalDraftVocabularyInput): void => {
-  if (input.meanings.length === 0 || input.pronunciations.length === 0) {
+  if (input.meanings.length === 0 || input.pronunciations.length !== 1) {
     throw new ContentDraftError('IMPORT_CONTENT_INVALID', 'meanings');
   }
   assertUniqueNonemptyRefs(
@@ -334,7 +334,11 @@ const assertSameVocabulary = (
   if (meaning.record.vocabularyId !== vocabulary.record.id) {
     throw new ContentDraftError('IMPORT_REFERENCE_MISMATCH', `${path}.meaning`);
   }
-  if (pronunciation.record.vocabularyId !== vocabulary.record.id) {
+  if (
+    pronunciation.record.vocabularyId !== vocabulary.record.id ||
+    (pronunciation.record.id !== meaning.record.id &&
+      pronunciation.importedItem === null)
+  ) {
     throw new ContentDraftError(
       'IMPORT_REFERENCE_MISMATCH',
       `${path}.pronunciation`,
@@ -387,7 +391,7 @@ const resolveSentence = async (input: {
       endOffset: token.endOffset,
       vocabularyId: vocabulary.record.id,
       meaningId: meaning.record.id,
-      pronunciationId: pronunciation.record.id,
+      pronunciationId: meaning.record.id,
       contextMeaningKo: token.contextMeaningKo,
       role: token.role,
     });
@@ -421,7 +425,7 @@ const resolveSentence = async (input: {
       vocabularyId: vocabulary.record.id,
       vocabularyKind: vocabulary.record.kind,
       meaningId: meaning.record.id,
-      pronunciationId: pronunciation.record.id,
+      pronunciationId: meaning.record.id,
       contextMeaningKo: expression.contextMeaningKo,
       adminSelected: expression.representative ?? false,
     });
@@ -522,25 +526,21 @@ export class ContentDraftService {
         difficulty: meaning.difficulty ?? null,
         contextNote: meaning.contextNote ?? null,
       }));
-      const pronunciations = command.input.pronunciations.map(
-        (pronunciation) => ({
-          id: this.newId(),
-          vocabularyId,
-          pronunciationKo: pronunciation.pronunciationKo,
-          toneMarks: pronunciation.toneMarks,
-        }),
-      );
+      const pronunciations = meanings.map((meaning) => ({
+        id: meaning.id,
+        vocabularyId,
+        pronunciationKo: command.input.pronunciations[0]!.pronunciationKo,
+        toneMarks: command.input.pronunciations[0]!.toneMarks,
+      }));
       const graph: ResolvedVocabularyDraftGraph = {
         vocabulary,
         meanings,
         pronunciations,
-        meaningPronunciations: meanings.flatMap((meaning) =>
-          pronunciations.map((pronunciation) => ({
-            vocabularyId,
-            meaningId: meaning.id,
-            pronunciationId: pronunciation.id,
-          })),
-        ),
+        meaningPronunciations: meanings.map((meaning) => ({
+          vocabularyId,
+          meaningId: meaning.id,
+          pronunciationId: meaning.id,
+        })),
       };
       // Object.fromEntries는 __proto__도 setter가 아닌 own data property로 만든다.
       const referenceMap = Object.fromEntries([

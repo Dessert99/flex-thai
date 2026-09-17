@@ -102,6 +102,8 @@ const summaryRows = {
       id: 'meaning-2',
       vocabularyId: 'vocabulary-1',
       meaningKo: '안녕',
+      pronunciationKo: '싸왓디',
+      toneMarks: 'L-L-M',
       partOfSpeech: '감탄사',
       difficulty: 2,
       contextNote: null,
@@ -111,6 +113,8 @@ const summaryRows = {
       id: 'meaning-1',
       vocabularyId: 'vocabulary-1',
       meaningKo: '안녕하세요',
+      pronunciationKo: '사왓디',
+      toneMarks: 'L-L-M',
       partOfSpeech: '감탄사',
       difficulty: 1,
       contextNote: '정중한 인사',
@@ -120,6 +124,8 @@ const summaryRows = {
       id: 'meaning-3',
       vocabularyId: 'vocabulary-2',
       meaningKo: '감사합니다',
+      pronunciationKo: '컵쿤',
+      toneMarks: 'L-M',
       partOfSpeech: '감탄사',
       difficulty: 1,
       contextNote: null,
@@ -128,21 +134,21 @@ const summaryRows = {
   ],
   pronunciations: [
     {
-      id: 'pronunciation-2',
+      id: 'meaning-2',
       vocabularyId: 'vocabulary-1',
       pronunciationKo: '싸왓디',
       toneMarks: 'L-L-M',
       createdAt: new Date('2026-07-24T00:00:00.000Z'),
     },
     {
-      id: 'pronunciation-1',
+      id: 'meaning-1',
       vocabularyId: 'vocabulary-1',
       pronunciationKo: '사왓디',
       toneMarks: 'L-L-M',
       createdAt: new Date('2026-07-24T00:00:00.000Z'),
     },
     {
-      id: 'pronunciation-3',
+      id: 'meaning-3',
       vocabularyId: 'vocabulary-2',
       pronunciationKo: '컵쿤',
       toneMarks: 'L-M',
@@ -179,7 +185,7 @@ describe('DrizzleLearnerVocabularyQuery 공용 어휘 검색', () => {
       '"vocabulary_meanings"."vocabulary_id" = "vocabularies"."id"',
     );
     expect(listCapture.queries[0]).toContain(
-      '"vocabulary_pronunciations"."vocabulary_id" = "vocabularies"."id"',
+      '"vocabulary_meanings"."vocabulary_id" = "vocabularies"."id"',
     );
 
     const relatedCapture = createSqlCaptureDatabase();
@@ -209,10 +215,10 @@ describe('DrizzleLearnerVocabularyQuery 공용 어휘 검색', () => {
       detailCapture.database,
     ).getVocabularyDetail('user-id', 'vocabulary-id');
 
-    expect(detailCapture.queries[4]).toMatch(
+    expect(detailCapture.queries[2]).toMatch(
       /"token_occurrences"\."sentence_version_id"\s*=\s*"thai_sentence_versions"\."id"/u,
     );
-    expect(detailCapture.queries[4]).toMatch(
+    expect(detailCapture.queries[2]).toMatch(
       /"question_block_sentences"\."sentence_version_id"\s*=\s*"thai_sentence_versions"\."id"/u,
     );
   });
@@ -222,7 +228,6 @@ describe('DrizzleLearnerVocabularyQuery 공용 어휘 검색', () => {
       [{ totalItems: 2 }],
       [...summaryRows.bases],
       [...summaryRows.meanings],
-      [...summaryRows.pronunciations],
     ]);
     const query = new DrizzleLearnerVocabularyQuery(fake.database as never);
 
@@ -247,7 +252,6 @@ describe('DrizzleLearnerVocabularyQuery 공용 어휘 검색', () => {
       [{ totalItems: 2 }],
       [...summaryRows.bases],
       [...summaryRows.meanings],
-      [...summaryRows.pronunciations],
     ]);
     const query = new DrizzleLearnerVocabularyQuery(fake.database as never);
 
@@ -276,7 +280,7 @@ describe('DrizzleLearnerVocabularyQuery 공용 어휘 검색', () => {
     ]);
     expect(
       result.items[1]?.pronunciations.map((pronunciation) => pronunciation.id),
-    ).toEqual(['pronunciation-1', 'pronunciation-2']);
+    ).toEqual(['meaning-1', 'meaning-2']);
 
     expect(fake.selectCalls[0]?.from).toBe(vocabularies);
     expect(fake.selectCalls[1]?.from).toBe(vocabularies);
@@ -294,7 +298,7 @@ describe('DrizzleLearnerVocabularyQuery 공용 어휘 검색', () => {
       );
       expect(condition.sql.toLowerCase()).toContain('ilike');
       expect(condition.sql).toContain('vocabulary_meanings');
-      expect(condition.sql).toContain('vocabulary_pronunciations');
+      expect(condition.sql).toContain('vocabulary_meanings');
     }
     expect(fake.selectCalls[1]).toMatchObject({ limit: 10, offset: 10 });
     expect(toSql(fake.selectCalls[1]?.orderBy[0]).sql).toContain(
@@ -307,7 +311,6 @@ describe('DrizzleLearnerVocabularyQuery 공용 어휘 검색', () => {
       [{ totalItems: 1 }],
       [summaryRows.bases[1]],
       [...summaryRows.meanings],
-      [...summaryRows.pronunciations],
     ]);
     const query = new DrizzleLearnerVocabularyQuery(fake.database as never);
 
@@ -328,17 +331,6 @@ describe('DrizzleLearnerVocabularyQuery 상세와 예문', () => {
     const fake = createSelectFake([
       [summaryRows.bases[1]],
       [...summaryRows.meanings.slice(0, 2)],
-      [...summaryRows.pronunciations.slice(0, 2)],
-      [
-        {
-          meaningId: 'meaning-2',
-          pronunciationId: 'pronunciation-2',
-        },
-        {
-          meaningId: 'meaning-1',
-          pronunciationId: 'pronunciation-1',
-        },
-      ],
       [
         {
           sentenceVersionId: 'sentence-2',
@@ -366,7 +358,7 @@ describe('DrizzleLearnerVocabularyQuery 상세와 예문', () => {
           endOffset: 6,
           vocabularyId: 'vocabulary-1',
           meaningId: 'meaning-1',
-          pronunciationId: 'pronunciation-1',
+          pronunciationId: 'meaning-1',
           contextMeaningKo: '안녕하세요',
           pronunciationKo: '싸왓디',
           toneMarks: '-',
@@ -408,8 +400,8 @@ describe('DrizzleLearnerVocabularyQuery 상세와 예문', () => {
     const detail = await query.getVocabularyDetail('user-id', 'vocabulary-1');
 
     expect(detail?.meaningPronunciations).toEqual([
-      { meaningId: 'meaning-1', pronunciationId: 'pronunciation-1' },
-      { meaningId: 'meaning-2', pronunciationId: 'pronunciation-2' },
+      { meaningId: 'meaning-1', pronunciationId: 'meaning-1' },
+      { meaningId: 'meaning-2', pronunciationId: 'meaning-2' },
     ]);
     expect(
       detail?.exampleSentences.map((sentence) => sentence.sentenceVersionId),
@@ -433,7 +425,7 @@ describe('DrizzleLearnerVocabularyQuery 상세와 예문', () => {
         relatedMeaningKo: '안녕',
       },
     ]);
-    const relationCondition = toSql(fake.selectCalls[7]?.condition);
+    const relationCondition = toSql(fake.selectCalls[5]?.condition);
     expect(relationCondition.params).toEqual(
       expect.arrayContaining([
         'PASSED',
@@ -442,7 +434,7 @@ describe('DrizzleLearnerVocabularyQuery 상세와 예문', () => {
         'vocabulary-1',
       ]),
     );
-    const exampleCondition = toSql(fake.selectCalls[4]?.condition);
+    const exampleCondition = toSql(fake.selectCalls[2]?.condition);
     expect(exampleCondition.params).toEqual(
       expect.arrayContaining(['vocabulary-1', 'PUBLISHED', 'PUBLISHED']),
     );
@@ -462,26 +454,24 @@ describe('DrizzleLearnerVocabularyQuery 상세와 예문', () => {
     ).resolves.toBeNull();
   });
 
-  it('상세 link가 반환한 뜻·발음에 없으면 stable 오류로 실패한다', async () => {
+  it('뜻 행에서 발음을 읽어 별도 연결 조회 없이 상세를 반환한다', async () => {
     const fake = createSelectFake([
       [summaryRows.bases[1]],
       [summaryRows.meanings[0]],
-      [summaryRows.pronunciations[0]],
-      [
-        {
-          meaningId: 'missing-meaning',
-          pronunciationId: 'pronunciation-2',
-        },
-      ],
+      [],
+      [],
+      [],
       [],
     ]);
-    const query = new DrizzleLearnerVocabularyQuery(fake.database as never);
-
-    await expect(
-      query.getVocabularyDetail('user-id', 'vocabulary-1'),
-    ).rejects.toMatchObject({
-      code: 'PUBLISHED_VOCABULARY_LINK_INVALID',
-    });
+    const detail = await new DrizzleLearnerVocabularyQuery(
+      fake.database as never,
+    ).getVocabularyDetail('user-id', 'vocabulary-1');
+    expect(detail?.pronunciations).toEqual([
+      { id: 'meaning-2', pronunciationKo: '싸왓디', toneMarks: 'L-L-M' },
+    ]);
+    expect(detail?.meaningPronunciations).toEqual([
+      { meaningId: 'meaning-2', pronunciationId: 'meaning-2' },
+    ]);
   });
 });
 

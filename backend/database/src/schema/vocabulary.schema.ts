@@ -7,7 +7,6 @@ import {
   jsonb,
   pgEnum,
   pgTable,
-  primaryKey,
   text,
   timestamp,
   unique,
@@ -90,6 +89,8 @@ export const vocabularyMeanings = pgTable(
       .references(() => vocabularies.id, { onDelete: 'restrict' })
       .notNull(),
     meaningKo: text('meaning_ko').notNull(),
+    pronunciationKo: text('pronunciation_ko').notNull(),
+    toneMarks: text('tone_marks').notNull(),
     partOfSpeech: text('part_of_speech').notNull(),
     difficulty: integer('difficulty'),
     contextNote: text('context_note'),
@@ -106,56 +107,6 @@ export const vocabularyMeanings = pgTable(
       'vocabulary_meanings_difficulty_range',
       sql`${table.difficulty} is null or ${table.difficulty} between 1 and 5`,
     ),
-  ],
-);
-
-export const vocabularyPronunciations = pgTable(
-  'vocabulary_pronunciations',
-  {
-    id: uuid('id').defaultRandom().primaryKey(),
-    vocabularyId: uuid('vocabulary_id')
-      .references(() => vocabularies.id, { onDelete: 'restrict' })
-      .notNull(),
-    pronunciationKo: text('pronunciation_ko').notNull(),
-    toneMarks: text('tone_marks').notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .defaultNow()
-      .notNull(),
-  },
-  (table) => [
-    unique('vocabulary_pronunciations_id_vocabulary_unique').on(
-      table.id,
-      table.vocabularyId,
-    ),
-  ],
-);
-
-/** 한 어휘 안의 뜻과 발음 다대다 연결 */
-export const vocabularyMeaningPronunciations = pgTable(
-  'vocabulary_meaning_pronunciations',
-  {
-    vocabularyId: uuid('vocabulary_id').notNull(),
-    meaningId: uuid('meaning_id').notNull(),
-    pronunciationId: uuid('pronunciation_id').notNull(),
-  },
-  (table) => [
-    primaryKey({
-      name: 'vocabulary_meaning_pronunciations_pk',
-      columns: [table.meaningId, table.pronunciationId],
-    }),
-    foreignKey({
-      name: 'vocabulary_meaning_pronunciations_meaning_fk',
-      columns: [table.meaningId, table.vocabularyId],
-      foreignColumns: [vocabularyMeanings.id, vocabularyMeanings.vocabularyId],
-    }).onDelete('restrict'),
-    foreignKey({
-      name: 'vocabulary_meaning_pronunciations_pronunciation_fk',
-      columns: [table.pronunciationId, table.vocabularyId],
-      foreignColumns: [
-        vocabularyPronunciations.id,
-        vocabularyPronunciations.vocabularyId,
-      ],
-    }).onDelete('restrict'),
   ],
 );
 

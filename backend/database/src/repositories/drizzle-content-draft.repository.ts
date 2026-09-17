@@ -1,3 +1,4 @@
+import { vocabularyMeaningRows } from './vocabulary-meaning-rows.js';
 /** canonical 콘텐츠 초안 graph·IMPORTED item·audit을 한 Drizzle transaction에 저장한다 */
 import { ContentDraftError } from '@flex-thia/domain/content-import/content-draft';
 import {
@@ -33,9 +34,7 @@ import {
 } from '../schema/questions.schema.js';
 import {
   vocabularies,
-  vocabularyMeaningPronunciations,
   vocabularyMeanings,
-  vocabularyPronunciations,
 } from '../schema/vocabulary.schema.js';
 
 type ContentDraftDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
@@ -298,13 +297,9 @@ const saveVocabularyDraft = async (
   const operation = 'saveVocabularyDraft';
   try {
     await transaction.insert(vocabularies).values(input.graph.vocabulary);
-    await transaction.insert(vocabularyMeanings).values(input.graph.meanings);
     await transaction
-      .insert(vocabularyPronunciations)
-      .values(input.graph.pronunciations);
-    await transaction
-      .insert(vocabularyMeaningPronunciations)
-      .values(input.graph.meaningPronunciations);
+      .insert(vocabularyMeanings)
+      .values(vocabularyMeaningRows(input.graph));
     await transaction.insert(contentImportItems).values(input.item);
     await appendAudit(transaction, input.audit);
   } catch (error) {
@@ -481,11 +476,11 @@ const createContentDraftTransaction = (
   async findVocabularyPronunciationById(pronunciationId) {
     const rows = await transaction
       .select({
-        id: vocabularyPronunciations.id,
-        vocabularyId: vocabularyPronunciations.vocabularyId,
+        id: vocabularyMeanings.id,
+        vocabularyId: vocabularyMeanings.vocabularyId,
       })
-      .from(vocabularyPronunciations)
-      .where(eq(vocabularyPronunciations.id, pronunciationId))
+      .from(vocabularyMeanings)
+      .where(eq(vocabularyMeanings.id, pronunciationId))
       .for('key share')
       .limit(2);
     if (rows.length > 1) {

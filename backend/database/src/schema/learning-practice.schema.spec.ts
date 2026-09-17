@@ -136,7 +136,7 @@ describe('단어 연습 데이터베이스 schema', () => {
           name: 'vocabulary_practice_questions_pronunciation_vocabulary_fk',
           columns: ['pronunciation_id', 'vocabulary_id'],
           foreignColumns: ['id', 'vocabulary_id'],
-          target: 'vocabulary_pronunciations',
+          target: 'vocabulary_meanings',
           onDelete: 'restrict',
         },
       ]),

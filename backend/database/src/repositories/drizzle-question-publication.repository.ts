@@ -27,7 +27,7 @@ import {
 } from '../schema/questions.schema.js';
 import {
   vocabularies,
-  vocabularyPronunciations,
+  vocabularyMeanings,
 } from '../schema/vocabulary.schema.js';
 
 type QuestionPublicationDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
@@ -211,7 +211,7 @@ const createQuestionPublicationTransaction = (
           endOffset: tokenOccurrences.endOffset,
           vocabularyId: tokenOccurrences.vocabularyId,
           meaningId: tokenOccurrences.meaningId,
-          pronunciationId: tokenOccurrences.pronunciationId,
+          pronunciationId: tokenOccurrences.meaningId,
           contextMeaningKo: tokenOccurrences.contextMeaningKo,
           role: tokenOccurrences.role,
           vocabularyStatus: vocabularies.status,
@@ -222,13 +222,10 @@ const createQuestionPublicationTransaction = (
           eq(tokenOccurrences.vocabularyId, vocabularies.id),
         )
         .innerJoin(
-          vocabularyPronunciations,
+          vocabularyMeanings,
           and(
-            eq(tokenOccurrences.pronunciationId, vocabularyPronunciations.id),
-            eq(
-              tokenOccurrences.vocabularyId,
-              vocabularyPronunciations.vocabularyId,
-            ),
+            eq(tokenOccurrences.pronunciationId, vocabularyMeanings.id),
+            eq(tokenOccurrences.vocabularyId, vocabularyMeanings.vocabularyId),
           ),
         )
         .where(inArray(tokenOccurrences.sentenceVersionId, sentenceVersionIds))
@@ -244,7 +241,7 @@ const createQuestionPublicationTransaction = (
           vocabularyId: expressionOccurrences.vocabularyId,
           vocabularyKind: expressionOccurrences.vocabularyKind,
           meaningId: expressionOccurrences.meaningId,
-          pronunciationId: expressionOccurrences.pronunciationId,
+          pronunciationId: expressionOccurrences.meaningId,
           contextMeaningKo: expressionOccurrences.contextMeaningKo,
           representative: expressionOccurrences.representative,
           vocabularyStatus: vocabularies.status,
@@ -291,7 +288,7 @@ const createQuestionPublicationTransaction = (
               endOffset: token.endOffset,
               vocabularyId: token.vocabularyId,
               meaningId: token.meaningId,
-              pronunciationId: token.pronunciationId,
+              pronunciationId: token.meaningId,
               contextMeaningKo: token.contextMeaningKo,
               role: token.role,
             })),
@@ -301,7 +298,7 @@ const createQuestionPublicationTransaction = (
               vocabularyId: expression.vocabularyId,
               vocabularyKind: expression.vocabularyKind,
               meaningId: expression.meaningId,
-              pronunciationId: expression.pronunciationId,
+              pronunciationId: expression.meaningId,
               contextMeaningKo: expression.contextMeaningKo,
               adminSelected: expression.representative,
             })),

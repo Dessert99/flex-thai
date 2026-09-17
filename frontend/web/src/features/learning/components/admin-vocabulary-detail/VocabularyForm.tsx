@@ -7,8 +7,6 @@ import { Input } from '@/shared/components/input';
 import { Label } from '@/shared/components/label';
 import { vocabularyFormSchema } from '../../libs/admin-vocabulary-detail/vocabularyFormSchema';
 import { VocabularyMeaningFields } from './VocabularyMeaningFields';
-import { VocabularyMeaningPronunciationFields } from './VocabularyMeaningPronunciationFields';
-import { VocabularyPronunciationFields } from './VocabularyPronunciationFields';
 
 interface Props {
   defaultValues: AdminVocabularyReplaceRequest;
@@ -41,15 +39,6 @@ export function VocabularyForm({ defaultValues, disabled, onReplace }: Props) {
       </div>
       <VocabularyMeaningFields
         count={defaultValues.meanings.length}
-        register={form.register}
-      />
-      <VocabularyPronunciationFields
-        count={defaultValues.pronunciations.length}
-        register={form.register}
-        setValue={form.setValue}
-      />
-      <VocabularyMeaningPronunciationFields
-        count={defaultValues.meaningPronunciations.length}
         register={form.register}
       />
       <Button

@@ -31,7 +31,6 @@ import {
 import {
   vocabularies,
   vocabularyMeanings,
-  vocabularyPronunciations,
 } from '../schema/vocabulary.schema.js';
 
 type QuestionAdminDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
@@ -312,11 +311,11 @@ const createQuestionAdminTransaction = (
   async findVocabularyPronunciationById(pronunciationId) {
     const [row] = await transaction
       .select({
-        id: vocabularyPronunciations.id,
-        vocabularyId: vocabularyPronunciations.vocabularyId,
+        id: vocabularyMeanings.id,
+        vocabularyId: vocabularyMeanings.vocabularyId,
       })
-      .from(vocabularyPronunciations)
-      .where(eq(vocabularyPronunciations.id, pronunciationId))
+      .from(vocabularyMeanings)
+      .where(eq(vocabularyMeanings.id, pronunciationId))
       .for('key share')
       .limit(1);
     return row ?? null;

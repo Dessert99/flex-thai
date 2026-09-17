@@ -31,10 +31,7 @@ import {
   thaiSentenceVersions,
   tokenOccurrences,
 } from '../schema/thai-content.schema.js';
-import {
-  vocabularyMeanings,
-  vocabularyPronunciations,
-} from '../schema/vocabulary.schema.js';
+import { vocabularyMeanings } from '../schema/vocabulary.schema.js';
 
 // Drizzle database generic이 runtime schema 값을 type query에 사용한다.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -48,7 +45,6 @@ const conceptSchema = {
   tokenOccurrences,
   expressionOccurrences,
   vocabularyMeanings,
-  vocabularyPronunciations,
 };
 type ConceptDatabase = PgDatabase<PgQueryResultHKT, typeof conceptSchema>;
 type ConceptSession = Pick<
@@ -241,7 +237,7 @@ const loadCandidate = async (
             sentenceVersionId: tokenOccurrences.sentenceVersionId,
             index: tokenOccurrences.position,
             meaningReferenceId: vocabularyMeanings.id,
-            pronunciationReferenceId: vocabularyPronunciations.id,
+            pronunciationReferenceId: vocabularyMeanings.id,
           })
           .from(tokenOccurrences)
           .leftJoin(
@@ -254,16 +250,7 @@ const loadCandidate = async (
               ),
             ),
           )
-          .leftJoin(
-            vocabularyPronunciations,
-            and(
-              eq(tokenOccurrences.pronunciationId, vocabularyPronunciations.id),
-              eq(
-                tokenOccurrences.vocabularyId,
-                vocabularyPronunciations.vocabularyId,
-              ),
-            ),
-          )
+
           .where(inArray(tokenOccurrences.sentenceVersionId, sentenceIds));
   const expressionFeedback =
     sentenceIds.length === 0
@@ -273,7 +260,7 @@ const loadCandidate = async (
             sentenceVersionId: expressionOccurrences.sentenceVersionId,
             index: expressionOccurrences.startTokenIndex,
             meaningReferenceId: vocabularyMeanings.id,
-            pronunciationReferenceId: vocabularyPronunciations.id,
+            pronunciationReferenceId: vocabularyMeanings.id,
           })
           .from(expressionOccurrences)
           .leftJoin(
@@ -286,19 +273,7 @@ const loadCandidate = async (
               ),
             ),
           )
-          .leftJoin(
-            vocabularyPronunciations,
-            and(
-              eq(
-                expressionOccurrences.pronunciationId,
-                vocabularyPronunciations.id,
-              ),
-              eq(
-                expressionOccurrences.vocabularyId,
-                vocabularyPronunciations.vocabularyId,
-              ),
-            ),
-          )
+
           .where(inArray(expressionOccurrences.sentenceVersionId, sentenceIds));
   return assembleConceptValidationCandidate(
     version,
@@ -379,7 +354,7 @@ export const lockConceptReferencedContent = async (
   const tokenRows = await session
     .select({
       meaningId: tokenOccurrences.meaningId,
-      pronunciationId: tokenOccurrences.pronunciationId,
+      pronunciationId: tokenOccurrences.meaningId,
     })
     .from(tokenOccurrences)
     .where(inArray(tokenOccurrences.sentenceVersionId, sentenceIds))
@@ -388,7 +363,7 @@ export const lockConceptReferencedContent = async (
   const expressionRows = await session
     .select({
       meaningId: expressionOccurrences.meaningId,
-      pronunciationId: expressionOccurrences.pronunciationId,
+      pronunciationId: expressionOccurrences.meaningId,
     })
     .from(expressionOccurrences)
     .where(inArray(expressionOccurrences.sentenceVersionId, sentenceIds))
@@ -413,11 +388,11 @@ export const lockConceptReferencedContent = async (
   if (pronunciationIds.length > 0) {
     await session
       .select({
-        id: vocabularyPronunciations.id,
+        id: vocabularyMeanings.id,
       })
-      .from(vocabularyPronunciations)
-      .where(inArray(vocabularyPronunciations.id, pronunciationIds))
-      .orderBy(asc(vocabularyPronunciations.id))
+      .from(vocabularyMeanings)
+      .where(inArray(vocabularyMeanings.id, pronunciationIds))
+      .orderBy(asc(vocabularyMeanings.id))
       .for('update');
   }
 };

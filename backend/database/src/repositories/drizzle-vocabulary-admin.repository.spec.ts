@@ -18,9 +18,7 @@ import { databaseSchema as schema } from '../schema/databaseSchema.js';
 import { auditLogs } from '../schema/identity.schema.js';
 import {
   vocabularies,
-  vocabularyMeaningPronunciations,
   vocabularyMeanings,
-  vocabularyPronunciations,
 } from '../schema/vocabulary.schema.js';
 import {
   DrizzleVocabularyAdminRepository,
@@ -188,7 +186,7 @@ const createDataApiQueryError = ({
 };
 
 describe('DrizzleVocabularyAdminRepository 잠금·전체 교체', () => {
-  it('DRAFT parent와 meaning·pronunciation·mapping을 같은 순서로 FOR UPDATE 잠근다', async () => {
+  it('DRAFT parent와 발음을 포함한 뜻을 FOR UPDATE 잠근다', async () => {
     const fake = createFake({
       selectResults: [
         [
@@ -201,8 +199,6 @@ describe('DrizzleVocabularyAdminRepository 잠금·전체 교체', () => {
           },
         ],
         [{ id: 'meaning-old' }],
-        [{ id: 'pronunciation-old' }],
-        [{ meaningId: 'meaning-old', pronunciationId: 'pronunciation-old' }],
       ],
     });
     const repository = new DrizzleVocabularyAdminRepository(
@@ -222,12 +218,12 @@ describe('DrizzleVocabularyAdminRepository 잠금·전체 교체', () => {
         status: 'DRAFT',
       },
       meanings: [{ id: 'meaning-old' }],
-      pronunciations: [{ id: 'pronunciation-old' }],
+      pronunciations: [{ id: 'meaning-old' }],
     });
-    expect(fake.lockModes).toEqual(['update', 'update', 'update', 'update']);
+    expect(fake.lockModes).toEqual(['update', 'update']);
   });
 
-  it('parent conditional update 뒤 mapping→pronunciation→meaning 삭제와 새 FK insert를 수행한다', async () => {
+  it('parent conditional update 뒤 뜻과 발음을 한 번에 교체한다', async () => {
     const fake = createFake({ updateResults: [[{ id: 'vocabulary-id' }]] });
     const repository = new DrizzleVocabularyAdminRepository(
       fake.database as never,
@@ -239,12 +235,8 @@ describe('DrizzleVocabularyAdminRepository 잠금·전체 교체', () => {
 
     expect(fake.calls.map(({ kind, table }) => [kind, table])).toEqual([
       ['update', vocabularies],
-      ['delete', vocabularyMeaningPronunciations],
-      ['delete', vocabularyPronunciations],
       ['delete', vocabularyMeanings],
       ['insert', vocabularyMeanings],
-      ['insert', vocabularyPronunciations],
-      ['insert', vocabularyMeaningPronunciations],
     ]);
   });
 

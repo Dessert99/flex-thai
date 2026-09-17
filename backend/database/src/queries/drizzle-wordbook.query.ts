@@ -7,7 +7,6 @@ import { databaseSchema as schema } from '../schema/databaseSchema.js';
 import {
   vocabularies,
   vocabularyMeanings,
-  vocabularyPronunciations,
 } from '../schema/vocabulary.schema.js';
 import { wordbookItems, wordbooks } from '../schema/learning.schema.js';
 import {
@@ -100,9 +99,9 @@ const buildItemFilter = (
       )
       or exists (
         select 1
-        from ${vocabularyPronunciations}
-        where ${vocabularyPronunciations.vocabularyId} = ${vocabularies.id}
-          and ${vocabularyPronunciations.pronunciationKo} ilike ${koreanPattern}
+        from ${vocabularyMeanings}
+        where ${vocabularyMeanings.vocabularyId} = ${vocabularies.id}
+          and ${vocabularyMeanings.pronunciationKo} ilike ${koreanPattern}
       )
     )`);
   }
@@ -208,6 +207,8 @@ export class DrizzleWordbookQuery {
         id: vocabularyMeanings.id,
         vocabularyId: vocabularyMeanings.vocabularyId,
         meaningKo: vocabularyMeanings.meaningKo,
+        pronunciationKo: vocabularyMeanings.pronunciationKo,
+        toneMarks: vocabularyMeanings.toneMarks,
         partOfSpeech: vocabularyMeanings.partOfSpeech,
         difficulty: vocabularyMeanings.difficulty,
         contextNote: vocabularyMeanings.contextNote,
@@ -220,24 +221,10 @@ export class DrizzleWordbookQuery {
         asc(vocabularyMeanings.createdAt),
         asc(vocabularyMeanings.id),
       );
-    const pronunciations = await this.database
-      .select({
-        id: vocabularyPronunciations.id,
-        vocabularyId: vocabularyPronunciations.vocabularyId,
-        pronunciationKo: vocabularyPronunciations.pronunciationKo,
-        toneMarks: vocabularyPronunciations.toneMarks,
-        createdAt: vocabularyPronunciations.createdAt,
-      })
-      .from(vocabularyPronunciations)
-      .where(inArray(vocabularyPronunciations.vocabularyId, vocabularyIds))
-      .orderBy(
-        asc(vocabularyPronunciations.vocabularyId),
-        asc(vocabularyPronunciations.createdAt),
-        asc(vocabularyPronunciations.id),
-      );
+    const pronunciations = meanings;
 
     return bases.map((base) => {
-      const vocabularyPronunciations = pronunciations
+      const vocabularyMeanings = pronunciations
         .filter(({ vocabularyId }) => vocabularyId === base.id)
         .sort(compareCreatedAtThenId);
       return {
@@ -254,7 +241,7 @@ export class DrizzleWordbookQuery {
             difficulty,
             contextNote,
           })),
-        pronunciations: vocabularyPronunciations.map(
+        pronunciations: vocabularyMeanings.map(
           ({ id, pronunciationKo, toneMarks }) => ({
             id,
             pronunciationKo,

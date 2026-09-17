@@ -70,11 +70,11 @@ describe('DrizzleVocabularyPracticeQuery source 조회', () => {
 
     const sqlText = toSql(fake.queries[0]);
     expect(sqlText).toContain('published');
-    expect(sqlText).toContain('vocabulary_meaning_pronunciations');
+    expect(sqlText).not.toContain('vocabulary_meaning_pronunciations');
+    expect(sqlText).toContain('m.pronunciation_ko');
     expect(sqlText).toContain('array_position');
-    expect(sqlText).toContain('ep.vocabulary_id = v.id');
-    expect(sqlText).toMatch(/coalesce\(\(\s+select jsonb_agg/u);
-    expect(sqlText).toContain(`'[]'::jsonb) as "pronunciations"`);
+    expect(sqlText).toContain('jsonb_build_array');
+    expect(sqlText).toContain('m.tone_marks');
     expect(sqlText).not.toContain('where emp.meaning_id = m.id');
   });
 

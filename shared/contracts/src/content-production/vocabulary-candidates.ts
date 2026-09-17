@@ -156,13 +156,13 @@ const assertCompleteDraftGraph = (
 
   for (const meaningRef of meaningRefs) {
     if (
-      !graph.meaningPronunciations.some(
+      graph.meaningPronunciations.filter(
         (mapping) => mapping.meaningRef === meaningRef,
-      )
+      ).length !== 1
     ) {
       context.addIssue({
         code: 'custom',
-        message: '모든 뜻은 하나 이상의 발음과 연결되어야 합니다.',
+        message: '모든 뜻은 정확히 하나의 발음과 연결되어야 합니다.',
         path: ['meaningPronunciations'],
       });
     }

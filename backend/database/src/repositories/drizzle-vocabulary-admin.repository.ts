@@ -1,3 +1,4 @@
+import { vocabularyMeaningRows } from './vocabulary-meaning-rows.js';
 /** 관리자 어휘 child 잠금·전체 교체·상태 전이·audit을 Drizzle transaction으로 구현한다 */
 import {
   assertVocabularyMergePair,
@@ -26,9 +27,7 @@ import {
 import { savedVocabularies, wordbookItems } from '../schema/learning.schema.js';
 import {
   vocabularies,
-  vocabularyMeaningPronunciations,
   vocabularyMeanings,
-  vocabularyPronunciations,
 } from '../schema/vocabulary.schema.js';
 import { vocabularyPracticeQuestions } from '../schema/learning-practice.schema.js';
 import {
@@ -84,7 +83,7 @@ const DATA_API_CONSTRAINTS = [
   {
     code: '23503',
     header:
-      'ERROR: update or delete on table "vocabulary_pronunciations" violates foreign key constraint "token_occurrences_pronunciation_vocabulary_fk"',
+      'ERROR: update or delete on table "vocabulary_meanings" violates foreign key constraint "token_occurrences_pronunciation_vocabulary_fk"',
     name: 'token_occurrences_pronunciation_vocabulary_fk',
   },
   {
@@ -204,25 +203,12 @@ const replaceVocabulary = async (
     );
   }
 
-  // 기존 FK를 역순으로 제거해 참조 중 child가 조용히 사라지지 않게 한다.
-  await transaction
-    .delete(vocabularyMeaningPronunciations)
-    .where(
-      eq(vocabularyMeaningPronunciations.vocabularyId, graph.vocabulary.id),
-    );
-  await transaction
-    .delete(vocabularyPronunciations)
-    .where(eq(vocabularyPronunciations.vocabularyId, graph.vocabulary.id));
   await transaction
     .delete(vocabularyMeanings)
     .where(eq(vocabularyMeanings.vocabularyId, graph.vocabulary.id));
-  await transaction.insert(vocabularyMeanings).values(graph.meanings);
   await transaction
-    .insert(vocabularyPronunciations)
-    .values(graph.pronunciations);
-  await transaction
-    .insert(vocabularyMeaningPronunciations)
-    .values(graph.meaningPronunciations);
+    .insert(vocabularyMeanings)
+    .values(vocabularyMeaningRows(graph));
 };
 
 const createVocabularyAdminTransaction = (
@@ -256,27 +242,7 @@ const createVocabularyAdminTransaction = (
       .where(eq(vocabularyMeanings.vocabularyId, vocabularyId))
       .orderBy(asc(vocabularyMeanings.id))
       .for('update');
-    const pronunciations = await transaction
-      .select({
-        id: vocabularyPronunciations.id,
-      })
-      .from(vocabularyPronunciations)
-      .where(eq(vocabularyPronunciations.vocabularyId, vocabularyId))
-      .orderBy(asc(vocabularyPronunciations.id))
-      .for('update');
-    await transaction
-      .select({
-        meaningId: vocabularyMeaningPronunciations.meaningId,
-        pronunciationId: vocabularyMeaningPronunciations.pronunciationId,
-      })
-      .from(vocabularyMeaningPronunciations)
-      .where(eq(vocabularyMeaningPronunciations.vocabularyId, vocabularyId))
-      .orderBy(
-        asc(vocabularyMeaningPronunciations.meaningId),
-        asc(vocabularyMeaningPronunciations.pronunciationId),
-      )
-      .for('update');
-    return { vocabulary, meanings, pronunciations };
+    return { vocabulary, meanings, pronunciations: meanings };
   },
 
   async hasQuestionUsage(input) {
@@ -394,22 +360,11 @@ const loadMergeGraph = async (
     .from(vocabularyMeanings)
     .where(eq(vocabularyMeanings.vocabularyId, vocabularyId))
     .orderBy(asc(vocabularyMeanings.id));
-  const pronunciations = await session
-    .select({ id: vocabularyPronunciations.id })
-    .from(vocabularyPronunciations)
-    .where(eq(vocabularyPronunciations.vocabularyId, vocabularyId))
-    .orderBy(asc(vocabularyPronunciations.id));
-  const mappings = await session
-    .select({
-      meaningId: vocabularyMeaningPronunciations.meaningId,
-      pronunciationId: vocabularyMeaningPronunciations.pronunciationId,
-    })
-    .from(vocabularyMeaningPronunciations)
-    .where(eq(vocabularyMeaningPronunciations.vocabularyId, vocabularyId))
-    .orderBy(
-      asc(vocabularyMeaningPronunciations.meaningId),
-      asc(vocabularyMeaningPronunciations.pronunciationId),
-    );
+  const pronunciations = meanings;
+  const mappings = meanings.map(({ id }) => ({
+    meaningId: id,
+    pronunciationId: id,
+  }));
   const meaningIds = meanings.map(({ id }) => id);
   const relations =
     meaningIds.length === 0
@@ -728,8 +683,6 @@ export class DrizzleVocabularyAdminRepository
           // 통합 migration이 composite FK를 DEFERRABLE로 바꾼 뒤에만 이 원자 이동이 실행된다.
           await transaction.execute(sql`
           set constraints
-            vocabulary_meaning_pronunciations_meaning_fk,
-            vocabulary_meaning_pronunciations_pronunciation_fk,
             token_occurrences_meaning_vocabulary_fk,
             token_occurrences_pronunciation_vocabulary_fk,
             expression_occurrences_meaning_vocabulary_fk,
@@ -739,17 +692,7 @@ export class DrizzleVocabularyAdminRepository
           deferred
         `);
           await transaction.execute(sql`
-          update vocabulary_meaning_pronunciations
-          set vocabulary_id = ${input.representativeVocabularyId}
-          where vocabulary_id = ${input.sourceVocabularyId}
-        `);
-          await transaction.execute(sql`
           update vocabulary_meanings
-          set vocabulary_id = ${input.representativeVocabularyId}
-          where vocabulary_id = ${input.sourceVocabularyId}
-        `);
-          await transaction.execute(sql`
-          update vocabulary_pronunciations
           set vocabulary_id = ${input.representativeVocabularyId}
           where vocabulary_id = ${input.sourceVocabularyId}
         `);

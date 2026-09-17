@@ -23,8 +23,6 @@ const graphSelectResults = (
   ],
   [{ id: `${id}-meaning` }],
   [],
-  [],
-  [],
   incomingMergeSourceIds.map((incomingId) => ({ id: incomingId })),
   [],
   [],

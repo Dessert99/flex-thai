@@ -6,7 +6,6 @@ import { databaseSchema as schema } from '../schema/databaseSchema.js';
 import {
   vocabularies,
   vocabularyMeanings,
-  vocabularyPronunciations,
 } from '../schema/vocabulary.schema.js';
 import { wordbookItems, wordbooks } from '../schema/learning.schema.js';
 import { DrizzleWordbookQuery } from './drizzle-wordbook.query.js';
@@ -172,6 +171,8 @@ describe('DrizzleWordbookQuery 검색·필터·페이지', () => {
         {
           id: 'meaning-2',
           vocabularyId: 'vocabulary-id',
+          pronunciationKo: '싸왓디',
+          toneMarks: 'L-L-M',
           meaningKo: '안녕',
           partOfSpeech: '감탄사',
           difficulty: 2,
@@ -181,19 +182,12 @@ describe('DrizzleWordbookQuery 검색·필터·페이지', () => {
         {
           id: 'meaning-1',
           vocabularyId: 'vocabulary-id',
+          pronunciationKo: '싸왓디',
+          toneMarks: 'L-L-M',
           meaningKo: '안녕하세요',
           partOfSpeech: '감탄사',
           difficulty: 1,
           contextNote: null,
-          createdAt,
-        },
-      ],
-      [
-        {
-          id: 'pronunciation-id',
-          vocabularyId: 'vocabulary-id',
-          pronunciationKo: '싸왓디',
-          toneMarks: 'L-L-M',
           createdAt,
         },
       ],
@@ -238,10 +232,11 @@ describe('DrizzleWordbookQuery 검색·필터·페이지', () => {
         ],
         pronunciations: [
           {
-            id: 'pronunciation-id',
+            id: 'meaning-1',
             pronunciationKo: '싸왓디',
             toneMarks: 'L-L-M',
           },
+          { id: 'meaning-2', pronunciationKo: '싸왓디', toneMarks: 'L-L-M' },
         ],
         saved: true,
         addedAt,
@@ -267,6 +262,6 @@ describe('DrizzleWordbookQuery 검색·필터·페이지', () => {
     }
     expect(fake.selectCalls[2]).toMatchObject({ limit: 10, offset: 10 });
     expect(fake.selectCalls[3]?.from).toBe(vocabularyMeanings);
-    expect(fake.selectCalls[4]?.from).toBe(vocabularyPronunciations);
+    expect(fake.selectCalls).toHaveLength(4);
   });
 });

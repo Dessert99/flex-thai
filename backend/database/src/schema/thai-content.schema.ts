@@ -17,7 +17,6 @@ import {
   vocabularies,
   vocabularyKindEnum,
   vocabularyMeanings,
-  vocabularyPronunciations,
 } from './vocabulary.schema.js';
 
 /** 문장 토큰이 문제에서 맡는 역할 */
@@ -95,13 +94,14 @@ export const tokenOccurrences = pgTable(
       columns: [table.meaningId, table.vocabularyId],
       foreignColumns: [vocabularyMeanings.id, vocabularyMeanings.vocabularyId],
     }).onDelete('restrict'),
+    check(
+      'token_occurrences_pronunciation_matches_meaning',
+      sql`${table.pronunciationId} = ${table.meaningId}`,
+    ),
     foreignKey({
       name: 'token_occurrences_pronunciation_vocabulary_fk',
       columns: [table.pronunciationId, table.vocabularyId],
-      foreignColumns: [
-        vocabularyPronunciations.id,
-        vocabularyPronunciations.vocabularyId,
-      ],
+      foreignColumns: [vocabularyMeanings.id, vocabularyMeanings.vocabularyId],
     }).onDelete('restrict'),
     check(
       'token_occurrences_position_nonnegative',
@@ -143,13 +143,14 @@ export const expressionOccurrences = pgTable(
       columns: [table.meaningId, table.vocabularyId],
       foreignColumns: [vocabularyMeanings.id, vocabularyMeanings.vocabularyId],
     }).onDelete('restrict'),
+    check(
+      'expression_occurrences_pronunciation_matches_meaning',
+      sql`${table.pronunciationId} = ${table.meaningId}`,
+    ),
     foreignKey({
       name: 'expression_occurrences_pronunciation_vocabulary_fk',
       columns: [table.pronunciationId, table.vocabularyId],
-      foreignColumns: [
-        vocabularyPronunciations.id,
-        vocabularyPronunciations.vocabularyId,
-      ],
+      foreignColumns: [vocabularyMeanings.id, vocabularyMeanings.vocabularyId],
     }).onDelete('restrict'),
     check(
       'expression_occurrences_vocabulary_kind_expression',

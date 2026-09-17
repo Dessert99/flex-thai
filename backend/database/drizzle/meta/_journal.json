@@ -134,6 +134,13 @@
       "when": 1785480544649,
       "tag": "0018_stale_black_tom",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1789627631046,
+      "tag": "0019_meaning-pronunciation",
+      "breakpoints": true
     }
   ]
 }

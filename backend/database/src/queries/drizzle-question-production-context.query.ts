@@ -22,9 +22,7 @@ import {
 } from '../schema/questions.schema.js';
 import {
   vocabularies,
-  vocabularyMeaningPronunciations,
   vocabularyMeanings,
-  vocabularyPronunciations,
 } from '../schema/vocabulary.schema.js';
 
 type ContextTermRow = { id: string; slug: string; displayName: string };
@@ -77,9 +75,7 @@ type QuerySchema = {
   questionTypes: typeof questionTypes;
   questionTypeVersions: typeof questionTypeVersions;
   vocabularies: typeof vocabularies;
-  vocabularyMeaningPronunciations: typeof vocabularyMeaningPronunciations;
   vocabularyMeanings: typeof vocabularyMeanings;
-  vocabularyPronunciations: typeof vocabularyPronunciations;
 };
 type QueryDatabase = PgDatabase<PgQueryResultHKT, QuerySchema>;
 
@@ -409,37 +405,14 @@ export class DrizzleQuestionProductionContextQuery implements QuestionProduction
                 meaningKo: vocabularyMeanings.meaningKo,
                 partOfSpeech: vocabularyMeanings.partOfSpeech,
                 difficulty: vocabularyMeanings.difficulty,
-                pronunciationId: vocabularyPronunciations.id,
-                pronunciationKo: vocabularyPronunciations.pronunciationKo,
-                toneMarks: vocabularyPronunciations.toneMarks,
+                pronunciationId: vocabularyMeanings.id,
+                pronunciationKo: vocabularyMeanings.pronunciationKo,
+                toneMarks: vocabularyMeanings.toneMarks,
               })
               .from(vocabularies)
               .innerJoin(
                 vocabularyMeanings,
                 eq(vocabularyMeanings.vocabularyId, vocabularies.id),
-              )
-              .innerJoin(
-                vocabularyMeaningPronunciations,
-                and(
-                  eq(
-                    vocabularyMeaningPronunciations.vocabularyId,
-                    vocabularies.id,
-                  ),
-                  eq(
-                    vocabularyMeaningPronunciations.meaningId,
-                    vocabularyMeanings.id,
-                  ),
-                ),
-              )
-              .innerJoin(
-                vocabularyPronunciations,
-                and(
-                  eq(vocabularyPronunciations.vocabularyId, vocabularies.id),
-                  eq(
-                    vocabularyPronunciations.id,
-                    vocabularyMeaningPronunciations.pronunciationId,
-                  ),
-                ),
               )
               .where(
                 and(
@@ -450,7 +423,7 @@ export class DrizzleQuestionProductionContextQuery implements QuestionProduction
               .orderBy(
                 asc(vocabularies.id),
                 asc(vocabularyMeanings.id),
-                asc(vocabularyPronunciations.id),
+                asc(vocabularyMeanings.id),
               ),
       ]);
     const rowsForPrompt = vocabularyRows as PromptVocabularyRow[];

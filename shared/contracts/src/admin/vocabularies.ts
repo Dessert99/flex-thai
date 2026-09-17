@@ -94,6 +94,27 @@ export const adminVocabularyReplaceRequestSchema = z
       });
     }
 
+    if (
+      meaningRefs.some(
+        (ref) =>
+          vocabulary.meaningPronunciations.filter(
+            (link) => link.meaningRef === ref,
+          ).length !== 1,
+      ) ||
+      pronunciationRefs.some(
+        (ref) =>
+          !vocabulary.meaningPronunciations.some(
+            (link) => link.pronunciationRef === ref,
+          ),
+      )
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message:
+          '각 뜻에는 발음 하나가 필요하며, 연결되지 않은 발음은 저장할 수 없습니다.',
+        path: ['meaningPronunciations'],
+      });
+    }
     const mappingKeys: string[] = [];
     vocabulary.meaningPronunciations.forEach((mapping, index) => {
       if (!meaningRefs.includes(mapping.meaningRef)) {

@@ -69,19 +69,9 @@ const candidateSelect = (
     v.thai as "thai",
     m.id as "meaningId",
     m.meaning_ko as "meaningKo",
-    coalesce((
-      select jsonb_agg(jsonb_build_object(
-        'id', p.id,
-        'pronunciationKo', p.pronunciation_ko,
-        'toneMarks', p.tone_marks
-      ) order by p.id)
-      from vocabulary_meaning_pronunciations mp
-      join vocabulary_pronunciations p
-        on p.id = mp.pronunciation_id
-       and p.vocabulary_id = mp.vocabulary_id
-
-      where mp.meaning_id = m.id
-    ), '[]'::jsonb) as "pronunciations",
+    jsonb_build_array(jsonb_build_object(
+      'id', m.id, 'pronunciationKo', m.pronunciation_ko, 'toneMarks', m.tone_marks
+    )) as "pronunciations",
     jsonb_build_object(
       'id', v.id,
       'thai', v.thai,
@@ -103,40 +93,36 @@ const candidateSelect = (
           'pronunciationKo', cp.pronunciation_ko,
           'toneMarks', cp.tone_marks
         ) order by cp.id)
-        from vocabulary_pronunciations cp
+        from vocabulary_meanings cp
 
         where cp.vocabulary_id = v.id
       ),
       'meaningPronunciations', (
-        select jsonb_agg(jsonb_build_object(
-          'meaningId', cmp.meaning_id,
-          'pronunciationId', cmp.pronunciation_id
-        ) order by cmp.meaning_id, cmp.pronunciation_id)
-        from vocabulary_meaning_pronunciations cmp
-        join vocabulary_pronunciations cpp
-          on cpp.id = cmp.pronunciation_id
-         and cpp.vocabulary_id = cmp.vocabulary_id
-
-        where cmp.vocabulary_id = v.id
+        select jsonb_agg(jsonb_build_object('meaningId', cm.id, 'pronunciationId', cm.id) order by cm.id)
+        from vocabulary_meanings cm where cm.vocabulary_id = v.id
       )
     ) as "card"
   from vocabularies v
   join vocabulary_meanings m on m.vocabulary_id = v.id
   ${wordbookId === null ? sql`` : sql`join wordbook_items wi on wi.vocabulary_id = v.id`}
   where v.status = 'PUBLISHED'
-    ${vocabularyIds === null ? sql`` : sql`and v.id = any(${vocabularyIds}::uuid[])`}
+    ${
+      vocabularyIds === null
+        ? sql``
+        : sql`and v.id = any(array[${sql.join(
+            vocabularyIds.map((id) => sql`${id}`),
+            sql`, `,
+          )}]::uuid[])`
+    }
     ${wordbookId === null ? sql`` : sql`and wi.wordbook_id = ${wordbookId}`}
-    and exists (
-      select 1
-      from vocabulary_pronunciations ep
-
-      where ep.vocabulary_id = v.id
-    )
   order by
     ${
       vocabularyIds === null
         ? sql`wi.added_at asc, v.id asc`
-        : sql`array_position(${vocabularyIds}::uuid[], v.id), m.id asc`
+        : sql`array_position(array[${sql.join(
+            vocabularyIds.map((id) => sql`${id}`),
+            sql`, `,
+          )}]::uuid[], v.id), m.id asc`
     }
 `;
 

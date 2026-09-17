@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { databaseSchema as schema } from '../schema/databaseSchema.js';
 import {
   vocabularies,
-  vocabularyPronunciations,
+  vocabularyMeanings,
 } from '../schema/vocabulary.schema.js';
 import { DrizzleAdminVocabularyQuery } from './drizzle-admin-vocabulary.query.js';
 
@@ -383,19 +383,13 @@ describe('DrizzleAdminVocabularyQuery 상세', () => {
         {
           id: ids.meaning,
           meaningKo: '안녕하세요',
+          pronunciationKo: '싸왓디',
+          toneMarks: 'L-L-M',
           partOfSpeech: '감탄사',
           difficulty: 1,
           contextNote: null,
         },
       ],
-      [
-        {
-          id: ids.pronunciation,
-          pronunciationKo: '싸왓디',
-          toneMarks: 'L-L-M',
-        },
-      ],
-      [{ meaningId: ids.meaning, pronunciationId: ids.pronunciation }],
       [{ sentenceVersionId: ids.sentenceB }],
       [
         { sentenceVersionId: ids.sentenceA },
@@ -428,13 +422,13 @@ describe('DrizzleAdminVocabularyQuery 상세', () => {
       ],
       pronunciations: [
         {
-          id: ids.pronunciation,
+          id: ids.meaning,
           pronunciationKo: '싸왓디',
           toneMarks: 'L-L-M',
         },
       ],
       meaningPronunciations: [
-        { meaningId: ids.meaning, pronunciationId: ids.pronunciation },
+        { meaningId: ids.meaning, pronunciationId: ids.meaning },
       ],
       relations: [],
       usage: {
@@ -444,10 +438,10 @@ describe('DrizzleAdminVocabularyQuery 상세', () => {
       createdAt,
       updatedAt,
     });
-    expect(Object.keys(fake.calls[2]?.fields ?? {})).not.toContain(
+    expect(Object.keys(fake.calls[1]?.fields ?? {})).not.toContain(
       'storageKey',
     );
-    expect(fake.calls[2]?.table).toBe(vocabularyPronunciations);
+    expect(fake.calls[1]?.table).toBe(vocabularyMeanings);
   });
 
   it('없는 어휘는 null이며 child·usage를 조회하지 않는다', async () => {

@@ -13,7 +13,7 @@ import {
   thaiSentenceVersions,
   tokenOccurrences,
 } from '../schema/thai-content.schema.js';
-import { vocabularyPronunciations } from '../schema/vocabulary.schema.js';
+import { vocabularyMeanings } from '../schema/vocabulary.schema.js';
 
 // Drizzle database generic이 runtime schema 값을 type query에 사용한다.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -25,7 +25,7 @@ const conceptQuerySchema = {
   expressionOccurrences,
   thaiSentenceVersions,
   tokenOccurrences,
-  vocabularyPronunciations,
+  vocabularyMeanings,
 };
 type LearnerConceptDatabase = PgDatabase<
   PgQueryResultHKT,
@@ -351,14 +351,14 @@ export class DrizzleLearnerConceptQuery {
               meaningId: tokenOccurrences.meaningId,
               pronunciationId: tokenOccurrences.pronunciationId,
               contextMeaningKo: tokenOccurrences.contextMeaningKo,
-              pronunciationKo: vocabularyPronunciations.pronunciationKo,
-              toneMarks: vocabularyPronunciations.toneMarks,
+              pronunciationKo: vocabularyMeanings.pronunciationKo,
+              toneMarks: vocabularyMeanings.toneMarks,
               role: tokenOccurrences.role,
             })
             .from(tokenOccurrences)
             .innerJoin(
-              vocabularyPronunciations,
-              eq(tokenOccurrences.pronunciationId, vocabularyPronunciations.id),
+              vocabularyMeanings,
+              eq(tokenOccurrences.pronunciationId, vocabularyMeanings.id),
             )
             .where(inArray(tokenOccurrences.sentenceVersionId, sentenceIds))
             .orderBy(
@@ -377,17 +377,14 @@ export class DrizzleLearnerConceptQuery {
               meaningId: expressionOccurrences.meaningId,
               pronunciationId: expressionOccurrences.pronunciationId,
               contextMeaningKo: expressionOccurrences.contextMeaningKo,
-              pronunciationKo: vocabularyPronunciations.pronunciationKo,
-              toneMarks: vocabularyPronunciations.toneMarks,
+              pronunciationKo: vocabularyMeanings.pronunciationKo,
+              toneMarks: vocabularyMeanings.toneMarks,
               representative: expressionOccurrences.representative,
             })
             .from(expressionOccurrences)
             .innerJoin(
-              vocabularyPronunciations,
-              eq(
-                expressionOccurrences.pronunciationId,
-                vocabularyPronunciations.id,
-              ),
+              vocabularyMeanings,
+              eq(expressionOccurrences.pronunciationId, vocabularyMeanings.id),
             )
             .where(
               inArray(expressionOccurrences.sentenceVersionId, sentenceIds),

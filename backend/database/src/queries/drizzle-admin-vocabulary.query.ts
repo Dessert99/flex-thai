@@ -27,9 +27,7 @@ import {
 } from '../schema/questions.schema.js';
 import {
   vocabularies,
-  vocabularyMeaningPronunciations,
   vocabularyMeanings,
-  vocabularyPronunciations,
 } from '../schema/vocabulary.schema.js';
 import { vocabularyMeaningRelations } from '../schema/vocabulary.schema.js';
 
@@ -145,7 +143,7 @@ const listSelection = {
   status: vocabularies.status,
   mergedIntoVocabularyId: vocabularies.mergedIntoVocabularyId,
   meaningCount: countDistinct(vocabularyMeanings.id),
-  pronunciationCount: countDistinct(vocabularyPronunciations.id),
+  pronunciationCount: countDistinct(vocabularyMeanings.id),
   updatedAt: vocabularies.updatedAt,
 };
 
@@ -176,10 +174,6 @@ export class DrizzleAdminVocabularyQuery {
       .leftJoin(
         vocabularyMeanings,
         eq(vocabularyMeanings.vocabularyId, vocabularies.id),
-      )
-      .leftJoin(
-        vocabularyPronunciations,
-        eq(vocabularyPronunciations.vocabularyId, vocabularies.id),
       )
       .where(and(...conditions))
       .groupBy(
@@ -228,6 +222,8 @@ export class DrizzleAdminVocabularyQuery {
       .select({
         id: vocabularyMeanings.id,
         meaningKo: vocabularyMeanings.meaningKo,
+        pronunciationKo: vocabularyMeanings.pronunciationKo,
+        toneMarks: vocabularyMeanings.toneMarks,
         partOfSpeech: vocabularyMeanings.partOfSpeech,
         difficulty: vocabularyMeanings.difficulty,
         contextNote: vocabularyMeanings.contextNote,
@@ -235,36 +231,17 @@ export class DrizzleAdminVocabularyQuery {
       .from(vocabularyMeanings)
       .where(eq(vocabularyMeanings.vocabularyId, vocabularyId))
       .orderBy(asc(vocabularyMeanings.createdAt), asc(vocabularyMeanings.id));
-    const storedPronunciations = await this.database
-      .select({
-        id: vocabularyPronunciations.id,
-        pronunciationKo: vocabularyPronunciations.pronunciationKo,
-        toneMarks: vocabularyPronunciations.toneMarks,
-      })
-      .from(vocabularyPronunciations)
-      .where(eq(vocabularyPronunciations.vocabularyId, vocabularyId))
-      .orderBy(
-        asc(vocabularyPronunciations.createdAt),
-        asc(vocabularyPronunciations.id),
-      );
-    const pronunciations = storedPronunciations.map((row) => {
-      return {
-        id: row.id,
-        pronunciationKo: row.pronunciationKo,
-        toneMarks: row.toneMarks,
-      };
-    });
-    const meaningPronunciations = await this.database
-      .select({
-        meaningId: vocabularyMeaningPronunciations.meaningId,
-        pronunciationId: vocabularyMeaningPronunciations.pronunciationId,
-      })
-      .from(vocabularyMeaningPronunciations)
-      .where(eq(vocabularyMeaningPronunciations.vocabularyId, vocabularyId))
-      .orderBy(
-        asc(vocabularyMeaningPronunciations.meaningId),
-        asc(vocabularyMeaningPronunciations.pronunciationId),
-      );
+    const pronunciations = meanings.map(
+      ({ id, pronunciationKo, toneMarks }) => ({
+        id,
+        pronunciationKo,
+        toneMarks,
+      }),
+    );
+    const meaningPronunciations = meanings.map(({ id }) => ({
+      meaningId: id,
+      pronunciationId: id,
+    }));
     const tokenSentenceRows = await this.database
       .select({ sentenceVersionId: tokenOccurrences.sentenceVersionId })
       .from(tokenOccurrences)
@@ -335,7 +312,15 @@ export class DrizzleAdminVocabularyQuery {
 
     return {
       ...vocabulary,
-      meanings,
+      meanings: meanings.map(
+        ({ id, meaningKo, partOfSpeech, difficulty, contextNote }) => ({
+          id,
+          meaningKo,
+          partOfSpeech,
+          difficulty,
+          contextNote,
+        }),
+      ),
       pronunciations,
       meaningPronunciations,
       relations,

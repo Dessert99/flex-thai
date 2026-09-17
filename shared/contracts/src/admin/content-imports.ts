@@ -145,7 +145,7 @@ export const canonicalVocabularyInputSchema = z
     thai: z.string().min(1),
     kind: z.enum(['WORD', 'EXPRESSION']),
     meanings: z.array(vocabularyMeaningInputSchema).min(1),
-    pronunciations: z.array(vocabularyPronunciationInputSchema).min(1),
+    pronunciations: z.array(vocabularyPronunciationInputSchema).length(1),
   })
   .strict()
   .superRefine((vocabulary, context) => {

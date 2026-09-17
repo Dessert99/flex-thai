@@ -11,7 +11,6 @@ import {
 import {
   vocabularies,
   vocabularyMeanings,
-  vocabularyPronunciations,
 } from '../../schema/vocabulary.schema.js';
 import { DrizzleGeneratedQuestionDraftRepository } from './drizzle-generated-question-draft.repository.js';
 
@@ -50,7 +49,7 @@ const sentence = {
       endOffset: 4,
       vocabulary: { id: IDS.vocabularyTwo },
       meaning: { id: IDS.meaningTwo },
-      pronunciation: { id: IDS.pronunciationTwo },
+      pronunciation: { id: IDS.meaningTwo },
       contextMeaningKo: '언어',
       role: 'SUPPORTING' as const,
     },
@@ -60,7 +59,7 @@ const sentence = {
       endOffset: 7,
       vocabulary: { id: IDS.vocabulary },
       meaning: { id: IDS.meaning },
-      pronunciation: { id: IDS.pronunciation },
+      pronunciation: { id: IDS.meaning },
       contextMeaningKo: '태국',
       role: 'TARGET' as const,
     },
@@ -71,7 +70,7 @@ const sentence = {
       endTokenIndex: 2,
       vocabulary: { id: IDS.expression },
       meaning: { id: IDS.expressionMeaning },
-      pronunciation: { id: IDS.expressionPronunciation },
+      pronunciation: { id: IDS.expressionMeaning },
       contextMeaningKo: '태국어',
       representative: true,
     },
@@ -165,17 +164,6 @@ const createFake = (options: FakeOptions = {}) => {
         { id: IDS.expressionMeaning, vocabularyId: IDS.expression },
       ],
     ],
-    [
-      vocabularyPronunciations,
-      [
-        { id: IDS.pronunciation, vocabularyId: IDS.vocabulary },
-        { id: IDS.pronunciationTwo, vocabularyId: IDS.vocabularyTwo },
-        {
-          id: IDS.expressionPronunciation,
-          vocabularyId: IDS.expression,
-        },
-      ],
-    ],
   ]);
 
   const select = vi.fn((selection: unknown) => ({
@@ -248,7 +236,7 @@ describe('Drizzle 생성 문제 DRAFT 저장소', () => {
       { mode: 'share', table: questionTags },
       { mode: 'share', table: vocabularies },
       { mode: 'key share', table: vocabularyMeanings },
-      { mode: 'key share', table: vocabularyPronunciations },
+      { mode: 'key share', table: vocabularyMeanings },
     ]);
   });
 

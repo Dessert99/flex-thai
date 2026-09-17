@@ -33,9 +33,7 @@ import {
 } from '../schema/thai-content.schema.js';
 import {
   vocabularies,
-  vocabularyMeaningPronunciations,
   vocabularyMeanings,
-  vocabularyPronunciations,
 } from '../schema/vocabulary.schema.js';
 
 type FeedbackDatabase = PgDatabase<
@@ -650,13 +648,13 @@ export class DrizzleContentErrorReportRepository
       ? (
           await this.database
             .select({
-              value: vocabularyPronunciations.pronunciationKo,
+              value: vocabularyMeanings.pronunciationKo,
             })
-            .from(vocabularyPronunciations)
+            .from(vocabularyMeanings)
             .where(
               and(
-                eq(vocabularyPronunciations.id, origin.pronunciationId),
-                eq(vocabularyPronunciations.vocabularyId, origin.vocabularyId),
+                eq(vocabularyMeanings.id, origin.pronunciationId),
+                eq(vocabularyMeanings.vocabularyId, origin.vocabularyId),
               ),
             )
             .limit(1)
@@ -665,19 +663,13 @@ export class DrizzleContentErrorReportRepository
     if (origin.pronunciationId && !pronunciation) return null;
     if (origin.meaningId && origin.pronunciationId) {
       const links = await this.database
-        .select({ vocabularyId: vocabularyMeaningPronunciations.vocabularyId })
-        .from(vocabularyMeaningPronunciations)
+        .select({ vocabularyId: vocabularyMeanings.vocabularyId })
+        .from(vocabularyMeanings)
         .where(
           and(
-            eq(
-              vocabularyMeaningPronunciations.vocabularyId,
-              origin.vocabularyId,
-            ),
-            eq(vocabularyMeaningPronunciations.meaningId, origin.meaningId),
-            eq(
-              vocabularyMeaningPronunciations.pronunciationId,
-              origin.pronunciationId,
-            ),
+            eq(vocabularyMeanings.vocabularyId, origin.vocabularyId),
+            eq(vocabularyMeanings.id, origin.meaningId),
+            eq(vocabularyMeanings.id, origin.pronunciationId),
           ),
         )
         .limit(1);

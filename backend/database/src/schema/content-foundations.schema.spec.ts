@@ -8,12 +8,7 @@ import {
   thaiSentenceVersions,
   tokenOccurrences,
 } from './thai-content.schema.js';
-import {
-  vocabularies,
-  vocabularyMeaningPronunciations,
-  vocabularyMeanings,
-  vocabularyPronunciations,
-} from './vocabulary.schema.js';
+import { vocabularies, vocabularyMeanings } from './vocabulary.schema.js';
 
 const migrationSql = readFileSync(
   new URL('../../drizzle/0003_content-foundations.sql', import.meta.url),
@@ -71,24 +66,11 @@ describe('콘텐츠 기반 데이터베이스 schema', () => {
       name: 'vocabulary_meanings_id_vocabulary_unique',
       columns: ['id', 'vocabulary_id'],
     });
-    expect(
-      getTableConfig(vocabularyPronunciations).uniqueConstraints.map(
-        (constraint) => ({
-          name: constraint.name,
-          columns: constraint.columns.map((column) => column.name),
-        }),
-      ),
-    ).toContainEqual({
-      name: 'vocabulary_pronunciations_id_vocabulary_unique',
-      columns: ['id', 'vocabulary_id'],
-    });
   });
 
   it('신규 콘텐츠 schema의 모든 FK 방향과 삭제 정책을 고정한다', () => {
     const contentForeignKeys = [
       ...getTableConfig(vocabularyMeanings).foreignKeys,
-      ...getTableConfig(vocabularyPronunciations).foreignKeys,
-      ...getTableConfig(vocabularyMeaningPronunciations).foreignKeys,
       ...getTableConfig(thaiSentenceVersions).foreignKeys,
       ...getTableConfig(tokenOccurrences).foreignKeys,
       ...getTableConfig(expressionOccurrences).foreignKeys,
@@ -100,30 +82,6 @@ describe('콘텐츠 기반 데이터베이스 schema', () => {
         targetTable: 'vocabularies',
         columns: ['vocabulary_id'],
         foreignColumns: ['id'],
-        onDelete: 'restrict',
-      },
-      {
-        name: 'vocabulary_pronunciations_vocabulary_id_vocabularies_id_fk',
-        sourceTable: 'vocabulary_pronunciations',
-        targetTable: 'vocabularies',
-        columns: ['vocabulary_id'],
-        foreignColumns: ['id'],
-        onDelete: 'restrict',
-      },
-      {
-        name: 'vocabulary_meaning_pronunciations_meaning_fk',
-        sourceTable: 'vocabulary_meaning_pronunciations',
-        targetTable: 'vocabulary_meanings',
-        columns: ['meaning_id', 'vocabulary_id'],
-        foreignColumns: ['id', 'vocabulary_id'],
-        onDelete: 'restrict',
-      },
-      {
-        name: 'vocabulary_meaning_pronunciations_pronunciation_fk',
-        sourceTable: 'vocabulary_meaning_pronunciations',
-        targetTable: 'vocabulary_pronunciations',
-        columns: ['pronunciation_id', 'vocabulary_id'],
-        foreignColumns: ['id', 'vocabulary_id'],
         onDelete: 'restrict',
       },
       {
@@ -161,7 +119,7 @@ describe('콘텐츠 기반 데이터베이스 schema', () => {
       {
         name: 'token_occurrences_pronunciation_vocabulary_fk',
         sourceTable: 'token_occurrences',
-        targetTable: 'vocabulary_pronunciations',
+        targetTable: 'vocabulary_meanings',
         columns: ['pronunciation_id', 'vocabulary_id'],
         foreignColumns: ['id', 'vocabulary_id'],
         onDelete: 'restrict',
@@ -193,7 +151,7 @@ describe('콘텐츠 기반 데이터베이스 schema', () => {
       {
         name: 'expression_occurrences_pronunciation_vocabulary_fk',
         sourceTable: 'expression_occurrences',
-        targetTable: 'vocabulary_pronunciations',
+        targetTable: 'vocabulary_meanings',
         columns: ['pronunciation_id', 'vocabulary_id'],
         foreignColumns: ['id', 'vocabulary_id'],
         onDelete: 'restrict',

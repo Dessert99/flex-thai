@@ -289,6 +289,21 @@ const assertReplaceInput = (value: unknown): VocabularyAdminReplaceInput => {
     ),
     'meaningPronunciations',
   );
+  if (
+    meanings.some(
+      ({ clientRef }) =>
+        meaningPronunciations.filter((link) => link.meaningRef === clientRef)
+          .length !== 1,
+    ) ||
+    pronunciations.some(
+      ({ clientRef }) =>
+        !meaningPronunciations.some(
+          (link) => link.pronunciationRef === clientRef,
+        ),
+    )
+  ) {
+    failInvalidContent('meaningPronunciations');
+  }
   return {
     thai,
     kind,

@@ -2,9 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { auditLogs } from '../../schema/identity.schema.js';
 import {
   vocabularies,
-  vocabularyMeaningPronunciations,
   vocabularyMeanings,
-  vocabularyPronunciations,
 } from '../../schema/vocabulary.schema.js';
 import { DrizzleVocabularyCandidateReviewRepository } from './drizzle-vocabulary-candidate-review.repository.js';
 
@@ -168,8 +166,6 @@ describe('어휘 후보 검수 Drizzle 저장소', () => {
     expect(fake.insertedTables).toEqual([
       vocabularies,
       vocabularyMeanings,
-      vocabularyPronunciations,
-      vocabularyMeaningPronunciations,
       auditLogs,
     ]);
     expect(fake.updatedValues).toContainEqual(

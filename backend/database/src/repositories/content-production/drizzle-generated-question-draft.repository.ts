@@ -39,7 +39,6 @@ import {
 import {
   vocabularies,
   vocabularyMeanings,
-  vocabularyPronunciations,
 } from '../../schema/vocabulary.schema.js';
 import type {
   GeneratedQuestionDraftWriter,
@@ -227,12 +226,12 @@ const loadCanonicalReferences = async (
       ? []
       : await transaction
           .select({
-            id: vocabularyPronunciations.id,
-            vocabularyId: vocabularyPronunciations.vocabularyId,
+            id: vocabularyMeanings.id,
+            vocabularyId: vocabularyMeanings.vocabularyId,
           })
-          .from(vocabularyPronunciations)
-          .where(inArray(vocabularyPronunciations.id, ids.pronunciationIds))
-          .orderBy(asc(vocabularyPronunciations.id))
+          .from(vocabularyMeanings)
+          .where(inArray(vocabularyMeanings.id, ids.pronunciationIds))
+          .orderBy(asc(vocabularyMeanings.id))
           .for('key share');
 
   if (
@@ -284,7 +283,8 @@ const resolveSentence = (input: {
     if (
       !vocabulary ||
       meaning?.vocabularyId !== vocabulary.id ||
-      pronunciation?.vocabularyId !== vocabulary.id
+      pronunciation?.vocabularyId !== vocabulary.id ||
+      meaningId !== pronunciationId
     ) {
       return notApprovable();
     }
@@ -297,7 +297,7 @@ const resolveSentence = (input: {
       endOffset: token.endOffset,
       vocabularyId,
       meaningId,
-      pronunciationId,
+      pronunciationId: meaningId,
       contextMeaningKo: token.contextMeaningKo,
       role: token.role,
     };
@@ -314,7 +314,8 @@ const resolveSentence = (input: {
       if (
         vocabulary?.kind !== 'EXPRESSION' ||
         meaning?.vocabularyId !== vocabulary.id ||
-        pronunciation?.vocabularyId !== vocabulary.id
+        pronunciation?.vocabularyId !== vocabulary.id ||
+        meaningId !== pronunciationId
       ) {
         return notApprovable();
       }
@@ -358,7 +359,7 @@ const resolveSentence = (input: {
         vocabularyId: expression.vocabularyId,
         vocabularyKind: expression.vocabularyKind,
         meaningId: expression.meaningId,
-        pronunciationId: expression.pronunciationId,
+        pronunciationId: expression.meaningId,
         contextMeaningKo: expression.contextMeaningKo,
         representative: expression.representative,
       }),

@@ -36,9 +36,7 @@ import {
 } from '../schema/questions.schema.js';
 import {
   vocabularies,
-  vocabularyMeaningPronunciations,
   vocabularyMeanings,
-  vocabularyPronunciations,
 } from '../schema/vocabulary.schema.js';
 import { vocabularyMeaningRelations } from '../schema/vocabulary.schema.js';
 import type {
@@ -232,9 +230,9 @@ const buildVocabularyFilter = (query: LearnerVocabularyListQuery): SQL[] => {
       )
       or exists (
         select 1
-        from ${vocabularyPronunciations}
-        where ${vocabularyPronunciations.vocabularyId} = ${vocabularies.id}
-          and ${vocabularyPronunciations.pronunciationKo} ilike ${koreanPattern}
+        from ${vocabularyMeanings}
+        where ${vocabularyMeanings.vocabularyId} = ${vocabularies.id}
+          and ${vocabularyMeanings.pronunciationKo} ilike ${koreanPattern}
       )
     )`);
   }
@@ -404,17 +402,10 @@ export class DrizzleLearnerVocabularyQuery {
     if (!summary) {
       return null;
     }
-    const links = await this.database
-      .select({
-        meaningId: vocabularyMeaningPronunciations.meaningId,
-        pronunciationId: vocabularyMeaningPronunciations.pronunciationId,
-      })
-      .from(vocabularyMeaningPronunciations)
-      .where(eq(vocabularyMeaningPronunciations.vocabularyId, vocabularyId))
-      .orderBy(
-        asc(vocabularyMeaningPronunciations.meaningId),
-        asc(vocabularyMeaningPronunciations.pronunciationId),
-      );
+    const links = summary.meanings.map(({ id }) => ({
+      meaningId: id,
+      pronunciationId: id,
+    }));
     this.assertLinksValid(summary, links);
 
     const exampleSentences = await this.loadExampleSentences(vocabularyId);
@@ -588,6 +579,8 @@ export class DrizzleLearnerVocabularyQuery {
         id: vocabularyMeanings.id,
         vocabularyId: vocabularyMeanings.vocabularyId,
         meaningKo: vocabularyMeanings.meaningKo,
+        pronunciationKo: vocabularyMeanings.pronunciationKo,
+        toneMarks: vocabularyMeanings.toneMarks,
         partOfSpeech: vocabularyMeanings.partOfSpeech,
         difficulty: vocabularyMeanings.difficulty,
         contextNote: vocabularyMeanings.contextNote,
@@ -600,21 +593,7 @@ export class DrizzleLearnerVocabularyQuery {
         asc(vocabularyMeanings.createdAt),
         asc(vocabularyMeanings.id),
       );
-    const pronunciations = await this.database
-      .select({
-        id: vocabularyPronunciations.id,
-        vocabularyId: vocabularyPronunciations.vocabularyId,
-        pronunciationKo: vocabularyPronunciations.pronunciationKo,
-        toneMarks: vocabularyPronunciations.toneMarks,
-        createdAt: vocabularyPronunciations.createdAt,
-      })
-      .from(vocabularyPronunciations)
-      .where(inArray(vocabularyPronunciations.vocabularyId, vocabularyIds))
-      .orderBy(
-        asc(vocabularyPronunciations.vocabularyId),
-        asc(vocabularyPronunciations.createdAt),
-        asc(vocabularyPronunciations.id),
-      );
+    const pronunciations = meanings;
 
     return bases.map((base) => {
       const vocabularyPronunciationRows = pronunciations
@@ -779,11 +758,11 @@ export class DrizzleLearnerVocabularyQuery {
       .orderBy(asc(thaiSentenceVersions.id));
     const sentenceVersionIds = rows.map((row) => row.sentenceVersionId);
     const tokenPronunciations = alias(
-      vocabularyPronunciations,
+      vocabularyMeanings,
       'learner_vocabulary_token_pronunciations',
     );
     const expressionPronunciations = alias(
-      vocabularyPronunciations,
+      vocabularyMeanings,
       'learner_vocabulary_expression_pronunciations',
     );
     const tokenRows = await this.database

@@ -37,9 +37,7 @@ import {
 } from '../schema/questions.schema.js';
 import {
   vocabularies,
-  vocabularyMeaningPronunciations,
   vocabularyMeanings,
-  vocabularyPronunciations,
 } from '../schema/vocabulary.schema.js';
 import {
   ContentDraftPersistenceError,
@@ -448,21 +446,19 @@ describe('DrizzleContentDraftRepository 어휘 저장', () => {
     expect(fake.inserts.map(({ table }) => table)).toEqual([
       vocabularies,
       vocabularyMeanings,
-      vocabularyPronunciations,
-      vocabularyMeaningPronunciations,
       contentImportItems,
       auditLogs,
     ]);
-    expect(fake.inserts[4]?.values).toMatchObject({
+    expect(fake.inserts[2]?.values).toMatchObject({
       referenceMap: vocabularyItem.referenceMap,
     });
     expect(
       Object.hasOwn(
-        (fake.inserts[4]?.values as ResolvedContentImportItem).referenceMap,
+        (fake.inserts[2]?.values as ResolvedContentImportItem).referenceMap,
         '__proto__',
       ),
     ).toBe(true);
-    expect(fake.inserts[5]?.values).toMatchObject({
+    expect(fake.inserts[3]?.values).toMatchObject({
       actorSub: vocabularyAudit.actorSub,
       actorUserId: vocabularyAudit.actorUserId,
       action: vocabularyAudit.action,
@@ -682,7 +678,7 @@ describe('DrizzleContentDraftRepository 문제 저장', () => {
       contentImportItems,
       vocabularies,
       vocabularyMeanings,
-      vocabularyPronunciations,
+      vocabularyMeanings,
       questionTypeVersions,
     ]);
     expect(fake.lockModes).toEqual([

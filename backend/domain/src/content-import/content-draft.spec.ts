@@ -22,12 +22,12 @@ const ids = {
   import: '00000000-0000-4000-8000-000000000002',
   vocabulary: '00000000-0000-4000-8000-000000000004',
   meaning: '00000000-0000-4000-8000-000000000005',
-  pronunciation: '00000000-0000-4000-8000-000000000006',
+  pronunciation: '00000000-0000-4000-8000-000000000005',
   expression: '00000000-0000-4000-8000-000000000007',
   typeVersion: '00000000-0000-4000-8000-000000000008',
   otherVocabulary: '00000000-0000-4000-8000-000000000009',
   expressionMeaning: '00000000-0000-4000-8000-000000000012',
-  expressionPronunciation: '00000000-0000-4000-8000-000000000013',
+  expressionPronunciation: '00000000-0000-4000-8000-000000000012',
 } as const;
 
 const occurredAt = new Date('2026-07-24T00:00:00.000Z');
@@ -208,11 +208,6 @@ const vocabularyCommand = (
         pronunciationKo: '싸왓디',
         toneMarks: 'LHL',
       },
-      {
-        clientRef: 'pronunciation-2',
-        pronunciationKo: '크랍',
-        toneMarks: 'H',
-      },
     ],
     ...overrides,
   },
@@ -294,7 +289,7 @@ const questionCommand = (
 });
 
 describe('ContentDraftService 어휘 초안', () => {
-  it('정규화와 뜻·발음 all-to-all mapping을 원자 저장하고 내부 참조 map을 반환한다', async () => {
+  it('정규화와 뜻별 단일 발음을 원자 저장하고 내부 참조 map을 반환한다', async () => {
     const transaction = createTransaction({});
     const repository = createRepository(transaction);
     const service = new ContentDraftService(repository, createIdGenerator());
@@ -311,7 +306,7 @@ describe('ContentDraftService 어휘 초안', () => {
       kind: 'EXPRESSION',
       status: 'DRAFT',
     });
-    expect(saved.graph.meaningPronunciations).toHaveLength(4);
+    expect(saved.graph.meaningPronunciations).toHaveLength(2);
     expect(saved.item).toMatchObject({
       importId: ids.import,
       kind: 'VOCABULARY',
@@ -327,7 +322,6 @@ describe('ContentDraftService 어휘 초안', () => {
       'meaning-1',
       'meaning-2',
       'pronunciation-1',
-      'pronunciation-2',
     ]);
     expect(saved.audit).toEqual({
       ...context,
@@ -363,7 +357,6 @@ describe('ContentDraftService 어휘 초안', () => {
         ['__proto__', meaningId],
         ['meaning-2', saved.graph.meanings[1]!.id],
         ['pronunciation-1', saved.graph.pronunciations[0]!.id],
-        ['pronunciation-2', saved.graph.pronunciations[1]!.id],
       ]),
     );
     expect(JSON.parse(JSON.stringify(result.referenceMap))).toMatchObject({
@@ -507,7 +500,7 @@ describe('ContentDraftService 문제 초안', () => {
         position: 0,
         vocabularyId: ids.vocabulary,
         meaningId: ids.meaning,
-        pronunciationId: ids.pronunciation,
+        pronunciationId: ids.meaning,
       }),
       expect.objectContaining({
         position: 1,
@@ -519,7 +512,7 @@ describe('ContentDraftService 문제 초안', () => {
         vocabularyId: ids.expression,
         vocabularyKind: 'EXPRESSION',
         meaningId: ids.expressionMeaning,
-        pronunciationId: ids.expressionPronunciation,
+        pronunciationId: ids.expressionMeaning,
         contextMeaningKo: '표현 뜻',
         representative: true,
       }),

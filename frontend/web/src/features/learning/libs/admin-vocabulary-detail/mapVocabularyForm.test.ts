@@ -22,17 +22,16 @@ describe('관리자 어휘 form mapping', () => {
       kind: detail.kind,
       meanings: form.meanings,
       pronunciations: form.pronunciations,
-      meaningPronunciations: [
-        {
-          meaningRef: detail.meanings[1]?.id,
-          pronunciationRef: detail.pronunciations[0]?.id,
-        },
-        {
-          meaningRef: detail.meanings[0]?.id,
-          pronunciationRef: detail.pronunciations[0]?.id,
-        },
-      ],
+      meaningPronunciations: detail.meanings.map(({ id }) => ({
+        meaningRef: id,
+        pronunciationRef: `pronunciation:${id}`,
+      })),
     });
+    expect(form.pronunciations).toHaveLength(2);
+    const firstPronunciation = form.pronunciations[0];
+    if (!firstPronunciation) throw new Error('발음이 필요합니다.');
+    firstPronunciation.pronunciationKo = '수정한 발음';
+    expect(form.pronunciations[1]?.pronunciationKo).toBe('싸왓디');
     expect(mapVocabularyFormToRequest(form)).not.toHaveProperty('id');
   });
 });

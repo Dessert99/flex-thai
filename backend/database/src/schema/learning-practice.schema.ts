@@ -15,11 +15,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { users } from './identity.schema.js';
 import { wordbooks } from './learning.schema.js';
-import {
-  vocabularies,
-  vocabularyMeanings,
-  vocabularyPronunciations,
-} from './vocabulary.schema.js';
+import { vocabularies, vocabularyMeanings } from './vocabulary.schema.js';
 
 /** 단어 연습 출처 */
 export const vocabularyPracticeSourceTypeEnum = pgEnum(
@@ -159,13 +155,14 @@ export const vocabularyPracticeQuestions = pgTable(
       columns: [table.meaningId, table.vocabularyId],
       foreignColumns: [vocabularyMeanings.id, vocabularyMeanings.vocabularyId],
     }).onDelete('restrict'),
+    check(
+      'vocabulary_practice_questions_pronunciation_matches_meaning',
+      sql`${table.pronunciationId} = ${table.meaningId}`,
+    ),
     foreignKey({
       name: 'vocabulary_practice_questions_pronunciation_vocabulary_fk',
       columns: [table.pronunciationId, table.vocabularyId],
-      foreignColumns: [
-        vocabularyPronunciations.id,
-        vocabularyPronunciations.vocabularyId,
-      ],
+      foreignColumns: [vocabularyMeanings.id, vocabularyMeanings.vocabularyId],
     }).onDelete('restrict'),
     check(
       'vocabulary_practice_questions_position_positive',

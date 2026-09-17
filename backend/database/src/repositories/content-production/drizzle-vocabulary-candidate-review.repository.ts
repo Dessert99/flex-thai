@@ -1,3 +1,4 @@
+import { vocabularyMeaningRows } from '../vocabulary-meaning-rows.js';
 /** AI 어휘 후보 승인·폐기와 DRAFT graph·audit을 한 PostgreSQL transaction으로 저장한다 */
 import {
   assertVocabularyCandidateApproval,
@@ -23,9 +24,7 @@ import { auditLogs } from '../../schema/identity.schema.js';
 import { databaseSchema as schema } from '../../schema/databaseSchema.js';
 import {
   vocabularies,
-  vocabularyMeaningPronunciations,
   vocabularyMeanings,
-  vocabularyPronunciations,
 } from '../../schema/vocabulary.schema.js';
 
 type ReviewDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
@@ -490,16 +489,18 @@ export class DrizzleVocabularyCandidateReviewRepository implements VocabularyCan
         createdAt: input.occurredAt,
       };
     });
-    await transaction.insert(vocabularyMeanings).values(meanings);
-    await transaction.insert(vocabularyPronunciations).values(pronunciations);
-    await transaction.insert(vocabularyMeaningPronunciations).values(
-      input.draft.meaningPronunciations.map(
-        ({ meaningRef, pronunciationRef }) => ({
-          vocabularyId,
-          meaningId: meaningIds.get(meaningRef)!,
-          pronunciationId: pronunciationIds.get(pronunciationRef)!,
-        }),
-      ),
+    await transaction.insert(vocabularyMeanings).values(
+      vocabularyMeaningRows({
+        meanings,
+        pronunciations,
+        meaningPronunciations: input.draft.meaningPronunciations.map(
+          ({ meaningRef, pronunciationRef }) => ({
+            vocabularyId,
+            meaningId: meaningIds.get(meaningRef)!,
+            pronunciationId: pronunciationIds.get(pronunciationRef)!,
+          }),
+        ),
+      }),
     );
     const result: VocabularyCandidateApprovalResult = {
       candidateId: candidate.id,

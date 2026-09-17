@@ -328,13 +328,9 @@ describe('VocabularyAdminService 어휘 전체 교체', () => {
     const input = replaceInput();
     delete input.meanings[0]!.difficulty;
     delete input.meanings[0]!.contextNote;
-    input.pronunciations = [
-      { ...input.pronunciations[0]!, clientRef: 'nil' },
-      { ...input.pronunciations[0]!, clientRef: 'max' },
-    ];
+    input.pronunciations = [{ ...input.pronunciations[0]!, clientRef: 'nil' }];
     input.meaningPronunciations = [
       { meaningRef: 'meaning.greeting', pronunciationRef: 'nil' },
-      { meaningRef: 'meaning.greeting', pronunciationRef: 'max' },
     ];
     const generatedIds = [
       ids.newMeaning,

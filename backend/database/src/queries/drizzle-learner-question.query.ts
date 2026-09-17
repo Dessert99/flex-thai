@@ -34,7 +34,7 @@ import {
   questionVersions,
   questionVersionTags,
 } from '../schema/questions.schema.js';
-import { vocabularyPronunciations } from '../schema/vocabulary.schema.js';
+import { vocabularyMeanings } from '../schema/vocabulary.schema.js';
 
 type LearnerQuestionDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 
@@ -858,11 +858,11 @@ export class DrizzleLearnerQuestionQuery {
       return new Map();
     }
     const tokenPronunciations = alias(
-      vocabularyPronunciations,
+      vocabularyMeanings,
       'learner_question_token_pronunciations',
     );
     const expressionPronunciations = alias(
-      vocabularyPronunciations,
+      vocabularyMeanings,
       'learner_question_expression_pronunciations',
     );
     const sentenceRows = await this.database
