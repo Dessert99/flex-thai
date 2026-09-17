@@ -175,8 +175,10 @@ frontend/web/src/
   카드 배치는 `pages`에서 구성하고, 기능의 로딩·빈 결과·오류 안내는
   해당 feature에서 구성한다. 앱의 세션·라우트 상태 안내는 해당 사용처에 둔다.
   이를 위한 공용 PageState나 feedback 계층은 만들지 않는다.
-  페이지 배치는 검토·수정 중이므로 사이드바 외에 레이아웃만을 위한 컴포넌트를
-  추출하지 않는다. 페이지 JSX 분리를 강제하는 파일·함수 줄 수 제한은 적용하지 않는다.
+  공용 레이아웃 Container·Stack·Grid와 스토리는 `shared/components/layouts`에 두고 배치만 담당한다.
+  페이지는 콘텐츠 조립을 담당하며 최대 너비와 반응형 열 개수를 `className`으로 지정한다.
+  패딩·간격은 semantic token 기반 props로 선택하고, `className`을 마지막에 병합한다.
+  페이지 JSX 분리를 강제하는 파일·함수 줄 수 제한은 적용하지 않는다.
 - Storybook은 공용 primitive만 수집한다.
 - feature root나 하위 폴더에 배럴 `index.ts`를 두지 않는다.
   계층 간 의존성 규칙을 지키면서 실제 컴포넌트·훅·로직 파일에서 직접 import한다.

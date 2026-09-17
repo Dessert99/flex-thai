@@ -1,3 +1,4 @@
+import { Container } from '@/shared/components/layouts/Container';
 /** 기능 화면을 조립하는 페이지 진입점 */
 import type { ComponentProps } from 'react';
 import { VocabularyManagementPageContainer } from '@/features/learning/components/vocabulary-management/VocabularyManagementPageContainer';
@@ -7,8 +8,8 @@ export function VocabularyManagementPage(
   props: ComponentProps<typeof VocabularyManagementPageContainer>,
 ) {
   return (
-    <div className='mx-auto w-full max-w-content flex-1 p-page'>
+    <Container className='max-w-content flex-1'>
       <VocabularyManagementPageContainer {...props} />
-    </div>
+    </Container>
   );
 }

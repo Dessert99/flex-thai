@@ -11,3 +11,6 @@
 - 검증은 Storybook 화면 확인·빌드와 lint·typecheck로 한다. Storybook `play` 함수에도 테스트 assertion을 추가하지 않는다.
 
 - shadcn 컴포넌트는 공식 CLI 생성물을 그대로 사용한다. 생성 코드와 의존성을 자체 구현으로 바꾸지 않는다. `cn`은 공식 `cn` 패키지에서 가져온다.
+
+- 프로젝트 전용 레이아웃은 `cn/config`의 공식 `createCn` API로 semantic token을 등록한
+  `shared/libs/mergeLayoutClasses.ts`를 사용한다. vendored shadcn 생성물은 수정하지 않는다.
