@@ -146,9 +146,22 @@ describe('SidebarLayout', () => {
     );
 
     expect(desktopSidebar()).toHaveAttribute('data-state', 'expanded');
+    expect(desktopSidebar()).toContainElement(sidebarTrigger());
+    expect(screen.getByRole('main')).not.toContainElement(sidebarTrigger());
     fireEvent.click(sidebarTrigger());
     expect(desktopSidebar()).toHaveAttribute('data-state', 'collapsed');
     expect(desktopSidebar()).toHaveAttribute('data-collapsible', 'icon');
+    const openButton = screen.getByRole('button', { name: '사이드바 열기' });
+    expect(openButton.querySelector('img')).toHaveAttribute(
+      'src',
+      '/images/thai-flag.png',
+    );
+    expect(openButton).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(openButton);
+    expect(desktopSidebar()).toHaveAttribute('data-state', 'expanded');
+    expect(
+      screen.getByRole('link', { name: '홈으로 이동' }),
+    ).toBeInTheDocument();
   });
 
   it('프로필 메뉴를 열면 추가 계정 동작을 표시한다', async () => {
@@ -238,7 +251,7 @@ function desktopSidebar(): HTMLElement {
 
 function sidebarTrigger(): HTMLElement {
   const trigger = screen
-    .getAllByRole('button', { name: '사이드바 열기 또는 접기' })
+    .getAllByRole('button', { name: '사이드바 접기' })
     .at(0);
   if (!trigger) throw new Error('Sidebar trigger가 필요합니다.');
   return trigger;

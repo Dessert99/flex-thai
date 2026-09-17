@@ -1,8 +1,14 @@
 /** 사이드바와 Provider만 공유하고 페이지 본문 배치는 각 페이지가 소유한다 */
 import { Link } from '@tanstack/react-router';
-import type { LucideIcon } from 'lucide-react';
+import { PanelLeft, type LucideIcon } from 'lucide-react';
 import { SidebarProfileMenu } from './SidebarProfileMenu';
 import type { ReactNode } from 'react';
+import { Button } from '@/shared/components/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/shared/components/tooltip';
 import {
   Sidebar,
   SidebarContent,
@@ -16,8 +22,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
-  SidebarRail,
   SidebarTrigger,
+  useSidebar,
 } from '@/shared/components/sidebar';
 
 /** SidebarLayout이 렌더링할 도메인 중립 내비게이션 항목 */
@@ -60,29 +66,7 @@ export function SidebarLayout({
   return (
     <SidebarProvider>
       <Sidebar collapsible='icon'>
-        <SidebarHeader className='border-b border-sidebar-border'>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                className='group-data-[collapsible=icon]:p-none!'
-                size='lg'
-                tooltip='학습 홈'
-              >
-                <Link
-                  to={home?.href ?? '/'}
-                  aria-label='홈으로 이동'
-                >
-                  <img
-                    src='/images/thai-flag.png'
-                    alt=''
-                    className='size-avatar shrink-0 rounded-full object-cover'
-                  />
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarHeader>
+        <AppSidebarHeader homeHref={home?.href ?? '/'} />
 
         <SidebarContent>
           <AppNavigation
@@ -115,18 +99,101 @@ export function SidebarLayout({
             ) : null}
           </SidebarMenu>
         </SidebarFooter>
-        <SidebarRail aria-label='사이드바 열기 또는 접기' />
       </Sidebar>
 
       <SidebarInset id='app-main'>
-        <SidebarTrigger
-          aria-label='사이드바 열기 또는 접기'
-          className='m-cluster'
-        />
+        <MobileSidebarTrigger />
         {children}
       </SidebarInset>
     </SidebarProvider>
   );
+}
+
+function AppSidebarHeader({ homeHref }: { homeHref: string }) {
+  const { state, isMobile, toggleSidebar } = useSidebar();
+  const collapsed = !isMobile && state === 'collapsed';
+  const label = collapsed ? '사이드바 열기' : '사이드바 접기';
+
+  return (
+    <SidebarHeader className='flex-row py-cluster items-center justify-between border-b border-sidebar-border'>
+      {collapsed ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant='ghost'
+              size='icon'
+              className='group/logo relative h-control w-avatar shrink-0'
+              aria-label={label}
+              aria-expanded={false}
+              onClick={toggleSidebar}
+            >
+              <img
+                src='/images/thai-flag.png'
+                alt=''
+                className='size-avatar rounded-full object-cover group-hover/logo:opacity-0 group-focus-visible/logo:opacity-0'
+              />
+              <PanelLeft className='absolute opacity-0 group-hover/logo:opacity-100 group-focus-visible/logo:opacity-100' />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent
+            side='right'
+            sideOffset={8}
+          >
+            {label}
+          </TooltipContent>
+        </Tooltip>
+      ) : (
+        <>
+          <SidebarMenu className='w-auto'>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                size='lg'
+                tooltip='학습 홈'
+              >
+                <Link
+                  to={homeHref}
+                  aria-label='홈으로 이동'
+                >
+                  <img
+                    src='/images/thai-flag.png'
+                    alt=''
+                    className='size-avatar shrink-0 rounded-full object-cover'
+                  />
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <SidebarTrigger
+                aria-label={label}
+                aria-expanded={true}
+                className='shrink-0'
+              />
+            </TooltipTrigger>
+            <TooltipContent
+              side='right'
+              sideOffset={8}
+            >
+              {label}
+            </TooltipContent>
+          </Tooltip>
+        </>
+      )}
+    </SidebarHeader>
+  );
+}
+
+function MobileSidebarTrigger() {
+  const { isMobile, openMobile } = useSidebar();
+  return isMobile ? (
+    <SidebarTrigger
+      aria-label='사이드바 열기'
+      aria-expanded={openMobile}
+      className='m-cluster'
+    />
+  ) : null;
 }
 
 function AppNavigation({
