@@ -1,99 +1,57 @@
-/** 관리자 문제 상세의 404·검증 보고서·불변 버전 표현을 검증한다 */
-import { ApiError } from '@/shared/apis/ApiError';
+import { AdminQuestionDetailPageView } from '@/features/learning/components/admin-question-detail/AdminQuestionDetailPageView';
 import { renderWithProviders } from '@/shared/test/renderWithProviders';
 import { screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  createQuestionDetail,
-  draftVersionId,
-  questionId,
-} from '@/features/learning/components/admin-question-detail/AdminQuestionDetailPage.fixtures';
-import { AdminQuestionDetailPage as AdminQuestionDetailPageContainer } from './AdminQuestionDetailPage';
-
-const mocks = vi.hoisted(() => ({
-  authenticatedRequest: vi.fn(),
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
+const id = '00000000-0000-4000-8000-000000000001';
+const other = '00000000-0000-4000-8000-000000000002';
+vi.mock('@/shared/apis/auth/authenticatedRequest', () => ({
+  authenticatedRequest: vi.fn(() =>
+    Promise.resolve({ questionTypes: [], topics: [], tags: [], items: [] }),
+  ),
 }));
-
-vi.mock('@/shared/apis/auth/authenticatedRequest', async (importOriginal) => {
-  const actual =
-    await importOriginal<
-      typeof import('@/shared/apis/auth/authenticatedRequest')
-    >();
-  return { ...actual, authenticatedRequest: mocks.authenticatedRequest };
-});
-
-beforeEach(() => {
-  mocks.authenticatedRequest.mockReset();
-});
-
-describe('관리자 문제 상세', () => {
-  it('검증을 통과한 초안에 게시 버튼을 제공한다', async () => {
-    mocks.authenticatedRequest.mockResolvedValue(
-      createQuestionDetail({ draftValidationStatus: 'PASSED' }),
+const data = {
+  questionId: id,
+  typeVersionId: id,
+  topicId: id,
+  tagIds: [],
+  version: 2,
+  status: 'PUBLISHED' as const,
+  difficulty: 2,
+  passage: null,
+  prompt: '질문',
+  options: [
+    { id, text: '가' },
+    { id: other, text: '나' },
+  ],
+  correctOptionId: id,
+  explanation: '해설',
+  vocabularies: [],
+  createdAt: '2026-09-17T00:00:00Z',
+  updatedAt: '2026-09-17T00:00:00Z',
+  publishedAt: '2026-09-17T00:00:00Z',
+};
+describe('현재 문제 편집', () => {
+  it('재풀이 기본값과 수정 시각을 함께 제출한다', async () => {
+    const user = userEvent.setup();
+    const save = vi.fn();
+    renderWithProviders(
+      <AdminQuestionDetailPageView
+        data={data}
+        onSave={save}
+        onStatus={() => undefined}
+        pending={false}
+        error={false}
+      />,
     );
-    renderDetail();
-    expect(
-      await screen.findByRole('button', { name: '버전 게시' }),
-    ).toBeEnabled();
-  });
-  it('검증에 실패한 초안에는 게시 버튼을 제공하지 않는다', async () => {
-    mocks.authenticatedRequest.mockResolvedValue(createQuestionDetail());
-    renderDetail();
-    await screen.findByRole('link', { name: '버전 3 전체 교체' });
-    expect(
-      screen.queryByRole('button', { name: '버전 게시' }),
-    ).not.toBeInTheDocument();
-  });
-  it('404 응답을 존재하지 않는 문제로 안전하게 안내한다', async () => {
-    mocks.authenticatedRequest.mockRejectedValue(createProblemError(404));
-
-    renderDetail();
-
-    expect(
-      await screen.findByText('요청한 문제를 찾을 수 없습니다.'),
-    ).toBeInTheDocument();
-    expect(screen.getByText('요청 ID: request-question')).toBeInTheDocument();
-  });
-
-  it('FAILED 검증 issue의 안정 path와 code를 표시한다', () => {
-    mocks.authenticatedRequest.mockResolvedValue(createQuestionDetail());
-
-    renderDetail();
-  });
-
-  it('DRAFT에만 전체 교체 링크를 제공해 게시 버전을 직접 편집하지 않는다', async () => {
-    mocks.authenticatedRequest.mockResolvedValue(createQuestionDetail());
-
-    renderDetail();
-
-    expect(
-      await screen.findByRole('link', { name: '버전 3 전체 교체' }),
-    ).toHaveAttribute(
-      'href',
-      `/admin/questions/${questionId}/versions/${draftVersionId}/replace?page=1&pageSize=20`,
+    expect(screen.getByRole('checkbox')).toBeChecked();
+    await user.click(screen.getByRole('button', { name: '변경 저장' }));
+    expect(save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        expectedVersion: 2,
+        expectedUpdatedAt: data.updatedAt,
+        requiresRetry: true,
+      }),
     );
-    expect(
-      screen.queryByRole('link', { name: '버전 2 전체 교체' }),
-    ).not.toBeInTheDocument();
   });
 });
-
-function renderDetail() {
-  return renderWithProviders(
-    <AdminQuestionDetailPageContainer questionId={questionId} />,
-  );
-}
-
-function createProblemError(status: number) {
-  return new ApiError({
-    kind: 'problem',
-    problem: {
-      type: `https://flex-thia.dev/problems/http-${status}`,
-      title: '문제를 찾을 수 없습니다.',
-      status,
-      code: 'QUESTION_NOT_FOUND',
-      requestId: 'request-question',
-      fieldErrors: [],
-    },
-  });
-}

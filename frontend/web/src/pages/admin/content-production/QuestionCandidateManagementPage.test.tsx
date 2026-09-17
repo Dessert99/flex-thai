@@ -1,9 +1,9 @@
 /** 문제 후보 목록의 그룹 표시·선택·pagination을 검증한다 */
+import { QuestionCandidateManagementPageView } from '@/features/content-production/components/question-candidate-management/QuestionCandidateManagementPageView';
 import { renderWithProviders as render } from '@/shared/test/renderWithProviders';
 import type { QuestionCandidateListResponse } from '@flex-thia/contracts/content-production/question-production';
 import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { QuestionCandidateManagementPageView } from '@/features/content-production/components/question-candidate-management/QuestionCandidateManagementPageView';
 
 const id = (suffix: number) =>
   `00000000-0000-4000-8000-${String(suffix).padStart(12, '0')}`;
@@ -22,7 +22,7 @@ const base = {
     revision: 0,
     regeneratedFromCandidateId: null,
     approvedQuestionId: null,
-    approvedQuestionVersionId: null,
+    approvedQuestionVersion: null,
   },
   createdAt: '2026-07-28T00:00:00.000Z',
   updatedAt: '2026-07-28T00:00:00.000Z',

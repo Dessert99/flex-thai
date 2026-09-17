@@ -1,57 +1,43 @@
 /** 답안 선택과 멱등 제출 command의 수명주기를 관리한다 */
-import type { PublicThaiSentence } from '@flex-thia/contracts/thai-content/sentences';
-import type { SubmitQuestionAttemptResponse } from '@flex-thia/contracts/learning/questions';
-import { useMutation } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
 import { Button } from '@/shared/components/button';
 import { Input } from '@/shared/components/input';
 import { Label } from '@/shared/components/label';
+import type { SubmitQuestionAttemptResponse } from '@flex-thia/contracts/learning/questions';
+import { useMutation } from '@tanstack/react-query';
+import { useRef, useState } from 'react';
 import {
   submitAnswer,
   type SubmitAnswerCommand,
 } from '../../apis/submit-answer/submitAnswerMutation';
 import { createClientAttemptId } from '../../libs/submit-answer/createClientAttemptId';
-import { InlineSentenceChoices } from './InlineSentenceChoices';
 
 interface SubmitAnswerFormProps {
-  inlineSentences?: readonly PublicThaiSentence[];
   onConfirmed?: (response: SubmitQuestionAttemptResponse) => void;
   onReset?: () => void;
   options: readonly SubmitAnswerOption[];
   questionId: string;
-  questionVersionId: string;
+  questionVersion: number;
 }
 
-interface SubmitAnswerOptionBase {
+export interface SubmitAnswerOption {
   id: string;
+  text: string;
 }
-
-/** 표준 문장 또는 QUESTION 문장 inline 범위를 가리키는 제출 선택지 */
-export type SubmitAnswerOption =
-  | (SubmitAnswerOptionBase & { label: string; span: null })
-  | (SubmitAnswerOptionBase & {
-      label: null;
-      span: {
-        sentenceVersionId: string;
-        startTokenIndex: number;
-        endTokenIndex: number;
-      };
-    });
 
 /** 실패 재시도에는 command를 보존하고 다시 풀기에서만 새 제출을 시작한다 */
 export function SubmitAnswerForm({
-  inlineSentences = [],
   onConfirmed,
   onReset,
   options,
   questionId,
-  questionVersionId,
+  questionVersion,
 }: SubmitAnswerFormProps) {
   const startedAt = useRef<number | undefined>(undefined);
   const [selectedOptionId, setSelectedOptionId] = useState<string>();
   const [command, setCommand] = useState<SubmitAnswerCommand>();
   const [feedback, setFeedback] = useState<SubmitQuestionAttemptResponse>();
   const mutation = useMutation({
+    throwOnError: false,
     mutationFn: submitAnswer,
     retry: false,
     onSuccess: (response) => {
@@ -75,7 +61,7 @@ export function SubmitAnswerForm({
           submittedAt - (startedAt.current ?? submittedAt),
         ),
         questionId,
-        questionVersionId,
+        questionVersion,
         selectedOptionId,
       } satisfies SubmitAnswerCommand);
     setCommand(nextCommand);
@@ -110,7 +96,6 @@ export function SubmitAnswerForm({
       <AnswerOptions
         feedback={feedback}
         disabled={mutation.isPending || feedback !== undefined}
-        inlineSentences={inlineSentences}
         onSelect={selectOption}
         options={options}
         selectedOptionId={selectedOptionId}
@@ -139,14 +124,12 @@ export function SubmitAnswerForm({
 function AnswerOptions({
   disabled,
   feedback,
-  inlineSentences,
   onSelect,
   options,
   selectedOptionId,
 }: {
   disabled: boolean;
   feedback: SubmitQuestionAttemptResponse | undefined;
-  inlineSentences: readonly PublicThaiSentence[];
   onSelect: (optionId: string) => void;
   options: readonly SubmitAnswerOption[];
   selectedOptionId: string | undefined;
@@ -156,57 +139,39 @@ function AnswerOptions({
   return (
     <fieldset className='grid gap-cluster'>
       <legend className='sr-only'>답안 선택</legend>
-      <InlineSentenceChoices
-        answerFeedback={feedback}
-        confirmedOptionId={confirmedOptionId}
-        disabled={disabled}
-        onSelect={onSelect}
-        options={options}
-        sentences={inlineSentences}
-      />
-      {options
-        .filter(
-          (option): option is Extract<SubmitAnswerOption, { label: string }> =>
-            option.span === null,
-        )
-        .map((option) => (
-          <div
-            className='flex items-center gap-cluster rounded-control border border-default p-cluster'
-            key={option.id}
+      {options.map((option) => (
+        <div
+          className='flex items-center gap-cluster rounded-control border border-default p-cluster'
+          key={option.id}
+        >
+          <Input
+            aria-label={option.text}
+            checked={confirmedOptionId === option.id}
+            className='size-icon shrink-0 p-px shadow-none'
+            disabled={disabled}
+            id={`answer-${option.id}`}
+            name='answer'
+            onChange={() => {
+              onSelect(option.id);
+            }}
+            type='radio'
+            value={option.id}
+          />
+          <Label
+            className='font-thai text-body'
+            htmlFor={`answer-${option.id}`}
+            lang='th'
           >
-            <Input
-              aria-label={getOptionAccessibleName(
-                option,
-                confirmedOptionId,
-                feedback,
-                inlineSentences,
-              )}
-              checked={confirmedOptionId === option.id}
-              className='size-icon shrink-0 p-px shadow-none'
-              disabled={disabled}
-              id={`answer-${option.id}`}
-              name='answer'
-              onChange={() => {
-                onSelect(option.id);
-              }}
-              type='radio'
-              value={option.id}
-            />
-            <Label
-              className='font-thai text-body'
-              htmlFor={`answer-${option.id}`}
-              lang='th'
-            >
-              {option.label}
-            </Label>
-            {confirmedOptionId === option.id && feedback !== undefined ? (
-              <span>선택한 답</span>
-            ) : null}
-            {feedback?.feedback.correctOptionId === option.id ? (
-              <span>정답</span>
-            ) : null}
-          </div>
-        ))}
+            {option.text}
+          </Label>
+          {confirmedOptionId === option.id && feedback !== undefined ? (
+            <span>선택한 답</span>
+          ) : null}
+          {feedback?.feedback.correctOptionId === option.id ? (
+            <span>정답</span>
+          ) : null}
+        </div>
+      ))}
     </fieldset>
   );
 }
@@ -221,49 +186,11 @@ function getSubmitLabel(
   return isError ? '같은 답안 다시 제출' : '답안 제출';
 }
 
-function getOptionAccessibleName(
-  option: SubmitAnswerOption,
-  selectedOptionId: string | undefined,
-  feedback: SubmitQuestionAttemptResponse | undefined,
-  inlineSentences: readonly PublicThaiSentence[],
-) {
-  const surface = getOptionSurface(option, inlineSentences);
-  if (feedback === undefined) {
-    return surface;
-  }
-
-  return [
-    surface,
-    selectedOptionId === option.id ? '선택한 답' : null,
-    feedback.feedback.correctOptionId === option.id ? '정답' : null,
-  ]
-    .filter((value) => value !== null)
-    .join(' ');
-}
-
-function getOptionSurface(
-  option: SubmitAnswerOption,
-  sentences: readonly PublicThaiSentence[],
-) {
-  if (option.span === null) {
-    return option.label;
-  }
-  const sentence = sentences.find(
-    (candidate) =>
-      candidate.sentenceVersionId === option.span.sentenceVersionId,
-  );
-  return (
-    sentence?.tokens
-      .slice(option.span.startTokenIndex, option.span.endTokenIndex)
-      .map((token) => token.surface)
-      .join('') ?? ''
-  );
-}
-
 function SubmissionError() {
   return (
     <p className='text-body text-danger'>
-      답안을 제출하지 못했습니다. 같은 답안을 다시 제출할 수 있습니다.
+      답안을 제출하지 못했습니다. 문제가 수정된 경우 새로고침 후 다시
+      풀어주세요.
     </p>
   );
 }

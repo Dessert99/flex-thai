@@ -1,17 +1,17 @@
 /** 학습자 답안을 공개 계약으로 검증해 제출한다 */
+import { authenticatedRequest } from '@/shared/apis/auth/authenticatedRequest';
 import {
   submitQuestionAttemptRequestSchema,
   submitQuestionAttemptResponseSchema,
   type SubmitQuestionAttemptResponse,
 } from '@flex-thia/contracts/learning/questions';
-import { authenticatedRequest } from '@/shared/apis/auth/authenticatedRequest';
 
 /** 한 논리 제출의 멱등 ID와 선택 답안을 포함한다 */
 export interface SubmitAnswerCommand {
   clientAttemptId: string;
   durationMs: number;
   questionId: string;
-  questionVersionId: string;
+  questionVersion: number;
   selectedOptionId: string;
 }
 
@@ -22,7 +22,7 @@ export function submitAnswer(
   const body = submitQuestionAttemptRequestSchema.parse({
     clientAttemptId: command.clientAttemptId,
     durationMs: command.durationMs,
-    questionVersionId: command.questionVersionId,
+    questionVersion: command.questionVersion,
     selectedOptionId: command.selectedOptionId,
   });
   return authenticatedRequest({

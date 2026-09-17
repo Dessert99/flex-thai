@@ -276,8 +276,9 @@ function toFirstResultLabel(
   result: QuestionListResponse['items'][number]['firstResult'],
 ) {
   return {
-    CORRECT: '첫 풀이 정답',
-    INCORRECT: '첫 풀이 오답',
+    CORRECT: '정답',
+    INCORRECT: '오답',
     UNANSWERED: '미풀이',
+    UPDATED: '수정됨 · 다시 풀기',
   }[result];
 }

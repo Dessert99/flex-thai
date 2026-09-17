@@ -205,6 +205,7 @@ function LearningStateFilters({ onChange, search }: QuestionFilterFieldsProps) {
           { label: '정답', value: 'CORRECT' },
           { label: '오답', value: 'INCORRECT' },
           { label: '미풀이', value: 'UNANSWERED' },
+          { label: '수정됨 · 다시 풀기', value: 'UPDATED' },
         ]}
         value={search.firstResult ?? 'ALL'}
       />

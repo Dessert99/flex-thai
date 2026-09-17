@@ -62,43 +62,6 @@ function QuestionStateFilters({
         ]}
         value={search.status ?? 'ALL'}
       />
-      <FilterSelect
-        label='버전 상태'
-        onValueChange={(value) =>
-          onChange({
-            versionStatus:
-              value === 'ALL'
-                ? undefined
-                : (value as 'DRAFT' | 'INVALIDATED' | 'PUBLISHED' | 'RETIRED'),
-          })
-        }
-        options={[
-          { label: '전체', value: 'ALL' },
-          { label: '초안', value: 'DRAFT' },
-          { label: '게시', value: 'PUBLISHED' },
-          { label: '폐기', value: 'RETIRED' },
-          { label: '무효화', value: 'INVALIDATED' },
-        ]}
-        value={search.versionStatus ?? 'ALL'}
-      />
-      <FilterSelect
-        label='검증 상태'
-        onValueChange={(value) =>
-          onChange({
-            validationStatus:
-              value === 'ALL'
-                ? undefined
-                : (value as 'FAILED' | 'PASSED' | 'PENDING'),
-          })
-        }
-        options={[
-          { label: '전체', value: 'ALL' },
-          { label: '대기', value: 'PENDING' },
-          { label: '통과', value: 'PASSED' },
-          { label: '실패', value: 'FAILED' },
-        ]}
-        value={search.validationStatus ?? 'ALL'}
-      />
     </>
   );
 }

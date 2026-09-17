@@ -1,3 +1,10 @@
+import { VocabularyMergePanel } from '@/features/learning/components/admin-vocabulary-detail/VocabularyMergePanel';
+import { VocabularyRelationManager } from '@/features/learning/components/admin-vocabulary-detail/VocabularyRelationManager';
+import { VocabularyRelationRow } from '@/features/learning/components/admin-vocabulary-detail/VocabularyRelationRow';
+import {
+  vocabularyMergeInvalidationKeys,
+  vocabularyRelationInvalidationKeys,
+} from '@/features/learning/hooks/admin-vocabulary-detail/useAdminVocabularyDetailActions';
 import { ApiError } from '@/shared/apis/ApiError';
 import { renderWithProviders } from '@/shared/test/renderWithProviders';
 import type { AdminVocabularyDetailResponse } from '@flex-thia/contracts/admin/vocabularies';
@@ -5,14 +12,7 @@ import type { AdminVocabularyMergePreviewResponse } from '@flex-thia/contracts/a
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  vocabularyMergeInvalidationKeys,
-  vocabularyRelationInvalidationKeys,
-} from '@/features/learning/hooks/admin-vocabulary-detail/useAdminVocabularyDetailActions';
 import { AdminVocabularyDetailPage as AdminVocabularyDetailPageContainer } from './AdminVocabularyDetailPage';
-import { VocabularyMergePanel } from '@/features/learning/components/admin-vocabulary-detail/VocabularyMergePanel';
-import { VocabularyRelationManager } from '@/features/learning/components/admin-vocabulary-detail/VocabularyRelationManager';
-import { VocabularyRelationRow } from '@/features/learning/components/admin-vocabulary-detail/VocabularyRelationRow';
 
 const vocabularyId = '01933b6a-8f13-7a19-b7e5-536d70f57aaa';
 const representativeVocabularyId = '01933b6a-8f13-7a19-b7e5-536d70f57abb';
@@ -199,6 +199,7 @@ function createDetail(
     thai: 'สวัสดี',
     kind: 'WORD',
     status: 'DRAFT',
+    importanceWeight: 5,
     mergedIntoVocabularyId: null,
     meanings: [
       {
@@ -236,7 +237,10 @@ function createDetail(
     ],
     usage: {
       sentenceVersionIds: ['01933b6a-8f13-7a19-b7e5-536d70f57aae'],
-      questionVersionIds: [],
+      questionCount: 0,
+      targetQuestionCount: 0,
+      occurrenceCount: 0,
+      questionIds: [],
     },
     createdAt: '2026-07-25T00:00:00.000Z',
     updatedAt: '2026-07-25T00:00:00.000Z',

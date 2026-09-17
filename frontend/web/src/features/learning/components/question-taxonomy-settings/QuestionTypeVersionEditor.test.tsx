@@ -1,5 +1,5 @@
 /** 문제 유형 버전의 기준·승인 예시·상태 전이 사용자 행동을 검증한다 */
-import type { AdminQuestionVersionPayload } from '@flex-thia/contracts/admin/questions';
+import type { AdminQuestionVersionPayload } from '@flex-thia/contracts/questions/legacy-question-payload';
 import type { QuestionTaxonomySettingsResponse } from '@flex-thia/contracts/questions/question-taxonomy-settings';
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

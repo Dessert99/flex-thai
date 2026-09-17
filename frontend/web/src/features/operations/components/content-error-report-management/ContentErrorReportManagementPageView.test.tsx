@@ -32,7 +32,7 @@ const summary = {
     kind: 'QUESTION' as const,
     contentId: ids.content,
     contentVersionId: ids.content,
-    questionVersionId: ids.content,
+    questionVersion: 1,
     sentenceVersionId: null,
     locationId: null,
   },

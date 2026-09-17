@@ -1,80 +1,56 @@
-/** 관리자 문제 상세 Query를 불변 버전 inspection View에 연결한다 */
-import { QuestionStateAction } from '@/features/learning/components/change-question-state/QuestionStateAction';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+/** 현재 문제 조회·수정·공개 상태를 연결한다. */
+import type {
+  AdminQuestionStatusRequest,
+  AdminQuestionUpdateRequest,
+} from '@flex-thia/contracts/admin/questions';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminQuestionDetailQueryOptions } from '../../apis/admin-question-detail/adminQuestionDetailQueries';
+import {
+  changeQuestionStatus,
+  updateQuestion,
+} from '../../apis/admin-question-detail/questionMutations';
 import { AdminQuestionDetailPageView } from './AdminQuestionDetailPageView';
-import { CloneQuestionVersionButton } from './CloneQuestionVersionButton';
-
-interface AdminQuestionDetailPageContainerProps {
-  onCloned?: (result: { questionId: string; versionId: string }) => void;
-  questionId: string;
-}
-
-/** route가 검증한 문제 UUID의 서버 상세 상태를 소유한다 */
 export function AdminQuestionDetailPageContainer({
-  onCloned = () => undefined,
   questionId,
-}: AdminQuestionDetailPageContainerProps) {
-  const queryClient = useQueryClient();
+}: {
+  questionId: string;
+}) {
+  const client = useQueryClient();
   const detail = useQuery(adminQuestionDetailQueryOptions(questionId));
-  const refreshQuestions = () =>
+  const refresh = () =>
     Promise.all([
-      queryClient.invalidateQueries({
-        queryKey: ['admin', 'questions', 'detail', questionId],
-      }),
-      queryClient.invalidateQueries({
-        queryKey: ['admin', 'questions', 'list'],
-      }),
+      client.invalidateQueries({ queryKey: ['admin', 'questions'] }),
+      client.invalidateQueries({ queryKey: ['learner', 'questions'] }),
+      client.invalidateQueries({ queryKey: ['admin', 'vocabularies'] }),
     ]);
+  const update = useMutation({
+    throwOnError: false,
+    mutationFn: (input: AdminQuestionUpdateRequest) =>
+      updateQuestion(questionId, input),
+    onSuccess: refresh,
+  });
+  const state = useMutation({
+    throwOnError: false,
+    mutationFn: (input: AdminQuestionStatusRequest) =>
+      changeQuestionStatus(questionId, input),
+    onSuccess: refresh,
+  });
+  if (!detail.data)
+    return (
+      <p role='status'>
+        {detail.isError
+          ? '문제를 불러오지 못했습니다.'
+          : '문제를 불러오는 중입니다.'}
+      </p>
+    );
   return (
-    <>
-      <AdminQuestionDetailPageView
-        actions={
-          detail.data ? (
-            <>
-              <CloneQuestionVersionButton
-                onCloned={onCloned}
-                questionId={questionId}
-              />
-              <QuestionStateAction
-                command={
-                  detail.data.status === 'HIDDEN'
-                    ? { action: 'restore', questionId }
-                    : { action: 'hide', questionId }
-                }
-                onConfirmed={() => void refreshQuestions()}
-              />
-            </>
-          ) : null
-        }
-        data={detail.data}
-        error={detail.error}
-        loading={detail.isPending}
-        onRetry={() => void detail.refetch()}
-        renderVersionAction={(version) => {
-          if (
-            version.status === 'DRAFT' &&
-            version.validation.status === 'PASSED'
-          ) {
-            return (
-              <QuestionStateAction
-                command={{ action: 'publish', versionId: version.id }}
-                onConfirmed={() => void refreshQuestions()}
-              />
-            );
-          }
-
-          if (version.status === 'PUBLISHED') {
-            return (
-              <QuestionStateAction
-                command={{ action: 'invalidate', versionId: version.id }}
-                onConfirmed={() => void refreshQuestions()}
-              />
-            );
-          }
-          return null;
-        }}
-      />
-    </>
+    <AdminQuestionDetailPageView
+      key={detail.data.updatedAt}
+      data={detail.data}
+      onSave={(input) => update.mutate(input)}
+      onStatus={(input) => state.mutate(input)}
+      pending={update.isPending || state.isPending}
+      error={update.isError || state.isError}
+    />
   );
 }

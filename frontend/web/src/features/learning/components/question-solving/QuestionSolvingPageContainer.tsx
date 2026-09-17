@@ -1,13 +1,13 @@
 /** 문제 상세 Query와 Page 소유 cache 무효화를 조정한다 */
-import { Link } from '@tanstack/react-router';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { isApiError } from '@/shared/apis/ApiError';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 
-import { questionDetailQueryOptions } from '../../apis/question-solving/questionDetailQueries';
-import { QuestionSolvingPageView } from './QuestionSolvingPageView';
-import { Skeleton } from '@/shared/components/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/shared/components/alert';
 import { Button } from '@/shared/components/button';
+import { Skeleton } from '@/shared/components/skeleton';
+import { questionDetailQueryOptions } from '../../apis/question-solving/questionDetailQueries';
+import { QuestionSolvingPageView } from './QuestionSolvingPageView';
 
 interface QuestionSolvingPageContainerProps {
   questionId: string;
@@ -75,6 +75,7 @@ export function QuestionSolvingPageContainer({
   return (
     <>
       <QuestionSolvingPageView
+        key={`${question.data?.questionId}:${question.data?.questionVersion}`}
         detail={question.data}
         onSavedConfirmed={() => {
           void queryClient.invalidateQueries({

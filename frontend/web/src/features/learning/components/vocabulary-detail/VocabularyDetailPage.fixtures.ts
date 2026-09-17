@@ -89,7 +89,7 @@ export function createRelatedQuestions(): VocabularyRelatedQuestionsResponse {
     items: [
       {
         questionId: '01933b6a-8f13-7a19-b7e5-536d70f57ab1',
-        questionVersionId: '01933b6a-8f13-7a19-b7e5-536d70f57ab2',
+        questionVersion: 1,
         questionType: {
           id: '01933b6a-8f13-7a19-b7e5-536d70f57ab3',
           slug: 'greeting',

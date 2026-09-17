@@ -1,211 +1,250 @@
-/** 관리자 문제의 공개 구조·버전·검증 결과만 계약 그대로 표현한다 */
-import { isApiError } from '@/shared/apis/ApiError';
-import { Badge } from '@/shared/components/badge';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/shared/components/card';
-import type { AdminQuestionDetailResponse } from '@flex-thia/contracts/admin/questions';
-import { Link } from '@tanstack/react-router';
-import type { ReactNode } from 'react';
-
-import { Alert, AlertDescription, AlertTitle } from '@/shared/components/alert';
+/** 문장 분할 없이 문제 본문·보기·해설·사용 어휘를 편집한다. */
 import { Button } from '@/shared/components/button';
-import { Skeleton } from '@/shared/components/skeleton';
-import { QuestionVersionComparison } from './QuestionVersionComparison';
-import { QuestionVersionPreview } from './QuestionVersionPreview';
-
-interface AdminQuestionDetailPageViewProps {
-  actions: ReactNode;
-  data: AdminQuestionDetailResponse | undefined;
-  error: unknown;
-  loading: boolean;
-  onRetry: () => void;
-  renderVersionAction: (version: Version) => ReactNode;
-}
-
-type Version = AdminQuestionDetailResponse['versions'][number];
-
-/** 공개되지 않은 본문을 추정하지 않고 DRAFT에만 전체 교체 진입점을 둔다 */
+import { Input } from '@/shared/components/input';
+import { Label } from '@/shared/components/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/components/select';
+import { Textarea } from '@/shared/components/textarea';
+import {
+  adminQuestionPayloadSchema,
+  type AdminQuestionDetailResponse,
+  type AdminQuestionPayload,
+  type AdminQuestionStatusRequest,
+  type AdminQuestionUpdateRequest,
+} from '@flex-thia/contracts/admin/questions';
+import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { questionTaxonomySettingsQueryOptions } from '../../apis/question-taxonomy-settings/questionTaxonomyQueries';
+import { QuestionVocabularyFields } from './QuestionVocabularyFields';
 export function AdminQuestionDetailPageView({
-  actions,
   data,
+  onSave,
+  onStatus,
+  pending,
   error,
-  loading,
-  onRetry,
-  renderVersionAction,
-}: AdminQuestionDetailPageViewProps) {
-  if (loading) {
-    return (
-      <section
-        aria-live='polite'
-        className='flex min-h-state flex-col justify-center gap-cluster p-page'
-        role='status'
-      >
-        <Skeleton className='h-control w-full max-w-content' />
-        <p className='text-body text-subtle'>문제 상세를 불러오고 있습니다.</p>
-      </section>
-    );
-  }
-  if (error !== null || data === undefined) {
-    const problem =
-      isApiError(error) && error.detail.kind === 'problem'
-        ? error.detail.problem
-        : { status: undefined, requestId: undefined };
-    return (
-      <Alert
-        className='rounded-panel border-danger bg-danger-surface'
-        variant='destructive'
-      >
-        <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
-        <AlertDescription className='flex flex-col gap-cluster text-danger'>
-          <p>
-            {problem.status === 404
-              ? '요청한 문제를 찾을 수 없습니다.'
-              : '문제 상세를 불러오지 못했습니다.'}
-          </p>
-          {problem.requestId ? (
-            <p className='text-caption'>요청 ID: {problem.requestId}</p>
-          ) : null}
-          <Button
-            className='mt-cluster w-auto'
-            onClick={onRetry}
-            type='button'
-            variant='outline'
-          >
-            다시 시도
-          </Button>
-        </AlertDescription>
-      </Alert>
-    );
-  }
-
+}: {
+  data: AdminQuestionDetailResponse;
+  onSave: (input: AdminQuestionUpdateRequest) => void;
+  onStatus: (input: AdminQuestionStatusRequest) => void;
+  pending: boolean;
+  error: boolean;
+}) {
+  const [input, setInput] = useState<AdminQuestionPayload>(() =>
+    adminQuestionPayloadSchema.parse(
+      Object.fromEntries(
+        Object.entries(data).filter(
+          ([key]) =>
+            ![
+              'questionId',
+              'version',
+              'status',
+              'createdAt',
+              'updatedAt',
+              'publishedAt',
+            ].includes(key),
+        ),
+      ),
+    ),
+  );
+  const [requiresRetry, setRequiresRetry] = useState(true);
+  const [invalid, setInvalid] = useState(false);
+  const taxonomy = useQuery(questionTaxonomySettingsQueryOptions());
+  const change = (patch: Partial<AdminQuestionPayload>) =>
+    setInput((current) => ({ ...current, ...patch }));
   return (
     <section className='grid gap-section'>
-      <header className='space-y-cluster'>
-        <h1 className='text-title text-primary'>문제 상세</h1>
-        <p className='break-all text-body text-subtle'>{data.questionId}</p>
-        <Badge variant={data.status === 'HIDDEN' ? 'destructive' : 'secondary'}>
-          {{ DRAFT: '초안', HIDDEN: '숨김', PUBLISHED: '게시' }[data.status]}
-        </Badge>
-        <div className='flex flex-wrap gap-cluster'>{actions}</div>
+      <header>
+        <h1 className='text-title'>문제 편집 · 버전 {data.version}</h1>
+        <p>
+          {{ DRAFT: '초안', PUBLISHED: '공개', HIDDEN: '숨김' }[data.status]}
+        </p>
       </header>
-      <QuestionVersionComparison versions={data.versions} />
-      <div className='grid gap-section'>
-        {data.versions.map((version) => (
-          <QuestionVersionCard
-            key={version.id}
-            questionId={data.questionId}
-            stateAction={renderVersionAction(version)}
-            version={version}
+      <form
+        className='grid gap-section'
+        onSubmit={(event) => {
+          event.preventDefault();
+          const parsed = adminQuestionPayloadSchema.safeParse(input);
+          setInvalid(!parsed.success);
+          if (parsed.success)
+            onSave({
+              input: parsed.data,
+              expectedVersion: data.version,
+              expectedUpdatedAt: data.updatedAt,
+              requiresRetry,
+            });
+        }}
+      >
+        <fieldset
+          disabled={pending}
+          className='grid gap-cluster'
+        >
+          <Label>문제 유형</Label>
+          <Select
+            value={input.typeVersionId}
+            onValueChange={(typeVersionId) => change({ typeVersionId })}
+          >
+            <SelectTrigger aria-label='문제 유형'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {taxonomy.data?.questionTypes.flatMap((type) =>
+                type.versions
+                  .filter(
+                    (version) =>
+                      version.status === 'ACTIVE' ||
+                      version.id === input.typeVersionId,
+                  )
+                  .map((version) => (
+                    <SelectItem
+                      key={version.id}
+                      value={version.id}
+                    >
+                      {type.displayName} · 유형 버전 {version.version}
+                    </SelectItem>
+                  )),
+              )}
+            </SelectContent>
+          </Select>
+          <Label>주제</Label>
+          <Select
+            value={input.topicId}
+            onValueChange={(topicId) => change({ topicId })}
+          >
+            <SelectTrigger aria-label='주제'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {taxonomy.data?.topics
+                .filter(
+                  (topic) =>
+                    topic.status === 'ACTIVE' || topic.id === input.topicId,
+                )
+                .map((topic) => (
+                  <SelectItem
+                    key={topic.id}
+                    value={topic.id}
+                  >
+                    {topic.displayName}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+          <Label htmlFor='question-difficulty'>난이도</Label>
+          <Input
+            id='question-difficulty'
+            type='number'
+            min={1}
+            max={5}
+            value={input.difficulty}
+            onChange={(event) =>
+              change({ difficulty: Number(event.target.value) })
+            }
           />
-        ))}
-      </div>
+          <Label htmlFor='question-passage'>지문 (선택)</Label>
+          <Textarea
+            id='question-passage'
+            lang='th'
+            value={input.passage ?? ''}
+            onChange={(event) =>
+              change({ passage: event.target.value || null })
+            }
+          />
+          <Label htmlFor='question-prompt'>문제</Label>
+          <Textarea
+            id='question-prompt'
+            required
+            lang='th'
+            value={input.prompt}
+            onChange={(event) => change({ prompt: event.target.value })}
+          />
+          <fieldset className='grid gap-cluster'>
+            <legend>보기와 정답</legend>
+            {input.options.map((option, index) => (
+              <div
+                className='flex items-center gap-cluster'
+                key={option.id}
+              >
+                <Input
+                  type='radio'
+                  name='correct-answer'
+                  className='size-icon'
+                  aria-label={`${index + 1}번 정답`}
+                  checked={input.correctOptionId === option.id}
+                  onChange={() => change({ correctOptionId: option.id })}
+                />
+                <Input
+                  aria-label={`${index + 1}번 보기`}
+                  required
+                  lang='th'
+                  value={option.text}
+                  onChange={(event) =>
+                    change({
+                      options: input.options.map((item) =>
+                        item.id === option.id
+                          ? { ...item, text: event.target.value }
+                          : item,
+                      ),
+                    })
+                  }
+                />
+              </div>
+            ))}
+          </fieldset>
+          <Label htmlFor='question-explanation'>해설</Label>
+          <Textarea
+            id='question-explanation'
+            required
+            value={input.explanation}
+            onChange={(event) => change({ explanation: event.target.value })}
+          />
+          <QuestionVocabularyFields
+            value={input.vocabularies}
+            onChange={(vocabularies) => change({ vocabularies })}
+          />
+          <Label className='flex gap-cluster'>
+            <Input
+              type='checkbox'
+              className='size-icon'
+              checked={requiresRetry}
+              onChange={(event) => setRequiresRetry(event.target.checked)}
+            />
+            수정 후 다시 풀기 필요
+          </Label>
+          <p className='text-caption text-subtle'>
+            단순 오탈자 수정일 때만 해제하세요. 정답 변경은 자동으로 새 버전이
+            됩니다.
+          </p>
+          {invalid ? (
+            <p role='alert'>
+              문제·보기·정답·해설과 어휘 등장 횟수를 확인해주세요.
+            </p>
+          ) : null}
+          {error ? (
+            <p role='alert'>
+              저장하지 못했습니다. 다른 수정이 있었는지 새로고침하여
+              확인해주세요.
+            </p>
+          ) : null}
+          <Button type='submit'>변경 저장</Button>
+        </fieldset>
+      </form>
+      <Button
+        disabled={pending}
+        variant='outline'
+        onClick={() =>
+          onStatus({
+            status: data.status === 'PUBLISHED' ? 'HIDDEN' : 'PUBLISHED',
+            expectedUpdatedAt: data.updatedAt,
+          })
+        }
+      >
+        {data.status === 'PUBLISHED' ? '문제 숨기기' : '저장된 문제 공개'}
+      </Button>
     </section>
   );
-}
-
-function QuestionVersionCard({
-  questionId,
-  stateAction,
-  version,
-}: {
-  questionId: string;
-  stateAction: ReactNode;
-  version: Version;
-}) {
-  return (
-    <Card className='rounded-panel border-default bg-surface'>
-      <CardHeader>
-        <div className='flex flex-wrap items-center justify-between gap-cluster'>
-          <CardTitle className='text-title'>버전 {version.version}</CardTitle>
-          <div className='flex flex-wrap gap-cluster'>
-            <Badge variant='outline'>{toVersionStatus(version.status)}</Badge>
-            <Badge
-              variant={toValidationBadgeVariant(version.validation.status)}
-            >
-              {toValidationStatus(version.validation.status)}
-            </Badge>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className='grid gap-cluster'>
-        <dl className='grid gap-cluster text-body md:grid-cols-3'>
-          <div>
-            <dt className='text-subtle'>문제 유형</dt>
-            <dd>{version.questionType.slug}</dd>
-          </div>
-          <div>
-            <dt className='text-subtle'>영역</dt>
-            <dd>{version.questionType.skill === 'READING' ? '읽기' : ''}</dd>
-          </div>
-          <div>
-            <dt className='text-subtle'>난이도</dt>
-            <dd>{version.difficulty}</dd>
-          </div>
-          <div>
-            <dt className='text-subtle'>블록</dt>
-            <dd>{version.blocks.length}개</dd>
-          </div>
-          <div>
-            <dt className='text-subtle'>선택지</dt>
-            <dd>{version.options.length}개</dd>
-          </div>
-          <div>
-            <dt className='text-subtle'>정답 option ID</dt>
-            <dd className='break-all'>{version.correctOptionId}</dd>
-          </div>
-        </dl>
-        <QuestionVersionPreview version={version} />
-        {version.validation.status === 'FAILED' ? (
-          <ul className='grid gap-cluster'>
-            {version.validation.issues.map(({ path, code }) => (
-              <li
-                className='rounded-control bg-danger-surface p-cluster text-danger'
-                key={`${path}-${code}`}
-              >
-                {path} · {code}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        {version.status === 'DRAFT' ? (
-          <Link
-            className='w-fit rounded-control border border-default px-page py-cluster text-primary'
-            to='/admin/questions/$questionId/versions/$versionId/replace'
-            search={{ page: 1, pageSize: 20 }}
-            params={{ questionId: questionId, versionId: version.id }}
-          >
-            버전 {version.version} 전체 교체
-          </Link>
-        ) : null}
-        {stateAction}
-      </CardContent>
-    </Card>
-  );
-}
-
-function toValidationBadgeVariant(status: Version['validation']['status']) {
-  if (status === 'FAILED') return 'destructive' as const;
-  if (status === 'PASSED') return 'secondary' as const;
-  return 'outline' as const;
-}
-
-function toVersionStatus(status: Version['status']) {
-  return {
-    DRAFT: '초안',
-    INVALIDATED: '무효화',
-    PUBLISHED: '게시',
-    RETIRED: '폐기',
-  }[status];
-}
-
-function toValidationStatus(status: Version['validation']['status']) {
-  return {
-    FAILED: '검증 실패',
-    PASSED: '검증 통과',
-    PENDING: '검증 대기',
-  }[status];
 }

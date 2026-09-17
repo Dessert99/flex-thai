@@ -1,8 +1,8 @@
 /** 문제 후보 상세의 canonical graph와 redacted 경계를 검증한다 */
+import { QuestionCandidateDetailPageView } from '@/features/content-production/components/question-candidate-detail/QuestionCandidateDetailPageView';
 import type { QuestionCandidateDetailResponse } from '@flex-thia/contracts/content-production/question-production';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { QuestionCandidateDetailPageView } from '@/features/content-production/components/question-candidate-detail/QuestionCandidateDetailPageView';
 
 const id = (suffix: number) =>
   `00000000-0000-4000-8000-${String(suffix).padStart(12, '0')}`;
@@ -28,7 +28,7 @@ const summary = {
     revision: 0,
     regeneratedFromCandidateId: null,
     approvedQuestionId: null,
-    approvedQuestionVersionId: null,
+    approvedQuestionVersion: null,
   },
   createdAt: '2026-07-28T00:00:00.000Z',
   updatedAt: '2026-07-28T00:00:00.000Z',

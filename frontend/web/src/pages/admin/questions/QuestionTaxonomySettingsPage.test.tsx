@@ -1,10 +1,10 @@
 /** 관리자 문제 분류 설정 화면 동작을 검증한다 */
-import type { AdminQuestionVersionPayload } from '@flex-thia/contracts/admin/questions';
+import { QuestionTaxonomySettingsPageView } from '@/features/learning/components/question-taxonomy-settings/QuestionTaxonomySettingsPageView';
+import type { AdminQuestionVersionPayload } from '@flex-thia/contracts/questions/legacy-question-payload';
 import type { QuestionTaxonomySettingsResponse } from '@flex-thia/contracts/questions/question-taxonomy-settings';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { QuestionTaxonomySettingsPageView } from '@/features/learning/components/question-taxonomy-settings/QuestionTaxonomySettingsPageView';
 
 beforeAll(() => {
   Element.prototype.scrollIntoView = vi.fn();

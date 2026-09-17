@@ -1,11 +1,11 @@
 /** 관리자 문제 목록의 계약 필터·상태·반응형 표현을 검증한다 */
-import { renderWithProviders } from '@/shared/test/renderWithProviders';
-import { screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   parseAdminQuestionSearch,
   type AdminQuestionSearch,
 } from '@/features/learning/libs/question-management/adminQuestionSearch';
+import { renderWithProviders } from '@/shared/test/renderWithProviders';
+import { screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuestionManagementPage as QuestionManagementPageContainer } from './QuestionManagementPage';
 
 const mocks = vi.hoisted(() => ({
@@ -34,8 +34,6 @@ describe('관리자 문제 검색 계약', () => {
       questionTypeSlug: 'dialogue-choice',
       skill: 'READING',
       status: 'HIDDEN',
-      validationStatus: 'FAILED',
-      versionStatus: 'INVALIDATED',
     });
 
     await screen.findByRole('heading', {
@@ -44,8 +42,7 @@ describe('관리자 문제 검색 계약', () => {
     expect(mocks.authenticatedRequest).toHaveBeenCalledWith(
       expect.objectContaining({
         path:
-          '/admin/questions?status=HIDDEN&versionStatus=INVALIDATED' +
-          '&validationStatus=FAILED&questionTypeSlug=dialogue-choice' +
+          '/admin/questions?status=HIDDEN&questionTypeSlug=dialogue-choice' +
           '&skill=READING&difficulty=4&page=2&pageSize=50',
       }),
     );
@@ -79,9 +76,6 @@ describe('관리자 문제 목록 상태', () => {
     expect(
       screen.getAllByText('게시')[0]?.closest('[data-slot=badge]'),
     ).toHaveAttribute('data-variant', 'secondary');
-    expect(
-      screen.getAllByText('검증 실패')[0]?.closest('[data-slot=badge]'),
-    ).toHaveAttribute('data-variant', 'destructive');
   });
 
   it('필터 없는 빈 목록과 필터 결과 없음 안내를 구분한다', async () => {
@@ -128,7 +122,6 @@ function createQuestionPage() {
         latestVersion: 3,
         latestVersionId: '01933b6a-8f13-7a19-b7e5-536d70f57aac',
         latestVersionStatus: 'DRAFT',
-        validationStatus: 'FAILED',
         questionTypeSlug: 'dialogue-choice',
         difficulty: 4,
         updatedAt: '2026-07-25T00:00:00.000Z',

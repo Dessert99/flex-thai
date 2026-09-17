@@ -6,8 +6,6 @@ import type { AdminQuestionSearch } from '../../libs/question-management/adminQu
 
 const filterOrder = [
   'status',
-  'versionStatus',
-  'validationStatus',
   'questionTypeSlug',
   'skill',
   'difficulty',

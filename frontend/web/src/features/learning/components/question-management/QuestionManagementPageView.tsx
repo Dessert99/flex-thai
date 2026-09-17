@@ -1,8 +1,11 @@
 /** 관리자 문제 record를 desktop table과 mobile stack으로 표현한다 */
-import { Link } from '@tanstack/react-router';
-import type { AdminQuestionListResponse } from '@flex-thia/contracts/admin/questions';
 import { Badge } from '@/shared/components/badge';
+import type { AdminQuestionListResponse } from '@flex-thia/contracts/admin/questions';
+import { Link } from '@tanstack/react-router';
 
+import { Alert, AlertDescription, AlertTitle } from '@/shared/components/alert';
+import { Button } from '@/shared/components/button';
+import { Skeleton } from '@/shared/components/skeleton';
 import {
   Table,
   TableBody,
@@ -16,9 +19,6 @@ import {
   type AdminQuestionSearch,
 } from '../../libs/question-management/adminQuestionSearch';
 import { AdminQuestionFilters } from './AdminQuestionFilters';
-import { Skeleton } from '@/shared/components/skeleton';
-import { Alert, AlertDescription, AlertTitle } from '@/shared/components/alert';
-import { Button } from '@/shared/components/button';
 
 interface QuestionManagementPageViewProps {
   data: AdminQuestionListResponse | undefined;
@@ -159,7 +159,6 @@ function DesktopQuestionTable({ records }: { records: QuestionRecord[] }) {
             <TableHead>문제 유형</TableHead>
             <TableHead>문제 상태</TableHead>
             <TableHead>최신 버전</TableHead>
-            <TableHead>검증</TableHead>
             <TableHead>난이도</TableHead>
             <TableHead>수정 시각</TableHead>
           </TableRow>
@@ -173,13 +172,7 @@ function DesktopQuestionTable({ records }: { records: QuestionRecord[] }) {
               <TableCell>
                 <QuestionStatusBadge status={record.status} />
               </TableCell>
-              <TableCell>
-                v{record.latestVersion} ·{' '}
-                {toVersionStatus(record.latestVersionStatus)}
-              </TableCell>
-              <TableCell>
-                <ValidationStatusBadge status={record.validationStatus} />
-              </TableCell>
+              <TableCell>v{record.version}</TableCell>
               <TableCell>{record.difficulty}</TableCell>
               <TableCell>
                 {new Date(record.updatedAt).toLocaleString('ko-KR')}
@@ -206,10 +199,9 @@ function MobileQuestionRecords({ records }: { records: QuestionRecord[] }) {
           <QuestionLink record={record} />
           <div className='flex flex-wrap gap-cluster'>
             <QuestionStatusBadge status={record.status} />
-            <ValidationStatusBadge status={record.validationStatus} />
           </div>
           <p className='text-caption text-subtle'>
-            최신 v{record.latestVersion} · 난이도 {record.difficulty}
+            최신 v{record.version} · 난이도 {record.difficulty}
           </p>
         </li>
       ))}
@@ -238,31 +230,9 @@ function QuestionStatusBadge({ status }: { status: QuestionRecord['status'] }) {
   );
 }
 
-function ValidationStatusBadge({
-  status,
-}: {
-  status: QuestionRecord['validationStatus'];
-}) {
-  return (
-    <Badge variant={toValidationBadgeVariant(status)}>
-      {
-        { FAILED: '검증 실패', PASSED: '검증 통과', PENDING: '검증 대기' }[
-          status
-        ]
-      }
-    </Badge>
-  );
-}
-
 function toQuestionBadgeVariant(status: QuestionRecord['status']) {
   if (status === 'HIDDEN') return 'destructive' as const;
   if (status === 'PUBLISHED') return 'secondary' as const;
-  return 'outline' as const;
-}
-
-function toValidationBadgeVariant(status: QuestionRecord['validationStatus']) {
-  if (status === 'FAILED') return 'destructive' as const;
-  if (status === 'PASSED') return 'secondary' as const;
   return 'outline' as const;
 }
 
@@ -299,13 +269,4 @@ function QuestionPagination({
       </Button>
     </nav>
   );
-}
-
-function toVersionStatus(status: QuestionRecord['latestVersionStatus']) {
-  return {
-    DRAFT: '초안',
-    INVALIDATED: '무효화',
-    PUBLISHED: '게시',
-    RETIRED: '폐기',
-  }[status];
 }

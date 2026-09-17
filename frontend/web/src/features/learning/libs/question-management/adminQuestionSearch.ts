@@ -32,8 +32,6 @@ export function changeAdminQuestionFilters(
 export function hasAdminQuestionFilters(search: AdminQuestionSearch) {
   return [
     search.status,
-    search.versionStatus,
-    search.validationStatus,
     search.questionTypeSlug,
     search.skill,
     search.difficulty,

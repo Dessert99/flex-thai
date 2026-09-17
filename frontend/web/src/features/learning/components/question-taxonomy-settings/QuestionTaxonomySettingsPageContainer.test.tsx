@@ -1,5 +1,5 @@
 /** 문제 유형 설정 container의 사용자 명령 연결을 검증한다 */
-import type { AdminQuestionVersionPayload } from '@flex-thia/contracts/admin/questions';
+import type { AdminQuestionVersionPayload } from '@flex-thia/contracts/questions/legacy-question-payload';
 import type { QuestionTaxonomySettingsResponse } from '@flex-thia/contracts/questions/question-taxonomy-settings';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
