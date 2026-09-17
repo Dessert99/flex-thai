@@ -47,15 +47,9 @@ const ACTIVE_PATHS = [
   '/api/v1/admin/home',
   '/api/v1/admin/questions',
   '/api/v1/admin/questions/{questionId}',
-  '/api/v1/admin/questions/{questionId}/hide',
-  '/api/v1/admin/questions/{questionId}/restore',
-  '/api/v1/admin/questions/{questionId}/versions',
+  '/api/v1/admin/questions/{questionId}/status',
   '/api/v1/admin/usage-cost',
   '/api/v1/admin/usage-cost/settings',
-  '/api/v1/admin/question-versions/{versionId}',
-  '/api/v1/admin/question-versions/{versionId}/invalidate',
-  '/api/v1/admin/question-versions/{versionId}/publish',
-  '/api/v1/admin/question-versions/{versionId}/validate',
   '/api/v1/admin/question-tags',
   '/api/v1/admin/question-tags/{id}/archive',
   '/api/v1/admin/question-taxonomy',
@@ -70,6 +64,7 @@ const ACTIVE_PATHS = [
   '/api/v1/admin/question-types/{questionTypeId}/versions',
   '/api/v1/admin/vocabularies',
   '/api/v1/admin/vocabularies/{vocabularyId}',
+  '/api/v1/admin/vocabularies/{vocabularyId}/importance',
   '/api/v1/admin/vocabularies/{vocabularyId}/hide',
   '/api/v1/admin/vocabularies/{vocabularyId}/merge',
   '/api/v1/admin/vocabularies/{vocabularyId}/merge-preview',
@@ -809,8 +804,6 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
     path: '/api/v1/admin/questions',
     query: [
       'status',
-      'versionStatus',
-      'validationStatus',
       'questionTypeSlug',
       'skill',
       'difficulty',
@@ -818,7 +811,7 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
       'pageSize',
     ],
     success: ['200', 'AdminQuestionListResponseDto'],
-    errors: ['400', '401', '403', '500'],
+    errors: [],
   },
   {
     method: 'get',
@@ -911,57 +904,38 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
     path: '/api/v1/admin/questions/{questionId}',
     pathParameters: ['questionId'],
     success: ['200', 'AdminQuestionDetailResponseDto'],
-    errors: ['400', '401', '403', '404', '500'],
+    errors: [],
   },
   {
     method: 'post',
-    path: '/api/v1/admin/questions/{questionId}/versions',
-    pathParameters: ['questionId'],
-    success: ['201', 'AdminQuestionVersionResponseDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
+    path: '/api/v1/admin/questions',
+    body: 'AdminQuestionCreateRequestDto',
+    success: ['201', 'AdminQuestionDetailResponseDto'],
+    errors: [],
   },
   {
     method: 'put',
-    path: '/api/v1/admin/question-versions/{versionId}',
-    pathParameters: ['versionId'],
-    body: 'AdminQuestionVersionPayloadDto',
-    success: ['200', 'AdminQuestionVersionResponseDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/question-versions/{versionId}/validate',
-    pathParameters: ['versionId'],
-    success: ['200', 'AdminQuestionValidationReportDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/question-versions/{versionId}/publish',
-    pathParameters: ['versionId'],
-    success: ['204'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/question-versions/{versionId}/invalidate',
-    pathParameters: ['versionId'],
-    success: ['204'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/questions/{questionId}/hide',
+    path: '/api/v1/admin/questions/{questionId}',
     pathParameters: ['questionId'],
-    success: ['204'],
-    errors: ['400', '401', '403', '404', '409', '500'],
+    body: 'AdminQuestionUpdateRequestDto',
+    success: ['200', 'AdminQuestionDetailResponseDto'],
+    errors: [],
   },
   {
     method: 'post',
-    path: '/api/v1/admin/questions/{questionId}/restore',
+    path: '/api/v1/admin/questions/{questionId}/status',
     pathParameters: ['questionId'],
+    body: 'AdminQuestionStatusRequestDto',
     success: ['204'],
-    errors: ['400', '401', '403', '404', '409', '500'],
+    errors: [],
+  },
+  {
+    method: 'put',
+    path: '/api/v1/admin/vocabularies/{vocabularyId}/importance',
+    pathParameters: ['vocabularyId'],
+    body: 'AdminVocabularyImportanceRequestDto',
+    success: ['204'],
+    errors: [],
   },
   {
     method: 'get',
@@ -1320,7 +1294,7 @@ describe('OpenAPI 문서', () => {
     await app?.close();
   });
 
-  it('현재 활성 endpoint의 서로 다른 path 백스무 개만 공개한다', () => {
+  it('현재 활성 endpoint만 공개한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
@@ -1583,12 +1557,12 @@ describe('OpenAPI 문서', () => {
     expectProtectedOpenApiOperations(document, LEARNER_OPERATIONS);
   });
 
-  it('관리자 operation 여든 개의 입력·성공·Bearer·오류 계약을 모두 고정한다', () => {
+  it('관리자 operation의 입력·성공·Bearer·오류 계약을 모두 고정한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
 
-    expect(ADMIN_OPERATIONS).toHaveLength(80);
+    expect(ADMIN_OPERATIONS).toHaveLength(77);
     expectProtectedOpenApiOperations(document, ADMIN_OPERATIONS);
   });
 
@@ -1611,53 +1585,19 @@ describe('OpenAPI 문서', () => {
     expect(adminComponents).toHaveProperty('AdminVocabularyDetailResponseDto');
   });
 
-  it('관리자 문제 버전 교체 DTO는 콘텐츠 참조를 UUID 전용 object로 문서화한다', () => {
+  it('관리자 문제 수정 DTO는 현재 본문·보기·어휘 참조만 공개한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
-    const payload = document.components?.schemas
-      ?.AdminQuestionVersionPayloadDto as
-      | {
-          properties?: Record<string, OpenApiSchemaNode>;
-        }
-      | undefined;
-    const blockSentence =
-      payload?.properties?.blocks?.items?.properties?.sentences?.items
-        ?.properties?.sentence;
-    const optionItems = payload?.properties?.options?.items;
-    const optionVariants = optionItems?.anyOf ??
-      optionItems?.oneOf ?? [optionItems];
-    const standardOption = optionVariants.find(
-      (variant) => variant?.properties?.sentence?.properties !== undefined,
-    );
-    const optionSentence = standardOption?.properties?.sentence;
-
-    [blockSentence, optionSentence].forEach((sentence) => {
-      const token = sentence?.properties?.tokens?.items;
-      const expression = sentence?.properties?.expressions?.items;
-      [
-        token?.properties?.vocabulary,
-        token?.properties?.meaning,
-        token?.properties?.pronunciation,
-        expression?.properties?.vocabulary,
-      ].forEach((reference) => {
-        expect(reference).toMatchObject({
-          type: 'object',
-          properties: {
-            id: { type: 'string', format: 'uuid' },
-          },
-          required: ['id'],
-          additionalProperties: false,
-        });
-        expect(Object.keys(reference?.properties ?? {})).toEqual(['id']);
-      });
-    });
-    expect(standardOption?.properties?.clientRef).toMatchObject({
-      type: 'string',
-    });
-    expect(payload?.properties?.correctOptionRef).toMatchObject({
-      type: 'string',
-    });
+    const schema = document.components?.schemas
+      ?.AdminQuestionUpdateRequestDto as OpenApiSchemaNode;
+    const input = schema.properties?.input;
+    expect(input?.properties?.prompt).toMatchObject({ type: 'string' });
+    expect(
+      input?.properties?.vocabularies?.items?.properties?.vocabularyId,
+    ).toMatchObject({ type: 'string', format: 'uuid' });
+    expect(JSON.stringify(schema)).not.toMatch(/pronunciation|toneMarks/);
+    expect(input?.properties).not.toHaveProperty('blocks');
   });
 
   it('문제 상세 schema에는 정답·검증·private storage 필드가 없다', () => {

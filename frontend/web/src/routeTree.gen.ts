@@ -63,7 +63,6 @@ import { Route as AuthenticatedAdminEnrolledContentProductionJobsJobIdRouteImpor
 import { Route as AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesIndexRouteImport } from './app/routes/_authenticated/admin/_enrolled/content-production/vocabulary-candidates/index'
 import { Route as AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesCandidateIdRouteImport } from './app/routes/_authenticated/admin/_enrolled/content-production/vocabulary-candidates/$candidateId'
 import { Route as AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRouteImport } from './app/routes/_authenticated/admin/_enrolled/questions/$questionId/index'
-import { Route as AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRouteImport } from './app/routes/_authenticated/admin/_enrolled/questions/$questionId/versions/$versionId/replace'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -383,15 +382,6 @@ const AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute =
     getParentRoute: () =>
       AuthenticatedAdminEnrolledQuestionsQuestionIdRouteRoute,
   } as any)
-const AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRoute =
-  AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRouteImport.update(
-    {
-      id: '/versions/$versionId/replace',
-      path: '/versions/$versionId/replace',
-      getParentRoute: () =>
-        AuthenticatedAdminEnrolledQuestionsQuestionIdRouteRoute,
-    } as any,
-  )
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -444,7 +434,6 @@ export interface FileRoutesByFullPath {
   '/admin/content-production/candidates/': typeof AuthenticatedAdminEnrolledContentProductionCandidatesIndexRoute
   '/admin/content-production/vocabulary-candidates/': typeof AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesIndexRoute
   '/admin/questions/$questionId/': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute
-  '/admin/questions/$questionId/versions/$versionId/replace': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -488,7 +477,6 @@ export interface FileRoutesByTo {
   '/admin/content-production/candidates': typeof AuthenticatedAdminEnrolledContentProductionCandidatesIndexRoute
   '/admin/content-production/vocabulary-candidates': typeof AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesIndexRoute
   '/admin/questions/$questionId': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute
-  '/admin/questions/$questionId/versions/$versionId/replace': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -546,7 +534,6 @@ export interface FileRoutesById {
   '/_authenticated/admin/_enrolled/content-production/candidates/': typeof AuthenticatedAdminEnrolledContentProductionCandidatesIndexRoute
   '/_authenticated/admin/_enrolled/content-production/vocabulary-candidates/': typeof AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesIndexRoute
   '/_authenticated/admin/_enrolled/questions/$questionId/': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute
-  '/_authenticated/admin/_enrolled/questions/$questionId/versions/$versionId/replace': typeof AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -601,7 +588,6 @@ export interface FileRouteTypes {
     | '/admin/content-production/candidates/'
     | '/admin/content-production/vocabulary-candidates/'
     | '/admin/questions/$questionId/'
-    | '/admin/questions/$questionId/versions/$versionId/replace'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -645,7 +631,6 @@ export interface FileRouteTypes {
     | '/admin/content-production/candidates'
     | '/admin/content-production/vocabulary-candidates'
     | '/admin/questions/$questionId'
-    | '/admin/questions/$questionId/versions/$versionId/replace'
   id:
     | '__root__'
     | '/'
@@ -702,7 +687,6 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/_enrolled/content-production/candidates/'
     | '/_authenticated/admin/_enrolled/content-production/vocabulary-candidates/'
     | '/_authenticated/admin/_enrolled/questions/$questionId/'
-    | '/_authenticated/admin/_enrolled/questions/$questionId/versions/$versionId/replace'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1092,13 +1076,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRouteImport
       parentRoute: typeof AuthenticatedAdminEnrolledQuestionsQuestionIdRouteRoute
     }
-    '/_authenticated/admin/_enrolled/questions/$questionId/versions/$versionId/replace': {
-      id: '/_authenticated/admin/_enrolled/questions/$questionId/versions/$versionId/replace'
-      path: '/versions/$versionId/replace'
-      fullPath: '/admin/questions/$questionId/versions/$versionId/replace'
-      preLoaderRoute: typeof AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRouteImport
-      parentRoute: typeof AuthenticatedAdminEnrolledQuestionsQuestionIdRouteRoute
-    }
   }
 }
 
@@ -1216,15 +1193,12 @@ const AuthenticatedAdminEnrolledContentImportsRouteRouteWithChildren =
 
 interface AuthenticatedAdminEnrolledQuestionsQuestionIdRouteRouteChildren {
   AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute: typeof AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute
-  AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRoute: typeof AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRoute
 }
 
 const AuthenticatedAdminEnrolledQuestionsQuestionIdRouteRouteChildren: AuthenticatedAdminEnrolledQuestionsQuestionIdRouteRouteChildren =
   {
     AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute:
       AuthenticatedAdminEnrolledQuestionsQuestionIdIndexRoute,
-    AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRoute:
-      AuthenticatedAdminEnrolledQuestionsQuestionIdVersionsVersionIdReplaceRoute,
   }
 
 const AuthenticatedAdminEnrolledQuestionsQuestionIdRouteRouteWithChildren =

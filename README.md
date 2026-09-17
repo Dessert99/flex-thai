@@ -55,7 +55,7 @@ pnpm local:stop
 3. `jobs`에서 업로드 ID와 활성 preset을 사용해 콘텐츠 제작 job을 만듭니다. 문제 생성이면 `options`에 question count, active question type version, difficulty plan을 입력합니다.
 4. job 상세를 조회해 local queue가 candidate를 만든 것을 확인합니다. input ordinal 0은 후보를 만들고, ordinal 1은 검토 필요, ordinal 2는 재시도 가능한 실패 fixture입니다.
 5. `question-candidates`에서 NORMAL 후보를 확인하고 `approve`합니다. 승인은 question DRAFT를 만듭니다.
-6. `admin/question-versions/{versionId}/validate` 후 `publish`로 검증된 DRAFT를 게시합니다.
+6. `GET /api/v1/admin/questions/{questionId}`로 초안을 확인하고, `POST /api/v1/admin/questions/{questionId}/status`에 `status: "PUBLISHED"`와 조회한 `expectedUpdatedAt`을 전달해 게시합니다.
 
 활성 ID는 로그인한 관리자 세션으로 다음 endpoint에서 확인합니다.
 

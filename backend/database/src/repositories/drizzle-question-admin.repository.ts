@@ -138,19 +138,17 @@ export class DrizzleQuestionAdminRepository implements QuestionAdminRepository {
               .values(usage.map((item) => ({ ...item, questionId: row.id })));
         },
         async appendAuditLog(input) {
-          await tx
-            .insert(auditLogs)
-            .values({
-              actorSub: input.actorSub,
-              actorUserId: input.actorUserId,
-              action: input.action,
-              target: input.targetId,
-              targetType: 'QUESTION',
-              targetId: input.targetId,
-              summary: input.summary,
-              requestId: input.requestId,
-              createdAt: input.occurredAt,
-            });
+          await tx.insert(auditLogs).values({
+            actorSub: input.actorSub,
+            actorUserId: input.actorUserId,
+            action: input.action,
+            target: input.targetId,
+            targetType: 'QUESTION',
+            targetId: input.targetId,
+            summary: input.summary,
+            requestId: input.requestId,
+            createdAt: input.occurredAt,
+          });
         },
       }),
     );

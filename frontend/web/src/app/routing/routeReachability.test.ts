@@ -36,7 +36,6 @@ const approvedTargets = [
 const questionId = '01933b6a-8f13-7a19-b7e5-536d70f57aaa';
 const vocabularyId = '01933b6a-8f13-7a19-b7e5-536d70f57aab';
 const importId = '01933b6a-8f13-7a19-b7e5-536d70f57aac';
-const versionId = '01933b6a-8f13-7a19-b7e5-536d70f57aad';
 const wordbookId = '01933b6a-8f13-7a19-b7e5-536d70f57aae';
 const sessionId = '01933b6a-8f13-7a19-b7e5-536d70f57aaf';
 const conceptId = '01933b6a-8f13-7a19-b7e5-536d70f57ab0';
@@ -163,15 +162,6 @@ const dynamicTargets = [
   {
     build: () =>
       router.buildLocation({
-        params: { questionId, versionId },
-        search: { page: 1, pageSize: 20 },
-        to: '/admin/questions/$questionId/versions/$versionId/replace',
-      }),
-    label: '문제 버전 교체',
-  },
-  {
-    build: () =>
-      router.buildLocation({
         params: { vocabularyId },
         search: { page: 1, pageSize: 20 },
         to: '/admin/vocabularies/$vocabularyId',
@@ -205,7 +195,6 @@ describe('route 도달 가능성', () => {
     '/vocabularies/$vocabularyId',
     '/admin/content-imports/$importId',
     '/admin/questions/$questionId',
-    '/admin/questions/$questionId/versions/$versionId/replace',
     '/admin/vocabularies/$vocabularyId',
     '/admin/content-production/jobs/$jobId',
     '/admin/content-production/candidates/$candidateId',

@@ -46,7 +46,7 @@ const emptyPage = {
 const emptyAttemptPage = { items: [], page } as const;
 const detail = {
   questionId: ids.question,
-  questionVersionId: ids.version,
+  questionVersion: 1,
   questionType: {
     id: '00000000-0000-4000-8000-000000000006',
     slug: 'reading-standard-choice',
@@ -54,9 +54,13 @@ const detail = {
   },
   skill: 'READING',
   difficulty: 2,
-  template: 'STANDARD_CHOICE',
-  blocks: [],
-  options: [],
+  passage: null,
+  prompt: 'คำถาม',
+  firstResult: 'UNANSWERED',
+  options: [
+    { id: ids.option, text: 'ใช่' },
+    { id: '00000000-0000-4000-8000-000000000007', text: 'ไม่' },
+  ],
   saved: false,
 } as const;
 const attempt = {
@@ -70,7 +74,7 @@ const attempt = {
   },
   feedback: {
     correctOptionId: ids.option,
-    explanationBlocks: [],
+    explanation: '해설',
   },
 } as const;
 
@@ -157,7 +161,7 @@ describe('LearnerQuestionsController 공개 계약', () => {
     const fake = service();
     const controller = new LearnerQuestionsController(fake as never);
     const body = {
-      questionVersionId: ids.version,
+      questionVersion: 1,
       selectedOptionId: ids.option,
       clientAttemptId: ids.clientAttempt,
       durationMs: 1_000,
@@ -202,7 +206,7 @@ describe('LearnerQuestionsController 공개 계약', () => {
 
   it('네 공개 응답 method의 계약 실패를 모두 generic response 오류로 바꾼다', async () => {
     const body = {
-      questionVersionId: ids.version,
+      questionVersion: 1,
       selectedOptionId: ids.option,
       clientAttemptId: ids.clientAttempt,
       durationMs: 1_000,
