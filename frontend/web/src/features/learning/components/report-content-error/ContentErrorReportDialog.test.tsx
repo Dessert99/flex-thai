@@ -19,7 +19,6 @@ describe('ContentErrorReportDialog', () => {
             kind: 'VOCABULARY',
             vocabularyId: '00000000-0000-4000-8000-000000000001',
             meaningId: null,
-            pronunciationId: null,
           }}
           preview={{ title: 'เข้าใจ', metadata: '어휘 상세' }}
         />
@@ -29,7 +28,7 @@ describe('ContentErrorReportDialog', () => {
     expect(screen.getByText('เข้าใจ')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '신고 제출' })).toBeDisabled();
     fireEvent.click(screen.getByLabelText('신고 분류'));
-    expect(await screen.findAllByRole('option')).toHaveLength(5);
+    expect(await screen.findAllByRole('option')).toHaveLength(4);
     fireEvent.click(await screen.findByRole('option', { name: '뜻·해석' }));
     expect(screen.getByLabelText('추가 설명')).toHaveAttribute(
       'maxlength',
@@ -45,7 +44,6 @@ describe('ContentErrorReportDialog', () => {
         kind: 'VOCABULARY',
         vocabularyId: '00000000-0000-4000-8000-000000000001',
         meaningId: null,
-        pronunciationId: null,
       },
       category: 'MEANING_TRANSLATION',
       description: '뜻이 달라요',

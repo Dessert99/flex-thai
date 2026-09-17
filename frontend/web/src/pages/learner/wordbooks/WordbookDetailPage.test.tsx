@@ -20,7 +20,6 @@ const data: WordbookItemListResponse = {
       thai: 'สวัสดี',
       kind: 'WORD',
       meanings: [],
-      pronunciations: [],
       saved: true,
       addedAt: '2026-07-26T00:00:00.000Z',
     },

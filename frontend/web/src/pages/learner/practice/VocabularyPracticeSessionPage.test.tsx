@@ -43,8 +43,6 @@ const card = {
       contextNote: null,
     },
   ],
-  pronunciations: [],
-  meaningPronunciations: [],
 } satisfies PracticeCard;
 
 const session = {

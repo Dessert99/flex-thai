@@ -64,8 +64,6 @@ describe('개념 상세 페이지', () => {
                     sentenceVersionId,
                     originalText: 'ฉันเรียนภาษาไทย',
                     translationKo: '나는 태국어를 공부한다',
-                    pronunciationKo: '찬 리안 파싸 타이',
-                    toneMarks: '',
                     tokens: [],
                     expressions: [],
                   },

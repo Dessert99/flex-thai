@@ -62,7 +62,6 @@ function LinkExistingForm({
   );
 }
 
-/** 후보 snapshot을 보존하고 사람이 입력한 발음·sealed media만 DRAFT graph에 보완한다 */
 export function VocabularyCandidateReviewForm({
   candidate,
   pending = false,

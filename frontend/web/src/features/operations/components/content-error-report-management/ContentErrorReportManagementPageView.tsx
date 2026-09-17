@@ -127,7 +127,6 @@ export function ContentErrorReportManagementPageView({
           <option value=''>전체</option>
           {[
             'MEANING_TRANSLATION',
-            'PRONUNCIATION_TONE',
             'ANSWER_EXPLANATION',
             'TOKENIZATION',
             'OTHER',

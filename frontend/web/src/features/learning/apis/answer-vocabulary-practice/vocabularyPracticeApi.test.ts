@@ -61,8 +61,6 @@ const answerResponse = {
         contextNote: null,
       },
     ],
-    pronunciations: [],
-    meaningPronunciations: [],
   },
   sessionCompleted: true,
   answeredAt: '2026-07-26T00:01:00.000Z',

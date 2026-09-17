@@ -210,19 +210,6 @@ function createDetail(
         contextNote: null,
       },
     ],
-    pronunciations: [
-      {
-        id: '01933b6a-8f13-7a19-b7e5-536d70f57aac',
-        pronunciationKo: '싸왓디',
-        toneMarks: '',
-      },
-    ],
-    meaningPronunciations: [
-      {
-        meaningId: '01933b6a-8f13-7a19-b7e5-536d70f57aab',
-        pronunciationId: '01933b6a-8f13-7a19-b7e5-536d70f57aac',
-      },
-    ],
     relations: [
       {
         id: relationId,
@@ -263,7 +250,6 @@ function createMergePreview(): AdminVocabularyMergePreviewResponse {
       kind: 'WORD',
       status: 'DRAFT',
       meaningCount: 1,
-      pronunciationCount: 1,
       usage,
     },
     representative: {
@@ -273,7 +259,6 @@ function createMergePreview(): AdminVocabularyMergePreviewResponse {
       kind: 'WORD',
       status: 'PUBLISHED',
       meaningCount: 1,
-      pronunciationCount: 1,
       usage,
     },
     comparison: { normalizedEqual: false, codePointDistance: 2 },

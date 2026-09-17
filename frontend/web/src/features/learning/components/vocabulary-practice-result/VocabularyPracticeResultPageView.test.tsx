@@ -29,19 +29,6 @@ const completedSession = {
           contextNote: null,
         },
       ],
-      pronunciations: [
-        {
-          id: '00000000-0000-4000-8000-000000000104',
-          pronunciationKo: '빠이',
-          toneMarks: '평성',
-        },
-      ],
-      meaningPronunciations: [
-        {
-          meaningId: '00000000-0000-4000-8000-000000000103',
-          pronunciationId: '00000000-0000-4000-8000-000000000104',
-        },
-      ],
     },
   ],
   questions: [

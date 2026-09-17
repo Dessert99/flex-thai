@@ -9,30 +9,12 @@ import {
 export function mapVocabularyDetailToForm(
   detail: AdminVocabularyDetailResponse,
 ): AdminVocabularyReplaceRequest {
-  const pronunciations = detail.meanings.map((meaning) => {
-    const link = detail.meaningPronunciations.find(
-      ({ meaningId }) => meaningId === meaning.id,
-    );
-    const pronunciation = detail.pronunciations.find(
-      ({ id }) => id === link?.pronunciationId,
-    );
-    return {
-      clientRef: `pronunciation:${meaning.id}`,
-      pronunciationKo: pronunciation?.pronunciationKo ?? '',
-      toneMarks: pronunciation?.toneMarks ?? '',
-    };
-  });
   return {
     thai: detail.thai,
     kind: detail.kind,
     meanings: detail.meanings.map(({ id, ...meaning }) => ({
       clientRef: id,
       ...meaning,
-    })),
-    pronunciations,
-    meaningPronunciations: detail.meanings.map(({ id }) => ({
-      meaningRef: id,
-      pronunciationRef: `pronunciation:${id}`,
     })),
   };
 }

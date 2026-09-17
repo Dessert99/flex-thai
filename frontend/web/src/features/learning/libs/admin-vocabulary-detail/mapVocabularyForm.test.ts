@@ -21,17 +21,7 @@ describe('관리자 어휘 form mapping', () => {
       thai: detail.thai,
       kind: detail.kind,
       meanings: form.meanings,
-      pronunciations: form.pronunciations,
-      meaningPronunciations: detail.meanings.map(({ id }) => ({
-        meaningRef: id,
-        pronunciationRef: `pronunciation:${id}`,
-      })),
     });
-    expect(form.pronunciations).toHaveLength(2);
-    const firstPronunciation = form.pronunciations[0];
-    if (!firstPronunciation) throw new Error('발음이 필요합니다.');
-    firstPronunciation.pronunciationKo = '수정한 발음';
-    expect(form.pronunciations[1]?.pronunciationKo).toBe('싸왓디');
     expect(mapVocabularyFormToRequest(form)).not.toHaveProperty('id');
   });
 });
@@ -58,23 +48,6 @@ function createDetail(): AdminVocabularyDetailResponse {
         partOfSpeech: '감탄사',
         difficulty: 2,
         contextNote: '인사',
-      },
-    ],
-    pronunciations: [
-      {
-        id: '01933b6a-8f13-7a19-b7e5-536d70f57aad',
-        pronunciationKo: '싸왓디',
-        toneMarks: '',
-      },
-    ],
-    meaningPronunciations: [
-      {
-        meaningId: '01933b6a-8f13-7a19-b7e5-536d70f57aac',
-        pronunciationId: '01933b6a-8f13-7a19-b7e5-536d70f57aad',
-      },
-      {
-        meaningId: '01933b6a-8f13-7a19-b7e5-536d70f57aab',
-        pronunciationId: '01933b6a-8f13-7a19-b7e5-536d70f57aad',
       },
     ],
     relations: [],

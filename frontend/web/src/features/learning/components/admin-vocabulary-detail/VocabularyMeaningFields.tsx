@@ -28,16 +28,6 @@ export function VocabularyMeaningFields({
         id={`part-${index}`}
         {...register(`meanings.${index}.partOfSpeech`)}
       />
-      <Label htmlFor={`pronunciation-${index}`}>한국어 발음</Label>
-      <Input
-        id={`pronunciation-${index}`}
-        {...register(`pronunciations.${index}.pronunciationKo`)}
-      />
-      <Label htmlFor={`tone-${index}`}>성조 표기</Label>
-      <Input
-        id={`tone-${index}`}
-        {...register(`pronunciations.${index}.toneMarks`)}
-      />
     </fieldset>
   ));
 }

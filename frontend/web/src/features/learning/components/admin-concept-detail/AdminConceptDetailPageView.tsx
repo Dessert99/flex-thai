@@ -105,7 +105,7 @@ export function AdminConceptDetailPageView(
               }
               value={props.draftMetadata.category}
             >
-              <option value='THAI_SCRIPT_PRONUNCIATION'>태국 문자·발음</option>
+              <option value='THAI_SCRIPT'>태국 문자</option>
               <option value='GRAMMAR'>문법</option>
             </select>
           </label>

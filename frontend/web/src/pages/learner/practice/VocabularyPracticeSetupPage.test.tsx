@@ -35,7 +35,6 @@ const vocabulary = {
       contextNote: null,
     },
   ],
-  pronunciations: [],
   saved: false,
 };
 

@@ -13,7 +13,7 @@ const candidate = {
 };
 
 describe('어휘 후보 검수 form', () => {
-  it('발음 행을 추가·삭제하고 뜻마다 여러 발음을 임의로 연결한다', () => {
+  it('발음 입력 없이 추출된 뜻으로 초안을 승인한다', () => {
     const onCreateDraft = vi.fn();
     const twoMeaningCandidate = {
       ...candidate,
@@ -32,51 +32,17 @@ describe('어휘 후보 검수 form', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: '발음 추가' }));
-    for (const [label, value] of [
-      ['발음 1', '싸왓디'],
-      ['성조 1', 'L-L-M'],
-      ['발음 2', '싸왓'],
-      ['성조 2', 'L-L'],
-    ] as const) {
-      fireEvent.change(screen.getByLabelText(label), {
-        target: { value },
-      });
-    }
-
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: '뜻 "안녕하세요"에 발음 2 연결',
-      }),
-    );
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: '뜻 "안녕"에 발음 1 연결',
-      }),
-    );
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: '뜻 "안녕"에 발음 2 연결',
-      }),
-    );
+    expect(screen.queryByLabelText(/발음|성조/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '새 DRAFT 승인' }));
-
-    expect(onCreateDraft).toHaveBeenCalledWith(
-      expect.objectContaining({
-        pronunciations: [
-          expect.objectContaining({ clientRef: 'pronunciation.1' }),
-          expect.objectContaining({ clientRef: 'pronunciation.2' }),
-        ],
-        meaningPronunciations: [
-          { meaningRef: 'meaning.1', pronunciationRef: 'pronunciation.1' },
-          { meaningRef: 'meaning.1', pronunciationRef: 'pronunciation.2' },
-          { meaningRef: 'meaning.2', pronunciationRef: 'pronunciation.2' },
-        ],
-      }),
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: '발음 2 삭제' }));
-    expect(screen.queryByLabelText('발음 2')).not.toBeInTheDocument();
+    expect(onCreateDraft).toHaveBeenCalledWith({
+      action: 'CREATE_DRAFT',
+      thai: candidate.thai,
+      kind: candidate.kind,
+      meanings: twoMeaningCandidate.meanings.map((meaning, index) => ({
+        ...meaning,
+        clientRef: `meaning.${index + 1}`,
+      })),
+    });
   });
 
   it('mutation 중에는 create·link·discard 중복 실행을 모두 막는다', () => {

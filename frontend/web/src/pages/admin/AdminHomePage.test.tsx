@@ -95,7 +95,6 @@ describe('관리자 홈 페이지', () => {
             kind: 'WORD',
             status: 'PUBLISHED',
             meaningCount: 1,
-            pronunciationCount: 1,
             updatedAt: '2026-07-25T00:00:00.000Z',
           },
         ],

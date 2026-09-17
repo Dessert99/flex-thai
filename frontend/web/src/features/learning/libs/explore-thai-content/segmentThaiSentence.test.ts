@@ -7,8 +7,6 @@ const sentence = {
   sentenceVersionId: '00000000-0000-4000-8000-000000000001',
   originalText: '😀 ก!',
   translationKo: '이모지 꺼',
-  pronunciationKo: '꺼',
-  toneMarks: '-',
   tokens: [
     {
       position: 0,
@@ -17,10 +15,7 @@ const sentence = {
       endOffset: 1,
       vocabularyId: '00000000-0000-4000-8000-000000000002',
       meaningId: '00000000-0000-4000-8000-000000000003',
-      pronunciationId: '00000000-0000-4000-8000-000000000004',
       contextMeaningKo: '표정',
-      pronunciationKo: '이모지',
-      toneMarks: '-',
       role: 'TARGET',
     },
     {
@@ -30,10 +25,7 @@ const sentence = {
       endOffset: 3,
       vocabularyId: '00000000-0000-4000-8000-000000000005',
       meaningId: '00000000-0000-4000-8000-000000000006',
-      pronunciationId: '00000000-0000-4000-8000-000000000007',
       contextMeaningKo: '꺼',
-      pronunciationKo: '꺼',
-      toneMarks: '-',
       role: 'SUPPORTING',
     },
   ],

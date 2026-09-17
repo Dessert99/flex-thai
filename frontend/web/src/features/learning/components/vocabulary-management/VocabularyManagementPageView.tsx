@@ -87,7 +87,7 @@ export function VocabularyManagementPageView({
             <TableHead>표기</TableHead>
             <TableHead>종류</TableHead>
             <TableHead>상태</TableHead>
-            <TableHead>뜻/발음</TableHead>
+            <TableHead>뜻</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -121,9 +121,7 @@ export function VocabularyManagementPageView({
                   }
                 </Badge>
               </TableCell>
-              <TableCell>
-                {item.meaningCount}/{item.pronunciationCount}
-              </TableCell>
+              <TableCell>{item.meaningCount}</TableCell>
             </TableRow>
           ))}
         </TableBody>

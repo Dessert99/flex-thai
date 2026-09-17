@@ -14,8 +14,6 @@ const versionId = '00000000-0000-4000-8000-000000000001';
 const sentence = {
   originalText: 'สวัสดี',
   translationKo: '안녕하세요',
-  pronunciationKo: '싸왓디',
-  toneMarks: 'L-L-M',
   tokens: [],
   expressions: [],
 };

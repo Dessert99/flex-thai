@@ -74,8 +74,6 @@ function createDetail(meaningId?: string): AdminVocabularyDetailResponse {
           },
         ]
       : [],
-    pronunciations: [],
-    meaningPronunciations: [],
     relations: [],
     usage: {
       sentenceVersionIds: [],

@@ -38,8 +38,6 @@ vi.mock(
 const sentencePayload = {
   originalText: 'สวัสดี',
   translationKo: '안녕하세요',
-  pronunciationKo: '싸왓디',
-  toneMarks: 'L-L-M',
   tokens: [],
   expressions: [],
 };

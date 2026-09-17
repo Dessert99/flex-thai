@@ -65,7 +65,7 @@ function CreateConceptForm({
         onChange={(event) => setCategory(event.target.value as ConceptCategory)}
         value={category}
       >
-        <option value='THAI_SCRIPT_PRONUNCIATION'>태국 문자·발음</option>
+        <option value='THAI_SCRIPT'>태국 문자</option>
         <option value='GRAMMAR'>문법</option>
       </select>
       <Input
@@ -125,7 +125,7 @@ function ConceptFilters({
         value={search.category ?? ''}
       >
         <option value=''>전체 영역</option>
-        <option value='THAI_SCRIPT_PRONUNCIATION'>태국 문자·발음</option>
+        <option value='THAI_SCRIPT'>태국 문자</option>
         <option value='GRAMMAR'>문법</option>
       </select>
       <select

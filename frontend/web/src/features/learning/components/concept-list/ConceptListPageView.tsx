@@ -17,7 +17,7 @@ interface ConceptListPageViewProps {
   onRetry: () => void;
 }
 
-/** 태국 문자·발음과 문법 개념을 같은 카드 구조로 렌더링한다 */
+/** 태국 문자과 문법 개념을 같은 카드 구조로 렌더링한다 */
 export function ConceptListPageView({
   category,
   data,
@@ -35,7 +35,7 @@ export function ConceptListPageView({
         role='tablist'
       >
         {[
-          ['THAI_SCRIPT_PRONUNCIATION', '태국 문자·발음'],
+          ['THAI_SCRIPT', '태국 문자'],
           ['GRAMMAR', '문법'],
         ].map(([value, label]) => (
           <button

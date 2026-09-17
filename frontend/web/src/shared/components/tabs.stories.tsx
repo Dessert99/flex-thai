@@ -21,7 +21,7 @@ function TabsExample({
     >
       <TabsList variant={variant}>
         <TabsTrigger value='meaning'>뜻</TabsTrigger>
-        <TabsTrigger value='pronunciation'>발음</TabsTrigger>
+        <TabsTrigger value='usage'>용법</TabsTrigger>
         <TabsTrigger
           disabled={disabled}
           value='examples'
@@ -34,9 +34,9 @@ function TabsExample({
           สวัสดี는 만날 때 사용하는 기본 인사말입니다.
         </p>
       </TabsContent>
-      <TabsContent value='pronunciation'>
+      <TabsContent value='usage'>
         <p className='rounded-panel border border-default p-page'>
-          발음: 싸왓디
+          상대방을 만났을 때 인사하는 표현입니다.
         </p>
       </TabsContent>
       <TabsContent value='examples'>

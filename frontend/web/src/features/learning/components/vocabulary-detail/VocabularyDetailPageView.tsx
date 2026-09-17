@@ -1,4 +1,3 @@
-/** 어휘 상세의 뜻·발음·관련 문제를 계약 필드만으로 표현한다 */
 import { InteractiveThaiSentence } from '@/features/learning/components/explore-thai-content/InteractiveThaiSentence';
 import { ContentErrorReportDialog } from '@/features/learning/components/report-content-error/ContentErrorReportDialog';
 import { VocabularyWordbookPicker } from '@/features/learning/components/save-vocabulary-to-wordbooks/VocabularyWordbookPicker';
@@ -40,7 +39,6 @@ export function VocabularyDetailPageView({
             kind: 'VOCABULARY',
             vocabularyId: detail.id,
             meaningId: null,
-            pronunciationId: null,
           }}
           preview={{
             title: detail.thai,
@@ -145,7 +143,6 @@ function VocabularyDetailTabs({
     <Tabs defaultValue='meanings'>
       <TabsList>
         <TabsTrigger value='meanings'>뜻</TabsTrigger>
-        <TabsTrigger value='pronunciations'>발음</TabsTrigger>
         <TabsTrigger value='questions'>관련 문제</TabsTrigger>
       </TabsList>
       <TabsContent value='meanings'>
@@ -163,7 +160,6 @@ function VocabularyDetailTabs({
                   kind: 'VOCABULARY',
                   vocabularyId: detail.id,
                   meaningId: item.id,
-                  pronunciationId: null,
                 }}
                 preview={{
                   title: detail.thai,
@@ -174,9 +170,6 @@ function VocabularyDetailTabs({
             </li>
           ))}
         </ul>
-      </TabsContent>
-      <TabsContent value='pronunciations'>
-        <VocabularyMeaningPronunciations detail={detail} />
       </TabsContent>
       <TabsContent value='questions'>
         <ul>
@@ -193,54 +186,5 @@ function VocabularyDetailTabs({
         </ul>
       </TabsContent>
     </Tabs>
-  );
-}
-
-function VocabularyMeaningPronunciations({
-  detail,
-}: {
-  detail: VocabularyDetailResponse;
-}) {
-  return (
-    <div className='grid gap-cluster'>
-      {detail.meanings.map((meaning) => {
-        const pronunciationIds = new Set(
-          detail.meaningPronunciations
-            .filter((link) => link.meaningId === meaning.id)
-            .map((link) => link.pronunciationId),
-        );
-        const pronunciations = detail.pronunciations.filter((pronunciation) =>
-          pronunciationIds.has(pronunciation.id),
-        );
-        return (
-          <section
-            aria-label={`${meaning.meaningKo} 발음`}
-            className='grid gap-cluster'
-            key={meaning.id}
-          >
-            <h3 className='text-heading text-primary'>{meaning.meaningKo}</h3>
-            {pronunciations.length === 0 ? (
-              <p className='text-body text-subtle'>
-                연결된 발음 표기가 없습니다.
-              </p>
-            ) : (
-              <ul className='grid gap-cluster'>
-                {pronunciations.map((pronunciation) => (
-                  <li
-                    className='grid gap-cluster'
-                    key={pronunciation.id}
-                  >
-                    <p>
-                      {pronunciation.pronunciationKo} · 성조{' '}
-                      {pronunciation.toneMarks || '정보 없음'}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        );
-      })}
-    </div>
   );
 }

@@ -57,19 +57,6 @@ const feedback = {
         contextNote: null,
       },
     ],
-    pronunciations: [
-      {
-        id: '00000000-0000-4000-8000-000000000208',
-        pronunciationKo: '빠이',
-        toneMarks: '평성',
-      },
-    ],
-    meaningPronunciations: [
-      {
-        meaningId: question.meaningId,
-        pronunciationId: '00000000-0000-4000-8000-000000000208',
-      },
-    ],
   },
   sessionCompleted: false,
   answeredAt: '2026-07-26T00:01:00.000Z',

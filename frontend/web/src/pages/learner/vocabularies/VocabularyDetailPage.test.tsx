@@ -80,9 +80,7 @@ describe('어휘 상세 페이지', () => {
     );
 
     expect(await screen.findByText('나는 온다')).toBeVisible();
-    await user.click(
-      screen.getByRole('button', { name: 'ฉัน 뜻과 발음 보기' }),
-    );
+    await user.click(screen.getByRole('button', { name: 'ฉัน 뜻 보기' }));
     expect(screen.getByText('나')).toBeVisible();
 
     await user.click(screen.getByRole('button', { name: '단어장에 추가' }));
@@ -148,8 +146,7 @@ describe('어휘 상세 페이지', () => {
 });
 
 describe('어휘 오류 신고 연결', () => {
-  it('어휘 하위 콘텐츠별 식별자를 오류 신고 origin에 명시한다', async () => {
-    const user = userEvent.setup();
+  it('어휘 하위 콘텐츠별 식별자를 오류 신고 origin에 명시한다', () => {
     const detail = createDetail();
     renderWithProviders(
       <VocabularyDetailPageView
@@ -167,7 +164,6 @@ describe('어휘 오류 신고 연결', () => {
         kind: 'VOCABULARY',
         vocabularyId: detail.id,
         meaningId: null,
-        pronunciationId: null,
       }),
     );
     expect(
@@ -188,9 +184,8 @@ describe('어휘 오류 신고 연결', () => {
         kind: 'VOCABULARY',
         vocabularyId: detail.id,
         meaningId: detail.meanings[0]?.id,
-        pronunciationId: null,
       }),
     );
-    await user.click(screen.getByRole('tab', { name: '발음' }));
+    expect(screen.queryByRole('tab', { name: '발음' })).not.toBeInTheDocument();
   });
 });

@@ -29,19 +29,6 @@ export function createDetail(
         contextNote: null,
       },
     ],
-    pronunciations: [
-      {
-        id: '01933b6a-8f13-7a19-b7e5-536d70f57aad',
-        pronunciationKo: '싸왓디',
-        toneMarks: 'L-L-M',
-      },
-    ],
-    meaningPronunciations: [
-      {
-        meaningId: '01933b6a-8f13-7a19-b7e5-536d70f57aac',
-        pronunciationId: '01933b6a-8f13-7a19-b7e5-536d70f57aad',
-      },
-    ],
     relations: [
       {
         id: '01933b6a-8f13-7a19-b7e5-536d70f57ac0',
@@ -59,8 +46,6 @@ export function createDetail(
         sentenceVersionId: '01933b6a-8f13-7a19-b7e5-536d70f57ab5',
         originalText: 'ฉันมา',
         translationKo: '나는 온다',
-        pronunciationKo: '찬 마',
-        toneMarks: 'R M',
         tokens: [
           {
             position: 0,
@@ -69,10 +54,7 @@ export function createDetail(
             endOffset: 3,
             vocabularyId: '01933b6a-8f13-7a19-b7e5-536d70f57ab6',
             meaningId: '01933b6a-8f13-7a19-b7e5-536d70f57ab7',
-            pronunciationId: '01933b6a-8f13-7a19-b7e5-536d70f57ab8',
             contextMeaningKo: '나',
-            pronunciationKo: '찬',
-            toneMarks: 'R',
             role: 'TARGET',
           },
         ],

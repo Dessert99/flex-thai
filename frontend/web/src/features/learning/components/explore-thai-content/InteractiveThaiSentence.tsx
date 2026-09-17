@@ -68,14 +68,6 @@ export function InteractiveThaiSentence({
             <dt className='sr-only'>뜻</dt>
             <dd>{selectedFeedback.contextMeaningKo}</dd>
           </div>
-          <div>
-            <dt className='sr-only'>발음</dt>
-            <dd>{selectedFeedback.pronunciationKo}</dd>
-          </div>
-          <div>
-            <dt className='sr-only'>성조</dt>
-            <dd>{selectedFeedback.toneMarks}</dd>
-          </div>
         </dl>
       )}
     </div>
@@ -109,7 +101,7 @@ function SentenceTokenTriggers({
       <ThaiFeedbackTrigger
         key={`token-${token.position}`}
         surface={segment.text}
-        label={`${segment.text} 뜻과 발음 보기`}
+        label={`${segment.text} 뜻 보기`}
         feedback={token}
         onSelect={onSelect}
         onActivate={onActivate}
@@ -139,7 +131,7 @@ function ExpressionFeedbackTrigger({
   return (
     <ThaiFeedbackTrigger
       surface={surface}
-      label={`표현 ${surface} 뜻과 발음 보기`}
+      label={`표현 ${surface} 뜻 보기`}
       feedback={expression}
       onSelect={onSelect}
       onActivate={onActivate}

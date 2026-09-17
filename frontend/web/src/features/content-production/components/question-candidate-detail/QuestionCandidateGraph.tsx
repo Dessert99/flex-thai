@@ -26,7 +26,6 @@ export function QuestionCandidateGraph({
                 {speaker ? <p>화자: {speaker}</p> : null}
                 <p lang='th'>{sentence.originalText}</p>
                 <p>{sentence.translationKo}</p>
-                <p>{sentence.pronunciationKo}</p>
               </article>
             ))}
           </CardContent>

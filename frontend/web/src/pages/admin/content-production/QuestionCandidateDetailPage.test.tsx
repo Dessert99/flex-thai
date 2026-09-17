@@ -9,8 +9,6 @@ const id = (suffix: number) =>
 const sentence = {
   originalText: 'สวัสดีครับ',
   translationKo: '안녕하세요',
-  pronunciationKo: '싸왓디 크랍',
-  toneMarks: '',
   tokens: [],
   expressions: [],
 };

@@ -80,13 +80,6 @@ function ResultCardView({ card }: { card: PracticeCard }) {
           {meaning.contextNote === null ? '' : ` · ${meaning.contextNote}`}
         </p>
       ))}
-      {card.pronunciations.map((pronunciation) => (
-        <div key={pronunciation.id}>
-          <p>
-            {pronunciation.pronunciationKo} · {pronunciation.toneMarks}
-          </p>
-        </div>
-      ))}
     </article>
   );
 }

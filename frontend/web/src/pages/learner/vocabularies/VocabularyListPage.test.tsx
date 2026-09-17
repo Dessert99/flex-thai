@@ -21,7 +21,6 @@ beforeEach(() => {
         thai: 'โรงเรียน',
         kind: 'WORD',
         meanings: [],
-        pronunciations: [],
         saved: false,
       },
     ],

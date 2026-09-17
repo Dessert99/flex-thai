@@ -4,8 +4,6 @@ import { Button } from '@/shared/components/button';
 /** trigger가 선택될 때 공개할 학습 피드백 */
 export interface ThaiFeedback {
   contextMeaningKo: string;
-  pronunciationKo: string;
-  toneMarks: string;
 }
 
 interface ThaiFeedbackTriggerProps {

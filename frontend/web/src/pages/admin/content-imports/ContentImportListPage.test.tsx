@@ -216,13 +216,6 @@ function createValidRequest() {
             partOfSpeech: '감탄사',
           },
         ],
-        pronunciations: [
-          {
-            clientRef: 'pronunciation-1',
-            pronunciationKo: '싸왓디',
-            toneMarks: '',
-          },
-        ],
       },
     ],
     questions: [],

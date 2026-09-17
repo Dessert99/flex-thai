@@ -43,7 +43,6 @@ const categories: readonly {
   label: string;
 }[] = [
   { value: 'MEANING_TRANSLATION', label: '뜻·해석' },
-  { value: 'PRONUNCIATION_TONE', label: '발음·성조' },
   { value: 'ANSWER_EXPLANATION', label: '정답·해설' },
   { value: 'TOKENIZATION', label: '단어 분할' },
   { value: 'OTHER', label: '기타' },

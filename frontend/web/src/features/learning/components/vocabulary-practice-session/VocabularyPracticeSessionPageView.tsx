@@ -257,14 +257,6 @@ export function PracticeCardView({ card }: { card: PracticeCard }) {
           </li>
         ))}
       </ul>
-      <ul>
-        {card.pronunciations.map((pronunciation) => (
-          <li key={pronunciation.id}>
-            <span>{pronunciation.pronunciationKo}</span> ·{' '}
-            {pronunciation.toneMarks}
-          </li>
-        ))}
-      </ul>
     </article>
   );
 }

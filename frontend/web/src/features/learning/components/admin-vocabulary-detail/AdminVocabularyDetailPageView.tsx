@@ -103,9 +103,6 @@ export function AdminVocabularyDetailPageView({
         <div className='flex gap-cluster'>{actions}</div>
       </header>
       <div className='grid gap-cluster'>
-        {data.pronunciations.map((pronunciation) => (
-          <p key={pronunciation.id}>{pronunciation.pronunciationKo} · </p>
-        ))}
         <p>문장 버전 사용처 {data.usage.sentenceVersionIds.length}개</p>
         <p>
           공개 문제 등장 {data.usage.questionCount}개 · 출제 목표{' '}

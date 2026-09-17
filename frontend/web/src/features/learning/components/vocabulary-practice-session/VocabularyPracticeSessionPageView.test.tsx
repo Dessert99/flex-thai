@@ -17,8 +17,6 @@ const ids = {
   vocabularyTwo: '00000000-0000-4000-8000-000000000003',
   meaningOne: '00000000-0000-4000-8000-000000000004',
   meaningTwo: '00000000-0000-4000-8000-000000000005',
-  pronunciationOne: '00000000-0000-4000-8000-000000000006',
-  pronunciationTwo: '00000000-0000-4000-8000-000000000007',
   questionOne: '00000000-0000-4000-8000-000000000008',
   questionTwo: '00000000-0000-4000-8000-000000000009',
   optionOne: '00000000-0000-4000-8000-000000000010',
@@ -41,19 +39,6 @@ const cards: [PracticeCard, PracticeCard] = [
         contextNote: null,
       },
     ],
-    pronunciations: [
-      {
-        id: ids.pronunciationOne,
-        pronunciationKo: '낀',
-        toneMarks: '평성',
-      },
-    ],
-    meaningPronunciations: [
-      {
-        meaningId: ids.meaningOne,
-        pronunciationId: ids.pronunciationOne,
-      },
-    ],
   },
   {
     id: ids.vocabularyTwo,
@@ -66,19 +51,6 @@ const cards: [PracticeCard, PracticeCard] = [
         partOfSpeech: '동사',
         difficulty: 1,
         contextNote: '이동',
-      },
-    ],
-    pronunciations: [
-      {
-        id: ids.pronunciationTwo,
-        pronunciationKo: '빠이',
-        toneMarks: '평성',
-      },
-    ],
-    meaningPronunciations: [
-      {
-        meaningId: ids.meaningTwo,
-        pronunciationId: ids.pronunciationTwo,
       },
     ],
   },
@@ -172,7 +144,7 @@ describe('단어 연습 세션 화면', () => {
     expect(await screen.findByText('정답을 확인해 주세요.')).toBeVisible();
     expect(screen.getByLabelText('먹다')).toBeDisabled();
     expect(screen.getByText('정답: 가다')).toBeVisible();
-    expect(screen.getByText('빠이', { selector: 'span' })).toBeVisible();
+    expect(screen.getByText('가다', { selector: 'span' })).toBeVisible();
   });
 
   it('마지막 답 제출 뒤 결과 이동을 우선 제공한다', async () => {

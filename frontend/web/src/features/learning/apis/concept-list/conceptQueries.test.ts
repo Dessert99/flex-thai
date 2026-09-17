@@ -15,18 +15,18 @@ beforeEach(() => {
 
 describe('conceptListQueryOptions', () => {
   it('선택한 영역을 cache key와 목록 query에 함께 반영한다', async () => {
-    const options = conceptListQueryOptions('THAI_SCRIPT_PRONUNCIATION');
+    const options = conceptListQueryOptions('THAI_SCRIPT');
 
     expect(options.queryKey).toEqual([
       'learner',
       'concepts',
       'list',
-      'THAI_SCRIPT_PRONUNCIATION',
+      'THAI_SCRIPT',
     ]);
     await (options.queryFn as () => Promise<unknown>)();
 
     expect(mocks.authenticatedRequest).toHaveBeenCalledWith({
-      path: '/concepts?category=THAI_SCRIPT_PRONUNCIATION',
+      path: '/concepts?category=THAI_SCRIPT',
       response: { kind: 'json', schema: conceptListResponseSchema },
     });
   });
