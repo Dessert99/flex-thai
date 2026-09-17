@@ -27,7 +27,7 @@ beforeEach(() => {
 });
 
 describe('SidebarLayout 화면 전환', () => {
-  it('메뉴 클릭을 라우터가 처리하고 검색 조건과 접힌 사이드바를 유지한다', async () => {
+  it('메뉴 클릭을 라우터가 처리하고 검색 조건과 사이드바를 유지한다', async () => {
     const root = createRootRoute({ component: NavigationShell });
     const home = createRoute({
       getParentRoute: () => root,
@@ -57,7 +57,6 @@ describe('SidebarLayout 화면 전환', () => {
     render(<RouterProvider router={router} />);
     const user = userEvent.setup();
     await screen.findByText('학습 시작 화면');
-    await user.click(sidebarTrigger());
     const sidebar = desktopSidebar();
     const main = screen.getByRole('main');
     const link = screen.getByRole('link', { name: '개념 학습' });
@@ -75,7 +74,7 @@ describe('SidebarLayout 화면 전환', () => {
     await screen.findByText('사용자 관리 화면');
     expect(router.state.location.pathname).toBe('/admin/users');
     expect(desktopSidebar()).toBe(sidebar);
-    expect(sidebar).toHaveAttribute('data-state', 'collapsed');
+    expect(sidebar).toHaveAttribute('data-state', 'expanded');
     await user.click(screen.getByRole('link', { name: '학습 홈' }));
     await screen.findByText('학습 시작 화면');
     expect(desktopSidebar()).toBe(sidebar);
@@ -133,35 +132,6 @@ describe('SidebarLayout', () => {
       'data-active',
       'false',
     );
-  });
-
-  it('트리거로 데스크톱 Sidebar를 아이콘 형태로 접는다', () => {
-    render(
-      <SidebarLayout
-        currentPath='/dashboard'
-        navigation={navigation}
-      >
-        본문
-      </SidebarLayout>,
-    );
-
-    expect(desktopSidebar()).toHaveAttribute('data-state', 'expanded');
-    expect(desktopSidebar()).toContainElement(sidebarTrigger());
-    expect(screen.getByRole('main')).not.toContainElement(sidebarTrigger());
-    fireEvent.click(sidebarTrigger());
-    expect(desktopSidebar()).toHaveAttribute('data-state', 'collapsed');
-    expect(desktopSidebar()).toHaveAttribute('data-collapsible', 'icon');
-    const openButton = screen.getByRole('button', { name: '사이드바 열기' });
-    expect(openButton.querySelector('img')).toHaveAttribute(
-      'src',
-      '/images/thai-flag.png',
-    );
-    expect(openButton).toHaveAttribute('aria-expanded', 'false');
-    fireEvent.click(openButton);
-    expect(desktopSidebar()).toHaveAttribute('data-state', 'expanded');
-    expect(
-      screen.getByRole('link', { name: '홈으로 이동' }),
-    ).toBeInTheDocument();
   });
 
   it('프로필 메뉴를 열면 추가 계정 동작을 표시한다', async () => {
@@ -247,14 +217,6 @@ function desktopSidebar(): HTMLElement {
   );
   if (!sidebar) throw new Error('데스크톱 Sidebar가 필요합니다.');
   return sidebar;
-}
-
-function sidebarTrigger(): HTMLElement {
-  const trigger = screen
-    .getAllByRole('button', { name: '사이드바 접기' })
-    .at(0);
-  if (!trigger) throw new Error('Sidebar trigger가 필요합니다.');
-  return trigger;
 }
 
 function setViewportWidth(width: number): void {

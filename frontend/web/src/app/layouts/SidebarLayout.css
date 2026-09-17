@@ -1,0 +1,44 @@
+/* 펼침 상태와 관계없이 floating 아이콘 바의 공간만 본문에서 확보한다. */
+.app-sidebar-wrapper > [data-slot='sidebar'] > [data-slot='sidebar-gap'] {
+  width: calc(var(--sidebar-width-icon) + var(--spacing) * 4 + 2px);
+  transition: none;
+}
+
+.app-sidebar-wrapper [data-slot='sidebar-inner'] {
+  overflow: hidden;
+}
+
+/* 접힌 상태에서도 긴 운영자 메뉴를 스크롤할 수 있다. */
+.app-sidebar-wrapper [data-slot='sidebar-content'] {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.app-sidebar-wrapper .app-sidebar-home {
+  height: var(--spacing-control) !important;
+  padding: 0 !important;
+}
+
+.app-sidebar-wrapper
+  [data-slot='sidebar-footer']
+  [data-slot='sidebar-menu-button'] {
+  height: var(--spacing-control) !important;
+  padding: 0 !important;
+}
+
+.app-sidebar-touch-toggle {
+  display: none;
+}
+
+@media (any-pointer: coarse) {
+  .app-sidebar-touch-toggle {
+    display: block;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-sidebar-wrapper [data-slot='sidebar-container'],
+  .app-sidebar-wrapper [data-slot='sidebar-inner'] * {
+    transition: none !important;
+  }
+}

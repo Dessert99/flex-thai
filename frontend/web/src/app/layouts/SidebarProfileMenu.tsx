@@ -25,22 +25,23 @@ import {
 interface SidebarProfileMenuProps {
   identity: { email: string; role: 'ADMIN' | 'LEARNER' };
   children?: ReactNode;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function SidebarProfileMenu({
   identity,
   children,
+  onOpenChange,
 }: SidebarProfileMenuProps) {
   const { isMobile } = useSidebar();
   const role = identity.role === 'ADMIN' ? '관리자' : '학습자';
   return (
     <SidebarMenuItem>
-      <DropdownMenu>
+      <DropdownMenu {...(onOpenChange ? { onOpenChange } : {})}>
         <DropdownMenuTrigger asChild>
           <SidebarMenuButton
             aria-label='프로필 메뉴'
             size='lg'
-            tooltip='프로필 메뉴'
             className='group-data-[collapsible=icon]:p-none!'
           >
             <ProfileAvatar />

@@ -1,21 +1,17 @@
 /** 사이드바와 Provider만 공유하고 페이지 본문 배치는 각 페이지가 소유한다 */
 import { Link } from '@tanstack/react-router';
-import { PanelLeft, type LucideIcon } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { SidebarProfileMenu } from './SidebarProfileMenu';
 import type { ReactNode } from 'react';
-import { Button } from '@/shared/components/button';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/shared/components/tooltip';
+import { useIsMobile } from '@/shared/hooks/use-mobile';
+import { useFloatingSidebar } from './useFloatingSidebar';
+import './SidebarLayout.css';
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
@@ -48,7 +44,7 @@ export interface SidebarLayoutProps {
   profileMenu?: ReactNode;
 }
 
-/** 모바일 Sheet와 데스크톱 icon collapse를 공유하는 사이드바 레이아웃 */
+/** 모바일 Sheet와 본문 위로 펼쳐지는 데스크톱 사이드바를 조합한다. */
 export function SidebarLayout({
   children,
   currentPath,
@@ -57,6 +53,9 @@ export function SidebarLayout({
   adminNavigation = [],
   profileMenu,
 }: SidebarLayoutProps) {
+  const isMobile = useIsMobile();
+  const { open, changeOpen, panelRef, panelEvents, onProfileOpenChange } =
+    useFloatingSidebar(isMobile);
   const activeHref = findActiveHref(currentPath, [
     ...navigation,
     ...adminNavigation,
@@ -64,8 +63,17 @@ export function SidebarLayout({
   const home = navigation[0];
 
   return (
-    <SidebarProvider>
-      <Sidebar collapsible='icon'>
+    <SidebarProvider
+      open={open}
+      onOpenChange={changeOpen}
+      className='app-sidebar-wrapper'
+    >
+      <Sidebar
+        ref={isMobile ? undefined : panelRef}
+        variant='floating'
+        collapsible='icon'
+        {...(isMobile ? {} : panelEvents)}
+      >
         <AppSidebarHeader homeHref={home?.href ?? '/'} />
 
         <SidebarContent>
@@ -76,11 +84,8 @@ export function SidebarLayout({
           {identity?.role === 'ADMIN' && adminNavigation.length > 0 ? (
             <section
               aria-label='운영자 기능'
-              className='mt-cluster flex-1 border-t border-operator-border bg-operator-surface'
+              className='flex-1 border-t border-operator-border bg-operator-surface'
             >
-              <h2 className='p-cluster text-caption font-semibold text-foreground group-data-[collapsible=icon]:sr-only'>
-                운영자 기능
-              </h2>
               <AppNavigation
                 activeHref={activeHref}
                 navigation={adminNavigation}
@@ -93,7 +98,10 @@ export function SidebarLayout({
         <SidebarFooter className='border-t border-sidebar-border'>
           <SidebarMenu>
             {identity ? (
-              <SidebarProfileMenu identity={identity}>
+              <SidebarProfileMenu
+                identity={identity}
+                onOpenChange={onProfileOpenChange}
+              >
                 {profileMenu}
               </SidebarProfileMenu>
             ) : null}
@@ -101,7 +109,10 @@ export function SidebarLayout({
         </SidebarFooter>
       </Sidebar>
 
-      <SidebarInset id='app-main'>
+      <SidebarInset
+        id='app-main'
+        className='min-w-none'
+      >
         <MobileSidebarTrigger />
         {children}
       </SidebarInset>
@@ -110,77 +121,35 @@ export function SidebarLayout({
 }
 
 function AppSidebarHeader({ homeHref }: { homeHref: string }) {
-  const { state, isMobile, toggleSidebar } = useSidebar();
-  const collapsed = !isMobile && state === 'collapsed';
-  const label = collapsed ? '사이드바 열기' : '사이드바 접기';
-
+  const { isMobile, open } = useSidebar();
   return (
-    <SidebarHeader className='flex-row py-cluster items-center justify-between border-b border-sidebar-border'>
-      {collapsed ? (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant='ghost'
-              size='icon'
-              className='group/logo relative h-control w-avatar shrink-0'
-              aria-label={label}
-              aria-expanded={false}
-              onClick={toggleSidebar}
+    <SidebarHeader className='border-b border-sidebar-border'>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            asChild
+            size='lg'
+            className='app-sidebar-home'
+          >
+            <Link
+              to={homeHref}
+              aria-label='홈으로 이동'
             >
               <img
                 src='/images/thai-flag.png'
                 alt=''
-                className='size-avatar rounded-full object-cover group-hover/logo:opacity-0 group-focus-visible/logo:opacity-0'
+                className='size-avatar shrink-0 rounded-full object-cover'
               />
-              <PanelLeft className='absolute opacity-0 group-hover/logo:opacity-100 group-focus-visible/logo:opacity-100' />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent
-            side='right'
-            sideOffset={8}
-          >
-            {label}
-          </TooltipContent>
-        </Tooltip>
-      ) : (
-        <>
-          <SidebarMenu className='w-auto'>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                size='lg'
-                tooltip='학습 홈'
-              >
-                <Link
-                  to={homeHref}
-                  aria-label='홈으로 이동'
-                >
-                  <img
-                    src='/images/thai-flag.png'
-                    alt=''
-                    className='size-avatar shrink-0 rounded-full object-cover'
-                  />
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <SidebarTrigger
-                aria-label={label}
-                aria-expanded={true}
-                className='shrink-0'
-              />
-            </TooltipTrigger>
-            <TooltipContent
-              side='right'
-              sideOffset={8}
-            >
-              {label}
-            </TooltipContent>
-          </Tooltip>
-        </>
-      )}
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem className={isMobile ? '' : 'app-sidebar-touch-toggle'}>
+          <SidebarTrigger
+            aria-label={isMobile ? '사이드바 닫기' : '사이드바 펼침 전환'}
+            aria-expanded={isMobile || open}
+          />
+        </SidebarMenuItem>
+      </SidebarMenu>
     </SidebarHeader>
   );
 }
@@ -205,50 +174,37 @@ function AppNavigation({
   label?: string;
   navigation: readonly SidebarLayoutNavigationItem[];
 }) {
+  const { isMobile, setOpenMobile } = useSidebar();
   return (
     <nav aria-label={label}>
-      {groupNavigation(navigation).map(([group, items]) => (
-        <SidebarGroup key={group}>
-          <SidebarGroupLabel className='group-data-[collapsible=icon]:pointer-events-none'>
-            {group}
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {items.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    asChild
-                    className='data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground data-[active=true]:hover:bg-sidebar-primary/90'
-                    isActive={item.href === activeHref}
-                    tooltip={item.label}
+      <SidebarGroup>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            {navigation.map((item) => (
+              <SidebarMenuItem key={item.href}>
+                <SidebarMenuButton
+                  asChild
+                  className='data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground data-[active=true]:hover:bg-sidebar-primary/90'
+                  isActive={item.href === activeHref}
+                >
+                  <Link
+                    to={item.href}
+                    search={item.search ?? {}}
+                    onClick={() => {
+                      if (isMobile) setOpenMobile(false);
+                    }}
                   >
-                    <Link
-                      to={item.href}
-                      search={item.search ?? {}}
-                    >
-                      <item.icon />
-                      <span>{item.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      ))}
+                    <item.icon />
+                    <span>{item.label}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
     </nav>
   );
-}
-
-function groupNavigation(
-  navigation: readonly SidebarLayoutNavigationItem[],
-): Array<[string, SidebarLayoutNavigationItem[]]> {
-  const groups = new Map<string, SidebarLayoutNavigationItem[]>();
-  for (const item of navigation) {
-    const group = item.group ?? '메뉴';
-    groups.set(group, [...(groups.get(group) ?? []), item]);
-  }
-  return [...groups.entries()];
 }
 
 /** 가장 구체적인 상위 경로 하나만 활성 메뉴로 선택한다 */
