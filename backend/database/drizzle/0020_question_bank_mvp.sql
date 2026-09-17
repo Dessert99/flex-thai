@@ -1,3 +1,14 @@
+-- 개발 데이터는 초기화 후 새 시드로 구성한다. 기존 데이터가 있는 DB에는 적용하지 않는다.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM questions)
+    OR EXISTS (SELECT 1 FROM question_attempts)
+    OR EXISTS (SELECT 1 FROM question_production_candidates)
+    OR EXISTS (SELECT 1 FROM content_error_reports) THEN
+    RAISE EXCEPTION 'QUESTION_BANK_MVP_REQUIRES_EMPTY_DATA: reset the local development database before migration';
+  END IF;
+END $$;
+--> statement-breakpoint
 CREATE TYPE "public"."question_vocabulary_role" AS ENUM('TARGET', 'CONTEXT');
 --> statement-breakpoint
 CREATE TABLE "question_vocabularies" (
@@ -51,83 +62,6 @@ ALTER TABLE "questions" ADD COLUMN "version" integer DEFAULT 1 NOT NULL;
 ALTER TABLE "questions" ADD COLUMN "published_at" timestamp with time zone;
 --> statement-breakpoint
 ALTER TABLE "vocabularies" ADD COLUMN "importance_weight" integer DEFAULT 5 NOT NULL;
---> statement-breakpoint
--- 기존 모든 문제 버전은 관리용 보관 스키마에 원본을 남긴다.
--- 앱은 현재 questions와 풀이별 question_snapshot만 조회한다.
-CREATE SCHEMA IF NOT EXISTS migration_archive;
---> statement-breakpoint
-CREATE TABLE migration_archive.question_graphs_0020 AS
-SELECT v.id AS version_id, v.question_id,
-  jsonb_build_object(
-    'question', to_jsonb(q), 'version', to_jsonb(v),
-    'tags', (SELECT coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) FROM question_version_tags t WHERE t.question_version_id = v.id),
-    'blocks', (SELECT coalesce(jsonb_agg(to_jsonb(b) || jsonb_build_object('sentences',
-      (SELECT coalesce(jsonb_agg(to_jsonb(s)), '[]'::jsonb) FROM question_block_sentences s WHERE s.block_id = b.id))), '[]'::jsonb)
-      FROM question_blocks b WHERE b.question_version_id = v.id),
-    'options', (SELECT coalesce(jsonb_agg(to_jsonb(o)), '[]'::jsonb) FROM question_options o WHERE o.question_version_id = v.id)
-  ) AS snapshot
-FROM question_versions v JOIN questions q ON q.id = v.question_id;
---> statement-breakpoint
-CREATE TEMP TABLE mvp_flat_versions ON COMMIT DROP AS
-SELECT v.*,
-  (SELECT string_agg(concat(CASE WHEN bs.speaker IS NULL THEN '' ELSE bs.speaker || ': ' END, s.original_text), E'\n' ORDER BY b.position, bs.position)
-   FROM question_blocks b JOIN question_block_sentences bs ON bs.block_id = b.id JOIN thai_sentence_versions s ON s.id = bs.sentence_version_id
-   WHERE b.question_version_id = v.id AND b.kind IN ('PASSAGE', 'DIALOGUE')) AS passage,
-  coalesce((SELECT string_agg(s.original_text, E'\n' ORDER BY b.position, bs.position)
-   FROM question_blocks b JOIN question_block_sentences bs ON bs.block_id = b.id JOIN thai_sentence_versions s ON s.id = bs.sentence_version_id
-   WHERE b.question_version_id = v.id AND b.kind IN ('INSTRUCTION', 'QUESTION')), '') AS prompt,
-  coalesce((SELECT string_agg(s.original_text, E'\n' ORDER BY b.position, bs.position)
-   FROM question_blocks b JOIN question_block_sentences bs ON bs.block_id = b.id JOIN thai_sentence_versions s ON s.id = bs.sentence_version_id
-   WHERE b.question_version_id = v.id AND b.kind = 'EXPLANATION'), '') AS explanation,
-  (SELECT jsonb_agg(jsonb_build_object('id', o.id, 'text', coalesce(s.original_text,
-      (SELECT string_agg(t.surface, '' ORDER BY t.position) FROM token_occurrences t WHERE t.sentence_version_id = o.span_sentence_version_id AND t.position >= o.span_start_token_index AND t.position < o.span_end_token_index))) ORDER BY o.position)
-   FROM question_options o LEFT JOIN thai_sentence_versions s ON s.id = o.sentence_version_id WHERE o.question_version_id = v.id) AS options,
-  (SELECT o.id FROM question_options o WHERE o.question_version_id = v.id AND o.is_correct ORDER BY o.position LIMIT 1) AS correct_option_id,
-  ARRAY(SELECT t.tag_id FROM question_version_tags t WHERE t.question_version_id = v.id ORDER BY t.tag_id) AS tag_ids
-FROM question_versions v;
---> statement-breakpoint
-UPDATE questions q SET
- type_version_id = v.type_version_id, topic_id = v.topic_id, tag_ids = v.tag_ids,
- passage = v.passage, prompt = v.prompt, options = v.options, correct_option_id = v.correct_option_id,
- explanation = v.explanation, difficulty = v.difficulty, version = v.version, published_at = v.published_at
-FROM mvp_flat_versions v
-WHERE v.id = coalesce(q.current_published_version_id, (SELECT latest.id FROM question_versions latest WHERE latest.question_id = q.id ORDER BY latest.version DESC LIMIT 1));
---> statement-breakpoint
-UPDATE question_attempts a SET question_version = v.version,
- question_snapshot = jsonb_build_object('updatedAt', to_char(v.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'version', v.version, 'typeVersionId', v.type_version_id, 'difficulty', v.difficulty,
-  'passage', v.passage, 'prompt', v.prompt, 'options', v.options, 'correctOptionId', v.correct_option_id, 'explanation', v.explanation)
-FROM mvp_flat_versions v WHERE v.id = a.question_version_id AND v.question_id = a.question_id;
---> statement-breakpoint
-UPDATE question_production_candidates c SET approved_question_version = v.version
-FROM question_versions v WHERE v.id = c.approved_question_version_id AND v.question_id = c.approved_question_id;
---> statement-breakpoint
--- 같은 문장 참조를 중복 집계하지 않는다.
-WITH current_versions AS (
- SELECT q.id question_id, v.id version_id FROM questions q JOIN question_versions v ON v.question_id = q.id AND v.version = q.version
-), sentence_refs AS (
- SELECT cv.question_id, bs.sentence_version_id FROM current_versions cv
- JOIN question_blocks b ON b.question_version_id = cv.version_id AND b.kind <> 'EXPLANATION'
- JOIN question_block_sentences bs ON bs.block_id = b.id
- UNION
- SELECT cv.question_id, coalesce(o.sentence_version_id, o.span_sentence_version_id) FROM current_versions cv JOIN question_options o ON o.question_version_id = cv.version_id
-), occurrences AS (
- SELECT r.question_id, t.vocabulary_id, t.meaning_id, t.role = 'TARGET' is_target
- FROM sentence_refs r JOIN token_occurrences t ON t.sentence_version_id = r.sentence_version_id
- UNION ALL
- SELECT r.question_id, e.vocabulary_id, e.meaning_id, false FROM sentence_refs r JOIN expression_occurrences e ON e.sentence_version_id = r.sentence_version_id
-)
-INSERT INTO question_vocabularies (question_id, vocabulary_id, meaning_id, role, occurrence_count)
-SELECT question_id, vocabulary_id, CASE WHEN count(DISTINCT meaning_id) = 1 THEN (array_agg(meaning_id) FILTER (WHERE meaning_id IS NOT NULL))[1] ELSE NULL END,
- CASE WHEN bool_or(is_target) THEN 'TARGET'::question_vocabulary_role ELSE 'CONTEXT'::question_vocabulary_role END, count(*)::integer
-FROM occurrences GROUP BY question_id, vocabulary_id;
---> statement-breakpoint
--- 신고 원본과 승인 감사 기록도 새 버전 식별 방식으로 변환한다.
-UPDATE content_error_reports r SET canonical_reference = (r.canonical_reference - 'questionVersionId') || jsonb_build_object('questionVersion',
- (SELECT v.version FROM question_versions v WHERE v.id::text = r.canonical_reference->>'questionVersionId'));
---> statement-breakpoint
-UPDATE audit_logs a SET summary = (a.summary - 'questionVersionId') || jsonb_build_object('questionVersion', v.version)
-FROM question_versions v WHERE a.summary->>'questionVersionId' = v.id::text AND a.action LIKE 'QUESTION_CANDIDATE%';
-
 --> statement-breakpoint
 ALTER TABLE "question_attempts" ALTER COLUMN "question_version" SET NOT NULL;
 --> statement-breakpoint
