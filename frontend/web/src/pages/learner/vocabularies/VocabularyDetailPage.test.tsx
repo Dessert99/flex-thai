@@ -7,7 +7,7 @@ import {
   createRelatedQuestions,
 } from '@/features/learning/components/vocabulary-detail/VocabularyDetailPage.fixtures';
 import { VocabularyDetailPage as VocabularyDetailPageContainer } from './VocabularyDetailPage';
-import { VocabularyDetailPageView } from '@/features/learning/components/vocabulary-detail/VocabularyDetailPageView';
+import { VocabularyDetailContent } from '@/pages/learner/vocabularies/VocabularyDetailPage';
 
 const mocks = vi.hoisted(() => ({ authenticatedRequest: vi.fn() }));
 const firstWordbookId = '01933b6a-8f13-7a19-b7e5-536d70f57ab4';
@@ -93,7 +93,7 @@ describe('어휘 상세 페이지', () => {
   it('route 어휘가 바뀌면 새 membership으로 초기화해 새 어휘를 추가한다', async () => {
     const user = userEvent.setup();
     const { rerender } = renderWithProviders(
-      <VocabularyDetailPageView
+      <VocabularyDetailContent
         detail={createDetail(firstVocabularyId)}
         onWordbookMembershipConfirmed={vi.fn()}
         relatedQuestions={[]}
@@ -107,7 +107,7 @@ describe('어휘 상세 페이지', () => {
     expect(firstMembership).toHaveAttribute('aria-pressed', 'true');
 
     rerender(
-      <VocabularyDetailPageView
+      <VocabularyDetailContent
         detail={createDetail(secondVocabularyId)}
         onWordbookMembershipConfirmed={vi.fn()}
         relatedQuestions={[]}
@@ -131,7 +131,7 @@ describe('어휘 상세 페이지', () => {
 
   it('검증을 통과한 관계의 연관 뜻과 어휘를 표시한다', () => {
     renderWithProviders(
-      <VocabularyDetailPageView
+      <VocabularyDetailContent
         detail={createDetail()}
         onWordbookMembershipConfirmed={vi.fn()}
         relatedQuestions={[]}
@@ -149,7 +149,7 @@ describe('어휘 오류 신고 연결', () => {
   it('어휘 하위 콘텐츠별 식별자를 오류 신고 origin에 명시한다', () => {
     const detail = createDetail();
     renderWithProviders(
-      <VocabularyDetailPageView
+      <VocabularyDetailContent
         detail={detail}
         onWordbookMembershipConfirmed={vi.fn()}
         relatedQuestions={[]}

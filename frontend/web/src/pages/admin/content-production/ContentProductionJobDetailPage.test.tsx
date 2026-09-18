@@ -1,4 +1,3 @@
-/** 콘텐츠 제작 job 상세의 공개 상태와 retry 조건을 검증한다 */
 import { renderWithProviders as render } from '@/shared/test/renderWithProviders';
 import type { ContentProductionJobDetailResponse } from '@flex-thia/contracts/content-production/content-production';
 import { screen, waitFor } from '@testing-library/react';
@@ -6,7 +5,8 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '@/shared/test/renderWithProviders';
 import { ContentProductionJobDetailPage as ContentProductionJobDetailPageContainer } from './ContentProductionJobDetailPage';
-import { ContentProductionJobDetailPageView } from '@/features/content-production/components/content-production-job-detail/ContentProductionJobDetailPageView';
+import { ContentProductionJobDetailContent } from '@/pages/admin/content-production/ContentProductionJobDetailPage';
+/** 콘텐츠 제작 job 상세의 공개 상태와 retry 조건을 검증한다 */
 
 const mocks = vi.hoisted(() => ({ authenticatedRequest: vi.fn() }));
 
@@ -54,7 +54,7 @@ beforeEach(() => {
 describe('콘텐츠 제작 작업 상세 화면', () => {
   it('공개 count·오류와 job 범위 후보 링크를 표시한다', () => {
     render(
-      <ContentProductionJobDetailPageView
+      <ContentProductionJobDetailContent
         job={job}
         onRetry={vi.fn()}
       />,
@@ -73,7 +73,7 @@ describe('콘텐츠 제작 작업 상세 화면', () => {
     expect(item).toBeDefined();
     if (!item) return;
     render(
-      <ContentProductionJobDetailPageView
+      <ContentProductionJobDetailContent
         job={{ ...job, items: [{ ...item, retryable: false }] }}
         onRetry={vi.fn()}
       />,

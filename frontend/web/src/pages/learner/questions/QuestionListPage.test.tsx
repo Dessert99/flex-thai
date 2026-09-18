@@ -1,4 +1,3 @@
-/** 문제 탐색의 URL 소유 필터·페이지 상태·복구 가능한 화면 상태를 검증한다 */
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
@@ -10,7 +9,8 @@ import {
   questionListFacets,
   questionListIds,
   renderQuestionList,
-} from '@/features/learning/components/question-list/QuestionListPage.test-support';
+} from '@/pages/learner/questions/QuestionListPage.test-support';
+/** 문제 탐색의 URL 소유 필터·페이지 상태·복구 가능한 화면 상태를 검증한다 */
 
 const mocks = vi.hoisted(() => ({ authenticatedRequest: vi.fn() }));
 

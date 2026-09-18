@@ -1,7 +1,10 @@
-/** 개념 상세의 목차·표·태국어 예시를 검증한다 */
+import { beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { ConceptDetailPageView } from '@/features/learning/components/concept-detail/ConceptDetailPageView';
+import { ConceptDetailPage } from '@/pages/learner/concepts/ConceptDetailPage';
+import type { useConceptDetail } from '@/features/learning/hooks/concept-detail/useConceptDetail';
+import type { ComponentProps } from 'react';
+/** 개념 상세의 목차·표·태국어 예시를 검증한다 */
 
 vi.mock(
   '@/features/learning/components/report-content-error/ContentErrorReportDialog',
@@ -119,3 +122,30 @@ describe('개념 상세 페이지', () => {
     );
   });
 });
+
+const pageState = vi.hoisted(() => ({
+  read: vi.fn<() => ReturnType<typeof useConceptDetail> | undefined>(),
+}));
+vi.mock(
+  '@/features/learning/hooks/concept-detail/useConceptDetail',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('@/features/learning/hooks/concept-detail/useConceptDetail')
+      >();
+    return {
+      ...actual,
+      useConceptDetail: (...args: Parameters<typeof useConceptDetail>) =>
+        pageState.read() ?? actual.useConceptDetail(...args),
+    };
+  },
+);
+beforeEach(() => {
+  pageState.read.mockReset();
+});
+function ConceptDetailPageView(props: ReturnType<typeof useConceptDetail>) {
+  pageState.read.mockReturnValue(props);
+  return (
+    <ConceptDetailPage {...({} as ComponentProps<typeof ConceptDetailPage>)} />
+  );
+}

@@ -1,8 +1,11 @@
-/** 관리자 개념 목록 필터와 상태 표시를 검증한다 */
+import { beforeEach } from 'vitest';
 import { renderWithProviders as render } from '@/shared/test/renderWithProviders';
 import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { ConceptManagementPageView } from '@/features/learning/components/concept-management/ConceptManagementPageView';
+import { ConceptManagementPage } from '@/pages/admin/concepts/ConceptManagementPage';
+import type { useConceptManagement } from '@/features/learning/hooks/concept-management/useConceptManagement';
+import type { ComponentProps } from 'react';
+/** 관리자 개념 목록 필터와 상태 표시를 검증한다 */
 
 describe('ConceptManagementPageView', () => {
   it('상태·버전·검증 결과를 표시하고 영역 필터를 변경한다', () => {
@@ -88,3 +91,35 @@ describe('ConceptManagementPageView', () => {
     expect(onCreate).not.toHaveBeenCalled();
   });
 });
+
+const pageState = vi.hoisted(() => ({
+  read: vi.fn<() => ReturnType<typeof useConceptManagement> | undefined>(),
+}));
+vi.mock(
+  '@/features/learning/hooks/concept-management/useConceptManagement',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('@/features/learning/hooks/concept-management/useConceptManagement')
+      >();
+    return {
+      ...actual,
+      useConceptManagement: (
+        ...args: Parameters<typeof useConceptManagement>
+      ) => pageState.read() ?? actual.useConceptManagement(...args),
+    };
+  },
+);
+beforeEach(() => {
+  pageState.read.mockReset();
+});
+function ConceptManagementPageView(
+  props: ReturnType<typeof useConceptManagement>,
+) {
+  pageState.read.mockReturnValue(props);
+  return (
+    <ConceptManagementPage
+      {...({} as ComponentProps<typeof ConceptManagementPage>)}
+    />
+  );
+}

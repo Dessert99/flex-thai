@@ -1,9 +1,9 @@
-/** 단어장 상세의 검색·페이지·현재 page 선택·상태 화면을 검증한다 */
 import type { WordbookItemListResponse } from '@flex-thia/contracts/learning/wordbooks';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { WordbookDetailPageView } from '@/features/learning/components/wordbook-detail/WordbookDetailPageView';
+import { WordbookDetailContent } from '@/pages/learner/wordbooks/WordbookDetailPage';
+/** 단어장 상세의 검색·페이지·현재 page 선택·상태 화면을 검증한다 */
 
 const vocabularyId = '00000000-0000-4000-8000-000000000103';
 const data: WordbookItemListResponse = {
@@ -83,7 +83,7 @@ describe('단어장 상세 페이지', () => {
 
 function baseView(overrides: Record<string, unknown> = {}) {
   return (
-    <WordbookDetailPageView
+    <WordbookDetailContent
       data={data}
       error={false}
       loading={false}

@@ -8,6 +8,26 @@ const pageFile =
   'frontend/web/src/pages/learner/vocabularies/VocabularyListPage.tsx';
 
 describe('소스 구조 검사', () => {
+  it('페이지의 기능 훅 호출과 UI 상태·이벤트 연결을 허용한다', () => {
+    expect(
+      checkSourceArchitecture({
+        'frontend/web/src/features/vocabulary/hooks/useVocabularyList.ts':
+          'export function useVocabularyList() { return []; }',
+        [pageFile]:
+          "import { useState } from 'react'; import { useVocabularyList } from '@/features/vocabulary/hooks/useVocabularyList'; export function VocabularyListPage() { const [open, setOpen] = useState(false); const items = useVocabularyList(); return <button onClick={() => setOpen(!open)}>{items.length}</button>; }",
+      }),
+    ).toEqual([]);
+  });
+
+  it('기능 폴더에 페이지 전체 래퍼를 다시 만들지 않는다', () => {
+    expect(
+      checkSourceArchitecture({
+        'frontend/web/src/features/vocabulary/components/VocabularyListPageContainer.tsx':
+          'export function VocabularyListPageContainer() { return null; }',
+      }),
+    ).toEqual([expect.stringContaining('페이지 전체 화면은 pages')]);
+  });
+
   it('분류 폴더 안의 페이지가 feature 컴포넌트를 직접 가져와 조립할 수 있다', () => {
     expect(
       checkSourceArchitecture({
@@ -28,17 +48,17 @@ describe('소스 구조 검사', () => {
     ).toEqual([expect.stringContaining('배럴 재수출')]);
   });
 
-  it('페이지에 상태 로직과 하위 구현 폴더를 두지 않는다', () => {
+  it('페이지에 Query 구현과 하위 구현 폴더를 두지 않는다', () => {
     expect(
       checkSourceArchitecture({
         [pageFile]:
-          'export function VocabularyListPage() { const data = useQuery(); return null; }',
+          "import { useQuery } from '@tanstack/react-query'; export function VocabularyListPage() { const data = useQuery(); return null; }",
         'frontend/web/src/pages/vocabulary/components/List.tsx':
           'export const List = 1;',
       }),
     ).toEqual(
       expect.arrayContaining([
-        expect.stringContaining('상태·조회·이벤트'),
+        expect.stringContaining('Query/Mutation'),
         expect.stringContaining('조립용 페이지 파일'),
       ]),
     );
@@ -81,8 +101,7 @@ describe('소스 구조 검사', () => {
       }),
     ).toEqual(
       expect.arrayContaining([
-        expect.stringContaining('상태·조회·이벤트'),
-        expect.stringContaining('컴포넌트만 조립'),
+        expect.stringContaining('API 호출은 feature 훅'),
       ]),
     );
     expect(

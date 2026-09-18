@@ -1,9 +1,12 @@
-/** 문제 후보 목록의 그룹 표시·선택·pagination을 검증한다 */
-import { QuestionCandidateManagementPageView } from '@/features/content-production/components/question-candidate-management/QuestionCandidateManagementPageView';
+import { beforeEach } from 'vitest';
+import { QuestionCandidateManagementPage } from '@/pages/admin/content-production/QuestionCandidateManagementPage';
+import type { useQuestionCandidateManagement } from '@/features/content-production/hooks/question-candidate-management/useQuestionCandidateManagement';
+import type { ComponentProps } from 'react';
 import { renderWithProviders as render } from '@/shared/test/renderWithProviders';
 import type { QuestionCandidateListResponse } from '@flex-thia/contracts/content-production/question-production';
 import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+/** 문제 후보 목록의 그룹 표시·선택·pagination을 검증한다 */
 
 const id = (suffix: number) =>
   `00000000-0000-4000-8000-${String(suffix).padStart(12, '0')}`;
@@ -104,3 +107,37 @@ describe('QuestionCandidateManagementPageView', () => {
     expect(screen.getByRole('button', { name: '승인' })).toBeDisabled();
   });
 });
+
+const pageState = vi.hoisted(() => ({
+  read: vi.fn<
+    () => ReturnType<typeof useQuestionCandidateManagement> | undefined
+  >(),
+}));
+vi.mock(
+  '@/features/content-production/hooks/question-candidate-management/useQuestionCandidateManagement',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('@/features/content-production/hooks/question-candidate-management/useQuestionCandidateManagement')
+      >();
+    return {
+      ...actual,
+      useQuestionCandidateManagement: (
+        ...args: Parameters<typeof useQuestionCandidateManagement>
+      ) => pageState.read() ?? actual.useQuestionCandidateManagement(...args),
+    };
+  },
+);
+beforeEach(() => {
+  pageState.read.mockReset();
+});
+function QuestionCandidateManagementPageView(
+  props: ReturnType<typeof useQuestionCandidateManagement>,
+) {
+  pageState.read.mockReturnValue(props);
+  return (
+    <QuestionCandidateManagementPage
+      {...({} as ComponentProps<typeof QuestionCandidateManagementPage>)}
+    />
+  );
+}

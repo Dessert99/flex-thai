@@ -1,8 +1,8 @@
-/** 문제 후보 상세의 canonical graph와 redacted 경계를 검증한다 */
-import { QuestionCandidateDetailPageView } from '@/features/content-production/components/question-candidate-detail/QuestionCandidateDetailPageView';
+import { QuestionCandidateDetailContent } from '@/pages/admin/content-production/QuestionCandidateDetailPage';
 import type { QuestionCandidateDetailResponse } from '@flex-thia/contracts/content-production/question-production';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+/** 문제 후보 상세의 canonical graph와 redacted 경계를 검증한다 */
 
 const id = (suffix: number) =>
   `00000000-0000-4000-8000-${String(suffix).padStart(12, '0')}`;
@@ -76,10 +76,10 @@ const canonical = {
   validations,
 } satisfies QuestionCandidateDetailResponse;
 
-describe('QuestionCandidateDetailPageView', () => {
+describe('QuestionCandidateDetailContent', () => {
   it('canonical Thai 문장과 정확히 네 검증 단계를 표시한다', () => {
     render(
-      <QuestionCandidateDetailPageView
+      <QuestionCandidateDetailContent
         data={canonical}
         onApprove={vi.fn()}
         onDiscard={vi.fn()}
@@ -107,7 +107,7 @@ describe('QuestionCandidateDetailPageView', () => {
       validations,
     };
     render(
-      <QuestionCandidateDetailPageView
+      <QuestionCandidateDetailContent
         data={redacted}
         onApprove={vi.fn()}
         onDiscard={vi.fn()}
@@ -123,7 +123,7 @@ describe('QuestionCandidateDetailPageView', () => {
 
   it('검증이 모두 PASSED가 아니면 NORMAL 후보도 승인하지 않는다', () => {
     render(
-      <QuestionCandidateDetailPageView
+      <QuestionCandidateDetailContent
         data={{
           ...canonical,
           validations: canonical.validations.map((validation, index) =>

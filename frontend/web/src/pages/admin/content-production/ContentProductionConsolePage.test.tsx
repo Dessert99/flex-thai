@@ -1,4 +1,4 @@
-/** 콘텐츠 제작 console의 독립 query 상태를 검증한다 */
+/* eslint-disable max-lines -- 기존 동작 테스트와 기능 훅의 표시 상태 테스트를 함께 보존한다. */
 import {
   renderWithProviders as render,
   renderWithProviders,
@@ -7,7 +7,9 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ContentProductionConsolePage as ContentProductionConsolePageContainer } from './ContentProductionConsolePage';
-import { ContentProductionConsolePageView } from '@/features/content-production/components/content-production-console/ContentProductionConsolePageView';
+import { ContentProductionConsolePage } from '@/pages/admin/content-production/ContentProductionConsolePage';
+import type { useContentProductionConsole } from '@/features/content-production/hooks/content-production-console/useContentProductionConsole';
+/** 콘텐츠 제작 console의 독립 query 상태를 검증한다 */
 
 const mocks = vi.hoisted(() => ({ authenticatedRequest: vi.fn() }));
 
@@ -310,4 +312,34 @@ function createDeferred<T>() {
     reject = decline;
   });
   return { promise, reject, resolve };
+}
+
+const pageState = vi.hoisted(() => ({
+  read: vi.fn<
+    () => ReturnType<typeof useContentProductionConsole> | undefined
+  >(),
+}));
+vi.mock(
+  '@/features/content-production/hooks/content-production-console/useContentProductionConsole',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('@/features/content-production/hooks/content-production-console/useContentProductionConsole')
+      >();
+    return {
+      ...actual,
+      useContentProductionConsole: (
+        ...args: Parameters<typeof useContentProductionConsole>
+      ) => pageState.read() ?? actual.useContentProductionConsole(...args),
+    };
+  },
+);
+beforeEach(() => {
+  pageState.read.mockReset();
+});
+function ContentProductionConsolePageView(
+  props: ReturnType<typeof useContentProductionConsole>,
+) {
+  pageState.read.mockReturnValue(props);
+  return <ContentProductionConsolePage />;
 }

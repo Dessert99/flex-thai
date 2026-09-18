@@ -1,9 +1,12 @@
-/** 관리자 개념 상세의 초안·검증·게시 동작을 검증한다 */
-/* eslint-disable max-lines-per-function */
+import { beforeEach } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { AdminConceptDetailPageView } from '@/features/learning/components/admin-concept-detail/AdminConceptDetailPageView';
+import { AdminConceptDetailPage } from '@/pages/admin/concepts/AdminConceptDetailPage';
+import type { useAdminConceptDetail } from '@/features/learning/hooks/admin-concept-detail/useAdminConceptDetail';
+import type { ComponentProps } from 'react';
 import { ConceptBlockEditor } from '@/features/learning/components/admin-concept-detail/ConceptBlockEditor';
+/** 관리자 개념 상세의 초안·검증·게시 동작을 검증한다 */
+/* eslint-disable max-lines-per-function */
 
 describe('AdminConceptDetailPageView', () => {
   it('검증 문제를 표시하고 PASSED 초안만 게시할 수 있다', () => {
@@ -199,3 +202,35 @@ describe('ConceptBlockEditor', () => {
     expect(onChange).toHaveBeenCalledTimes(4);
   });
 });
+
+const pageState = vi.hoisted(() => ({
+  read: vi.fn<() => ReturnType<typeof useAdminConceptDetail> | undefined>(),
+}));
+vi.mock(
+  '@/features/learning/hooks/admin-concept-detail/useAdminConceptDetail',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('@/features/learning/hooks/admin-concept-detail/useAdminConceptDetail')
+      >();
+    return {
+      ...actual,
+      useAdminConceptDetail: (
+        ...args: Parameters<typeof useAdminConceptDetail>
+      ) => pageState.read() ?? actual.useAdminConceptDetail(...args),
+    };
+  },
+);
+beforeEach(() => {
+  pageState.read.mockReset();
+});
+function AdminConceptDetailPageView(
+  props: ReturnType<typeof useAdminConceptDetail>,
+) {
+  pageState.read.mockReturnValue(props);
+  return (
+    <AdminConceptDetailPage
+      {...({} as ComponentProps<typeof AdminConceptDetailPage>)}
+    />
+  );
+}

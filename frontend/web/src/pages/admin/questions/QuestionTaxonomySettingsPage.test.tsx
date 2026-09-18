@@ -1,10 +1,12 @@
-/** 관리자 문제 분류 설정 화면 동작을 검증한다 */
-import { QuestionTaxonomySettingsPageView } from '@/features/learning/components/question-taxonomy-settings/QuestionTaxonomySettingsPageView';
+import { beforeEach } from 'vitest';
+import { QuestionTaxonomySettingsPage } from '@/pages/admin/questions/QuestionTaxonomySettingsPage';
+import type { useQuestionTaxonomySettings } from '@/features/learning/hooks/question-taxonomy-settings/useQuestionTaxonomySettings';
 import type { AdminQuestionVersionPayload } from '@flex-thia/contracts/questions/legacy-question-payload';
 import type { QuestionTaxonomySettingsResponse } from '@flex-thia/contracts/questions/question-taxonomy-settings';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
+/** 관리자 문제 분류 설정 화면 동작을 검증한다 */
 
 beforeAll(() => {
   Element.prototype.scrollIntoView = vi.fn();
@@ -275,3 +277,33 @@ describe('문제 유형 주제와 태그 설정', () => {
     );
   });
 });
+
+const pageState = vi.hoisted(() => ({
+  read: vi.fn<
+    () => ReturnType<typeof useQuestionTaxonomySettings> | undefined
+  >(),
+}));
+vi.mock(
+  '@/features/learning/hooks/question-taxonomy-settings/useQuestionTaxonomySettings',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('@/features/learning/hooks/question-taxonomy-settings/useQuestionTaxonomySettings')
+      >();
+    return {
+      ...actual,
+      useQuestionTaxonomySettings: (
+        ...args: Parameters<typeof useQuestionTaxonomySettings>
+      ) => pageState.read() ?? actual.useQuestionTaxonomySettings(...args),
+    };
+  },
+);
+beforeEach(() => {
+  pageState.read.mockReset();
+});
+function QuestionTaxonomySettingsPageView(
+  props: ReturnType<typeof useQuestionTaxonomySettings>,
+) {
+  pageState.read.mockReturnValue(props);
+  return <QuestionTaxonomySettingsPage />;
+}

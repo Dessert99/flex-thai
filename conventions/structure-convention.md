@@ -152,17 +152,30 @@ frontend/web/src/
   상위 계층은 하위 계층을 사용할 수 있고, 역방향으로 import하지 않는다.
 - `app`은 라우트와 접근 권한, 전역 Provider, 공통 레이아웃을 설정한다.
   `app/routes`는 URL·검색값·경로 매개변수를 해당 페이지에 연결한다.
-- `pages`는 기능 컴포넌트를 조립하고 페이지 배치를 구성한다.
+- `pages`는 페이지의 헤더·카드·본문·푸터·모달 배치를 직접 작성하고,
+  독립적인 기능 컴포넌트와 기능 훅을 조립한다. 화면을 수정할 때 해당
+  페이지 파일에서 전체 구성을 확인할 수 있어야 한다.
+  페이지와 일대일로 대응하는 `PageContainer`, `PageView`, `Step1` 같은
+  화면 전체 위임용 래퍼를 `features`에 만들지 않는다.
+  단계별 화면은 `VocabularyExtractionStep1Page.tsx`처럼 `pages`에 둔다.
   `auth`, `learner`, `admin`, `errors`로 분류하고, 화면이 많은 영역은
   `vocabularies`, `questions`, `concepts` 등 업무별 하위 폴더로 묶는다.
   테스트는 해당 페이지 파일 옆에 둔다. 분류를 위한 폴더는 허용하되,
   `components`, `hooks`, `apis`, `libs`, `ui`, `model` 폴더를 두지 않는다.
-- 조회·필터·이벤트 처리·검증·상태 등 업무 기능 구현은 `features`에 둔다.
-  한 페이지에서만 사용하는 기능도 `features`에 둔다.
+- 서버 조회·변경, 업무 검증, 복잡한 상태 전이는 `features/hooks`,
+  `features/apis`, `features/libs`에 둔다. 페이지는 기능 훅을 직접 호출하고
+  반환된 상태·액션을 화면에 연결할 수 있다. 페이지에서 직접 API를 호출하거나
+  Query/Mutation을 정의하지 않는다.
+- 모달 열림·입력 표시 같은 단순 UI 상태와 이벤트 연결은 페이지에 둘 수 있다.
+  독립적인 폼·목록·모달의 동작은 기능 컴포넌트 안에 두며, 단순히 페이지
+  파일을 짧게 만들 목적으로 전체 화면을 다른 컴포넌트로 옮기지 않는다.
+- 같은 페이지 파일 안에서 순수한 표시 영역을 작은 함수로 나누는 것은 허용한다.
+  상세 항목 변경 시 입력 초기화처럼 React의 별도 컴포넌트 경계가 필요한 경우는
+  해당 경계를 유지하되, 페이지 전체 배치는 여전히 페이지 파일에서 소유한다.
 - `features`는 업무 영역으로 묶는다. 현재 인증·사용자 관리는 `identity`,
   어휘·문제·개념·단어장·연습은 `learning`, 콘텐츠 제작·후보 검토·가져오기는
-  `content-production`, 운영 현황·감사·비용·신고 관리는 `operations`,
-  접근 거부·없는 경로 안내는 `navigation`이 담당한다.
+  `content-production`, 운영 현황·감사·비용·신고 관리는 `operations`가 담당한다.
+  접근 거부·없는 경로 안내는 `pages/errors`에서 직접 구성한다.
   내부는 컴포넌트 `components`, React 훅 `hooks`, API 요청과
   query·mutation 설정 `apis`, 일반 로직 `libs`로 구분한다.
   역할 폴더 안에서는 `components/vocabulary-list`처럼 세부 기능으로 묶을 수 있다.
@@ -172,8 +185,8 @@ frontend/web/src/
 - 다른 feature를 직접 import하지 않는다. 기능 간 조립은 `pages`에서 한다.
 - 공용 primitive는 `shared/components`에 둔다. 사이드바·Provider 조합은
   `app/layouts/SidebarLayout.tsx`에서 공유한다. 페이지 헤더·본문 너비·여백·
-  카드 배치는 `pages`에서 구성하고, 기능의 로딩·빈 결과·오류 안내는
-  해당 feature에서 구성한다. 앱의 세션·라우트 상태 안내는 해당 사용처에 둔다.
+  카드 배치는 `pages`에서 구성한다. 페이지 전체의 로딩·빈 결과·오류 안내도
+  페이지에서 구성하고, 독립 기능 내부의 상태 안내만 해당 feature가 담당한다. 앱의 세션·라우트 상태 안내는 해당 사용처에 둔다.
   이를 위한 공용 PageState나 feedback 계층은 만들지 않는다.
   공용 레이아웃 Container·Stack·Grid와 스토리는 `shared/components/layouts`에 두고 배치만 담당한다.
   페이지는 콘텐츠 조립을 담당하며 최대 너비와 반응형 열 개수를 `className`으로 지정한다.
@@ -202,7 +215,7 @@ frontend/web/src/
   동적 경로는 `$questionId` 같은 이름으로 표현한다. 공통 처리가 없는
   디렉터리에는 `route.tsx`를 만들지 않는다.
 - 목록·상세·하위 작업은 기능별 폴더로 묶고, 단일 화면은 `users.tsx`처럼
-  파일로 둔다. 라우트는 `pages`를 연결하고, `pages`는 `features`의 화면을 조립한다.
+  파일로 둔다. 라우트는 `pages`를 연결하고, `pages`는 기능 훅과 독립적인 기능 컴포넌트로 화면을 조립한다.
 - 라우트 옆 테스트 파일은 `-route.test.ts`처럼 `-` 접두사를 붙여 라우트
   생성 대상에서 제외한다. `src/routeTree.gen.ts`는 자동 생성 결과다.
 - 앱 내부 화면 이동에는 `@tanstack/react-router`의 `Link`를 사용한다.

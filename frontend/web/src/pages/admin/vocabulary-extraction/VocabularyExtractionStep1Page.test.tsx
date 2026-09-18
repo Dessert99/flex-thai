@@ -18,6 +18,7 @@ beforeEach(() => {
   mocks.request.mockReset();
   mocks.request.mockResolvedValue({ items: [template] });
 });
+// eslint-disable-next-line max-lines-per-function -- 입력 유지와 템플릿 API 동작을 한 화면의 시나리오로 검증한다.
 describe('단어 추출 자료 입력', () => {
   it('탭과 모달을 바꿔도 입력을 보존하고 복사만 수행한다', async () => {
     const user = userEvent.setup();

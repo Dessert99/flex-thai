@@ -1,8 +1,9 @@
-import { AdminQuestionDetailPageView } from '@/features/learning/components/admin-question-detail/AdminQuestionDetailPageView';
+import { AdminQuestionDetailContent } from '@/pages/admin/questions/AdminQuestionDetailPage';
 import { renderWithProviders } from '@/shared/test/renderWithProviders';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+
 const id = '00000000-0000-4000-8000-000000000001';
 const other = '00000000-0000-4000-8000-000000000002';
 vi.mock('@/shared/apis/auth/authenticatedRequest', () => ({
@@ -36,7 +37,7 @@ describe('현재 문제 편집', () => {
     const user = userEvent.setup();
     const save = vi.fn();
     renderWithProviders(
-      <AdminQuestionDetailPageView
+      <AdminQuestionDetailContent
         data={data}
         onSave={save}
         onStatus={() => undefined}

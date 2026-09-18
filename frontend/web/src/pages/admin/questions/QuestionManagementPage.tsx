@@ -1,15 +1,266 @@
+import { AdminQuestionFilters } from '@/features/learning/components/question-management/AdminQuestionFilters';
+import { useQuestionManagement } from '@/features/learning/hooks/question-management/useQuestionManagement';
+import { hasAdminQuestionFilters } from '@/features/learning/libs/question-management/adminQuestionSearch';
+import type {
+  QuestionManagementPageViewProps,
+  QuestionRecord,
+} from '@/features/learning/libs/question-management/questionManagementPageTypes';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/components/alert';
+import { Badge } from '@/shared/components/badge';
+import { Button } from '@/shared/components/button';
 import { Container } from '@/shared/components/layouts/Container';
-/** 기능 화면을 조립하는 페이지 진입점 */
-import type { ComponentProps } from 'react';
-import { QuestionManagementPageContainer } from '@/features/learning/components/question-management/QuestionManagementPageContainer';
+import { Skeleton } from '@/shared/components/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/shared/components/table';
+import type { AdminQuestionListResponse } from '@flex-thia/contracts/admin/questions';
+import { Link } from '@tanstack/react-router';
+/** 페이지에서 화면 배치와 기능 컴포넌트를 조립한다 */
 
-/** 라우트 입력을 기능 화면에 전달한다 */
 export function QuestionManagementPage(
-  props: ComponentProps<typeof QuestionManagementPageContainer>,
+  pageInput: Parameters<typeof useQuestionManagement>[0],
 ) {
+  const {
+    data,
+    error,
+    loading,
+    onFilterChange,
+    onPageChange,
+    onResetFilters,
+    onRetry,
+    search,
+  } = useQuestionManagement(pageInput);
+
   return (
     <Container className='max-w-content flex-1'>
-      <QuestionManagementPageContainer {...props} />
+      <section className='grid gap-section'>
+        <header className='space-y-cluster'>
+          <h1 className='text-title text-primary'>문제 관리</h1>
+          <p className='text-body text-subtle'>
+            문제와 최신 버전의 공개 상태를 확인하세요.
+          </p>
+        </header>
+        <AdminQuestionFilters
+          onChange={onFilterChange}
+          onReset={onResetFilters}
+          search={search}
+        />
+        {renderListState({
+          data,
+          error,
+          loading,
+          onPageChange,
+          onResetFilters,
+          onRetry,
+          search,
+        })}
+      </section>
     </Container>
+  );
+}
+
+function renderListState({
+  data,
+  error,
+  loading,
+  onPageChange,
+  onResetFilters,
+  onRetry,
+  search,
+}: Omit<QuestionManagementPageViewProps, 'onFilterChange'>) {
+  if (loading) {
+    return (
+      <section
+        aria-live='polite'
+        className='flex min-h-state flex-col justify-center gap-cluster p-page'
+        role='status'
+      >
+        <Skeleton className='h-control w-full max-w-content' />
+        <p className='text-body text-subtle'>관리 문제를 불러오고 있습니다.</p>
+      </section>
+    );
+  }
+  if (error || data === undefined) {
+    return (
+      <Alert
+        className='rounded-panel border-danger bg-danger-surface'
+        variant='destructive'
+      >
+        <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+        <AlertDescription className='flex flex-col gap-cluster text-danger'>
+          <p>관리 문제 목록을 불러오지 못했습니다.</p>
+          <Button
+            className='mt-cluster w-auto'
+            onClick={onRetry}
+            type='button'
+            variant='outline'
+          >
+            다시 시도
+          </Button>
+        </AlertDescription>
+      </Alert>
+    );
+  }
+  if (data.items.length === 0) {
+    return (
+      <section className='flex min-h-state flex-col items-center justify-center gap-cluster rounded-panel border border-default bg-surface-muted p-page text-center'>
+        <h2 className='text-title text-primary'>
+          {hasAdminQuestionFilters(search)
+            ? '조건에 맞는 문제가 없습니다.'
+            : '등록된 문제가 없습니다.'}
+        </h2>
+        <p className='text-body text-subtle'>
+          {hasAdminQuestionFilters(search)
+            ? '다른 조건을 선택하거나 필터를 초기화해 보세요.'
+            : '콘텐츠 가져오기로 문제 초안을 등록할 수 있습니다.'}
+        </p>
+        {hasAdminQuestionFilters(search) ? (
+          <Button
+            onClick={onResetFilters}
+            type='button'
+            variant='outline'
+          >
+            필터 초기화
+          </Button>
+        ) : undefined}
+      </section>
+    );
+  }
+
+  return (
+    <>
+      <DesktopQuestionTable records={data.items} />
+      <MobileQuestionRecords records={data.items} />
+      <QuestionPagination
+        onPageChange={onPageChange}
+        page={data.page}
+      />
+    </>
+  );
+}
+
+function DesktopQuestionTable({ records }: { records: QuestionRecord[] }) {
+  return (
+    <div className='hidden md:block'>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>문제 유형</TableHead>
+            <TableHead>문제 상태</TableHead>
+            <TableHead>최신 버전</TableHead>
+            <TableHead>난이도</TableHead>
+            <TableHead>수정 시각</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {records.map((record) => (
+            <TableRow key={record.questionId}>
+              <TableCell>
+                <QuestionLink record={record} />
+              </TableCell>
+              <TableCell>
+                <QuestionStatusBadge status={record.status} />
+              </TableCell>
+              <TableCell>v{record.version}</TableCell>
+              <TableCell>{record.difficulty}</TableCell>
+              <TableCell>
+                {new Date(record.updatedAt).toLocaleString('ko-KR')}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+function MobileQuestionRecords({ records }: { records: QuestionRecord[] }) {
+  return (
+    <ul
+      aria-label='모바일 문제 목록'
+      className='grid gap-cluster md:hidden'
+    >
+      {records.map((record) => (
+        <li
+          className='grid gap-cluster rounded-panel border border-default bg-surface p-page'
+          key={record.questionId}
+        >
+          <QuestionLink record={record} />
+          <div className='flex flex-wrap gap-cluster'>
+            <QuestionStatusBadge status={record.status} />
+          </div>
+          <p className='text-caption text-subtle'>
+            최신 v{record.version} · 난이도 {record.difficulty}
+          </p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function QuestionLink({ record }: { record: QuestionRecord }) {
+  return (
+    <Link
+      className='text-primary underline'
+      to='/admin/questions/$questionId'
+      search={{ page: 1, pageSize: 20 }}
+      params={{ questionId: record.questionId }}
+    >
+      {record.questionTypeSlug}
+    </Link>
+  );
+}
+
+function QuestionStatusBadge({ status }: { status: QuestionRecord['status'] }) {
+  return (
+    <Badge variant={toQuestionBadgeVariant(status)}>
+      {{ DRAFT: '초안', HIDDEN: '숨김', PUBLISHED: '게시' }[status]}
+    </Badge>
+  );
+}
+
+function toQuestionBadgeVariant(status: QuestionRecord['status']) {
+  if (status === 'HIDDEN') return 'destructive' as const;
+  if (status === 'PUBLISHED') return 'secondary' as const;
+  return 'outline' as const;
+}
+
+function QuestionPagination({
+  onPageChange,
+  page,
+}: {
+  onPageChange: (page: number) => void;
+  page: AdminQuestionListResponse['page'];
+}) {
+  return (
+    <nav
+      aria-label='관리자 문제 목록 페이지'
+      className='flex items-center justify-between gap-cluster'
+    >
+      <Button
+        disabled={page.page <= 1}
+        onClick={() => onPageChange(page.page - 1)}
+        type='button'
+        variant='outline'
+      >
+        이전
+      </Button>
+      <span className='text-body text-subtle'>
+        {page.page} / {page.totalPages}
+      </span>
+      <Button
+        disabled={page.page >= page.totalPages}
+        onClick={() => onPageChange(page.page + 1)}
+        type='button'
+        variant='outline'
+      >
+        다음
+      </Button>
+    </nav>
   );
 }

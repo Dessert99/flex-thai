@@ -47,6 +47,13 @@ export function checkSourceArchitecture(files) {
         `${file}: components/hooks/apis/libs 역할 폴더를 사용하세요.`,
       );
     }
+    if (
+      layer === 'features' &&
+      !isTest &&
+      /Page(?:Container|View)?\.tsx$/.test(file)
+    ) {
+      violations.push(`${file}: 페이지 전체 화면은 pages에서 직접 조립하세요.`);
+    }
     const importedNames = new Set();
     for (const statement of source.statements) {
       if (ts.isImportDeclaration(statement)) {
@@ -76,11 +83,6 @@ export function checkSourceArchitecture(files) {
           );
         }
       }
-      if (layer === 'pages' && !isTest && ts.isCallExpression(node)) {
-        violations.push(
-          `${file}: 페이지의 상태·조회·이벤트 처리 로직은 features로 옮기세요.`,
-        );
-      }
       const specifier =
         ts.isImportDeclaration(node) || ts.isExportDeclaration(node)
           ? node.moduleSpecifier
@@ -90,6 +92,12 @@ export function checkSourceArchitecture(files) {
             : undefined;
       if (specifier && ts.isStringLiteral(specifier) && parts.length) {
         const spec = specifier.text;
+        if (layer === 'pages' && !isTest && spec === '@tanstack/react-query') {
+          violations.push(
+            `${file}: 페이지의 Query/Mutation은 feature 훅에 두세요.`,
+          );
+        }
+
         const target = spec.startsWith('@/')
           ? frontendPrefix + spec.slice(2)
           : spec.startsWith('.')
@@ -117,10 +125,19 @@ export function checkSourceArchitecture(files) {
             layer === 'pages' &&
             !isTest &&
             targetLayer === 'features' &&
-            targetFolder !== 'components'
+            targetFolder === 'apis' &&
+            !(
+              ts.isImportDeclaration(node) &&
+              (node.importClause?.isTypeOnly ||
+                (node.importClause?.namedBindings &&
+                  ts.isNamedImports(node.importClause.namedBindings) &&
+                  node.importClause.namedBindings.elements.every(
+                    (item) => item.isTypeOnly,
+                  )))
+            )
           ) {
             violations.push(
-              `${file}: pages는 feature 컴포넌트만 조립합니다 (${spec}).`,
+              `${file}: 페이지의 API 호출은 feature 훅에 두세요 (${spec}).`,
             );
           }
           if (

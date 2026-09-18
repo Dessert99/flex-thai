@@ -1,15 +1,279 @@
+import { QuestionFilters } from '@/features/learning/components/question-list/QuestionFilters';
+import { useQuestionList } from '@/features/learning/hooks/question-list/useQuestionList';
+import type { QuestionListPageViewProps } from '@/features/learning/libs/question-list/questionListPageTypes';
+import {
+  hasQuestionListFilters,
+  type QuestionListSearch,
+} from '@/features/learning/libs/question-list/questionListSearch';
+import { Alert, AlertDescription, AlertTitle } from '@/shared/components/alert';
+import { Badge } from '@/shared/components/badge';
+import { Button } from '@/shared/components/button';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/shared/components/card';
 import { Container } from '@/shared/components/layouts/Container';
-/** 기능 화면을 조립하는 페이지 진입점 */
-import type { ComponentProps } from 'react';
-import { QuestionListPageContainer } from '@/features/learning/components/question-list/QuestionListPageContainer';
+import { Skeleton } from '@/shared/components/skeleton';
+import type {
+  QuestionListFacets,
+  QuestionListResponse,
+} from '@flex-thia/contracts/learning/questions';
+import { Link } from '@tanstack/react-router';
+/** 페이지에서 화면 배치와 기능 컴포넌트를 조립한다 */
 
-/** 라우트 입력을 기능 화면에 전달한다 */
 export function QuestionListPage(
-  props: ComponentProps<typeof QuestionListPageContainer>,
+  pageInput: Parameters<typeof useQuestionList>[0],
 ) {
+  const {
+    data,
+    error,
+    loading,
+    onFilterChange,
+    onPageChange,
+    onResetFilters,
+    onRetry,
+    search,
+  } = useQuestionList(pageInput);
+
   return (
     <Container className='max-w-content flex-1'>
-      <QuestionListPageContainer {...props} />
+      <section
+        aria-labelledby='question-list-title'
+        className='flex flex-col gap-section'
+      >
+        <header className='space-y-cluster'>
+          <h1
+            className='text-title text-primary'
+            id='question-list-title'
+          >
+            문제 찾기
+          </h1>
+          <p className='text-body text-subtle'>
+            영역과 난이도, 풀이 상태로 문제를 찾아보세요.
+          </p>
+        </header>
+        <div className='grid gap-section md:grid-cols-[18rem_minmax(0,1fr)] md:items-start'>
+          <aside
+            aria-label='문제 필터'
+            className='min-w-collapsible'
+          >
+            <QuestionFilters
+              facets={data?.facets ?? emptyQuestionListFacets}
+              onChange={onFilterChange}
+              onReset={onResetFilters}
+              search={search}
+            />
+          </aside>
+          <section
+            aria-label='문제 목록 결과'
+            className='min-w-collapsible'
+          >
+            {renderQuestionState({
+              data,
+              error,
+              loading,
+              onPageChange,
+              onResetFilters,
+              onRetry,
+              search,
+            })}
+          </section>
+        </div>
+      </section>
     </Container>
   );
+}
+
+// 목록 조회 전에도 동일한 비활성 taxonomy 필터 틀을 유지한다.
+const emptyQuestionListFacets: QuestionListFacets = {
+  majorCategories: [],
+  questionTypes: [],
+  tags: [],
+  topics: [],
+};
+
+function renderQuestionState({
+  data,
+  error,
+  loading,
+  onPageChange,
+  onResetFilters,
+  onRetry,
+  search,
+}: Omit<QuestionListPageViewProps, 'onFilterChange'>) {
+  if (loading) {
+    return (
+      <section
+        aria-live='polite'
+        className='flex min-h-state flex-col justify-center gap-cluster p-page'
+        role='status'
+      >
+        <Skeleton className='h-control w-full max-w-content' />
+        <p className='text-body text-subtle'>문제를 불러오고 있습니다.</p>
+      </section>
+    );
+  }
+  if (error || data === undefined) {
+    return (
+      <Alert
+        className='rounded-panel border-danger bg-danger-surface'
+        variant='destructive'
+      >
+        <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
+        <AlertDescription className='flex flex-col gap-cluster text-danger'>
+          <p>문제 목록을 불러오지 못했습니다.</p>
+          <Button
+            className='mt-cluster w-auto'
+            onClick={onRetry}
+            type='button'
+            variant='outline'
+          >
+            다시 시도
+          </Button>
+        </AlertDescription>
+      </Alert>
+    );
+  }
+  if (data.items.length === 0) {
+    return renderEmptyState(search, onResetFilters);
+  }
+
+  return (
+    <QuestionResults
+      data={data}
+      onPageChange={onPageChange}
+    />
+  );
+}
+
+function QuestionResults({
+  data,
+  onPageChange,
+}: Pick<QuestionListPageViewProps, 'data' | 'onPageChange'> & {
+  data: QuestionListResponse;
+}) {
+  return (
+    <>
+      <ul className='grid gap-cluster'>
+        {data.items.map((question) => (
+          <li key={question.questionId}>
+            <Card className='rounded-panel border-default bg-surface'>
+              <CardHeader>
+                <CardTitle className='text-title'>
+                  <Link
+                    to='/questions/$questionId'
+                    params={{ questionId: question.questionId }}
+                  >
+                    {question.questionType.displayName}
+                  </Link>
+                </CardTitle>
+                <p className='text-body text-subtle'>
+                  대분류:{' '}
+                  {data.facets.majorCategories.find(
+                    (category) => category.value === question.majorCategory,
+                  )?.label ?? '대분류 정보 없음'}
+                </p>
+              </CardHeader>
+              <CardContent className='flex flex-wrap gap-cluster'>
+                <Badge variant='secondary'>
+                  {question.skill === 'READING' ? '읽기' : ''}
+                </Badge>
+                <Badge variant='outline'>
+                  세부 유형: {question.questionType.displayName}
+                </Badge>
+                <Badge variant='outline'>
+                  주제: {question.topic.displayName}
+                </Badge>
+                <Badge variant='outline'>난이도 {question.difficulty}</Badge>
+                <Badge variant='outline'>
+                  {toFirstResultLabel(question.firstResult)}
+                </Badge>
+                {question.tags.length > 0 ? (
+                  <ul
+                    aria-label='태그'
+                    className='flex flex-wrap gap-cluster'
+                  >
+                    {question.tags.map((tag) => (
+                      <li key={tag.id}>
+                        <Badge variant='secondary'>{tag.displayName}</Badge>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </CardContent>
+            </Card>
+          </li>
+        ))}
+      </ul>
+      <nav
+        aria-label='문제 목록 페이지'
+        className='flex items-center justify-between gap-cluster'
+      >
+        <Button
+          disabled={data.page.page <= 1}
+          onClick={() => {
+            onPageChange(data.page.page - 1);
+          }}
+          type='button'
+          variant='outline'
+        >
+          이전
+        </Button>
+        <span className='text-body text-subtle'>
+          {data.page.page} / {data.page.totalPages}
+        </span>
+        <Button
+          disabled={data.page.page >= data.page.totalPages}
+          onClick={() => {
+            onPageChange(data.page.page + 1);
+          }}
+          type='button'
+          variant='outline'
+        >
+          다음
+        </Button>
+      </nav>
+    </>
+  );
+}
+
+function renderEmptyState(
+  search: QuestionListSearch,
+  onResetFilters: () => void,
+) {
+  const filtered = hasQuestionListFilters(search);
+  return (
+    <section className='flex min-h-state flex-col items-center justify-center gap-cluster rounded-panel border border-default bg-surface-muted p-page text-center'>
+      <h2 className='text-title text-primary'>
+        {filtered ? '조건에 맞는 문제가 없습니다.' : '게시된 문제가 없습니다.'}
+      </h2>
+      <p className='text-body text-subtle'>
+        {filtered
+          ? '다른 조건을 선택하거나 필터를 초기화해 보세요.'
+          : '게시된 문제가 생기면 이곳에서 확인할 수 있습니다.'}
+      </p>
+      {filtered ? (
+        <Button
+          onClick={onResetFilters}
+          type='button'
+          variant='outline'
+        >
+          필터 초기화
+        </Button>
+      ) : undefined}
+    </section>
+  );
+}
+
+function toFirstResultLabel(
+  result: QuestionListResponse['items'][number]['firstResult'],
+) {
+  return {
+    CORRECT: '정답',
+    INCORRECT: '오답',
+    UNANSWERED: '미풀이',
+    UPDATED: '수정됨 · 다시 풀기',
+  }[result];
 }
