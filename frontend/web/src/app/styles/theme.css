@@ -82,6 +82,10 @@
   --semantic-size-icon: var(--foundation-size-icon);
   --semantic-size-form: var(--foundation-size-form);
   --semantic-size-state: var(--foundation-size-state);
+  --semantic-size-extraction-source: 14rem;
+  --semantic-size-extraction-input: 10rem;
+  --semantic-size-template-panel: 24rem;
+  --semantic-size-dialog: 85dvh;
   --semantic-radius-control: var(--foundation-radius-control);
   --semantic-radius-panel: var(--foundation-radius-panel);
   --semantic-shadow-control: var(--foundation-shadow-control);
@@ -182,6 +186,10 @@
   --spacing-section: var(--semantic-space-section);
   --spacing-icon: var(--semantic-size-icon);
   --spacing-state: var(--semantic-size-state);
+  --spacing-extraction-source: var(--semantic-size-extraction-source);
+  --spacing-extraction-input: var(--semantic-size-extraction-input);
+  --spacing-template-panel: var(--semantic-size-template-panel);
+  --spacing-dialog: var(--semantic-size-dialog);
   --container-content: 80rem;
   --container-form: var(--semantic-size-form);
   --radius-control: var(--semantic-radius-control);

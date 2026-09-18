@@ -1,0 +1,94 @@
+import { ExtractionFileInput } from './ExtractionFileInput';
+/** 동일 높이의 파일·링크 입력 패널로 푸터 위치를 유지한다 */
+import { useState } from 'react';
+import { Input } from '@/shared/components/input';
+import { Label } from '@/shared/components/label';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/shared/components/tabs';
+
+export function VocabularyExtractionSource() {
+  const [file, setFile] = useState<File | null>(null);
+  const [url, setUrl] = useState('');
+  const [error, setError] = useState('');
+  const selectFiles = (files: FileList | null) => {
+    const selected = files?.[0];
+    if (!selected) return;
+    if (
+      files?.length !== 1 ||
+      !/\.pdf$/i.test(selected.name) ||
+      (selected.type && selected.type !== 'application/pdf')
+    ) {
+      setError('피디에프 파일 한 개를 선택하세요.');
+      return;
+    }
+    if (selected.size === 0) {
+      setError('내용이 있는 파일을 선택하세요.');
+      return;
+    }
+    setFile(selected);
+    setError('');
+  };
+  return (
+    <section
+      aria-label='추출할 자료'
+      className='grid gap-cluster'
+    >
+      <h3 className='font-semibold'>추출할 자료</h3>
+      <Tabs defaultValue='file'>
+        <TabsList
+          variant='line'
+          className='w-full justify-start border-b border-default'
+        >
+          <TabsTrigger
+            value='file'
+            className='flex-none'
+          >
+            파일 업로드
+          </TabsTrigger>
+          <TabsTrigger
+            value='link'
+            className='flex-none'
+          >
+            웹 링크
+          </TabsTrigger>
+        </TabsList>
+        <div className='h-extraction-source'>
+          <TabsContent
+            value='file'
+            className='flex h-full flex-col justify-center gap-cluster'
+          >
+            <ExtractionFileInput
+              file={file}
+              error={error}
+              onSelect={selectFiles}
+              onRemove={() => {
+                setFile(null);
+                setError('');
+              }}
+            />
+          </TabsContent>
+          <TabsContent
+            value='link'
+            className='flex h-full flex-col justify-center gap-cluster'
+          >
+            <Label htmlFor='extraction-source-url'>웹페이지 주소</Label>
+            <Input
+              id='extraction-source-url'
+              type='url'
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder='자료가 있는 웹페이지 주소를 붙여 넣으세요'
+            />
+            <p className='text-caption text-subtle'>
+              페이지 본문을 바탕으로 단어를 추출해요.
+            </p>
+          </TabsContent>
+        </div>
+      </Tabs>
+    </section>
+  );
+}

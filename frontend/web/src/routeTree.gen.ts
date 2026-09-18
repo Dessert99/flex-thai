@@ -57,6 +57,7 @@ import { Route as AuthenticatedAdminEnrolledQuestionsIndexRouteImport } from './
 import { Route as AuthenticatedAdminEnrolledQuestionsQuestionIdRouteRouteImport } from './app/routes/_authenticated/admin/_enrolled/questions/$questionId/route'
 import { Route as AuthenticatedAdminEnrolledVocabulariesIndexRouteImport } from './app/routes/_authenticated/admin/_enrolled/vocabularies/index'
 import { Route as AuthenticatedAdminEnrolledVocabulariesVocabularyIdRouteImport } from './app/routes/_authenticated/admin/_enrolled/vocabularies/$vocabularyId'
+import { Route as AuthenticatedAdminEnrolledVocabularyExtractionIndexRouteImport } from './app/routes/_authenticated/admin/_enrolled/vocabulary-extraction/index'
 import { Route as AuthenticatedAdminEnrolledContentProductionCandidatesIndexRouteImport } from './app/routes/_authenticated/admin/_enrolled/content-production/candidates/index'
 import { Route as AuthenticatedAdminEnrolledContentProductionCandidatesCandidateIdRouteImport } from './app/routes/_authenticated/admin/_enrolled/content-production/candidates/$candidateId'
 import { Route as AuthenticatedAdminEnrolledContentProductionJobsJobIdRouteImport } from './app/routes/_authenticated/admin/_enrolled/content-production/jobs/$jobId'
@@ -339,6 +340,12 @@ const AuthenticatedAdminEnrolledVocabulariesVocabularyIdRoute =
     path: '/$vocabularyId',
     getParentRoute: () => AuthenticatedAdminEnrolledVocabulariesRouteRoute,
   } as any)
+const AuthenticatedAdminEnrolledVocabularyExtractionIndexRoute =
+  AuthenticatedAdminEnrolledVocabularyExtractionIndexRouteImport.update({
+    id: '/vocabulary-extraction/',
+    path: '/vocabulary-extraction/',
+    getParentRoute: () => AuthenticatedAdminEnrolledRouteRoute,
+  } as any)
 const AuthenticatedAdminEnrolledContentProductionCandidatesIndexRoute =
   AuthenticatedAdminEnrolledContentProductionCandidatesIndexRouteImport.update({
     id: '/content-production/candidates/',
@@ -428,6 +435,7 @@ export interface FileRoutesByFullPath {
   '/admin/content-production/': typeof AuthenticatedAdminEnrolledContentProductionIndexRoute
   '/admin/questions/': typeof AuthenticatedAdminEnrolledQuestionsIndexRoute
   '/admin/vocabularies/': typeof AuthenticatedAdminEnrolledVocabulariesIndexRoute
+  '/admin/vocabulary-extraction/': typeof AuthenticatedAdminEnrolledVocabularyExtractionIndexRoute
   '/admin/content-production/candidates/$candidateId': typeof AuthenticatedAdminEnrolledContentProductionCandidatesCandidateIdRoute
   '/admin/content-production/jobs/$jobId': typeof AuthenticatedAdminEnrolledContentProductionJobsJobIdRoute
   '/admin/content-production/vocabulary-candidates/$candidateId': typeof AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesCandidateIdRoute
@@ -471,6 +479,7 @@ export interface FileRoutesByTo {
   '/admin/content-production': typeof AuthenticatedAdminEnrolledContentProductionIndexRoute
   '/admin/questions': typeof AuthenticatedAdminEnrolledQuestionsIndexRoute
   '/admin/vocabularies': typeof AuthenticatedAdminEnrolledVocabulariesIndexRoute
+  '/admin/vocabulary-extraction': typeof AuthenticatedAdminEnrolledVocabularyExtractionIndexRoute
   '/admin/content-production/candidates/$candidateId': typeof AuthenticatedAdminEnrolledContentProductionCandidatesCandidateIdRoute
   '/admin/content-production/jobs/$jobId': typeof AuthenticatedAdminEnrolledContentProductionJobsJobIdRoute
   '/admin/content-production/vocabulary-candidates/$candidateId': typeof AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesCandidateIdRoute
@@ -528,6 +537,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/_enrolled/content-production/': typeof AuthenticatedAdminEnrolledContentProductionIndexRoute
   '/_authenticated/admin/_enrolled/questions/': typeof AuthenticatedAdminEnrolledQuestionsIndexRoute
   '/_authenticated/admin/_enrolled/vocabularies/': typeof AuthenticatedAdminEnrolledVocabulariesIndexRoute
+  '/_authenticated/admin/_enrolled/vocabulary-extraction/': typeof AuthenticatedAdminEnrolledVocabularyExtractionIndexRoute
   '/_authenticated/admin/_enrolled/content-production/candidates/$candidateId': typeof AuthenticatedAdminEnrolledContentProductionCandidatesCandidateIdRoute
   '/_authenticated/admin/_enrolled/content-production/jobs/$jobId': typeof AuthenticatedAdminEnrolledContentProductionJobsJobIdRoute
   '/_authenticated/admin/_enrolled/content-production/vocabulary-candidates/$candidateId': typeof AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesCandidateIdRoute
@@ -582,6 +592,7 @@ export interface FileRouteTypes {
     | '/admin/content-production/'
     | '/admin/questions/'
     | '/admin/vocabularies/'
+    | '/admin/vocabulary-extraction/'
     | '/admin/content-production/candidates/$candidateId'
     | '/admin/content-production/jobs/$jobId'
     | '/admin/content-production/vocabulary-candidates/$candidateId'
@@ -625,6 +636,7 @@ export interface FileRouteTypes {
     | '/admin/content-production'
     | '/admin/questions'
     | '/admin/vocabularies'
+    | '/admin/vocabulary-extraction'
     | '/admin/content-production/candidates/$candidateId'
     | '/admin/content-production/jobs/$jobId'
     | '/admin/content-production/vocabulary-candidates/$candidateId'
@@ -681,6 +693,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/_enrolled/content-production/'
     | '/_authenticated/admin/_enrolled/questions/'
     | '/_authenticated/admin/_enrolled/vocabularies/'
+    | '/_authenticated/admin/_enrolled/vocabulary-extraction/'
     | '/_authenticated/admin/_enrolled/content-production/candidates/$candidateId'
     | '/_authenticated/admin/_enrolled/content-production/jobs/$jobId'
     | '/_authenticated/admin/_enrolled/content-production/vocabulary-candidates/$candidateId'
@@ -1034,6 +1047,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminEnrolledVocabulariesVocabularyIdRouteImport
       parentRoute: typeof AuthenticatedAdminEnrolledVocabulariesRouteRoute
     }
+    '/_authenticated/admin/_enrolled/vocabulary-extraction/': {
+      id: '/_authenticated/admin/_enrolled/vocabulary-extraction/'
+      path: '/vocabulary-extraction'
+      fullPath: '/admin/vocabulary-extraction/'
+      preLoaderRoute: typeof AuthenticatedAdminEnrolledVocabularyExtractionIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminEnrolledRouteRoute
+    }
     '/_authenticated/admin/_enrolled/content-production/candidates/': {
       id: '/_authenticated/admin/_enrolled/content-production/candidates/'
       path: '/content-production/candidates'
@@ -1256,6 +1276,7 @@ interface AuthenticatedAdminEnrolledRouteRouteChildren {
   AuthenticatedAdminEnrolledContentProductionPresetsRoute: typeof AuthenticatedAdminEnrolledContentProductionPresetsRoute
   AuthenticatedAdminEnrolledConceptsIndexRoute: typeof AuthenticatedAdminEnrolledConceptsIndexRoute
   AuthenticatedAdminEnrolledContentProductionIndexRoute: typeof AuthenticatedAdminEnrolledContentProductionIndexRoute
+  AuthenticatedAdminEnrolledVocabularyExtractionIndexRoute: typeof AuthenticatedAdminEnrolledVocabularyExtractionIndexRoute
   AuthenticatedAdminEnrolledContentProductionCandidatesCandidateIdRoute: typeof AuthenticatedAdminEnrolledContentProductionCandidatesCandidateIdRoute
   AuthenticatedAdminEnrolledContentProductionJobsJobIdRoute: typeof AuthenticatedAdminEnrolledContentProductionJobsJobIdRoute
   AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesCandidateIdRoute: typeof AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesCandidateIdRoute
@@ -1289,6 +1310,8 @@ const AuthenticatedAdminEnrolledRouteRouteChildren: AuthenticatedAdminEnrolledRo
       AuthenticatedAdminEnrolledConceptsIndexRoute,
     AuthenticatedAdminEnrolledContentProductionIndexRoute:
       AuthenticatedAdminEnrolledContentProductionIndexRoute,
+    AuthenticatedAdminEnrolledVocabularyExtractionIndexRoute:
+      AuthenticatedAdminEnrolledVocabularyExtractionIndexRoute,
     AuthenticatedAdminEnrolledContentProductionCandidatesCandidateIdRoute:
       AuthenticatedAdminEnrolledContentProductionCandidatesCandidateIdRoute,
     AuthenticatedAdminEnrolledContentProductionJobsJobIdRoute:

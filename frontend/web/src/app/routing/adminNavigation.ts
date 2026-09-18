@@ -20,6 +20,12 @@ export const adminNavigation = [
   { group: '개요', href: '/admin', icon: House, label: '관리 홈' },
   {
     group: '콘텐츠',
+    href: '/admin/vocabulary-extraction',
+    icon: WandSparkles,
+    label: '단어 추출',
+  },
+  {
+    group: '콘텐츠',
     href: '/admin/content-imports',
     icon: Upload,
     label: '콘텐츠 가져오기',
