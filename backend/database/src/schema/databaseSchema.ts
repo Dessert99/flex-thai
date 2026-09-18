@@ -14,7 +14,10 @@ import * as schema11 from './questions.schema.js';
 import * as schema12 from './thai-content.schema.js';
 import * as schema13 from './vocabulary.schema.js';
 
+import * as extractionTemplateSchema from './extraction-templates.schema.js';
+
 export const databaseSchema = {
+  ...extractionTemplateSchema,
   ...schema0,
   ...schema1,
   ...schema2,

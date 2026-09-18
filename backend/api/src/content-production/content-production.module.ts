@@ -1,3 +1,8 @@
+import type { ExtractionTemplateRepository } from '@flex-thia/domain/content-production/extraction-template.repository';
+import {
+  ExtractionTemplatesController,
+  EXTRACTION_TEMPLATE_REPOSITORY,
+} from './extraction-templates.controller.js';
 /** 콘텐츠 제작 adapter와 HTTP Controller를 기능 단위로 조립한다 */
 import { DynamicModule, Module } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -34,6 +39,7 @@ import type { VocabularyCandidateQuery } from '@flex-thia/domain/content-product
 
 /** 환경별 콘텐츠 제작 adapter를 주입하기 위한 module 옵션 */
 export interface ContentProductionModuleOptions {
+  extractionTemplates: ExtractionTemplateRepository;
   uploads: UploadRepository;
   uploadPolicies: UploadPolicyService;
   presets: ContentProductionPresetCatalog;
@@ -55,11 +61,16 @@ export class ContentProductionModule {
     return {
       module: ContentProductionModule,
       controllers: [
+        ExtractionTemplatesController,
         ContentProductionController,
         QuestionCandidateController,
         VocabularyCandidateController,
       ],
       providers: [
+        {
+          provide: EXTRACTION_TEMPLATE_REPOSITORY,
+          useValue: options.extractionTemplates,
+        },
         {
           provide: ContentProductionApplicationService,
           useValue: new ContentProductionApplicationService(

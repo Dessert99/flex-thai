@@ -155,6 +155,13 @@
       "when": 1789655548261,
       "tag": "0021_remove_pronunciation",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1789713150298,
+      "tag": "0022_extraction_templates",
+      "breakpoints": true
     }
   ]
 }

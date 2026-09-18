@@ -28,7 +28,8 @@
     "./questions/question-taxonomy-settings": "./src/questions/question-taxonomy-settings.ts",
     "./recommendations/recommendations": "./src/recommendations/recommendations.ts",
     "./thai-content/sentences": "./src/thai-content/sentences.ts",
-    "./questions/legacy-question-payload": "./src/questions/legacy-question-payload.ts"
+    "./questions/legacy-question-payload": "./src/questions/legacy-question-payload.ts",
+    "./content-production/extraction-templates": "./src/content-production/extraction-templates.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",

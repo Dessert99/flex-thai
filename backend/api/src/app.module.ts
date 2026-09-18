@@ -1,3 +1,4 @@
+import { DrizzleExtractionTemplateRepository } from '@flex-thia/database/repositories/content-production/drizzle-extraction-template.repository';
 /** HTTP 기능 모듈을 하나의 NestJS 애플리케이션으로 조립한다 */
 import { CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
 import { S3Client } from '@aws-sdk/client-s3';
@@ -379,6 +380,7 @@ export const createApplicationModule = (
         authorizer,
       }),
       ContentProductionModule.register({
+        extractionTemplates: new DrizzleExtractionTemplateRepository(database),
         uploads: contentProductionUploads,
         uploadPolicies: new UploadPolicyService(
           contentProductionUploads,

@@ -1,3 +1,4 @@
+import { ExtractionTemplatesController } from './extraction-templates.controller.js';
 /** 콘텐츠 제작 DynamicModule의 application service와 관리자 guard 조립을 검증한다 */
 import { Reflector } from '@nestjs/core';
 import { describe, expect, it } from 'vitest';
@@ -25,6 +26,7 @@ describe('ContentProductionModule', () => {
       nodeEnv: 'test' as const,
     };
     const module = ContentProductionModule.register({
+      extractionTemplates: {} as never,
       uploads: {} as never,
       uploadPolicies: {} as never,
       presets: {} as never,
@@ -38,6 +40,7 @@ describe('ContentProductionModule', () => {
     });
 
     expect(module.controllers).toEqual([
+      ExtractionTemplatesController,
       ContentProductionController,
       QuestionCandidateController,
       VocabularyCandidateController,

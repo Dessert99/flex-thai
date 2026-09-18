@@ -69,7 +69,8 @@
     "./questions/question": "./src/questions/question.ts",
     "./vocabulary/vocabulary-selection": "./src/vocabulary/vocabulary-selection.ts",
     "./questions/question-draft-validation": "./src/questions/question-draft-validation.ts",
-    "./questions/flatten-question-draft": "./src/questions/flatten-question-draft.ts"
+    "./questions/flatten-question-draft": "./src/questions/flatten-question-draft.ts",
+    "./content-production/extraction-template.repository": "./src/content-production/extraction-template.repository.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
