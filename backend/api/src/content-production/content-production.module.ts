@@ -1,3 +1,8 @@
+import {
+  ExtractionController,
+  EXTRACTION_OPTIONS,
+  type ExtractionOptions,
+} from '../vocabulary-extraction/extraction.controller.js';
 import type { ExtractionTemplateRepository } from '@flex-thia/domain/content-production/extraction-template.repository';
 import {
   ExtractionTemplatesController,
@@ -39,6 +44,7 @@ import type { VocabularyCandidateQuery } from '@flex-thia/domain/content-product
 
 /** 환경별 콘텐츠 제작 adapter를 주입하기 위한 module 옵션 */
 export interface ContentProductionModuleOptions {
+  extraction?: ExtractionOptions;
   extractionTemplates: ExtractionTemplateRepository;
   uploads: UploadRepository;
   uploadPolicies: UploadPolicyService;
@@ -61,12 +67,16 @@ export class ContentProductionModule {
     return {
       module: ContentProductionModule,
       controllers: [
+        ...(options.extraction ? [ExtractionController] : []),
         ExtractionTemplatesController,
         ContentProductionController,
         QuestionCandidateController,
         VocabularyCandidateController,
       ],
       providers: [
+        ...(options.extraction
+          ? [{ provide: EXTRACTION_OPTIONS, useValue: options.extraction }]
+          : []),
         {
           provide: EXTRACTION_TEMPLATE_REPOSITORY,
           useValue: options.extractionTemplates,

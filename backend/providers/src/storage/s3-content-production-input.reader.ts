@@ -58,7 +58,10 @@ export class S3ContentProductionInputReader implements ContentProductionInputRea
 
   /** S3 body와 검증된 size가 모두 일치할 때만 bytes를 반환한다 */
   async read(
-    input: Parameters<ContentProductionInputReader['read']>[0],
+    input: Pick<
+      Parameters<ContentProductionInputReader['read']>[0],
+      'inputKey' | 'sizeBytes'
+    >,
     signal: AbortSignal,
   ): Promise<Uint8Array> {
     const object = await this.client.send(

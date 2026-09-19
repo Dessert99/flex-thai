@@ -1,3 +1,9 @@
+import { defaultExtractionPrompt } from '@/features/content-production/libs/vocabulary-extraction/defaultExtractionPrompt';
+import {
+  useCreateExtraction,
+  type ExtractionSourceInput,
+} from '@/features/content-production/hooks/vocabulary-extraction/useCreateExtraction';
+import { Link } from '@tanstack/react-router';
 import { ExtractionTemplateDialog } from '@/features/content-production/components/vocabulary-extraction/ExtractionTemplateDialog';
 import { VocabularyExtractionSource } from '@/features/content-production/components/vocabulary-extraction/VocabularyExtractionSource';
 import { useRef, useState } from 'react';
@@ -15,10 +21,18 @@ import { Container } from '@/shared/components/layouts/Container';
 import { Textarea } from '@/shared/components/textarea';
 /** 화면 배치와 기능 컴포넌트를 페이지에서 직접 조립한다 */
 
-export function VocabularyExtractionStep1Page() {
-  const [prompt, setPrompt] = useState(
-    '자료에 등장하는 태국어 단어와 문맥상 뜻을 추출하세요. 같은 단어와 뜻은 하나로 합치고, 자료에 없는 뜻은 추가하지 마세요.',
-  );
+// eslint-disable-next-line complexity -- 입력·저장된 작업·템플릿 영역을 페이지에서 함께 조립한다.
+export function VocabularyExtractionStep1Page({
+  onStarted,
+}: {
+  onStarted?: (id: string) => void;
+}) {
+  const [source, setSource] = useState<ExtractionSourceInput>({
+    kind: 'file',
+    file: null,
+  });
+  const { history, mutation } = useCreateExtraction(onStarted);
+  const [prompt, setPrompt] = useState(defaultExtractionPrompt);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const templateTrigger = useRef<HTMLButtonElement>(null);
 
@@ -50,7 +64,7 @@ export function VocabularyExtractionStep1Page() {
               </CardDescription>
             </CardHeader>
             <CardContent className='grid gap-section'>
-              <VocabularyExtractionSource />
+              <VocabularyExtractionSource onChange={setSource} />
               <section className='grid gap-cluster'>
                 <Label htmlFor='extraction-prompt'>추출 지시문</Label>
                 <Textarea
@@ -80,20 +94,87 @@ export function VocabularyExtractionStep1Page() {
                 기존 단어와 뜻은 자동으로 제외해요.
               </p>
               <Button
-                disabled
-                aria-describedby='extraction-availability'
+                disabled={
+                  mutation.isPending ||
+                  !prompt.trim() ||
+                  (source.kind === 'file' ? !source.file : !source.url.trim())
+                }
+                onClick={() => mutation.mutate({ source, prompt })}
               >
-                추출 시작
+                {mutation.isPending ? '자료 제출 중…' : '추출 시작'}
               </Button>
             </CardFooter>
           </Card>
-          <p
-            id='extraction-availability'
-            className='text-caption text-subtle'
+          {mutation.isError && (
+            <p
+              role='alert'
+              className='text-caption text-danger'
+            >
+              추출을 시작하지 못했어요. 자료와 서버의 AI 설정을 확인한 뒤 다시
+              시도하세요.
+            </p>
+          )}
+          <section
+            className='grid gap-cluster'
+            aria-label='저장된 추출 작업'
           >
-            현재는 자료 입력 단계까지 사용할 수 있어요. 추출 실행은 준비
-            중이에요.
-          </p>
+            <h2 className='text-title'>저장된 추출 작업</h2>
+            {history.isPending && (
+              <p className='text-caption text-subtle'>
+                작업을 불러오고 있어요.
+              </p>
+            )}
+            {history.isError && (
+              <Button
+                variant='outline'
+                onClick={() => void history.refetch()}
+              >
+                작업 목록 다시 불러오기
+              </Button>
+            )}
+            {history.data?.items.length === 0 && (
+              <p className='text-caption text-subtle'>저장된 작업이 없어요.</p>
+            )}
+            <ul className='divide-y divide-default'>
+              {history.data?.items.map((job) => (
+                <li
+                  key={job.id}
+                  className='py-cluster'
+                >
+                  <Link
+                    to='/admin/vocabulary-extraction/$jobId'
+                    params={{ jobId: job.id }}
+                    className='flex justify-between gap-cluster'
+                  >
+                    <span>{job.sourceName}</span>
+                    <span className='text-caption text-subtle'>
+                      {
+                        {
+                          queued: '대기',
+                          running: '진행 중',
+                          failed: '오류',
+                          stopped: '중단',
+                          complete: '완료',
+                        }[job.status]
+                      }
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+          <Link
+            to='/admin/vocabulary-extraction/preview'
+            className='text-caption underline underline-offset-4'
+          >
+            진행 화면 미리보기
+          </Link>
+          <Link
+            to='/admin/vocabulary-extraction/result-preview'
+            className='text-caption underline underline-offset-4'
+          >
+            결과 화면 미리보기
+          </Link>
           {templatesOpen && (
             <ExtractionTemplateDialog
               onClose={() => setTemplatesOpen(false)}

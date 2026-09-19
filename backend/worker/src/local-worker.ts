@@ -1,3 +1,4 @@
+import { runExtractionLoop } from './vocabulary-extraction/extraction-runtime.js';
 import { pathToFileURL } from 'node:url';
 import { createWorkerDatabase } from './database-runtime.js';
 import { createAsyncDispatchRelayRuntime } from './dispatch/async-dispatch-relay-task.js';
@@ -83,13 +84,16 @@ export const runDefaultLocalWorker = async (): Promise<void> => {
       mode: 'local',
     });
 
-    await runLocalWorker({
-      signal: controller.signal,
-      relay: () => relay.handler(),
-      reportError: (task, error) => {
-        console.error(`local worker ${task} cycle failed`, error);
-      },
-    });
+    await Promise.all([
+      runExtractionLoop(controller.signal),
+      runLocalWorker({
+        signal: controller.signal,
+        relay: () => relay.handler(),
+        reportError: (task, error) => {
+          console.error(`local worker ${task} cycle failed`, error);
+        },
+      }),
+    ]);
   } finally {
     process.off('SIGINT', shutdown);
     process.off('SIGTERM', shutdown);

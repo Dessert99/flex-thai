@@ -33,7 +33,9 @@
     "./messaging/ses-email-challenge.sender": "./src/messaging/ses-email-challenge.sender.ts",
     "./storage/local-file-upload.provider": "./src/storage/local-file-upload.provider.ts",
     "./storage/s3-content-production-input.reader": "./src/storage/s3-content-production-input.reader.ts",
-    "./validation/unavailable-concept-content.validator": "./src/validation/unavailable-concept-content.validator.ts"
+    "./validation/unavailable-concept-content.validator": "./src/validation/unavailable-concept-content.validator.ts",
+    "./vocabulary-extraction/extraction-documents": "./src/vocabulary-extraction/extraction-documents.ts",
+    "./vocabulary-extraction/multimodal-extraction.ai": "./src/vocabulary-extraction/multimodal-extraction.ai.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -42,15 +44,17 @@
   },
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.900.0",
-    "@aws-sdk/client-sesv2": "^3.900.0",
     "@aws-sdk/client-s3": "^3.900.0",
     "@aws-sdk/client-secrets-manager": "^3.900.0",
+    "@aws-sdk/client-sesv2": "^3.900.0",
     "@aws-sdk/client-sns": "^3.900.0",
     "@aws-sdk/client-sqs": "^3.900.0",
     "@aws-sdk/client-ssm": "^3.900.0",
     "@aws-sdk/s3-presigned-post": "^3.900.0",
     "@flex-thia/domain": "workspace:*",
-    "pdf-lib": "^1.17.1"
+    "cheerio": "^1.2.0",
+    "pdf-lib": "^1.17.1",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "tsx": "^4.20.0"

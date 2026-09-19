@@ -1,5 +1,9 @@
 # 로컬 DB 초기화와 API·프론트 실행 모드를 같은 서비스 정의로 재현한다.
 x-app-environment: &app-environment
+  EXTRACTION_AI_PROVIDER: ${EXTRACTION_AI_PROVIDER:-claude}
+  EXTRACTION_AI_MODEL: ${EXTRACTION_AI_MODEL:-}
+  GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
   AUTH_MODE: fake
   DATABASE_MODE: local
   DATABASE_URL: postgres://flex_thia:local_only_password@postgres:5432/flex_thia

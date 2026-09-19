@@ -1,3 +1,4 @@
+import type { ExtractionSourceInput } from '@/features/content-production/hooks/vocabulary-extraction/useCreateExtraction';
 import { ExtractionFileInput } from './ExtractionFileInput';
 /** 동일 높이의 파일·링크 입력 패널로 푸터 위치를 유지한다 */
 import { useState } from 'react';
@@ -10,7 +11,12 @@ import {
   TabsTrigger,
 } from '@/shared/components/tabs';
 
-export function VocabularyExtractionSource() {
+export function VocabularyExtractionSource({
+  onChange,
+}: {
+  onChange?: (source: ExtractionSourceInput) => void;
+}) {
+  const [tab, setTab] = useState('file');
   const [file, setFile] = useState<File | null>(null);
   const [url, setUrl] = useState('');
   const [error, setError] = useState('');
@@ -30,6 +36,7 @@ export function VocabularyExtractionSource() {
       return;
     }
     setFile(selected);
+    onChange?.({ kind: 'file', file: selected });
     setError('');
   };
   return (
@@ -38,7 +45,15 @@ export function VocabularyExtractionSource() {
       className='grid gap-cluster'
     >
       <h3 className='font-semibold'>추출할 자료</h3>
-      <Tabs defaultValue='file'>
+      <Tabs
+        value={tab}
+        onValueChange={(value) => {
+          setTab(value);
+          onChange?.(
+            value === 'file' ? { kind: 'file', file } : { kind: 'url', url },
+          );
+        }}
+      >
         <TabsList
           variant='line'
           className='w-full justify-start border-b border-default'
@@ -67,6 +82,7 @@ export function VocabularyExtractionSource() {
               onSelect={selectFiles}
               onRemove={() => {
                 setFile(null);
+                onChange?.({ kind: 'file', file: null });
                 setError('');
               }}
             />
@@ -80,7 +96,10 @@ export function VocabularyExtractionSource() {
               id='extraction-source-url'
               type='url'
               value={url}
-              onChange={(e) => setUrl(e.target.value)}
+              onChange={(e) => {
+                setUrl(e.target.value);
+                onChange?.({ kind: 'url', url: e.target.value });
+              }}
               placeholder='자료가 있는 웹페이지 주소를 붙여 넣으세요'
             />
             <p className='text-caption text-subtle'>

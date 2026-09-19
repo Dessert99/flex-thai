@@ -1,3 +1,4 @@
+import * as extractionSchema from './vocabulary-extraction.schema.js';
 /** Drizzle 클라이언트에 전달할 전체 테이블 설정을 조립한다 */
 import * as schema0 from './ai-question-production.schema.js';
 import * as schema1 from './ai-vocabulary-production.schema.js';
@@ -17,6 +18,7 @@ import * as schema13 from './vocabulary.schema.js';
 import * as extractionTemplateSchema from './extraction-templates.schema.js';
 
 export const databaseSchema = {
+  ...extractionSchema,
   ...extractionTemplateSchema,
   ...schema0,
   ...schema1,

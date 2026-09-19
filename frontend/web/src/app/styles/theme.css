@@ -86,6 +86,8 @@
   --semantic-size-extraction-input: 10rem;
   --semantic-size-template-panel: 24rem;
   --semantic-size-dialog: 85dvh;
+  --semantic-size-vocabulary-card: 3.5rem;
+  --semantic-size-word-label: 50%;
   --semantic-radius-control: var(--foundation-radius-control);
   --semantic-radius-panel: var(--foundation-radius-panel);
   --semantic-shadow-control: var(--foundation-shadow-control);
@@ -137,6 +139,7 @@
   --color-subtle: var(--semantic-color-content-secondary);
   --color-danger: var(--semantic-color-status-danger);
   --color-danger-surface: var(--semantic-color-status-danger-soft);
+  --color-strong: var(--semantic-color-border-strong);
   --color-default: var(--semantic-color-border-default);
   --color-focus: var(--semantic-color-focus-ring);
   --color-background: var(--background);
@@ -190,6 +193,10 @@
   --spacing-extraction-input: var(--semantic-size-extraction-input);
   --spacing-template-panel: var(--semantic-size-template-panel);
   --spacing-dialog: var(--semantic-size-dialog);
+  --spacing-vocabulary-card: var(--semantic-size-vocabulary-card);
+  --container-word-label: var(--semantic-size-word-label);
+  --text-thai-word: 2.25rem;
+  --text-thai-word--line-height: 1.4;
   --container-content: 80rem;
   --container-form: var(--semantic-size-form);
   --radius-control: var(--semantic-radius-control);

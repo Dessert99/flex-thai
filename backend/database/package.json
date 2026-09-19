@@ -65,7 +65,8 @@
     "./schema/questions.schema": "./src/schema/questions.schema.ts",
     "./schema/thai-content.schema": "./src/schema/thai-content.schema.ts",
     "./schema/vocabulary.schema": "./src/schema/vocabulary.schema.ts",
-    "./repositories/content-production/drizzle-extraction-template.repository": "./src/repositories/content-production/drizzle-extraction-template.repository.ts"
+    "./repositories/content-production/drizzle-extraction-template.repository": "./src/repositories/content-production/drizzle-extraction-template.repository.ts",
+    "./repositories/content-production/drizzle-extraction.repository": "./src/repositories/content-production/drizzle-extraction.repository.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",

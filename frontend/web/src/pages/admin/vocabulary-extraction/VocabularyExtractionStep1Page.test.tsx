@@ -55,7 +55,7 @@ describe('단어 추출 자료 입력', () => {
       }),
     );
     expect(prompt).toHaveValue('직접 작성한 지시문');
-    expect(screen.getByRole('button', { name: '추출 시작' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: '추출 시작' })).toBeEnabled();
   });
   it('추가한 템플릿은 API로 저장하고 삭제 뒤 목록에서 제거한다', async () => {
     let items: (typeof template)[] = [];

@@ -162,6 +162,20 @@
       "when": 1789713150298,
       "tag": "0022_extraction_templates",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1789729102000,
+      "tag": "0023_warm_loners",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1789734675281,
+      "tag": "0024_breezy_franklin_storm",
+      "breakpoints": true
     }
   ]
 }

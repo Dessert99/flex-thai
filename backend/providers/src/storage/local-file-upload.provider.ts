@@ -166,6 +166,17 @@ export class LocalFileUploadProvider implements UploadStorage {
     };
   }
 
+  /** 검증된 업로드를 worker가 원래 크기로 읽는다. */
+  async readInput(
+    objectKey: string,
+    expectedSize: number,
+  ): Promise<Uint8Array> {
+    const object = await this.readObject(objectKey);
+    if (!object || object.bytes.byteLength !== expectedSize)
+      throw new LocalFileUploadError('LOCAL_UPLOAD_INVALID');
+    return object.bytes;
+  }
+
   /** multipart controller가 전달한 form fields와 bytes를 token 조건 아래 저장한다 */
   async store(input: {
     token: string;

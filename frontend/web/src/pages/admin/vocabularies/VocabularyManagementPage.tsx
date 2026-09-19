@@ -1,3 +1,4 @@
+import { useLatestSavedExtraction } from '@/features/content-production/hooks/vocabulary-extraction/useExtractionReview';
 import { useVocabularyManagement } from '@/features/learning/hooks/vocabulary-management/useVocabularyManagement';
 import { Alert, AlertDescription, AlertTitle } from '@/shared/components/alert';
 import { Badge } from '@/shared/components/badge';
@@ -18,6 +19,7 @@ import { Link } from '@tanstack/react-router';
 export function VocabularyManagementPage(
   pageInput: Parameters<typeof useVocabularyManagement>[0],
 ) {
+  const latest = useLatestSavedExtraction();
   const { data, error, loading, onPageChange, onRetry, search } =
     useVocabularyManagement(pageInput);
 
@@ -61,25 +63,19 @@ export function VocabularyManagementPage(
     );
   }
 
-  if (data.items.length === 0) {
-    const filtered = Boolean(search.query || search.kind || search.status);
-    return (
-      <Container className='max-w-content flex-1'>
-        <section className='flex min-h-state flex-col items-center justify-center gap-cluster rounded-panel border border-default bg-surface-muted p-page text-center'>
-          <h2 className='text-title text-primary'>
-            {filtered
-              ? '조건에 맞는 어휘가 없습니다.'
-              : '등록된 어휘가 없습니다.'}
-          </h2>
-        </section>
-      </Container>
-    );
-  }
-
   return (
     <Container className='max-w-content flex-1'>
       <section className='grid gap-section'>
         <h1 className='text-title text-primary'>어휘 관리</h1>
+        <RecentSavedVocabulary latest={latest} />
+        <h2 className='text-title'>전체 단어</h2>
+        {data.items.length === 0 && (
+          <p className='text-subtle'>
+            {search.query || search.kind || search.status
+              ? '조건에 맞는 어휘가 없습니다.'
+              : '등록된 어휘가 없습니다.'}
+          </p>
+        )}
         <Table>
           <TableHeader>
             <TableRow>
@@ -148,5 +144,96 @@ export function VocabularyManagementPage(
         </nav>
       </section>
     </Container>
+  );
+}
+
+function RecentSavedVocabulary({
+  latest,
+}: {
+  latest: ReturnType<typeof useLatestSavedExtraction>;
+}) {
+  return (
+    <section
+      className='grid gap-section'
+      aria-label='최근 저장한 단어'
+    >
+      <div className='grid gap-cluster'>
+        <h2 className='text-title'>최근 저장한 단어</h2>
+        <p className='text-caption text-subtle'>
+          새 추출 결과를 최종 저장하면 이 목록이 바뀌어요. 이전 단어는 전체
+          목록에 유지돼요.
+        </p>
+      </div>
+      {latest.isPending && (
+        <p role='status'>최근 저장 결과를 불러오고 있어요.</p>
+      )}
+      {latest.isError && (
+        <div>
+          <p>최근 저장 결과를 불러오지 못했어요.</p>
+          <Button
+            variant='outline'
+            onClick={() => void latest.refetch()}
+          >
+            다시 불러오기
+          </Button>
+        </div>
+      )}
+      {latest.data?.receipt ? (
+        <>
+          <p className='text-caption text-subtle'>
+            {latest.data.sourceName} ·{' '}
+            {new Date(latest.data.receipt.savedAt).toLocaleString('ko-KR')}
+          </p>
+          {(['NEW_WORD', 'NEW_MEANING'] as const).map((kind) => {
+            const items = (latest.data?.receipt.items ?? []).filter(
+              (item) => item.classification === kind,
+            );
+            return (
+              <section
+                key={kind}
+                className='grid gap-cluster'
+              >
+                <h3 className='font-semibold'>
+                  {kind === 'NEW_WORD' ? '신규 단어' : '뜻 추가 단어'} ·{' '}
+                  {new Set(items.map((item) => item.vocabularyId)).size}개
+                </h3>
+                <div className='grid grid-cols-1 gap-cluster sm:grid-cols-2'>
+                  {items.map((item) => (
+                    <Link
+                      key={item.meaningId}
+                      to='/admin/vocabularies/$vocabularyId'
+                      params={{ vocabularyId: item.vocabularyId }}
+                      search={{ page: 1, pageSize: 20 }}
+                      className='flex min-w-none items-center gap-cluster rounded-control border border-default p-cluster transition-colors duration-feedback hover:bg-surface-muted focus-visible:outline focus-visible:outline-ring'
+                    >
+                      <span
+                        lang='th'
+                        className='font-thai max-w-word-label truncate font-semibold'
+                      >
+                        {item.thai}
+                      </span>
+                      <span>:</span>
+                      <span className='min-w-none truncate'>
+                        {item.meaningKo}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+                {!items.length && (
+                  <p className='text-caption text-subtle'>
+                    해당하는 단어가 없어요.
+                  </p>
+                )}
+              </section>
+            );
+          })}
+        </>
+      ) : (
+        !latest.isPending &&
+        !latest.isError && (
+          <p className='text-subtle'>최종 저장한 추출 작업이 없어요.</p>
+        )
+      )}
+    </section>
   );
 }

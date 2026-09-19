@@ -20,7 +20,7 @@ flex-thia/
 ├── shared/
 │   └── contracts/              # 프론트·백엔드가 공유하는 공개 API 계약
 ├── infra/                      # AWS CDK
-├── docs/                       # 설계·계획·개발·운영 문서
+├── docs/                       # 프로젝트 문서
 └── conventions/                # 저장소 공통 작성 규칙
 ```
 
@@ -63,7 +63,6 @@ flex-thia/
 | 공개 요청·응답 계약 | `shared/contracts/src/<기능>` |
 | 프론트엔드 기능과 화면 | `frontend/web/src` |
 | AWS 리소스 | `infra/src` |
-| 실행법·설계·운영 설명 | `docs` |
 
 백엔드의 모든 workspace에서는 `identity`, `questions`, `learning`처럼 같은
 기능 이름을 사용한다.
@@ -98,6 +97,9 @@ infra ─────────────────> backend 실행 산출
 - `infra`에는 업무 규칙을 구현하지 않고 실행 환경과 권한 연결만 둔다.
 
 ## 공통 파일 배치
+
+- 사용자가 요청하지 않은 개발·운영 설명 문서를 기능 구현의 부수 작업으로
+  새로 만들지 않는다.
 
 - 프로젝트 전반에서 배럴 파일을 사용하지 않는다. 여러 파일의 export를
   모아 다시 내보내는 `index.ts`나 다른 이름의 재수출 전용 파일을 만들지 않는다.

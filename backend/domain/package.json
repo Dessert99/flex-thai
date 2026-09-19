@@ -70,7 +70,9 @@
     "./vocabulary/vocabulary-selection": "./src/vocabulary/vocabulary-selection.ts",
     "./questions/question-draft-validation": "./src/questions/question-draft-validation.ts",
     "./questions/flatten-question-draft": "./src/questions/flatten-question-draft.ts",
-    "./content-production/extraction-template.repository": "./src/content-production/extraction-template.repository.ts"
+    "./content-production/extraction-template.repository": "./src/content-production/extraction-template.repository.ts",
+    "./vocabulary-extraction/extraction": "./src/vocabulary-extraction/extraction.ts",
+    "./vocabulary-extraction/extraction-runner": "./src/vocabulary-extraction/extraction-runner.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
