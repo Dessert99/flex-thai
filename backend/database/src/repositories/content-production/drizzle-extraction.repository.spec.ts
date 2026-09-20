@@ -100,7 +100,7 @@ describe('추출 결과 저장 트랜잭션', () => {
     );
     expect(f.tx.insert).not.toHaveBeenCalled();
   });
-  it('선택한 뜻만 등록하며 원문을 단어 예문이나 문맥 필드로 복사하지 않는다', async () => {
+  it('선택한 뜻과 새 단어를 바로 게시하고 원문은 예문이나 문맥 필드로 복사하지 않는다', async () => {
     const f = setup(
       [
         [{ status: 'complete' }],
@@ -109,7 +109,7 @@ describe('추출 결과 저장 트랜잭션', () => {
         [],
       ],
       [
-        [{ id: 'v', thai: 'ขึ้น', status: 'DRAFT' }],
+        [{ id: 'v', thai: 'ขึ้น', status: 'PUBLISHED' }],
         [{ id: 'm', meaningKo: '오르다' }],
       ],
     );
@@ -130,7 +130,8 @@ describe('추출 결과 저장 트랜잭션', () => {
           thai: 'ขึ้น',
           normalizedThai: 'ขึ้น',
           kind: 'WORD',
-          status: 'DRAFT',
+          status: 'PUBLISHED',
+          publishedAt: expect.any(Date) as Date,
         },
       },
       {

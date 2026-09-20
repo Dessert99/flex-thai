@@ -111,7 +111,8 @@ export class DrizzleExtractionRepository implements ExtractionRepository {
             thai: item.thai,
             normalizedThai,
             kind: 'WORD',
-            status: 'DRAFT',
+            status: 'PUBLISHED',
+            publishedAt: new Date(),
           })
           .onConflictDoNothing()
           .returning();
