@@ -1,4 +1,5 @@
 import { useVocabularyList } from '@/features/learning/hooks/vocabulary-list/useVocabularyList';
+import { formatPartOfSpeech } from '@/features/learning/libs/vocabulary/formatPartOfSpeech';
 import type { VocabularyListPageViewProps } from '@/features/learning/libs/vocabulary-list/vocabularyListPageTypes';
 import type { VocabularyListSearch } from '@/features/learning/libs/vocabulary-list/vocabularyListSearch';
 import { Alert, AlertDescription, AlertTitle } from '@/shared/components/alert';
@@ -266,7 +267,7 @@ function VocabularyResults({
                   >
                     {meaning.partOfSpeech && (
                       <span className='mr-cluster text-subtle'>
-                        {meaning.partOfSpeech}
+                        {formatPartOfSpeech(meaning.partOfSpeech)}
                       </span>
                     )}
                     {meaning.meaningKo}

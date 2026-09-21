@@ -2,6 +2,7 @@ import { InteractiveThaiSentence } from '@/features/learning/components/explore-
 import { ContentErrorReportDialog } from '@/features/learning/components/report-content-error/ContentErrorReportDialog';
 import { VocabularyWordbookPicker } from '@/features/learning/components/save-vocabulary-to-wordbooks/VocabularyWordbookPicker';
 import { useVocabularyDetail } from '@/features/learning/hooks/vocabulary-detail/useVocabularyDetail';
+import { formatPartOfSpeech } from '@/features/learning/libs/vocabulary/formatPartOfSpeech';
 import { Alert, AlertDescription, AlertTitle } from '@/shared/components/alert';
 import { Button } from '@/shared/components/button';
 import { Container } from '@/shared/components/layouts/Container';
@@ -215,7 +216,7 @@ function VocabularyDetailTabs({
           {detail.meanings.map((item) => (
             <li key={item.id}>
               <span>
-                {item.meaningKo} · {item.partOfSpeech} ·{' '}
+                {item.meaningKo} · {formatPartOfSpeech(item.partOfSpeech)} ·{' '}
                 {item.difficulty === null
                   ? '난이도 미정'
                   : `난이도 ${item.difficulty}`}

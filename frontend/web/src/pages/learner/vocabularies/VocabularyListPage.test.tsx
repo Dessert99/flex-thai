@@ -72,7 +72,20 @@ describe('어휘 목록 추출 섹션', () => {
           thai: 'เรียน',
           kind: 'WORD',
           saved: false,
-          meanings: [{ id: 'm', meaningKo: '배우다', partOfSpeech: '동사' }],
+          meanings: [
+            { id: 'm', meaningKo: '배우다', partOfSpeech: 'Verb' },
+            { id: 'copula', meaningKo: '~이다', partOfSpeech: 'Copula' },
+            {
+              id: 'prepositional',
+              meaningKo: '~에 따라',
+              partOfSpeech: 'Prepositional phrase',
+            },
+            {
+              id: 'verb-phrase',
+              meaningKo: '볼 수 없다',
+              partOfSpeech: 'Verb phrase',
+            },
+          ],
         },
       ],
       page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
@@ -85,6 +98,9 @@ describe('어휘 목록 추출 섹션', () => {
     );
     expect(await screen.findByText('배우다')).toBeInTheDocument();
     expect(screen.getByText('동사')).toBeInTheDocument();
+    expect(screen.getByText('계사')).toBeInTheDocument();
+    expect(screen.getByText('전치사구')).toBeInTheDocument();
+    expect(screen.getByText('동사구')).toBeInTheDocument();
     expect(mocks.authenticatedRequest).toHaveBeenCalledWith(
       expect.objectContaining({
         path: '/vocabularies?section=recent&page=1&pageSize=20',
