@@ -1,4 +1,3 @@
-/* eslint-disable max-lines-per-function -- 운영 집계의 여섯 카드와 부분 실패를 한 화면 계약으로 검증한다. */
 /** 관리자 홈의 최근 콘텐츠와 전체 운영 집계·부분 실패·실제 진입 경로를 검증한다 */
 import { renderWithProviders } from '@/shared/test/renderWithProviders';
 import { screen } from '@testing-library/react';
@@ -30,25 +29,6 @@ const emptyOperations = {
     enrolled: true,
     enrolledAt: '2026-07-01T00:00:00.000Z',
     recentVerificationAt: null,
-  },
-} as const;
-const usageCostOverview = {
-  range: {
-    from: '2026-07-01T00:00:00.000Z',
-    to: '2026-08-01T00:00:00.000Z',
-  },
-  estimatedCostUsd: '16.500000',
-  inProgressJobCount: 0,
-  failedRunCount: 0,
-  pendingSaveExtractionCount: 0,
-  breakdown: [],
-  currentMonthThreshold: {
-    range: {
-      from: '2026-07-01T00:00:00.000Z',
-      to: '2026-08-01T00:00:00.000Z',
-    },
-    estimatedCostUsd: '16.500000',
-    status: 'WARNING',
   },
 } as const;
 
@@ -105,7 +85,6 @@ describe('관리자 홈 페이지', () => {
     expect(await screen.findByText('โรงเรียน')).toHaveAttribute('lang', 'th');
     expect(screen.getByText('로컬 시스템')).toBeInTheDocument();
     expect(screen.getByText('미처리 2건')).toBeInTheDocument();
-    expect(screen.getByText('16.500000 USD · WARNING')).toBeInTheDocument();
     expect(
       screen.getByText('등록됨 · 최근 재인증 시각 미추적'),
     ).toBeInTheDocument();
@@ -128,7 +107,6 @@ describe('관리자 홈 페이지', () => {
     expect(
       await screen.findAllByText('운영 상태를 불러오지 못했습니다.'),
     ).toHaveLength(2);
-    expect(screen.getByText('16.500000 USD · WARNING')).toBeInTheDocument();
   });
 
   it('최근 어휘 요청이 실패해도 운영 집계를 유지한다', async () => {
@@ -149,28 +127,6 @@ describe('관리자 홈 페이지', () => {
     expect(screen.getByText('미처리 2건')).toBeInTheDocument();
   });
 
-  it('비용 endpoint가 실패해도 DB 운영 카드와 별도 비용 재시도를 유지한다', async () => {
-    mockHomeResponses(
-      { items: [], page: emptyPage },
-      { items: [], page: { ...emptyPage, pageSize: 5 } },
-      {
-        ...emptyOperations,
-        feedback: { pendingCount: 2 },
-      },
-      new Error('usage cost failed'),
-    );
-
-    renderAdminHome();
-
-    expect(await screen.findByText('미처리 2건')).toBeInTheDocument();
-    expect(
-      screen.getByText('비용 상태를 불러오지 못했습니다.'),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByText('운영 상태를 불러오지 못했습니다.'),
-    ).not.toBeInTheDocument();
-  });
-
   it('집계가 0이어도 빈 상태와 운영 진입점을 카드별로 표시한다', async () => {
     renderAdminHome();
     expect(await screen.findByText('미처리 0건')).toBeInTheDocument();
@@ -185,14 +141,12 @@ function mockHomeResponses(
   vocabularyResponse: unknown,
   auditResponse: unknown,
   operationsResponse: unknown,
-  usageCostResponse: unknown = usageCostOverview,
 ) {
   mocks.authenticatedRequest.mockImplementation(
     ({ path }: { path: string }) => {
       const response = resolveHomeResponse(path, {
         auditResponse,
         operationsResponse,
-        usageCostResponse,
         vocabularyResponse,
       });
       return response instanceof Error
@@ -207,12 +161,10 @@ function resolveHomeResponse(
   responses: {
     auditResponse: unknown;
     operationsResponse: unknown;
-    usageCostResponse: unknown;
     vocabularyResponse: unknown;
   },
 ) {
   if (path.startsWith('/admin/home')) return responses.operationsResponse;
-  if (path.startsWith('/admin/usage-cost')) return responses.usageCostResponse;
   if (path.startsWith('/admin/audit-logs')) return responses.auditResponse;
   return responses.vocabularyResponse;
 }

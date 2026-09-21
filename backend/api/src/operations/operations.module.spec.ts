@@ -14,9 +14,7 @@ import {
 import { AdminAuditLogsController } from './admin-audit-logs.controller.js';
 import { AdminHomeController } from './admin-home.controller.js';
 import { AdminHomeService } from './admin-home.service.js';
-import { AdminUsageCostOperationsController } from './admin-usage-cost-operations.controller.js';
 import { OperationsModule } from './operations.module.js';
-import { UsageCostOperationsService } from './usage-cost-operations.service.js';
 
 describe('OperationsModule', () => {
   it('감사 Controller와 read service 및 관리자 guard를 등록한다', () => {
@@ -30,7 +28,6 @@ describe('OperationsModule', () => {
     const module = OperationsModule.register({
       auditLogs,
       homeQuery: {} as never,
-      usageCost: { query: {} as never, settings: {} as never },
       users,
       authorizer,
     });
@@ -39,7 +36,6 @@ describe('OperationsModule', () => {
     expect(module.controllers).toEqual([
       AdminAuditLogsController,
       AdminHomeController,
-      AdminUsageCostOperationsController,
     ]);
     expect(providers).toContainEqual({
       provide: AuditLogService,
@@ -47,7 +43,6 @@ describe('OperationsModule', () => {
     });
     expect(providers).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ provide: UsageCostOperationsService }),
         expect.objectContaining({ provide: AdminHomeService }),
       ]),
     );

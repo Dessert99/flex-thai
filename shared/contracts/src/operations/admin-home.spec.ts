@@ -17,7 +17,7 @@ describe('관리자 홈 운영 집계 계약', () => {
     expect(() =>
       adminHomeOperationsResponseSchema.parse({
         ...response,
-        usageCost: { estimatedCostUsd: '16.500000', status: 'WARNING' },
+        unexpectedField: true,
       }),
     ).toThrow();
   });

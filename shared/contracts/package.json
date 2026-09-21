@@ -14,7 +14,6 @@
     "./learning/wordbooks": "./src/learning/wordbooks.ts",
     "./operations/admin-home": "./src/operations/admin-home.ts",
     "./operations/audit-logs": "./src/operations/audit-logs.ts",
-    "./operations/usage-cost": "./src/operations/usage-cost.ts",
     "./recommendations/recommendations": "./src/recommendations/recommendations.ts",
     "./thai-content/sentences": "./src/thai-content/sentences.ts",
     "./vocabulary-extraction/extraction-templates": "./src/vocabulary-extraction/extraction-templates.ts",

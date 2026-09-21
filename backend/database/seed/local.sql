@@ -35,17 +35,6 @@ insert into users (
     '2026-07-01T00:00:00Z'
   );
 
-update operations_cost_settings
-set
-  currency = 'USD',
-  warning_usd = '15.000000',
-  critical_usd = '24.000000',
-  updated_at = '2026-07-01T00:00:00Z',
-  updated_by = '00000000-0000-4000-8000-000000000001',
-  last_request_id = null,
-  last_request_fingerprint = null
-where id = 1;
-
 insert into vocabularies (
   id,
   thai,

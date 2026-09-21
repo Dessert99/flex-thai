@@ -24,14 +24,10 @@ export function AdminHomePage() {
     auditLogsLoading,
     onRetryAuditLogs,
     onRetryOperations,
-    onRetryUsageCost,
     onRetryVocabularies,
     operations,
     operationsError,
     operationsLoading,
-    usageCost,
-    usageCostError,
-    usageCostLoading,
     vocabularies,
     vocabulariesError,
     vocabulariesLoading,
@@ -69,14 +65,10 @@ export function AdminHomePage() {
           />
         </div>
         <AdminHomeOperationsCards
-          cost={usageCost}
-          costError={usageCostError}
-          costLoading={usageCostLoading}
           data={operations}
           error={operationsError}
           loading={operationsLoading}
           onRetry={onRetryOperations}
-          onRetryCost={onRetryUsageCost}
         />
       </section>
     </Container>

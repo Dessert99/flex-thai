@@ -3,7 +3,6 @@ import { adminHomeOperationsResponseSchema } from '@flex-thia/contracts/operatio
 
 import { adminVocabularyListResponseSchema } from '@flex-thia/contracts/admin/vocabularies';
 import { auditLogListResponseSchema } from '@flex-thia/contracts/operations/audit-logs';
-import { usageCostOverviewResponseSchema } from '@flex-thia/contracts/operations/usage-cost';
 import { queryOptions } from '@tanstack/react-query';
 import { authenticatedRequest } from '@/shared/apis/auth/authenticatedRequest';
 
@@ -37,17 +36,6 @@ export function adminHomeQueryOptions() {
           response: {
             kind: 'json',
             schema: adminHomeOperationsResponseSchema,
-          },
-        }),
-    }),
-    queryOptions({
-      queryKey: ['admin', 'home', 'usage-cost'] as const,
-      queryFn: () =>
-        authenticatedRequest({
-          path: '/admin/usage-cost',
-          response: {
-            kind: 'json',
-            schema: usageCostOverviewResponseSchema,
           },
         }),
     }),

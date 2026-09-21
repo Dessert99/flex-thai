@@ -15,17 +15,11 @@ import {
 import { AdminAuditLogsController } from './admin-audit-logs.controller.js';
 import { AdminHomeController } from './admin-home.controller.js';
 import { AdminHomeService } from './admin-home.service.js';
-import { AdminUsageCostOperationsController } from './admin-usage-cost-operations.controller.js';
-import {
-  UsageCostOperationsService,
-  type UsageCostOperationsServiceDependencies,
-} from './usage-cost-operations.service.js';
 
 /** Operations HTTP 경계의 실행 환경 의존성 */
 export interface OperationsModuleOptions {
   auditLogs: AuditLogService;
   homeQuery: DrizzleAdminHomeQuery;
-  usageCost: UsageCostOperationsServiceDependencies;
   users: IdentityUserRepository;
   authorizer: AuthorizerGuardOptions;
 }
@@ -35,20 +29,11 @@ export interface OperationsModuleOptions {
 export class OperationsModule {
   /** 선택된 감사 read use case를 NestJS 경계에 연결한다 */
   static register(options: OperationsModuleOptions): DynamicModule {
-    const usageCost = new UsageCostOperationsService(options.usageCost);
     return {
       module: OperationsModule,
-      controllers: [
-        AdminAuditLogsController,
-        AdminHomeController,
-        AdminUsageCostOperationsController,
-      ],
+      controllers: [AdminAuditLogsController, AdminHomeController],
       providers: [
         { provide: AuditLogService, useValue: options.auditLogs },
-        {
-          provide: UsageCostOperationsService,
-          useValue: usageCost,
-        },
         {
           provide: AdminHomeService,
           useValue: new AdminHomeService({ query: options.homeQuery }),

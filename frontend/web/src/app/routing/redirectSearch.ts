@@ -1,7 +1,5 @@
 /** 로그인 redirect를 승인된 same-origin route와 search 계약으로 제한한다 */
 
-import { usageCostOverviewQuerySchema } from '@flex-thia/contracts/operations/usage-cost';
-
 import {
   wordbookIdPathSchema,
   wordbookItemListQuerySchema,
@@ -18,7 +16,6 @@ const approvedStaticPaths = new Set([
   '/admin/users',
   '/admin/audit-logs',
   '/admin/totp-setup',
-  '/admin/usage-cost',
   '/admin/vocabularies',
   '/forbidden',
 ]);
@@ -62,11 +59,6 @@ function hasValidSearch(url: URL): boolean {
   }
   if (isValidWordbookPath(url.pathname)) {
     return wordbookItemListQuerySchema.safeParse(
-      Object.fromEntries(url.searchParams),
-    ).success;
-  }
-  if (url.pathname === '/admin/usage-cost') {
-    return usageCostOverviewQuerySchema.safeParse(
       Object.fromEntries(url.searchParams),
     ).success;
   }

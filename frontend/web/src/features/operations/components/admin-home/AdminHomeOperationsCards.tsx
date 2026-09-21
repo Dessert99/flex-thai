@@ -9,24 +9,18 @@ import {
 } from '@/shared/components/card';
 import { Skeleton } from '@/shared/components/skeleton';
 import type { AdminHomeOperationsResponse } from '@flex-thia/contracts/operations/admin-home';
-import type { UsageCostOverviewResponse } from '@flex-thia/contracts/operations/usage-cost';
 import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
 interface AdminHomeOperationsCardsProps {
-  cost: UsageCostOverviewResponse | undefined;
-  costError: boolean;
-  costLoading: boolean;
   data: AdminHomeOperationsResponse | undefined;
   error: boolean;
   loading: boolean;
   onRetry: () => void;
-  onRetryCost: () => void;
 }
 
 type OperationLink = {
   href: string;
-  search?: { status: 'FAILED'; page: number; pageSize: number };
   label: string;
 };
 type OperationalStateProps = Pick<
@@ -37,14 +31,10 @@ type OperationalStateProps = Pick<
 /** 전용 aggregate의 상태를 각 운영 카드에서 명시적으로 보존한다 */
 
 export function AdminHomeOperationsCards({
-  cost,
-  costError,
-  costLoading,
   data,
   error,
   loading,
   onRetry,
-  onRetryCost,
 }: AdminHomeOperationsCardsProps) {
   const state = { data, error, loading, onRetry };
   return (
@@ -65,23 +55,6 @@ export function AdminHomeOperationsCards({
           },
         ]}
         title='콘텐츠 오류 신고'
-      />
-
-      <OperationalCard
-        content={renderCostState({
-          cost,
-          error: costError,
-          loading: costLoading,
-          onRetry: onRetryCost,
-          content: cost ? (
-            <p className='text-body text-primary'>
-              {cost.currentMonthThreshold.estimatedCostUsd} USD ·{' '}
-              {cost.currentMonthThreshold.status}
-            </p>
-          ) : null,
-        })}
-        links={[{ href: '/admin/usage-cost', label: '비용 화면 열기' }]}
-        title='현재 월 AI 예상 비용'
       />
 
       <OperationalCard
@@ -145,54 +118,6 @@ function renderOperationalState({
   return content;
 }
 
-function renderCostState({
-  content,
-  cost,
-  error,
-  loading,
-  onRetry,
-}: {
-  content: ReactNode;
-  cost: UsageCostOverviewResponse | undefined;
-  error: boolean;
-  loading: boolean;
-  onRetry: () => void;
-}) {
-  if (loading)
-    return (
-      <section
-        aria-live='polite'
-        className='flex min-h-state flex-col justify-center gap-cluster p-page'
-        role='status'
-      >
-        <Skeleton className='h-control w-full max-w-content' />
-        <p className='text-body text-subtle'>비용 상태를 불러오고 있습니다.</p>
-      </section>
-    );
-  if (error || !cost) {
-    return (
-      <Alert
-        className='rounded-panel border-danger bg-danger-surface'
-        variant='destructive'
-      >
-        <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
-        <AlertDescription className='flex flex-col gap-cluster text-danger'>
-          <p>비용 상태를 불러오지 못했습니다.</p>
-          <Button
-            className='mt-cluster w-auto'
-            onClick={onRetry}
-            type='button'
-            variant='outline'
-          >
-            다시 시도
-          </Button>
-        </AlertDescription>
-      </Alert>
-    );
-  }
-  return content;
-}
-
 function OperationalCard({
   content,
   links,
@@ -213,7 +138,6 @@ function OperationalCard({
           <Link
             className='block text-body text-primary underline-offset-4 hover:underline'
             to={link.href}
-            search={link.search ?? {}}
             key={link.href}
           >
             {link.label}

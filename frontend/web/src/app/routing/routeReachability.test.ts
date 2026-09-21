@@ -19,7 +19,6 @@ const approvedTargets = [
   '/admin/totp-setup',
   '/admin/vocabularies',
   '/admin/content-error-reports',
-  '/admin/usage-cost',
   '/forbidden',
 ] as const;
 const vocabularyId = '01933b6a-8f13-7a19-b7e5-536d70f57aab';
@@ -78,17 +77,4 @@ describe('route 도달 가능성', () => {
       (router.routesByPath as unknown as Record<string, unknown>)[to],
     ).toBeDefined();
   });
-
-  it.each(['/admin/usage-cost'])(
-    '%s 경로가 route loader로 화면 query를 미리 불러온다',
-    (to) => {
-      const route = (
-        router.routesByPath as unknown as Record<
-          string,
-          { options?: { loader?: unknown } }
-        >
-      )[to];
-      expect(route?.options?.loader).toBeTypeOf('function');
-    },
-  );
 });

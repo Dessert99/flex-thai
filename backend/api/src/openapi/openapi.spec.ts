@@ -28,8 +28,6 @@ const ACTIVE_PATHS = [
   '/api/v1/admin/audit-logs',
   '/api/v1/admin/audit-logs/{auditLogId}',
   '/api/v1/admin/home',
-  '/api/v1/admin/usage-cost',
-  '/api/v1/admin/usage-cost/settings',
   '/api/v1/admin/vocabularies',
   '/api/v1/admin/vocabularies/{vocabularyId}',
   '/api/v1/admin/vocabularies/{vocabularyId}/importance',
@@ -411,26 +409,6 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
     path: '/api/v1/admin/home',
     success: ['200', 'AdminHomeOperationsResponseDto'],
     errors: ['401', '403', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/admin/usage-cost',
-    query: ['from', 'to', 'source', 'provider', 'model', 'status'],
-    success: ['200', 'UsageCostOverviewResponseDto'],
-    errors: ['400', '401', '403', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/admin/usage-cost/settings',
-    success: ['200', 'OperationsCostSettingsResponseDto'],
-    errors: ['401', '403', '500'],
-  },
-  {
-    method: 'put',
-    path: '/api/v1/admin/usage-cost/settings',
-    body: 'UpdateOperationsCostSettingsRequestDto',
-    success: ['200', 'OperationsCostSettingsResponseDto'],
-    errors: ['400', '401', '403', '409', '500'],
   },
   {
     method: 'get',
@@ -1030,7 +1008,7 @@ describe('OpenAPI 문서', () => {
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
 
-    expect(ADMIN_OPERATIONS).toHaveLength(27);
+    expect(ADMIN_OPERATIONS).toHaveLength(24);
     expectProtectedOpenApiOperations(document, ADMIN_OPERATIONS);
   });
 

@@ -30,7 +30,6 @@ import { Route as AuthenticatedLearnerWordbooksWordbookIdRouteImport } from './a
 import { Route as AuthenticatedAdminEnrolledIndexRouteImport } from './app/routes/_authenticated/admin/_enrolled/index'
 import { Route as AuthenticatedAdminEnrolledAuditLogsRouteImport } from './app/routes/_authenticated/admin/_enrolled/audit-logs'
 import { Route as AuthenticatedAdminEnrolledContentErrorReportsRouteImport } from './app/routes/_authenticated/admin/_enrolled/content-error-reports'
-import { Route as AuthenticatedAdminEnrolledUsageCostRouteImport } from './app/routes/_authenticated/admin/_enrolled/usage-cost'
 import { Route as AuthenticatedAdminEnrolledUsersRouteImport } from './app/routes/_authenticated/admin/_enrolled/users'
 import { Route as AuthenticatedAdminEnrolledVocabulariesRouteRouteImport } from './app/routes/_authenticated/admin/_enrolled/vocabularies/route'
 import { Route as AuthenticatedAdminEnrollmentTotpSetupRouteImport } from './app/routes/_authenticated/admin/_enrollment/totp-setup'
@@ -154,12 +153,6 @@ const AuthenticatedAdminEnrolledContentErrorReportsRoute =
     path: '/content-error-reports',
     getParentRoute: () => AuthenticatedAdminEnrolledRouteRoute,
   } as any)
-const AuthenticatedAdminEnrolledUsageCostRoute =
-  AuthenticatedAdminEnrolledUsageCostRouteImport.update({
-    id: '/usage-cost',
-    path: '/usage-cost',
-    getParentRoute: () => AuthenticatedAdminEnrolledRouteRoute,
-  } as any)
 const AuthenticatedAdminEnrolledUsersRoute =
   AuthenticatedAdminEnrolledUsersRouteImport.update({
     id: '/users',
@@ -233,7 +226,6 @@ export interface FileRoutesByFullPath {
   '/wordbooks/$wordbookId': typeof AuthenticatedLearnerWordbooksWordbookIdRoute
   '/admin/audit-logs': typeof AuthenticatedAdminEnrolledAuditLogsRoute
   '/admin/content-error-reports': typeof AuthenticatedAdminEnrolledContentErrorReportsRoute
-  '/admin/usage-cost': typeof AuthenticatedAdminEnrolledUsageCostRoute
   '/admin/users': typeof AuthenticatedAdminEnrolledUsersRoute
   '/admin/totp-setup': typeof AuthenticatedAdminEnrollmentTotpSetupRoute
   '/vocabularies/': typeof AuthenticatedLearnerVocabulariesIndexRoute
@@ -259,7 +251,6 @@ export interface FileRoutesByTo {
   '/wordbooks/$wordbookId': typeof AuthenticatedLearnerWordbooksWordbookIdRoute
   '/admin/audit-logs': typeof AuthenticatedAdminEnrolledAuditLogsRoute
   '/admin/content-error-reports': typeof AuthenticatedAdminEnrolledContentErrorReportsRoute
-  '/admin/usage-cost': typeof AuthenticatedAdminEnrolledUsageCostRoute
   '/admin/users': typeof AuthenticatedAdminEnrolledUsersRoute
   '/admin/totp-setup': typeof AuthenticatedAdminEnrollmentTotpSetupRoute
   '/vocabularies': typeof AuthenticatedLearnerVocabulariesIndexRoute
@@ -292,7 +283,6 @@ export interface FileRoutesById {
   '/_authenticated/_learner/wordbooks/$wordbookId': typeof AuthenticatedLearnerWordbooksWordbookIdRoute
   '/_authenticated/admin/_enrolled/audit-logs': typeof AuthenticatedAdminEnrolledAuditLogsRoute
   '/_authenticated/admin/_enrolled/content-error-reports': typeof AuthenticatedAdminEnrolledContentErrorReportsRoute
-  '/_authenticated/admin/_enrolled/usage-cost': typeof AuthenticatedAdminEnrolledUsageCostRoute
   '/_authenticated/admin/_enrolled/users': typeof AuthenticatedAdminEnrolledUsersRoute
   '/_authenticated/admin/_enrollment/totp-setup': typeof AuthenticatedAdminEnrollmentTotpSetupRoute
   '/_authenticated/_learner/vocabularies/': typeof AuthenticatedLearnerVocabulariesIndexRoute
@@ -323,7 +313,6 @@ export interface FileRouteTypes {
     | '/wordbooks/$wordbookId'
     | '/admin/audit-logs'
     | '/admin/content-error-reports'
-    | '/admin/usage-cost'
     | '/admin/users'
     | '/admin/totp-setup'
     | '/vocabularies/'
@@ -349,7 +338,6 @@ export interface FileRouteTypes {
     | '/wordbooks/$wordbookId'
     | '/admin/audit-logs'
     | '/admin/content-error-reports'
-    | '/admin/usage-cost'
     | '/admin/users'
     | '/admin/totp-setup'
     | '/vocabularies'
@@ -381,7 +369,6 @@ export interface FileRouteTypes {
     | '/_authenticated/_learner/wordbooks/$wordbookId'
     | '/_authenticated/admin/_enrolled/audit-logs'
     | '/_authenticated/admin/_enrolled/content-error-reports'
-    | '/_authenticated/admin/_enrolled/usage-cost'
     | '/_authenticated/admin/_enrolled/users'
     | '/_authenticated/admin/_enrollment/totp-setup'
     | '/_authenticated/_learner/vocabularies/'
@@ -551,13 +538,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminEnrolledContentErrorReportsRouteImport
       parentRoute: typeof AuthenticatedAdminEnrolledRouteRoute
     }
-    '/_authenticated/admin/_enrolled/usage-cost': {
-      id: '/_authenticated/admin/_enrolled/usage-cost'
-      path: '/usage-cost'
-      fullPath: '/admin/usage-cost'
-      preLoaderRoute: typeof AuthenticatedAdminEnrolledUsageCostRouteImport
-      parentRoute: typeof AuthenticatedAdminEnrolledRouteRoute
-    }
     '/_authenticated/admin/_enrolled/users': {
       id: '/_authenticated/admin/_enrolled/users'
       path: '/users'
@@ -687,7 +667,6 @@ interface AuthenticatedAdminEnrolledRouteRouteChildren {
   AuthenticatedAdminEnrolledVocabulariesRouteRoute: typeof AuthenticatedAdminEnrolledVocabulariesRouteRouteWithChildren
   AuthenticatedAdminEnrolledAuditLogsRoute: typeof AuthenticatedAdminEnrolledAuditLogsRoute
   AuthenticatedAdminEnrolledContentErrorReportsRoute: typeof AuthenticatedAdminEnrolledContentErrorReportsRoute
-  AuthenticatedAdminEnrolledUsageCostRoute: typeof AuthenticatedAdminEnrolledUsageCostRoute
   AuthenticatedAdminEnrolledUsersRoute: typeof AuthenticatedAdminEnrolledUsersRoute
   AuthenticatedAdminEnrolledIndexRoute: typeof AuthenticatedAdminEnrolledIndexRoute
   AuthenticatedAdminEnrolledVocabularyExtractionJobIdRoute: typeof AuthenticatedAdminEnrolledVocabularyExtractionJobIdRoute
@@ -704,8 +683,6 @@ const AuthenticatedAdminEnrolledRouteRouteChildren: AuthenticatedAdminEnrolledRo
       AuthenticatedAdminEnrolledAuditLogsRoute,
     AuthenticatedAdminEnrolledContentErrorReportsRoute:
       AuthenticatedAdminEnrolledContentErrorReportsRoute,
-    AuthenticatedAdminEnrolledUsageCostRoute:
-      AuthenticatedAdminEnrolledUsageCostRoute,
     AuthenticatedAdminEnrolledUsersRoute: AuthenticatedAdminEnrolledUsersRoute,
     AuthenticatedAdminEnrolledIndexRoute: AuthenticatedAdminEnrolledIndexRoute,
     AuthenticatedAdminEnrolledVocabularyExtractionJobIdRoute:

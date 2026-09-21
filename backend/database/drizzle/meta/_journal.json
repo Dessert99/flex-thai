@@ -190,6 +190,13 @@
       "when": 1789975871770,
       "tag": "0026_remove_content_and_concepts",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1790002536073,
+      "tag": "0027_remove-usage-cost-settings",
+      "breakpoints": true
     }
   ]
 }

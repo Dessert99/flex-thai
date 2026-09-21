@@ -1,7 +1,6 @@
 /** 관리자 shell이 공개하는 승인된 콘텐츠 관리 경로만 정의한다 */
 import {
   BookType,
-  CircleDollarSign,
   House,
   MessageSquareWarning,
   ScrollText,
@@ -24,12 +23,6 @@ export const adminNavigation = [
     href: '/admin/vocabularies',
     icon: BookType,
     label: '어휘 관리',
-  },
-  {
-    group: '운영',
-    href: '/admin/usage-cost',
-    icon: CircleDollarSign,
-    label: '사용량·비용',
   },
   {
     group: '운영',

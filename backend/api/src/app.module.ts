@@ -20,7 +20,6 @@ import { DrizzleContentErrorReportQuery } from '@flex-thia/database/queries/driz
 import { DrizzleLearnerVocabularyQuery } from '@flex-thia/database/queries/drizzle-learner-vocabulary.query';
 
 import { DrizzleRecommendationQuery } from '@flex-thia/database/queries/drizzle-recommendation.query';
-import { DrizzleUsageCostOperationsQuery } from '@flex-thia/database/queries/drizzle-usage-cost-operations.query';
 import { DrizzleUserManagementQuery } from '@flex-thia/database/queries/drizzle-user-management.query';
 
 import { DrizzleWordbookQuery } from '@flex-thia/database/queries/drizzle-wordbook.query';
@@ -28,8 +27,6 @@ import { DrizzleWordbookQuery } from '@flex-thia/database/queries/drizzle-wordbo
 import { DrizzleContentErrorReportRepository } from '@flex-thia/database/repositories/drizzle-content-error-report.repository';
 
 import { DrizzleEmailChallengeRepository } from '@flex-thia/database/repositories/drizzle-email-challenge.repository';
-
-import { DrizzleOperationsCostSettingsRepository } from '@flex-thia/database/repositories/drizzle-operations-cost-settings.repository';
 
 import { DrizzleReadinessProbe } from '@flex-thia/database/repositories/drizzle-readiness.probe';
 import { DrizzleUploadRepository } from '@flex-thia/database/repositories/drizzle-upload.repository';
@@ -272,10 +269,6 @@ export const createApplicationModule = (
       OperationsModule.register({
         auditLogs,
         homeQuery: new DrizzleAdminHomeQuery(database),
-        usageCost: {
-          query: new DrizzleUsageCostOperationsQuery(database),
-          settings: new DrizzleOperationsCostSettingsRepository(database),
-        },
         users,
         authorizer,
       }),

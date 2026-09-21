@@ -213,9 +213,6 @@ export class HttpApi extends Construct {
         '/api/v1/admin/vocabulary-extraction/uploads/{uploadId}/complete',
       ],
 
-      [apigwv2.HttpMethod.GET, '/api/v1/admin/usage-cost'],
-      [apigwv2.HttpMethod.GET, '/api/v1/admin/usage-cost/settings'],
-      [apigwv2.HttpMethod.PUT, '/api/v1/admin/usage-cost/settings'],
       [apigwv2.HttpMethod.GET, '/api/v1/admin/vocabularies'],
       [apigwv2.HttpMethod.GET, '/api/v1/admin/vocabularies/{vocabularyId}'],
       [apigwv2.HttpMethod.PUT, '/api/v1/admin/vocabularies/{vocabularyId}'],
