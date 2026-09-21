@@ -192,8 +192,6 @@ describe('공개 오류 응답 변환', () => {
     'CONTENT_DRAFT_ITEM_CONFLICT',
     'CONTENT_DRAFT_PERSISTENCE_CONFLICT',
     'CONTENT_IMPORT_PERSISTENCE_CONFLICT',
-    'QUESTION_ADMIN_PERSISTENCE_CONFLICT',
-    'QUESTION_PUBLICATION_PERSISTENCE_CONFLICT',
   ])('관리자 persistence 충돌 %s를 409로 변환한다', (code) => {
     const result = buildErrorResponse({ code }, 'request-persistence');
 
@@ -230,19 +228,11 @@ describe('공개 오류 응답 변환', () => {
   );
 
   it('공개 query null의 안정적인 404 code를 보존한다', () => {
-    const question = buildErrorResponse(
-      new NotFoundException({ code: 'QUESTION_NOT_FOUND' }),
-      'request-question',
-    );
     const vocabulary = buildErrorResponse(
       new NotFoundException({ code: 'VOCABULARY_NOT_FOUND' }),
       'request-vocabulary',
     );
 
-    expect(question).toMatchObject({
-      status: 404,
-      body: { code: 'QUESTION_NOT_FOUND' },
-    });
     expect(vocabulary).toMatchObject({
       status: 404,
       body: { code: 'VOCABULARY_NOT_FOUND' },

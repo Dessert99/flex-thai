@@ -32,7 +32,7 @@ const createFixture = async (pool: Pool) => {
   await pool.query(
     `insert into jobs (
        id, requested_by, client_request_id, type, status, created_at, updated_at
-     ) values ($1, $2, $3, 'QUESTION_GENERATION', 'RUNNING', $4, $4)`,
+     ) values ($1, $2, $3, 'VOCABULARY_EXTRACTION', 'RUNNING', $4, $4)`,
     [ids.job, ids.user, randomUUID(), occurredAt],
   );
   await pool.query(
@@ -51,7 +51,7 @@ const createFixture = async (pool: Pool) => {
     `insert into job_items (
        id, job_id, job_input_id, operation, status, attempt, created_at,
        updated_at
-     ) values ($1, $2, $3, 'QUESTION_GENERATION', 'PROCESSING', 1, $4, $4)`,
+     ) values ($1, $2, $3, 'VOCABULARY_EXTRACTION', 'PROCESSING', 1, $4, $4)`,
     [ids.item, ids.job, ids.input, occurredAt],
   );
   await pool.query(
@@ -59,7 +59,7 @@ const createFixture = async (pool: Pool) => {
        id, job_item_id, operation, provider, model, attempt, status,
        estimated_cost_usd, success, started_at, finished_at
      ) values (
-       $1, $2, 'QUESTION_GENERATION', $3, 'cost-v1', 1, 'SUCCEEDED',
+       $1, $2, 'VOCABULARY_EXTRACTION', $3, 'cost-v1', 1, 'SUCCEEDED',
        '1.125000', true, $4, $4
      )`,
     [ids.aiRun, ids.item, provider, occurredAt],
