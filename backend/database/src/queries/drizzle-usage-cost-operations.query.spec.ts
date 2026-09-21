@@ -46,7 +46,7 @@ describe('DrizzleUsageCostOperationsQuery', () => {
       ],
       [{ in_progress_job_count: 0 }],
       [{ failed_run_count: 0 }],
-      [{ pending_review_candidate_count: 0 }],
+      [{ pending_save_extraction_count: 0 }],
     ]);
     const query = new DrizzleUsageCostOperationsQuery(fake.database);
 

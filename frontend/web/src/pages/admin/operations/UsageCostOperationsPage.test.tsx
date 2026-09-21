@@ -40,7 +40,7 @@ const overview = {
   estimatedCostUsd: '16.000000',
   inProgressJobCount: 2,
   failedRunCount: 1,
-  pendingReviewCandidateCount: 4,
+  pendingSaveExtractionCount: 4,
   breakdown: [
     {
       source: 'AI',

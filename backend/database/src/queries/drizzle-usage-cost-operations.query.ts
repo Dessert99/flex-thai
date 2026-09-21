@@ -30,7 +30,7 @@ export interface UsageCostOverviewReadModel {
   estimatedCostUsd: string;
   inProgressJobCount: number;
   failedRunCount: number;
-  pendingReviewCandidateCount: number;
+  pendingSaveExtractionCount: number;
   breakdown: UsageCostBreakdown[];
 }
 
@@ -160,7 +160,7 @@ export class DrizzleUsageCostOperationsQuery implements UsageCostOperationsQuery
           from normalized_provider_runs
           where ${failedConditions} and status = 'FAILED'`),
       this.database.execute(sql`
-          select count(*)::int as pending_review_candidate_count
+          select count(*)::int as pending_save_extraction_count
           from vocabulary_extraction_jobs
           where status = 'complete' and saved_at is null
             and created_at >= ${input.range.from} and created_at < ${input.range.to}`),
@@ -173,9 +173,9 @@ export class DrizzleUsageCostOperationsQuery implements UsageCostOperationsQuery
       estimatedCostUsd: readString(cost, 'estimated_cost_usd'),
       inProgressJobCount: readCount(inProgress, 'in_progress_job_count'),
       failedRunCount: readCount(failed, 'failed_run_count'),
-      pendingReviewCandidateCount: readCount(
+      pendingSaveExtractionCount: readCount(
         pending,
-        'pending_review_candidate_count',
+        'pending_save_extraction_count',
       ),
       breakdown: rowsOf(breakdownResult).map(toBreakdown),
     };

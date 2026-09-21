@@ -31,7 +31,7 @@ export interface UsageCostOverviewReadResult {
   estimatedCostUsd: string;
   inProgressJobCount: number;
   failedRunCount: number;
-  pendingReviewCandidateCount: number;
+  pendingSaveExtractionCount: number;
   breakdown: UsageCostBreakdownInput[];
 }
 

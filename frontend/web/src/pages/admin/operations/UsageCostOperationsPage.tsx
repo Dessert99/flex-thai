@@ -181,8 +181,8 @@ export function UsageCostOperationsPage(
               value={String(overview.data.failedRunCount)}
             />
             <MetricCard
-              label='검토 대기 후보'
-              value={String(overview.data.pendingReviewCandidateCount)}
+              label='저장 대기 추출'
+              value={String(overview.data.pendingSaveExtractionCount)}
             />
           </div>
           <Card className='rounded-panel border-default bg-surface'>

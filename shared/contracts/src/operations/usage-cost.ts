@@ -80,7 +80,7 @@ export const usageCostOverviewResponseSchema = z
     estimatedCostUsd: estimatedCostUsdSchema,
     inProgressJobCount: z.number().int().nonnegative(),
     failedRunCount: z.number().int().nonnegative(),
-    pendingReviewCandidateCount: z.number().int().nonnegative(),
+    pendingSaveExtractionCount: z.number().int().nonnegative(),
     breakdown: z.array(usageCostBreakdownSchema),
     currentMonthThreshold: z
       .object({

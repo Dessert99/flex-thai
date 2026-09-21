@@ -40,7 +40,7 @@ const usageCostOverview = {
   estimatedCostUsd: '16.500000',
   inProgressJobCount: 0,
   failedRunCount: 0,
-  pendingReviewCandidateCount: 0,
+  pendingSaveExtractionCount: 0,
   breakdown: [],
   currentMonthThreshold: {
     range: {
