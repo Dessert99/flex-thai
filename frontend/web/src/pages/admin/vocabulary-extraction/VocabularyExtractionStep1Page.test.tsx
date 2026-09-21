@@ -27,7 +27,7 @@ describe('단어 추출 자료 입력', () => {
     await user.clear(prompt);
     await user.type(prompt, '직접 작성한 지시문');
     await user.upload(
-      screen.getByLabelText('피디에프 파일 선택'),
+      screen.getByLabelText('PDF 또는 이미지 파일 선택'),
       new File(['pdf'], '자료.pdf', { type: 'application/pdf' }),
     );
     expect(screen.getByText('자료.pdf')).toBeVisible();
@@ -133,3 +133,18 @@ describe('단어 추출 자료 입력', () => {
     );
   });
 });
+
+it.each(['image/jpeg', 'image/png', 'image/webp'])(
+  '이미지 %s를 자료로 선택한다',
+  async (type) => {
+    const user = userEvent.setup();
+    renderWithProviders(<VocabularyExtractionStep1Page />);
+    const filename = `사진.${type.split('/')[1]}`;
+    await user.upload(
+      screen.getByLabelText('PDF 또는 이미지 파일 선택'),
+      new File(['image'], filename, { type }),
+    );
+    expect(screen.getByText(filename)).toBeVisible();
+    expect(screen.getByRole('button', { name: '추출 시작' })).toBeEnabled();
+  },
+);

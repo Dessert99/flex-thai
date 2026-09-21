@@ -28,7 +28,7 @@ export function useCreateExtraction(onStarted?: (id: string) => void) {
       let sourceName: string;
       if (input.source.kind === 'file') {
         const file = input.source.file;
-        if (!file) throw new Error('피디에프 파일을 선택하세요.');
+        if (!file) throw new Error('PDF 또는 이미지 파일을 선택하세요.');
         if (uploaded.current?.file !== file) {
           const result = await uploadContentProductionInput(
             file,
@@ -36,7 +36,10 @@ export function useCreateExtraction(onStarted?: (id: string) => void) {
           );
           uploaded.current = { file, uploadId: result.uploadId };
         }
-        source = { kind: 'pdf', uploadId: uploaded.current.uploadId };
+        source = {
+          kind: file.type === 'application/pdf' ? 'pdf' : 'image',
+          uploadId: uploaded.current.uploadId,
+        };
         sourceName = file.name;
       } else {
         const url = new URL(input.source.url);

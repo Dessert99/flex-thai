@@ -11,7 +11,8 @@ export type ExtractionResult = ExtractionWord & {
 };
 export type ExtractionSource =
   | { kind: 'url'; url: string }
-  | { kind: 'pdf'; inputKey: string; sizeBytes: number; uploadId: string };
+  | { kind: 'pdf'; inputKey: string; sizeBytes: number; uploadId: string }
+  | { kind: 'image'; inputKey: string; sizeBytes: number; uploadId: string };
 export type ExtractionChunk = {
   page?: number;
   text?: string;
@@ -88,10 +89,15 @@ export interface ExtractionRepository {
   advance(job: ExtractionJob, stage: number): Promise<void>;
   finish(job: ExtractionJob, error?: string): Promise<void>;
 }
+export type ExtractionDocument =
+  | { text: string }
+  | { pdf: Uint8Array }
+  | { image: Uint8Array; mimeType: 'image/jpeg' | 'image/png' | 'image/webp' };
+
 export interface ExtractionAi {
   extract(input: {
     prompt: string;
-    document: { text: string } | { pdf: Uint8Array };
+    document: ExtractionDocument;
     config: ExtractionConfig;
     signal: AbortSignal;
   }): Promise<ExtractionWord[]>;
@@ -111,7 +117,7 @@ export interface ExtractionDocuments {
     source: ExtractionSource,
     chunk: ExtractionChunk,
     signal: AbortSignal,
-  ): Promise<{ text: string } | { pdf: Uint8Array }>;
+  ): Promise<ExtractionDocument>;
 }
 
 /** 저장된 청크 위치로 식별하며 클라이언트가 단어 내용을 변경하지 않는다. */

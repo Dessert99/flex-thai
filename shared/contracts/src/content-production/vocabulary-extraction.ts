@@ -6,6 +6,7 @@ export const extractionCreateSchema = z
     prompt: z.string().trim().min(1).max(20000),
     source: z.discriminatedUnion('kind', [
       z.object({ kind: z.literal('pdf'), uploadId: z.uuid() }).strict(),
+      z.object({ kind: z.literal('image'), uploadId: z.uuid() }).strict(),
       z
         .object({
           kind: z.literal('url'),

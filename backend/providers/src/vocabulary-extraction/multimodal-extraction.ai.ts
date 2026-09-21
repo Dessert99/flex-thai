@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type {
   ExtractionAi,
   ExtractionConfig,
+  ExtractionDocument,
 } from '@flex-thia/domain/vocabulary-extraction/extraction';
 const wordsSchema = z
   .object({
@@ -71,7 +72,7 @@ export class MultimodalExtractionAi implements ExtractionAi {
   private async generate(
     config: ExtractionConfig,
     prompt: string,
-    document: { text: string } | { pdf: Uint8Array },
+    document: ExtractionDocument,
     signal: AbortSignal,
   ): Promise<unknown> {
     const key =
@@ -112,7 +113,7 @@ export class MultimodalExtractionAi implements ExtractionAi {
 function geminiRequest(
   config: ExtractionConfig,
   prompt: string,
-  doc: { text: string } | { pdf: Uint8Array },
+  doc: ExtractionDocument,
   key: string,
 ) {
   return {
@@ -128,8 +129,10 @@ function geminiRequest(
               ? { text: doc.text }
               : {
                   inlineData: {
-                    mimeType: 'application/pdf',
-                    data: Buffer.from(doc.pdf).toString('base64'),
+                    mimeType: 'image' in doc ? doc.mimeType : 'application/pdf',
+                    data: Buffer.from(
+                      'image' in doc ? doc.image : doc.pdf,
+                    ).toString('base64'),
                   },
                 },
           ],
@@ -145,7 +148,7 @@ function geminiRequest(
 function claudeRequest(
   config: ExtractionConfig,
   prompt: string,
-  doc: { text: string } | { pdf: Uint8Array },
+  doc: ExtractionDocument,
   key: string,
 ) {
   return {
@@ -166,11 +169,14 @@ function claudeRequest(
             'text' in doc
               ? { type: 'text', text: doc.text }
               : {
-                  type: 'document',
+                  type: 'image' in doc ? 'image' : 'document',
                   source: {
                     type: 'base64',
-                    media_type: 'application/pdf',
-                    data: Buffer.from(doc.pdf).toString('base64'),
+                    media_type:
+                      'image' in doc ? doc.mimeType : 'application/pdf',
+                    data: Buffer.from(
+                      'image' in doc ? doc.image : doc.pdf,
+                    ).toString('base64'),
                   },
                 },
           ],

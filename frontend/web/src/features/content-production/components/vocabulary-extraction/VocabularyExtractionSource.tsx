@@ -1,3 +1,4 @@
+import { validateExtractionFile } from '@/features/content-production/libs/vocabulary-extraction/validateExtractionFile';
 import type { ExtractionSourceInput } from '@/features/content-production/hooks/vocabulary-extraction/useCreateExtraction';
 import { ExtractionFileInput } from './ExtractionFileInput';
 /** 동일 높이의 파일·링크 입력 패널로 푸터 위치를 유지한다 */
@@ -23,20 +24,14 @@ export function VocabularyExtractionSource({
   const selectFiles = (files: FileList | null) => {
     const selected = files?.[0];
     if (!selected) return;
-    if (
-      files?.length !== 1 ||
-      !/\.pdf$/i.test(selected.name) ||
-      (selected.type && selected.type !== 'application/pdf')
-    ) {
-      setError('피디에프 파일 한 개를 선택하세요.');
+    try {
+      const file = validateExtractionFile(selected, files?.length ?? 0);
+      setFile(file);
+      onChange?.({ kind: 'file', file });
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '파일을 확인하세요.');
       return;
     }
-    if (selected.size === 0) {
-      setError('내용이 있는 파일을 선택하세요.');
-      return;
-    }
-    setFile(selected);
-    onChange?.({ kind: 'file', file: selected });
     setError('');
   };
   return (

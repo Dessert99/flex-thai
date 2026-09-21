@@ -5,6 +5,7 @@ import type {
   ExtractionRepository,
   ExtractionJob,
 } from '@flex-thia/domain/vocabulary-extraction/extraction';
+import type { UploadRepository } from '@flex-thia/domain/uploads/upload.repository';
 import type { AuthenticatedUser } from '../common/auth/current-user.decorator.js';
 const id = '00000000-0000-4000-8000-000000000001';
 const user: AuthenticatedUser = {
@@ -56,7 +57,11 @@ function fixture() {
     advance: vi.fn(),
     finish: vi.fn(),
   } satisfies ExtractionRepository;
-  const uploads = { findVerifiedOwnedByIds: vi.fn(async () => []) };
+  const uploads = {
+    findVerifiedOwnedByIds: vi
+      .fn<UploadRepository['findVerifiedOwnedByIds']>()
+      .mockResolvedValue([]),
+  };
   const env: Record<string, string | undefined> = {
     EXTRACTION_AI_PROVIDER: 'gemini',
     EXTRACTION_AI_MODEL: 'test',
@@ -165,4 +170,29 @@ describe('최종 저장 요청', () => {
     await f.controller.save(id, { selectedIds: ['0:0'] }, user);
     expect(f.repository.save).toHaveBeenCalledWith(id, user.userId, ['0:0']);
   });
+});
+
+it('accepts only a verified owned image for image extraction', async () => {
+  const f = fixture();
+  const input = {
+    requestId: id,
+    sourceName: '사진.png',
+    source: { kind: 'image', uploadId: id },
+    prompt: 'extract',
+  };
+  await expect(f.controller.create(input, user)).rejects.toThrow();
+  f.uploads.findVerifiedOwnedByIds.mockResolvedValue([
+    { uploadId: id, inputType: 'PDF', inputKey: 'file', sizeBytes: 12 },
+  ]);
+  await expect(f.controller.create(input, user)).rejects.toThrow();
+  expect(f.repository.create).not.toHaveBeenCalled();
+  f.uploads.findVerifiedOwnedByIds.mockResolvedValue([
+    { uploadId: id, inputType: 'IMAGE', inputKey: 'file', sizeBytes: 12 },
+  ]);
+  await f.controller.create(input, user);
+  expect(f.repository.create).toHaveBeenCalledWith(
+    expect.objectContaining({
+      source: { kind: 'image', inputKey: 'file', sizeBytes: 12, uploadId: id },
+    }),
+  );
 });

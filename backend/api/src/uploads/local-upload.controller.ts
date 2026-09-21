@@ -29,7 +29,8 @@ const maximumUploadBytes = 25 * 1024 * 1024;
 export const localUploadMultipartLimits = {
   files: 1,
   fields: 2,
-  parts: 3,
+  // Busboy는 제한값에 도달한 순간 오류를 발생시키므로 정상 3개 part보다 크게 둔다.
+  parts: 4,
   fieldSize: 1024,
   fileSize: maximumUploadBytes,
 } as const;

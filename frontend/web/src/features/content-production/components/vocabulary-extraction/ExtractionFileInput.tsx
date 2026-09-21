@@ -19,8 +19,8 @@ export function ExtractionFileInput({
       <input
         ref={input}
         type='file'
-        accept='.pdf,application/pdf'
-        aria-label='피디에프 파일 선택'
+        accept='.pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp'
+        aria-label='PDF 또는 이미지 파일 선택'
         className='sr-only'
         tabIndex={-1}
         onChange={(e) => {
@@ -44,7 +44,9 @@ export function ExtractionFileInput({
           {file ? file.name : '파일을 선택하거나 끌어 놓으세요'}
         </span>
         <span className='text-caption text-subtle'>
-          {file ? '다른 파일로 바꾸려면 선택하세요' : '피디에프 자료'}
+          {file
+            ? '다른 파일로 바꾸려면 선택하세요'
+            : 'PDF 또는 JPG·PNG·WebP 이미지 (이미지 최대 5MB)'}
         </span>
       </Button>
       <div className='flex h-icon items-center justify-between gap-cluster'>

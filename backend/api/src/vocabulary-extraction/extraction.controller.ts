@@ -97,15 +97,20 @@ export class ExtractionController {
       });
     }
     let source;
-    if (input.source.kind === 'pdf') {
+    if (input.source.kind !== 'url') {
       const [upload] = await this.options.uploads.findVerifiedOwnedByIds(
         user.userId,
         [input.source.uploadId],
       );
-      if (!upload || upload.inputType !== 'PDF')
+      if (
+        !upload ||
+        upload.inputType !== (input.source.kind === 'pdf' ? 'PDF' : 'IMAGE')
+      )
         throw new BadRequestException({ code: 'EXTRACTION_UPLOAD_INVALID' });
+      if (input.source.kind === 'image' && upload.sizeBytes > 5 * 1024 * 1024)
+        throw new BadRequestException({ code: 'SOURCE_IMAGE_TOO_LARGE' });
       source = {
-        kind: 'pdf' as const,
+        kind: input.source.kind,
         inputKey: upload.inputKey,
         sizeBytes: upload.sizeBytes,
         uploadId: upload.uploadId,

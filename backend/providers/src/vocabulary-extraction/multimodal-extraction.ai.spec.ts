@@ -93,16 +93,14 @@ it('uses Claude by default and sends PDF documents through the Messages API', as
     ANTHROPIC_API_KEY: 'test-key',
   });
   expect(selected.provider).toBe('claude');
-  const request = vi
-    .fn<typeof fetch>()
-    .mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          stop_reason: 'end_turn',
-          content: [{ type: 'text', text: '{"words":[]}' }],
-        }),
-      ),
-    );
+  const request = vi.fn<typeof fetch>().mockResolvedValue(
+    new Response(
+      JSON.stringify({
+        stop_reason: 'end_turn',
+        content: [{ type: 'text', text: '{"words":[]}' }],
+      }),
+    ),
+  );
   vi.stubGlobal('fetch', request);
   await new MultimodalExtractionAi({ ANTHROPIC_API_KEY: 'test-key' }).extract({
     config: selected,
@@ -119,3 +117,59 @@ it('uses Claude by default and sends PDF documents through the Messages API', as
   expect(options?.body).toContain('"media_type":"application/pdf"');
   expect(options?.body).toContain('"model":"test-claude"');
 });
+
+it.each(['claude', 'gemini'] as const)(
+  'sends an image with its MIME type to %s',
+  async (provider) => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify(
+            provider === 'claude'
+              ? {
+                  stop_reason: 'end_turn',
+                  content: [{ type: 'text', text: '{"words":[]}' }],
+                }
+              : {
+                  candidates: [
+                    {
+                      finishReason: 'STOP',
+                      content: { parts: [{ text: '{"words":[]}' }] },
+                    },
+                  ],
+                },
+          ),
+        ),
+      );
+    vi.stubGlobal('fetch', fetch);
+    await new MultimodalExtractionAi({
+      ANTHROPIC_API_KEY: 'test',
+      GEMINI_API_KEY: 'test',
+    }).extract({
+      config: { ...config, provider },
+      prompt: 'extract',
+      document: { image: new Uint8Array([137, 80]), mimeType: 'image/png' },
+      signal: new AbortController().signal,
+    });
+    expect(fetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        body: expect.stringContaining('image/png') as unknown,
+      }),
+    );
+    expect(fetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        body: expect.stringContaining('iVA=') as unknown,
+      }),
+    );
+    if (provider === 'claude')
+      expect(fetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          body: expect.stringContaining('"type":"image"') as unknown,
+        }),
+      );
+  },
+);

@@ -1,3 +1,6 @@
+import { Readable } from 'node:stream';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { of } from 'rxjs';
 /** local multipart upload controller가 token 실패를 안전한 HTTP 오류로 제한하는지 검증한다 */
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -43,7 +46,7 @@ describe('로컬 업로드 Controller', () => {
     expect(localUploadMultipartLimits).toEqual({
       files: 1,
       fields: 2,
-      parts: 3,
+      parts: 4,
       fieldSize: 1024,
       fileSize: 25 * 1024 * 1024,
     });
@@ -96,4 +99,49 @@ describe('로컬 업로드 Controller', () => {
       JSON.stringify((invalidFields as BadRequestException).getResponse()),
     ).not.toContain(secret);
   });
+});
+
+it('실제 multipart 파서가 정책 필드 2개와 파일 1개를 허용한다', async () => {
+  const body = Buffer.from(
+    [
+      '--boundary',
+      'Content-Disposition: form-data; name="key"',
+      '',
+      storageKey,
+      '--boundary',
+      'Content-Disposition: form-data; name="Content-Type"',
+      '',
+      'image/png',
+      '--boundary',
+      'Content-Disposition: form-data; name="file"; filename="image.png"',
+      'Content-Type: image/png',
+      '',
+      'image-bytes',
+      '--boundary--',
+      '',
+    ].join('\r\n'),
+  );
+  const request: Readable & {
+    headers: Record<string, string>;
+    file?: { buffer: Buffer };
+  } = Object.assign(Readable.from([body]), {
+    headers: {
+      'content-type': 'multipart/form-data; boundary=boundary',
+      'content-length': String(body.length),
+    },
+  });
+  const Interceptor = FileInterceptor('file', {
+    limits: localUploadMultipartLimits,
+  });
+  const interceptor = new Interceptor();
+  await interceptor.intercept(
+    {
+      switchToHttp: () => ({
+        getRequest: () => request,
+        getResponse: () => ({}),
+      }),
+    } as never,
+    { handle: () => of(null) },
+  );
+  expect(request.file?.buffer.toString()).toBe('image-bytes');
 });
