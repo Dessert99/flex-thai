@@ -1,4 +1,4 @@
-/** 로그인 없이 서비스 소개와 학습 시작 경로를 제공한다. */
+/** 로그인 없이 서비스 소개와 로그인하기 경로를 제공한다. */
 import { Link } from '@tanstack/react-router';
 import { Button } from '@/shared/components/button';
 import {
@@ -28,7 +28,7 @@ export function LandingPage() {
             개념 학습으로 태국어의 기초도 함께 다져 보세요.
           </p>
           <Button asChild>
-            <Link to='/learn'>학습 시작</Link>
+            <Link to='/login'>로그인하기</Link>
           </Button>
         </CardContent>
       </Card>
