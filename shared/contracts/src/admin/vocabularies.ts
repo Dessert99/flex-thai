@@ -1,6 +1,6 @@
 /** 관리자 어휘의 모든 상태 조회와 참조 보존 전체 교체 계약을 정의한다 */
 import { z } from 'zod';
-import { pageMetadataSchema } from '../learning/questions.js';
+import { pageMetadataSchema } from '../learning/pagination.js';
 import { adminVocabularyRelationSchema } from './vocabulary-relations.js';
 
 const uuidSchema = z.uuid();
@@ -115,10 +115,6 @@ export const adminVocabularyDetailResponseSchema = z
     usage: z
       .object({
         sentenceVersionIds: z.array(uuidSchema),
-        questionIds: z.array(uuidSchema),
-        questionCount: z.number().int().nonnegative(),
-        targetQuestionCount: z.number().int().nonnegative(),
-        occurrenceCount: z.number().int().nonnegative(),
       })
       .strict(),
     createdAt: utcDateTimeSchema,

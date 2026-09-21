@@ -166,55 +166,6 @@ describe('DrizzleLearnerVocabularyQuery 공용 어휘 검색', () => {
     expect(capture.queries[1]).toContain('"vocabularies"."id"');
   });
 
-  it('WHERE의 correlated helper도 전체 query에서 컬럼 한정을 유지한다', async () => {
-    const listCapture = createSqlCaptureDatabase();
-    await new DrizzleLearnerVocabularyQuery(
-      listCapture.database,
-    ).listVocabularies('user-id', {
-      query: '안녕',
-      partOfSpeech: '감탄사',
-      difficulty: 1,
-      page: 1,
-      pageSize: 20,
-    });
-
-    expect(listCapture.queries[0]).toContain(
-      '"vocabulary_meanings"."vocabulary_id" = "vocabularies"."id"',
-    );
-    expect(listCapture.queries[0]).toContain(
-      '"vocabulary_meanings"."vocabulary_id" = "vocabularies"."id"',
-    );
-
-    const relatedCapture = createSqlCaptureDatabase();
-    await new DrizzleLearnerVocabularyQuery(
-      relatedCapture.database,
-    ).listRelatedQuestions('user-id', 'vocabulary-id', {
-      page: 1,
-      pageSize: 20,
-    });
-
-    expect(relatedCapture.queries[0]).toContain(
-      '"question_vocabularies"."question_id" = "questions"."id"',
-    );
-
-    const createdAt = new Date('2026-07-27T00:00:00.000Z');
-    const detailCapture = createSqlCaptureDatabase([
-      [['vocabulary-id', 'สวัสดี', 'WORD', false]],
-      [],
-      [['vocabulary-id', '싸왓디', '-', createdAt]],
-      [],
-      [],
-    ]);
-    await new DrizzleLearnerVocabularyQuery(
-      detailCapture.database,
-    ).getVocabularyDetail('user-id', 'vocabulary-id');
-
-    expect(detailCapture.queries.join(' ')).not.toContain(
-      'question_block_sentences',
-    );
-    expect(detailCapture.queries.join(' ')).not.toContain('token_occurrences');
-  });
-
   it('저장 여부는 사용자 소유 단어장 membership으로 계산한다', async () => {
     const fake = createSelectFake([
       [{ totalItems: 2 }],
@@ -396,44 +347,6 @@ describe('DrizzleLearnerVocabularyQuery 관련 문제와 저장 목록', () => {
 
     expect(query).not.toHaveProperty('listSavedVocabularies');
   });
-
-  it('현재 문제의 어휘 연결로 관련 문제와 마지막 풀이 상태를 조회한다', async () => {
-    const question = {
-      questionId: 'question-id',
-      questionVersion: 2,
-      questionType: {
-        id: 'type-id',
-        slug: 'reading-choice',
-        displayName: '독해 선택',
-      },
-      skill: 'READING',
-      difficulty: 2,
-      saved: true,
-      firstResult: 'UPDATED',
-    };
-    const fake = createSelectFake([
-      [{ total: 1 }],
-      [
-        {
-          ...question,
-          tagIds: [],
-          majorCategory: 'READING_PASSAGE',
-          topic: { id: 'topic' },
-        },
-      ],
-      [],
-    ]);
-    const query = new DrizzleLearnerVocabularyQuery(fake.database as never);
-    const result = await query.listRelatedQuestions(
-      'user-id',
-      'vocabulary-id',
-      { page: 1, pageSize: 20 },
-    );
-    expect(result.items).toEqual([question]);
-    expect(toSql(fake.selectCalls[0]?.condition).sql).toContain(
-      'question_vocabularies',
-    );
-  });
 });
 
 const integrationDatabaseUrl =
@@ -457,7 +370,6 @@ const ids = {
   type: '51000000-0000-4000-8000-000000000001',
   typeVersion: '52000000-0000-4000-8000-000000000001',
   question: '61000000-0000-4000-8000-000000000001',
-  questionVersion: '62000000-0000-4000-8000-000000000001',
   block: '71000000-0000-4000-8000-000000000001',
   option: '81000000-0000-4000-8000-000000000001',
   wordbook: '91000000-0000-4000-8000-000000000001',
@@ -470,23 +382,6 @@ const cleanupVocabularyQueryFixture = async (pool: Pool): Promise<void> => {
     ids.wordbook,
   ]);
   await pool.query(`delete from wordbooks where id = $1`, [ids.wordbook]);
-  await pool.query(`delete from question_options where id = $1`, [ids.option]);
-  await pool.query(`delete from question_block_sentences where block_id = $1`, [
-    ids.block,
-  ]);
-  await pool.query(`delete from question_blocks where id = $1`, [ids.block]);
-  await pool.query(
-    `update questions set current_published_version_id = null where id = $1`,
-    [ids.question],
-  );
-  await pool.query(`delete from question_versions where id = $1`, [
-    ids.questionVersion,
-  ]);
-  await pool.query(`delete from questions where id = $1`, [ids.question]);
-  await pool.query(`delete from question_type_versions where id = $1`, [
-    ids.typeVersion,
-  ]);
-  await pool.query(`delete from question_types where id = $1`, [ids.type]);
   await pool.query(
     `delete from expression_occurrences where sentence_version_id = $1`,
     [ids.sentenceVersion],
@@ -546,50 +441,6 @@ const createVocabularyQueryFixture = async (pool: Pool): Promise<void> => {
   await pool.query(
     "insert into expression_occurrences (sentence_version_id, start_token_index, end_token_index, vocabulary_id, vocabulary_kind, meaning_id, context_meaning_ko, representative) values ($1, 0, 2, $2, 'EXPRESSION', $3, '매우 감사합니다', true)",
     [ids.sentenceVersion, ids.vocabulary[1], ids.meaning[2]],
-  );
-  await pool.query(
-    `insert into question_types (id, slug, display_name, skill)
-     values ($1, 'vocabulary-reading', '어휘 독해', 'READING')`,
-    [ids.type],
-  );
-  await pool.query(
-    `insert into question_type_versions (
-       id, question_type_id, version, template, option_count, decision_rules
-     ) values ($1, $2, 1, 'STANDARD_CHOICE', 1, '{}')`,
-    [ids.typeVersion, ids.type],
-  );
-  await pool.query(
-    `insert into questions (id, status) values ($1, 'PUBLISHED')`,
-    [ids.question],
-  );
-  await pool.query(
-    `insert into question_versions (
-       id, question_id, version, type_version_id, difficulty, status,
-       validation_status, validation_issues, published_at
-     ) values ($1, $2, 1, $3, 2, 'PUBLISHED', 'PASSED', '[]', now())`,
-    [ids.questionVersion, ids.question, ids.typeVersion],
-  );
-  await pool.query(
-    `update questions set current_published_version_id = $2 where id = $1`,
-    [ids.question, ids.questionVersion],
-  );
-  await pool.query(
-    `insert into question_blocks
-       (id, question_version_id, kind, position)
-     values ($1, $2, 'QUESTION', 0)`,
-    [ids.block, ids.questionVersion],
-  );
-  await pool.query(
-    `insert into question_block_sentences
-       (block_id, sentence_version_id, position)
-     values ($1, $2, 0)`,
-    [ids.block, ids.sentenceVersion],
-  );
-  await pool.query(
-    `insert into question_options
-       (id, question_version_id, sentence_version_id, position, is_correct)
-     values ($1, $2, $3, 0, true)`,
-    [ids.option, ids.questionVersion, ids.sentenceVersion],
   );
   await pool.query(
     `insert into wordbooks (id, user_id, name, created_at, updated_at)
@@ -674,19 +525,6 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       expect(result?.items[0]).toMatchObject({
         id: ids.vocabulary[0],
       });
-    });
-
-    it('token과 expression 관련 문제를 각각 중복 없이 반환한다', async () => {
-      for (const vocabularyId of ids.vocabulary.slice(0, 2)) {
-        const related = await query.listRelatedQuestions(
-          ids.user,
-          vocabularyId,
-          { page: 1, pageSize: 20 },
-        );
-        expect(related.items.map((item) => item.questionId)).toEqual([
-          ids.question,
-        ]);
-      }
     });
   },
 );

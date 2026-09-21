@@ -63,7 +63,6 @@ describe('콘텐츠 가져오기 페이지', () => {
         value: JSON.stringify({
           schemaVersion: 1,
           vocabularies: [],
-          questions: [],
         }),
       },
     });
@@ -218,7 +217,6 @@ function createValidRequest() {
         ],
       },
     ],
-    questions: [],
   };
 }
 
@@ -227,7 +225,6 @@ function createImportDetail() {
     id: '01933b6a-8f13-7a19-b7e5-536d70f57abb',
     status: 'COMPLETED',
     vocabularyCount: 1,
-    questionCount: 0,
     importedCount: 1,
     rejectedCount: 0,
     createdAt: '2026-07-25T00:00:00.000Z',

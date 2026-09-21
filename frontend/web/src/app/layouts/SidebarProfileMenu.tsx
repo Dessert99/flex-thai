@@ -1,6 +1,6 @@
 /** 사이드바 아바타에서 개인 학습 메뉴와 로그아웃을 제공한다 */
 import { Link } from '@tanstack/react-router';
-import { Bookmark, ChevronsUpDown, History, Library } from 'lucide-react';
+import { ChevronsUpDown, Library } from 'lucide-react';
 import type { ReactNode } from 'react';
 import {
   Avatar,
@@ -77,21 +77,6 @@ export function SidebarProfileMenu({
             <DropdownMenuItem asChild>
               <Link to='/wordbooks'>
                 <Library />내 단어장
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link to='/history'>
-                <History />
-                나의 학습 기록
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link
-                to='/questions'
-                search={{ saved: true, page: 1, pageSize: 20 }}
-              >
-                <Bookmark />
-                저장한 문제
               </Link>
             </DropdownMenuItem>
           </DropdownMenuGroup>

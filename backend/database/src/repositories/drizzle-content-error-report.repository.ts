@@ -20,7 +20,7 @@ import {
   contentErrorReports,
 } from '../schema/feedback.schema.js';
 import { users } from '../schema/identity.schema.js';
-import { questions } from '../schema/questions.schema.js';
+
 import {
   vocabularies,
   vocabularyMeanings,
@@ -65,7 +65,6 @@ const referenceKeys = [
   'kind',
   'contentId',
   'contentVersionId',
-  'questionVersion',
   'sentenceVersionId',
   'locationId',
 ] as const;
@@ -115,20 +114,14 @@ const strictResolvedTarget = (
   }
   const referenceRecord = reference as Record<string, unknown>;
   const snapshotRecord = snapshot as Record<string, unknown>;
-  const kinds = ['QUESTION', 'VOCABULARY', 'SENTENCE', 'CONCEPT'];
+  const kinds = ['VOCABULARY', 'SENTENCE', 'CONCEPT'];
   if (
     !kinds.includes(String(referenceRecord.kind)) ||
     typeof referenceRecord.contentId !== 'string' ||
     referenceRecord.contentId.length === 0 ||
     !referenceKeys
       .slice(2)
-      .every((key) =>
-        key === 'questionVersion'
-          ? referenceRecord[key] === null ||
-            (Number.isSafeInteger(referenceRecord[key]) &&
-              Number(referenceRecord[key]) > 0)
-          : isNullableString(referenceRecord[key]),
-      ) ||
+      .every((key) => isNullableString(referenceRecord[key])) ||
     typeof snapshotRecord.title !== 'string' ||
     snapshotRecord.title.length === 0 ||
     typeof snapshotRecord.primaryText !== 'string' ||
@@ -159,8 +152,6 @@ export class DrizzleContentErrorReportRepository
     origin: ContentErrorReportOrigin,
   ): Promise<ResolvedContentErrorReportTarget | null> {
     switch (origin.kind) {
-      case 'QUESTION':
-        return this.resolveQuestion(origin);
       case 'VOCABULARY':
         return this.resolveVocabulary(origin);
       case 'SENTENCE':
@@ -352,46 +343,6 @@ export class DrizzleContentErrorReportRepository
     });
   }
 
-  private async resolveQuestion(
-    origin: Extract<ContentErrorReportOrigin, { kind: 'QUESTION' }>,
-  ): Promise<ResolvedContentErrorReportTarget | null> {
-    if (origin.blockId !== null || origin.sentenceVersionId !== null)
-      return null;
-    const [row] = await this.database
-      .select({
-        version: questions.version,
-        prompt: questions.prompt,
-        passage: questions.passage,
-      })
-      .from(questions)
-      .where(
-        and(
-          eq(questions.id, origin.questionId),
-          eq(questions.version, origin.questionVersion),
-          eq(questions.status, 'PUBLISHED'),
-        ),
-      )
-      .limit(1);
-    if (!row) return null;
-    return {
-      reference: {
-        kind: 'QUESTION',
-        contentId: origin.questionId,
-        contentVersionId: null,
-        questionVersion: row.version,
-        sentenceVersionId: null,
-        locationId: null,
-      },
-      snapshot: {
-        title: '문제',
-        primaryText: row.prompt,
-        secondaryText: row.passage,
-        versionLabel: `버전 ${row.version}`,
-        locationLabel: '문제 전체',
-      },
-    };
-  }
-
   private async resolveConcept(
     origin: Extract<ContentErrorReportOrigin, { kind: 'CONCEPT' }>,
   ): Promise<ResolvedContentErrorReportTarget | null> {
@@ -444,7 +395,6 @@ export class DrizzleContentErrorReportRepository
         kind: 'VOCABULARY',
         contentId: origin.vocabularyId,
         contentVersionId: null,
-        questionVersion: null,
         sentenceVersionId: null,
         locationId: origin.meaningId,
       },

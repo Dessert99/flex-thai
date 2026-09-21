@@ -35,7 +35,7 @@ type OperationalStateProps = Pick<
 >;
 
 /** 전용 aggregate의 상태를 각 운영 카드에서 명시적으로 보존한다 */
-// eslint-disable-next-line max-lines-per-function -- 여섯 운영 카드는 같은 aggregate 상태와 표현 규칙을 공유한다.
+
 export function AdminHomeOperationsCards({
   cost,
   costError,
@@ -71,16 +71,12 @@ export function AdminHomeOperationsCards({
           ...state,
           content: data ? (
             <p className='text-body text-primary'>
-              문제 {data.candidates.questionPendingCount}건 · 어휘{' '}
+              어휘
               {data.candidates.vocabularyPendingCount}건
             </p>
           ) : null,
         })}
         links={[
-          {
-            href: '/admin/content-production/candidates',
-            label: '문제 후보 검수 열기',
-          },
           {
             href: '/admin/content-production/vocabulary-candidates',
             label: '어휘 후보 검수 열기',

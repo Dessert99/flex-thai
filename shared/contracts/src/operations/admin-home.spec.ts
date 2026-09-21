@@ -5,7 +5,6 @@ import { adminHomeOperationsResponseSchema } from './admin-home.js';
 const response = {
   feedback: { pendingCount: 2 },
   candidates: {
-    questionPendingCount: 3,
     vocabularyPendingCount: 4,
   },
   contentProduction: { runningCount: 1, failedCount: 2 },

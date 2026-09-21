@@ -10,13 +10,13 @@ describe('오류 신고 검색 모델', () => {
     expect(
       serializeContentErrorReportSearch({
         status: 'OPEN',
-        targetKind: 'QUESTION',
+        targetKind: 'VOCABULARY',
         category: 'OTHER',
         page: 2,
         pageSize: 20,
       }),
     ).toBe(
-      '?status=OPEN&targetKind=QUESTION&category=OTHER&page=2&pageSize=20',
+      '?status=OPEN&targetKind=VOCABULARY&category=OTHER&page=2&pageSize=20',
     );
   });
 

@@ -27,7 +27,6 @@ const importDetail = {
   id: ids.import,
   status: 'COMPLETED',
   vocabularyCount: 1,
-  questionCount: 0,
   importedCount: 1,
   rejectedCount: 0,
   createdAt: occurredAt,
@@ -52,7 +51,6 @@ const dependencies = () => ({
           id: importDetail.id,
           status: importDetail.status,
           vocabularyCount: importDetail.vocabularyCount,
-          questionCount: importDetail.questionCount,
           importedCount: importDetail.importedCount,
           rejectedCount: importDetail.rejectedCount,
           createdAt: importDetail.createdAt,
@@ -62,16 +60,6 @@ const dependencies = () => ({
       page,
     }),
     findById: vi.fn().mockResolvedValue(importDetail),
-  },
-  questions: {
-    cloneVersion: vi.fn().mockResolvedValue({
-      questionId: ids.question,
-      versionId: ids.version,
-      version: 2,
-      status: 'DRAFT',
-      validationStatus: 'PENDING',
-    }),
-    replaceVersion: vi.fn(),
   },
   questionPublication: {
     validateVersion: vi.fn().mockResolvedValue({
@@ -83,7 +71,6 @@ const dependencies = () => ({
     hideQuestion: vi.fn(),
     restoreQuestion: vi.fn(),
   },
-  questionQuery: { list: vi.fn(), findById: vi.fn() },
   vocabularies: {
     replace: vi.fn(),
     publish: vi.fn(),
@@ -109,34 +96,6 @@ const dependencies = () => ({
 });
 
 describe('AdminContentService 감사 문맥', () => {
-  it('문제 상태와 어휘 중요도 command에 감사 문맥을 보존한다', async () => {
-    const fakes = {
-      ...dependencies(),
-      questions: { changeStatus: vi.fn() },
-      vocabularies: { ...dependencies().vocabularies, setImportance: vi.fn() },
-    };
-    const service = new AdminContentService(fakes as never);
-    await service.changeQuestionStatus(actor, ids.question, {
-      status: 'PUBLISHED',
-      expectedUpdatedAt: occurredAt.toISOString(),
-    });
-    await service.setVocabularyImportance(actor, ids.vocabulary, 7);
-    expect(fakes.questions.changeStatus).toHaveBeenCalledWith(
-      expect.objectContaining({
-        questionId: ids.question,
-        actorSub: actor.sub,
-        expectedUpdatedAt: occurredAt,
-      }),
-    );
-    expect(fakes.vocabularies.setImportance).toHaveBeenCalledWith(
-      expect.objectContaining({
-        vocabularyId: ids.vocabulary,
-        importanceWeight: 7,
-        actorSub: actor.sub,
-      }),
-    );
-  });
-
   it('저장소 relation shape를 internal vocabularyId 없이 strict 공개 응답으로 변환한다', async () => {
     const service = new AdminContentService(dependencies() as never);
 

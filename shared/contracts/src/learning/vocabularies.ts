@@ -1,7 +1,7 @@
 /** 학습자 공용 어휘와 관련 문제의 공개 JSON 계약을 정의한다 */
 import { z } from 'zod';
 import { publicThaiSentenceSchema } from '../thai-content/sentences.js';
-import { pageMetadataSchema, questionListItemSchema } from './questions.js';
+import { pageMetadataSchema } from './pagination.js';
 
 const uuidSchema = z.uuid();
 const difficultySchema = z.number().safe().min(1).max(5);
@@ -97,19 +97,6 @@ export const vocabularyDetailResponseSchema = z
     });
   });
 
-/** 한 어휘를 참조하는 현재 게시 문제의 페이지 query */
-export const vocabularyRelatedQuestionsQuerySchema = z
-  .object(pageQueryShape)
-  .strict();
-
-/** 한 어휘를 참조하는 현재 게시 문제의 페이지 응답 */
-export const vocabularyRelatedQuestionsResponseSchema = z
-  .object({
-    items: z.array(questionListItemSchema),
-    page: pageMetadataSchema,
-  })
-  .strict();
-
 /** 어휘 상세·관련 문제·단어장 membership 경로의 UUID parameter */
 export const vocabularyIdPathSchema = z
   .object({ vocabularyId: uuidSchema })
@@ -129,16 +116,6 @@ export type VocabularyListResponse = z.infer<
 /** 직렬화 가능한 어휘 상세 응답 type */
 export type VocabularyDetailResponse = z.infer<
   typeof vocabularyDetailResponseSchema
->;
-
-/** 검증된 관련 문제 목록 query type */
-export type VocabularyRelatedQuestionsQuery = z.infer<
-  typeof vocabularyRelatedQuestionsQuerySchema
->;
-
-/** 직렬화 가능한 관련 문제 목록 응답 type */
-export type VocabularyRelatedQuestionsResponse = z.infer<
-  typeof vocabularyRelatedQuestionsResponseSchema
 >;
 
 /** 검증된 어휘 UUID path type */

@@ -1,28 +1,22 @@
 /** 콘텐츠 제작 AI pipeline을 실행 mode별 실제 DB·provider adapter로 조립한다 */
-import { DrizzleAiQuestionProductionRepository } from '@flex-thia/database/repositories/content-production/drizzle-ai-question-production.repository';
+
 import { DrizzleAiVocabularyProductionRepository } from '@flex-thia/database/repositories/content-production/drizzle-ai-vocabulary-production.repository';
 import { DrizzleContentProductionRepository } from '@flex-thia/database/repositories/content-production/drizzle-content-production.repository';
-import { DrizzlePublishedQuestionSimilarityLookup } from '@flex-thia/database/queries/drizzle-published-question-similarity.lookup';
-import { DrizzleQuestionProductionContextQuery } from '@flex-thia/database/queries/drizzle-question-production-context.query';
+
 import { DrizzleVocabularyProductionLookup } from '@flex-thia/database/queries/drizzle-vocabulary-production.lookup';
 import type {
   ContentProductionInputReader,
   ExtractedVocabularyCandidate,
 } from '@flex-thia/domain/content-production/ai-vocabulary-production';
-import type { GeneratedQuestionCandidate } from '@flex-thia/domain/content-production/ai-question-production';
+
 import { FakeContentInputReader } from '@flex-thia/providers/fakes/fake-content-input.provider';
 import { FakeContentOcrProvider } from '@flex-thia/providers/fakes/fake-content-ocr.provider';
-import { FakeQuestionCrossValidationProvider } from '@flex-thia/providers/fakes/fake-question-cross-validation.provider';
-import { FakeQuestionGenerationProvider } from '@flex-thia/providers/fakes/fake-question-generation.provider';
+
 import { FakeVocabularyCrossValidationProvider } from '@flex-thia/providers/fakes/fake-vocabulary-cross-validation.provider';
 import { FakeVocabularyExtractionProvider } from '@flex-thia/providers/fakes/fake-vocabulary-extraction.provider';
-import { AiQuestionProductionProcessor } from './ai-question-production.processor.js';
+
 import { AiVocabularyProductionProcessor } from './ai-vocabulary-production.processor.js';
-import {
-  createContentProductionDispatcher,
-  createContentProductionProcessorRouter,
-  type ContentProductionItemProcessor,
-} from './content-production-dispatcher.js';
+import { createContentProductionDispatcher } from './content-production-dispatcher.js';
 import { UnavailableContentProductionProcessor } from './unavailable-content-production.processor.js';
 
 /** worker가 외부 비용 호출 여부를 결정하는 실행 mode */
@@ -32,7 +26,6 @@ export type ContentProductionRuntimeMode = 'local' | 'test' | 'production';
 export interface LocalContentProductionRuntimeConfig {
   inputReader?: ContentProductionInputReader;
   vocabularyFixtures?: Record<string, ExtractedVocabularyCandidate[]>;
-  questionFixtures?: Record<string, GeneratedQuestionCandidate[]>;
 }
 
 /** 콘텐츠 제작 task와 mode별 processor identity를 함께 반환한다 */
@@ -49,8 +42,6 @@ export const createContentProductionRuntime = (input: {
       repository,
       processor,
       vocabularyProcessor: null,
-      questionProcessor: null,
-      similarityLookup: null,
       handler: createContentProductionDispatcher(repository, processor),
     };
   }
@@ -71,48 +62,13 @@ export const createContentProductionRuntime = (input: {
       >[0],
     ),
   );
-  const questionRepository = new DrizzleAiQuestionProductionRepository(
-    input.database,
-  );
-  const similarityLookup = new DrizzlePublishedQuestionSimilarityLookup(
-    input.database,
-  );
-  const questionProcessor = new AiQuestionProductionProcessor(
-    new DrizzleQuestionProductionContextQuery(input.database),
-    new FakeQuestionGenerationProvider(input.local?.questionFixtures ?? {}),
-    new FakeQuestionCrossValidationProvider(),
-    similarityLookup,
-    questionRepository,
-    questionRepository,
-    {
-      generationProvider: 'LOCAL_FAKE',
-      generationModel: 'local-question-generation-v1',
-      crossValidationProvider: 'LOCAL_FAKE',
-      crossValidationModel: 'local-question-validation-v1',
-    },
-  );
-  const processor = createContentProductionProcessorRouter({
-    vocabulary: vocabularyProcessor,
-    question: {
-      process(workItem, signal) {
-        return questionProcessor.process(
-          workItem as Parameters<AiQuestionProductionProcessor['process']>[0],
-          signal,
-        );
-      },
-    },
-  } satisfies Record<
-    'vocabulary' | 'question',
-    ContentProductionItemProcessor
-  >);
+  const processor = vocabularyProcessor;
 
   return {
     mode: input.mode,
     repository,
     processor,
     vocabularyProcessor,
-    questionProcessor,
-    similarityLookup,
     handler: createContentProductionDispatcher(repository, processor),
   };
 };

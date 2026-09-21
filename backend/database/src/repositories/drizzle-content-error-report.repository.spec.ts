@@ -87,7 +87,6 @@ describe('DrizzleContentErrorReportRepository', () => {
         kind: 'CONCEPT' as const,
         contentId: 'concept-id',
         contentVersionId: 'version-id',
-        questionVersion: null,
         sentenceVersionId: null,
         locationId: null,
       },
@@ -125,7 +124,6 @@ describe('DrizzleContentErrorReportRepository', () => {
           kind: 'CONCEPT',
           contentId: 'concept-id',
           contentVersionId: null,
-          questionVersion: null,
           sentenceVersionId: null,
           locationId: null,
           internalStatus: 'DRAFT',
@@ -162,7 +160,6 @@ describe('DrizzleContentErrorReportRepository', () => {
           kind: 'CONCEPT',
           contentId: 'other-concept-id',
           contentVersionId: null,
-          questionVersion: null,
           sentenceVersionId: null,
           locationId: null,
         },
@@ -201,55 +198,6 @@ describe('DrizzleContentErrorReportRepository', () => {
         blockId: null,
       }),
     ).resolves.toBeNull();
-  });
-
-  it('문제 문장 관계가 없으면 sentenceVersionId를 저장하지 않는다', async () => {
-    const database = createSelectDatabase([[{ version: 1 }], []]);
-    const repository = new DrizzleContentErrorReportRepository(
-      database as never,
-    );
-    await expect(
-      repository.resolve({
-        kind: 'QUESTION',
-        questionId: 'question-id',
-        questionVersion: 1,
-        blockId: null,
-        sentenceVersionId: 'sentence-id',
-      }),
-    ).resolves.toBeNull();
-  });
-
-  it('위치 없는 문제 신고는 임의 문장을 선택하지 않고 문제 버전 자체를 snapshot한다', async () => {
-    const database = createSelectDatabase([
-      [{ version: 3, prompt: 'question-id', passage: null }],
-    ]);
-    const repository = new DrizzleContentErrorReportRepository(
-      database as never,
-    );
-
-    await expect(
-      repository.resolve({
-        kind: 'QUESTION',
-        questionId: 'question-id',
-        questionVersion: 1,
-        blockId: null,
-        sentenceVersionId: null,
-      }),
-    ).resolves.toMatchObject({
-      reference: {
-        contentId: 'question-id',
-        contentVersionId: null,
-        sentenceVersionId: null,
-        locationId: null,
-      },
-      snapshot: {
-        title: '문제',
-        primaryText: 'question-id',
-        versionLabel: '버전 3',
-        locationLabel: '문제 전체',
-      },
-    });
-    expect(database.select).toHaveBeenCalledOnce();
   });
 
   it('어휘 뜻 소유 관계가 다르면 대상을 거부한다', async () => {
@@ -298,7 +246,6 @@ describe('DrizzleContentErrorReportRepository', () => {
         kind: 'SENTENCE' as const,
         contentId: 'sentence-id',
         contentVersionId: 'sentence-version-id',
-        questionVersion: null,
         sentenceVersionId: 'sentence-version-id',
         locationId: null,
       },
@@ -411,7 +358,7 @@ describe('DrizzleContentErrorReportRepository', () => {
     const updated = {
       id: 'report-id',
       reporterUserId: 'user-id',
-      targetKind: 'QUESTION',
+      targetKind: 'VOCABULARY',
       category: 'OTHER',
       status: 'IN_PROGRESS',
       assigneeUserId: null,
@@ -456,7 +403,7 @@ describe('DrizzleContentErrorReportRepository', () => {
     const updated = {
       ...current,
       reporterUserId: 'user-id',
-      targetKind: 'QUESTION',
+      targetKind: 'VOCABULARY',
       category: 'OTHER',
       assigneeUserId: 'admin-id',
       description: null,
@@ -579,7 +526,7 @@ describe('DrizzleContentErrorReportRepository', () => {
       const updated = {
         ...current,
         reporterUserId: 'user-id',
-        targetKind: 'QUESTION',
+        targetKind: 'VOCABULARY',
         category: 'OTHER',
         status: 'IN_PROGRESS',
         description: null,

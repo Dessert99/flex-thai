@@ -10,7 +10,7 @@ import {
 } from '@/shared/components/card';
 import { Container } from '@/shared/components/layouts/Container';
 import { Skeleton } from '@/shared/components/skeleton';
-import type { AdminQuestionListResponse } from '@flex-thia/contracts/admin/questions';
+
 import type { AdminVocabularyListResponse } from '@flex-thia/contracts/admin/vocabularies';
 import type { AuditLogListResponse } from '@flex-thia/contracts/operations/audit-logs';
 import { Link } from '@tanstack/react-router';
@@ -24,15 +24,11 @@ export function AdminHomePage() {
     auditLogsLoading,
     onRetryAuditLogs,
     onRetryOperations,
-    onRetryQuestions,
     onRetryUsageCost,
     onRetryVocabularies,
     operations,
     operationsError,
     operationsLoading,
-    questions,
-    questionsError,
-    questionsLoading,
     usageCost,
     usageCostError,
     usageCostLoading,
@@ -59,12 +55,6 @@ export function AdminHomePage() {
           </p>
         </header>
         <div className='grid gap-section lg:grid-cols-3'>
-          <RecentAdminQuestions
-            error={questionsError}
-            items={questions}
-            loading={questionsLoading}
-            onRetry={onRetryQuestions}
-          />
           <RecentAdminVocabularies
             error={vocabulariesError}
             items={vocabularies}
@@ -180,86 +170,6 @@ function RecentAuditLogs({
   );
 }
 
-function RecentAdminQuestions({
-  error,
-  items,
-  loading,
-  onRetry,
-}: {
-  error: boolean;
-  items: AdminQuestionListResponse['items'];
-  loading: boolean;
-  onRetry: () => void;
-}) {
-  let content: ReactNode;
-  if (loading) {
-    content = (
-      <section
-        aria-live='polite'
-        className='flex min-h-state flex-col justify-center gap-cluster p-page'
-        role='status'
-      >
-        <Skeleton className='h-control w-full max-w-content' />
-        <p className='text-body text-subtle'>최근 문제를 불러오고 있습니다.</p>
-      </section>
-    );
-  } else if (error) {
-    content = (
-      <Alert
-        className='rounded-panel border-danger bg-danger-surface'
-        variant='destructive'
-      >
-        <AlertTitle className='text-danger'>문제가 발생했습니다.</AlertTitle>
-        <AlertDescription className='flex flex-col gap-cluster text-danger'>
-          <p>최근 문제를 불러오지 못했습니다.</p>
-          <Button
-            className='mt-cluster w-auto'
-            onClick={onRetry}
-            type='button'
-            variant='outline'
-          >
-            다시 시도
-          </Button>
-        </AlertDescription>
-      </Alert>
-    );
-  } else if (items.length === 0) {
-    content = (
-      <p className='text-body text-subtle'>표시할 최근 문제가 없습니다.</p>
-    );
-  } else {
-    content = (
-      <ul className='flex flex-col gap-cluster'>
-        {items.map((question) => (
-          <li key={question.questionId}>
-            <Link
-              className='block rounded-control border border-default p-cluster text-body text-primary'
-              to='/admin/questions/$questionId'
-              search={{ page: 1, pageSize: 20 }}
-              params={{ questionId: question.questionId }}
-            >
-              <span>{question.questionTypeSlug}</span>
-              <span className='block text-caption text-subtle'>
-                {toQuestionStatusLabel(question.status)} · 난이도{' '}
-                {question.difficulty}
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    );
-  }
-
-  return (
-    <Card className='rounded-panel border-default bg-surface'>
-      <CardHeader>
-        <CardTitle className='text-title'>최근 문제</CardTitle>
-      </CardHeader>
-      <CardContent>{content}</CardContent>
-    </Card>
-  );
-}
-
 function RecentAdminVocabularies({
   error,
   items,
@@ -342,12 +252,6 @@ function RecentAdminVocabularies({
       <CardContent>{content}</CardContent>
     </Card>
   );
-}
-
-function toQuestionStatusLabel(
-  status: AdminQuestionListResponse['items'][number]['status'],
-) {
-  return { DRAFT: '초안', HIDDEN: '숨김', PUBLISHED: '게시' }[status];
 }
 
 function toVocabularyStatusLabel(

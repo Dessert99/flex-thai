@@ -17,8 +17,6 @@ describe('AdminModule 조립', () => {
     const module = AdminModule.register({
       contentImports: {} as never,
       contentImportQuery: {} as never,
-      questions: {} as never,
-      questionQuery: {} as never,
       vocabularies: {} as never,
       vocabularyQuery: {} as never,
       users: {} as never,

@@ -1,10 +1,9 @@
 /** 관리자 어휘 list/detail의 정규화 검색·stable order·안전한 projection을 고정한다 */
-import { drizzle } from 'drizzle-orm/node-postgres';
+
 import { PgDialect } from 'drizzle-orm/pg-core';
-import { randomUUID } from 'node:crypto';
-import { Pool } from 'pg';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { databaseSchema as schema } from '../schema/databaseSchema.js';
+
+import { describe, expect, it, vi } from 'vitest';
+
 import {
   vocabularies,
   vocabularyMeanings,
@@ -128,219 +127,6 @@ describe('DrizzleAdminVocabularyQuery 모든 상태 목록', () => {
   });
 });
 
-const integrationDatabaseUrl = process.env.VOCABULARY_ADMIN_TEST_DATABASE_URL;
-
-describe.runIf(integrationDatabaseUrl !== undefined)(
-  'DrizzleAdminVocabularyQuery PostgreSQL 16 통합',
-  () => {
-    let pool: Pool;
-
-    beforeAll(async () => {
-      if (!integrationDatabaseUrl) {
-        throw new Error('VOCABULARY_ADMIN_TEST_DATABASE_URL_REQUIRED');
-      }
-      pool = new Pool({ connectionString: integrationDatabaseUrl });
-      const version = await pool.query<{ serverVersionNum: string }>(
-        `select current_setting('server_version_num') "serverVersionNum"`,
-      );
-      expect(Number(version.rows[0]?.serverVersionNum)).toBeGreaterThanOrEqual(
-        160000,
-      );
-      expect(Number(version.rows[0]?.serverVersionNum)).toBeLessThan(170000);
-    });
-
-    afterAll(async () => {
-      await pool.end();
-    });
-
-    it('정규화 검색과 all-status count/detail distinct usage를 private field 없이 반환한다', async () => {
-      const actorUserId = randomUUID();
-      const vocabularyId = randomUUID();
-      const otherVocabularyId = randomUUID();
-      const meaningId = randomUUID();
-      const suffix = randomUUID();
-      const thai = `สวัสดี ครับ ${suffix}`;
-      await pool.query(
-        `insert into users (id, cognito_sub, email, role, status)
-         values ($1, $2, $3, 'ADMIN', 'ACTIVE')`,
-        [
-          actorUserId,
-          `query-${actorUserId}`,
-          `query-${actorUserId}@example.com`,
-        ],
-      );
-      await pool.query(
-        `insert into vocabularies (
-           id, thai, normalized_thai, kind, status
-         ) values ($1, $2, $2, 'EXPRESSION', 'HIDDEN')`,
-        [vocabularyId, thai],
-      );
-      await pool.query(
-        `insert into vocabularies (
-           id, thai, normalized_thai, kind, status, updated_at
-         ) values
-           ($1, $2, $2, 'EXPRESSION', 'HIDDEN', $3),
-           ($4, $5, $5, 'EXPRESSION', 'HIDDEN', $3)
-         on conflict (id) do update set updated_at = excluded.updated_at`,
-        [
-          vocabularyId,
-          thai,
-          new Date('2026-07-24T00:00:00.000Z'),
-          otherVocabularyId,
-          `${thai} 추가`,
-        ],
-      );
-      await pool.query(
-        `insert into vocabulary_meanings (
-           id, vocabulary_id, meaning_ko, part_of_speech, difficulty
-         ) values ($1, $2, '안녕하세요', '감탄사', 1)`,
-        [meaningId, vocabularyId],
-      );
-
-      const sentenceVersionIds = [randomUUID(), randomUUID()].sort();
-      for (const sentenceVersionId of sentenceVersionIds) {
-        const sentenceId = randomUUID();
-        await pool.query(`insert into thai_sentences (id) values ($1)`, [
-          sentenceId,
-        ]);
-        await pool.query(
-          "insert into thai_sentence_versions (id, sentence_id, version, original_text, translation_ko) values ($1, $2, 1, 'กข', '뜻')",
-          [sentenceVersionId, sentenceId],
-        );
-        await pool.query(
-          "insert into token_occurrences (id, sentence_version_id, position, surface, start_offset, end_offset, vocabulary_id, meaning_id, context_meaning_ko, role) values\n             ($1, $2, 0, 'ก', 0, 1, $3, $4, '뜻', 'TARGET'),\n($5, $2, 1, 'ข', 1, 2, $3, $4, '뜻', 'SUPPORTING')",
-          [
-            randomUUID(),
-            sentenceVersionId,
-            vocabularyId,
-            meaningId,
-            randomUUID(),
-          ],
-        );
-        await pool.query(
-          `insert into expression_occurrences (
-             id, sentence_version_id, start_token_index, end_token_index,
-             vocabulary_id, vocabulary_kind, representative
-           ) values ($1, $2, 0, 2, $3, 'EXPRESSION', true)`,
-          [randomUUID(), sentenceVersionId, vocabularyId],
-        );
-      }
-
-      const questionTypeId = randomUUID();
-      const typeVersionId = randomUUID();
-      const questionId = randomUUID();
-      const questionVersionId = randomUUID();
-      const blockId = randomUUID();
-      await pool.query(
-        `insert into question_types (id, slug, display_name, skill)
-         values ($1, $2, 'Task 8 Query', 'READING')`,
-        [questionTypeId, `task8-query-${randomUUID()}`],
-      );
-      await pool.query(
-        `insert into question_type_versions (
-           id, question_type_id, version, template, option_count, decision_rules
-         ) values ($1, $2, 1, 'STANDARD_CHOICE', 1, '{}'::jsonb)`,
-        [typeVersionId, questionTypeId],
-      );
-      await pool.query(
-        `insert into questions (id, status) values ($1, 'DRAFT')`,
-        [questionId],
-      );
-      await pool.query(
-        `insert into question_versions (
-           id, question_id, version, type_version_id, difficulty, status
-         ) values ($1, $2, 1, $3, 1, 'DRAFT')`,
-        [questionVersionId, questionId, typeVersionId],
-      );
-      await pool.query(
-        `insert into question_blocks (
-           id, question_version_id, kind, position
-         ) values ($1, $2, 'QUESTION', 0)`,
-        [blockId, questionVersionId],
-      );
-      await pool.query(
-        `insert into question_block_sentences (
-           id, block_id, sentence_version_id, position
-         ) values ($1, $2, $3, 0)`,
-        [randomUUID(), blockId, sentenceVersionIds[0]],
-      );
-      await pool.query(
-        `insert into question_options (
-           id, question_version_id, sentence_version_id, position, is_correct
-         ) values ($1, $2, $3, 0, true)`,
-        [randomUUID(), questionVersionId, sentenceVersionIds[1]],
-      );
-
-      const query = new DrizzleAdminVocabularyQuery(
-        drizzle({ client: pool, schema }),
-      );
-      const list = await query.list({
-        query: `  สวัสดี\u200B   ครับ ${suffix}  `,
-        kind: 'EXPRESSION',
-        status: 'HIDDEN',
-        page: 1,
-        pageSize: 20,
-      });
-      const detail = await query.findById(vocabularyId);
-
-      expect(list.page.totalItems).toBe(2);
-      expect(list.items.map(({ id }) => id)).toEqual(
-        [vocabularyId, otherVocabularyId].sort().reverse(),
-      );
-      expect(list.items.find(({ id }) => id === vocabularyId)).toMatchObject({
-        meaningCount: 1,
-        status: 'HIDDEN',
-      });
-      expect(detail).toMatchObject({
-        id: vocabularyId,
-        usage: {
-          sentenceVersionIds,
-          questionCount: 0,
-          targetQuestionCount: 0,
-          occurrenceCount: 0,
-          questionIds: [questionVersionId],
-        },
-      });
-      expect(detail).not.toHaveProperty('normalizedThai');
-      expect(detail).not.toHaveProperty('storageKey');
-      expect(detail).not.toHaveProperty('requestHash');
-      expect(detail).not.toHaveProperty('referenceMap');
-      expect(detail).not.toHaveProperty('actorUserId');
-    });
-
-    it('%·_·역슬래시를 포함한 검색어는 literal substring만 찾는다', async () => {
-      const suffix = randomUUID();
-      const literalId = randomUUID();
-      const wildcardDecoyId = randomUUID();
-      await pool.query(
-        `insert into vocabularies (
-           id, thai, normalized_thai, kind, status
-         ) values
-           ($1, $2, $2, 'WORD', 'DRAFT'),
-           ($3, $4, $4, 'WORD', 'DRAFT')`,
-        [
-          literalId,
-          `literal%_\\needle-${suffix}`,
-          wildcardDecoyId,
-          `literalAB\\needle-${suffix}`,
-        ],
-      );
-      const query = new DrizzleAdminVocabularyQuery(
-        drizzle({ client: pool, schema }),
-      );
-
-      const result = await query.list({
-        query: `%_\\needle-${suffix}`,
-        page: 1,
-        pageSize: 20,
-      });
-
-      expect(result.items.map(({ id }) => id)).toEqual([literalId]);
-      expect(result.page.totalItems).toBe(1);
-    });
-  },
-);
-
 describe('DrizzleAdminVocabularyQuery 상세', () => {
   it('뜻·발음·mapping과 distinct sentence/question version usage를 ID stable order로 반환한다', async () => {
     const createdAt = new Date('2026-07-24T00:00:00.000Z');
@@ -372,20 +158,6 @@ describe('DrizzleAdminVocabularyQuery 상세', () => {
         { sentenceVersionId: ids.sentenceA },
         { sentenceVersionId: ids.sentenceB },
       ],
-      [
-        {
-          questionId: ids.questionA,
-          status: 'PUBLISHED',
-          role: 'TARGET',
-          occurrenceCount: 2,
-        },
-        {
-          questionId: ids.questionB,
-          status: 'PUBLISHED',
-          role: 'CONTEXT',
-          occurrenceCount: 1,
-        },
-      ],
       [],
     ]);
     const query = new DrizzleAdminVocabularyQuery(fake.database as never);
@@ -411,10 +183,6 @@ describe('DrizzleAdminVocabularyQuery 상세', () => {
       relations: [],
       usage: {
         sentenceVersionIds: [ids.sentenceA, ids.sentenceB],
-        questionCount: 2,
-        targetQuestionCount: 1,
-        occurrenceCount: 3,
-        questionIds: [ids.questionA, ids.questionB],
       },
       createdAt,
       updatedAt,

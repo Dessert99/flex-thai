@@ -44,7 +44,7 @@ const assertExactlyOne = <T>(rows: T[], operation: string): T => {
 };
 
 const mapStoredItem = (row: {
-  kind: 'VOCABULARY' | 'QUESTION';
+  kind: 'VOCABULARY';
   sourceIndex: number;
   clientRef: string;
   status: 'IMPORTED' | 'REJECTED';
@@ -208,7 +208,7 @@ export class DrizzleContentImportRepository implements ContentImportRepository {
         .select({ status: contentImportItems.status })
         .from(contentImportItems)
         .where(eq(contentImportItems.importId, input.importId));
-      const expectedTotal = current.vocabularyCount + current.questionCount;
+      const expectedTotal = current.vocabularyCount;
       if (itemRows.length !== expectedTotal) {
         throw new ContentImportPersistenceError('completeItemCount');
       }

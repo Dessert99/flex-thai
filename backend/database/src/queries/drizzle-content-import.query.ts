@@ -35,7 +35,6 @@ export interface ContentImportSummaryProjection {
   id: string;
   status: ContentImportFinalStatus;
   vocabularyCount: number;
-  questionCount: number;
   importedCount: number;
   rejectedCount: number;
   createdAt: Date;
@@ -62,7 +61,6 @@ interface SummaryRow {
   id: string;
   status: ContentImportFinalStatus | null;
   vocabularyCount: number;
-  questionCount: number;
   importedCount: number;
   rejectedCount: number;
   createdAt: Date;
@@ -80,7 +78,6 @@ const toSummary = (
     id: row.id,
     status: row.status,
     vocabularyCount: row.vocabularyCount,
-    questionCount: row.questionCount,
     importedCount: row.importedCount,
     rejectedCount: row.rejectedCount,
     createdAt: row.createdAt,
@@ -89,7 +86,7 @@ const toSummary = (
 };
 
 const toItem = (row: {
-  kind: 'VOCABULARY' | 'QUESTION';
+  kind: 'VOCABULARY';
   sourceIndex: number;
   status: 'IMPORTED' | 'REJECTED';
   targetId: string | null;
@@ -128,7 +125,6 @@ const summarySelection = {
   id: contentImports.id,
   status: contentImports.status,
   vocabularyCount: contentImports.vocabularyCount,
-  questionCount: contentImports.questionCount,
   importedCount: contentImports.importedCount,
   rejectedCount: contentImports.rejectedCount,
   createdAt: contentImports.createdAt,

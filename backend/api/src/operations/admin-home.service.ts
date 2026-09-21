@@ -27,7 +27,6 @@ export class AdminHomeService {
     return adminHomeOperationsResponseSchema.parse({
       feedback: { pendingCount: operations.pendingErrorReportCount },
       candidates: {
-        questionPendingCount: operations.pendingQuestionCandidateCount,
         vocabularyPendingCount: operations.pendingVocabularyCandidateCount,
       },
       contentProduction: {

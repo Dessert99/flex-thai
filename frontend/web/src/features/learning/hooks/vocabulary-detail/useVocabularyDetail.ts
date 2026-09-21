@@ -8,8 +8,8 @@ export function useVocabularyDetail({
 }) {
   const queryClient = useQueryClient();
 
-  const [detail, related] = useQueries({
+  const [detail] = useQueries({
     queries: vocabularyDetailQueryOptions(vocabularyId),
   });
-  return { queryClient, detail, related };
+  return { queryClient, detail };
 }

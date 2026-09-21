@@ -4,19 +4,16 @@ import type {
   ContentProductionItem,
   ContentProductionPresetSnapshot,
   ContentProductionPurpose,
-  QuestionGenerationItemPlan,
 } from './content-production.service.js';
 
 /** 콘텐츠 제작 항목이 실행할 세부 작업 */
-export type ContentProductionOperation =
-  'VOCABULARY_EXTRACTION' | 'QUESTION_GENERATION';
+export type ContentProductionOperation = 'VOCABULARY_EXTRACTION';
 
 /** 문자열 sourceRef와 별개로 항목의 입력·작업을 고정하는 seed */
 export interface ContentProductionItemSeed {
   sourceRef: string;
   jobInputId: string;
   operation: ContentProductionOperation;
-  questionPlan: QuestionGenerationItemPlan | null;
 }
 
 /** worker가 항목 처리에 필요한 job snapshot */
@@ -44,7 +41,6 @@ export interface ContentProductionWorkItem {
   item: ContentProductionItem & {
     jobInputId: string;
     operation: ContentProductionOperation;
-    questionPlan: QuestionGenerationItemPlan | null;
     leaseUntil: Date;
     leaseToken: string;
   };

@@ -2,11 +2,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   vocabularyDetailResponseSchema,
-  vocabularyIdPathSchema,
   vocabularyListQuerySchema,
   vocabularyListResponseSchema,
-  vocabularyRelatedQuestionsQuerySchema,
-  vocabularyRelatedQuestionsResponseSchema,
 } from './vocabularies.js';
 
 const ids = {
@@ -79,19 +76,6 @@ describe('학습자 어휘 query와 path 계약', () => {
     expect(() => vocabularyListQuerySchema.parse({ pageSize: '0' })).toThrow();
     expect(() =>
       vocabularyListQuerySchema.parse({ status: 'PUBLISHED' }),
-    ).toThrow();
-  });
-
-  it('관련 문제는 페이지 query만 받고 path는 UUID만 받는다', () => {
-    expect(vocabularyRelatedQuestionsQuerySchema.parse({})).toEqual({
-      page: 1,
-      pageSize: 20,
-    });
-    expect(
-      vocabularyIdPathSchema.parse({ vocabularyId: ids.vocabulary }),
-    ).toEqual({ vocabularyId: ids.vocabulary });
-    expect(() =>
-      vocabularyIdPathSchema.parse({ vocabularyId: 'invalid' }),
     ).toThrow();
   });
 });
@@ -196,27 +180,5 @@ describe('학습자 어휘 공개 응답 계약', () => {
         page,
       }),
     ).toThrow();
-  });
-
-  it('관련 게시 문제 페이지를 공개 형태로 검증한다', () => {
-    const relatedQuestion = {
-      questionId: ids.question,
-      questionVersion: 1,
-      questionType: {
-        id: ids.type,
-        slug: 'reading-standard-choice',
-        displayName: '독해 기본 선택',
-      },
-      skill: 'READING',
-      difficulty: 2,
-      saved: false,
-      firstResult: 'INCORRECT',
-    };
-    expect(
-      vocabularyRelatedQuestionsResponseSchema.parse({
-        items: [relatedQuestion],
-        page,
-      }),
-    ).toEqual({ items: [relatedQuestion], page });
   });
 });

@@ -172,11 +172,7 @@ export function AdminVocabularyDetailContent({
       </header>
       <div className='grid gap-cluster'>
         <p>문장 버전 사용처 {data.usage.sentenceVersionIds.length}개</p>
-        <p>
-          공개 문제 등장 {data.usage.questionCount}개 · 출제 목표{' '}
-          {data.usage.targetQuestionCount}개 · 총 등장{' '}
-          {data.usage.occurrenceCount}회
-        </p>
+
         {data.status !== 'MERGED' ? (
           <VocabularyImportanceForm
             key={`${data.id}:${data.importanceWeight}`}

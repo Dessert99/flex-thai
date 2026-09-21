@@ -3,19 +3,13 @@ import { describe, expect, it } from 'vitest';
 import {
   contentProductionJobConfigurationSchema,
   contentProductionJobDetailResponseSchema,
-  contentProductionQuestionOptionsSchema,
   createContentProductionJobRequestSchema,
-  createContentProductionPresetRequestSchema,
-  createContentProductionPresetVersionRequestSchema,
-  promptPreviewRequestSchema,
-  setContentProductionPresetEnabledRequestSchema,
   uploadPolicyRequestSchema,
 } from './content-production.js';
 
 const questionTypeVersionId = 'cbb22737-6f3d-4112-bb0e-8e4f005c810b';
 const targetVocabularyId = 'd9886994-5b49-46ac-bcd5-3f2024b9c1c6';
 const validQuestionOptions = {
-  questionCount: 2,
   questionTypePlan: [{ questionTypeVersionId, count: 2 }],
   difficultyPlan: [
     { difficulty: 2, count: 1 },
@@ -30,57 +24,6 @@ const validQuestionOptions = {
 };
 
 describe('콘텐츠 제작 공개 계약', () => {
-  it('생성 목적과 preset을 포함한 작업 요청을 검증한다', () => {
-    expect(
-      createContentProductionJobRequestSchema.parse({
-        clientRequestId: 'dbb22737-6f3d-4112-bb0e-8e4f005c810b',
-        purpose: 'VOCABULARY_THEN_QUESTION_GENERATION',
-        presetId: '405986f9-e552-4ce1-82d6-70a1fc460f96',
-        uploadIds: ['77a1e8ff-7c85-4739-9004-647e12e34b65'],
-        options: validQuestionOptions,
-      }),
-    ).toMatchObject({
-      clientRequestId: 'dbb22737-6f3d-4112-bb0e-8e4f005c810b',
-      purpose: 'VOCABULARY_THEN_QUESTION_GENERATION',
-      presetId: '405986f9-e552-4ce1-82d6-70a1fc460f96',
-      uploadIds: ['77a1e8ff-7c85-4739-9004-647e12e34b65'],
-      options: {
-        ...validQuestionOptions,
-        additionalInstructionKo: '짧고 명확하게 출제해 주세요.',
-      },
-    });
-  });
-
-  it('문제 생성 옵션의 범위·합계·집합을 엄격하게 검증한다', () => {
-    expect(
-      contentProductionQuestionOptionsSchema.parse(validQuestionOptions),
-    ).toMatchObject({
-      questionCount: 2,
-      additionalInstructionKo: '짧고 명확하게 출제해 주세요.',
-    });
-    for (const invalid of [
-      { ...validQuestionOptions, questionCount: 0 },
-      { ...validQuestionOptions, questionCount: 101 },
-      {
-        ...validQuestionOptions,
-        questionTypePlan: [{ questionTypeVersionId, count: 1 }],
-      },
-      {
-        ...validQuestionOptions,
-        difficultyPlan: [{ difficulty: 2, count: 1 }],
-      },
-      {
-        ...validQuestionOptions,
-        requiredVocabularyIds: [targetVocabularyId],
-      },
-      { ...validQuestionOptions, unexpected: true },
-    ]) {
-      expect(
-        contentProductionQuestionOptionsSchema.safeParse(invalid).success,
-      ).toBe(false);
-    }
-  });
-
   it('어휘 추출 목적은 문제 전용 옵션을 거절한다', () => {
     expect(
       contentProductionJobConfigurationSchema.parse({
@@ -94,30 +37,6 @@ describe('콘텐츠 제작 공개 계약', () => {
         purpose: 'VOCABULARY_EXTRACTION',
         presetId: '405986f9-e552-4ce1-82d6-70a1fc460f96',
         options: validQuestionOptions,
-      }).success,
-    ).toBe(false);
-  });
-
-  it('preset create와 version은 purpose에 맞는 parameters만 허용한다', () => {
-    expect(
-      createContentProductionPresetRequestSchema.safeParse({
-        requestId: 'dbb22737-6f3d-4112-bb0e-8e4f005c810b',
-        name: '잘못된 어휘 preset',
-        purpose: 'VOCABULARY_EXTRACTION',
-        parameters: {
-          ...validQuestionOptions,
-          commonPrinciples: [],
-          similarQuestions: [],
-        },
-      }).success,
-    ).toBe(false);
-    expect(
-      createContentProductionPresetVersionRequestSchema.safeParse({
-        requestId: 'dbb22737-6f3d-4112-bb0e-8e4f005c810b',
-        purpose: 'QUESTION_GENERATION',
-        parameters: {
-          suspectedDuplicateMaxCodePointDistance: 1,
-        },
       }).success,
     ).toBe(false);
   });
@@ -136,28 +55,6 @@ describe('콘텐츠 제작 공개 계약', () => {
         options: {},
       }).success,
     ).toBe(false);
-  });
-
-  it('prompt 미리보기와 preset 상태 전이 입력을 strict하게 검증한다', () => {
-    expect(
-      promptPreviewRequestSchema.parse({
-        purpose: 'QUESTION_GENERATION',
-        presetId: '405986f9-e552-4ce1-82d6-70a1fc460f96',
-        options: validQuestionOptions,
-        questionPlanIndex: 0,
-      }),
-    ).toMatchObject({ questionPlanIndex: 0 });
-    expect(
-      setContentProductionPresetEnabledRequestSchema.parse({
-        enabled: false,
-        expectedRevision: 0,
-        requestId: 'dbb22737-6f3d-4112-bb0e-8e4f005c810b',
-      }),
-    ).toEqual({
-      enabled: false,
-      expectedRevision: 0,
-      requestId: 'dbb22737-6f3d-4112-bb0e-8e4f005c810b',
-    });
   });
 
   it('upload 입력 타입별 허용 MIME 선언을 검증한다', () => {

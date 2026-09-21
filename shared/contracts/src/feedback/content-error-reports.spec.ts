@@ -12,13 +12,6 @@ const id = '00000000-0000-4000-8000-000000000001';
 describe('콘텐츠 오류 신고 계약', () => {
   it.each([
     {
-      kind: 'QUESTION',
-      questionId: id,
-      questionVersion: 1,
-      blockId: null,
-      sentenceVersionId: null,
-    },
-    {
       kind: 'VOCABULARY',
       vocabularyId: id,
       meaningId: null,
@@ -81,7 +74,6 @@ describe('콘텐츠 오류 신고 계약', () => {
         kind: 'VOCABULARY',
         contentId: id,
         contentVersionId: null,
-        questionVersion: null,
         sentenceVersionId: null,
         locationId: null,
       },

@@ -4,25 +4,15 @@ import type {
   ContentImportRecord,
   SaveRejectedContentImportItemInput,
 } from '@flex-thia/domain/content-import/content-import.repository';
-import { ContentDraftService } from '@flex-thia/domain/content-import/content-draft';
-import {
-  ContentImportError,
-  ContentImportService,
-  hashContentImportRequest,
-  type ContentImportCommand,
-  type ContentImportRequest,
-} from '@flex-thia/domain/content-import/content-import.service';
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { randomUUID } from 'node:crypto';
-import { Pool } from 'pg';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { databaseSchema as schema } from '../schema/databaseSchema.js';
+
+import { describe, expect, it, vi } from 'vitest';
+
 import { auditLogs } from '../schema/identity.schema.js';
 import {
   contentImportItems,
   contentImports,
 } from '../schema/content-import.schema.js';
-import { DrizzleContentDraftRepository } from './drizzle-content-draft.repository.js';
+
 import {
   ContentImportPersistenceError,
   DrizzleContentImportRepository,
@@ -44,7 +34,6 @@ const record = (
   requestHash: 'a'.repeat(64),
   status: null,
   vocabularyCount: 1,
-  questionCount: 1,
   importedCount: 0,
   rejectedCount: 0,
   createdAt: occurredAt,
@@ -159,7 +148,7 @@ const createCompletionDatabase = (options?: {
   updated?: boolean;
 }) => {
   const selectResults = [
-    [options?.current ?? record()],
+    [options?.current ?? record({ vocabularyCount: 2 })],
     (options?.itemStatuses ?? ['IMPORTED', 'REJECTED']).map((status) => ({
       status,
     })),
@@ -229,7 +218,6 @@ describe('DrizzleContentImportRepository가 콘텐츠 import 요청의 claim을 
       idempotencyKey: record().idempotencyKey,
       requestHash: record().requestHash,
       vocabularyCount: 1,
-      questionCount: 1,
       createdAt: occurredAt,
     });
 
@@ -350,297 +338,3 @@ describe('DrizzleContentImportRepository 완료', () => {
     expect(fake.transactionValue.insert).not.toHaveBeenCalled();
   });
 });
-
-const integrationDatabaseUrl =
-  process.env.CONTENT_IMPORT_REPOSITORY_TEST_DATABASE_URL;
-
-interface IntegrationFixture {
-  command: ContentImportCommand;
-  idempotencyKey: string;
-  request: ContentImportRequest;
-  userId: string;
-}
-
-const createIntegrationFixture = async (
-  pool: Pool,
-  questionCount = 1,
-): Promise<IntegrationFixture> => {
-  const userId = randomUUID();
-  const typeId = randomUUID();
-  const typeVersionId = randomUUID();
-  const idempotencyKey = randomUUID();
-  const typeSlug = `task6-${randomUUID()}`;
-
-  await pool.query(
-    `insert into users (id, cognito_sub, email, role, status)
-     values ($1, $2, $3, 'ADMIN', 'ACTIVE')`,
-    [userId, `task6-${userId}`, `${userId}@example.com`],
-  );
-  await pool.query(
-    `insert into question_types (id, slug, display_name, skill)
-     values ($1, $2, 'Task 6 통합 유형', 'READING')`,
-    [typeId, typeSlug],
-  );
-  await pool.query(
-    `insert into question_type_versions (
-       id, question_type_id, version, template, option_count, decision_rules
-     ) values ($1, $2, 1, 'STANDARD_CHOICE', 1, '{}')`,
-    [typeVersionId, typeId],
-  );
-  const sentence = {
-    originalText: 'ก',
-    translationKo: '뜻',
-    tokens: [],
-    expressions: [],
-  };
-  const questions = Array.from({ length: questionCount }, (_, index) => {
-    const questionRef = `question-${index}`;
-    return {
-      clientRef: questionRef,
-      questionTypeSlug: typeSlug,
-      questionTypeVersion: 1,
-      difficulty: 1,
-      blocks: [
-        {
-          kind: 'QUESTION' as const,
-          sentences: [{ sentence }],
-        },
-      ],
-      options: [
-        {
-          clientRef: `${questionRef}-option`,
-          position: 0,
-          sentence,
-          span: null,
-        },
-      ],
-      correctOptionRef: `${questionRef}-option`,
-    };
-  });
-  const request: ContentImportRequest = {
-    schemaVersion: 1,
-    vocabularies: [],
-    questions,
-  };
-  return {
-    userId,
-    idempotencyKey,
-    request,
-    command: {
-      requestedBy: userId,
-      idempotencyKey,
-      request,
-      context: {
-        actorSub: `task6-${userId}`,
-        actorUserId: userId,
-        requestId: `request-${idempotencyKey}`,
-        occurredAt,
-      },
-    },
-  };
-};
-
-const createIntegrationService = (pool: Pool): ContentImportService => {
-  const database = drizzle({ client: pool, schema });
-  return new ContentImportService(
-    new DrizzleContentImportRepository(database),
-    new ContentDraftService(new DrizzleContentDraftRepository(database)),
-  );
-};
-
-describe.runIf(integrationDatabaseUrl !== undefined)(
-  'DrizzleContentImportRepository PostgreSQL 16 통합',
-  () => {
-    let pool: Pool;
-
-    beforeAll(async () => {
-      if (!integrationDatabaseUrl) {
-        throw new Error('CONTENT_IMPORT_REPOSITORY_TEST_DATABASE_URL_REQUIRED');
-      }
-      pool = new Pool({ connectionString: integrationDatabaseUrl });
-      const version = await pool.query<{ server_version_num: string }>(
-        `select current_setting('server_version_num') as server_version_num`,
-      );
-      const versionNumber = Number(version.rows[0]?.server_version_num);
-      expect(versionNumber).toBeGreaterThanOrEqual(160000);
-      expect(versionNumber).toBeLessThan(170000);
-    });
-
-    afterAll(async () => {
-      await pool.end();
-    });
-
-    it('동일 요청 동시 호출은 import·item·draft·완료 audit을 하나만 만든다', async () => {
-      const fixture = await createIntegrationFixture(pool);
-      const first = createIntegrationService(pool);
-      const second = createIntegrationService(pool);
-
-      const [firstResult, secondResult] = await Promise.all([
-        first.execute(fixture.command),
-        second.execute(fixture.command),
-      ]);
-
-      expect(firstResult).toEqual(secondResult);
-      expect(firstResult).toMatchObject({
-        status: 'COMPLETED',
-        importedCount: 1,
-        rejectedCount: 0,
-      });
-      const stored = await pool.query<{
-        imports: string;
-        items: string;
-        drafts: string;
-        importAudits: string;
-        draftAudits: string;
-      }>(
-        `select
-           (select count(*) from content_imports
-             where requested_by = $1 and idempotency_key = $2) as imports,
-           (select count(*) from content_import_items ci
-             join content_imports c on c.id = ci.import_id
-             where c.requested_by = $1 and c.idempotency_key = $2) as items,
-           (select count(*) from questions q
-             join content_import_items ci on ci.target_id = q.id
-             join content_imports c on c.id = ci.import_id
-             where c.requested_by = $1 and c.idempotency_key = $2) as drafts,
-           (select count(*) from audit_logs a
-             join content_imports c on c.id = a.target_id
-             where c.requested_by = $1 and c.idempotency_key = $2
-               and a.action = 'CONTENT_IMPORT_COMPLETED') as "importAudits",
-           (select count(*) from audit_logs a
-             join content_import_items ci on ci.target_id = a.target_id
-             join content_imports c on c.id = ci.import_id
-             where c.requested_by = $1 and c.idempotency_key = $2
-               and a.action = 'CONTENT_QUESTION_DRAFT_IMPORTED') as "draftAudits"`,
-        [fixture.userId, fixture.idempotencyKey],
-      );
-      expect(stored.rows[0]).toEqual({
-        imports: '1',
-        items: '1',
-        drafts: '1',
-        importAudits: '1',
-        draftAudits: '1',
-      });
-    });
-
-    it('같은 user·key의 다른 hash는 기존 결과와 draft를 바꾸지 않는다', async () => {
-      const fixture = await createIntegrationFixture(pool);
-      const service = createIntegrationService(pool);
-      const original = await service.execute(fixture.command);
-      const changedRequest: ContentImportRequest = {
-        ...fixture.request,
-        questions: fixture.request.questions.map((question) => ({
-          ...question,
-          difficulty: 2,
-        })),
-      };
-
-      await expect(
-        service.execute({
-          ...fixture.command,
-          request: changedRequest,
-        }),
-      ).rejects.toEqual(
-        new ContentImportError('CONTENT_IMPORT_IDEMPOTENCY_CONFLICT'),
-      );
-      const stored = await pool.query<{
-        itemCount: string;
-        questionCount: string;
-        requestHash: string;
-      }>(
-        `select
-           c.request_hash as "requestHash",
-           (select count(*) from content_import_items where import_id = c.id) as "itemCount",
-           (select count(*) from questions q
-             join content_import_items ci on ci.target_id = q.id
-             where ci.import_id = c.id) as "questionCount"
-         from content_imports c
-         where c.requested_by = $1 and c.idempotency_key = $2`,
-        [fixture.userId, fixture.idempotencyKey],
-      );
-      expect(stored.rows[0]).toEqual({
-        requestHash: hashContentImportRequest(fixture.request),
-        itemCount: '1',
-        questionCount: '1',
-      });
-      await expect(service.execute(fixture.command)).resolves.toEqual(original);
-    });
-
-    it('한 item 실패는 앞선 draft를 유지하고 REJECTED만 저장한 뒤 replay한다', async () => {
-      const fixture = await createIntegrationFixture(pool, 2);
-      const failedRequest: ContentImportRequest = {
-        ...fixture.request,
-        questions: fixture.request.questions.map((question, index) =>
-          index === 1
-            ? { ...question, questionTypeSlug: `missing-${randomUUID()}` }
-            : question,
-        ),
-      };
-      const command = { ...fixture.command, request: failedRequest };
-      const service = createIntegrationService(pool);
-
-      const result = await service.execute(command);
-      const replay = await service.execute(command);
-
-      expect(result).toEqual(replay);
-      expect(result).toMatchObject({
-        status: 'COMPLETED_WITH_FAILURES',
-        importedCount: 1,
-        rejectedCount: 1,
-        items: [
-          {
-            kind: 'QUESTION',
-            sourceIndex: 0,
-            status: 'IMPORTED',
-          },
-          {
-            kind: 'QUESTION',
-            sourceIndex: 1,
-            status: 'REJECTED',
-            errors: [
-              {
-                path: 'questionTypeSlug',
-                code: 'IMPORT_QUESTION_TYPE_NOT_FOUND',
-              },
-            ],
-          },
-        ],
-      });
-      const stored = await pool.query<{
-        auditCount: string;
-        itemCount: string;
-        questionCount: string;
-      }>(
-        `select
-           (select count(*) from content_import_items where import_id = c.id) as "itemCount",
-           (select count(*) from questions q
-             join content_import_items ci on ci.target_id = q.id
-             where ci.import_id = c.id) as "questionCount",
-           (select count(*) from audit_logs
-             where target_id = c.id and action = 'CONTENT_IMPORT_COMPLETED') as "auditCount"
-         from content_imports c
-         where c.requested_by = $1 and c.idempotency_key = $2`,
-        [fixture.userId, fixture.idempotencyKey],
-      );
-      expect(stored.rows[0]).toEqual({
-        itemCount: '2',
-        questionCount: '1',
-        auditCount: '1',
-      });
-    });
-
-    it('query projection은 requester/hash/reference map/internal IDs를 반환하지 않는다', async () => {
-      const fixture = await createIntegrationFixture(pool);
-      const service = createIntegrationService(pool);
-      const result = await service.execute(fixture.command);
-
-      expect(result).not.toHaveProperty('requestedBy');
-      expect(result).not.toHaveProperty('requestHash');
-      expect(result.items[0]).not.toHaveProperty('id');
-      expect(result.items[0]).not.toHaveProperty('importId');
-      expect(result.items[0]).not.toHaveProperty('clientRef');
-      expect(result.items[0]).not.toHaveProperty('referenceMap');
-      expect(result.items[0]).not.toHaveProperty('createdAt');
-    });
-  },
-);

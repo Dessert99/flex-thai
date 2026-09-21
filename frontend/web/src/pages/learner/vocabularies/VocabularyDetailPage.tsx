@@ -12,19 +12,16 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/shared/components/tabs';
-import type {
-  VocabularyDetailResponse,
-  VocabularyRelatedQuestionsResponse,
-} from '@flex-thia/contracts/learning/vocabularies';
+import type { VocabularyDetailResponse } from '@flex-thia/contracts/learning/vocabularies';
 import { Link } from '@tanstack/react-router';
 /** 화면 배치와 기능 컴포넌트를 페이지에서 직접 조립한다 */
 
 export function VocabularyDetailPage(
   pageInput: Parameters<typeof useVocabularyDetail>[0],
 ) {
-  const { queryClient, detail, related } = useVocabularyDetail(pageInput);
+  const { queryClient, detail } = useVocabularyDetail(pageInput);
 
-  if (detail.isPending || related.isPending) {
+  if (detail.isPending) {
     return (
       <Container className='max-w-content flex-1'>
         <>
@@ -43,7 +40,7 @@ export function VocabularyDetailPage(
     );
   }
 
-  if (detail.isError || related.isError || detail.data === undefined) {
+  if (detail.isError || detail.data === undefined) {
     return (
       <Container className='max-w-content flex-1'>
         <>
@@ -60,7 +57,6 @@ export function VocabularyDetailPage(
                 className='mt-cluster w-auto'
                 onClick={() => {
                   void detail.refetch();
-                  void related.refetch();
                 }}
                 type='button'
                 variant='outline'
@@ -84,7 +80,6 @@ export function VocabularyDetailPage(
               queryKey: ['learner', 'vocabularies'],
             });
           }}
-          relatedQuestions={related.data?.items ?? []}
         />
       </>
     </Container>
@@ -94,11 +89,9 @@ export function VocabularyDetailPage(
 export function VocabularyDetailContent({
   detail,
   onWordbookMembershipConfirmed,
-  relatedQuestions,
 }: {
   detail: VocabularyDetailResponse;
   onWordbookMembershipConfirmed: () => void;
-  relatedQuestions: VocabularyRelatedQuestionsResponse['items'];
 }) {
   return (
     <article className='grid gap-section'>
@@ -158,10 +151,7 @@ export function VocabularyDetailContent({
         </section>
       ) : null}
       <VocabularyExamples sentences={detail.exampleSentences} />
-      <VocabularyDetailTabs
-        detail={detail}
-        relatedQuestions={relatedQuestions}
-      />
+      <VocabularyDetailTabs detail={detail} />
     </article>
   );
 }
@@ -212,16 +202,13 @@ function VocabularyExamples({
 
 function VocabularyDetailTabs({
   detail,
-  relatedQuestions,
 }: {
   detail: VocabularyDetailResponse;
-  relatedQuestions: VocabularyRelatedQuestionsResponse['items'];
 }) {
   return (
     <Tabs defaultValue='meanings'>
       <TabsList>
         <TabsTrigger value='meanings'>뜻</TabsTrigger>
-        <TabsTrigger value='questions'>관련 문제</TabsTrigger>
       </TabsList>
       <TabsContent value='meanings'>
         <ul>
@@ -245,20 +232,6 @@ function VocabularyDetailTabs({
                 }}
                 triggerLabel='뜻 오류 신고'
               />
-            </li>
-          ))}
-        </ul>
-      </TabsContent>
-      <TabsContent value='questions'>
-        <ul>
-          {relatedQuestions.map((item) => (
-            <li key={item.questionId}>
-              <Link
-                to='/questions/$questionId'
-                params={{ questionId: item.questionId }}
-              >
-                {item.questionType.displayName}
-              </Link>
             </li>
           ))}
         </ul>

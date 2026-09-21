@@ -5,19 +5,12 @@ export type ContentErrorReportStatus =
   'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'REJECTED';
 /** 콘텐츠 오류 신고 대상 종류 */
 export type ContentErrorReportTargetKind =
-  'QUESTION' | 'VOCABULARY' | 'SENTENCE' | 'CONCEPT';
+  'VOCABULARY' | 'SENTENCE' | 'CONCEPT';
 /** 콘텐츠 오류 신고 분류 */
 export type ContentErrorReportCategory =
   'MEANING_TRANSLATION' | 'ANSWER_EXPLANATION' | 'TOKENIZATION' | 'OTHER';
 /** 공개 화면에서 전달하는 대상 origin */
 export type ContentErrorReportOrigin =
-  | {
-      kind: 'QUESTION';
-      questionId: string;
-      questionVersion: number;
-      blockId: string | null;
-      sentenceVersionId: string | null;
-    }
   | {
       kind: 'VOCABULARY';
       vocabularyId: string;
@@ -40,7 +33,6 @@ export interface ContentErrorReportCanonicalReference {
   kind: ContentErrorReportTargetKind;
   contentId: string;
   contentVersionId: string | null;
-  questionVersion: number | null;
   sentenceVersionId: string | null;
   locationId: string | null;
 }

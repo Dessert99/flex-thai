@@ -64,8 +64,8 @@ describe('역할별 내비게이션', () => {
         within(operator).getByRole('link', { name: '사용자 관리' }),
       ).toHaveAttribute('href', '/admin/users');
       expect(
-        within(operator).getByRole('link', { name: '문제 관리' }),
-      ).toHaveAttribute('href', '/admin/questions');
+        within(operator).getByRole('link', { name: '어휘 관리' }),
+      ).toHaveAttribute('href', '/admin/vocabularies');
       expect(
         within(operator).getByRole('link', { name: '감사 기록' }),
       ).toHaveAttribute('href', '/admin/audit-logs');

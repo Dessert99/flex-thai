@@ -34,7 +34,7 @@ const createDatabase = (responses: unknown[][]) => {
 const report = {
   id: 'report-id',
   reporterUserId: 'learner-id',
-  targetKind: 'QUESTION' as const,
+  targetKind: 'VOCABULARY' as const,
   category: 'OTHER' as const,
   status: 'OPEN' as const,
   assigneeUserId: 'admin-id',
@@ -62,7 +62,7 @@ describe('오류 신고 관리자 page', () => {
         report: {
           id: 'report-id',
           reporterUserId: 'learner-id',
-          targetKind: 'QUESTION',
+          targetKind: 'VOCABULARY',
           category: 'OTHER',
           status: 'OPEN',
           assigneeUserId: 'admin-id',
@@ -96,7 +96,7 @@ describe('오류 신고 관리자 page', () => {
     await expect(
       query.list({
         status: 'OPEN',
-        targetKind: 'QUESTION',
+        targetKind: 'VOCABULARY',
         category: 'OTHER',
         assigneeUserId: 'admin-id',
         page: 2,

@@ -5,13 +5,14 @@ import { FakeContentProductionRepository } from './fake-content-production.repos
 const command = {
   requestedBy: '8f47b4d5-97d6-4596-af72-16456be51be8',
   clientRequestId: 'dbb22737-6f3d-4112-bb0e-8e4f005c810b',
-  purpose: 'QUESTION_GENERATION' as const,
+  purpose: 'VOCABULARY_EXTRACTION' as const,
+  parameters: { suspectedDuplicateMaxCodePointDistance: 1 },
   presetSnapshot: {
     id: '405986f9-e552-4ce1-82d6-70a1fc460f96',
     name: '기본 문제 생성',
-    purpose: 'QUESTION_GENERATION' as const,
+    purpose: 'VOCABULARY_EXTRACTION' as const,
+    parameters: { suspectedDuplicateMaxCodePointDistance: 1 },
     version: 1,
-    parameters: { language: 'th' },
   },
   inputs: [
     {
@@ -44,8 +45,7 @@ const createSeeds = (
     return {
       sourceRef: `input:${ordinal}:question`,
       jobInputId: input.jobInputId,
-      operation: 'QUESTION_GENERATION' as const,
-      questionPlan: null,
+      operation: 'VOCABULARY_EXTRACTION' as const,
     };
   });
 
@@ -125,59 +125,6 @@ describe('FakeContentProductionRepository 상태 전이', () => {
     await repository.finalizeAttempt(job.id, 0);
 
     expect(await repository.startAttempt(job.id, 0)).toBeNull();
-  });
-
-  it('항목 실패를 격리해 부분 실패로 집계하고 retryable 항목만 다시 연다', async () => {
-    const repository = new FakeContentProductionRepository();
-    const { job } = await repository.createOrFind(command);
-    await repository.startAttempt(job.id, 0);
-    await repository.ensureItems(job.id, createSeeds(job, [0, 1]));
-    const [first, second] = await repository.listAttemptItems(job.id, 0);
-
-    expect(first).toMatchObject({
-      sourceRef: 'input:0:question',
-      jobInputId: job.inputs[0]?.jobInputId,
-      operation: 'QUESTION_GENERATION',
-    });
-
-    const firstClaim = await repository.startItem(job.id, first!.id, 0);
-    await repository.finishItem(job.id, first!.id, 0, firstClaim!.leaseToken!, {
-      status: 'SUCCEEDED',
-      retryable: false,
-      errorCode: null,
-    });
-    const secondClaim = await repository.startItem(job.id, second!.id, 0);
-    await repository.finishItem(
-      job.id,
-      second!.id,
-      0,
-      secondClaim!.leaseToken!,
-      {
-        status: 'FAILED',
-        retryable: true,
-        errorCode: 'LOCAL_FAKE_FAILURE',
-      },
-    );
-
-    await expect(repository.finalizeAttempt(job.id, 0)).resolves.toEqual({
-      jobId: job.id,
-      status: 'COMPLETED_WITH_FAILURES',
-    });
-    const retried = await repository.retryFailed(
-      job.id,
-      command.requestedBy,
-      3,
-    );
-
-    expect(retried).toMatchObject({
-      attempt: 1,
-      status: 'QUEUED',
-      counts: { total: 2, succeeded: 1, failed: 1 },
-    });
-    expect(retried?.items).toEqual([
-      expect.objectContaining({ status: 'SUCCEEDED', attempt: 0 }),
-      expect.objectContaining({ status: 'PENDING', attempt: 1 }),
-    ]);
   });
 
   it('시작 전 workflow 실패는 항목이 없어도 다음 attempt로 연다', async () => {

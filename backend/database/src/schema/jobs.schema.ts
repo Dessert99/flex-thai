@@ -18,24 +18,18 @@ import { users } from './identity.schema.js';
 export const jobTypeEnum = pgEnum('job_type', [
   'VOCAB_IMPORT',
   'VOCABULARY_EXTRACTION',
-  'QUESTION_GENERATION',
-  'VOCABULARY_THEN_QUESTION_GENERATION',
 ]);
 
 /** 콘텐츠 제작이 지원하는 생성 목적 */
 export const contentProductionPurposeEnum = pgEnum(
   'content_production_purpose',
-  [
-    'VOCABULARY_EXTRACTION',
-    'QUESTION_GENERATION',
-    'VOCABULARY_THEN_QUESTION_GENERATION',
-  ],
+  ['VOCABULARY_EXTRACTION'],
 );
 
 /** 콘텐츠 제작 항목의 한 단계 작업 */
 export const contentProductionOperationEnum = pgEnum(
   'content_production_operation',
-  ['VOCABULARY_EXTRACTION', 'QUESTION_GENERATION'],
+  ['VOCABULARY_EXTRACTION'],
 );
 
 /** 지원하는 원본 형식 */
@@ -133,10 +127,7 @@ export const jobs = pgTable(
     presetSnapshot: jsonb('preset_snapshot').$type<{
       id: string;
       name: string;
-      purpose:
-        | 'VOCABULARY_EXTRACTION'
-        | 'QUESTION_GENERATION'
-        | 'VOCABULARY_THEN_QUESTION_GENERATION';
+      purpose: 'VOCABULARY_EXTRACTION';
       version: number;
       parameters: Record<string, unknown>;
     }>(),

@@ -27,7 +27,6 @@ const emptyPage = { ...page, totalItems: 0, totalPages: 0 };
 const emptyOperations = {
   feedback: { pendingCount: 0 },
   candidates: {
-    questionPendingCount: 0,
     vocabularyPendingCount: 0,
   },
   contentProduction: { runningCount: 0, failedCount: 0 },
@@ -61,7 +60,6 @@ beforeEach(() => {
   mocks.authenticatedRequest.mockReset();
   mockHomeResponses(
     { items: [], page: emptyPage },
-    { items: [], page: emptyPage },
     { items: [], page: { ...emptyPage, pageSize: 5 } },
     emptyOperations,
   );
@@ -70,23 +68,6 @@ beforeEach(() => {
 describe('관리자 홈 페이지', () => {
   it('최근 콘텐츠와 전체 운영 집계 및 실제 관리 경로를 표시한다', async () => {
     mockHomeResponses(
-      {
-        items: [
-          {
-            questionId: '01933b6a-8f13-7a19-b7e5-536d70f57aaa',
-            status: 'DRAFT',
-            currentPublishedVersionId: null,
-            latestVersion: 1,
-            latestVersionId: '01933b6a-8f13-7a19-b7e5-536d70f57aab',
-            latestVersionStatus: 'DRAFT',
-            validationStatus: 'PENDING',
-            questionTypeSlug: 'reading-context',
-            difficulty: 2,
-            updatedAt: '2026-07-25T00:00:00.000Z',
-          },
-        ],
-        page,
-      },
       {
         items: [
           {
@@ -117,7 +98,6 @@ describe('관리자 홈 페이지', () => {
       {
         feedback: { pendingCount: 2 },
         candidates: {
-          questionPendingCount: 3,
           vocabularyPendingCount: 4,
         },
         contentProduction: { runningCount: 1, failedCount: 2 },
@@ -130,17 +110,9 @@ describe('관리자 홈 페이지', () => {
     );
 
     renderAdminHome();
-
-    expect(
-      await screen.findByRole('link', { name: /reading-context/u }),
-    ).toHaveAttribute(
-      'href',
-      '/admin/questions/01933b6a-8f13-7a19-b7e5-536d70f57aaa?page=1&pageSize=20',
-    );
-    expect(screen.getByText('โรงเรียน')).toHaveAttribute('lang', 'th');
+    expect(await screen.findByText('โรงเรียน')).toHaveAttribute('lang', 'th');
     expect(screen.getByText('로컬 시스템')).toBeInTheDocument();
     expect(screen.getByText('미처리 2건')).toBeInTheDocument();
-    expect(screen.getByText('문제 3건 · 어휘 4건')).toBeInTheDocument();
     expect(screen.getByText('실행 중 1건 · 실패 2건')).toBeInTheDocument();
     expect(screen.getByText('16.500000 USD · WARNING')).toBeInTheDocument();
     expect(
@@ -160,42 +132,22 @@ describe('관리자 홈 페이지', () => {
     );
   });
 
-  it('운영 집계가 실패해도 최근 문제와 독립 재시도를 유지한다', async () => {
+  it('운영 집계가 실패해도 최근 어휘와 독립 재시도를 유지한다', async () => {
     mockHomeResponses(
-      {
-        items: [
-          {
-            questionId: '01933b6a-8f13-7a19-b7e5-536d70f57aaa',
-            status: 'DRAFT',
-            currentPublishedVersionId: null,
-            latestVersion: 1,
-            latestVersionId: '01933b6a-8f13-7a19-b7e5-536d70f57aab',
-            latestVersionStatus: 'DRAFT',
-            validationStatus: 'PENDING',
-            questionTypeSlug: 'reading-dialogue',
-            difficulty: 3,
-            updatedAt: '2026-07-25T00:00:00.000Z',
-          },
-        ],
-        page,
-      },
       { items: [], page: emptyPage },
       { items: [], page: { ...emptyPage, pageSize: 5 } },
       new Error('home failed'),
     );
 
     renderAdminHome();
-
-    expect(await screen.findByText('reading-dialogue')).toBeInTheDocument();
     expect(
-      screen.getAllByText('운영 상태를 불러오지 못했습니다.'),
+      await screen.findAllByText('운영 상태를 불러오지 못했습니다.'),
     ).toHaveLength(4);
     expect(screen.getByText('16.500000 USD · WARNING')).toBeInTheDocument();
   });
 
   it('최근 어휘 요청이 실패해도 운영 집계를 유지한다', async () => {
     mockHomeResponses(
-      { items: [], page: emptyPage },
       new Error('vocabulary failed'),
       { items: [], page: { ...emptyPage, pageSize: 5 } },
       {
@@ -214,7 +166,6 @@ describe('관리자 홈 페이지', () => {
 
   it('비용 endpoint가 실패해도 DB 운영 카드와 별도 비용 재시도를 유지한다', async () => {
     mockHomeResponses(
-      { items: [], page: emptyPage },
       { items: [], page: emptyPage },
       { items: [], page: { ...emptyPage, pageSize: 5 } },
       {
@@ -237,11 +188,7 @@ describe('관리자 홈 페이지', () => {
 
   it('집계가 0이어도 빈 상태와 운영 진입점을 카드별로 표시한다', async () => {
     renderAdminHome();
-
-    expect(
-      await screen.findByText('표시할 최근 문제가 없습니다.'),
-    ).toBeInTheDocument();
-    expect(screen.getByText('미처리 0건')).toBeInTheDocument();
+    expect(await screen.findByText('미처리 0건')).toBeInTheDocument();
   });
 });
 
@@ -250,7 +197,6 @@ function renderAdminHome() {
 }
 
 function mockHomeResponses(
-  questionResponse: unknown,
   vocabularyResponse: unknown,
   auditResponse: unknown,
   operationsResponse: unknown,
@@ -261,7 +207,6 @@ function mockHomeResponses(
       const response = resolveHomeResponse(path, {
         auditResponse,
         operationsResponse,
-        questionResponse,
         usageCostResponse,
         vocabularyResponse,
       });
@@ -277,14 +222,12 @@ function resolveHomeResponse(
   responses: {
     auditResponse: unknown;
     operationsResponse: unknown;
-    questionResponse: unknown;
     usageCostResponse: unknown;
     vocabularyResponse: unknown;
   },
 ) {
   if (path.startsWith('/admin/home')) return responses.operationsResponse;
   if (path.startsWith('/admin/usage-cost')) return responses.usageCostResponse;
-  if (path.startsWith('/admin/questions')) return responses.questionResponse;
   if (path.startsWith('/admin/audit-logs')) return responses.auditResponse;
   return responses.vocabularyResponse;
 }

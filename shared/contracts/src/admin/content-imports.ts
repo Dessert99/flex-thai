@@ -1,6 +1,6 @@
 /** 관리자 콘텐츠 가져오기의 canonical 입력과 공개 결과 계약을 정의한다 */
 import { z } from 'zod';
-import { pageMetadataSchema } from '../learning/questions.js';
+import { pageMetadataSchema } from '../learning/pagination.js';
 
 const uuidSchema = z.uuid();
 const positiveIntegerSchema = z.number().int().safe().positive();
@@ -148,126 +148,15 @@ export const canonicalVocabularyInputSchema = z
     }
   });
 
-const questionBlockInputSchema = z
-  .object({
-    kind: z.enum([
-      'INSTRUCTION',
-      'PASSAGE',
-      'DIALOGUE',
-      'QUESTION',
-      'EXPLANATION',
-    ]),
-    sentences: z
-      .array(
-        z
-          .object({
-            speaker: z.string().min(1).nullable().optional(),
-            sentence: canonicalSentenceInputSchema,
-          })
-          .strict(),
-      )
-      .min(1),
-  })
-  .strict();
-
-const questionOptionBaseShape = {
-  clientRef: clientRefSchema,
-  position: nonnegativeIntegerSchema,
-};
-const questionOptionSpanInputSchema = z
-  .object({
-    blockPosition: nonnegativeIntegerSchema,
-    sentencePosition: nonnegativeIntegerSchema,
-    startTokenIndex: nonnegativeIntegerSchema,
-    endTokenIndex: positiveIntegerSchema,
-  })
-  .strict();
-const questionOptionInputSchema = z.union([
-  z
-    .object({
-      ...questionOptionBaseShape,
-      sentence: canonicalSentenceInputSchema,
-      span: z.null().default(null),
-    })
-    .strict(),
-  z
-    .object({
-      ...questionOptionBaseShape,
-      sentence: z.null(),
-      span: questionOptionSpanInputSchema,
-    })
-    .strict(),
-]);
-
-const canonicalQuestionVersionShape = {
-  questionTypeSlug: z.string().min(1),
-  questionTypeVersion: positiveIntegerSchema,
-  difficulty: difficultySchema,
-  topicSlug: z.string().trim().min(1).default('general'),
-  tagSlugs: z.array(z.string().trim().min(1)).default([]),
-  blocks: z.array(questionBlockInputSchema).min(1),
-  options: z.array(questionOptionInputSchema).min(1),
-  correctOptionRef: clientRefSchema,
-};
-
-const validateQuestionOptionRefs = (
-  question: {
-    options: Array<{ clientRef: string; position: number }>;
-    correctOptionRef: string;
-  },
-  context: z.RefinementCtx,
-): void => {
-  const optionRefs = question.options.map(({ clientRef }) => clientRef);
-  if (hasDuplicates(optionRefs)) {
-    context.addIssue({
-      code: 'custom',
-      message: '선택지 clientRef는 중복될 수 없습니다.',
-      path: ['options'],
-    });
-  }
-  question.options.forEach((option, index) => {
-    if (option.position !== index) {
-      context.addIssue({
-        code: 'custom',
-        message: '선택지 position은 배열 순서와 일치해야 합니다.',
-        path: ['options', index, 'position'],
-      });
-    }
-  });
-  if (!optionRefs.includes(question.correctOptionRef)) {
-    context.addIssue({
-      code: 'custom',
-      message: 'correctOptionRef는 요청 안의 선택지를 가리켜야 합니다.',
-      path: ['correctOptionRef'],
-    });
-  }
-};
-
-/** 초안 전체 교체와 가져오기가 공유하는 문제 버전 입력 */
-export const canonicalQuestionVersionInputSchema = z
-  .object(canonicalQuestionVersionShape)
-  .strict()
-  .superRefine(validateQuestionOptionRefs);
-
-/** 한 가져오기 항목에서 생성할 문제 초안 전체 입력 */
-export const canonicalQuestionInputSchema = z
-  .object({
-    clientRef: clientRefSchema,
-    ...canonicalQuestionVersionShape,
-  })
-  .strict()
-  .superRefine(validateQuestionOptionRefs);
-
 /** schemaVersion 1과 합계 1~100개 항목을 강제하는 canonical import 요청 */
 export const contentImportRequestSchema = z
   .object({
     schemaVersion: z.literal(1),
     vocabularies: z.array(canonicalVocabularyInputSchema).max(100),
-    questions: z.array(canonicalQuestionInputSchema).max(100),
   })
   .strict()
   .superRefine((request, context) => {
-    const total = request.vocabularies.length + request.questions.length;
+    const total = request.vocabularies.length;
     if (total < 1 || total > 100) {
       context.addIssue({
         code: 'custom',
@@ -277,7 +166,6 @@ export const contentImportRequestSchema = z
     }
     const itemRefs = [
       ...request.vocabularies.map(({ clientRef }) => clientRef),
-      ...request.questions.map(({ clientRef }) => clientRef),
     ];
     if (hasDuplicates(itemRefs)) {
       context.addIssue({
@@ -305,7 +193,6 @@ const contentImportSummaryShape = {
   id: uuidSchema,
   status: z.enum(['COMPLETED', 'COMPLETED_WITH_FAILURES']),
   vocabularyCount: nonnegativeIntegerSchema,
-  questionCount: nonnegativeIntegerSchema,
   importedCount: nonnegativeIntegerSchema,
   rejectedCount: nonnegativeIntegerSchema,
   createdAt: utcDateTimeSchema,
@@ -316,13 +203,12 @@ const validateContentImportSummary = (
   summary: {
     status: 'COMPLETED' | 'COMPLETED_WITH_FAILURES';
     vocabularyCount: number;
-    questionCount: number;
     importedCount: number;
     rejectedCount: number;
   },
   context: z.RefinementCtx,
 ): void => {
-  const total = summary.vocabularyCount + summary.questionCount;
+  const total = summary.vocabularyCount;
   if (total < 1 || total > 100) {
     context.addIssue({
       code: 'custom',
@@ -358,7 +244,7 @@ export const contentImportSummarySchema = z
 
 const importedItemResultSchema = z
   .object({
-    kind: z.enum(['VOCABULARY', 'QUESTION']),
+    kind: z.enum(['VOCABULARY']),
     sourceIndex: nonnegativeIntegerSchema,
     status: z.literal('IMPORTED'),
     targetId: uuidSchema,
@@ -368,7 +254,7 @@ const importedItemResultSchema = z
 
 const rejectedItemResultSchema = z
   .object({
-    kind: z.enum(['VOCABULARY', 'QUESTION']),
+    kind: z.enum(['VOCABULARY']),
     sourceIndex: nonnegativeIntegerSchema,
     status: z.literal('REJECTED'),
     targetId: z.null(),
@@ -401,7 +287,7 @@ export const contentImportDetailResponseSchema = z
   .superRefine((detail, context) => {
     validateContentImportSummary(detail, context);
 
-    const expectedTotal = detail.vocabularyCount + detail.questionCount;
+    const expectedTotal = detail.vocabularyCount;
     if (detail.items.length !== expectedTotal) {
       context.addIssue({
         code: 'custom',
@@ -425,32 +311,29 @@ export const contentImportDetailResponseSchema = z
       });
     }
 
-    (
-      [
-        ['VOCABULARY', detail.vocabularyCount],
-        ['QUESTION', detail.questionCount],
-      ] as const
-    ).forEach(([kind, expectedCount]) => {
-      const sourceIndexes = detail.items
-        .filter((item) => item.kind === kind)
-        .map(({ sourceIndex }) => sourceIndex);
-      const sourceIndexSet = new Set(sourceIndexes);
-      const coversExpectedRange =
-        sourceIndexes.length === expectedCount &&
-        sourceIndexSet.size === expectedCount &&
-        Array.from(
-          { length: expectedCount },
-          (_, sourceIndex) => sourceIndex,
-        ).every((sourceIndex) => sourceIndexSet.has(sourceIndex));
-      if (!coversExpectedRange) {
-        context.addIssue({
-          code: 'custom',
-          message:
-            'kind별 sourceIndex는 원본 범위를 중복 없이 포함해야 합니다.',
-          path: ['items'],
-        });
-      }
-    });
+    ([['VOCABULARY', detail.vocabularyCount]] as const).forEach(
+      ([kind, expectedCount]) => {
+        const sourceIndexes = detail.items
+          .filter((item) => item.kind === kind)
+          .map(({ sourceIndex }) => sourceIndex);
+        const sourceIndexSet = new Set(sourceIndexes);
+        const coversExpectedRange =
+          sourceIndexes.length === expectedCount &&
+          sourceIndexSet.size === expectedCount &&
+          Array.from(
+            { length: expectedCount },
+            (_, sourceIndex) => sourceIndex,
+          ).every((sourceIndex) => sourceIndexSet.has(sourceIndex));
+        if (!coversExpectedRange) {
+          context.addIssue({
+            code: 'custom',
+            message:
+              'kind별 sourceIndex는 원본 범위를 중복 없이 포함해야 합니다.',
+            path: ['items'],
+          });
+        }
+      },
+    );
   });
 
 /** 전체 관리자 가져오기 이력의 페이지 응답 */
@@ -472,16 +355,6 @@ export type CanonicalSentenceInput = z.infer<
 /** canonical 어휘 가져오기 항목 type */
 export type CanonicalVocabularyInput = z.infer<
   typeof canonicalVocabularyInputSchema
->;
-
-/** canonical 문제 버전 입력 type */
-export type CanonicalQuestionVersionInput = z.infer<
-  typeof canonicalQuestionVersionInputSchema
->;
-
-/** canonical 문제 가져오기 항목 type */
-export type CanonicalQuestionInput = z.infer<
-  typeof canonicalQuestionInputSchema
 >;
 
 /** 검증된 콘텐츠 가져오기 요청 type */

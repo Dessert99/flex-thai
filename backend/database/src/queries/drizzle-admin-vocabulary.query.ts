@@ -15,7 +15,7 @@ import {
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import { databaseSchema as schema } from '../schema/databaseSchema.js';
-import { questions, questionVocabularies } from '../schema/questions.schema.js';
+
 import {
   expressionOccurrences,
   tokenOccurrences,
@@ -92,10 +92,6 @@ export interface AdminVocabularyDetailProjection {
   }>;
   usage: {
     sentenceVersionIds: string[];
-    questionIds: string[];
-    questionCount: number;
-    targetQuestionCount: number;
-    occurrenceCount: number;
   };
   createdAt: Date;
   updatedAt: Date;
@@ -227,20 +223,6 @@ export class DrizzleAdminVocabularyQuery {
         ({ sentenceVersionId }) => sentenceVersionId,
       ),
     ]);
-    const questionUsage = await this.database
-      .select({
-        questionId: questions.id,
-        status: questions.status,
-        role: questionVocabularies.role,
-        occurrenceCount: questionVocabularies.occurrenceCount,
-      })
-      .from(questionVocabularies)
-      .innerJoin(questions, eq(questionVocabularies.questionId, questions.id))
-      .where(eq(questionVocabularies.vocabularyId, vocabularyId))
-      .orderBy(asc(questions.id));
-    const publishedUsage = questionUsage.filter(
-      (item) => item.status === 'PUBLISHED',
-    );
     const meaningIds = meanings.map(({ id }) => id);
     const relations =
       meaningIds.length === 0
@@ -279,15 +261,6 @@ export class DrizzleAdminVocabularyQuery {
       relations,
       usage: {
         sentenceVersionIds,
-        questionIds: questionUsage.map((item) => item.questionId),
-        questionCount: publishedUsage.length,
-        targetQuestionCount: publishedUsage.filter(
-          (item) => item.role === 'TARGET',
-        ).length,
-        occurrenceCount: publishedUsage.reduce(
-          (total, item) => total + item.occurrenceCount,
-          0,
-        ),
       },
     };
   }

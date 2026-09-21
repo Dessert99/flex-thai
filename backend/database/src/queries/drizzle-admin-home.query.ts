@@ -8,7 +8,6 @@ interface AdminHomeReadDatabase {
 /** 관리자 홈 전용 안전한 운영 집계 */
 export interface AdminHomeOperationsProjection {
   pendingErrorReportCount: number;
-  pendingQuestionCandidateCount: number;
   pendingVocabularyCandidateCount: number;
   runningContentJobCount: number;
   failedContentJobCount: number;
@@ -17,7 +16,6 @@ export interface AdminHomeOperationsProjection {
 
 type AggregateRow = {
   pendingErrorReportCount?: number | string;
-  pendingQuestionCandidateCount?: number | string;
   pendingVocabularyCandidateCount?: number | string;
   runningContentJobCount?: number | string;
   failedContentJobCount?: number | string;
@@ -26,16 +24,8 @@ type AggregateRow = {
 
 const operationsSummaryQuery = (userId: string) => sql`
   select
-    (
-      select count(*)
-      from content_error_reports
-      where status in ('OPEN', 'IN_PROGRESS')
-    ) as "pendingErrorReportCount",
-    (
-      select count(*)
-      from question_production_candidates
-      where review_status = 'PENDING'
-    ) as "pendingQuestionCandidateCount",
+    (select count(*) from content_error_reports where status in ('OPEN', 'IN_PROGRESS')) as "pendingErrorReportCount",
+
     (
       select count(*)
       from vocabulary_production_candidates
@@ -94,7 +84,6 @@ export class DrizzleAdminHomeQuery {
 
     return {
       pendingErrorReportCount: count(row?.pendingErrorReportCount),
-      pendingQuestionCandidateCount: count(row?.pendingQuestionCandidateCount),
       pendingVocabularyCandidateCount: count(
         row?.pendingVocabularyCandidateCount,
       ),

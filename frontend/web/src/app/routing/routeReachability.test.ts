@@ -11,33 +11,24 @@ const approvedTargets = [
   '/login/confirm',
   '/login/mfa',
   '/learn',
-  '/questions',
-  '/history',
-  '/practice',
   '/vocabularies',
   '/wordbooks',
   '/admin',
   '/admin/users',
   '/admin/audit-logs',
-  '/admin/question-settings',
   '/admin/totp-setup',
   '/admin/content-imports',
-  '/admin/questions',
   '/admin/vocabularies',
   '/admin/content-error-reports',
   '/admin/content-production',
-  '/admin/content-production/candidates',
   '/admin/content-production/vocabulary-candidates',
   '/admin/content-production/presets',
   '/admin/usage-cost',
   '/forbidden',
 ] as const;
-
-const questionId = '01933b6a-8f13-7a19-b7e5-536d70f57aaa';
 const vocabularyId = '01933b6a-8f13-7a19-b7e5-536d70f57aab';
 const importId = '01933b6a-8f13-7a19-b7e5-536d70f57aac';
 const wordbookId = '01933b6a-8f13-7a19-b7e5-536d70f57aae';
-const sessionId = '01933b6a-8f13-7a19-b7e5-536d70f57aaf';
 const conceptId = '01933b6a-8f13-7a19-b7e5-536d70f57ab0';
 const jobId = '01933b6a-8f13-7a19-b7e5-536d70f57ab1';
 const candidateId = '01933b6a-8f13-7a19-b7e5-536d70f57ab2';
@@ -54,33 +45,9 @@ const dynamicTargets = [
     build: () =>
       router.buildLocation({
         params: { candidateId },
-        to: '/admin/content-production/candidates/$candidateId',
-      }),
-    label: '문제 후보 상세',
-  },
-  {
-    build: () =>
-      router.buildLocation({
-        params: { candidateId },
         to: '/admin/content-production/vocabulary-candidates/$candidateId',
       }),
     label: '어휘 후보 상세',
-  },
-  {
-    build: () =>
-      router.buildLocation({
-        params: { sessionId },
-        to: '/practice/$sessionId',
-      }),
-    label: '단어 연습 진행',
-  },
-  {
-    build: () =>
-      router.buildLocation({
-        params: { sessionId },
-        to: '/practice/$sessionId/result',
-      }),
-    label: '단어 연습 결과',
   },
   {
     build: () =>
@@ -126,15 +93,6 @@ const dynamicTargets = [
   {
     build: () =>
       router.buildLocation({
-        params: { questionId },
-        search: { page: 1, pageSize: 20 },
-        to: '/questions/$questionId',
-      }),
-    label: '학습자 문제 상세',
-  },
-  {
-    build: () =>
-      router.buildLocation({
         params: { vocabularyId },
         search: { page: 1, pageSize: 20 },
         to: '/vocabularies/$vocabularyId',
@@ -149,15 +107,6 @@ const dynamicTargets = [
         to: '/admin/content-imports/$importId',
       }),
     label: '콘텐츠 가져오기 상세',
-  },
-  {
-    build: () =>
-      router.buildLocation({
-        params: { questionId },
-        search: { page: 1, pageSize: 20 },
-        to: '/admin/questions/$questionId',
-      }),
-    label: '관리자 문제 상세',
   },
   {
     build: () =>
@@ -186,18 +135,13 @@ describe('route 도달 가능성', () => {
   );
 
   it.each([
-    '/practice/$sessionId',
-    '/practice/$sessionId/result',
     '/concepts/$conceptId',
     '/admin/concepts/$conceptId',
     '/wordbooks/$wordbookId',
-    '/questions/$questionId',
     '/vocabularies/$vocabularyId',
     '/admin/content-imports/$importId',
-    '/admin/questions/$questionId',
     '/admin/vocabularies/$vocabularyId',
     '/admin/content-production/jobs/$jobId',
-    '/admin/content-production/candidates/$candidateId',
     '/admin/content-production/vocabulary-candidates/$candidateId',
   ])('%s 동적 경로를 route tree에서 찾을 수 있다', (to) => {
     expect(
@@ -208,8 +152,6 @@ describe('route 도달 가능성', () => {
   it.each([
     '/admin/content-production',
     '/admin/content-production/jobs/$jobId',
-    '/admin/content-production/candidates',
-    '/admin/content-production/candidates/$candidateId',
     '/admin/content-production/vocabulary-candidates',
     '/admin/content-production/vocabulary-candidates/$candidateId',
     '/admin/content-production/presets',

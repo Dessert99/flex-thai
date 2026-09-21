@@ -3,14 +3,10 @@ import type { AdminHomePageViewProps } from '@/features/operations/libs/admin-ho
 import { useQueries } from '@tanstack/react-query';
 
 export function useAdminHome(): AdminHomePageViewProps {
-  const [questions, vocabularies, auditLogs, operations, usageCost] =
-    useQueries({
-      queries: adminHomeQueryOptions(),
-    });
+  const [vocabularies, auditLogs, operations, usageCost] = useQueries({
+    queries: adminHomeQueryOptions(),
+  });
   return {
-    onRetryQuestions: () => {
-      void questions.refetch();
-    },
     onRetryAuditLogs: () => {
       void auditLogs.refetch();
     },
@@ -26,9 +22,6 @@ export function useAdminHome(): AdminHomePageViewProps {
     auditLogs: auditLogs.data?.items ?? [],
     auditLogsError: auditLogs.isError,
     auditLogsLoading: auditLogs.isPending,
-    questions: questions.data?.items ?? [],
-    questionsError: questions.isError,
-    questionsLoading: questions.isPending,
     operations: operations.data,
     operationsError: operations.isError,
     operationsLoading: operations.isPending,

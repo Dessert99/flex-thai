@@ -1,8 +1,5 @@
 /** 어휘 상세와 관련 문제의 독립 Query를 정의한다 */
-import {
-  vocabularyDetailResponseSchema,
-  vocabularyRelatedQuestionsResponseSchema,
-} from '@flex-thia/contracts/learning/vocabularies';
+import { vocabularyDetailResponseSchema } from '@flex-thia/contracts/learning/vocabularies';
 import { queryOptions } from '@tanstack/react-query';
 import { authenticatedRequest } from '@/shared/apis/auth/authenticatedRequest';
 
@@ -15,22 +12,6 @@ export function vocabularyDetailQueryOptions(vocabularyId: string) {
         authenticatedRequest({
           path: `/vocabularies/${vocabularyId}`,
           response: { kind: 'json', schema: vocabularyDetailResponseSchema },
-        }),
-    }),
-    queryOptions({
-      queryKey: [
-        'learner',
-        'vocabularies',
-        'related-questions',
-        vocabularyId,
-      ] as const,
-      queryFn: () =>
-        authenticatedRequest({
-          path: `/vocabularies/${vocabularyId}/questions?page=1&pageSize=10`,
-          response: {
-            kind: 'json',
-            schema: vocabularyRelatedQuestionsResponseSchema,
-          },
         }),
     }),
   ] as const;

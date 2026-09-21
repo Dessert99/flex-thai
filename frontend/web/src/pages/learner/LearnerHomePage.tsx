@@ -11,14 +11,12 @@ import { Skeleton } from '@/shared/components/skeleton';
 import type { RecommendationResponse } from '@flex-thia/contracts/recommendations/recommendations';
 import { Link } from '@tanstack/react-router';
 import {
-  BookOpenCheck,
   CalendarDays,
   ChevronRight,
   Languages,
   LibraryBig,
   NotebookTabs,
   Sparkles,
-  Target,
   type LucideIcon,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -118,10 +116,6 @@ export function LearnerHomePage() {
         </div>
 
         <div className='grid gap-section lg:grid-cols-2'>
-          <RecommendedQuestions
-            items={recommendation.questions}
-            personalized={personalized}
-          />
           <RecommendedVocabularies
             items={recommendation.vocabularies}
             personalized={personalized}
@@ -143,8 +137,7 @@ function PublishedContentCard({
   icon: LucideIcon;
   title: string;
 }) {
-  const empty =
-    content.questions.length === 0 && content.vocabularies.length === 0;
+  const empty = content.vocabularies.length === 0;
 
   return (
     <HomeCard
@@ -155,15 +148,6 @@ function PublishedContentCard({
         <p className='text-body text-subtle'>표시할 콘텐츠가 없습니다.</p>
       ) : (
         <div className='flex flex-col gap-cluster'>
-          {content.questions.map((question) => (
-            <HomeLinkItem
-              to='/questions/$questionId'
-              params={{ questionId: question.questionId }}
-              icon={BookOpenCheck}
-              key={question.questionId}
-              title={question.questionTypeDisplayName}
-            />
-          ))}
           {content.vocabularies.map((vocabulary) => (
             <HomeLinkItem
               to='/vocabularies/$vocabularyId'
@@ -185,16 +169,14 @@ function PublishedContentCard({
 }
 
 const quickLinks = [
-  { href: '/questions', icon: BookOpenCheck, label: '문제' },
   { href: '/vocabularies', icon: LibraryBig, label: '공용 사전' },
   { href: '/wordbooks', icon: NotebookTabs, label: '내 단어장' },
-  { href: '/practice', icon: Target, label: '단어 연습' },
 ] as const;
 
 function QuickLinks() {
   return (
     <nav aria-label='학습 빠른 이동'>
-      <div className='grid gap-cluster sm:grid-cols-2 lg:grid-cols-4'>
+      <div className='grid gap-cluster sm:grid-cols-2 lg:grid-cols-2'>
         {quickLinks.map((link) => (
           <Link
             key={link.href}
@@ -217,44 +199,6 @@ function QuickLinks() {
         ))}
       </div>
     </nav>
-  );
-}
-
-function RecommendedQuestions({
-  items,
-  personalized,
-}: {
-  items: RecommendationResponse['questions'];
-  personalized: boolean;
-}) {
-  let content: ReactNode;
-  if (items.length === 0) {
-    content = <p className='text-body text-subtle'>표시할 문제가 없습니다.</p>;
-  } else {
-    content = (
-      <div className='flex flex-col gap-cluster'>
-        {items.map((question) => (
-          <HomeLinkItem
-            description={`${question.skill === 'READING' ? '읽기' : ''} · 난이도 ${question.difficulty}`}
-            to='/questions/$questionId'
-            params={{ questionId: question.questionId }}
-            icon={BookOpenCheck}
-            key={question.questionId}
-            secondaryDescription={question.reason}
-            title={question.questionType.displayName}
-          />
-        ))}
-      </div>
-    );
-  }
-
-  return (
-    <HomeCard
-      icon={Target}
-      title={personalized ? '추천 문제' : '최근 문제'}
-    >
-      {content}
-    </HomeCard>
   );
 }
 

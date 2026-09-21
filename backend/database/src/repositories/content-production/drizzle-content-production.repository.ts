@@ -52,8 +52,6 @@ import {
   jobs,
   uploads,
 } from '../../schema/jobs.schema.js';
-import { questionTypeVersions } from '../../schema/questions.schema.js';
-import { vocabularies } from '../../schema/vocabulary.schema.js';
 
 type ContentProductionDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 type ContentProductionExecutor = Pick<ContentProductionDatabase, 'select'>;
@@ -861,78 +859,7 @@ export class DrizzleContentProductionPresetCatalog implements ContentProductionP
   ): Promise<ContentProductionPresetSnapshot | null> {
     const preset = await this.findEnabledById(input.presetId);
     if (!preset || preset.purpose !== input.purpose) return null;
-    if (input.purpose === 'VOCABULARY_EXTRACTION') return preset;
-
-    const allowed = [
-      'questionCount',
-      'questionTypePlan',
-      'difficultyPlan',
-      'targetVocabularyIds',
-      'requiredVocabularyIds',
-      'excludedVocabularyIds',
-      'newAuxiliaryVocabularyLimit',
-      'similarityThreshold',
-      'additionalInstructionKo',
-    ] as const;
-    const parameters: Record<string, unknown> = {
-      ...preset.parameters,
-      ...Object.fromEntries(
-        allowed.flatMap((key) =>
-          key in input.options ? [[key, input.options[key]]] : [],
-        ),
-      ),
-    };
-    const typePlan = parameters['questionTypePlan'];
-    const vocabularyIds: string[] = [
-      parameters['targetVocabularyIds'],
-      parameters['requiredVocabularyIds'],
-      parameters['excludedVocabularyIds'],
-    ].flatMap((ids) =>
-      Array.isArray(ids)
-        ? (ids as unknown[]).filter(
-            (id): id is string => typeof id === 'string',
-          )
-        : [],
-    );
-    const typePlanEntries: unknown[] = Array.isArray(typePlan) ? typePlan : [];
-    const typeIds = typePlanEntries.flatMap((entry) => {
-      if (!entry || typeof entry !== 'object') return [];
-      const questionTypeVersionId = (entry as Record<string, unknown>)[
-        'questionTypeVersionId'
-      ];
-      return typeof questionTypeVersionId === 'string'
-        ? [questionTypeVersionId]
-        : [];
-    });
-    if (typeIds.length === 0) return null;
-    const [activeTypes, publishedVocabulary] = await Promise.all([
-      this.database
-        .select({ id: questionTypeVersions.id })
-        .from(questionTypeVersions)
-        .where(
-          and(
-            inArray(questionTypeVersions.id, [...new Set(typeIds)]),
-            eq(questionTypeVersions.status, 'ACTIVE'),
-          ),
-        ),
-      vocabularyIds.length === 0
-        ? Promise.resolve([])
-        : this.database
-            .select({ id: vocabularies.id })
-            .from(vocabularies)
-            .where(
-              and(
-                inArray(vocabularies.id, [...new Set(vocabularyIds)]),
-                eq(vocabularies.status, 'PUBLISHED'),
-              ),
-            ),
-    ]);
-    if (
-      activeTypes.length !== new Set(typeIds).size ||
-      publishedVocabulary.length !== new Set(vocabularyIds).size
-    )
-      return null;
-    return { ...preset, parameters };
+    return preset;
   }
 
   /** 새 이름의 최초 immutable preset row와 감사 로그를 원자 생성한다 */

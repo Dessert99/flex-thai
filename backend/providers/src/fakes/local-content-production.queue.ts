@@ -8,11 +8,9 @@ import type {
   ContentProductionJob,
   ContentProductionQueue,
   ContentProductionRepository,
-  QuestionGenerationParameters,
 } from '@flex-thia/domain/content-production/content-production.service';
 import type { VocabularyProductionArtifacts } from '@flex-thia/domain/content-production/ai-vocabulary-production';
 import { createContentProductionWorkItem } from '@flex-thia/domain/content-production/content-production-work-item';
-import { expandQuestionGenerationPlan } from '@flex-thia/domain/content-production/content-production.service';
 
 interface LocalContentProductionProcessor {
   process(
@@ -36,41 +34,13 @@ const buildVocabularySeeds = (
       sourceRef: `input:${index}:vocabulary`,
       jobInputId: input.jobInputId,
       operation: 'VOCABULARY_EXTRACTION',
-      questionPlan: null,
     };
   });
-
-const buildQuestionSeeds = (
-  job: Pick<ContentProductionWorkerJob, 'presetSnapshot' | 'inputs'>,
-): ContentProductionItemSeed[] => {
-  if (job.inputs.length === 0) return [];
-  const plans = expandQuestionGenerationPlan(
-    job.presetSnapshot.parameters as unknown as QuestionGenerationParameters,
-  );
-
-  return plans.map((questionPlan) => {
-    const input =
-      job.inputs[questionPlan.questionPlanIndex % job.inputs.length]!;
-    return {
-      sourceRef: `input:${input.ordinal}:question:${questionPlan.questionPlanIndex}`,
-      jobInputId: input.jobInputId,
-      operation: 'QUESTION_GENERATION',
-      questionPlan,
-    };
-  });
-};
 
 const buildItemSeeds = (
   job: ContentProductionWorkerJob,
 ): ContentProductionItemSeed[] => {
-  if (job.purpose === 'VOCABULARY_EXTRACTION') {
-    return buildVocabularySeeds(job);
-  }
-  if (job.purpose === 'QUESTION_GENERATION') {
-    return buildQuestionSeeds(job);
-  }
-
-  return [...buildVocabularySeeds(job), ...buildQuestionSeeds(job)];
+  return buildVocabularySeeds(job);
 };
 
 const requireWorkerJob = (
@@ -197,7 +167,6 @@ export class LocalContentProductionQueue implements ContentProductionQueue {
           ...claimed,
           jobInputId: claimed.jobInputId,
           operation: claimed.operation,
-          questionPlan: itemSeed.questionPlan,
           leaseUntil: claimed.leaseUntil,
           leaseToken: claimed.leaseToken,
         }),

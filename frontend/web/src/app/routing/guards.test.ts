@@ -32,12 +32,17 @@ describe('route 접근 guard', () => {
     };
 
     const thrown = captureThrown(() =>
-      requireAuthenticated(state, createLocation('/questions?page=2')),
+      requireAuthenticated(
+        state,
+        createLocation(
+          '/wordbooks/01933b6a-8f13-7a19-b7e5-536d70f57aaa?page=2',
+        ),
+      ),
     );
 
     expect(isRedirect(thrown)).toBe(true);
     expectRedirect(thrown, '/login', {
-      redirect: '/questions?page=2',
+      redirect: '/wordbooks/01933b6a-8f13-7a19-b7e5-536d70f57aaa?page=2',
     });
   });
 

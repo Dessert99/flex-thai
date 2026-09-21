@@ -3,7 +3,6 @@ import { createHash, randomUUID } from 'node:crypto';
 import type { ContentDraftService } from './content-draft.js';
 import { ContentDraftError } from './content-draft.js';
 import type {
-  CanonicalDraftQuestionInput,
   CanonicalDraftVocabularyInput,
   ContentDraftAuditContext,
 } from './content-import.js';
@@ -24,7 +23,6 @@ type JsonValue =
 export interface ContentImportRequest {
   schemaVersion: 1;
   vocabularies: CanonicalDraftVocabularyInput[];
-  questions: CanonicalDraftQuestionInput[];
 }
 
 /** 관리자 요청자·멱등 key·audit 문맥을 canonical body와 묶는다 */
@@ -43,10 +41,7 @@ export class ContentImportError extends Error {
   }
 }
 
-type DraftCreator = Pick<
-  ContentDraftService,
-  'createQuestionItem' | 'createVocabularyItem'
->;
+type DraftCreator = Pick<ContentDraftService, 'createVocabularyItem'>;
 
 const canonicalJson = (value: JsonValue): string => {
   if (value === null || typeof value !== 'object') {
@@ -164,46 +159,6 @@ export class ContentImportService {
     }
   }
 
-  private async processQuestion(
-    importId: string,
-    sourceIndex: number,
-    input: CanonicalDraftQuestionInput,
-    context: ContentDraftAuditContext,
-  ): Promise<void> {
-    if (await this.repository.findItem(importId, 'QUESTION', sourceIndex)) {
-      return;
-    }
-    try {
-      await this.drafts.createQuestionItem({
-        importId,
-        sourceIndex,
-        input,
-        context,
-      });
-    } catch (error) {
-      if (error instanceof ContentDraftError) {
-        await this.repository.saveRejectedItem({
-          importId,
-          kind: 'QUESTION',
-          sourceIndex,
-          clientRef: input.clientRef,
-          errors: [
-            {
-              path: error.path,
-              code: error.code,
-            },
-          ],
-        });
-        return;
-      }
-      if (isContentDraftItemConflict(error)) {
-        await this.replayItemConflict(importId, 'QUESTION', sourceIndex, error);
-        return;
-      }
-      throw error;
-    }
-  }
-
   /** 어휘 전체를 먼저 처리한 뒤 문제를 처리하고 최초 완료만 audit과 commit한다 */
   async execute(command: ContentImportCommand): Promise<ContentImportDetail> {
     const requestHash = hashContentImportRequest(command.request);
@@ -213,7 +168,6 @@ export class ContentImportService {
       idempotencyKey: command.idempotencyKey,
       requestHash,
       vocabularyCount: command.request.vocabularies.length,
-      questionCount: command.request.questions.length,
       createdAt: this.now(),
     });
     if (record.requestHash !== requestHash) {
@@ -225,14 +179,6 @@ export class ContentImportService {
 
     for (const [sourceIndex, input] of command.request.vocabularies.entries()) {
       await this.processVocabulary(
-        record.id,
-        sourceIndex,
-        input,
-        command.context,
-      );
-    }
-    for (const [sourceIndex, input] of command.request.questions.entries()) {
-      await this.processQuestion(
         record.id,
         sourceIndex,
         input,

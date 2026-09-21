@@ -161,7 +161,7 @@ export class DrizzleUsageCostOperationsQuery implements UsageCostOperationsQuery
           where ${failedConditions} and status = 'FAILED'`),
       this.database.execute(sql`
           select count(*)::int as pending_review_candidate_count
-          from question_production_candidates
+          from vocabulary_production_candidates
           where review_status = 'PENDING'
             and created_at >= ${input.range.from} and created_at < ${input.range.to}`),
     ]);

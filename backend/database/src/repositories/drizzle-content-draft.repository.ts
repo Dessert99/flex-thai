@@ -1,27 +1,18 @@
-import { flattenQuestionDraft } from '@flex-thia/domain/questions/flatten-question-draft';
 /** canonical 콘텐츠 초안 graph·IMPORTED item·audit을 한 Drizzle transaction에 저장한다 */
 import { ContentDraftError } from '@flex-thia/domain/content-import/content-draft';
 import {
   type ContentDraftRepository,
   type ContentDraftTransaction,
   type ResolvedContentDraftAudit,
-  type ResolvedQuestionDraftGraph,
   type ResolvedVocabularyDraftGraph,
 } from '@flex-thia/domain/content-import/content-draft.repository';
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import { contentImportItems } from '../schema/content-import.schema.js';
 import { databaseSchema as schema } from '../schema/databaseSchema.js';
 import { auditLogs } from '../schema/identity.schema.js';
-import {
-  questions,
-  questionTags,
-  questionTopics,
-  questionTypes,
-  questionTypeVersions,
-  questionVocabularies,
-} from '../schema/questions.schema.js';
+
 import {
   vocabularies,
   vocabularyMeanings,
@@ -61,26 +52,6 @@ const DATA_API_CONSTRAINTS = [
     code: '23503',
     kind: 'foreign key',
     name: 'expression_occurrences_vocabulary_kind_fk',
-  },
-  {
-    code: '23503',
-    kind: 'foreign key',
-    name: 'questions_type_version_id_question_type_versions_id_fk',
-  },
-  {
-    code: '23503',
-    kind: 'foreign key',
-    name: 'question_vocabularies_meaning_owner_fk',
-  },
-  {
-    code: '23503',
-    kind: 'foreign key',
-    name: 'question_vocabularies_meaning_owner_fk',
-  },
-  {
-    code: '23503',
-    kind: 'foreign key',
-    name: 'question_vocabularies_vocabulary_id_vocabularies_id_fk',
   },
   {
     code: '23505',
@@ -205,62 +176,6 @@ const translateVocabularySaveError = (
   throw error;
 };
 
-const translateQuestionSaveError = (
-  error: unknown,
-  operation: string,
-): never => {
-  const postgresError = decodePostgreSqlError(error);
-  if (postgresError?.code === '23503') {
-    if (
-      postgresError.constraint ===
-      'questions_type_version_id_question_type_versions_id_fk'
-    ) {
-      throw new ContentDraftError(
-        'IMPORT_QUESTION_TYPE_NOT_FOUND',
-        'questionTypeSlug',
-      );
-    }
-    if (
-      postgresError.constraint ===
-      'question_vocabularies_vocabulary_id_vocabularies_id_fk'
-    ) {
-      throw new ContentDraftError(
-        'IMPORT_REFERENCE_NOT_FOUND',
-        'sentences.tokens.vocabulary',
-      );
-    }
-    if (
-      postgresError.constraint === 'question_vocabularies_meaning_owner_fk' ||
-      postgresError.constraint === 'question_vocabularies_meaning_owner_fk'
-    ) {
-      throw new ContentDraftError(
-        'IMPORT_REFERENCE_MISMATCH',
-        'sentences.tokens',
-      );
-    }
-    if (
-      postgresError.constraint === 'expression_occurrences_vocabulary_kind_fk'
-    ) {
-      throw new ContentDraftError(
-        'IMPORT_REFERENCE_MISMATCH',
-        'sentences.expressions',
-      );
-    }
-  }
-  if (
-    postgresError?.code === '23514' &&
-    postgresError.constraint ===
-      'expression_occurrences_vocabulary_kind_expression'
-  ) {
-    throw new ContentDraftError(
-      'IMPORT_REFERENCE_MISMATCH',
-      'sentences.expressions',
-    );
-  }
-  translateSharedSaveError(error, operation);
-  throw error;
-};
-
 const appendAudit = async (
   transaction: ContentDraftSession,
   audit: ResolvedContentDraftAudit,
@@ -294,46 +209,6 @@ const saveVocabularyDraft = async (
     await appendAudit(transaction, input.audit);
   } catch (error) {
     translateVocabularySaveError(error, operation);
-  }
-};
-
-const saveQuestionDraft = async (
-  transaction: ContentDraftSession,
-  input: {
-    graph: ResolvedQuestionDraftGraph;
-    item: Parameters<ContentDraftTransaction['saveQuestionDraft']>[0]['item'];
-    audit: ResolvedContentDraftAudit;
-  },
-): Promise<void> => {
-  const operation = 'saveQuestionDraft';
-  if (input.graph.options.filter(({ isCorrect }) => isCorrect).length !== 1) {
-    throw new ContentDraftPersistenceError(
-      'CONTENT_DRAFT_PERSISTENCE_CONFLICT',
-      `${operation}.correctOptionCount`,
-    );
-  }
-
-  try {
-    const { vocabularies: usage, ...content } = flattenQuestionDraft(
-      input.graph,
-    );
-    await transaction.insert(questions).values({
-      ...content,
-      id: input.graph.question.id,
-      status: 'DRAFT',
-      version: 1,
-    });
-    if (usage.length)
-      await transaction.insert(questionVocabularies).values(
-        usage.map((item) => ({
-          ...item,
-          questionId: input.graph.question.id,
-        })),
-      );
-    await transaction.insert(contentImportItems).values(input.item);
-    await appendAudit(transaction, input.audit);
-  } catch (error) {
-    translateQuestionSaveError(error, operation);
   }
 };
 
@@ -427,66 +302,8 @@ const createContentDraftTransaction = (
     }
     return rows[0] ?? null;
   },
-  async findQuestionTypeVersion(slug, version) {
-    const rows = await transaction
-      .select({
-        id: questionTypeVersions.id,
-        slug: questionTypes.slug,
-        version: questionTypeVersions.version,
-        template: questionTypeVersions.template,
-        optionCount: questionTypeVersions.optionCount,
-      })
-      .from(questionTypeVersions)
-      .innerJoin(
-        questionTypes,
-        eq(questionTypeVersions.questionTypeId, questionTypes.id),
-      )
-      .where(
-        and(
-          eq(questionTypes.slug, slug),
-          eq(questionTypeVersions.version, version),
-          eq(questionTypeVersions.status, 'ACTIVE'),
-        ),
-      )
-      .for('key share')
-      .limit(2);
-    if (rows.length > 1) {
-      throw new ContentDraftPersistenceError(
-        'CONTENT_DRAFT_PERSISTENCE_CONFLICT',
-        'findQuestionTypeVersion',
-      );
-    }
-    return rows[0] ?? null;
-  },
-  async findActiveQuestionTopic(slug) {
-    const rows = await transaction
-      .select({ id: questionTopics.id, slug: questionTopics.slug })
-      .from(questionTopics)
-      .where(
-        and(eq(questionTopics.slug, slug), eq(questionTopics.status, 'ACTIVE')),
-      )
-      .for('key share')
-      .limit(2);
-    return rows.length === 1 ? rows[0]! : null;
-  },
-  async findActiveQuestionTags(slugs) {
-    if (slugs.length === 0) return [];
-    return transaction
-      .select({ id: questionTags.id, slug: questionTags.slug })
-      .from(questionTags)
-      .where(
-        and(
-          inArray(questionTags.slug, slugs),
-          eq(questionTags.status, 'ACTIVE'),
-        ),
-      )
-      .for('key share');
-  },
   async saveVocabularyDraft(input) {
     await saveVocabularyDraft(transaction, input);
-  },
-  async saveQuestionDraft(input) {
-    await saveQuestionDraft(transaction, input);
   },
 });
 

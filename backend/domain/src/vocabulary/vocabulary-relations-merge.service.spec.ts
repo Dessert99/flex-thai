@@ -48,7 +48,6 @@ const graph = (
   expressionOccurrenceIds: [],
   savedMemberships: [],
   wordbookMemberships: [],
-  practiceQuestionIds: [],
 });
 
 const storedRelation: VocabularyRelationsMergeStoredRelation = {
@@ -77,7 +76,6 @@ const createFake = () => {
       expressionOccurrences: 0,
       savedMemberships: 0,
       wordbookMemberships: 0,
-      practiceQuestions: 0,
     },
   });
   const repository: VocabularyRelationsMergeRepository = {

@@ -46,8 +46,6 @@ set
   last_request_fingerprint = null
 where id = 1;
 
-
-
 insert into vocabularies (
   id,
   thai,
@@ -297,10 +295,6 @@ insert into vocabulary_meanings (
     '2026-07-05T00:00:00Z'
   );
 
-
-
-
-
 insert into thai_sentences (id, created_at) values
   ('00000000-0000-4000-8000-000000000201', '2026-07-01T00:00:00Z'),
   ('00000000-0000-4000-8000-000000000202', '2026-07-01T00:00:00Z'),
@@ -326,7 +320,7 @@ insert into thai_sentence_versions (
     '00000000-0000-4000-8000-000000000201',
     1,
     'สวัสดี',
-    '다음 태국어의 뜻을 고르세요.',
+    '태국어 인사말',
     '2026-07-01T00:00:00Z',
     '2026-07-01T00:00:00Z'
   ),
@@ -371,7 +365,7 @@ insert into thai_sentence_versions (
     '00000000-0000-4000-8000-000000000206',
     1,
     'ขอบคุณ',
-    '다음 태국어의 뜻을 고르세요.',
+    '태국어 인사말',
     '2026-07-01T00:00:00Z',
     '2026-07-01T00:00:00Z'
   ),
@@ -398,7 +392,7 @@ insert into thai_sentence_versions (
     '00000000-0000-4000-8000-000000000209',
     1,
     'สวัสดี',
-    '다음 태국어의 뜻을 고르세요.',
+    '태국어 인사말',
     null,
     '2026-07-01T00:01:00Z'
   );
@@ -452,26 +446,6 @@ insert into token_occurrences (
     'TARGET'
   );
 
-insert into question_topics (
-  id,
-  slug,
-  display_name,
-  status,
-  created_at,
-  updated_at
-) values (
-  '00000000-0000-4000-8000-000000000320',
-  'general',
-  '일반',
-  'ACTIVE',
-  '2026-07-01T00:00:00Z',
-  '2026-07-01T00:00:00Z'
-)
-on conflict (slug) do update set
-  display_name = excluded.display_name,
-  status = excluded.status,
-  updated_at = excluded.updated_at;
-
 insert into content_production_presets (
   id,
   name,
@@ -487,34 +461,7 @@ insert into content_production_presets (
     1,
     '{"suspectedDuplicateMaxCodePointDistance":1}'::jsonb,
     true
-  ),
-  (
-    '00000000-0000-4000-8000-000000000902',
-    '기본 문제 생성',
-    'QUESTION_GENERATION',
-    1,
-    '{}'::jsonb,
-    true
-  ),
-  (
-    '00000000-0000-4000-8000-000000000903',
-    '기본 어휘·문제 생성',
-    'VOCABULARY_THEN_QUESTION_GENERATION',
-    1,
-    '{"suspectedDuplicateMaxCodePointDistance":1}'::jsonb,
-    true
-  ),
-  (
-    '00000000-0000-4000-8000-000000000904',
-    '기본 문제 생성',
-    'QUESTION_GENERATION',
-    2,
-    '{"promptRevision":"retired-local-v2"}'::jsonb,
-    false
-  )
-on conflict (name, version) do update set
-  parameters = excluded.parameters,
-  enabled = excluded.enabled;
+  );
 
 insert into uploads (
   id,
@@ -556,10 +503,10 @@ insert into jobs (
   '00000000-0000-4000-8000-000000000931',
   '00000000-0000-4000-8000-000000000001',
   '00000000-0000-4000-8000-000000000932',
-  'QUESTION_GENERATION',
-  'QUESTION_GENERATION',
-  '00000000-0000-4000-8000-000000000902',
-  '{"id":"00000000-0000-4000-8000-000000000902","name":"기본 문제 생성","purpose":"QUESTION_GENERATION","version":1,"parameters":{}}'::jsonb,
+  'VOCABULARY_EXTRACTION',
+  'VOCABULARY_EXTRACTION',
+  '00000000-0000-4000-8000-000000000901',
+  '{"id":"00000000-0000-4000-8000-000000000901","name":"기본 어휘 추출","purpose":"VOCABULARY_EXTRACTION","version":1,"parameters":{"suspectedDuplicateMaxCodePointDistance":1}}'::jsonb,
   'COMPLETED',
   0,
   '2026-07-01T00:00:00Z',
@@ -598,7 +545,7 @@ insert into job_items (
   '00000000-0000-4000-8000-000000000934',
   '00000000-0000-4000-8000-000000000931',
   '00000000-0000-4000-8000-000000000933',
-  'QUESTION_GENERATION',
+  'VOCABULARY_EXTRACTION',
   'SUCCEEDED',
   'local-source-1',
   0,
@@ -630,7 +577,7 @@ insert into provider_runs (
 ) values (
   '00000000-0000-4000-8000-000000000935',
   '00000000-0000-4000-8000-000000000934',
-  'QUESTION_GENERATION',
+  'VOCABULARY_EXTRACTION',
   0,
   'LOCAL_FAKE',
   'deterministic-content-v1',
@@ -646,323 +593,6 @@ insert into provider_runs (
   'local-content-provider-request',
   '2026-07-01T00:00:00Z',
   '2026-07-01T00:01:00Z'
-);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-insert into question_types (
-  id,
-  slug,
-  display_name,
-  skill,
-  major_category,
-  created_at,
-  updated_at
-) values
-  (
-    '00000000-0000-4000-8000-000000000301',
-    'reading-vocabulary',
-    '어휘 의미 선택',
-    'READING',
-    'READING_VOCABULARY_GRAMMAR',
-    '2026-07-01T00:00:00Z',
-    '2026-07-01T00:00:00Z'
-  ),
-  (
-    '00000000-0000-4000-8000-000000000305',
-    'reading-synonym-relation',
-    '동의·유의 관계',
-    'READING',
-    'READING_SYNONYM_RELATION',
-    '2026-07-01T00:00:00Z',
-    '2026-07-01T00:00:00Z'
-  ),
-  (
-    '00000000-0000-4000-8000-000000000306',
-    'reading-error-identification',
-    '비문 찾기',
-    'READING',
-    'READING_ERROR_IDENTIFICATION',
-    '2026-07-01T00:00:00Z',
-    '2026-07-01T00:00:00Z'
-  ),
-  (
-    '00000000-0000-4000-8000-000000000307',
-    'reading-passage',
-    '지문 독해',
-    'READING',
-    'READING_PASSAGE',
-    '2026-07-01T00:00:00Z',
-    '2026-07-01T00:00:00Z'
-  );
-
-insert into question_type_versions (
-  id,
-  question_type_id,
-  version,
-  template,
-  option_count,
-  status,
-  decision_rules
-) values
-  (
-    '00000000-0000-4000-8000-000000000311',
-    '00000000-0000-4000-8000-000000000301',
-    1,
-    'STANDARD_CHOICE',
-    4,
-    'ACTIVE',
-    '{"mode":"single-choice"}'
-  ),
-  (
-    '00000000-0000-4000-8000-000000000315',
-    '00000000-0000-4000-8000-000000000305',
-    1,
-    'STANDARD_CHOICE',
-    4,
-    'DRAFT',
-    '{"mode":"single-choice"}'
-  ),
-  (
-    '00000000-0000-4000-8000-000000000316',
-    '00000000-0000-4000-8000-000000000306',
-    1,
-    'INLINE_SPAN_CHOICE',
-    4,
-    'DRAFT',
-    '{"mode":"single-choice"}'
-  ),
-  (
-    '00000000-0000-4000-8000-000000000317',
-    '00000000-0000-4000-8000-000000000307',
-    1,
-    'PASSAGE_CHOICE',
-    4,
-    'DRAFT',
-    '{"mode":"single-choice"}'
-  );
-
-insert into question_production_candidates (
-  id,
-  job_item_id,
-  job_attempt,
-  ordinal,
-  type_version_id,
-  payload_state,
-  topic_id,
-  difficulty,
-  payload,
-  payload_hash,
-  result_group,
-  review_status,
-  review_code,
-  revision,
-  created_at,
-  updated_at
-) values (
-  '00000000-0000-4000-8000-000000000936',
-  '00000000-0000-4000-8000-000000000934',
-  0,
-  0,
-  '00000000-0000-4000-8000-000000000311',
-  'REDACTED_INVALID',
-  null,
-  null,
-  null,
-  repeat('a', 64),
-  'FAILED',
-  'PENDING',
-  'SCHEMA_VALIDATION_FAILED',
-  0,
-  '2026-07-01T00:00:30Z',
-  '2026-07-01T00:00:30Z'
-);
-
-with source_questions(id, status, difficulty, prompt_id, explanation_id) as (values
- ('00000000-0000-4000-8000-000000000401'::uuid, 'PUBLISHED'::question_status, 1, '00000000-0000-4000-8000-000000000211'::uuid, '00000000-0000-4000-8000-000000000217'::uuid),
- ('00000000-0000-4000-8000-000000000402'::uuid, 'PUBLISHED'::question_status, 2, '00000000-0000-4000-8000-000000000216'::uuid, '00000000-0000-4000-8000-000000000218'::uuid),
- ('00000000-0000-4000-8000-000000000403'::uuid, 'DRAFT'::question_status, 3, '00000000-0000-4000-8000-000000000219'::uuid, '00000000-0000-4000-8000-000000000217'::uuid),
- ('00000000-0000-4000-8000-000000000404'::uuid, 'HIDDEN'::question_status, 2, '00000000-0000-4000-8000-000000000216'::uuid, '00000000-0000-4000-8000-000000000218'::uuid)
-), source_options(id, question_id, sentence_id, position, correct) as (values
-('00000000-0000-4000-8000-000000000431'::uuid, '00000000-0000-4000-8000-000000000401'::uuid, '00000000-0000-4000-8000-000000000212'::uuid, 0, true),
-('00000000-0000-4000-8000-000000000432'::uuid, '00000000-0000-4000-8000-000000000401'::uuid, '00000000-0000-4000-8000-000000000213'::uuid, 1, false),
-('00000000-0000-4000-8000-000000000433'::uuid, '00000000-0000-4000-8000-000000000401'::uuid, '00000000-0000-4000-8000-000000000214'::uuid, 2, false),
-('00000000-0000-4000-8000-000000000434'::uuid, '00000000-0000-4000-8000-000000000401'::uuid, '00000000-0000-4000-8000-000000000215'::uuid, 3, false),
-('00000000-0000-4000-8000-000000000435'::uuid, '00000000-0000-4000-8000-000000000402'::uuid, '00000000-0000-4000-8000-000000000213'::uuid, 0, true),
-('00000000-0000-4000-8000-000000000436'::uuid, '00000000-0000-4000-8000-000000000402'::uuid, '00000000-0000-4000-8000-000000000212'::uuid, 1, false),
-('00000000-0000-4000-8000-000000000437'::uuid, '00000000-0000-4000-8000-000000000402'::uuid, '00000000-0000-4000-8000-000000000214'::uuid, 2, false),
-('00000000-0000-4000-8000-000000000438'::uuid, '00000000-0000-4000-8000-000000000402'::uuid, '00000000-0000-4000-8000-000000000215'::uuid, 3, false),
-('00000000-0000-4000-8000-000000000439'::uuid, '00000000-0000-4000-8000-000000000403'::uuid, '00000000-0000-4000-8000-000000000212'::uuid, 0, true),
-('00000000-0000-4000-8000-000000000440'::uuid, '00000000-0000-4000-8000-000000000403'::uuid, '00000000-0000-4000-8000-000000000213'::uuid, 1, false),
-('00000000-0000-4000-8000-000000000441'::uuid, '00000000-0000-4000-8000-000000000403'::uuid, '00000000-0000-4000-8000-000000000214'::uuid, 2, false),
-('00000000-0000-4000-8000-000000000442'::uuid, '00000000-0000-4000-8000-000000000403'::uuid, '00000000-0000-4000-8000-000000000215'::uuid, 3, false),
-('00000000-0000-4000-8000-000000000443'::uuid, '00000000-0000-4000-8000-000000000404'::uuid, '00000000-0000-4000-8000-000000000213'::uuid, 0, true),
-('00000000-0000-4000-8000-000000000444'::uuid, '00000000-0000-4000-8000-000000000404'::uuid, '00000000-0000-4000-8000-000000000212'::uuid, 1, false),
-('00000000-0000-4000-8000-000000000445'::uuid, '00000000-0000-4000-8000-000000000404'::uuid, '00000000-0000-4000-8000-000000000214'::uuid, 2, false),
-('00000000-0000-4000-8000-000000000446'::uuid, '00000000-0000-4000-8000-000000000404'::uuid, '00000000-0000-4000-8000-000000000215'::uuid, 3, false)
-)
-insert into questions (id, status, type_version_id, topic_id, difficulty, version, prompt, options, correct_option_id, explanation, published_at)
-select q.id, q.status, '00000000-0000-4000-8000-000000000311'::uuid, '00000000-0000-4000-8000-000000000320'::uuid,
- q.difficulty, 1, prompt.original_text,
- (select jsonb_agg(jsonb_build_object('id', o.id, 'text', sentence.original_text) order by o.position) from source_options o join thai_sentence_versions sentence on sentence.id = o.sentence_id where o.question_id = q.id),
- (select o.id from source_options o where o.question_id = q.id and o.correct), explanation.original_text,
- case when q.status = 'DRAFT' then null else '2026-07-10T00:00:00Z'::timestamptz end
-from source_questions q join thai_sentence_versions prompt on prompt.id = q.prompt_id join thai_sentence_versions explanation on explanation.id = q.explanation_id;
-
-insert into question_vocabularies (question_id, vocabulary_id, meaning_id, role, occurrence_count)
-select q.id, t.vocabulary_id, (array_agg(t.meaning_id))[1], 'TARGET', count(*)::int
-from questions q join thai_sentence_versions s on s.original_text = q.prompt
-join token_occurrences t on t.sentence_version_id = s.id and t.role = 'TARGET'
-group by q.id, t.vocabulary_id;
-
-insert into question_type_difficulty_criteria (
-  type_version_id,
-  difficulty,
-  criteria
-) values
-  ('00000000-0000-4000-8000-000000000311', 1, '기본 어휘의 뜻을 단일 문장에서 구별한다.'),
-  ('00000000-0000-4000-8000-000000000311', 2, '자주 쓰는 표현의 뜻을 유사 선택지와 구별한다.'),
-  ('00000000-0000-4000-8000-000000000311', 3, '문맥 속 어휘와 문법 단서를 함께 판단한다.'),
-  ('00000000-0000-4000-8000-000000000311', 4, '낯선 어휘를 문장 구조와 의미 관계로 추론한다.'),
-  ('00000000-0000-4000-8000-000000000311', 5, '복합 문맥의 미세한 어휘·문법 차이를 판단한다.');
-
-insert into question_type_approved_examples (
-  id,
-  type_version_id,
-  title,
-  payload,
-  payload_hash,
-  created_at
-) values (
-  '00000000-0000-4000-8000-000000000318',
-  '00000000-0000-4000-8000-000000000311',
-  'canonical-reading-vocabulary-v1',
-  $readingVocabularyExample$
-{
-  "questionTypeSlug": "reading-vocabulary",
-  "questionTypeVersion": 1,
-  "difficulty": 1,
-  "topicSlug": "general",
-  "tagSlugs": [],
-  "blocks": [
-    {
-      "kind": "QUESTION",
-      "sentences": [
-        {
-          "sentence": {
-            "originalText": "สวัสดี",
-            "translationKo": "다음 태국어의 뜻을 고르세요.",
-            "tokens": [
-              {
-                "surface": "สวัสดี",
-                "startOffset": 0,
-                "endOffset": 6,
-                "vocabulary": {
-                  "id": "00000000-0000-4000-8000-000000000101"
-                },
-                "meaning": {
-                  "id": "00000000-0000-4000-8000-000000000111"
-                },
-                "contextMeaningKo": "안녕하세요",
-                "role": "TARGET"
-              }
-            ],
-            "expressions": []
-          }
-        }
-      ]
-    },
-    {
-      "kind": "EXPLANATION",
-      "sentences": [
-        {
-          "sentence": {
-            "originalText": "สวัสดี는 기본 인사말입니다.",
-            "translationKo": "สวัสดี는 안녕하세요라는 뜻입니다.",
-            "tokens": [],
-            "expressions": []
-          }
-        }
-      ]
-    }
-  ],
-  "options": [
-    {
-      "clientRef": "option-1",
-      "position": 0,
-      "sentence": {
-        "originalText": "안녕하세요",
-        "translationKo": "안녕하세요",
-        "tokens": [],
-        "expressions": []
-      },
-      "span": null
-    },
-    {
-      "clientRef": "option-2",
-      "position": 1,
-      "sentence": {
-        "originalText": "감사합니다",
-        "translationKo": "감사합니다",
-        "tokens": [],
-        "expressions": []
-      },
-      "span": null
-    },
-    {
-      "clientRef": "option-3",
-      "position": 2,
-      "sentence": {
-        "originalText": "괜찮습니다",
-        "translationKo": "괜찮습니다",
-        "tokens": [],
-        "expressions": []
-      },
-      "span": null
-    },
-    {
-      "clientRef": "option-4",
-      "position": 3,
-      "sentence": {
-        "originalText": "미안합니다",
-        "translationKo": "미안합니다",
-        "tokens": [],
-        "expressions": []
-      },
-      "span": null
-    }
-  ],
-  "correctOptionRef": "option-1"
-}
-$readingVocabularyExample$::jsonb,
-  '4f8d889208185a1c356a922bd350eafa881fc7ea5e0bb9082c29bf12eed810a8',
-  '2026-07-10T00:00:00Z'
-);
-
-insert into question_attempts (id, user_id, question_id, question_version, question_snapshot, attempt_no, selected_option_id, client_attempt_id, duration_ms, is_correct, submitted_at)
-select '00000000-0000-4000-8000-000000000501'::uuid, '00000000-0000-4000-8000-000000000002'::uuid, q.id, q.version,
- jsonb_build_object('updatedAt', to_char(q.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'version', q.version, 'typeVersionId', q.type_version_id, 'difficulty', q.difficulty, 'passage', q.passage, 'prompt', q.prompt, 'options', q.options, 'correctOptionId', q.correct_option_id, 'explanation', q.explanation),
- 1, q.correct_option_id, '00000000-0000-4000-8000-000000000511'::uuid, 4200, true, '2026-07-15T00:00:00Z'::timestamptz
-from questions q where q.id = '00000000-0000-4000-8000-000000000401';
-
-insert into saved_questions (user_id, question_id, saved_at) values (
-  '00000000-0000-4000-8000-000000000002',
-  '00000000-0000-4000-8000-000000000401',
-  '2026-07-15T00:00:00Z'
 );
 
 insert into wordbooks (
@@ -998,7 +628,6 @@ insert into content_imports (
   request_hash,
   status,
   vocabulary_count,
-  question_count,
   imported_count,
   rejected_count,
   created_at,
@@ -1008,11 +637,10 @@ insert into content_imports (
   '00000000-0000-4000-8000-000000000001',
   '00000000-0000-4000-8000-000000000602',
   repeat('d', 64),
-  'COMPLETED_WITH_FAILURES',
+  'COMPLETED',
   1,
   1,
-  1,
-  1,
+  0,
   '2026-07-16T00:00:00Z',
   '2026-07-16T00:01:00Z'
 );
@@ -1040,18 +668,6 @@ insert into content_import_items (
     '[]',
     '{"local-draft-vocabulary":"00000000-0000-4000-8000-000000000103"}',
     '2026-07-16T00:00:30Z'
-  ),
-  (
-    '00000000-0000-4000-8000-000000000612',
-    '00000000-0000-4000-8000-000000000601',
-    'QUESTION',
-    0,
-    'local-rejected-question',
-    'REJECTED',
-    null,
-    '[{"path":"questions.0.options","code":"OPTION_COUNT_INVALID"}]',
-    '{}',
-    '2026-07-16T00:00:40Z'
   );
 
 insert into concepts (
@@ -1227,13 +843,13 @@ insert into content_error_reports (
   (
     '00000000-0000-4000-8000-000000000801',
     '00000000-0000-4000-8000-000000000002',
-    'QUESTION',
-    'ANSWER_EXPLANATION',
+    'VOCABULARY',
+    'MEANING_TRANSLATION',
     'OPEN',
     null,
-    '선택지 설명을 조금 더 자세히 확인해 주세요.',
-    '{"kind":"QUESTION","contentId":"00000000-0000-4000-8000-000000000401","contentVersionId":"00000000-0000-4000-8000-000000000411","questionVersionId":"00000000-0000-4000-8000-000000000411","sentenceVersionId":"00000000-0000-4000-8000-000000000211","locationId":"00000000-0000-4000-8000-000000000421"}',
-    '{"title":"어휘 의미 선택","primaryText":"สวัสดี","secondaryText":"다음 태국어의 뜻을 고르세요.","versionLabel":"버전 1","locationLabel":"문제 본문"}',
+    '어휘 뜻 설명을 조금 더 자세히 확인해 주세요.',
+    '{"kind":"VOCABULARY","contentId":"00000000-0000-4000-8000-000000000101","contentVersionId":null,"sentenceVersionId":null,"locationId":null}',
+    '{"title":"어휘 뜻","primaryText":"สวัสดี","secondaryText":"태국어 인사말","versionLabel":"버전 1","locationLabel":"어휘 상세"}',
     '2026-07-18T00:00:00Z',
     '2026-07-18T00:00:00Z'
   ),
@@ -1245,7 +861,7 @@ insert into content_error_reports (
     'IN_PROGRESS',
     '00000000-0000-4000-8000-000000000001',
     '예문 뜻 설명을 확인해 주세요.',
-    '{"kind":"CONCEPT","contentId":"00000000-0000-4000-8000-000000000701","contentVersionId":"00000000-0000-4000-8000-000000000711","questionVersionId":null,"sentenceVersionId":null,"locationId":"00000000-0000-4000-8000-000000000722"}',
+    '{"kind":"CONCEPT","contentId":"00000000-0000-4000-8000-000000000701","contentVersionId":"00000000-0000-4000-8000-000000000711","sentenceVersionId":null,"locationId":"00000000-0000-4000-8000-000000000722"}',
     '{"title":"태국어 인사말의 쓰임","primaryText":"인사말 예문","secondaryText":"기본 인사말의 뜻과 쓰임을 실제 문장으로 익힙니다.","versionLabel":"버전 1","locationLabel":"개념 블록 2"}',
     '2026-07-18T01:00:00Z',
     '2026-07-18T01:02:00Z'

@@ -1,9 +1,6 @@
 /** 학습자 내부 projection이 서명 URL과 strict 공개 계약으로 바뀌는지 검증한다 */
 import { describe, expect, it, vi } from 'vitest';
-import {
-  LearnerContentService,
-  LearnerPublicResponseError,
-} from './learner-content.service.js';
+import { LearnerContentService } from './learner-content.service.js';
 
 const ids = {
   question: '00000000-0000-4000-8000-000000000001',
@@ -48,50 +45,6 @@ const sentence = {
   ],
 } as const;
 
-const questionType = {
-  id: ids.type,
-  slug: 'reading-standard-choice',
-  displayName: '독해 기본 선택',
-} as const;
-
-const topic = {
-  id: '00000000-0000-4000-8000-000000000014',
-  slug: 'thai-greetings',
-  displayName: '태국어 인사',
-} as const;
-
-const tag = {
-  id: '00000000-0000-4000-8000-000000000015',
-  slug: 'daily-life',
-  displayName: '일상',
-} as const;
-
-const questionListItem = {
-  questionId: ids.question,
-  questionVersion: 1,
-  questionType,
-  majorCategory: 'READING_PASSAGE',
-  topic,
-  tags: [tag],
-  skill: 'READING',
-  difficulty: 2,
-  saved: false,
-  firstResult: 'UNANSWERED',
-  internalFlag: 'DB_ONLY',
-} as const;
-
-const questionListFacets = {
-  majorCategories: [{ value: 'READING_PASSAGE', label: '독해 지문' }],
-  questionTypes: [
-    {
-      ...questionType,
-      majorCategory: 'READING_PASSAGE',
-    },
-  ],
-  topics: [topic],
-  tags: [tag],
-} as const;
-
 const page = {
   page: 1,
   pageSize: 20,
@@ -100,66 +53,6 @@ const page = {
 } as const;
 
 const dependencies = () => ({
-  questionQuery: {
-    listQuestions: vi.fn().mockResolvedValue({
-      items: [questionListItem],
-      page,
-    }),
-    listQuestionFacets: vi.fn().mockResolvedValue(questionListFacets),
-    getQuestionDetail: vi.fn().mockResolvedValue({
-      questionId: ids.question,
-      questionVersion: 1,
-      questionType,
-      skill: 'READING',
-      difficulty: 2,
-      passage: null,
-      prompt: 'คำถาม',
-      options: [
-        { id: ids.option, text: 'ก' },
-        { id: ids.block, text: 'ข' },
-      ],
-      saved: false,
-      firstResult: 'UNANSWERED',
-    }),
-    getExplanation: vi.fn().mockResolvedValue([
-      {
-        id: ids.block,
-        kind: 'EXPLANATION',
-        position: 0,
-        sentences: [{ position: 0, speaker: null, sentence }],
-      },
-    ]),
-    listAttempts: vi.fn().mockResolvedValue({
-      items: [
-        {
-          id: ids.attempt,
-          questionId: ids.question,
-          questionVersion: 1,
-          questionSnapshot: {
-            version: 1,
-            updatedAt: '2026-07-24T00:00:00.000Z',
-            typeVersionId: ids.type,
-            difficulty: 2,
-            passage: null,
-            prompt: '질문',
-            options: [
-              { id: ids.option, text: '가' },
-              { id: ids.block, text: '나' },
-            ],
-            correctOptionId: ids.option,
-            explanation: '해설',
-          },
-          attemptNo: 1,
-          selectedOptionId: ids.option,
-          clientAttemptId: ids.clientAttempt,
-          durationMs: 1_000,
-          isCorrect: true,
-          submittedAt: new Date('2026-07-24T00:00:00.000Z'),
-        },
-      ],
-      page,
-    }),
-  },
   vocabularyQuery: {
     listVocabularies: vi.fn().mockResolvedValue({
       items: [
@@ -217,188 +110,10 @@ const dependencies = () => ({
         },
       ],
     }),
-    listRelatedQuestions: vi.fn().mockResolvedValue({
-      items: [
-        {
-          questionId: ids.question,
-          questionVersion: 1,
-          questionType,
-          skill: 'READING',
-          difficulty: 2,
-          saved: false,
-          firstResult: 'UNANSWERED',
-        },
-      ],
-      page,
-    }),
   },
-  questionAttempts: {
-    submit: vi.fn().mockResolvedValue({
-      attempt: {
-        id: ids.attempt,
-        userId: 'user-1',
-        questionId: ids.question,
-        questionVersion: 1,
-        attemptNo: 1,
-        selectedOptionId: ids.option,
-        clientAttemptId: ids.clientAttempt,
-        durationMs: 1_000,
-        isCorrect: true,
-        submittedAt: new Date('2026-07-24T00:00:00.000Z'),
-      },
-      feedback: { correctOptionId: ids.option, explanation: '풀이 당시 해설' },
-    }),
-  },
-  savedContent: {
-    saveQuestion: vi.fn().mockResolvedValue(undefined),
-    removeQuestion: vi.fn().mockResolvedValue(undefined),
-  },
-});
-
-describe('LearnerContentService 문제 응답', () => {
-  it('문제 탐색 query와 DB projection을 공개 목록 계약으로 명시적으로 조립한다', async () => {
-    const fakes = dependencies();
-    const service = new LearnerContentService({ ...fakes });
-
-    await expect(
-      service.listQuestions('user-1', {
-        skill: 'READING',
-        majorCategory: 'READING_PASSAGE',
-        questionTypeId: ids.type,
-        topicId: topic.id,
-        tagId: tag.id,
-        difficulty: 2,
-        saved: false,
-        firstResult: 'UNANSWERED',
-        sort: 'LATEST',
-        page: 2,
-        pageSize: 50,
-      }),
-    ).resolves.toEqual({
-      items: [
-        {
-          questionId: ids.question,
-          questionVersion: 1,
-          questionType,
-          majorCategory: 'READING_PASSAGE',
-          topic,
-          tags: [tag],
-          skill: 'READING',
-          difficulty: 2,
-          saved: false,
-          firstResult: 'UNANSWERED',
-        },
-      ],
-      page,
-      facets: questionListFacets,
-    });
-    expect(fakes.questionQuery.listQuestions).toHaveBeenCalledWith('user-1', {
-      skill: 'READING',
-      majorCategory: 'READING_PASSAGE',
-      questionTypeId: ids.type,
-      topicId: topic.id,
-      tagId: tag.id,
-      difficulty: 2,
-      saved: false,
-      firstResult: 'UNANSWERED',
-      sort: 'LATEST',
-      page: 2,
-      pageSize: 50,
-    });
-    expect(fakes.questionQuery.listQuestionFacets).toHaveBeenCalledWith();
-  });
-
-  it('한 응답에서 같은 storage key를 한 번만 5분 URL로 서명한다', async () => {
-    const fakes = dependencies();
-    const service = new LearnerContentService({
-      ...fakes,
-      now: () => new Date('2026-07-24T00:00:00.000Z'),
-    });
-
-    const result = await service.getQuestionDetail('user-1', ids.question);
-    expect(JSON.stringify(result)).not.toContain('storageKey');
-    expect(JSON.stringify(result)).not.toContain('EXPLANATION');
-    expect(JSON.stringify(result)).not.toContain('isCorrect');
-  });
-
-  it('답안 결과의 historical version 해설과 ISO 제출 시각만 제출 뒤 합친다', async () => {
-    const fakes = dependencies();
-    const service = new LearnerContentService({
-      ...fakes,
-      now: () => new Date('2026-07-24T00:00:00.000Z'),
-    });
-
-    const result = await service.submitQuestionAttempt('user-1', ids.question, {
-      questionVersion: 1,
-      selectedOptionId: ids.option,
-      clientAttemptId: ids.clientAttempt,
-      durationMs: 1_000,
-    });
-
-    expect(fakes.questionQuery.getExplanation).not.toHaveBeenCalled();
-    expect(result).toMatchObject({
-      attempt: {
-        id: ids.attempt,
-        attemptNo: 1,
-        isFirst: true,
-        submittedAt: '2026-07-24T00:00:00.000Z',
-      },
-      feedback: {
-        correctOptionId: ids.option,
-        explanation: '풀이 당시 해설',
-      },
-    });
-  });
-
-  it('공개 문제 query의 null을 안정적인 404 code로 바꾼다', async () => {
-    const fakes = dependencies();
-    fakes.questionQuery.getQuestionDetail.mockResolvedValueOnce(null);
-    const service = new LearnerContentService({ ...fakes });
-
-    await expect(
-      service.getQuestionDetail('user-1', ids.question),
-    ).rejects.toMatchObject({
-      status: 404,
-      response: { code: 'QUESTION_NOT_FOUND' },
-    });
-  });
-
-  it('공개 필드가 contract를 어기면 request ZodError와 다른 generic 오류로 바꾼다', async () => {
-    const fakes = dependencies();
-    fakes.questionQuery.listQuestions.mockResolvedValueOnce({
-      items: [{ ...questionListItem, difficulty: 0 }],
-      page,
-    });
-    const service = new LearnerContentService({ ...fakes });
-
-    await expect(
-      service.listQuestions('user-1', {
-        page: 1,
-        pageSize: 20,
-        sort: 'LATEST',
-      }),
-    ).rejects.toEqual(new LearnerPublicResponseError());
-  });
 });
 
 describe('LearnerContentService 어휘 응답', () => {
-  it('관련 문제에서도 비공개 어휘를 404로 숨긴다', async () => {
-    const fakes = dependencies();
-    fakes.vocabularyQuery.getVocabularyDetail.mockResolvedValueOnce(null);
-    const service = new LearnerContentService({ ...fakes });
-
-    await expect(
-      service.listRelatedQuestions('user-1', ids.vocabulary, {
-        page: 1,
-        pageSize: 20,
-      }),
-    ).rejects.toMatchObject({
-      status: 404,
-      response: { code: 'VOCABULARY_NOT_FOUND' },
-    });
-    expect(fakes.vocabularyQuery.listRelatedQuestions).not.toHaveBeenCalled();
-  });
-
   it('어휘 상세 query의 null도 같은 stable 404 code로 바꾼다', async () => {
     const fakes = dependencies();
     fakes.vocabularyQuery.getVocabularyDetail.mockResolvedValueOnce(null);
@@ -410,41 +125,5 @@ describe('LearnerContentService 어휘 응답', () => {
       status: 404,
       response: { code: 'VOCABULARY_NOT_FOUND' },
     });
-  });
-
-  it('목록·풀이 기록·문제 저장 변경의 사용자와 strict 공개 값을 전달한다', async () => {
-    const fakes = dependencies();
-    const service = new LearnerContentService({ ...fakes });
-
-    const questions = await service.listQuestions('user-1', {
-      page: 1,
-      pageSize: 20,
-      sort: 'LATEST',
-    });
-    const attempts = await service.listAttempts('user-1', {
-      page: 1,
-      pageSize: 20,
-    });
-
-    const related = await service.listRelatedQuestions(
-      'user-1',
-      ids.vocabulary,
-      { page: 1, pageSize: 20 },
-    );
-    await service.saveQuestion('user-1', ids.question);
-    await service.removeQuestion('user-1', ids.question);
-
-    expect(questions.items).toHaveLength(1);
-    expect(attempts.items[0]?.submittedAt).toBe('2026-07-24T00:00:00.000Z');
-    expect(related.items).toHaveLength(1);
-    expect(fakes.savedContent.saveQuestion).toHaveBeenCalledWith(
-      'user-1',
-      ids.question,
-      expect.any(Date),
-    );
-    expect(fakes.savedContent.removeQuestion).toHaveBeenCalledWith(
-      'user-1',
-      ids.question,
-    );
   });
 });

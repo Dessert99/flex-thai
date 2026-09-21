@@ -26,44 +26,6 @@ const queuedSelect = (results: unknown[][]) => {
 };
 
 describe('DrizzleContentProductionRepository 조건부 전이', () => {
-  it('questionPlan 없이도 local 복원에 필요한 durable claim 필드를 반환한다', async () => {
-    const returning = vi.fn().mockResolvedValue([
-      {
-        id: '00000000-0000-4000-8000-000000000402',
-        jobId: '00000000-0000-4000-8000-000000000401',
-        sourceRef: 'input:0:question:0',
-        jobInputId: '00000000-0000-4000-8000-000000000403',
-        operation: 'QUESTION_GENERATION',
-        status: 'PROCESSING',
-        attempt: 0,
-        retryable: false,
-        errorCode: null,
-        leaseUntil: new Date('2026-07-31T00:05:00.000Z'),
-        leaseToken: 'lease-token',
-      },
-    ]);
-    const where = vi.fn(() => ({ returning }));
-    const set = vi.fn(() => ({ where }));
-    const update = vi.fn(() => ({ set }));
-    const repository = new DrizzleContentProductionRepository(
-      { update } as never,
-      () => new Date('2026-07-31T00:00:00.000Z'),
-    );
-
-    const claimed = await repository.startItem(
-      '00000000-0000-4000-8000-000000000401',
-      '00000000-0000-4000-8000-000000000402',
-      0,
-    );
-
-    expect(claimed).toMatchObject({
-      sourceRef: 'input:0:question:0',
-      jobInputId: '00000000-0000-4000-8000-000000000403',
-      operation: 'QUESTION_GENERATION',
-    });
-    expect(claimed).not.toHaveProperty('questionPlan');
-  });
-
   it('구조화된 item seed의 input과 operation을 row에 보존한다', async () => {
     const returning = vi.fn().mockResolvedValue([]);
     const limit = vi.fn().mockResolvedValue([{ attempt: 0 }]);
@@ -83,7 +45,6 @@ describe('DrizzleContentProductionRepository 조건부 전이', () => {
         sourceRef: 'opaque',
         jobInputId: 'input-id',
         operation: 'VOCABULARY_EXTRACTION',
-        questionPlan: null,
       },
     ]);
 
@@ -96,66 +57,6 @@ describe('DrizzleContentProductionRepository 조건부 전이', () => {
         attempt: 0,
       },
     ]);
-  });
-
-  it('legacy Job의 unique 충돌을 콘텐츠 제작 멱등 충돌로 반환한다', async () => {
-    const returning = vi.fn().mockResolvedValue([]);
-    const onConflictDoNothing = vi.fn(() => ({ returning }));
-    const values = vi.fn(() => ({ onConflictDoNothing }));
-    const insert = vi.fn(() => ({ values }));
-    const limit = vi.fn().mockResolvedValue([
-      {
-        id: '405986f9-e552-4ce1-82d6-70a1fc460f96',
-        requestedBy: '8f47b4d5-97d6-4596-af72-16456be51be8',
-        clientRequestId: 'dbb22737-6f3d-4112-bb0e-8e4f005c810b',
-        type: 'VOCAB_IMPORT',
-        purpose: null,
-        presetId: null,
-        presetSnapshot: null,
-        status: 'QUEUED',
-        attempt: 0,
-        enqueuedAt: null,
-        completedAt: null,
-        failureCode: null,
-        createdAt: new Date('2026-07-17T00:00:00.000Z'),
-        updatedAt: new Date('2026-07-17T00:00:00.000Z'),
-      },
-    ]);
-    const where = vi.fn(() => ({ limit }));
-    const from = vi.fn(() => ({ where }));
-    const select = vi.fn(() => ({ from }));
-    const transaction = vi.fn(
-      (callback: (executor: unknown) => Promise<unknown>) =>
-        callback({ insert, select }),
-    );
-    const repository = new DrizzleContentProductionRepository({
-      transaction,
-    } as never);
-
-    await expect(
-      repository.createOrFind({
-        requestedBy: '8f47b4d5-97d6-4596-af72-16456be51be8',
-        clientRequestId: 'dbb22737-6f3d-4112-bb0e-8e4f005c810b',
-        purpose: 'QUESTION_GENERATION',
-        presetSnapshot: {
-          id: 'a9979e5d-515d-43ab-a380-e88b78513c38',
-          name: '기본 문제 생성',
-          purpose: 'QUESTION_GENERATION',
-          version: 1,
-          parameters: { language: 'th' },
-        },
-        inputs: [
-          {
-            uploadId: '77a1e8ff-7c85-4739-9004-647e12e34b65',
-            inputType: 'TEXT',
-            inputKey: 'inputs/a.txt',
-            sizeBytes: 10,
-          },
-        ],
-      }),
-    ).rejects.toMatchObject({
-      code: 'CONTENT_PRODUCTION_IDEMPOTENCY_CONFLICT',
-    });
   });
 
   it('이미 claim된 attempt는 stale 재전달로 보고 null을 반환한다', async () => {
@@ -329,9 +230,9 @@ describe('DrizzleContentProductionPresetCatalog version 운영', () => {
   const preset = {
     id: '405986f9-e552-4ce1-82d6-70a1fc460f96',
     name: '문제 생성',
-    purpose: 'QUESTION_GENERATION' as const,
+    purpose: 'VOCABULARY_EXTRACTION' as const,
+    parameters: { suspectedDuplicateMaxCodePointDistance: 1 },
     version: 2,
-    parameters: { commonPrinciples: ['FLEX'] },
     enabled: true,
     createdAt: new Date('2026-07-28T00:00:00.000Z'),
   };
@@ -444,9 +345,7 @@ describe('DrizzleContentProductionPresetCatalog version 운영', () => {
         occurredAt: new Date('2026-07-28T00:01:00.000Z'),
         name: '잘못된 preset',
         purpose: 'VOCABULARY_EXTRACTION',
-        parameters: {
-          questionCount: 1,
-        },
+        parameters: {},
       }),
     ).rejects.toMatchObject({
       code: 'CONTENT_PRODUCTION_PRESET_PURPOSE_MISMATCH',

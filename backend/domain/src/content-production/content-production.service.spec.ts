@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import {
   ContentProductionDomainError,
   ContentProductionService,
-  expandQuestionGenerationPlan,
   type ContentProductionJob,
   type ContentProductionRepository,
 } from './content-production.service.js';
@@ -13,9 +12,9 @@ const requestId = 'dbb22737-6f3d-4112-bb0e-8e4f005c810b';
 const preset = {
   id: '405986f9-e552-4ce1-82d6-70a1fc460f96',
   name: '기본 문제 생성',
-  purpose: 'QUESTION_GENERATION' as const,
+  purpose: 'VOCABULARY_EXTRACTION' as const,
+  parameters: { suspectedDuplicateMaxCodePointDistance: 1 },
   version: 1,
-  parameters: { language: 'th' },
 };
 
 const createRepository = (): ContentProductionRepository & {
@@ -96,7 +95,8 @@ const createRepository = (): ContentProductionRepository & {
 const command = {
   requestedBy: ownerId,
   clientRequestId: requestId,
-  purpose: 'QUESTION_GENERATION' as const,
+  purpose: 'VOCABULARY_EXTRACTION' as const,
+  parameters: { suspectedDuplicateMaxCodePointDistance: 1 },
   presetSnapshot: preset,
   inputs: [
     {
@@ -109,43 +109,6 @@ const command = {
 };
 
 describe('ContentProductionService 콘텐츠 제작 규칙', () => {
-  it('유형과 난이도 계획을 선언 순서대로 문항별 snapshot으로 펼친다', () => {
-    expect(
-      expandQuestionGenerationPlan({
-        questionCount: 4,
-        questionTypePlan: [
-          { questionTypeVersionId: 'type-b', count: 1 },
-          { questionTypeVersionId: 'type-a', count: 3 },
-        ],
-        difficultyPlan: [
-          { difficulty: 4, count: 2 },
-          { difficulty: 2, count: 2 },
-        ],
-      }),
-    ).toEqual([
-      {
-        questionPlanIndex: 0,
-        questionTypeVersionId: 'type-b',
-        difficulty: 4,
-      },
-      {
-        questionPlanIndex: 1,
-        questionTypeVersionId: 'type-a',
-        difficulty: 4,
-      },
-      {
-        questionPlanIndex: 2,
-        questionTypeVersionId: 'type-a',
-        difficulty: 2,
-      },
-      {
-        questionPlanIndex: 3,
-        questionTypeVersionId: 'type-a',
-        difficulty: 2,
-      },
-    ]);
-  });
-
   it('서로 다른 입력 타입을 한 작업에 섞지 않는다', async () => {
     const service = new ContentProductionService(
       createRepository(),
@@ -183,6 +146,7 @@ describe('ContentProductionService 콘텐츠 제작 규칙', () => {
         purpose: 'VOCABULARY_EXTRACTION',
         presetSnapshot: {
           ...preset,
+          id: '00000000-0000-4000-8000-000000000999',
           purpose: 'VOCABULARY_EXTRACTION',
         },
       }),
@@ -223,7 +187,10 @@ describe('ContentProductionService 콘텐츠 제작 규칙', () => {
         ...command,
         presetSnapshot: {
           ...preset,
-          parameters: { ...preset.parameters, questionCount: 2 },
+          parameters: {
+            ...preset.parameters,
+            suspectedDuplicateMaxCodePointDistance: 2,
+          },
         },
       }),
     ).rejects.toMatchObject({

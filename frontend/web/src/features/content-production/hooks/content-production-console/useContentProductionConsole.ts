@@ -2,30 +2,14 @@ import {
   contentProductionJobsQueryOptions,
   contentProductionPresetsQueryOptions,
   createContentProductionJob,
-  previewContentProductionPrompt,
 } from '@/features/content-production/apis/run-content-production/contentProductionApi';
 import type { ContentProductionConsolePageViewProps } from '@/features/content-production/libs/content-production-console/contentProductionConsolePageTypes';
 import { uploadContentProductionInput } from '@/features/content-production/libs/run-content-production/uploadContentProductionInput';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
-
 export function useContentProductionConsole(): ContentProductionConsolePageViewProps {
   const queryClient = useQueryClient();
-
   const presets = useQuery(contentProductionPresetsQueryOptions());
-
   const jobs = useQuery(contentProductionJobsQueryOptions());
-
-  const [preview, setPreview] = useState<
-    Awaited<ReturnType<typeof previewContentProductionPrompt>> | undefined
-  >();
-
-  const previewRevision = useRef(0);
-
-  const previewMutation = useMutation({
-    mutationFn: previewContentProductionPrompt,
-  });
-
   const createMutation = useMutation({
     mutationFn: createContentProductionJob,
     onSuccess: () =>
@@ -33,70 +17,32 @@ export function useContentProductionConsole(): ContentProductionConsolePageViewP
         queryKey: ['admin', 'content-production', 'jobs'],
       }),
   });
-
-  const presetFor = (presetId: string) =>
-    presets.data?.items.find((preset) => preset.id === presetId);
   return {
     ...(jobs.data ? { jobs: jobs.data } : {}),
     jobsError: jobs.isError,
     jobsLoading: jobs.isPending,
-    mutationPending: previewMutation.isPending || createMutation.isPending,
-    previewError: previewMutation.isError,
-    createError: createMutation.isError,
-    onConfigurationChange: () => {
-      previewRevision.current += 1;
-      previewMutation.reset();
-      setPreview(undefined);
-    },
-    onFile: (file) =>
-      uploadContentProductionInput(file, new AbortController().signal),
-    onPreview: ({ presetId, options, questionPlanIndex }) => {
-      if (previewMutation.isPending) return;
-      const preset = presetFor(presetId);
-      if (!preset || preset.purpose === 'VOCABULARY_EXTRACTION') return;
-      const revision = previewRevision.current + 1;
-      previewRevision.current = revision;
-      setPreview(undefined);
-      void previewMutation
-        .mutateAsync({
-          purpose: preset.purpose,
-          presetId,
-          options,
-          questionPlanIndex,
-        })
-        .then((result) => {
-          if (previewRevision.current === revision) setPreview(result);
-        })
-        .catch(() => undefined);
-    },
-    onRetryJobs: () => void jobs.refetch(),
-    onRetryPresets: () => void presets.refetch(),
-    onSubmit: ({ presetId, uploadId, options }) => {
-      if (createMutation.isPending) return;
-      const preset = presetFor(presetId);
-      if (!preset) return;
-      if (preset.purpose === 'VOCABULARY_EXTRACTION') {
-        createMutation.mutate({
-          clientRequestId: crypto.randomUUID(),
-          purpose: preset.purpose,
-          presetId,
-          uploadIds: [uploadId],
-          options: {},
-        });
-        return;
-      }
-      if (!options) return;
-      createMutation.mutate({
-        clientRequestId: crypto.randomUUID(),
-        purpose: preset.purpose,
-        presetId,
-        uploadIds: [uploadId],
-        options,
-      });
-    },
     ...(presets.data ? { presets: presets.data } : {}),
     presetsError: presets.isError,
     presetsLoading: presets.isPending,
-    ...(preview ? { preview } : {}),
+    mutationPending: createMutation.isPending,
+    createError: createMutation.isError,
+    onFile: (file) =>
+      uploadContentProductionInput(file, new AbortController().signal),
+    onRetryJobs: () => void jobs.refetch(),
+    onRetryPresets: () => void presets.refetch(),
+    onSubmit: ({ presetId, uploadId }) => {
+      if (
+        createMutation.isPending ||
+        !presets.data?.items.some((p) => p.id === presetId)
+      )
+        return;
+      createMutation.mutate({
+        clientRequestId: crypto.randomUUID(),
+        purpose: 'VOCABULARY_EXTRACTION',
+        presetId,
+        uploadIds: [uploadId],
+        options: {},
+      });
+    },
   };
 }

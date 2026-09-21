@@ -2,12 +2,7 @@
 import { z } from 'zod';
 
 /** 초기 비동기 작업 종류 */
-export const jobTypeSchema = z.enum([
-  'VOCAB_IMPORT',
-  'VOCABULARY_EXTRACTION',
-  'QUESTION_GENERATION',
-  'VOCABULARY_THEN_QUESTION_GENERATION',
-]);
+export const jobTypeSchema = z.enum(['VOCAB_IMPORT', 'VOCABULARY_EXTRACTION']);
 
 /** 지원 입력 형식 */
 export const inputTypeSchema = z.enum(['TEXT', 'PDF', 'IMAGE']);

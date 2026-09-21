@@ -1,17 +1,5 @@
 /** 실제 DB port를 사용해 비용 없는 콘텐츠 제작 후보를 생성한다 */
-import type {
-  GeneratedQuestionCandidate,
-  GeneratedQuestionSentenceInput,
-  QuestionProductionArtifacts,
-  QuestionProductionCandidateRepository,
-  QuestionProductionContext,
-  QuestionProductionContextRepository,
-} from '@flex-thia/domain/content-production/ai-question-production';
-import {
-  normalizeQuestionProductionValidationRecord,
-  validateGeneratedQuestionSchema,
-  validateQuestionDecisionRules,
-} from '@flex-thia/domain/content-production/ai-question-production';
+
 import type { VocabularyProductionArtifacts } from '@flex-thia/domain/content-production/ai-vocabulary-production';
 import {
   evaluateVocabularyCandidate,
@@ -19,13 +7,10 @@ import {
 } from '@flex-thia/domain/content-production/ai-vocabulary-production';
 import type { ContentProductionWorkItem } from '@flex-thia/domain/content-production/content-production-work-item';
 import type { VocabularyProductionLookup } from '@flex-thia/domain/vocabulary/vocabulary-production-lookup';
-import { createHash } from 'node:crypto';
 
 /** local fake processor가 artifact를 만들 때 필요한 domain repository port 묶음 */
 export interface DeterministicContentProductionProcessorDependencies {
   vocabularyLookup: VocabularyProductionLookup;
-  questionContext: QuestionProductionContextRepository;
-  questionCandidates: QuestionProductionCandidateRepository;
 }
 
 /** local fake processor의 항목 처리 결과 */
@@ -37,231 +22,14 @@ export interface DeterministicContentProductionOutcome {
   artifacts?: VocabularyProductionArtifacts;
 }
 
-const readAllowedTopic = (
-  context: QuestionProductionContext,
-): { id: string; slug: string } | null => {
-  const topics = context.typeVersion.generationRules['allowedTopics'];
-  if (!Array.isArray(topics)) return null;
-
-  const topic = topics.find(
-    (value): value is { id: string; slug: string } =>
-      value !== null &&
-      typeof value === 'object' &&
-      typeof (value as { id?: unknown }).id === 'string' &&
-      typeof (value as { slug?: unknown }).slug === 'string',
-  );
-  return topic ?? null;
-};
-
-const candidateSentence = (
-  vocabulary: QuestionProductionContext['targetVocabulary'][number],
-  references: {
-    vocabularyId: string;
-    meaningId: string;
-  },
-): GeneratedQuestionSentenceInput => ({
-  originalText: vocabulary.thai,
-  translationKo: vocabulary.meaningKo,
-  tokens: [
-    {
-      surface: vocabulary.thai,
-      startOffset: 0,
-      endOffset: Array.from(vocabulary.thai).length,
-      vocabulary: { id: references.vocabularyId },
-      meaning: { id: references.meaningId },
-      contextMeaningKo: vocabulary.meaningKo,
-      role: 'TARGET',
-    },
-  ],
-  expressions: [],
-});
-
-const buildQuestionCandidate = (
-  context: QuestionProductionContext,
-): GeneratedQuestionCandidate | null => {
-  const topic = readAllowedTopic(context);
-  const vocabulary = context.targetVocabulary[0];
-  const optionCount = context.typeVersion.structureRules['optionCount'];
-  if (
-    !topic ||
-    !vocabulary ||
-    !vocabulary.id ||
-    !vocabulary.meaningId ||
-    context.typeVersion.template !== 'STANDARD_CHOICE' ||
-    typeof optionCount !== 'number' ||
-    !Number.isInteger(optionCount) ||
-    optionCount < 1
-  ) {
-    return null;
-  }
-
-  const sentence = candidateSentence(vocabulary, {
-    vocabularyId: vocabulary.id,
-    meaningId: vocabulary.meaningId,
-  });
-  return {
-    questionTypeVersionId: context.typeVersion.id,
-    topicId: topic.id,
-    tagIds: [],
-    difficulty: context.difficulty,
-    payload: {
-      questionTypeSlug: context.typeVersion.slug,
-      questionTypeVersion: context.typeVersion.version,
-      difficulty: context.difficulty,
-      topicSlug: topic.slug,
-      tagSlugs: [],
-      blocks: [
-        {
-          kind: 'QUESTION',
-          sentences: [{ speaker: null, sentence }],
-        },
-      ],
-      options: Array.from({ length: optionCount }, (_, position) => ({
-        clientRef: `local-option-${position}`,
-        position,
-        sentence,
-        span: null,
-      })),
-      correctOptionRef: 'local-option-0',
-    },
-  };
-};
-
-const failedQuestionArtifacts = (
-  context: QuestionProductionContext,
-): QuestionProductionArtifacts => ({
-  kind: 'QUESTION_CANDIDATES',
-  candidates: [
-    {
-      ordinal: 0,
-      candidate: {
-        payloadState: 'REDACTED_INVALID',
-        questionTypeVersionId: context.typeVersion.id,
-        topicId: null,
-        tagIds: [],
-        difficulty: null,
-        payload: null,
-      },
-      payloadHash: createHash('sha256')
-        .update('LOCAL_QUESTION_CANDIDATE_INVALID')
-        .digest('hex'),
-      resultGroup: 'FAILED',
-      reviewStatus: 'PENDING',
-      reviewCode: 'QUESTION_RULE_INVALID',
-      regeneratedFromCandidateId: null,
-      approvedQuestionId: null,
-      approvedQuestionVersion: null,
-    },
-  ],
-  validations: [
-    normalizeQuestionProductionValidationRecord({
-      candidateOrdinal: 0,
-      stage: 'SCHEMA',
-      status: 'FAILED',
-      code: 'QUESTION_SCHEMA_INVALID',
-      details: {},
-    }),
-    normalizeQuestionProductionValidationRecord({
-      candidateOrdinal: 0,
-      stage: 'DECISION_RULE',
-      status: 'SKIPPED',
-      code: 'QUESTION_VALIDATION_SKIPPED',
-      details: {},
-    }),
-    normalizeQuestionProductionValidationRecord({
-      candidateOrdinal: 0,
-      stage: 'SIMILARITY',
-      status: 'SKIPPED',
-      code: 'QUESTION_VALIDATION_SKIPPED',
-      details: {},
-    }),
-    normalizeQuestionProductionValidationRecord({
-      candidateOrdinal: 0,
-      stage: 'AI_CROSS_VALIDATION',
-      status: 'SKIPPED',
-      code: 'QUESTION_VALIDATION_SKIPPED',
-      details: {},
-    }),
-  ],
-});
-
-const questionArtifacts = (
-  context: QuestionProductionContext,
-): QuestionProductionArtifacts => {
-  const candidate = buildQuestionCandidate(context);
-  if (!candidate) return failedQuestionArtifacts(context);
-
-  const schema = validateGeneratedQuestionSchema(candidate);
-  const rules =
-    schema.status === 'PASSED'
-      ? validateQuestionDecisionRules(candidate, context)
-      : { status: 'FAILED' as const, code: 'QUESTION_RULE_INVALID' as const };
-  if (schema.status !== 'PASSED' || rules.status !== 'PASSED') {
-    return failedQuestionArtifacts(context);
-  }
-
-  return {
-    kind: 'QUESTION_CANDIDATES',
-    candidates: [
-      {
-        ordinal: 0,
-        candidate: { payloadState: 'CANONICAL', ...candidate },
-        payloadHash: createHash('sha256')
-          .update(JSON.stringify(candidate.payload))
-          .digest('hex'),
-        resultGroup: 'NORMAL',
-        reviewStatus: 'PENDING',
-        reviewCode: null,
-        regeneratedFromCandidateId: null,
-        approvedQuestionId: null,
-        approvedQuestionVersion: null,
-      },
-    ],
-    validations: [
-      normalizeQuestionProductionValidationRecord({
-        candidateOrdinal: 0,
-        stage: 'SCHEMA',
-        status: 'PASSED',
-        code: null,
-        details: {},
-      }),
-      normalizeQuestionProductionValidationRecord({
-        candidateOrdinal: 0,
-        stage: 'DECISION_RULE',
-        status: 'PASSED',
-        code: null,
-        details: {},
-      }),
-      normalizeQuestionProductionValidationRecord({
-        candidateOrdinal: 0,
-        stage: 'SIMILARITY',
-        status: 'PASSED',
-        code: null,
-        details: {},
-      }),
-      normalizeQuestionProductionValidationRecord({
-        candidateOrdinal: 0,
-        stage: 'AI_CROSS_VALIDATION',
-        status: 'PASSED',
-        code: null,
-        details: {},
-      }),
-    ],
-  };
-};
-
 /** sourceRef suffix로 비용 없는 성공·검토·실패 fixture를 생성한다 */
 export class DeterministicContentProductionProcessor {
   readonly vocabularyLookup: VocabularyProductionLookup;
-  readonly questionContext: QuestionProductionContextRepository;
-  readonly questionCandidates: QuestionProductionCandidateRepository;
 
   constructor(
     dependencies: DeterministicContentProductionProcessorDependencies,
   ) {
     this.vocabularyLookup = dependencies.vocabularyLookup;
-    this.questionContext = dependencies.questionContext;
-    this.questionCandidates = dependencies.questionCandidates;
   }
 
   /** 같은 sourceRef에는 언제나 같은 항목 결과와 artifact를 반환한다 */
@@ -331,65 +99,6 @@ export class DeterministicContentProductionProcessor {
       };
     }
 
-    if (!item.questionPlan) {
-      return {
-        status: 'FAILED',
-        retryable: false,
-        errorCode: 'LOCAL_QUESTION_PLAN_MISSING',
-      };
-    }
-
-    let context: QuestionProductionContext;
-    try {
-      context = await this.questionContext.load({
-        preset: workItem.presetSnapshot,
-        operation: 'QUESTION_GENERATION',
-        questionPlan: item.questionPlan,
-      });
-    } catch {
-      return {
-        status: 'FAILED',
-        retryable: true,
-        errorCode: 'LOCAL_QUESTION_CONTEXT_LOAD_FAILED',
-      };
-    }
-
-    const artifacts = questionArtifacts(context);
-    const normal = artifacts.candidates[0]?.resultGroup === 'NORMAL';
-    const outcome: DeterministicContentProductionOutcome = {
-      status: normal ? 'SUCCEEDED' : 'NEEDS_ATTENTION',
-      retryable: false,
-      errorCode: null,
-      result: {
-        total: 1,
-        normal: normal ? 1 : 0,
-        needsAttention: 0,
-        failed: normal ? 0 : 1,
-      },
-    };
-
-    try {
-      const persisted = await this.questionCandidates.persist({
-        jobId: workItem.jobId,
-        itemId: item.id,
-        attempt: workItem.jobAttempt,
-        leaseToken: item.leaseToken,
-        outcome,
-        artifacts,
-      });
-      return persisted
-        ? outcome
-        : {
-            status: 'NEEDS_ATTENTION',
-            retryable: true,
-            errorCode: 'LOCAL_QUESTION_STALE_LEASE',
-          };
-    } catch {
-      return {
-        status: 'FAILED',
-        retryable: true,
-        errorCode: 'LOCAL_QUESTION_ARTIFACT_PERSIST_FAILED',
-      };
-    }
+    throw new Error('Unsupported content production operation');
   }
 }

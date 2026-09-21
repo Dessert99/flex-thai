@@ -1,8 +1,4 @@
 /** 공유 dispatch outbox의 exact insert와 lease 기반 claim·ack·release를 구현한다 */
-import type {
-  QuestionRegenerationDispatchInput,
-  QuestionRegenerationDispatchWriter,
-} from '@flex-thia/domain/content-production/ai-question-production';
 import { and, asc, eq, gt, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
@@ -146,7 +142,7 @@ const mapClaimed = (
 };
 
 /** 공용 outbox writer와 lease repository를 한 PostgreSQL adapter로 제공한다 */
-export class DrizzleAsyncDispatchOutboxRepository implements QuestionRegenerationDispatchWriter<AsyncDispatchTransaction> {
+export class DrizzleAsyncDispatchOutboxRepository {
   constructor(
     private readonly database: AsyncDispatchDatabase,
     private readonly now: () => Date = () => new Date(),
@@ -156,7 +152,12 @@ export class DrizzleAsyncDispatchOutboxRepository implements QuestionRegeneratio
   /** AI 재생성 실행을 호출 transaction 안에 exact-once intent로 기록한다 */
   async enqueue(
     transaction: AsyncDispatchTransaction,
-    input: QuestionRegenerationDispatchInput,
+    input: {
+      destination: AsyncDispatchPayload['payloadKind'];
+      jobId: string;
+      attempt: number;
+      requestedAt: Date;
+    },
   ): Promise<void> {
     await this.enqueuePayload(
       transaction,

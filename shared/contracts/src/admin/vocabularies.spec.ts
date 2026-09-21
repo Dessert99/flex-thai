@@ -13,7 +13,6 @@ const ids = {
   vocabulary: '00000000-0000-4000-8000-000000000001',
   meaning: '00000000-0000-4000-8000-000000000002',
   sentence: '00000000-0000-4000-8000-000000000005',
-  questionVersion: '00000000-0000-4000-8000-000000000006',
   relation: '00000000-0000-4000-8000-000000000007',
   relatedMeaning: '00000000-0000-4000-8000-000000000008',
 } as const;
@@ -126,10 +125,6 @@ describe('관리자 어휘 공개 응답 계약', () => {
       importanceWeight: 5,
       usage: {
         sentenceVersionIds: [ids.sentence],
-        questionCount: 0,
-        targetQuestionCount: 0,
-        occurrenceCount: 0,
-        questionIds: [ids.questionVersion],
       },
       createdAt: '2026-07-24T00:00:00.000Z',
       updatedAt: '2026-07-24T00:00:00.000Z',

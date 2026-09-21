@@ -30,7 +30,6 @@ const sourceGraph = (
   expressionOccurrenceIds: [],
   savedMemberships: [],
   wordbookMemberships: [],
-  practiceQuestionIds: [],
 });
 
 describe('뜻 관계 불변 조건', () => {

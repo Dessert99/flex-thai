@@ -37,7 +37,6 @@ describe('LearnerRecommendationsController', () => {
         mode: 'FALLBACK',
         meaningfulSignalCount: 0,
         activationThreshold: 5,
-        questions: [],
         vocabularies: [],
       }),
     };

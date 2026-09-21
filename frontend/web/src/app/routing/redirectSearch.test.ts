@@ -12,15 +12,10 @@ describe('안전한 로그인 redirect', () => {
     ],
     ['/admin/users', '/admin/users'],
     ['/admin/audit-logs', '/admin/audit-logs'],
-    ['/admin/question-settings', '/admin/question-settings'],
     ['/admin/content-production', '/admin/content-production'],
     [
       '/admin/content-production/jobs/00000000-0000-4000-8000-000000000103',
       '/admin/content-production/jobs/00000000-0000-4000-8000-000000000103',
-    ],
-    [
-      '/admin/content-production/candidates?page=2&pageSize=20',
-      '/admin/content-production/candidates?page=2&pageSize=20',
     ],
     [
       '/admin/content-production/vocabulary-candidates?reviewStatus=PENDING&page=1&pageSize=20',
@@ -31,14 +26,6 @@ describe('안전한 로그인 redirect', () => {
       '/admin/content-production/vocabulary-candidates/00000000-0000-4000-8000-000000000104',
     ],
     ['/admin/content-production/presets', '/admin/content-production/presets'],
-    [
-      '/questions?difficulty=3&page=2&pageSize=20',
-      '/questions?difficulty=3&page=2&pageSize=20',
-    ],
-    [
-      '/questions?skill=READING&saved=true',
-      '/questions?skill=READING&saved=true',
-    ],
   ])('승인된 내부 경로 %s를 보존한다', (value, expected) => {
     expect(parseSafeRedirect(value)).toBe(expected);
   });
@@ -52,9 +39,6 @@ describe('안전한 로그인 redirect', () => {
     '/wordbooks?unexpected=1',
     '/wordbooks/abc',
     '/wordbooks/not-a-uuid',
-    '/questions?unexpected=1',
-    '/questions?page=0',
-    '/questions?pageSize=101',
   ])('위험하거나 계약 밖인 redirect %s를 거부한다', (value) => {
     expect(parseSafeRedirect(value)).toBeUndefined();
   });

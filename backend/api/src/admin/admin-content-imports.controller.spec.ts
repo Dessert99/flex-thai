@@ -23,7 +23,6 @@ const importDetail = {
   id: importId,
   status: 'COMPLETED',
   vocabularyCount: 1,
-  questionCount: 0,
   importedCount: 1,
   rejectedCount: 0,
   createdAt: '2026-07-24T00:00:00.000Z',
@@ -81,7 +80,6 @@ describe('AdminContentImportsController 공개 계약', () => {
           ],
         },
       ],
-      questions: [],
     } as const;
 
     await expect(
@@ -110,7 +108,6 @@ describe('AdminContentImportsController 공개 계약', () => {
             id: importDetail.id,
             status: importDetail.status,
             vocabularyCount: importDetail.vocabularyCount,
-            questionCount: importDetail.questionCount,
             importedCount: importDetail.importedCount,
             rejectedCount: importDetail.rejectedCount,
             createdAt: importDetail.createdAt,

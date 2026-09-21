@@ -3,42 +3,11 @@ import { z } from 'zod';
 
 const uuidSchema = z.uuid();
 
-/** 문제 추천의 가장 높은 기여 신호 */
-export const questionRecommendationReasonCodeSchema = z.enum([
-  'RECENTLY_PUBLISHED',
-  'SAVED_QUESTION',
-  'FIRST_INCORRECT_RETRY',
-  'PRACTICE_MISSED_VOCABULARY',
-  'SIMILAR_QUESTION_TYPE',
-  'SAVED_QUESTION_VOCABULARY',
-]);
-
 /** 어휘 추천의 가장 높은 기여 신호 */
 export const vocabularyRecommendationReasonCodeSchema = z.enum([
   'RECENTLY_PUBLISHED',
   'IN_WORDBOOK',
-  'PRACTICE_INCORRECT',
-  'FIRST_INCORRECT_QUESTION_VOCABULARY',
-  'SAVED_QUESTION_VOCABULARY',
 ]);
-
-const questionRecommendationSchema = z
-  .object({
-    questionId: uuidSchema,
-    questionVersion: z.number().int().positive(),
-    questionType: z
-      .object({
-        id: uuidSchema,
-        slug: z.string().min(1),
-        displayName: z.string().min(1),
-      })
-      .strict(),
-    skill: z.enum(['READING']),
-    difficulty: z.number().int().min(1).max(5),
-    reasonCode: questionRecommendationReasonCodeSchema,
-    reason: z.string().min(1),
-  })
-  .strict();
 
 const vocabularyRecommendationSchema = z
   .object({
@@ -47,17 +16,6 @@ const vocabularyRecommendationSchema = z
     kind: z.enum(['WORD', 'EXPRESSION']),
     reasonCode: vocabularyRecommendationReasonCodeSchema,
     reason: z.string().min(1),
-  })
-  .strict();
-
-const homeQuestionSchema = z
-  .object({
-    questionId: uuidSchema,
-    questionVersion: z.number().int().positive(),
-    questionTypeDisplayName: z.string().min(1),
-    skill: z.enum(['READING']),
-    difficulty: z.number().int().min(1).max(5),
-    publishedAt: z.iso.datetime(),
   })
   .strict();
 
@@ -72,7 +30,6 @@ const homeVocabularySchema = z
 
 const homeContentSchema = z
   .object({
-    questions: z.array(homeQuestionSchema).max(3),
     vocabularies: z.array(homeVocabularySchema).max(3),
   })
   .strict();
@@ -85,15 +42,9 @@ export const recommendationResponseSchema = z
     activationThreshold: z.number().int().positive(),
     publishedToday: homeContentSchema,
     newContent: homeContentSchema,
-    questions: z.array(questionRecommendationSchema).max(3),
     vocabularies: z.array(vocabularyRecommendationSchema).max(3),
   })
   .strict();
-
-/** 문제 추천 이유 code */
-export type QuestionRecommendationReasonCode = z.infer<
-  typeof questionRecommendationReasonCodeSchema
->;
 
 /** 어휘 추천 이유 code */
 export type VocabularyRecommendationReasonCode = z.infer<

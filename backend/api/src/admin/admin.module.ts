@@ -15,7 +15,7 @@ import {
   type AdminContentDependencies,
   AdminContentService,
 } from './admin-content.service.js';
-import { AdminQuestionsController } from './admin-questions.controller.js';
+
 import { AdminVocabulariesController } from './admin-vocabularies.controller.js';
 
 /** Admin HTTP 경계가 받는 기존 Stage 3~8 조립 결과와 인증 의존성 */
@@ -31,11 +31,7 @@ export class AdminModule {
   static register(options: AdminModuleOptions): DynamicModule {
     return {
       module: AdminModule,
-      controllers: [
-        AdminContentImportsController,
-        AdminQuestionsController,
-        AdminVocabulariesController,
-      ],
+      controllers: [AdminContentImportsController, AdminVocabulariesController],
       providers: [
         {
           provide: AdminContentService,

@@ -47,7 +47,6 @@ export interface VocabularyMergeGraph {
   expressionOccurrenceIds: string[];
   savedMemberships: string[];
   wordbookMemberships: string[];
-  practiceQuestionIds: string[];
 }
 
 /** 관계·병합 예상 실패를 API가 안정적으로 분기할 code로 전달한다 */
@@ -158,7 +157,6 @@ const stableGraph = (graph: VocabularyMergeGraph) => ({
   expressionOccurrenceIds: [...graph.expressionOccurrenceIds].sort(),
   savedMemberships: [...graph.savedMemberships].sort(),
   wordbookMemberships: [...graph.wordbookMemberships].sort(),
-  practiceQuestionIds: [...graph.practiceQuestionIds].sort(),
 });
 
 /** 두 live graph의 같은 상태에만 유효한 opaque SHA-256 token을 만든다 */

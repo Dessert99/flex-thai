@@ -1,5 +1,5 @@
 /** 문장 안 공용 어휘 출현의 내부 projection */
-export interface LearnerQuestionTokenProjection {
+export interface ThaiTokenProjection {
   position: number;
   surface: string;
   startOffset: number;
@@ -11,7 +11,7 @@ export interface LearnerQuestionTokenProjection {
 }
 
 /** 문장 안 다단어 표현 범위의 내부 projection */
-export interface LearnerQuestionExpressionProjection {
+export interface ThaiExpressionProjection {
   startTokenIndex: number;
   endTokenIndex: number;
   vocabularyId: string;
@@ -21,10 +21,10 @@ export interface LearnerQuestionExpressionProjection {
 }
 
 /** 블록과 선택지가 같은 객체로 공유하는 불변 문장 projection */
-export interface LearnerQuestionSentenceProjection {
+export interface ThaiSentenceProjection {
   sentenceVersionId: string;
   originalText: string;
   translationKo: string;
-  tokens: LearnerQuestionTokenProjection[];
-  expressions: LearnerQuestionExpressionProjection[];
+  tokens: ThaiTokenProjection[];
+  expressions: ThaiExpressionProjection[];
 }

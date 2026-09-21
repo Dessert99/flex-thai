@@ -1,26 +1,12 @@
 /** 개인 추천 응답의 모드·이유·내부 점수 비노출 계약을 검증한다 */
 import { describe, expect, it } from 'vitest';
-import {
-  questionRecommendationReasonCodeSchema,
-  recommendationResponseSchema,
-  vocabularyRecommendationReasonCodeSchema,
-} from './recommendations.js';
+import { recommendationResponseSchema } from './recommendations.js';
 
 const response = {
   mode: 'PERSONALIZED',
   meaningfulSignalCount: 5,
   activationThreshold: 5,
   publishedToday: {
-    questions: [
-      {
-        questionId: '01933b6a-8f13-7a19-b7e5-536d70f57aae',
-        questionVersion: 1,
-        questionTypeDisplayName: '오늘 게시 문제',
-        skill: 'READING',
-        difficulty: 1,
-        publishedAt: '2026-07-31T01:00:00.000Z',
-      },
-    ],
     vocabularies: [
       {
         id: '01933b6a-8f13-7a19-b7e5-536d70f57ab0',
@@ -31,24 +17,8 @@ const response = {
     ],
   },
   newContent: {
-    questions: [],
     vocabularies: [],
   },
-  questions: [
-    {
-      questionId: '01933b6a-8f13-7a19-b7e5-536d70f57aaa',
-      questionVersion: 1,
-      questionType: {
-        id: '01933b6a-8f13-7a19-b7e5-536d70f57aac',
-        slug: 'reading-context',
-        displayName: '문맥에 맞는 표현',
-      },
-      skill: 'READING',
-      difficulty: 2,
-      reasonCode: 'SAVED_QUESTION',
-      reason: '저장한 문제예요.',
-    },
-  ],
   vocabularies: [
     {
       id: '01933b6a-8f13-7a19-b7e5-536d70f57aad',
@@ -71,9 +41,8 @@ describe('개인 추천 공개 계약', () => {
         ...response,
         mode: 'FALLBACK',
         meaningfulSignalCount: 0,
-        publishedToday: { questions: [], vocabularies: [] },
-        newContent: { questions: [], vocabularies: [] },
-        questions: [],
+        publishedToday: { vocabularies: [] },
+        newContent: { vocabularies: [] },
         vocabularies: [],
       }),
     ).toMatchObject({ mode: 'FALLBACK', meaningfulSignalCount: 0 });
@@ -83,7 +52,7 @@ describe('개인 추천 공개 계약', () => {
     expect(() =>
       recommendationResponseSchema.parse({
         ...response,
-        questions: [{ ...response.questions[0], score: 40 }],
+        vocabularies: [{ ...response.vocabularies[0], score: 100 }],
       }),
     ).toThrow();
   });
@@ -93,33 +62,11 @@ describe('개인 추천 공개 계약', () => {
       recommendationResponseSchema.parse({
         ...response,
         publishedToday: {
-          ...response.publishedToday,
-          questions: [
-            {
-              ...response.publishedToday.questions[0],
-              publishedAt: undefined,
-            },
+          vocabularies: [
+            { id: response.vocabularies[0].id, thai: 'วันนี้', kind: 'WORD' },
           ],
         },
       }),
     ).toThrow();
-  });
-
-  it('승인된 문제·어휘 추천 reason code만 허용한다', () => {
-    expect(questionRecommendationReasonCodeSchema.options).toEqual([
-      'RECENTLY_PUBLISHED',
-      'SAVED_QUESTION',
-      'FIRST_INCORRECT_RETRY',
-      'PRACTICE_MISSED_VOCABULARY',
-      'SIMILAR_QUESTION_TYPE',
-      'SAVED_QUESTION_VOCABULARY',
-    ]);
-    expect(vocabularyRecommendationReasonCodeSchema.options).toEqual([
-      'RECENTLY_PUBLISHED',
-      'IN_WORDBOOK',
-      'PRACTICE_INCORRECT',
-      'FIRST_INCORRECT_QUESTION_VOCABULARY',
-      'SAVED_QUESTION_VOCABULARY',
-    ]);
   });
 });

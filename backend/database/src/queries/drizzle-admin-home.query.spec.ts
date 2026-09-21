@@ -14,7 +14,6 @@ describe('DrizzleAdminHomeQuery', () => {
       ),
     ).resolves.toEqual({
       pendingErrorReportCount: 0,
-      pendingQuestionCandidateCount: 0,
       pendingVocabularyCandidateCount: 0,
       runningContentJobCount: 0,
       failedContentJobCount: 0,

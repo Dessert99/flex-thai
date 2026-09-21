@@ -7,16 +7,7 @@ import {
   type ContentImportListResponse,
   type ContentImportRequest,
 } from '@flex-thia/contracts/admin/content-imports';
-import {
-  adminQuestionDetailResponseSchema,
-  adminQuestionListResponseSchema,
-  type AdminQuestionDetailResponse,
-  type AdminQuestionListQuery,
-  type AdminQuestionListResponse,
-  type AdminQuestionPayload,
-  type AdminQuestionStatusRequest,
-  type AdminQuestionUpdateRequest,
-} from '@flex-thia/contracts/admin/questions';
+
 import {
   adminVocabularyDetailResponseSchema,
   adminVocabularyListResponseSchema,
@@ -37,11 +28,11 @@ import {
   type AdminVocabularyRelationCreateRequest,
   type AdminVocabularyRelationUpdateRequest,
 } from '@flex-thia/contracts/admin/vocabulary-relations';
-import type { DrizzleAdminQuestionQuery } from '@flex-thia/database/queries/drizzle-admin-question.query';
+
 import type { DrizzleAdminVocabularyQuery } from '@flex-thia/database/queries/drizzle-admin-vocabulary.query';
 import type { DrizzleContentImportQuery } from '@flex-thia/database/queries/drizzle-content-import.query';
 import type { ContentImportService } from '@flex-thia/domain/content-import/content-import.service';
-import type { QuestionAdminService } from '@flex-thia/domain/questions/question-admin';
+
 import type { VocabularyAdminService } from '@flex-thia/domain/vocabulary/vocabulary-admin';
 import { NotFoundException } from '@nestjs/common';
 import type { ZodType } from 'zod';
@@ -49,11 +40,6 @@ import type { AuthenticatedUser } from '../common/auth/current-user.decorator.js
 
 type ContentImports = Pick<ContentImportService, 'execute'>;
 type ContentImportQuery = Pick<DrizzleContentImportQuery, 'findById' | 'list'>;
-type Questions = Pick<
-  QuestionAdminService,
-  'create' | 'update' | 'changeStatus'
->;
-type QuestionQuery = Pick<DrizzleAdminQuestionQuery, 'findById' | 'list'>;
 type Vocabularies = Pick<
   VocabularyAdminService,
   | 'setImportance'
@@ -90,8 +76,6 @@ export const createAdminActorContext = (
 export interface AdminContentDependencies {
   contentImports: ContentImports;
   contentImportQuery: ContentImportQuery;
-  questions: Questions;
-  questionQuery: QuestionQuery;
   vocabularies: Vocabularies;
   vocabularyQuery: VocabularyQuery;
   now?: () => Date;
@@ -201,65 +185,6 @@ export class AdminContentService {
       contentImportDetailResponseSchema,
       mapImportSummary(detail),
     );
-  }
-
-  /** 모든 상태 문제의 latest version page를 ISO 시각으로 반환한다 */
-  async listQuestions(
-    query: AdminQuestionListQuery,
-  ): Promise<AdminQuestionListResponse> {
-    const result = await this.dependencies.questionQuery.list(query);
-    return parseAdminPublicResponse(adminQuestionListResponseSchema, {
-      ...result,
-      items: result.items.map((item) => ({
-        ...item,
-        updatedAt: item.updatedAt.toISOString(),
-      })),
-    });
-  }
-  async getQuestion(questionId: string): Promise<AdminQuestionDetailResponse> {
-    const row = await this.dependencies.questionQuery.findById(questionId);
-    if (!row) throw new NotFoundException({ code: 'QUESTION_NOT_FOUND' });
-    return parseAdminPublicResponse(adminQuestionDetailResponseSchema, {
-      ...row,
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
-      publishedAt: row.publishedAt?.toISOString() ?? null,
-    });
-  }
-  async createQuestion(
-    actor: AdminActorContext,
-    input: AdminQuestionPayload,
-  ): Promise<AdminQuestionDetailResponse> {
-    const row = await this.dependencies.questions.create({
-      ...toAuditContext(actor, this.now()),
-      input,
-    });
-    return this.getQuestion(row.id);
-  }
-  async updateQuestion(
-    actor: AdminActorContext,
-    questionId: string,
-    request: AdminQuestionUpdateRequest,
-  ): Promise<AdminQuestionDetailResponse> {
-    await this.dependencies.questions.update({
-      ...toAuditContext(actor, this.now()),
-      ...request,
-      questionId,
-      expectedUpdatedAt: new Date(request.expectedUpdatedAt),
-    });
-    return this.getQuestion(questionId);
-  }
-  async changeQuestionStatus(
-    actor: AdminActorContext,
-    questionId: string,
-    request: AdminQuestionStatusRequest,
-  ): Promise<void> {
-    await this.dependencies.questions.changeStatus({
-      ...toAuditContext(actor, this.now()),
-      ...request,
-      questionId,
-      expectedUpdatedAt: new Date(request.expectedUpdatedAt),
-    });
   }
 
   setVocabularyImportance(

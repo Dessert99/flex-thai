@@ -11,6 +11,14 @@ import {
 } from './openapi.js';
 
 const ACTIVE_PATHS = [
+  '/api/v1/admin/vocabulary-extraction/jobs',
+  '/api/v1/admin/vocabulary-extraction/jobs/latest-saved',
+  '/api/v1/admin/vocabulary-extraction/jobs/{id}',
+  '/api/v1/admin/vocabulary-extraction/jobs/{id}/results',
+  '/api/v1/admin/vocabulary-extraction/jobs/{id}/retry',
+  '/api/v1/admin/vocabulary-extraction/jobs/{id}/save',
+  '/api/v1/admin/vocabulary-extraction/templates',
+  '/api/v1/admin/vocabulary-extraction/templates/{templateId}',
   '/api/v1/admin/concept-versions/{versionId}',
   '/api/v1/admin/concept-versions/{versionId}/publish',
   '/api/v1/admin/concept-versions/{versionId}/validate',
@@ -32,11 +40,6 @@ const ACTIVE_PATHS = [
   '/api/v1/admin/content-production/presets',
   '/api/v1/admin/content-production/presets/{presetId}/enabled',
   '/api/v1/admin/content-production/presets/{presetId}/versions',
-  '/api/v1/admin/content-production/prompt-previews',
-  '/api/v1/admin/content-production/question-candidates',
-  '/api/v1/admin/content-production/question-candidates/{candidateId}',
-  '/api/v1/admin/content-production/question-candidates/{candidateId}/approve',
-  '/api/v1/admin/content-production/question-candidates/{candidateId}/regenerate',
   '/api/v1/admin/content-production/vocabulary-candidates',
   '/api/v1/admin/content-production/vocabulary-candidates/{candidateId}',
   '/api/v1/admin/content-production/vocabulary-candidates/{candidateId}/approve',
@@ -45,23 +48,8 @@ const ACTIVE_PATHS = [
   '/api/v1/admin/audit-logs',
   '/api/v1/admin/audit-logs/{auditLogId}',
   '/api/v1/admin/home',
-  '/api/v1/admin/questions',
-  '/api/v1/admin/questions/{questionId}',
-  '/api/v1/admin/questions/{questionId}/status',
   '/api/v1/admin/usage-cost',
   '/api/v1/admin/usage-cost/settings',
-  '/api/v1/admin/question-tags',
-  '/api/v1/admin/question-tags/{id}/archive',
-  '/api/v1/admin/question-taxonomy',
-  '/api/v1/admin/question-topics',
-  '/api/v1/admin/question-topics/{id}/archive',
-  '/api/v1/admin/question-type-versions/{versionId}/activate',
-  '/api/v1/admin/question-type-versions/{versionId}/difficulty-criteria',
-  '/api/v1/admin/question-type-versions/{versionId}/examples',
-  '/api/v1/admin/question-type-versions/{versionId}/examples/{exampleId}',
-  '/api/v1/admin/question-type-versions/{versionId}/retire',
-  '/api/v1/admin/question-types',
-  '/api/v1/admin/question-types/{questionTypeId}/versions',
   '/api/v1/admin/vocabularies',
   '/api/v1/admin/vocabularies/{vocabularyId}',
   '/api/v1/admin/vocabularies/{vocabularyId}/importance',
@@ -89,13 +77,8 @@ const ACTIVE_PATHS = [
   '/api/v1/concepts/{conceptId}',
   '/api/v1/content-error-reports',
   '/api/v1/me',
-  '/api/v1/me/question-attempts',
   '/api/v1/me/recommendations',
-  '/api/v1/me/saved-questions/{questionId}',
   '/api/v1/me/vocabularies/{vocabularyId}/wordbook-memberships',
-  '/api/v1/me/vocabulary-practice/sessions',
-  '/api/v1/me/vocabulary-practice/sessions/{sessionId}',
-  '/api/v1/me/vocabulary-practice/sessions/{sessionId}/questions/{questionId}/answers',
   '/api/v1/me/wordbooks',
   '/api/v1/me/wordbooks/{wordbookId}',
   '/api/v1/me/wordbooks/{wordbookId}/items',
@@ -103,12 +86,8 @@ const ACTIVE_PATHS = [
   '/api/v1/me/wordbooks/{wordbookId}/items/copy',
   '/api/v1/me/wordbooks/{wordbookId}/items/move',
   '/api/v1/me/wordbooks/{wordbookId}/items/remove',
-  '/api/v1/questions',
-  '/api/v1/questions/{questionId}',
-  '/api/v1/questions/{questionId}/attempts',
   '/api/v1/vocabularies',
   '/api/v1/vocabularies/{vocabularyId}',
-  '/api/v1/vocabularies/{vocabularyId}/questions',
   '/health',
   '/ready',
 ];
@@ -130,17 +109,6 @@ const INACTIVE_MVP_PATHS = [
   '/api/v1/jobs',
   '/api/v1/jobs/{jobId}',
 ] as const;
-
-type OpenApiSchemaNode = {
-  type?: string;
-  format?: string;
-  properties?: Record<string, OpenApiSchemaNode>;
-  items?: OpenApiSchemaNode;
-  anyOf?: OpenApiSchemaNode[];
-  oneOf?: OpenApiSchemaNode[];
-  required?: string[];
-  additionalProperties?: boolean;
-};
 
 type OpenApiContentCarrier = {
   content?: Record<string, { schema?: unknown }>;
@@ -467,13 +435,6 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
     errors: ['401', '403', '500'],
   },
   {
-    method: 'post',
-    path: '/api/v1/admin/content-production/prompt-previews',
-    body: 'PromptPreviewRequestDto',
-    success: ['200', 'PromptPreviewResponseDto'],
-    errors: ['400', '401', '403', '500'],
-  },
-  {
     method: 'get',
     path: '/api/v1/admin/content-production/preset-versions',
     success: ['200', 'ContentProductionPresetVersionListResponseDto'],
@@ -524,20 +485,6 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
   },
   {
     method: 'get',
-    path: '/api/v1/admin/content-production/question-candidates',
-    query: [
-      'jobId',
-      'jobItemId',
-      'resultGroup',
-      'reviewStatus',
-      'page',
-      'pageSize',
-    ],
-    success: ['200', 'QuestionCandidateListResponseDto'],
-    errors: ['400', '401', '403', '500'],
-  },
-  {
-    method: 'get',
     path: '/api/v1/admin/content-production/vocabulary-candidates',
     query: ['jobId', 'reviewStatus', 'page', 'pageSize'],
     success: ['200', 'VocabularyCandidateListResponseDto'],
@@ -564,37 +511,6 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
     pathParameters: ['candidateId'],
     body: 'VocabularyCandidateDiscardRequestDto',
     success: ['200', 'VocabularyCandidateDiscardResponseDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/admin/content-production/question-candidates/{candidateId}',
-    pathParameters: ['candidateId'],
-    success: ['200', 'QuestionCandidateDetailResponseDto'],
-    errors: ['400', '401', '403', '404', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/content-production/question-candidates/{candidateId}/approve',
-    pathParameters: ['candidateId'],
-    body: 'ApproveQuestionCandidateRequestDto',
-    success: ['200', 'ApproveQuestionCandidateResponseDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'delete',
-    path: '/api/v1/admin/content-production/question-candidates/{candidateId}',
-    pathParameters: ['candidateId'],
-    body: 'DiscardQuestionCandidateRequestDto',
-    success: ['204'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/content-production/question-candidates/{candidateId}/regenerate',
-    pathParameters: ['candidateId'],
-    body: 'RegenerateQuestionCandidateRequestDto',
-    success: ['202', 'RegenerateQuestionCandidateResponseDto'],
     errors: ['400', '401', '403', '404', '409', '500'],
   },
   {
@@ -800,136 +716,6 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
     errors: ['400', '401', '403', '404', '409', '500'],
   },
   {
-    method: 'get',
-    path: '/api/v1/admin/questions',
-    query: [
-      'status',
-      'questionTypeSlug',
-      'skill',
-      'difficulty',
-      'page',
-      'pageSize',
-    ],
-    success: ['200', 'AdminQuestionListResponseDto'],
-    errors: [],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/admin/question-taxonomy',
-    success: ['200', 'QuestionTaxonomySettingsResponseDto'],
-    errors: ['401', '403', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/question-types',
-    body: 'CreateQuestionTypeRequestDto',
-    success: ['201'],
-    errors: ['400', '401', '403', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/question-types/{questionTypeId}/versions',
-    pathParameters: ['questionTypeId'],
-    body: 'CreateQuestionTypeVersionRequestDto',
-    success: ['201'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'put',
-    path: '/api/v1/admin/question-type-versions/{versionId}/difficulty-criteria',
-    pathParameters: ['versionId'],
-    body: 'ReplaceDifficultyCriteriaRequestDto',
-    success: ['200'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/question-type-versions/{versionId}/examples',
-    pathParameters: ['versionId'],
-    body: 'QuestionTypeApprovedExampleRequestDto',
-    success: ['201'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'delete',
-    path: '/api/v1/admin/question-type-versions/{versionId}/examples/{exampleId}',
-    pathParameters: ['versionId', 'exampleId'],
-    success: ['204'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/question-type-versions/{versionId}/activate',
-    pathParameters: ['versionId'],
-    success: ['204'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/question-type-versions/{versionId}/retire',
-    pathParameters: ['versionId'],
-    success: ['204'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/question-topics',
-    body: 'CreateQuestionTaxonomyTermRequestDto',
-    success: ['201'],
-    errors: ['400', '401', '403', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/question-tags',
-    body: 'CreateQuestionTaxonomyTermRequestDto',
-    success: ['201'],
-    errors: ['400', '401', '403', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/question-topics/{id}/archive',
-    pathParameters: ['id'],
-    success: ['204'],
-    errors: ['400', '401', '403', '404', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/question-tags/{id}/archive',
-    pathParameters: ['id'],
-    success: ['204'],
-    errors: ['400', '401', '403', '404', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/admin/questions/{questionId}',
-    pathParameters: ['questionId'],
-    success: ['200', 'AdminQuestionDetailResponseDto'],
-    errors: [],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/questions',
-    body: 'AdminQuestionCreateRequestDto',
-    success: ['201', 'AdminQuestionDetailResponseDto'],
-    errors: [],
-  },
-  {
-    method: 'put',
-    path: '/api/v1/admin/questions/{questionId}',
-    pathParameters: ['questionId'],
-    body: 'AdminQuestionUpdateRequestDto',
-    success: ['200', 'AdminQuestionDetailResponseDto'],
-    errors: [],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/questions/{questionId}/status',
-    pathParameters: ['questionId'],
-    body: 'AdminQuestionStatusRequestDto',
-    success: ['204'],
-    errors: [],
-  },
-  {
     method: 'put',
     path: '/api/v1/admin/vocabularies/{vocabularyId}/importance',
     pathParameters: ['vocabularyId'],
@@ -1080,98 +866,17 @@ const LEARNER_OPERATIONS: readonly LearnerOperationExpectation[] = [
     errors: ['400', '401', '403', '404', '500'],
   },
   {
-    method: 'post',
-    path: '/api/v1/me/vocabulary-practice/sessions',
-    body: 'CreateVocabularyPracticeRequestDto',
-    success: [
-      '201',
-      [
-        'ActiveVocabularyPracticeSessionResponseDto',
-        'CompletedVocabularyPracticeSessionResponseDto',
-      ],
-    ],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
     method: 'get',
-    path: '/api/v1/me/vocabulary-practice/sessions/{sessionId}',
-    pathParameters: ['sessionId'],
-    success: [
-      '200',
-      [
-        'ActiveVocabularyPracticeSessionResponseDto',
-        'CompletedVocabularyPracticeSessionResponseDto',
-      ],
-    ],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/me/vocabulary-practice/sessions/{sessionId}/questions/{questionId}/answers',
-    pathParameters: ['sessionId', 'questionId'],
-    body: 'SubmitVocabularyPracticeAnswerRequestDto',
-    success: ['200', 'VocabularyPracticeAnswerResponseDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/questions',
+    path: '/api/v1/vocabularies',
     query: [
-      'skill',
-      'majorCategory',
-      'questionTypeId',
-      'topicId',
-      'tagId',
+      'query',
+      'section',
+      'kind',
+      'partOfSpeech',
       'difficulty',
-      'saved',
-      'firstResult',
-      'sort',
       'page',
       'pageSize',
     ],
-    success: ['200', 'QuestionListResponseDto'],
-    errors: ['400', '401', '403', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/questions/{questionId}',
-    pathParameters: ['questionId'],
-    success: ['200', 'QuestionDetailResponseDto'],
-    errors: ['400', '401', '403', '404', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/questions/{questionId}/attempts',
-    pathParameters: ['questionId'],
-    body: 'SubmitQuestionAttemptRequestDto',
-    success: ['201', 'SubmitQuestionAttemptResponseDto'],
-    errors: ['400', '401', '403', '409', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/me/question-attempts',
-    query: ['page', 'pageSize'],
-    success: ['200', 'QuestionAttemptListResponseDto'],
-    errors: ['400', '401', '403', '500'],
-  },
-  {
-    method: 'put',
-    path: '/api/v1/me/saved-questions/{questionId}',
-    pathParameters: ['questionId'],
-    success: ['204'],
-    errors: ['400', '401', '403', '409', '500'],
-  },
-  {
-    method: 'delete',
-    path: '/api/v1/me/saved-questions/{questionId}',
-    pathParameters: ['questionId'],
-    success: ['204'],
-    errors: ['400', '401', '403', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/vocabularies',
-    query: ['query', 'kind', 'partOfSpeech', 'difficulty', 'page', 'pageSize'],
     success: ['200', 'VocabularyListResponseDto'],
     errors: ['400', '401', '403', '500'],
   },
@@ -1180,14 +885,6 @@ const LEARNER_OPERATIONS: readonly LearnerOperationExpectation[] = [
     path: '/api/v1/vocabularies/{vocabularyId}',
     pathParameters: ['vocabularyId'],
     success: ['200', 'VocabularyDetailResponseDto'],
-    errors: ['400', '401', '403', '404', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/vocabularies/{vocabularyId}/questions',
-    pathParameters: ['vocabularyId'],
-    query: ['page', 'pageSize'],
-    success: ['200', 'VocabularyRelatedQuestionsResponseDto'],
     errors: ['400', '401', '403', '404', '500'],
   },
   {
@@ -1548,12 +1245,12 @@ describe('OpenAPI 문서', () => {
     });
   });
 
-  it('학습자 operation 스물일곱 개의 요청·성공·보안·오류 계약을 모두 고정한다', () => {
+  it('학습자 operation 열일곱 개의 요청·성공·보안·오류 계약을 모두 고정한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
 
-    expect(LEARNER_OPERATIONS).toHaveLength(27);
+    expect(LEARNER_OPERATIONS).toHaveLength(17);
     expectProtectedOpenApiOperations(document, LEARNER_OPERATIONS);
   });
 
@@ -1562,7 +1259,7 @@ describe('OpenAPI 문서', () => {
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
 
-    expect(ADMIN_OPERATIONS).toHaveLength(77);
+    expect(ADMIN_OPERATIONS).toHaveLength(54);
     expectProtectedOpenApiOperations(document, ADMIN_OPERATIONS);
   });
 
@@ -1581,39 +1278,7 @@ describe('OpenAPI 문서', () => {
       /storageKey|requestHash|referenceMap|isCorrect|dbRow/u,
     );
     expect(adminComponents).toHaveProperty('ContentImportRequestDto');
-    expect(adminComponents).toHaveProperty('AdminQuestionDetailResponseDto');
     expect(adminComponents).toHaveProperty('AdminVocabularyDetailResponseDto');
-  });
-
-  it('관리자 문제 수정 DTO는 현재 본문·보기·어휘 참조만 공개한다', () => {
-    if (!app)
-      throw new Error('OpenAPI test application이 초기화되지 않았습니다');
-    const document = createOpenApiDocument(app);
-    const schema = document.components?.schemas
-      ?.AdminQuestionUpdateRequestDto as OpenApiSchemaNode;
-    const input = schema.properties?.input;
-    expect(input?.properties?.prompt).toMatchObject({ type: 'string' });
-    expect(
-      input?.properties?.vocabularies?.items?.properties?.vocabularyId,
-    ).toMatchObject({ type: 'string', format: 'uuid' });
-    expect(JSON.stringify(schema)).not.toMatch(/pronunciation|toneMarks/);
-    expect(input?.properties).not.toHaveProperty('blocks');
-  });
-
-  it('문제 상세 schema에는 정답·검증·private storage 필드가 없다', () => {
-    if (!app)
-      throw new Error('OpenAPI test application이 초기화되지 않았습니다');
-    const document = createOpenApiDocument(app);
-    const detail = JSON.stringify(
-      document.components?.schemas?.QuestionDetailResponseDto,
-    );
-
-    expect(detail).not.toContain('correctOptionId');
-    expect(detail).not.toContain('isCorrect');
-    expect(detail).not.toContain('validationStatus');
-    expect(detail).not.toContain('validationIssues');
-    expect(detail).not.toContain('storageKey');
-    expect(detail).not.toContain('EXPLANATION');
   });
 });
 

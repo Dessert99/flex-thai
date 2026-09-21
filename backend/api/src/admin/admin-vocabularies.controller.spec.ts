@@ -68,10 +68,6 @@ describe('AdminVocabulariesController 공개 경계', () => {
         relations: [],
         usage: {
           sentenceVersionIds: [],
-          questionCount: 0,
-          targetQuestionCount: 0,
-          occurrenceCount: 0,
-          questionIds: [],
         },
         createdAt: '2026-07-24T00:00:00.000Z',
         updatedAt: '2026-07-24T00:00:00.000Z',
@@ -105,7 +101,6 @@ describe('AdminVocabulariesController 공개 경계', () => {
             expressionOccurrences: 0,
             savedMemberships: 0,
             wordbookMemberships: 0,
-            practiceQuestions: 0,
           },
         },
         representative: {
@@ -120,7 +115,6 @@ describe('AdminVocabulariesController 공개 경계', () => {
             expressionOccurrences: 0,
             savedMemberships: 0,
             wordbookMemberships: 0,
-            practiceQuestions: 0,
           },
         },
         comparison: { normalizedEqual: false, codePointDistance: 1 },
@@ -135,7 +129,6 @@ describe('AdminVocabulariesController 공개 경계', () => {
           expressionOccurrences: 0,
           savedMemberships: 0,
           wordbookMemberships: 0,
-          practiceQuestions: 0,
         },
       }),
     };
@@ -197,7 +190,6 @@ describe('AdminVocabulariesController 공개 경계', () => {
             expressionOccurrences: 0,
             savedMemberships: 0,
             wordbookMemberships: 0,
-            practiceQuestions: 0,
           },
         },
         representative: {
@@ -212,7 +204,6 @@ describe('AdminVocabulariesController 공개 경계', () => {
             expressionOccurrences: 0,
             savedMemberships: 0,
             wordbookMemberships: 0,
-            practiceQuestions: 0,
           },
         },
         comparison: { normalizedEqual: false, codePointDistance: 1 },
@@ -227,7 +218,6 @@ describe('AdminVocabulariesController 공개 경계', () => {
           expressionOccurrences: 0,
           savedMemberships: 0,
           wordbookMemberships: 0,
-          practiceQuestions: 0,
         },
       }),
     };

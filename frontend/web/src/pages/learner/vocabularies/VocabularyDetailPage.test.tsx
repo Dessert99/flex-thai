@@ -2,10 +2,7 @@ import { renderWithProviders } from '@/shared/test/renderWithProviders';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  createDetail,
-  createRelatedQuestions,
-} from '@/features/learning/components/vocabulary-detail/VocabularyDetailPage.fixtures';
+import { createDetail } from '@/features/learning/components/vocabulary-detail/VocabularyDetailPage.fixtures';
 import { VocabularyDetailPage as VocabularyDetailPageContainer } from './VocabularyDetailPage';
 import { VocabularyDetailContent } from '@/pages/learner/vocabularies/VocabularyDetailPage';
 
@@ -47,9 +44,6 @@ beforeEach(() => {
     ({ method, path }: { method?: string; path: string }) => {
       if (method === 'PUT' || method === 'DELETE') {
         return Promise.resolve();
-      }
-      if (path.endsWith('/questions?page=1&pageSize=10')) {
-        return Promise.resolve(createRelatedQuestions());
       }
       if (path === '/me/wordbooks') {
         return Promise.resolve({
@@ -96,7 +90,6 @@ describe('어휘 상세 페이지', () => {
       <VocabularyDetailContent
         detail={createDetail(firstVocabularyId)}
         onWordbookMembershipConfirmed={vi.fn()}
-        relatedQuestions={[]}
       />,
     );
     await user.click(screen.getByRole('button', { name: '단어장에 추가' }));
@@ -110,7 +103,6 @@ describe('어휘 상세 페이지', () => {
       <VocabularyDetailContent
         detail={createDetail(secondVocabularyId)}
         onWordbookMembershipConfirmed={vi.fn()}
-        relatedQuestions={[]}
       />,
     );
     await user.keyboard('{Escape}');
@@ -134,7 +126,6 @@ describe('어휘 상세 페이지', () => {
       <VocabularyDetailContent
         detail={createDetail()}
         onWordbookMembershipConfirmed={vi.fn()}
-        relatedQuestions={[]}
       />,
     );
 
@@ -152,7 +143,6 @@ describe('어휘 오류 신고 연결', () => {
       <VocabularyDetailContent
         detail={detail}
         onWordbookMembershipConfirmed={vi.fn()}
-        relatedQuestions={[]}
       />,
     );
 

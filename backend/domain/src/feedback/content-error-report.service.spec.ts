@@ -15,7 +15,6 @@ const target = {
     kind: 'VOCABULARY' as const,
     contentId: 'vocabulary-id',
     contentVersionId: null,
-    questionVersion: null,
     sentenceVersionId: null,
     locationId: null,
   },

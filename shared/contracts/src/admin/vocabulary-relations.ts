@@ -64,7 +64,6 @@ const mergeUsageSchema = z
     expressionOccurrences: z.number().int().safe().nonnegative(),
     savedMemberships: z.number().int().safe().nonnegative(),
     wordbookMemberships: z.number().int().safe().nonnegative(),
-    practiceQuestions: z.number().int().safe().nonnegative(),
   })
   .strict();
 

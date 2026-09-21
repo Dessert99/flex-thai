@@ -6,13 +6,10 @@ import { ContentImportError } from '@flex-thia/domain/content-import/content-imp
 import { IdentityDomainError } from '@flex-thia/domain/identity/authentication.service';
 import { EmailChallengeError } from '@flex-thia/domain/identity/email-challenge';
 import { UserManagementError } from '@flex-thia/domain/identity/user-management';
-import { LearningDomainError } from '@flex-thia/domain/learning/question-attempt';
+
 import { WordbookDomainError } from '@flex-thia/domain/learning/wordbook';
 import { AuditLogError } from '@flex-thia/domain/operations/audit-log.service';
-import { QuestionContentError } from '@flex-thia/domain/questions/question';
-import { QuestionAdminError } from '@flex-thia/domain/questions/question-admin';
-import { QuestionPublicationError } from '@flex-thia/domain/questions/question-publication';
-import { QuestionTaxonomyError } from '@flex-thia/domain/questions/question-taxonomy.service';
+
 import { UploadPolicyError } from '@flex-thia/domain/uploads/upload-policy.service';
 import { VocabularyAdminError } from '@flex-thia/domain/vocabulary/vocabulary-admin';
 import { VocabularyRelationsMergeAdminError } from '@flex-thia/domain/vocabulary/vocabulary-relations-merge.service';
@@ -53,8 +50,6 @@ const APPLICATION_STATUS: Record<string, number> = {
   CONTENT_DRAFT_ITEM_CONFLICT: HttpStatus.CONFLICT,
   CONTENT_DRAFT_PERSISTENCE_CONFLICT: HttpStatus.CONFLICT,
   CONTENT_IMPORT_PERSISTENCE_CONFLICT: HttpStatus.CONFLICT,
-  QUESTION_ADMIN_PERSISTENCE_CONFLICT: HttpStatus.CONFLICT,
-  QUESTION_PUBLICATION_PERSISTENCE_CONFLICT: HttpStatus.CONFLICT,
 };
 
 const IDENTITY_STATUS: Record<IdentityDomainError['code'], number> = {
@@ -92,50 +87,11 @@ const EMAIL_CHALLENGE_STATUS: Record<EmailChallengeError['code'], number> = {
   GLOBAL_DAILY_LIMIT_EXCEEDED: HttpStatus.TOO_MANY_REQUESTS,
 };
 
-const LEARNING_STATUS: Record<LearningDomainError['code'], number> = {
-  QUESTION_VERSION_CONFLICT: HttpStatus.CONFLICT,
-  QUESTION_UNAVAILABLE: HttpStatus.CONFLICT,
-  QUESTION_OPTION_MISMATCH: HttpStatus.CONFLICT,
-  ATTEMPT_IDEMPOTENCY_CONFLICT: HttpStatus.CONFLICT,
-  VOCABULARY_UNAVAILABLE: HttpStatus.NOT_FOUND,
-};
-
 const WORDBOOK_STATUS: Record<WordbookDomainError['code'], number> = {
   WORDBOOK_NAME_INVALID: HttpStatus.BAD_REQUEST,
   WORDBOOK_NOT_FOUND: HttpStatus.NOT_FOUND,
   WORDBOOK_SAME_TARGET: HttpStatus.BAD_REQUEST,
   VOCABULARY_UNAVAILABLE: HttpStatus.NOT_FOUND,
-};
-
-const QUESTION_ADMIN_STATUS: Record<QuestionAdminError['code'], number> = {
-  QUESTION_NOT_FOUND: HttpStatus.NOT_FOUND,
-  QUESTION_REFERENCE_MISMATCH: HttpStatus.CONFLICT,
-  QUESTION_CONTENT_INVALID: HttpStatus.BAD_REQUEST,
-  QUESTION_VERSION_CONFLICT: HttpStatus.CONFLICT,
-};
-
-const QUESTION_TAXONOMY_STATUS: Record<QuestionTaxonomyError['code'], number> =
-  {
-    TYPE_VERSION_NOT_FOUND: HttpStatus.NOT_FOUND,
-    TYPE_VERSION_IMMUTABLE: HttpStatus.CONFLICT,
-    TYPE_VERSION_NOT_READY: HttpStatus.CONFLICT,
-    INVALID_LIFECYCLE_TRANSITION: HttpStatus.CONFLICT,
-    DIFFICULTY_CRITERIA_INVALID: HttpStatus.BAD_REQUEST,
-    APPROVED_EXAMPLE_INVALID: HttpStatus.BAD_REQUEST,
-    TAXONOMY_CONFLICT: HttpStatus.CONFLICT,
-  };
-
-const QUESTION_PUBLICATION_STATUS: Record<
-  QuestionPublicationError['code'],
-  number
-> = {
-  QUESTION_NOT_FOUND: HttpStatus.NOT_FOUND,
-  QUESTION_VERSION_NOT_FOUND: HttpStatus.NOT_FOUND,
-  QUESTION_VERSION_MISMATCH: HttpStatus.CONFLICT,
-  IMMUTABLE_VERSION: HttpStatus.CONFLICT,
-  QUESTION_VERSION_NOT_PUBLISHABLE: HttpStatus.CONFLICT,
-  QUESTION_STATE_CONFLICT: HttpStatus.CONFLICT,
-  QUESTION_RESTORE_NOT_ALLOWED: HttpStatus.CONFLICT,
 };
 
 const VOCABULARY_ADMIN_STATUS: Record<VocabularyAdminError['code'], number> = {
@@ -234,14 +190,6 @@ export const buildErrorResponse = (
     };
   }
 
-  if (error instanceof LearningDomainError) {
-    const status = LEARNING_STATUS[error.code];
-    return {
-      status,
-      body: createProblem(error.code, status, requestId),
-    };
-  }
-
   if (error instanceof WordbookDomainError) {
     const status = WORDBOOK_STATUS[error.code];
     return {
@@ -260,33 +208,6 @@ export const buildErrorResponse = (
 
   if (error instanceof ContentImportError) {
     const status = HttpStatus.CONFLICT;
-    return {
-      status,
-      body: createProblem(error.code, status, requestId),
-    };
-  }
-
-  if (
-    error instanceof QuestionAdminError ||
-    error instanceof QuestionContentError
-  ) {
-    const status = QUESTION_ADMIN_STATUS[error.code];
-    return {
-      status,
-      body: createProblem(error.code, status, requestId),
-    };
-  }
-
-  if (error instanceof QuestionPublicationError) {
-    const status = QUESTION_PUBLICATION_STATUS[error.code];
-    return {
-      status,
-      body: createProblem(error.code, status, requestId),
-    };
-  }
-  if (error instanceof QuestionTaxonomyError) {
-    const status =
-      QUESTION_TAXONOMY_STATUS[error.code] ?? INTERNAL_SERVER_ERROR_STATUS;
     return {
       status,
       body: createProblem(error.code, status, requestId),

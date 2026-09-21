@@ -1,6 +1,5 @@
 /** 로그인 redirect를 승인된 same-origin route와 search 계약으로 제한한다 */
-import { questionCandidateListQuerySchema } from '@flex-thia/contracts/content-production/question-production';
-import { questionListQuerySchema } from '@flex-thia/contracts/learning/questions';
+
 import { usageCostOverviewQuerySchema } from '@flex-thia/contracts/operations/usage-cost';
 import { vocabularyCandidateListQuerySchema } from '@flex-thia/contracts/content-production/vocabulary-candidates';
 import {
@@ -13,36 +12,27 @@ const approvedStaticPaths = new Set([
   '/login',
   '/login/mfa',
   '/learn',
-  '/questions',
-  '/history',
   '/vocabularies',
   '/wordbooks',
   '/admin',
   '/admin/users',
   '/admin/audit-logs',
-  '/admin/question-settings',
   '/admin/totp-setup',
   '/admin/content-imports',
   '/admin/content-production',
-  '/admin/content-production/candidates',
   '/admin/content-production/vocabulary-candidates',
   '/admin/content-production/presets',
   '/admin/usage-cost',
-  '/admin/questions',
   '/admin/vocabularies',
   '/forbidden',
 ]);
 
 const approvedDynamicPaths = [
-  /^\/questions\/[0-9a-f-]+$/u,
   /^\/vocabularies\/[0-9a-f-]+$/u,
   /^\/wordbooks\/[0-9a-f-]+$/u,
   /^\/admin\/content-imports\/[0-9a-f-]+$/u,
   /^\/admin\/content-production\/jobs\/[0-9a-f-]+$/u,
-  /^\/admin\/content-production\/candidates\/[0-9a-f-]+$/u,
   /^\/admin\/content-production\/vocabulary-candidates\/[0-9a-f-]+$/u,
-  /^\/admin\/questions\/[0-9a-f-]+$/u,
-  /^\/admin\/questions\/[0-9a-f-]+\/versions\/[0-9a-f-]+\/replace$/u,
   /^\/admin\/vocabularies\/[0-9a-f-]+$/u,
 ];
 
@@ -77,18 +67,8 @@ function hasValidSearch(url: URL): boolean {
   if (url.search === '') {
     return true;
   }
-  if (url.pathname === '/questions') {
-    return questionListQuerySchema.safeParse(
-      Object.fromEntries(url.searchParams),
-    ).success;
-  }
   if (isValidWordbookPath(url.pathname)) {
     return wordbookItemListQuerySchema.safeParse(
-      Object.fromEntries(url.searchParams),
-    ).success;
-  }
-  if (url.pathname === '/admin/content-production/candidates') {
-    return questionCandidateListQuerySchema.safeParse(
       Object.fromEntries(url.searchParams),
     ).success;
   }

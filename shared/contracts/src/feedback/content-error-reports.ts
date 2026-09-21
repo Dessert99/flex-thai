@@ -16,7 +16,6 @@ const httpIntegerSchema = (maximum: number) =>
 
 /** 오류 신고 대상 콘텐츠 종류 */
 export const contentErrorReportTargetKindSchema = z.enum([
-  'QUESTION',
   'VOCABULARY',
   'SENTENCE',
   'CONCEPT',
@@ -42,15 +41,6 @@ const nullableUuidSchema = uuidSchema.nullable();
 
 /** 브라우저가 현재 공개 화면에서 전달할 수 있는 대상 origin */
 export const contentErrorReportOriginSchema = z.discriminatedUnion('kind', [
-  z
-    .object({
-      kind: z.literal('QUESTION'),
-      questionId: uuidSchema,
-      questionVersion: z.number().int().safe().positive(),
-      blockId: z.null(),
-      sentenceVersionId: z.null(),
-    })
-    .strict(),
   z
     .object({
       kind: z.literal('VOCABULARY'),
@@ -126,7 +116,6 @@ export const contentErrorReportCanonicalReferenceSchema = z
     kind: contentErrorReportTargetKindSchema,
     contentId: uuidSchema,
     contentVersionId: nullableUuidSchema,
-    questionVersion: z.number().int().safe().positive().nullable(),
     sentenceVersionId: nullableUuidSchema,
     locationId: nullableUuidSchema,
   })

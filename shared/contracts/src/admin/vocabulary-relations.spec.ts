@@ -54,7 +54,6 @@ describe('관리자 어휘 병합 계약', () => {
             expressionOccurrences: 0,
             savedMemberships: 0,
             wordbookMemberships: 0,
-            practiceQuestions: 0,
           },
         },
         representative: {
@@ -69,7 +68,6 @@ describe('관리자 어휘 병합 계약', () => {
             expressionOccurrences: 0,
             savedMemberships: 0,
             wordbookMemberships: 0,
-            practiceQuestions: 0,
           },
         },
         comparison: {

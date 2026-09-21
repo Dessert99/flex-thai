@@ -224,10 +224,6 @@ function createDetail(
     ],
     usage: {
       sentenceVersionIds: ['01933b6a-8f13-7a19-b7e5-536d70f57aae'],
-      questionCount: 0,
-      targetQuestionCount: 0,
-      occurrenceCount: 0,
-      questionIds: [],
     },
     createdAt: '2026-07-25T00:00:00.000Z',
     updatedAt: '2026-07-25T00:00:00.000Z',
@@ -240,7 +236,6 @@ function createMergePreview(): AdminVocabularyMergePreviewResponse {
     expressionOccurrences: 0,
     savedMemberships: 0,
     wordbookMemberships: 0,
-    practiceQuestions: 0,
   };
   return {
     source: {

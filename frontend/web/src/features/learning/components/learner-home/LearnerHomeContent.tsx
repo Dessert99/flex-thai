@@ -45,8 +45,8 @@ export function HomeLinkItem({
   title,
 }: {
   description?: ReactNode;
-  to: '/questions/$questionId' | '/vocabularies/$vocabularyId';
-  params: { questionId: string } | { vocabularyId: string };
+  to: '/vocabularies/$vocabularyId';
+  params: { vocabularyId: string };
   icon: LucideIcon;
   secondaryDescription?: ReactNode;
   title: ReactNode;

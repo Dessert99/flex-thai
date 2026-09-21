@@ -28,7 +28,6 @@ const graphSelectResults = (
   [],
   [],
   [],
-  [],
 ];
 
 const createFake = (incomingMergeSourceIds: string[] = []) => {

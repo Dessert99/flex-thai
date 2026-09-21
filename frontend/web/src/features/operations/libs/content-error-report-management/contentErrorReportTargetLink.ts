@@ -7,12 +7,6 @@ export const toContentErrorReportTargetLink = (reference: {
   kind: ContentErrorReportTargetKind;
   contentId: string;
 }) => {
-  if (reference.kind === 'QUESTION')
-    return linkOptions({
-      to: '/admin/questions/$questionId',
-      params: { questionId: reference.contentId },
-      search: { page: 1, pageSize: 20 },
-    });
   if (reference.kind === 'VOCABULARY')
     return linkOptions({
       to: '/admin/vocabularies/$vocabularyId',

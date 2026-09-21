@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { useContentProductionJobDetail } from '@/features/content-production/hooks/content-production-job-detail/useContentProductionJobDetail';
 import { Alert, AlertDescription, AlertTitle } from '@/shared/components/alert';
 import { Badge } from '@/shared/components/badge';
@@ -11,7 +12,7 @@ import {
 import { Container } from '@/shared/components/layouts/Container';
 import { Skeleton } from '@/shared/components/skeleton';
 import type { ContentProductionJobDetailResponse } from '@flex-thia/contracts/content-production/content-production';
-import { Link } from '@tanstack/react-router';
+
 /** 화면 배치와 기능 컴포넌트를 페이지에서 직접 조립한다 */
 
 export function ContentProductionJobDetailPage(
@@ -120,18 +121,6 @@ export function ContentProductionJobDetailContent({
               }
             </p>
           ) : null}
-          {'questionCount' in job.presetSnapshot.parameters ? (
-            <>
-              <p>문제 수 {job.presetSnapshot.parameters.questionCount}</p>
-              <p>
-                유사도 기준 {job.presetSnapshot.parameters.similarityThreshold}
-              </p>
-              <p>
-                신규 보조 어휘 한도{' '}
-                {job.presetSnapshot.parameters.newAuxiliaryVocabularyLimit}
-              </p>
-            </>
-          ) : null}
         </CardContent>
       </Card>
       {job.items.map((item) => (
@@ -159,10 +148,10 @@ export function ContentProductionJobDetailContent({
           variant='outline'
         >
           <Link
-            to='/admin/content-production/candidates'
+            to='/admin/content-production/vocabulary-candidates'
             search={{ jobId: job.id, page: 1, pageSize: 20 }}
           >
-            후보 검수
+            어휘 후보 검수
           </Link>
         </Button>
       </div>

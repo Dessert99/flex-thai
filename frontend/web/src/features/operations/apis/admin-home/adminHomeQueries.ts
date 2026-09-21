@@ -1,6 +1,6 @@
 /** 관리자 홈의 최근 콘텐츠와 독립 운영 상태 query를 정의한다 */
 import { adminHomeOperationsResponseSchema } from '@flex-thia/contracts/operations/admin-home';
-import { adminQuestionListResponseSchema } from '@flex-thia/contracts/admin/questions';
+
 import { adminVocabularyListResponseSchema } from '@flex-thia/contracts/admin/vocabularies';
 import { auditLogListResponseSchema } from '@flex-thia/contracts/operations/audit-logs';
 import { usageCostOverviewResponseSchema } from '@flex-thia/contracts/operations/usage-cost';
@@ -13,14 +13,6 @@ const recentAuditPage = { page: 1, pageSize: 5 } as const;
 /** 최근 목록과 전체 운영 집계를 독립 재시도하는 Query 옵션을 만든다 */
 export function adminHomeQueryOptions() {
   return [
-    queryOptions({
-      queryKey: ['admin', 'home', 'questions', recentPage] as const,
-      queryFn: () =>
-        authenticatedRequest({
-          path: '/admin/questions?page=1&pageSize=3',
-          response: { kind: 'json', schema: adminQuestionListResponseSchema },
-        }),
-    }),
     queryOptions({
       queryKey: ['admin', 'home', 'vocabularies', recentPage] as const,
       queryFn: () =>

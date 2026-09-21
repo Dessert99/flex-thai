@@ -6,15 +6,7 @@ import {
   contentImportListResponseSchema,
   contentImportRequestSchema,
 } from '@flex-thia/contracts/admin/content-imports';
-import {
-  adminQuestionDetailResponseSchema,
-  adminQuestionIdPathSchema,
-  adminQuestionListQuerySchema,
-  adminQuestionListResponseSchema,
-  adminQuestionPayloadSchema,
-  adminQuestionUpdateRequestSchema,
-  adminQuestionStatusRequestSchema,
-} from '@flex-thia/contracts/admin/questions';
+
 import {
   adminVocabularyDetailResponseSchema,
   adminVocabularyImportanceRequestSchema,
@@ -57,23 +49,12 @@ import {
   userManagementListResponseSchema,
   userStatusUpdateRequestSchema,
 } from '@flex-thia/contracts/identity/user-management';
-import {
-  questionAttemptListQuerySchema,
-  questionAttemptListResponseSchema,
-  questionDetailResponseSchema,
-  questionIdPathSchema,
-  questionListQuerySchema,
-  questionListResponseSchema,
-  submitQuestionAttemptRequestSchema,
-  submitQuestionAttemptResponseSchema,
-} from '@flex-thia/contracts/learning/questions';
+
 import {
   vocabularyDetailResponseSchema,
   vocabularyIdPathSchema,
   vocabularyListQuerySchema,
   vocabularyListResponseSchema,
-  vocabularyRelatedQuestionsQuerySchema,
-  vocabularyRelatedQuestionsResponseSchema,
 } from '@flex-thia/contracts/learning/vocabularies';
 import {
   vocabularyWordbookMembershipResponseSchema,
@@ -146,44 +127,6 @@ export class ReadinessResponseDto extends createZodDto(
 /** RFC 9457 오류 응답 Swagger DTO */
 export class ProblemDetailsDto extends createZodDto(problemDetailsSchema) {}
 
-/** 문제 목록 query Swagger DTO */
-export class QuestionListQueryDto extends createZodDto(
-  questionListQuerySchema,
-) {}
-
-/** 문제 목록 성공 Swagger DTO */
-export class QuestionListResponseDto extends createZodDto(
-  questionListResponseSchema,
-) {}
-
-/** 문제 상세 성공 Swagger DTO */
-export class QuestionDetailResponseDto extends createZodDto(
-  questionDetailResponseSchema,
-) {}
-
-/** 문제 UUID path Swagger DTO */
-export class QuestionIdPathDto extends createZodDto(questionIdPathSchema) {}
-
-/** 답안 제출 요청 Swagger DTO */
-export class SubmitQuestionAttemptRequestDto extends createZodDto(
-  submitQuestionAttemptRequestSchema,
-) {}
-
-/** 답안 제출 성공 Swagger DTO */
-export class SubmitQuestionAttemptResponseDto extends createZodDto(
-  submitQuestionAttemptResponseSchema,
-) {}
-
-/** 원시 풀이 기록 query Swagger DTO */
-export class QuestionAttemptListQueryDto extends createZodDto(
-  questionAttemptListQuerySchema,
-) {}
-
-/** 원시 풀이 기록 성공 Swagger DTO */
-export class QuestionAttemptListResponseDto extends createZodDto(
-  questionAttemptListResponseSchema,
-) {}
-
 /** 어휘 목록 query Swagger DTO */
 export class VocabularyListQueryDto extends createZodDto(
   vocabularyListQuerySchema,
@@ -201,16 +144,6 @@ export class VocabularyDetailResponseDto extends createZodDto(
 
 /** 어휘 UUID path Swagger DTO */
 export class VocabularyIdPathDto extends createZodDto(vocabularyIdPathSchema) {}
-
-/** 어휘 관련 문제 query Swagger DTO */
-export class VocabularyRelatedQuestionsQueryDto extends createZodDto(
-  vocabularyRelatedQuestionsQuerySchema,
-) {}
-
-/** 어휘 관련 문제 성공 Swagger DTO */
-export class VocabularyRelatedQuestionsResponseDto extends createZodDto(
-  vocabularyRelatedQuestionsResponseSchema,
-) {}
 
 /** 단어장 생성·이름 변경 요청 Swagger DTO */
 export class WordbookNameRequestDto extends createZodDto(
@@ -300,26 +233,6 @@ export class ContentImportListResponseDto extends createZodDto(
   contentImportListResponseSchema,
 ) {}
 
-/** 관리자 문제 목록 query Swagger DTO */
-export class AdminQuestionListQueryDto extends createZodDto(
-  adminQuestionListQuerySchema,
-) {}
-
-/** 관리자 문제 목록 page Swagger DTO */
-export class AdminQuestionListResponseDto extends createZodDto(
-  adminQuestionListResponseSchema,
-) {}
-
-/** 관리자 문제 상세 Swagger DTO */
-export class AdminQuestionDetailResponseDto extends createZodDto(
-  adminQuestionDetailResponseSchema,
-) {}
-
-/** 관리자 문제 UUID path Swagger DTO */
-export class AdminQuestionIdPathDto extends createZodDto(
-  adminQuestionIdPathSchema,
-) {}
-
 /** 관리자 어휘 목록 query Swagger DTO */
 export class AdminVocabularyListQueryDto extends createZodDto(
   adminVocabularyListQuerySchema,
@@ -383,16 +296,6 @@ export class AdminVocabularyMergeExecuteRequestDto extends createZodDto(
 /** 관리자 어휘 병합 결과 Swagger DTO */
 export class AdminVocabularyMergeResponseDto extends createZodDto(
   adminVocabularyMergeResponseSchema,
-) {}
-
-export class AdminQuestionCreateRequestDto extends createZodDto(
-  adminQuestionPayloadSchema,
-) {}
-export class AdminQuestionUpdateRequestDto extends createZodDto(
-  adminQuestionUpdateRequestSchema,
-) {}
-export class AdminQuestionStatusRequestDto extends createZodDto(
-  adminQuestionStatusRequestSchema,
 ) {}
 export class AdminVocabularyImportanceRequestDto extends createZodDto(
   adminVocabularyImportanceRequestSchema,

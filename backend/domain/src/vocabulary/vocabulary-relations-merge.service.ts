@@ -101,7 +101,6 @@ const toPreviewVocabulary = (graph: VocabularyMergeGraph) => ({
     expressionOccurrences: graph.expressionOccurrenceIds.length,
     savedMemberships: graph.savedMemberships.length,
     wordbookMemberships: graph.wordbookMemberships.length,
-    practiceQuestions: graph.practiceQuestionIds.length,
   },
 });
 

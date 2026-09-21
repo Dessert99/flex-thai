@@ -3,10 +3,7 @@ import type { VocabularyProductionArtifacts } from './ai-vocabulary-production.j
 import type { ContentProductionItemSeed } from './content-production-work-item.js';
 
 /** 콘텐츠 제작 작업 목적 */
-export type ContentProductionPurpose =
-  | 'VOCABULARY_EXTRACTION'
-  | 'QUESTION_GENERATION'
-  | 'VOCABULARY_THEN_QUESTION_GENERATION';
+export type ContentProductionPurpose = 'VOCABULARY_EXTRACTION';
 
 /** 콘텐츠 제작 입력 형식 */
 export type ContentProductionInputType = 'TEXT' | 'PDF' | 'IMAGE';
@@ -74,50 +71,6 @@ export interface ResolveContentProductionPresetSnapshotInput {
   options: Record<string, unknown>;
 }
 
-/** 문제 유형·난이도 분포를 item 단위로 펼칠 typed parameter */
-export interface QuestionGenerationParameters {
-  questionCount: number;
-  questionTypePlan: Array<{
-    questionTypeVersionId: string;
-    count: number;
-  }>;
-  difficultyPlan: Array<{
-    difficulty: 1 | 2 | 3 | 4 | 5;
-    count: number;
-  }>;
-}
-
-/** 한 문제 생성 item이 고정하는 유형·난이도 */
-export interface QuestionGenerationItemPlan {
-  questionPlanIndex: number;
-  questionTypeVersionId: string;
-  difficulty: 1 | 2 | 3 | 4 | 5;
-}
-
-/** 선언된 유형·난이도 분포 순서를 보존해 item snapshot으로 펼친다 */
-export const expandQuestionGenerationPlan = (
-  parameters: QuestionGenerationParameters,
-): QuestionGenerationItemPlan[] => {
-  const types = parameters.questionTypePlan.flatMap(
-    ({ questionTypeVersionId, count }) =>
-      Array.from({ length: count }, () => questionTypeVersionId),
-  );
-  const difficulties = parameters.difficultyPlan.flatMap(
-    ({ difficulty, count }) => Array.from({ length: count }, () => difficulty),
-  );
-  if (
-    types.length !== parameters.questionCount ||
-    difficulties.length !== parameters.questionCount
-  ) {
-    throw new Error('QUESTION_GENERATION_PLAN_INVALID');
-  }
-  return types.map((questionTypeVersionId, questionPlanIndex) => ({
-    questionPlanIndex,
-    questionTypeVersionId,
-    difficulty: difficulties[questionPlanIndex]!,
-  }));
-};
-
 /** 콘텐츠 제작 입력 snapshot */
 export interface ContentProductionInput {
   jobInputId?: string;
@@ -133,7 +86,7 @@ export interface ContentProductionItem {
   id: string;
   sourceRef: string;
   jobInputId?: string;
-  operation?: 'VOCABULARY_EXTRACTION' | 'QUESTION_GENERATION';
+  operation?: 'VOCABULARY_EXTRACTION';
   status: ContentProductionItemStatus;
   attempt: number;
   retryable: boolean;
@@ -285,16 +238,10 @@ export const assertContentProductionPresetPurposeParameters = (
 ): void => {
   const hasVocabularyPolicy =
     typeof parameters.suspectedDuplicateMaxCodePointDistance === 'number';
-  const hasQuestionPolicy =
-    typeof parameters.questionCount === 'number' &&
-    Array.isArray(parameters.questionTypePlan) &&
-    Array.isArray(parameters.difficultyPlan);
   const matches =
-    purpose === 'VOCABULARY_EXTRACTION'
-      ? hasVocabularyPolicy && !hasQuestionPolicy
-      : purpose === 'QUESTION_GENERATION'
-        ? hasQuestionPolicy && !hasVocabularyPolicy
-        : hasVocabularyPolicy && hasQuestionPolicy;
+    purpose === 'VOCABULARY_EXTRACTION' &&
+    hasVocabularyPolicy &&
+    Object.keys(parameters).length === 1;
   if (!matches) {
     throw new ContentProductionPresetError(
       'CONTENT_PRODUCTION_PRESET_PURPOSE_MISMATCH',

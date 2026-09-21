@@ -1,4 +1,3 @@
-import { DrizzleLearnerQuestionQuery } from './drizzle-learner-question.query.js';
 /** 현재 게시 어휘와 현재 공개 문제의 어휘 사용처를 읽는다 */
 import { normalizeThaiSearchText } from '@flex-thia/domain/vocabulary/normalize-thai-search-text';
 import { and, asc, count, eq, inArray, or, type SQL, sql } from 'drizzle-orm';
@@ -13,8 +12,8 @@ import {
   vocabularyMeanings,
 } from '../schema/vocabulary.schema.js';
 import type {
-  LearnerQuestionExpressionProjection,
-  LearnerQuestionTokenProjection,
+  ThaiExpressionProjection,
+  ThaiTokenProjection,
 } from './thai-sentence-projection.js';
 
 type LearnerVocabularyDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
@@ -76,8 +75,8 @@ export interface LearnerVocabularyExampleSentenceProjection {
   sentenceVersionId: string;
   originalText: string;
   translationKo: string;
-  tokens: LearnerQuestionTokenProjection[];
-  expressions: LearnerQuestionExpressionProjection[];
+  tokens: ThaiTokenProjection[];
+  expressions: ThaiExpressionProjection[];
 }
 
 /** 공용 어휘 상세의 내부 projection */
@@ -93,37 +92,6 @@ export interface LearnerVocabularyDetailProjection extends LearnerVocabularySumm
     relatedMeaningId: string;
     relatedMeaningKo: string;
   }>;
-}
-
-/** 관련 문제 summary의 시험 영역 */
-export type LearnerVocabularyQuestionSkill = 'READING';
-
-/** 관련 문제 첫 답의 유효 결과 */
-export type LearnerVocabularyQuestionFirstResult =
-  'CORRECT' | 'INCORRECT' | 'UNANSWERED' | 'UPDATED';
-
-/** 관련 문제 유형의 정답 없는 내부 projection */
-export interface LearnerVocabularyQuestionTypeProjection {
-  id: string;
-  slug: string;
-  displayName: string;
-}
-
-/** 어휘를 사용하는 현재 게시 문제의 내부 projection */
-export interface LearnerVocabularyRelatedQuestionProjection {
-  questionId: string;
-  questionVersion: number;
-  questionType: LearnerVocabularyQuestionTypeProjection;
-  skill: LearnerVocabularyQuestionSkill;
-  difficulty: number;
-  saved: boolean;
-  firstResult: LearnerVocabularyQuestionFirstResult;
-}
-
-/** 어휘를 사용하는 현재 게시 문제의 내부 page projection */
-export interface LearnerVocabularyRelatedQuestionsProjection {
-  items: LearnerVocabularyRelatedQuestionProjection[];
-  page: LearnerVocabularyPageMetadata;
 }
 
 /** 게시 데이터 손상을 조용히 누락하지 않는 stable 내부 query 오류 */
@@ -290,26 +258,6 @@ export class DrizzleLearnerVocabularyQuery {
       ...summary,
       exampleSentences,
       relations,
-    };
-  }
-
-  /** 현재 게시 문제 중 token 또는 expression으로 어휘를 쓰는 문제를 반환한다 */
-  async listRelatedQuestions(
-    userId: string,
-    vocabularyId: string,
-    query: LearnerVocabularyPageQuery,
-  ): Promise<LearnerVocabularyRelatedQuestionsProjection> {
-    const result = await new DrizzleLearnerQuestionQuery(
-      this.database,
-    ).listQuestions(userId, { ...query, vocabularyId, sort: 'LATEST' });
-    return {
-      ...result,
-      items: result.items.map(({ majorCategory, topic, tags, ...item }) => {
-        void majorCategory;
-        void topic;
-        void tags;
-        return item;
-      }),
     };
   }
 

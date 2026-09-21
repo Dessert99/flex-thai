@@ -94,7 +94,7 @@ export function ContentImportListPage(
                   <TableRow>
                     <TableHead>처리 시각</TableHead>
                     <TableHead>어휘</TableHead>
-                    <TableHead>문제</TableHead>
+
                     <TableHead>가져옴</TableHead>
                     <TableHead>거절됨</TableHead>
                   </TableRow>
@@ -113,7 +113,7 @@ export function ContentImportListPage(
                         </Link>
                       </TableCell>
                       <TableCell>{item.vocabularyCount}</TableCell>
-                      <TableCell>{item.questionCount}</TableCell>
+
                       <TableCell>{item.importedCount}</TableCell>
                       <TableCell>{item.rejectedCount}</TableCell>
                     </TableRow>

@@ -19,7 +19,6 @@ describe('콘텐츠 가져오기 상세 페이지', () => {
       id: '01933b6a-8f13-7a19-b7e5-536d70f57abb',
       status: 'COMPLETED_WITH_FAILURES',
       vocabularyCount: 1,
-      questionCount: 1,
       importedCount: 1,
       rejectedCount: 1,
       createdAt: '2026-07-25T00:00:00.000Z',

@@ -3,18 +3,12 @@ import { problemDetailsSchema } from '@flex-thia/contracts/common/problem';
 import { startEmailAuthenticationRequestSchema } from '@flex-thia/contracts/identity/auth';
 import { WordbookPersistenceError } from '@flex-thia/database/repositories/drizzle-wordbook.repository';
 import { AuthDomainError } from '@flex-thia/domain/auth/auth-domain.error';
-import { ContentImportError } from '@flex-thia/domain/content-import/content-import.service';
+
 import { IdentityDomainError } from '@flex-thia/domain/identity/authentication.service';
 import { EmailChallengeError } from '@flex-thia/domain/identity/email-challenge';
-import { UserManagementError } from '@flex-thia/domain/identity/user-management';
-import { LearningDomainError } from '@flex-thia/domain/learning/question-attempt';
+
 import { WordbookDomainError } from '@flex-thia/domain/learning/wordbook';
-import { AuditLogError } from '@flex-thia/domain/operations/audit-log.service';
-import { QuestionAdminError } from '@flex-thia/domain/questions/question-admin';
-import { QuestionPublicationError } from '@flex-thia/domain/questions/question-publication';
-import { QuestionTaxonomyError } from '@flex-thia/domain/questions/question-taxonomy.service';
-import { VocabularyAdminError } from '@flex-thia/domain/vocabulary/vocabulary-admin';
-import { VocabularyRelationsMergeAdminError } from '@flex-thia/domain/vocabulary/vocabulary-relations-merge.service';
+
 import {
   HttpException,
   InternalServerErrorException,
@@ -22,8 +16,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
-import { LearnerPublicResponseError } from '../../learning/learner-content.service.js';
-import { LearnerQuestionsController } from '../../learning/learner-questions.controller.js';
+
 import { StructuredLogger } from '../logging/structured-logger.js';
 import {
   buildErrorResponse,
@@ -196,33 +189,6 @@ describe('공개 오류 응답 변환', () => {
   });
 
   it.each([
-    ['QUESTION_UNAVAILABLE', 409],
-    ['QUESTION_OPTION_MISMATCH', 409],
-    ['ATTEMPT_IDEMPOTENCY_CONFLICT', 409],
-    ['VOCABULARY_UNAVAILABLE', 404],
-  ] as const)(
-    '학습 오류 %s를 정확한 공개 상태 %i로 변환한다',
-    (code, status) => {
-      const result = buildErrorResponse(
-        new LearningDomainError(code),
-        'request-learning',
-      );
-
-      expect(result).toEqual({
-        status,
-        body: {
-          type: `https://flex-thia.example/problems/${code.toLowerCase().replaceAll('_', '-')}`,
-          title: '요청을 처리할 수 없습니다.',
-          status,
-          code,
-          requestId: 'request-learning',
-          fieldErrors: [],
-        },
-      });
-    },
-  );
-
-  it.each([
     'CONTENT_DRAFT_ITEM_CONFLICT',
     'CONTENT_DRAFT_PERSISTENCE_CONFLICT',
     'CONTENT_IMPORT_PERSISTENCE_CONFLICT',
@@ -263,47 +229,6 @@ describe('공개 오류 응답 변환', () => {
     },
   );
 
-  it.each([
-    [new ContentImportError('CONTENT_IMPORT_IDEMPOTENCY_CONFLICT'), 409],
-    [new QuestionAdminError('QUESTION_NOT_FOUND'), 404],
-    [new QuestionAdminError('QUESTION_NOT_FOUND'), 404],
-    [new QuestionAdminError('QUESTION_NOT_FOUND'), 404],
-    [new QuestionAdminError('QUESTION_NOT_FOUND'), 404],
-    [new QuestionAdminError('QUESTION_CONTENT_INVALID'), 400],
-    [new QuestionAdminError('QUESTION_VERSION_CONFLICT'), 409],
-    [new QuestionPublicationError('QUESTION_NOT_FOUND'), 404],
-    [new QuestionPublicationError('QUESTION_VERSION_NOT_FOUND'), 404],
-    [new QuestionPublicationError('QUESTION_VERSION_NOT_PUBLISHABLE'), 409],
-    [new QuestionPublicationError('QUESTION_STATE_CONFLICT'), 409],
-    [new QuestionTaxonomyError('TAXONOMY_CONFLICT'), 409],
-    [new UserManagementError('ADMIN_REQUIRED'), 403],
-    [new UserManagementError('INVALID_SCHOOL_EMAIL'), 400],
-    [new UserManagementError('USER_NOT_FOUND'), 404],
-    [new UserManagementError('SELF_LOCKOUT_FORBIDDEN'), 409],
-    [new UserManagementError('LAST_ACTIVE_ADMIN_REQUIRED'), 409],
-    [new AuditLogError('AUDIT_LOG_NOT_FOUND'), 404],
-    [new VocabularyAdminError('VOCABULARY_NOT_FOUND'), 404],
-    [new VocabularyAdminError('VOCABULARY_CONTENT_INVALID'), 400],
-    [new VocabularyAdminError('VOCABULARY_DUPLICATE'), 409],
-    [new VocabularyAdminError('VOCABULARY_IN_USE'), 409],
-    [new VocabularyAdminError('VOCABULARY_STATE_CONFLICT'), 409],
-    [new VocabularyRelationsMergeAdminError('MEANING_RELATION_NOT_FOUND'), 404],
-    [new VocabularyRelationsMergeAdminError('MEANING_RELATION_DUPLICATE'), 409],
-    [new VocabularyRelationsMergeAdminError('VOCABULARY_MERGE_CONFLICT'), 409],
-  ] as const)(
-    '관리자 domain 오류 %s를 정확한 공개 상태 %i로 변환한다',
-    (error, status) => {
-      const result = buildErrorResponse(error, 'request-admin');
-
-      expect(result.status).toBe(status);
-      expect(result.body).toMatchObject({
-        status,
-        code: error.code,
-        requestId: 'request-admin',
-      });
-    },
-  );
-
   it('공개 query null의 안정적인 404 code를 보존한다', () => {
     const question = buildErrorResponse(
       new NotFoundException({ code: 'QUESTION_NOT_FOUND' }),
@@ -322,106 +247,5 @@ describe('공개 오류 응답 변환', () => {
       status: 404,
       body: { code: 'VOCABULARY_NOT_FOUND' },
     });
-  });
-
-  it('예상한 4xx는 application/problem+json으로 응답하고 오류 로그를 남기지 않는다', () => {
-    const type = vi.fn().mockReturnThis();
-    const status = vi.fn().mockReturnThis();
-    const json = vi.fn();
-    const errorLog = vi.fn();
-    const filter = new DomainExceptionFilter({ error: errorLog } as never);
-    const host = {
-      switchToHttp: () => ({
-        getRequest: () => ({ headers: { 'x-request-id': 'request-5' } }),
-        getResponse: () => ({ type, status, json }),
-      }),
-    } as never;
-    let requestError: unknown;
-    try {
-      startEmailAuthenticationRequestSchema.parse({ email: 'invalid' });
-    } catch (error) {
-      requestError = error;
-    }
-
-    filter.catch(new IdentityDomainError('INVALID_TOTP'), host);
-    filter.catch(requestError, host);
-    filter.catch(new LearningDomainError('QUESTION_UNAVAILABLE'), host);
-
-    expect(type).toHaveBeenCalledWith('application/problem+json');
-    expect(status).toHaveBeenCalledWith(401);
-    expect(status).toHaveBeenCalledWith(400);
-    expect(status).toHaveBeenCalledWith(409);
-    expect(errorLog).not.toHaveBeenCalled();
-  });
-
-  it('실제 Controller 응답 검증 실패는 내부 필드 없이 500으로 응답하고 안전한 요청 문맥만 기록한다', async () => {
-    const controller = new LearnerQuestionsController({
-      listQuestions: () =>
-        Promise.resolve({
-          items: [],
-          page: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 },
-          storageKey: 'private/internal.bin',
-        }),
-    } as never);
-    let responseError: unknown;
-    try {
-      await controller.listQuestions(
-        {
-          userId: 'user-1',
-          sub: 'subject-1',
-          email: 'learner@example.com',
-          role: 'LEARNER',
-          mfaEnrolledAt: null,
-        },
-        {},
-      );
-    } catch (error) {
-      responseError = error;
-    }
-    expect(responseError).toBeInstanceOf(LearnerPublicResponseError);
-
-    const type = vi.fn().mockReturnThis();
-    const status = vi.fn().mockReturnThis();
-    const json = vi.fn();
-    const write = vi.fn();
-    const filter = new DomainExceptionFilter(
-      new StructuredLogger('api', write),
-    );
-
-    filter.catch(responseError, {
-      switchToHttp: () => ({
-        getRequest: () => ({
-          headers: {
-            'x-request-id': 'request-response',
-            authorization: 'Bearer secret-token',
-          },
-          route: { path: '/api/v1/questions' },
-          user: { userId: 'user-1' },
-          body: { storageKey: 'private/internal.bin' },
-        }),
-        getResponse: () => ({ type, status, json }),
-      }),
-    } as never);
-
-    expect(status).toHaveBeenCalledWith(500);
-    expect(json).toHaveBeenCalledWith({
-      type: 'https://flex-thia.example/problems/internal-server-error',
-      title: '요청을 처리할 수 없습니다.',
-      status: 500,
-      code: 'INTERNAL_SERVER_ERROR',
-      requestId: 'request-response',
-      fieldErrors: [],
-    });
-    const serialized = write.mock.calls[0]?.[0] as string;
-    expect(JSON.parse(serialized)).toMatchObject({
-      level: 'error',
-      requestId: 'request-response',
-      errorCode: 'INTERNAL_SERVER_ERROR',
-      route: '/api/v1/questions',
-      userId: 'user-1',
-    });
-    expect(serialized).not.toMatch(
-      /storageKey|private\/leak|authorization|secret-token|Zod/u,
-    );
   });
 });

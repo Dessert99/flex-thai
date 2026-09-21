@@ -3,10 +3,6 @@ import { z } from 'zod';
 
 const uuidSchema = z.string().uuid();
 const safeNonnegativeIntegerSchema = z.number().int().safe().nonnegative();
-const questionPurposes = [
-  'QUESTION_GENERATION',
-  'VOCABULARY_THEN_QUESTION_GENERATION',
-] as const;
 
 /** 콘텐츠 제작이 지원하는 입력 형식 */
 export const contentProductionInputTypeSchema = z.enum([
@@ -16,10 +12,7 @@ export const contentProductionInputTypeSchema = z.enum([
 ]);
 
 /** 콘텐츠 제작 작업의 생성 목적 */
-export const contentProductionPurposeSchema = z.enum([
-  'VOCABULARY_EXTRACTION',
-  ...questionPurposes,
-]);
+export const contentProductionPurposeSchema = z.enum(['VOCABULARY_EXTRACTION']);
 
 /** 콘텐츠 제작 작업의 전체 상태 */
 export const contentProductionJobStatusSchema = z.enum([
@@ -39,139 +32,12 @@ export const contentProductionItemStatusSchema = z.enum([
   'FAILED',
 ]);
 
-const distinctUuidListSchema = z
-  .array(uuidSchema)
-  .max(500)
-  .refine(
-    (values) => new Set(values).size === values.length,
-    'UUID 목록은 중복될 수 없습니다.',
-  );
-
-const questionTypePlanSchema = z
-  .array(
-    z
-      .object({
-        questionTypeVersionId: uuidSchema,
-        count: z.number().int().safe().positive().max(100),
-      })
-      .strict(),
-  )
-  .min(1)
-  .max(100)
-  .refine(
-    (items) =>
-      new Set(items.map(({ questionTypeVersionId }) => questionTypeVersionId))
-        .size === items.length,
-    '문제 유형 버전은 중복될 수 없습니다.',
-  );
-
-const difficultyPlanSchema = z
-  .array(
-    z
-      .object({
-        difficulty: z.number().int().safe().min(1).max(5),
-        count: z.number().int().safe().positive().max(100),
-      })
-      .strict(),
-  )
-  .min(1)
-  .max(5)
-  .refine(
-    (items) =>
-      new Set(items.map(({ difficulty }) => difficulty)).size === items.length,
-    '난이도는 중복될 수 없습니다.',
-  );
-
-const nullableAdditionalInstructionKoSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(2_000)
-  .nullable();
-
-/** 문제 생성 job마다 고정할 typed 고급 옵션 */
-export const contentProductionQuestionOptionsSchema = z
-  .object({
-    questionCount: z.number().int().safe().min(1).max(100),
-    questionTypePlan: questionTypePlanSchema,
-    difficultyPlan: difficultyPlanSchema,
-    targetVocabularyIds: distinctUuidListSchema,
-    requiredVocabularyIds: distinctUuidListSchema,
-    excludedVocabularyIds: distinctUuidListSchema,
-    newAuxiliaryVocabularyLimit: z.number().int().safe().min(0).max(100),
-    similarityThreshold: z.number().finite().min(0).max(1),
-    additionalInstructionKo: nullableAdditionalInstructionKoSchema,
-  })
-  .strict()
-  .superRefine((options, context) => {
-    const addIssue = (path: string[], message: string) =>
-      context.addIssue({ code: 'custom', path, message });
-    const typeCount = options.questionTypePlan.reduce(
-      (sum, item) => sum + item.count,
-      0,
-    );
-    const difficultyCount = options.difficultyPlan.reduce(
-      (sum, item) => sum + item.count,
-      0,
-    );
-    if (typeCount !== options.questionCount) {
-      addIssue(
-        ['questionTypePlan'],
-        '문제 유형 계획 합은 questionCount와 같아야 합니다.',
-      );
-    }
-    if (difficultyCount !== options.questionCount) {
-      addIssue(
-        ['difficultyPlan'],
-        '난이도 계획 합은 questionCount와 같아야 합니다.',
-      );
-    }
-    const vocabularyIds = [
-      ...options.targetVocabularyIds,
-      ...options.requiredVocabularyIds,
-      ...options.excludedVocabularyIds,
-    ];
-    if (new Set(vocabularyIds).size !== vocabularyIds.length) {
-      addIssue(
-        ['targetVocabularyIds'],
-        'target·required·excluded 어휘는 서로 겹칠 수 없습니다.',
-      );
-    }
-  });
-
 /** 어휘 추출 preset이 소유하는 안정 정책 */
 export const vocabularyExtractionPresetParametersSchema = z
   .object({
     suspectedDuplicateMaxCodePointDistance: safeNonnegativeIntegerSchema,
   })
   .strict();
-
-/** 문제 생성 preset이 소유하는 정책과 job 기본값 */
-export const questionGenerationPresetParametersSchema =
-  contentProductionQuestionOptionsSchema
-    .extend({
-      commonPrinciples: z.array(z.string().trim().min(1)).max(100).default([]),
-      similarQuestions: z
-        .array(
-          z
-            .object({
-              difficulty: z.number().int().safe().min(1).max(5),
-              summary: z.string().trim().min(1).max(1_000),
-            })
-            .strict(),
-        )
-        .max(100)
-        .default([]),
-    })
-    .strict();
-
-/** 복합 preset이 어휘 정책과 문제 생성 정책을 함께 소유한다 */
-export const combinedProductionPresetParametersSchema =
-  questionGenerationPresetParametersSchema
-    .extend({
-      suspectedDuplicateMaxCodePointDistance: safeNonnegativeIntegerSchema,
-    })
-    .strict();
 
 const vocabularyJobConfigurationSchema = z
   .object({
@@ -181,20 +47,10 @@ const vocabularyJobConfigurationSchema = z
   })
   .strict();
 
-const questionJobConfigurationSchemas = questionPurposes.map((purpose) =>
-  z
-    .object({
-      purpose: z.literal(purpose),
-      presetId: uuidSchema,
-      options: contentProductionQuestionOptionsSchema,
-    })
-    .strict(),
-);
-
 /** preset 선택과 job별 override를 목적별 strict 입력으로 제한한다 */
 export const contentProductionJobConfigurationSchema = z.discriminatedUnion(
   'purpose',
-  [vocabularyJobConfigurationSchema, ...questionJobConfigurationSchemas],
+  [vocabularyJobConfigurationSchema],
 );
 
 /** private 입력 object 정책 생성 요청 */
@@ -264,20 +120,6 @@ export const contentProductionPresetSchema = z.discriminatedUnion('purpose', [
       parameters: vocabularyExtractionPresetParametersSchema,
     })
     .strict(),
-  z
-    .object({
-      ...contentProductionPresetBaseShape,
-      purpose: z.literal('QUESTION_GENERATION'),
-      parameters: questionGenerationPresetParametersSchema,
-    })
-    .strict(),
-  z
-    .object({
-      ...contentProductionPresetBaseShape,
-      purpose: z.literal('VOCABULARY_THEN_QUESTION_GENERATION'),
-      parameters: combinedProductionPresetParametersSchema,
-    })
-    .strict(),
 ]);
 
 /** preset 목록 응답 */
@@ -302,50 +144,8 @@ export const createContentProductionJobRequestSchema = z.discriminatedUnion(
         options: z.object({}).strict(),
       })
       .strict(),
-    ...questionPurposes.map((purpose) =>
-      z
-        .object({
-          ...createJobCommonShape,
-          purpose: z.literal(purpose),
-          presetId: uuidSchema,
-          options: contentProductionQuestionOptionsSchema,
-        })
-        .strict(),
-    ),
   ],
 );
-
-/** worker와 같은 prompt builder를 호출할 item 선택 요청 */
-export const promptPreviewRequestSchema = z.discriminatedUnion('purpose', [
-  z
-    .object({
-      purpose: z.literal('QUESTION_GENERATION'),
-      presetId: uuidSchema,
-      options: contentProductionQuestionOptionsSchema,
-      questionPlanIndex: z.number().int().safe().nonnegative().max(99),
-    })
-    .strict(),
-  z
-    .object({
-      purpose: z.literal('VOCABULARY_THEN_QUESTION_GENERATION'),
-      presetId: uuidSchema,
-      options: contentProductionQuestionOptionsSchema,
-      questionPlanIndex: z.number().int().safe().nonnegative().max(99),
-    })
-    .strict(),
-]);
-
-/** provider 비공개값 없이 안전한 prompt section과 최종 prompt를 반환한다 */
-export const promptPreviewResponseSchema = z
-  .object({
-    promptVersion: z.string().min(1),
-    questionPlanIndex: z.number().int().safe().nonnegative(),
-    sections: z.array(
-      z.object({ name: z.string().min(1), content: z.unknown() }).strict(),
-    ),
-    prompt: z.string().min(1),
-  })
-  .strict();
 
 const contentProductionJobCountsSchema = z
   .object({
@@ -432,22 +232,6 @@ export const createContentProductionPresetRequestSchema = z.discriminatedUnion(
         parameters: vocabularyExtractionPresetParametersSchema,
       })
       .strict(),
-    z
-      .object({
-        requestId: uuidSchema,
-        name: z.string().trim().min(1).max(200),
-        purpose: z.literal('QUESTION_GENERATION'),
-        parameters: questionGenerationPresetParametersSchema,
-      })
-      .strict(),
-    z
-      .object({
-        requestId: uuidSchema,
-        name: z.string().trim().min(1).max(200),
-        purpose: z.literal('VOCABULARY_THEN_QUESTION_GENERATION'),
-        parameters: combinedProductionPresetParametersSchema,
-      })
-      .strict(),
   ],
 );
 
@@ -459,20 +243,6 @@ export const createContentProductionPresetVersionRequestSchema =
         requestId: uuidSchema,
         purpose: z.literal('VOCABULARY_EXTRACTION'),
         parameters: vocabularyExtractionPresetParametersSchema,
-      })
-      .strict(),
-    z
-      .object({
-        requestId: uuidSchema,
-        purpose: z.literal('QUESTION_GENERATION'),
-        parameters: questionGenerationPresetParametersSchema,
-      })
-      .strict(),
-    z
-      .object({
-        requestId: uuidSchema,
-        purpose: z.literal('VOCABULARY_THEN_QUESTION_GENERATION'),
-        parameters: combinedProductionPresetParametersSchema,
       })
       .strict(),
   ]);
@@ -504,22 +274,6 @@ export const contentProductionPresetVersionSchema = z.discriminatedUnion(
         parameters: vocabularyExtractionPresetParametersSchema,
       })
       .strict(),
-    z
-      .object({
-        ...contentProductionPresetBaseShape,
-        ...contentProductionPresetVersionStateShape,
-        purpose: z.literal('QUESTION_GENERATION'),
-        parameters: questionGenerationPresetParametersSchema,
-      })
-      .strict(),
-    z
-      .object({
-        ...contentProductionPresetBaseShape,
-        ...contentProductionPresetVersionStateShape,
-        purpose: z.literal('VOCABULARY_THEN_QUESTION_GENERATION'),
-        parameters: combinedProductionPresetParametersSchema,
-      })
-      .strict(),
   ],
 );
 
@@ -533,21 +287,10 @@ export type ContentProductionJobConfiguration = z.infer<
   typeof contentProductionJobConfigurationSchema
 >;
 
-/** 콘텐츠 제작 문제 옵션 타입 */
-export type ContentProductionQuestionOptions = z.infer<
-  typeof contentProductionQuestionOptionsSchema
->;
-
 /** 콘텐츠 제작 생성 요청 타입 */
 export type CreateContentProductionJobRequest = z.infer<
   typeof createContentProductionJobRequestSchema
 >;
-
-/** 콘텐츠 제작 prompt 미리보기 요청 타입 */
-export type PromptPreviewRequest = z.infer<typeof promptPreviewRequestSchema>;
-
-/** 콘텐츠 제작 prompt 미리보기 응답 타입 */
-export type PromptPreviewResponse = z.infer<typeof promptPreviewResponseSchema>;
 
 /** 콘텐츠 제작 preset snapshot 타입 */
 export type ContentProductionPreset = z.infer<

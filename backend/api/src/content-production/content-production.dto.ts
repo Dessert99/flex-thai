@@ -9,7 +9,6 @@ import {
   contentProductionPresetListResponseSchema,
   contentProductionPresetPathSchema,
   contentProductionUploadPathSchema,
-  promptPreviewResponseSchema,
   setContentProductionPresetEnabledRequestSchema,
   uploadPolicyRequestSchema,
   uploadPolicyResponseSchema,
@@ -73,19 +72,6 @@ export class ContentProductionJobPathDto extends createZodDto(
 /** 작업 상세 응답 Swagger DTO */
 export class ContentProductionJobDetailResponseDto extends createZodDto(
   contentProductionJobDetailResponseSchema,
-) {}
-
-/** prompt preview 요청 Swagger DTO */
-export class PromptPreviewRequestDto {
-  purpose!: string;
-  presetId!: string;
-  options!: unknown;
-  questionPlanIndex!: number;
-}
-
-/** prompt preview 응답 Swagger DTO */
-export class PromptPreviewResponseDto extends createZodDto(
-  promptPreviewResponseSchema,
 ) {}
 
 /** preset path Swagger DTO */

@@ -1,9 +1,7 @@
-import { type DrizzleLearnerQuestionQuery } from '@flex-thia/database/queries/drizzle-learner-question.query';
 import { type DrizzleLearnerVocabularyQuery } from '@flex-thia/database/queries/drizzle-learner-vocabulary.query';
 import { type DrizzleWordbookQuery } from '@flex-thia/database/queries/drizzle-wordbook.query';
 import { type IdentityUserRepository } from '@flex-thia/domain/identity/user.repository';
-import { type QuestionAttemptService } from '@flex-thia/domain/learning/question-attempt';
-import { type SavedContentService } from '@flex-thia/domain/learning/saved-content';
+
 import { type WordbookService } from '@flex-thia/domain/learning/wordbook';
 import { type DynamicModule, Module } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -15,17 +13,14 @@ import {
   IDENTITY_USER_REPOSITORY,
 } from '../identity/cognito-authorizer.guard.js';
 import { LearnerContentService } from './learner-content.service.js';
-import { LearnerQuestionsController } from './learner-questions.controller.js';
+
 import { LearnerVocabulariesController } from './learner-vocabularies.controller.js';
 import { LearnerWordbooksController } from './learner-wordbooks.controller.js';
 import { LearnerWordbooksService } from './learner-wordbooks.service.js';
 
 /** Learning HTTP 경계가 조립 시 받는 이미 선택된 adapter와 use case */
 export interface LearningModuleOptions {
-  questionQuery: DrizzleLearnerQuestionQuery;
   vocabularyQuery: DrizzleLearnerVocabularyQuery;
-  questionAttempts: QuestionAttemptService;
-  savedContent: SavedContentService;
   wordbookQuery: DrizzleWordbookQuery;
   wordbooks: WordbookService;
   users: IdentityUserRepository;
@@ -39,19 +34,12 @@ export class LearningModule {
   static register(options: LearningModuleOptions): DynamicModule {
     return {
       module: LearningModule,
-      controllers: [
-        LearnerQuestionsController,
-        LearnerVocabulariesController,
-        LearnerWordbooksController,
-      ],
+      controllers: [LearnerVocabulariesController, LearnerWordbooksController],
       providers: [
         {
           provide: LearnerContentService,
           useValue: new LearnerContentService({
-            questionQuery: options.questionQuery,
             vocabularyQuery: options.vocabularyQuery,
-            questionAttempts: options.questionAttempts,
-            savedContent: options.savedContent,
           }),
         },
         {

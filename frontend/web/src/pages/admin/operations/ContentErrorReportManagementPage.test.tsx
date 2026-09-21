@@ -214,16 +214,15 @@ function createSummary() {
   return {
     id: ids.report,
     reporter: { id: ids.reporter, email: 'learner@example.com' },
-    targetKind: 'QUESTION' as const,
+    targetKind: 'VOCABULARY' as const,
     category: 'OTHER' as const,
     status: 'OPEN' as const,
     assignee: { id: ids.assignee, email: 'admin@example.com' },
     description: '설명이 다릅니다.',
     canonicalReference: {
-      kind: 'QUESTION' as const,
+      kind: 'VOCABULARY' as const,
       contentId: ids.content,
       contentVersionId: ids.content,
-      questionVersion: 1,
       sentenceVersionId: null,
       locationId: null,
     },

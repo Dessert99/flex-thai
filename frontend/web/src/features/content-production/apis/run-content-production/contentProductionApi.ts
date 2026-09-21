@@ -5,10 +5,7 @@ import {
   contentProductionJobSummarySchema,
   contentProductionPresetListResponseSchema,
   createContentProductionJobRequestSchema,
-  promptPreviewRequestSchema,
-  promptPreviewResponseSchema,
   type CreateContentProductionJobRequest,
-  type PromptPreviewRequest,
 } from '@flex-thia/contracts/content-production/content-production';
 import { queryOptions } from '@tanstack/react-query';
 import { z } from 'zod';
@@ -59,15 +56,6 @@ export const contentProductionJobQueryOptions = (jobId: string) =>
         },
         signal,
       }),
-  });
-
-/** effective snapshot으로 prompt preview를 요청한다 */
-export const previewContentProductionPrompt = (request: PromptPreviewRequest) =>
-  authenticatedRequest({
-    body: promptPreviewRequestSchema.parse(request),
-    method: 'POST',
-    path: '/admin/content-production/prompt-previews',
-    response: { kind: 'json', schema: promptPreviewResponseSchema },
   });
 
 /** 검증된 upload와 effective snapshot으로 job을 생성한다 */

@@ -1,11 +1,3 @@
-import type {
-  QuestionBlockKind,
-  QuestionTemplate,
-} from '../questions/question-version.js';
-import type {
-  ThaiExpressionOccurrenceInput,
-  ThaiTokenOccurrenceInput,
-} from '../thai-content/thai-sentence-version.js';
 import type { Vocabulary } from '../vocabulary/vocabulary.js';
 import type { ContentDraftAuditContext } from './content-import.js';
 
@@ -30,21 +22,6 @@ export interface VocabularyMeaningReferenceRecord {
   vocabularyId: string;
 }
 
-/** slug와 version으로 고정한 문제 유형 버전의 현재 정보 */
-export interface QuestionTypeVersionReferenceRecord {
-  id: string;
-  slug: string;
-  version: number;
-  template: QuestionTemplate;
-  optionCount: number;
-}
-
-/** 문제 버전에 연결할 선택 가능한 주제·태그 참조 */
-export interface QuestionTaxonomyReferenceRecord {
-  id: string;
-  slug: string;
-}
-
 /** vocabulary graph에 저장할 한국어 뜻 */
 export interface ResolvedVocabularyMeaning {
   id: string;
@@ -61,92 +38,11 @@ export interface ResolvedVocabularyDraftGraph {
   meanings: ResolvedVocabularyMeaning[];
 }
 
-/** 문제 초안에 함께 생성할 논리 문장과 version 1 graph */
-export interface ResolvedQuestionSentenceGraph {
-  sentence: {
-    id: string;
-  };
-  version: {
-    id: string;
-    sentenceId: string;
-    version: 1;
-    originalText: string;
-    translationKo: string;
-    frozenAt: null;
-  };
-  tokens: Array<
-    ThaiTokenOccurrenceInput & {
-      id: string;
-      sentenceVersionId: string;
-    }
-  >;
-  expressions: Array<
-    Omit<ThaiExpressionOccurrenceInput, 'adminSelected'> & {
-      id: string;
-      sentenceVersionId: string;
-      representative: boolean;
-    }
-  >;
-}
-
-/** 문제 version에 저장할 block과 문장 연결 */
-export interface ResolvedQuestionBlock {
-  id: string;
-  questionVersionId: string;
-  kind: QuestionBlockKind;
-  position: number;
-  sentences: Array<{
-    id: string;
-    blockId: string;
-    sentenceVersionId: string;
-    position: number;
-    speaker: string | null;
-  }>;
-}
-
-/** 문제 version에 저장할 선택지와 비공개 정답 */
-export interface ResolvedQuestionOption {
-  id: string;
-  questionVersionId: string;
-  sentenceVersionId: string | null;
-  position: number;
-  isCorrect: boolean;
-  spanSentenceVersionId: string | null;
-  spanStartTokenIndex: number | null;
-  spanEndTokenIndex: number | null;
-}
-
-/** adapter가 그대로 삽입할 canonical question draft graph */
-export interface ResolvedQuestionDraftGraph {
-  question: {
-    id: string;
-    status: 'DRAFT';
-    currentPublishedVersionId: null;
-  };
-  version: {
-    id: string;
-    questionId: string;
-    version: 1;
-    typeVersionId: string;
-    topicId: string;
-    difficulty: number;
-    status: 'DRAFT';
-    validationStatus: 'PENDING';
-    validationIssues: [];
-    validatedAt: null;
-    publishedAt: null;
-  };
-  tagIds: string[];
-  sentences: ResolvedQuestionSentenceGraph[];
-  blocks: ResolvedQuestionBlock[];
-  options: ResolvedQuestionOption[];
-}
-
 /** 성공한 import item의 내부 저장 표현 */
 export interface ResolvedContentImportItem {
   id: string;
   importId: string;
-  kind: 'VOCABULARY' | 'QUESTION';
+  kind: 'VOCABULARY';
   sourceIndex: number;
   clientRef: string;
   status: 'IMPORTED';
@@ -157,9 +53,8 @@ export interface ResolvedContentImportItem {
 
 /** 콘텐츠 생성과 같은 transaction에 append할 구조화 audit */
 export interface ResolvedContentDraftAudit extends ContentDraftAuditContext {
-  action:
-    'CONTENT_VOCABULARY_DRAFT_IMPORTED' | 'CONTENT_QUESTION_DRAFT_IMPORTED';
-  targetType: 'VOCABULARY' | 'QUESTION';
+  action: 'CONTENT_VOCABULARY_DRAFT_IMPORTED';
+  targetType: 'VOCABULARY';
   targetId: string;
   summary: {
     importId: string;
@@ -186,31 +81,10 @@ export interface ContentDraftTransaction {
     this: void,
     meaningId: string,
   ): Promise<VocabularyMeaningReferenceRecord | null>;
-  findQuestionTypeVersion(
-    this: void,
-    slug: string,
-    version: number,
-  ): Promise<QuestionTypeVersionReferenceRecord | null>;
-  findActiveQuestionTopic(
-    this: void,
-    slug: string,
-  ): Promise<QuestionTaxonomyReferenceRecord | null>;
-  findActiveQuestionTags(
-    this: void,
-    slugs: string[],
-  ): Promise<QuestionTaxonomyReferenceRecord[]>;
   saveVocabularyDraft(
     this: void,
     input: {
       graph: ResolvedVocabularyDraftGraph;
-      item: ResolvedContentImportItem;
-      audit: ResolvedContentDraftAudit;
-    },
-  ): Promise<void>;
-  saveQuestionDraft(
-    this: void,
-    input: {
-      graph: ResolvedQuestionDraftGraph;
       item: ResolvedContentImportItem;
       audit: ResolvedContentDraftAudit;
     },

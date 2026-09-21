@@ -1,6 +1,6 @@
 /** 사용자 소유 단어장과 항목 관리의 공개 JSON 계약을 정의한다 */
 import { z } from 'zod';
-import { pageMetadataSchema } from './questions.js';
+import { pageMetadataSchema } from './pagination.js';
 import { vocabularySummarySchema } from './vocabularies.js';
 
 const httpIntegerSchema = (minimum: number, maximum: number) =>

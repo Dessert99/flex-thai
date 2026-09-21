@@ -13,7 +13,6 @@ describe('AdminHomeService', () => {
     const query = {
       getOperationsSummary: vi.fn().mockResolvedValue({
         pendingErrorReportCount: 2,
-        pendingQuestionCandidateCount: 3,
         pendingVocabularyCandidateCount: 4,
         runningContentJobCount: 1,
         failedContentJobCount: 2,
@@ -23,7 +22,6 @@ describe('AdminHomeService', () => {
     await expect(new AdminHomeService({ query }).get(actor)).resolves.toEqual({
       feedback: { pendingCount: 2 },
       candidates: {
-        questionPendingCount: 3,
         vocabularyPendingCount: 4,
       },
       contentProduction: { runningCount: 1, failedCount: 2 },

@@ -6,8 +6,6 @@ import {
   contentProductionJobsQueryOptions,
   contentProductionPresetsQueryOptions,
   createContentProductionJob,
-  previewContentProductionPrompt,
-  retryContentProductionJob,
 } from './contentProductionApi';
 
 vi.mock('@/shared/apis/auth/authenticatedRequest', () => ({
@@ -69,41 +67,6 @@ describe('콘텐츠 제작 API', () => {
       expect.objectContaining({
         path: `/admin/content-production/jobs/${id(4)}`,
         signal,
-      }),
-    );
-  });
-
-  it('prompt preview와 retry를 서로 다른 POST endpoint로 보낸다', () => {
-    void previewContentProductionPrompt({
-      purpose: 'QUESTION_GENERATION',
-      presetId: id(5),
-      questionPlanIndex: 0,
-      options: {
-        questionCount: 1,
-        questionTypePlan: [{ questionTypeVersionId: id(6), count: 1 }],
-        difficultyPlan: [{ difficulty: 2, count: 1 }],
-        targetVocabularyIds: [],
-        requiredVocabularyIds: [],
-        excludedVocabularyIds: [],
-        newAuxiliaryVocabularyLimit: 1,
-        similarityThreshold: 0.7,
-        additionalInstructionKo: null,
-      },
-    });
-    void retryContentProductionJob(id(8));
-
-    expect(authenticatedRequest).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        method: 'POST',
-        path: '/admin/content-production/prompt-previews',
-      }),
-    );
-    expect(authenticatedRequest).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        method: 'POST',
-        path: `/admin/content-production/jobs/${id(8)}/retry`,
       }),
     );
   });

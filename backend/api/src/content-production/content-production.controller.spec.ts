@@ -1,8 +1,5 @@
 /** 콘텐츠 제작 Controller의 ADMIN+MFA 보안과 공개 projection을 검증한다 */
-import {
-  ContentProductionDomainError,
-  ContentProductionPresetError,
-} from '@flex-thia/domain/content-production/content-production.service';
+import { ContentProductionPresetError } from '@flex-thia/domain/content-production/content-production.service';
 import {
   GUARDS_METADATA,
   HTTP_CODE_METADATA,
@@ -22,23 +19,6 @@ const user = {
   role: 'ADMIN',
   mfaEnrolledAt: new Date(),
 } as const;
-
-const questionOptions = {
-  questionCount: 1,
-  questionTypePlan: [
-    {
-      questionTypeVersionId: 'cbb22737-6f3d-4112-bb0e-8e4f005c810b',
-      count: 1,
-    },
-  ],
-  difficultyPlan: [{ difficulty: 1, count: 1 }],
-  targetVocabularyIds: [],
-  requiredVocabularyIds: [],
-  excludedVocabularyIds: [],
-  newAuxiliaryVocabularyLimit: 0,
-  similarityThreshold: 0.7,
-  additionalInstructionKo: null,
-};
 
 const readHttpCode = (method: keyof ContentProductionController) => {
   const handler = Object.getOwnPropertyDescriptor(
@@ -61,7 +41,6 @@ describe('ContentProductionController 공개 경계', () => {
     ).toBe('ADMIN');
     expect(readHttpCode('createJob')).toBe(202);
     expect(readHttpCode('retryJob')).toBe(202);
-    expect(readHttpCode('previewPrompt')).toBe(200);
     expect(readHttpCode('createPreset')).toBe(201);
     expect(readHttpCode('createPresetVersion')).toBe(201);
     expect(readHttpCode('setPresetEnabled')).toBe(200);
@@ -117,33 +96,6 @@ describe('ContentProductionController 공개 경계', () => {
     expect(JSON.stringify(response)).not.toContain('inputKey');
     expect(JSON.stringify(response)).not.toContain('sourceRef');
     expect(JSON.stringify(response)).not.toContain('providerRaw');
-  });
-
-  it('멱등 body 충돌을 stable 409 응답 오류로 바꾼다', async () => {
-    const controller = new ContentProductionController({
-      create: vi
-        .fn()
-        .mockRejectedValue(
-          new ContentProductionDomainError(
-            'CONTENT_PRODUCTION_IDEMPOTENCY_CONFLICT',
-          ),
-        ),
-    } as never);
-
-    const error = await controller
-      .createJob(user, {
-        clientRequestId: 'dbb22737-6f3d-4112-bb0e-8e4f005c810b',
-        purpose: 'QUESTION_GENERATION',
-        presetId: 'a9979e5d-515d-43ab-a380-e88b78513c38',
-        uploadIds: ['77a1e8ff-7c85-4739-9004-647e12e34b65'],
-        options: questionOptions,
-      })
-      .catch((caught: unknown) => caught);
-
-    expect(error).toMatchObject({
-      status: 409,
-      response: { code: 'CONTENT_PRODUCTION_IDEMPOTENCY_CONFLICT' },
-    });
   });
 
   it('preset optimistic revision 충돌을 stable 409 오류로 바꾼다', async () => {

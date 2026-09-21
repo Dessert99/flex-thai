@@ -1,10 +1,9 @@
-/* eslint-disable max-lines -- 기존 동작 테스트와 기능 훅의 표시 상태 테스트를 함께 보존한다. */
 import {
   renderWithProviders as render,
   renderWithProviders,
 } from '@/shared/test/renderWithProviders';
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ContentProductionConsolePage as ContentProductionConsolePageContainer } from './ContentProductionConsolePage';
 import { ContentProductionConsolePage } from '@/pages/admin/content-production/ContentProductionConsolePage';
@@ -21,9 +20,7 @@ vi.mock('@/shared/apis/auth/authenticatedRequest', async (importOriginal) => ({
 }));
 
 const handlers = {
-  onConfigurationChange: vi.fn(),
   onFile: vi.fn(),
-  onPreview: vi.fn(),
   onSubmit: vi.fn(),
   onRetryJobs: vi.fn(),
   onRetryPresets: vi.fn(),
@@ -32,25 +29,8 @@ const questionPreset = {
   id: '00000000-0000-4000-8000-000000000010',
   name: '문제 생성',
   version: 1,
-  purpose: 'QUESTION_GENERATION' as const,
-  parameters: {
-    questionCount: 1,
-    questionTypePlan: [
-      {
-        questionTypeVersionId: '00000000-0000-4000-8000-000000000011',
-        count: 1,
-      },
-    ],
-    difficultyPlan: [{ difficulty: 2 as const, count: 1 }],
-    targetVocabularyIds: [],
-    requiredVocabularyIds: [],
-    excludedVocabularyIds: [],
-    newAuxiliaryVocabularyLimit: 3,
-    similarityThreshold: 0.7,
-    additionalInstructionKo: null,
-    commonPrinciples: [],
-    similarQuestions: [],
-  },
+  purpose: 'VOCABULARY_EXTRACTION' as const,
+  parameters: { suspectedDuplicateMaxCodePointDistance: 1 },
 };
 
 beforeEach(() => {
@@ -69,30 +49,10 @@ describe('콘텐츠 제작 console 화면', () => {
         presetsError
         presetsLoading={false}
         mutationPending={false}
-        previewError={false}
       />,
     );
     expect(screen.getByText('Preset을 불러오지 못했습니다.')).toBeVisible();
     expect(screen.getByText('아직 작업이 없습니다.')).toBeVisible();
-  });
-
-  it('빠른 설정과 고급 설정 탭을 제공한다', () => {
-    render(
-      <ContentProductionConsolePageView
-        {...handlers}
-        createError={false}
-        jobs={{ items: [] }}
-        jobsError={false}
-        jobsLoading={false}
-        presets={{ items: [] }}
-        presetsError={false}
-        presetsLoading={false}
-        mutationPending={false}
-        previewError={false}
-      />,
-    );
-    expect(screen.getByRole('tab', { name: '빠른 설정' })).toBeVisible();
-    expect(screen.getByRole('tab', { name: '고급 설정' })).toBeVisible();
   });
 
   it('mutation 오류를 표시하고 진행 중에는 preview와 실행을 함께 막는다', () => {
@@ -109,122 +69,16 @@ describe('콘텐츠 제작 console 화면', () => {
         }}
         presetsError={false}
         presetsLoading={false}
-        previewError
       />,
     );
     expect(
-      screen.getByText('Prompt 미리보기를 만들지 못했습니다.'),
-    ).toBeVisible();
-    expect(
       screen.getByText('콘텐츠 제작 작업을 만들지 못했습니다.'),
     ).toBeVisible();
-    expect(
-      screen.getByRole('button', { name: 'Prompt 미리보기' }),
-    ).toBeDisabled();
     expect(screen.getByRole('button', { name: '작업 실행' })).toBeDisabled();
   });
 });
 
-describe('콘텐츠 제작 console 서버 행동', () => {
-  it('요청 중 option이 바뀌면 이전 성공을 버리고 새 prompt만 표시한다', async () => {
-    const stalePreview = createDeferred<ReturnType<typeof previewResult>>();
-    const currentPreview = createDeferred<ReturnType<typeof previewResult>>();
-    const previewRequests: Array<{ body?: unknown }> = [];
-    mocks.authenticatedRequest.mockImplementation(
-      (request: { body?: unknown; path: string }) => {
-        const { path } = request;
-        if (path === '/admin/content-production/presets') {
-          return Promise.resolve({ items: [questionPreset] });
-        }
-        if (path === '/admin/content-production/jobs?limit=20') {
-          return Promise.resolve({ items: [] });
-        }
-        if (path === '/admin/content-production/prompt-previews') {
-          previewRequests.push(request);
-          return previewRequests.length === 1
-            ? stalePreview.promise
-            : currentPreview.promise;
-        }
-        throw new Error(`UNEXPECTED_REQUEST:${path}`);
-      },
-    );
-    const user = userEvent.setup();
-    renderWithProviders(<ContentProductionConsolePageContainer />);
-
-    await user.click(
-      await screen.findByRole('button', { name: 'Prompt 미리보기' }),
-    );
-    await user.click(screen.getByRole('tab', { name: '고급 설정' }));
-    fireEvent.change(screen.getByLabelText('신규 보조 어휘 한도'), {
-      target: { value: '5' },
-    });
-    await waitFor(() =>
-      expect(
-        screen.getByRole('button', { name: 'Prompt 미리보기' }),
-      ).toBeEnabled(),
-    );
-
-    await act(async () => {
-      stalePreview.resolve(previewResult('이전 option prompt'));
-      await stalePreview.promise;
-    });
-    expect(
-      screen.queryByDisplayValue('이전 option prompt'),
-    ).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'Prompt 미리보기' }));
-    await act(async () => {
-      currentPreview.resolve(previewResult('현재 option prompt'));
-      await currentPreview.promise;
-    });
-    expect(await screen.findByDisplayValue('현재 option prompt')).toBeVisible();
-    expect(previewRequests).toHaveLength(2);
-    expect(previewRequests[0]?.body).toMatchObject({
-      options: { newAuxiliaryVocabularyLimit: 3 },
-    });
-    expect(previewRequests[1]?.body).toMatchObject({
-      options: { newAuxiliaryVocabularyLimit: 5 },
-    });
-  });
-
-  it('요청 중 option이 바뀌면 이전 실패 경고도 버린다', async () => {
-    const stalePreview = createDeferred<ReturnType<typeof previewResult>>();
-    mocks.authenticatedRequest.mockImplementation(
-      ({ path }: { path: string }) => {
-        if (path === '/admin/content-production/presets') {
-          return Promise.resolve({ items: [questionPreset] });
-        }
-        if (path === '/admin/content-production/jobs?limit=20') {
-          return Promise.resolve({ items: [] });
-        }
-        if (path === '/admin/content-production/prompt-previews') {
-          return stalePreview.promise;
-        }
-        throw new Error(`UNEXPECTED_REQUEST:${path}`);
-      },
-    );
-    const user = userEvent.setup();
-    renderWithProviders(<ContentProductionConsolePageContainer />);
-
-    await user.click(
-      await screen.findByRole('button', { name: 'Prompt 미리보기' }),
-    );
-    await user.click(screen.getByRole('tab', { name: '고급 설정' }));
-    fireEvent.change(screen.getByLabelText('신규 보조 어휘 한도'), {
-      target: { value: '5' },
-    });
-
-    await act(async () => {
-      stalePreview.reject(new Error('stale preview failed'));
-      await stalePreview.promise.catch(() => undefined);
-    });
-
-    expect(screen.queryByLabelText('생성 prompt')).not.toBeInTheDocument();
-    expect(
-      screen.queryByText('Prompt 미리보기를 만들지 못했습니다.'),
-    ).not.toBeInTheDocument();
-  });
-});
+describe('콘텐츠 제작 console 서버 행동', () => {});
 
 describe('콘텐츠 제작 console 생성 행동', () => {
   it('upload 검증 뒤 생성 중 중복 실행을 막고 실패를 안내한다', async () => {
@@ -294,25 +148,6 @@ describe('콘텐츠 제작 console 생성 행동', () => {
     expect(createRequests).toHaveLength(1);
   });
 });
-
-function previewResult(prompt: string) {
-  return {
-    promptVersion: 'v1',
-    questionPlanIndex: 0,
-    sections: [],
-    prompt,
-  };
-}
-
-function createDeferred<T>() {
-  let resolve!: (value: T) => void;
-  let reject!: (error: Error) => void;
-  const promise = new Promise<T>((accept, decline) => {
-    resolve = accept;
-    reject = decline;
-  });
-  return { promise, reject, resolve };
-}
 
 const pageState = vi.hoisted(() => ({
   read: vi.fn<

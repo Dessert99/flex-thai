@@ -30,36 +30,6 @@ describe('Wave 4 통합 migration', () => {
     expect(currentSnapshot.prevId).toBe(previousSnapshot.id);
   });
 
-  it('콘텐츠 제작 항목을 입력과 작업에 연결한 뒤 필수 column으로 전환한다', () => {
-    const backfillIndex = migrationSql.indexOf('UPDATE "job_items"');
-    const inputNotNullIndex = migrationSql.indexOf(
-      'ALTER TABLE "job_items" ALTER COLUMN "job_input_id" SET NOT NULL',
-    );
-    const operationNotNullIndex = migrationSql.indexOf(
-      'ALTER TABLE "job_items" ALTER COLUMN "operation" SET NOT NULL',
-    );
-
-    expect(backfillIndex).toBeGreaterThan(-1);
-    expect(migrationSql).toContain('FROM "job_inputs"');
-    expect(migrationSql).toContain(
-      `substring(ji."source_ref" from '^input:([0-9]+):(vocabulary|question)$')::integer`,
-    );
-    expect(migrationSql).toContain(
-      `'VOCABULARY_EXTRACTION'::"content_production_operation"`,
-    );
-    expect(migrationSql).toContain(
-      `'QUESTION_GENERATION'::"content_production_operation"`,
-    );
-    expect(inputNotNullIndex).toBeGreaterThan(backfillIndex);
-    expect(operationNotNullIndex).toBeGreaterThan(backfillIndex);
-    expect(
-      currentSnapshot.tables['public.job_items']?.columns.job_input_id?.notNull,
-    ).toBe(true);
-    expect(
-      currentSnapshot.tables['public.job_items']?.columns.operation?.notNull,
-    ).toBe(true);
-  });
-
   it('기존 provider 결과와 AI 중복 정책을 보존한다', () => {
     expect(migrationSql).toMatch(
       /UPDATE "provider_runs"[\s\S]+WHEN "success" IS TRUE THEN 'SUCCEEDED'[\s\S]+WHEN "success" IS FALSE THEN 'FAILED'/u,

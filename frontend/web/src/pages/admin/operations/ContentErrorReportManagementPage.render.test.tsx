@@ -1,4 +1,3 @@
-/* eslint-disable max-lines -- 기존 동작 테스트와 기능 훅의 표시 상태 테스트를 함께 보존한다. */
 import { beforeEach } from 'vitest';
 import { renderWithProviders as render } from '@/shared/test/renderWithProviders';
 import type {
@@ -25,13 +24,13 @@ const timestamp = '2026-07-26T00:00:00.000Z';
 const summary = {
   id: ids.report,
   reporter: { id: ids.reporter, email: 'learner@example.com' },
-  targetKind: 'QUESTION' as const,
+  targetKind: 'VOCABULARY' as const,
   category: 'OTHER' as const,
   status: 'OPEN' as const,
   assignee: { id: ids.assignee, email: 'admin@example.com' },
   description: '정답 설명이 다릅니다.',
   canonicalReference: {
-    kind: 'QUESTION' as const,
+    kind: 'VOCABULARY' as const,
     contentId: ids.content,
     contentVersionId: ids.content,
     questionVersion: 1,
@@ -105,7 +104,7 @@ describe('ContentErrorReportManagementPageView', () => {
       target: { value: 'OPEN' },
     });
     fireEvent.change(screen.getByLabelText('대상'), {
-      target: { value: 'QUESTION' },
+      target: { value: 'VOCABULARY' },
     });
     fireEvent.change(screen.getByLabelText('분류'), {
       target: { value: 'OTHER' },
@@ -128,7 +127,7 @@ describe('ContentErrorReportManagementPageView', () => {
     expect(props.onSearchChange).toHaveBeenNthCalledWith(2, {
       page: 1,
       pageSize: 20,
-      targetKind: 'QUESTION',
+      targetKind: 'VOCABULARY',
     });
     expect(props.onSearchChange).toHaveBeenNthCalledWith(3, {
       page: 1,
@@ -147,7 +146,7 @@ describe('ContentErrorReportManagementPageView', () => {
       page: 3,
       pageSize: 20,
       status: 'OPEN',
-      targetKind: 'QUESTION',
+      targetKind: 'VOCABULARY',
       category: 'OTHER',
       assigneeUserId: ids.assignee,
     };
@@ -219,7 +218,7 @@ describe('ContentErrorReportManagementPageView 탐색', () => {
       screen.getByRole('link', { name: '대상 콘텐츠 열기' }),
     ).toHaveAttribute(
       'href',
-      `/admin/questions/${ids.content}?page=1&pageSize=20`,
+      `/admin/vocabularies/${ids.content}?page=1&pageSize=20`,
     );
     for (const status of ['IN_PROGRESS', 'RESOLVED', 'REJECTED']) {
       fireEvent.click(screen.getByRole('button', { name: status }));

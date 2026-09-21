@@ -36,7 +36,6 @@ export interface VocabularyMergeMovedCounts {
   expressionOccurrences: number;
   savedMemberships: number;
   wordbookMemberships: number;
-  practiceQuestions: number;
 }
 
 /** 원자 병합 결과 */

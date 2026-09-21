@@ -19,8 +19,6 @@
     "./fakes/fake-job.queue": "./src/fakes/fake-job.queue.ts",
     "./fakes/fake-job.repository": "./src/fakes/fake-job.repository.ts",
     "./fakes/fake-phone-verification.provider": "./src/fakes/fake-phone-verification.provider.ts",
-    "./fakes/fake-question-cross-validation.provider": "./src/fakes/fake-question-cross-validation.provider.ts",
-    "./fakes/fake-question-generation.provider": "./src/fakes/fake-question-generation.provider.ts",
     "./fakes/fake-sms-sender": "./src/fakes/fake-sms-sender.ts",
     "./fakes/fake-upload.provider": "./src/fakes/fake-upload.provider.ts",
     "./fakes/fake-upload.repository": "./src/fakes/fake-upload.repository.ts",

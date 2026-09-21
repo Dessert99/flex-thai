@@ -9,7 +9,6 @@ export const adminHomeOperationsResponseSchema = z
     feedback: z.object({ pendingCount: countSchema }).strict(),
     candidates: z
       .object({
-        questionPendingCount: countSchema,
         vocabularyPendingCount: countSchema,
       })
       .strict(),

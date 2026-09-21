@@ -61,9 +61,11 @@ describe('콘텐츠 제작 작업 상세 화면', () => {
     );
     expect(screen.getByText(/PUBLIC_ERROR/u)).toBeVisible();
     expect(screen.getByText(/실패 1/u)).toBeVisible();
-    expect(screen.getByRole('link', { name: '후보 검수' })).toHaveAttribute(
+    expect(
+      screen.getByRole('link', { name: '어휘 후보 검수' }),
+    ).toHaveAttribute(
       'href',
-      `/admin/content-production/candidates?jobId=${id}&page=1&pageSize=20`,
+      `/admin/content-production/vocabulary-candidates?jobId=${id}&page=1&pageSize=20`,
     );
     expect(screen.getByRole('button', { name: '재시도' })).toBeEnabled();
   });

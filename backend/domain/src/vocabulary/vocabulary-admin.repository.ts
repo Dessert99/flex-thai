@@ -45,10 +45,6 @@ export interface VocabularyAdminTransaction {
   lockVocabularyGraph(
     vocabularyId: string,
   ): Promise<VocabularyAdminLockedGraph | null>;
-  hasQuestionUsage(input: {
-    vocabularyId: string;
-    meaningIds: string[];
-  }): Promise<boolean>;
   findDuplicateVocabularyId(
     normalizedThai: string,
     excludeVocabularyId: string,

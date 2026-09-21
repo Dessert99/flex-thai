@@ -1,6 +1,6 @@
 /** 동기 콘텐츠 가져오기의 hash·멱등 재개·항목별 실패 경계를 고정한다 */
 import { describe, expect, it, vi } from 'vitest';
-import { ContentDraftError } from './content-draft.js';
+
 import type {
   ContentImportDetail,
   ContentImportRecord,
@@ -39,42 +39,11 @@ const vocabularyInput = (clientRef: string) => ({
   ],
 });
 
-const sentenceInput = {
-  originalText: 'ก',
-  translationKo: '뜻',
-  tokens: [],
-  expressions: [],
-};
-
-const questionInput = (clientRef: string) => ({
-  clientRef,
-  questionTypeSlug: 'standard-choice',
-  questionTypeVersion: 1,
-  difficulty: 1,
-  blocks: [
-    {
-      kind: 'QUESTION' as const,
-      sentences: [{ sentence: sentenceInput }],
-    },
-  ],
-  options: [
-    {
-      clientRef: `${clientRef}-option`,
-      position: 0,
-      sentence: sentenceInput,
-      span: null,
-    },
-  ],
-  correctOptionRef: `${clientRef}-option`,
-});
-
 const request = (
   vocabularyRefs = ['vocabulary-0', 'vocabulary-1'],
-  questionRefs = ['question-0', 'question-1'],
 ): ContentImportRequest => ({
   schemaVersion: 1,
   vocabularies: vocabularyRefs.map(vocabularyInput),
-  questions: questionRefs.map(questionInput),
 });
 
 const command = (
@@ -139,7 +108,6 @@ const detail = (
     id: ids.import,
     status,
     vocabularyCount: items.filter(({ kind }) => kind === 'VOCABULARY').length,
-    questionCount: items.filter(({ kind }) => kind === 'QUESTION').length,
     importedCount: items.filter(({ status: value }) => value === 'IMPORTED')
       .length,
     rejectedCount: items.filter(({ status: value }) => value === 'REJECTED')
@@ -165,7 +133,6 @@ const createRepository = (state: RepositoryState = {}) => {
     requestHash: hashContentImportRequest(request()),
     status: null,
     vocabularyCount: 2,
-    questionCount: 2,
     importedCount: 0,
     rejectedCount: 0,
     createdAt: occurredAt,
@@ -207,12 +174,7 @@ const createRepository = (state: RepositoryState = {}) => {
             detail(
               storedItems.length > 0
                 ? storedItems
-                : [
-                    item('VOCABULARY', 0),
-                    item('VOCABULARY', 1),
-                    item('QUESTION', 0),
-                    item('QUESTION', 1),
-                  ],
+                : [item('VOCABULARY', 0), item('VOCABULARY', 1)],
             ),
         ),
       ),
@@ -225,17 +187,12 @@ const createDraftService = () => ({
     targetId: ids.vocabulary,
     referenceMap: { ref: ids.vocabulary },
   }),
-  createQuestionItem: vi.fn().mockResolvedValue({
-    targetId: ids.question,
-    referenceMap: { ref: ids.question },
-  }),
 });
 
 describe('canonical 콘텐츠 가져오기 hash', () => {
   it('객체 key 순서와 무관한 lowercase SHA-256을 만든다', () => {
-    const original = request(['first'], []);
+    const original = request(['first']);
     const reordered = {
-      questions: original.questions,
       vocabularies: original.vocabularies.map((vocabulary) => ({
         kind: vocabulary.kind,
         meanings: vocabulary.meanings.map((meaning) => ({
@@ -256,8 +213,8 @@ describe('canonical 콘텐츠 가져오기 hash', () => {
   });
 
   it('배열과 item 순서가 달라지면 다른 hash를 만든다', () => {
-    expect(hashContentImportRequest(request(['first', 'second'], []))).not.toBe(
-      hashContentImportRequest(request(['second', 'first'], [])),
+    expect(hashContentImportRequest(request(['first', 'second']))).not.toBe(
+      hashContentImportRequest(request(['second', 'first'])),
     );
   });
 });
@@ -266,7 +223,7 @@ describe('ContentImportService 멱등 처리', () => {
   it('완료된 같은 user·key·hash는 draft를 다시 만들지 않고 결과를 replay한다', async () => {
     const completedItems = [item('VOCABULARY', 0)];
     const completedDetail = detail(completedItems);
-    const content = request(['vocabulary-0'], []);
+    const content = request(['vocabulary-0']);
     const fake = createRepository({
       record: {
         id: ids.import,
@@ -275,7 +232,6 @@ describe('ContentImportService 멱등 처리', () => {
         requestHash: hashContentImportRequest(content),
         status: 'COMPLETED',
         vocabularyCount: 1,
-        questionCount: 0,
         importedCount: 1,
         rejectedCount: 0,
         createdAt: occurredAt,
@@ -307,7 +263,6 @@ describe('ContentImportService 멱등 처리', () => {
         requestHash: 'f'.repeat(64),
         status: null,
         vocabularyCount: 2,
-        questionCount: 2,
         importedCount: 0,
         rejectedCount: 0,
         createdAt: occurredAt,
@@ -322,142 +277,11 @@ describe('ContentImportService 멱등 처리', () => {
     );
     expect(drafts.createVocabularyItem).not.toHaveBeenCalled();
   });
-
-  it('미완료 같은 요청은 저장된 unique item을 건너뛰고 나머지만 source 순서로 재개한다', async () => {
-    const fake = createRepository({
-      items: [item('VOCABULARY', 0), item('QUESTION', 0)],
-    });
-    const drafts = createDraftService();
-    const order: string[] = [];
-    drafts.createVocabularyItem.mockImplementation(({ sourceIndex }) => {
-      order.push(`VOCABULARY:${sourceIndex}`);
-      return Promise.resolve({ targetId: ids.vocabulary, referenceMap: {} });
-    });
-    drafts.createQuestionItem.mockImplementation(({ sourceIndex }) => {
-      order.push(`QUESTION:${sourceIndex}`);
-      return Promise.resolve({ targetId: ids.question, referenceMap: {} });
-    });
-    const service = new ContentImportService(
-      fake.repository,
-      drafts,
-      () => ids.import,
-      () => occurredAt,
-    );
-
-    await service.execute(command());
-
-    expect(order).toEqual(['VOCABULARY:1', 'QUESTION:1']);
-    expect(fake.repository.complete).toHaveBeenCalledTimes(1);
-  });
 });
 
 describe('ContentImportService 항목 실패 처리', () => {
-  it('예상 ContentDraftError만 정확한 공개 경로·code로 REJECTED 저장하고 계속한다', async () => {
-    const content = request(['bad', 'good'], ['question']);
-    const fake = createRepository({
-      record: {
-        id: ids.import,
-        requestedBy: ids.actor,
-        idempotencyKey: command(content).idempotencyKey,
-        requestHash: hashContentImportRequest(content),
-        status: null,
-        vocabularyCount: 2,
-        questionCount: 1,
-        importedCount: 0,
-        rejectedCount: 0,
-        createdAt: occurredAt,
-        completedAt: null,
-      },
-    });
-    const drafts = createDraftService();
-    drafts.createVocabularyItem
-      .mockRejectedValueOnce(
-        new ContentDraftError('IMPORT_DUPLICATE_VOCABULARY', 'thai'),
-      )
-      .mockResolvedValueOnce({
-        targetId: ids.vocabulary,
-        referenceMap: {},
-      });
-    const service = new ContentImportService(
-      fake.repository,
-      drafts,
-      () => ids.import,
-      () => occurredAt,
-    );
-
-    await service.execute(command(content));
-
-    expect(fake.repository.saveRejectedItem).toHaveBeenCalledWith({
-      importId: ids.import,
-      kind: 'VOCABULARY',
-      sourceIndex: 0,
-      clientRef: 'bad',
-      errors: [
-        {
-          path: 'thai',
-          code: 'IMPORT_DUPLICATE_VOCABULARY',
-        },
-      ],
-    });
-    expect(drafts.createVocabularyItem).toHaveBeenCalledTimes(2);
-    expect(drafts.createQuestionItem).toHaveBeenCalledTimes(1);
-  });
-
-  it('실패한 client ref를 쓰는 question만 거절하고 다음 question을 처리한다', async () => {
-    const content = request([], ['bad-question', 'good-question']);
-    const fake = createRepository({
-      record: {
-        id: ids.import,
-        requestedBy: ids.actor,
-        idempotencyKey: command(content).idempotencyKey,
-        requestHash: hashContentImportRequest(content),
-        status: null,
-        vocabularyCount: 0,
-        questionCount: 2,
-        importedCount: 0,
-        rejectedCount: 0,
-        createdAt: occurredAt,
-        completedAt: null,
-      },
-    });
-    const drafts = createDraftService();
-    drafts.createQuestionItem
-      .mockRejectedValueOnce(
-        new ContentDraftError(
-          'IMPORT_REFERENCE_NOT_FOUND',
-          'blocks.0.sentences.0.sentence.tokens.0.vocabulary',
-        ),
-      )
-      .mockResolvedValueOnce({
-        targetId: ids.question,
-        referenceMap: {},
-      });
-    const service = new ContentImportService(
-      fake.repository,
-      drafts,
-      () => ids.import,
-      () => occurredAt,
-    );
-
-    await service.execute(command(content));
-
-    expect(fake.repository.saveRejectedItem).toHaveBeenCalledWith(
-      expect.objectContaining({
-        kind: 'QUESTION',
-        sourceIndex: 0,
-        errors: [
-          {
-            path: 'blocks.0.sentences.0.sentence.tokens.0.vocabulary',
-            code: 'IMPORT_REFERENCE_NOT_FOUND',
-          },
-        ],
-      }),
-    );
-    expect(drafts.createQuestionItem).toHaveBeenCalledTimes(2);
-  });
-
   it('unexpected draft 오류는 REJECTED로 위장하지 않고 요청을 실패시킨다', async () => {
-    const content = request(['vocabulary'], []);
+    const content = request(['vocabulary']);
     const fake = createRepository({
       record: {
         id: ids.import,
@@ -466,7 +290,6 @@ describe('ContentImportService 항목 실패 처리', () => {
         requestHash: hashContentImportRequest(content),
         status: null,
         vocabularyCount: 1,
-        questionCount: 0,
         importedCount: 0,
         rejectedCount: 0,
         createdAt: occurredAt,
@@ -484,7 +307,7 @@ describe('ContentImportService 항목 실패 처리', () => {
   });
 
   it('동시 item conflict는 existing item 재조회로 replay하고 거절하지 않는다', async () => {
-    const content = request(['vocabulary'], []);
+    const content = request(['vocabulary']);
     const fake = createRepository({
       record: {
         id: ids.import,
@@ -493,7 +316,6 @@ describe('ContentImportService 항목 실패 처리', () => {
         requestHash: hashContentImportRequest(content),
         status: null,
         vocabularyCount: 1,
-        questionCount: 0,
         importedCount: 0,
         rejectedCount: 0,
         createdAt: occurredAt,

@@ -10,13 +10,9 @@ import type {
   ContentProductionWorkItem,
 } from '@flex-thia/domain/content-production/content-production-work-item';
 import type { VocabularyProductionArtifacts } from '@flex-thia/domain/content-production/ai-vocabulary-production';
-import {
-  CONTENT_PRODUCTION_ITEM_LEASE_MS,
-  expandQuestionGenerationPlan,
-} from '@flex-thia/domain/content-production/content-production.service';
+import { CONTENT_PRODUCTION_ITEM_LEASE_MS } from '@flex-thia/domain/content-production/content-production.service';
 import { createContentProductionWorkItem } from '@flex-thia/domain/content-production/content-production-work-item';
 import type { ContentProductionOperation } from '@flex-thia/domain/content-production/content-production-work-item';
-import type { QuestionGenerationParameters } from '@flex-thia/domain/content-production/content-production.service';
 
 const CONTENT_PRODUCTION_ITEM_HEARTBEAT_MS = Math.floor(
   CONTENT_PRODUCTION_ITEM_LEASE_MS / 3,
@@ -90,18 +86,6 @@ export interface ContentProductionItemProcessor {
     signal: AbortSignal,
   ): Promise<ContentProductionItemOutcome>;
 }
-
-/** operation별 AI pipeline을 한 dispatcher processor 계약으로 조립한다 */
-export const createContentProductionProcessorRouter = (processors: {
-  vocabulary: ContentProductionItemProcessor;
-  question: ContentProductionItemProcessor;
-}): ContentProductionItemProcessor => ({
-  process(workItem, signal) {
-    return workItem.item.operation === 'QUESTION_GENERATION'
-      ? processors.question.process(workItem, signal)
-      : processors.vocabulary.process(workItem, signal);
-  },
-});
 
 const startLeaseHeartbeat = (
   repository: ContentProductionWorkerRepository,
@@ -222,31 +206,8 @@ const buildVocabularySeeds = (
       sourceRef: `input:${index}:vocabulary`,
       jobInputId: input.jobInputId,
       operation: 'VOCABULARY_EXTRACTION',
-      questionPlan: null,
     };
   });
-
-const buildQuestionSeeds = (
-  job: ContentProductionWorkerJobSnapshot,
-): ContentProductionItemSeed[] => {
-  if (job.inputs.length === 0) return [];
-  const plans = expandQuestionGenerationPlan(
-    job.presetSnapshot.parameters as unknown as QuestionGenerationParameters,
-  );
-  return plans.map((questionPlan) => {
-    const input =
-      job.inputs[questionPlan.questionPlanIndex % job.inputs.length]!;
-    if (!input.jobInputId || input.ordinal === undefined) {
-      throw new Error(`job input ID가 없는 콘텐츠 제작 작업입니다: ${job.id}`);
-    }
-    return {
-      sourceRef: `input:${input.ordinal}:question:${questionPlan.questionPlanIndex}`,
-      jobInputId: input.jobInputId,
-      operation: 'QUESTION_GENERATION',
-      questionPlan,
-    };
-  });
-};
 
 /** stale·terminal 전달을 무시하고 항목 실패를 격리해 한 attempt를 집계한다 */
 export const createContentProductionDispatcher =
@@ -326,7 +287,6 @@ export const createContentProductionDispatcher =
               ...claimed,
               jobInputId: seed.jobInputId,
               operation: seed.operation,
-              questionPlan: seed.questionPlan,
               leaseUntil: claimed.leaseUntil,
               leaseToken: claimed.leaseToken,
             }),
@@ -356,20 +316,7 @@ export const createContentProductionDispatcher =
       }
     };
 
-    if (job.purpose !== 'QUESTION_GENERATION') {
-      await processSeeds('VOCABULARY_EXTRACTION', buildVocabularySeeds(job));
-    }
-    if (
-      job.purpose === 'QUESTION_GENERATION' ||
-      (job.purpose === 'VOCABULARY_THEN_QUESTION_GENERATION' &&
-        ((await repository.areOperationItemsSuccessful?.(
-          job.id,
-          'VOCABULARY_EXTRACTION',
-        )) ??
-          false))
-    ) {
-      await processSeeds('QUESTION_GENERATION', buildQuestionSeeds(job));
-    }
+    await processSeeds('VOCABULARY_EXTRACTION', buildVocabularySeeds(job));
 
     return (
       (await repository.finalizeAttempt(job.id, input.attempt)) ?? {

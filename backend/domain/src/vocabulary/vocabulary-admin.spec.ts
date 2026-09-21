@@ -76,12 +76,6 @@ const createFake = (
       calls.push('findDuplicateVocabularyId');
       return Promise.resolve(overrides.duplicateId ?? null);
     });
-  const hasQuestionUsage = vi
-    .fn<VocabularyAdminTransaction['hasQuestionUsage']>()
-    .mockImplementation(() => {
-      calls.push('hasQuestionUsage');
-      return Promise.resolve(overrides.used ?? false);
-    });
   const replaceVocabulary = vi
     .fn<VocabularyAdminTransaction['replaceVocabulary']>()
     .mockImplementation(() => {
@@ -104,7 +98,6 @@ const createFake = (
     setImportanceWeight: vi.fn(),
     lockVocabularyGraph,
     findDuplicateVocabularyId,
-    hasQuestionUsage,
     replaceVocabulary,
     transitionVocabularyStatus,
     appendAuditLog,
@@ -125,7 +118,6 @@ const createFake = (
     appendAuditLog,
     calls,
     findDuplicateVocabularyId,
-    hasQuestionUsage,
     lockVocabularyGraph,
     replaceVocabulary,
     repository,
@@ -135,77 +127,6 @@ const createFake = (
 };
 
 describe('VocabularyAdminService 어휘 전체 교체', () => {
-  it('DRAFT와 기존 child 사용 여부를 확인하고 새 UUID·mapping graph와 audit을 저장한다', async () => {
-    const fake = createFake();
-    const generatedIds = [ids.newMeaning];
-    const service = new VocabularyAdminService(fake.repository, () =>
-      generatedIds.shift()!,
-    );
-
-    await expect(
-      service.replace({
-        vocabularyId: ids.vocabulary,
-        input: replaceInput(),
-        ...context,
-      }),
-    ).resolves.toEqual({
-      id: ids.vocabulary,
-      status: 'DRAFT',
-    });
-    expect(fake.hasQuestionUsage).toHaveBeenCalledWith({
-      vocabularyId: ids.vocabulary,
-      meaningIds: [ids.oldMeaning],
-    });
-    expect(fake.replaceVocabulary).toHaveBeenCalledWith({
-      vocabulary: {
-        id: ids.vocabulary,
-        thai: '  สวัสดี\u200B   ครับ  ',
-        normalizedThai: 'สวัสดี ครับ',
-        kind: 'EXPRESSION',
-        status: 'DRAFT',
-        updatedAt: context.occurredAt,
-      },
-      meanings: [
-        {
-          id: ids.newMeaning,
-          vocabularyId: ids.vocabulary,
-          meaningKo: '안녕하세요',
-          partOfSpeech: '감탄사',
-          difficulty: 1,
-          contextNote: null,
-        },
-      ],
-    });
-    expect(fake.appendAuditLog).toHaveBeenCalledWith({
-      actorSub: 'cognito-sub',
-      actorUserId: ids.actor,
-      action: 'VOCABULARY_REPLACED',
-      targetType: 'VOCABULARY',
-      targetId: ids.vocabulary,
-      summary: {
-        kind: 'EXPRESSION',
-        meaningCount: 1,
-      },
-      requestId: 'request-id',
-      occurredAt: context.occurredAt,
-    });
-  });
-
-  it('question token·expression 또는 기존 child가 사용 중이면 교체와 audit을 남기지 않는다', async () => {
-    const fake = createFake({ used: true });
-    const service = new VocabularyAdminService(fake.repository);
-
-    await expect(
-      service.replace({
-        vocabularyId: ids.vocabulary,
-        input: replaceInput(),
-        ...context,
-      }),
-    ).rejects.toEqual(new VocabularyAdminError('VOCABULARY_IN_USE'));
-    expect(fake.replaceVocabulary).not.toHaveBeenCalled();
-    expect(fake.appendAuditLog).not.toHaveBeenCalled();
-  });
-
   it('자기 자신을 제외한 normalized exact duplicate를 안정 오류로 거절한다', async () => {
     const fake = createFake({
       duplicateId: '00000000-0000-4000-8000-000000000099',

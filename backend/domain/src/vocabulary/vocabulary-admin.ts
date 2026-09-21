@@ -322,14 +322,6 @@ export class VocabularyAdminService {
           throw new VocabularyAdminError('VOCABULARY_STATE_CONFLICT');
         }
         if (
-          await transaction.hasQuestionUsage({
-            vocabularyId: current.vocabulary.id,
-            meaningIds: current.meanings.map(({ id }) => id),
-          })
-        ) {
-          throw new VocabularyAdminError('VOCABULARY_IN_USE');
-        }
-        if (
           await transaction.findDuplicateVocabularyId(
             draft.normalizedThai,
             current.vocabulary.id,

@@ -14,7 +14,6 @@ import {
 describe('콘텐츠 오류 신고 schema', () => {
   it('신고 enum의 허용 값을 고정한다', () => {
     expect(contentErrorReportTargetKindEnum.enumValues).toEqual([
-      'QUESTION',
       'VOCABULARY',
       'SENTENCE',
       'CONCEPT',

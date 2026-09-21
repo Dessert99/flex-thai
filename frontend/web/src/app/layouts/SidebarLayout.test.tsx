@@ -83,11 +83,11 @@ describe('SidebarLayout 화면 전환', () => {
     ).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '프로필 메뉴' }));
     expect(
-      screen.getByRole('menuitem', { name: '나의 학습 기록' }),
-    ).toHaveAttribute('href', '/history');
+      screen.queryByRole('menuitem', { name: '나의 학습 기록' }),
+    ).not.toBeInTheDocument();
     expect(
-      screen.getByRole('menuitem', { name: '저장한 문제' }),
-    ).toHaveAttribute('href', '/questions?saved=true&page=1&pageSize=20');
+      screen.queryByRole('menuitem', { name: '저장한 문제' }),
+    ).not.toBeInTheDocument();
     await user.click(screen.getByRole('menuitem', { name: '내 단어장' }));
     await screen.findByText('개인 단어장 화면');
     expect(router.state.location.pathname).toBe('/wordbooks');

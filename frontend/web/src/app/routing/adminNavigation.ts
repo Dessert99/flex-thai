@@ -4,11 +4,9 @@ import {
   BookType,
   CircleDollarSign,
   Database,
-  FileQuestion,
   House,
   MessageSquareWarning,
   ScrollText,
-  SlidersHorizontal,
   Upload,
   Users,
   WandSparkles,
@@ -44,12 +42,6 @@ export const adminNavigation = [
   },
   {
     group: '콘텐츠',
-    href: '/admin/questions',
-    icon: FileQuestion,
-    label: '문제 관리',
-  },
-  {
-    group: '콘텐츠',
     href: '/admin/vocabularies',
     icon: BookType,
     label: '어휘 관리',
@@ -77,12 +69,6 @@ export const adminNavigation = [
     href: '/admin/users',
     icon: Users,
     label: '사용자 관리',
-  },
-  {
-    group: '시스템',
-    href: '/admin/question-settings',
-    icon: SlidersHorizontal,
-    label: '문제 유형 설정',
   },
   {
     group: '시스템',

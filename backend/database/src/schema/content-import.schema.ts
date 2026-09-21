@@ -29,7 +29,6 @@ export const contentImportStatusEnum = pgEnum('content_import_status', [
 /** 원본 요청에서 항목이 생성하려는 콘텐츠 종류 */
 export const contentImportItemKindEnum = pgEnum('content_import_item_kind', [
   'VOCABULARY',
-  'QUESTION',
 ]);
 
 /** 개별 항목 transaction의 성공 또는 안정된 거절 결과 */
@@ -50,7 +49,6 @@ export const contentImports = pgTable(
     requestHash: text('request_hash').notNull(),
     status: contentImportStatusEnum('status'),
     vocabularyCount: integer('vocabulary_count').notNull(),
-    questionCount: integer('question_count').notNull(),
     importedCount: integer('imported_count').default(0).notNull(),
     rejectedCount: integer('rejected_count').default(0).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true })
@@ -69,15 +67,15 @@ export const contentImports = pgTable(
     ),
     check(
       'content_imports_counts_nonnegative',
-      sql`${table.vocabularyCount} >= 0 and ${table.questionCount} >= 0 and ${table.importedCount} >= 0 and ${table.rejectedCount} >= 0`,
+      sql`${table.vocabularyCount} >= 0 and ${table.importedCount} >= 0 and ${table.rejectedCount} >= 0`,
     ),
     check(
       'content_imports_total_count_range',
-      sql`${table.vocabularyCount} + ${table.questionCount} between 1 and 100`,
+      sql`${table.vocabularyCount} between 1 and 100`,
     ),
     check(
       'content_imports_processed_count_consistency',
-      sql`${table.importedCount} + ${table.rejectedCount} <= ${table.vocabularyCount} + ${table.questionCount}`,
+      sql`${table.importedCount} + ${table.rejectedCount} <= ${table.vocabularyCount}`,
     ),
     check(
       'content_imports_status_completion_consistency',
@@ -85,7 +83,7 @@ export const contentImports = pgTable(
     ),
     check(
       'content_imports_final_status_result_consistency',
-      sql`${table.status} is null or (${table.status} = 'COMPLETED' and ${table.rejectedCount} = 0 and ${table.importedCount} + ${table.rejectedCount} = ${table.vocabularyCount} + ${table.questionCount}) or (${table.status} = 'COMPLETED_WITH_FAILURES' and ${table.rejectedCount} > 0 and ${table.importedCount} + ${table.rejectedCount} = ${table.vocabularyCount} + ${table.questionCount})`,
+      sql`${table.status} is null or (${table.status} = 'COMPLETED' and ${table.rejectedCount} = 0 and ${table.importedCount} + ${table.rejectedCount} = ${table.vocabularyCount}) or (${table.status} = 'COMPLETED_WITH_FAILURES' and ${table.rejectedCount} > 0 and ${table.importedCount} + ${table.rejectedCount} = ${table.vocabularyCount})`,
     ),
   ],
 );

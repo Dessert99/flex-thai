@@ -18,7 +18,6 @@ export interface ContentImportRecord {
   requestHash: string;
   status: ContentImportFinalStatus | null;
   vocabularyCount: number;
-  questionCount: number;
   importedCount: number;
   rejectedCount: number;
   createdAt: Date;
@@ -26,7 +25,7 @@ export interface ContentImportRecord {
 }
 
 interface ContentImportStoredItemBase {
-  kind: 'VOCABULARY' | 'QUESTION';
+  kind: 'VOCABULARY';
   sourceIndex: number;
   clientRef: string;
 }
@@ -54,7 +53,6 @@ export interface ContentImportDetail {
   id: string;
   status: ContentImportFinalStatus;
   vocabularyCount: number;
-  questionCount: number;
   importedCount: number;
   rejectedCount: number;
   createdAt: Date;
@@ -69,7 +67,6 @@ export interface ClaimContentImportInput {
   idempotencyKey: string;
   requestHash: string;
   vocabularyCount: number;
-  questionCount: number;
   createdAt: Date;
 }
 

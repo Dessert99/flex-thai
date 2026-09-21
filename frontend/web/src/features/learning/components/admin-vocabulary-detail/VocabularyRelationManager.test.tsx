@@ -77,10 +77,6 @@ function createDetail(meaningId?: string): AdminVocabularyDetailResponse {
     relations: [],
     usage: {
       sentenceVersionIds: [],
-      questionCount: 0,
-      targetQuestionCount: 0,
-      occurrenceCount: 0,
-      questionIds: [],
     },
     createdAt: '2026-07-25T00:00:00.000Z',
     updatedAt: '2026-07-25T00:00:00.000Z',

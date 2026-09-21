@@ -18,7 +18,6 @@ const summaryRow = {
   id: ids.import,
   status: 'COMPLETED_WITH_FAILURES',
   vocabularyCount: 1,
-  questionCount: 1,
   importedCount: 1,
   rejectedCount: 1,
   createdAt,

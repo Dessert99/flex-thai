@@ -54,18 +54,12 @@ export function ContentProductionConsolePage() {
         ) : null}
         {props.presets ? (
           <>
-            <ContentProductionMutationErrors
-              createError={props.createError}
-              previewError={props.previewError}
-            />
+            <ContentProductionMutationErrors createError={props.createError} />
             <ContentProductionForm
-              onConfigurationChange={props.onConfigurationChange}
               onFile={props.onFile}
-              onPreview={props.onPreview}
               onSubmit={props.onSubmit}
               pending={props.mutationPending}
               presets={props.presets.items}
-              {...(props.preview ? { preview: props.preview } : {})}
             />
           </>
         ) : null}
@@ -126,21 +120,9 @@ export function ContentProductionConsolePage() {
 
 function ContentProductionMutationErrors({
   createError,
-  previewError,
-}: Pick<
-  ContentProductionConsolePageViewProps,
-  'createError' | 'previewError'
->) {
+}: Pick<ContentProductionConsolePageViewProps, 'createError'>) {
   return (
     <>
-      {previewError ? (
-        <p
-          className='text-body text-danger'
-          role='alert'
-        >
-          Prompt 미리보기를 만들지 못했습니다.
-        </p>
-      ) : null}
       {createError ? (
         <p
           className='text-body text-danger'

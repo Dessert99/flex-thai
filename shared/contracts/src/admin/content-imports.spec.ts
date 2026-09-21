@@ -3,12 +3,10 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 import type {
   ContentImportIdPath,
   ContentImportIdempotencyKeyHeader,
-  ContentImportItemResult,
   ContentImportSummary,
 } from './content-imports.js';
 import {
   canonicalSentenceInputSchema,
-  contentImportDetailResponseSchema,
   contentImportIdPathSchema,
   contentImportListQuerySchema,
   contentImportRequestSchema,
@@ -52,86 +50,21 @@ const sentence = {
   expressions: [],
 } as const;
 
-const question = {
-  clientRef: 'question.greeting',
-  questionTypeSlug: 'reading-standard-choice',
-  questionTypeVersion: 1,
-  difficulty: 1,
-  blocks: [
-    {
-      kind: 'QUESTION',
-      sentences: [{ speaker: null, sentence }],
-    },
-  ],
-  options: [
-    { clientRef: 'option.correct', position: 0, sentence, span: null },
-    { clientRef: 'option.wrong', position: 1, sentence, span: null },
-  ],
-  correctOptionRef: 'option.correct',
-} as const;
-
 const request = {
   schemaVersion: 1,
   vocabularies: [vocabulary],
-  questions: [question],
 } as const;
 
 describe('관리자 콘텐츠 가져오기 canonical 요청 계약', () => {
   it('schemaVersion 1의 strict 최소 어휘와 문제 payload를 허용한다', () => {
     expect(contentImportRequestSchema.parse(request)).toEqual({
       ...request,
-      questions: request.questions.map((question) => ({
-        ...question,
-        topicSlug: 'general',
-        tagSlugs: [],
-      })),
     });
     expect(() =>
       contentImportRequestSchema.parse({ ...request, schemaVersion: 2 }),
     ).toThrow();
     expect(() =>
       contentImportRequestSchema.parse({ ...request, rawJson: '{}' }),
-    ).toThrow();
-  });
-
-  it('inline option은 독립 문장 없이 block 문장 좌표만 허용한다', () => {
-    const inlineQuestion = {
-      ...question,
-      questionTypeSlug: 'reading-inline-choice',
-      options: question.options.map((option, position) => ({
-        clientRef: option.clientRef,
-        position,
-        sentence: null,
-        span: {
-          blockPosition: 0,
-          sentencePosition: 0,
-          startTokenIndex: 0,
-          endTokenIndex: 1,
-        },
-      })),
-    };
-
-    expect(
-      contentImportRequestSchema.parse({
-        ...request,
-        questions: [inlineQuestion],
-      }).questions[0]?.options[0]?.sentence,
-    ).toBeNull();
-    expect(() =>
-      contentImportRequestSchema.parse({
-        ...request,
-        questions: [
-          {
-            ...inlineQuestion,
-            options: [
-              {
-                ...inlineQuestion.options[0],
-                sentence,
-              },
-            ],
-          },
-        ],
-      }),
     ).toThrow();
   });
 
@@ -197,49 +130,11 @@ describe('관리자 콘텐츠 가져오기 canonical 요청 계약', () => {
     );
   });
 
-  it('선택지 순서·clientRef와 correctOptionRef 관계를 검증한다', () => {
-    expect(() =>
-      contentImportRequestSchema.parse({
-        ...request,
-        questions: [
-          {
-            ...question,
-            options: [
-              question.options[0],
-              { ...question.options[1], position: 2 },
-            ],
-          },
-        ],
-      }),
-    ).toThrow();
-    expect(() =>
-      contentImportRequestSchema.parse({
-        ...request,
-        questions: [
-          {
-            ...question,
-            options: [
-              question.options[0],
-              { ...question.options[1], clientRef: 'option.correct' },
-            ],
-          },
-        ],
-      }),
-    ).toThrow();
-    expect(() =>
-      contentImportRequestSchema.parse({
-        ...request,
-        questions: [{ ...question, correctOptionRef: 'option.missing' }],
-      }),
-    ).toThrow();
-  });
-
   it('같은 종류의 항목 clientRef 중복을 거부한다', () => {
     expect(() =>
       contentImportRequestSchema.parse({
         ...request,
         vocabularies: [vocabulary, vocabulary],
-        questions: [],
       }),
     ).toThrow();
     expect(() =>
@@ -251,7 +146,6 @@ describe('관리자 콘텐츠 가져오기 canonical 요청 계약', () => {
             meanings: [vocabulary.meanings[0], vocabulary.meanings[0]],
           },
         ],
-        questions: [],
       }),
     ).toThrow();
   });
@@ -261,7 +155,6 @@ describe('관리자 콘텐츠 가져오기 canonical 요청 계약', () => {
       contentImportRequestSchema.parse({
         schemaVersion: 1,
         vocabularies: [],
-        questions: [],
       }),
     ).toThrow();
     expect(() =>
@@ -271,7 +164,6 @@ describe('관리자 콘텐츠 가져오기 canonical 요청 계약', () => {
           ...vocabulary,
           clientRef: `vocabulary.${index}`,
         })),
-        questions: [],
       }),
     ).toThrow();
   });
@@ -302,52 +194,11 @@ describe('관리자 콘텐츠 가져오기 HTTP와 공개 응답 계약', () => 
     ).toThrow();
   });
 
-  it('항목별 공개 결과는 source index·상태·대상·구조화 오류만 담는다', () => {
-    const response = {
-      id: ids.import,
-      status: 'COMPLETED_WITH_FAILURES',
-      vocabularyCount: 1,
-      questionCount: 1,
-      importedCount: 1,
-      rejectedCount: 1,
-      createdAt: '2026-07-24T00:00:00.000Z',
-      completedAt: '2026-07-24T00:00:01.000Z',
-      items: [
-        {
-          kind: 'VOCABULARY',
-          sourceIndex: 0,
-          status: 'IMPORTED',
-          targetId: ids.target,
-          errors: [],
-        },
-        {
-          kind: 'QUESTION',
-          sourceIndex: 0,
-          status: 'REJECTED',
-          targetId: null,
-          errors: [{ path: 'options.0', code: 'IMPORT_CONTENT_INVALID' }],
-        },
-      ],
-    } as const;
-
-    expect(contentImportDetailResponseSchema.parse(response)).toEqual(response);
-    for (const internal of [
-      { requestHash: 'secret-hash' },
-      { referenceMap: { client: ids.target } },
-      { rawJson: request },
-    ]) {
-      expect(() =>
-        contentImportDetailResponseSchema.parse({ ...response, ...internal }),
-      ).toThrow();
-    }
-  });
-
   it('공개 요약의 항목 합계·처리 합계와 최종 상태를 일관되게 검증한다', () => {
     const summary = {
       id: ids.import,
       status: 'COMPLETED',
       vocabularyCount: 1,
-      questionCount: 0,
       importedCount: 1,
       rejectedCount: 0,
       createdAt: '2026-07-24T00:00:00.000Z',
@@ -385,97 +236,5 @@ describe('관리자 콘텐츠 가져오기 HTTP와 공개 응답 계약', () => 
     ]) {
       expect(() => contentImportSummarySchema.parse(invalid)).toThrow();
     }
-  });
-
-  it('상세 항목은 kind별 source index와 요약 count·status를 정확히 재구성한다', () => {
-    const detail = {
-      id: ids.import,
-      status: 'COMPLETED_WITH_FAILURES',
-      vocabularyCount: 2,
-      questionCount: 1,
-      importedCount: 2,
-      rejectedCount: 1,
-      createdAt: '2026-07-24T00:00:00.000Z',
-      completedAt: '2026-07-24T00:00:01.000Z',
-      items: [
-        {
-          kind: 'VOCABULARY',
-          sourceIndex: 0,
-          status: 'IMPORTED',
-          targetId: ids.target,
-          errors: [],
-        },
-        {
-          kind: 'VOCABULARY',
-          sourceIndex: 1,
-          status: 'REJECTED',
-          targetId: null,
-          errors: [{ path: 'thai', code: 'IMPORT_CONTENT_INVALID' }],
-        },
-        {
-          kind: 'QUESTION',
-          sourceIndex: 0,
-          status: 'IMPORTED',
-          targetId: ids.target,
-          errors: [],
-        },
-      ],
-    } as const;
-
-    expect(contentImportDetailResponseSchema.parse(detail)).toEqual(detail);
-    expectTypeOf(
-      contentImportDetailResponseSchema.parse(detail).items[0]!,
-    ).toEqualTypeOf<ContentImportItemResult>();
-    expect(() =>
-      contentImportDetailResponseSchema.parse({
-        ...detail,
-        items: detail.items.slice(0, 2),
-      }),
-    ).toThrow();
-    expect(() =>
-      contentImportDetailResponseSchema.parse({
-        ...detail,
-        items: [
-          detail.items[0],
-          { ...detail.items[1], sourceIndex: 0 },
-          detail.items[2],
-        ],
-      }),
-    ).toThrow();
-    expect(() =>
-      contentImportDetailResponseSchema.parse({
-        ...detail,
-        items: [
-          detail.items[0],
-          detail.items[1],
-          { ...detail.items[2], sourceIndex: 1 },
-        ],
-      }),
-    ).toThrow();
-    expect(() =>
-      contentImportDetailResponseSchema.parse({
-        ...detail,
-        items: [
-          detail.items[0],
-          detail.items[1],
-          {
-            ...detail.items[2],
-            status: 'REJECTED',
-            targetId: null,
-            errors: [{ path: 'blocks', code: 'IMPORT_CONTENT_INVALID' }],
-          },
-        ],
-      }),
-    ).toThrow();
-    expect(() =>
-      contentImportDetailResponseSchema.parse({
-        ...detail,
-        items: [
-          detail.items[0],
-          detail.items[1],
-          { ...detail.items[2], kind: 'VOCABULARY' },
-        ],
-      }),
-    ).toThrow();
   });
 });

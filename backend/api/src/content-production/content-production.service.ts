@@ -7,22 +7,16 @@ import {
   type CreateContentProductionJobRequest,
   type CreateContentProductionPresetRequest,
   type CreateContentProductionPresetVersionRequest,
-  type PromptPreviewRequest,
   type SetContentProductionPresetEnabledRequest,
 } from '@flex-thia/contracts/content-production/content-production';
-import {
-  buildQuestionGenerationPrompt,
-  serializeQuestionGenerationPrompt,
-} from '@flex-thia/domain/content-production/ai-question-production';
-import { expandQuestionGenerationPlan } from '@flex-thia/domain/content-production/content-production.service';
+
 import type {
   ContentProductionJob,
   ContentProductionPresetCatalog,
   ContentProductionPresetSnapshot,
   ContentProductionService,
-  QuestionGenerationParameters,
 } from '@flex-thia/domain/content-production/content-production.service';
-import type { QuestionProductionContextRepository } from '@flex-thia/domain/content-production/ai-question-production';
+
 import type { UploadPolicyService } from '@flex-thia/domain/uploads/upload-policy.service';
 import type {
   UploadRecord,
@@ -38,9 +32,7 @@ export class ContentProductionApplicationError extends Error {
       | 'UPLOAD_NOT_VERIFIED'
       | 'JOB_INPUT_TOO_LARGE'
       | 'PRESET_NOT_AVAILABLE'
-      | 'UPLOAD_SERVICE_NOT_CONFIGURED'
-      | 'QUESTION_CONTEXT_NOT_CONFIGURED'
-      | 'QUESTION_PLAN_INDEX_INVALID',
+      | 'UPLOAD_SERVICE_NOT_CONFIGURED',
   ) {
     super(code);
     this.name = 'ContentProductionApplicationError';
@@ -55,7 +47,6 @@ export class ContentProductionApplicationService {
     private readonly presets: ContentProductionPresetCatalog,
     private readonly contentProduction: ContentProductionService,
     private readonly uploadPolicies?: UploadPolicyService,
-    private readonly questionProductionContext?: QuestionProductionContextRepository,
   ) {}
 
   private async resolveSnapshot(
@@ -108,37 +99,6 @@ export class ContentProductionApplicationService {
       presetSnapshot: preset,
       inputs,
     });
-  }
-
-  /** worker와 같은 effective snapshot·item plan으로 provider 호출 없는 prompt를 만든다 */
-  async preview(request: PromptPreviewRequest) {
-    if (!this.questionProductionContext) {
-      throw new ContentProductionApplicationError(
-        'QUESTION_CONTEXT_NOT_CONFIGURED',
-      );
-    }
-    const preset = await this.resolveSnapshot(request);
-    const questionPlan = expandQuestionGenerationPlan(
-      preset.parameters as unknown as QuestionGenerationParameters,
-    )[request.questionPlanIndex];
-    if (!questionPlan) {
-      throw new ContentProductionApplicationError(
-        'QUESTION_PLAN_INDEX_INVALID',
-      );
-    }
-    const prompt = buildQuestionGenerationPrompt(
-      await this.questionProductionContext.load({
-        preset,
-        operation: 'QUESTION_GENERATION',
-        questionPlan,
-      }),
-    );
-    return {
-      promptVersion: prompt.promptVersion,
-      questionPlanIndex: request.questionPlanIndex,
-      sections: prompt.sections,
-      prompt: serializeQuestionGenerationPrompt(prompt),
-    };
   }
 
   /** 활성 콘텐츠 제작 preset 목록을 반환한다 */

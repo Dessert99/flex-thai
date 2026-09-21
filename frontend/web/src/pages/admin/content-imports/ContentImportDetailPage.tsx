@@ -81,7 +81,7 @@ export function ContentImportDetailPage(
           </CardHeader>
           <CardContent className='flex flex-wrap gap-cluster'>
             <Badge variant='outline'>어휘 {data.vocabularyCount}</Badge>
-            <Badge variant='outline'>문제 {data.questionCount}</Badge>
+
             <Badge variant='secondary'>가져옴 {data.importedCount}</Badge>
             <Badge variant='outline'>거절됨 {data.rejectedCount}</Badge>
           </CardContent>

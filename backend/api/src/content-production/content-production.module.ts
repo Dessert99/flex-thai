@@ -16,7 +16,7 @@ import type {
   ContentProductionService,
 } from '@flex-thia/domain/content-production/content-production.service';
 import type { IdentityUserRepository } from '@flex-thia/domain/identity/user.repository';
-import type { QuestionProductionContextRepository } from '@flex-thia/domain/content-production/ai-question-production';
+
 import type { UploadPolicyService } from '@flex-thia/domain/uploads/upload-policy.service';
 import type { UploadRepository } from '@flex-thia/domain/uploads/upload.repository';
 import { AdminMfaGuard } from '../identity/admin-mfa.guard.js';
@@ -29,12 +29,7 @@ import {
 } from '../identity/cognito-authorizer.guard.js';
 import { ContentProductionController } from './content-production.controller.js';
 import { ContentProductionApplicationService } from './content-production.service.js';
-import { QuestionCandidateController } from './question-production.controller.js';
-import {
-  QuestionCandidateApplicationService,
-  type QuestionCandidateReadRepository,
-  type QuestionCandidateReviewOperations,
-} from './question-production.service.js';
+
 import { VocabularyCandidateController } from './vocabulary-candidates.controller.js';
 import {
   VocabularyCandidateApplicationService,
@@ -50,11 +45,8 @@ export interface ContentProductionModuleOptions {
   uploadPolicies: UploadPolicyService;
   presets: ContentProductionPresetCatalog;
   contentProduction: ContentProductionService;
-  questionCandidates: QuestionCandidateReadRepository;
-  questionCandidateReview: QuestionCandidateReviewOperations;
   vocabularyCandidates: VocabularyCandidateQuery;
   vocabularyCandidateReview: VocabularyCandidateReviewOperations;
-  questionProductionContext?: QuestionProductionContextRepository;
   users: IdentityUserRepository;
   authorizer: AuthorizerGuardOptions;
 }
@@ -70,7 +62,6 @@ export class ContentProductionModule {
         ...(options.extraction ? [ExtractionController] : []),
         ExtractionTemplatesController,
         ContentProductionController,
-        QuestionCandidateController,
         VocabularyCandidateController,
       ],
       providers: [
@@ -88,14 +79,6 @@ export class ContentProductionModule {
             options.presets,
             options.contentProduction,
             options.uploadPolicies,
-            options.questionProductionContext,
-          ),
-        },
-        {
-          provide: QuestionCandidateApplicationService,
-          useValue: new QuestionCandidateApplicationService(
-            options.questionCandidates,
-            options.questionCandidateReview,
           ),
         },
         {

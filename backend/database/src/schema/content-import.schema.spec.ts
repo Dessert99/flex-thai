@@ -62,10 +62,7 @@ describe('콘텐츠 가져오기 데이터베이스 schema', () => {
       'COMPLETED',
       'COMPLETED_WITH_FAILURES',
     ]);
-    expect(contentImportItemKindEnum.enumValues).toEqual([
-      'VOCABULARY',
-      'QUESTION',
-    ]);
+    expect(contentImportItemKindEnum.enumValues).toEqual(['VOCABULARY']);
     expect(contentImportItemStatusEnum.enumValues).toEqual([
       'IMPORTED',
       'REJECTED',
@@ -116,14 +113,6 @@ describe('콘텐츠 가져오기 데이터베이스 schema', () => {
       },
       vocabularyCount: {
         name: 'vocabulary_count',
-        sqlType: 'integer',
-        dataType: 'number',
-        notNull: true,
-        hasDefault: false,
-        primary: false,
-      },
-      questionCount: {
-        name: 'question_count',
         sqlType: 'integer',
         dataType: 'number',
         notNull: true,

@@ -1,11 +1,7 @@
 /** AWS와 HTTP에 의존하지 않는 비동기 Job aggregate */
 
 /** 지원하는 초기 비동기 작업 */
-export type JobType =
-  | 'VOCAB_IMPORT'
-  | 'VOCABULARY_EXTRACTION'
-  | 'QUESTION_GENERATION'
-  | 'VOCABULARY_THEN_QUESTION_GENERATION';
+export type JobType = 'VOCAB_IMPORT' | 'VOCABULARY_EXTRACTION';
 
 /** 지원하는 원본 형식 */
 export type InputType = 'TEXT' | 'PDF' | 'IMAGE';

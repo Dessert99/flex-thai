@@ -14,8 +14,6 @@ import {
   createContentProductionJobRequestSchema,
   createContentProductionPresetRequestSchema,
   createContentProductionPresetVersionRequestSchema,
-  promptPreviewRequestSchema,
-  promptPreviewResponseSchema,
   setContentProductionPresetEnabledRequestSchema,
   uploadPolicyRequestSchema,
   uploadPolicyResponseSchema,
@@ -78,8 +76,6 @@ import {
   CreateContentProductionJobRequestDto,
   CreateContentProductionPresetRequestDto,
   CreateContentProductionPresetVersionRequestDto,
-  PromptPreviewRequestDto,
-  PromptPreviewResponseDto,
   SetContentProductionPresetEnabledRequestDto,
 } from './content-production.dto.js';
 import {
@@ -185,8 +181,6 @@ const executeContentProductionOperation = async <Result>(
   CreateContentProductionPresetRequestDto,
   CreateContentProductionPresetVersionRequestDto,
   SetContentProductionPresetEnabledRequestDto,
-  PromptPreviewRequestDto,
-  PromptPreviewResponseDto,
   CreateContentProductionJobRequestDto,
   ContentProductionJobSummaryDto,
   ContentProductionJobListQueryDto,
@@ -254,23 +248,6 @@ export class ContentProductionController {
     return contentProductionPresetListResponseSchema.parse({
       items: await this.contentProduction.listPresets(),
     });
-  }
-
-  /** provider 호출 없이 선택 item의 exact 생성 prompt를 미리 본다 */
-  @ApiOperation({ summary: '콘텐츠 제작 문제 prompt를 미리 본다' })
-  @ApiBody({ type: PromptPreviewRequestDto })
-  @ApiOkResponse({ type: PromptPreviewResponseDto })
-  @ApiProblemResponses(400, 401, 403, 500)
-  @Post('prompt-previews')
-  @HttpCode(200)
-  async previewPrompt(@Body() rawBody: unknown) {
-    return promptPreviewResponseSchema.parse(
-      await executeContentProductionOperation(() =>
-        this.contentProduction.preview(
-          promptPreviewRequestSchema.parse(rawBody),
-        ),
-      ),
-    );
   }
 
   /** immutable preset version 운영 목록을 반환한다 */

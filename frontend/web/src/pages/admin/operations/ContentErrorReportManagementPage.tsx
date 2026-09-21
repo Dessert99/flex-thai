@@ -86,7 +86,7 @@ export function ContentErrorReportManagementPage(
             }
           >
             <option value=''>전체</option>
-            {['QUESTION', 'VOCABULARY', 'SENTENCE', 'CONCEPT'].map((value) => (
+            {['VOCABULARY', 'SENTENCE', 'CONCEPT'].map((value) => (
               <option key={value}>{value}</option>
             ))}
           </select>

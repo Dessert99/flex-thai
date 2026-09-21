@@ -1,13 +1,7 @@
-import type { QuestionSnapshot } from '@flex-thia/domain/questions/question';
 /** 학습자의 append-only 답안과 저장 문제·어휘 연결을 저장한다 */
-import { sql } from 'drizzle-orm';
+
 import {
-  bigint,
-  boolean,
-  check,
   index,
-  integer,
-  jsonb,
   pgTable,
   primaryKey,
   timestamp,
@@ -16,77 +10,8 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 import { users } from './identity.schema.js';
-import { questions } from './questions.schema.js';
+
 import { vocabularies } from './vocabulary.schema.js';
-
-/** 제출 당시 정답 여부를 이후 콘텐츠 상태와 무관하게 보존하는 원시 답안 */
-export const questionAttempts = pgTable(
-  'question_attempts',
-  {
-    id: uuid('id').defaultRandom().primaryKey(),
-    userId: uuid('user_id')
-      .references(() => users.id, { onDelete: 'restrict' })
-      .notNull(),
-    questionId: uuid('question_id')
-      .references(() => questions.id, { onDelete: 'restrict' })
-      .notNull(),
-    questionVersion: integer('question_version').notNull(),
-    questionSnapshot: jsonb('question_snapshot')
-      .$type<QuestionSnapshot>()
-      .notNull(),
-    attemptNo: integer('attempt_no').notNull(),
-    selectedOptionId: uuid('selected_option_id').notNull(),
-    clientAttemptId: uuid('client_attempt_id').notNull(),
-    durationMs: bigint('duration_ms', { mode: 'number' }).notNull(),
-    isCorrect: boolean('is_correct').notNull(),
-    submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull(),
-  },
-  (table) => [
-    uniqueIndex('question_attempts_user_question_attempt_unique').on(
-      table.userId,
-      table.questionId,
-      table.attemptNo,
-    ),
-    uniqueIndex('question_attempts_user_client_attempt_unique').on(
-      table.userId,
-      table.clientAttemptId,
-    ),
-    index('question_attempts_user_submitted_at_idx').on(
-      table.userId,
-      table.submittedAt,
-    ),
-    check(
-      'question_attempts_version_positive',
-      sql`${table.questionVersion} > 0`,
-    ),
-    check('question_attempts_attempt_no_positive', sql`${table.attemptNo} > 0`),
-    check(
-      'question_attempts_duration_ms_safe_integer',
-      sql`${table.durationMs} >= 0 and ${table.durationMs} <= 9007199254740991`,
-    ),
-  ],
-);
-
-/** 사용자가 저장한 문제의 중복 없는 연결 */
-export const savedQuestions = pgTable(
-  'saved_questions',
-  {
-    userId: uuid('user_id')
-      .references(() => users.id, { onDelete: 'restrict' })
-      .notNull(),
-    questionId: uuid('question_id')
-      .references(() => questions.id, { onDelete: 'restrict' })
-      .notNull(),
-    savedAt: timestamp('saved_at', { withTimezone: true }).notNull(),
-  },
-  (table) => [
-    primaryKey({
-      name: 'saved_questions_pk',
-      columns: [table.userId, table.questionId],
-    }),
-    index('saved_questions_question_id_idx').on(table.questionId),
-  ],
-);
 
 /** 사용자가 저장한 공용 어휘의 중복 없는 연결 */
 export const savedVocabularies = pgTable(
