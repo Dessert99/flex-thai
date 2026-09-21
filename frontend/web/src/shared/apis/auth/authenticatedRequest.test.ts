@@ -158,7 +158,7 @@ describe('authenticatedRequest', () => {
 });
 
 const requestOptions = {
-  path: '/questions',
+  path: '/vocabularies',
   response: { kind: 'empty' } as const,
 };
 

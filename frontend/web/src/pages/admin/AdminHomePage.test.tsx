@@ -86,9 +86,9 @@ describe('관리자 홈 페이지', () => {
           {
             id: '01933b6a-8f13-7a19-b7e5-536d70f57aae',
             actor: { kind: 'SYSTEM', label: '로컬 시스템' },
-            action: 'QUESTION_PUBLISHED',
+            action: 'VOCABULARY_PUBLISHED',
             target: '문제: reading-context',
-            targetType: 'QUESTION',
+            targetType: 'VOCABULARY',
             targetId: '01933b6a-8f13-7a19-b7e5-536d70f57aaa',
             createdAt: '2026-07-25T00:00:00.000Z',
           },

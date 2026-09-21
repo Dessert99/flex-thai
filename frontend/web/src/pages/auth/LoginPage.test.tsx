@@ -81,14 +81,17 @@ describe('로그인 페이지', () => {
     });
     const user = userEvent.setup();
     renderWithProviders(
-      <LoginPageContainer redirectTo='/questions?page=2&pageSize=20' />,
+      <LoginPageContainer redirectTo='/wordbooks/01933b6a-8f13-7a19-b7e5-536d70f57aaa?page=2&pageSize=20' />,
     );
 
     await user.type(screen.getByLabelText('학교 이메일'), 'learner@hufs.ac.kr');
     await user.click(screen.getByRole('button', { name: '인증 메일 받기' }));
 
     expect(mocks.navigate).toHaveBeenCalledWith({
-      search: { redirect: '/questions?page=2&pageSize=20' },
+      search: {
+        redirect:
+          '/wordbooks/01933b6a-8f13-7a19-b7e5-536d70f57aaa?page=2&pageSize=20',
+      },
       to: '/login/challenge',
     });
   });

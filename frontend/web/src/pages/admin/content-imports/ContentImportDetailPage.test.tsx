@@ -18,7 +18,7 @@ describe('콘텐츠 가져오기 상세 페이지', () => {
     mocks.authenticatedRequest.mockResolvedValue({
       id: '01933b6a-8f13-7a19-b7e5-536d70f57abb',
       status: 'COMPLETED_WITH_FAILURES',
-      vocabularyCount: 1,
+      vocabularyCount: 2,
       importedCount: 1,
       rejectedCount: 1,
       createdAt: '2026-07-25T00:00:00.000Z',
@@ -32,11 +32,11 @@ describe('콘텐츠 가져오기 상세 페이지', () => {
           errors: [],
         },
         {
-          kind: 'QUESTION',
-          sourceIndex: 0,
+          kind: 'VOCABULARY',
+          sourceIndex: 1,
           status: 'REJECTED',
           targetId: null,
-          errors: [{ path: 'options.0', code: 'OPTION_INVALID' }],
+          errors: [{ path: 'meanings.0', code: 'MEANING_INVALID' }],
         },
       ],
     });
@@ -47,6 +47,8 @@ describe('콘텐츠 가져오기 상세 페이지', () => {
 
     expect(await screen.findByText('가져옴')).toBeInTheDocument();
     expect(screen.getByText('거절됨')).toBeInTheDocument();
-    expect(screen.getByText('options.0 · OPTION_INVALID')).toBeInTheDocument();
+    expect(
+      screen.getByText('meanings.0 · MEANING_INVALID'),
+    ).toBeInTheDocument();
   });
 });

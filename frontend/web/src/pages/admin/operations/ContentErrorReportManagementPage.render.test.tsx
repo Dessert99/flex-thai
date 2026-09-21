@@ -28,21 +28,20 @@ const summary = {
   category: 'OTHER' as const,
   status: 'OPEN' as const,
   assignee: { id: ids.assignee, email: 'admin@example.com' },
-  description: '정답 설명이 다릅니다.',
+  description: '뜻 설명이 다릅니다.',
   canonicalReference: {
     kind: 'VOCABULARY' as const,
     contentId: ids.content,
     contentVersionId: ids.content,
-    questionVersion: 1,
     sentenceVersionId: null,
     locationId: null,
   },
   snapshot: {
-    title: '문제',
-    primaryText: '문제 본문',
+    title: '어휘',
+    primaryText: '어휘 본문',
     secondaryText: null,
     versionLabel: '버전 1',
-    locationLabel: '문제 전체',
+    locationLabel: '어휘 전체',
   },
   createdAt: timestamp,
   updatedAt: timestamp,
@@ -212,7 +211,7 @@ describe('ContentErrorReportManagementPageView 탐색', () => {
   it('snapshot·history와 현재 상태에서 허용된 전이만 제공한다', () => {
     const props = renderView();
 
-    expect(screen.getByText('문제 본문')).toBeInTheDocument();
+    expect(screen.getByText('어휘 본문')).toBeInTheDocument();
     expect(screen.getByText(/STATUS_CHANGED/u)).toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: '대상 콘텐츠 열기' }),

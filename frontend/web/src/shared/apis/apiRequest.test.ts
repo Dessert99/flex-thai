@@ -33,7 +33,7 @@ describe('apiRequest', () => {
     );
 
     const request = apiRequest({
-      path: '/questions',
+      path: '/vocabularies',
       response: { kind: 'json', schema: valueSchema },
     });
 
@@ -57,7 +57,7 @@ describe('apiRequest', () => {
     );
 
     const request = apiRequest({
-      path: '/questions',
+      path: '/vocabularies',
       response: { kind: 'json', schema: valueSchema },
     });
 
@@ -72,7 +72,7 @@ describe('apiRequest', () => {
 
     const expectation = expect(
       apiRequest({
-        path: '/questions',
+        path: '/vocabularies',
         response: { kind: 'json', schema: valueSchema },
       }),
     ).rejects.toMatchObject({ detail: { kind: 'timeout' } });
@@ -87,7 +87,7 @@ describe('apiRequest', () => {
 
     const expectation = expect(
       apiRequest({
-        path: '/questions',
+        path: '/vocabularies',
         response: { kind: 'json', schema: valueSchema },
         signal: controller.signal,
       }),
