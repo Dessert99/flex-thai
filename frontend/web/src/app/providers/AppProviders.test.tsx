@@ -61,11 +61,27 @@ const learner = createUser('01933b6a-8f13-7a19-b7e5-536d70f57aaa');
 const anotherLearner = createUser('01933b6a-8f13-7a19-b7e5-536d70f57bbb');
 
 beforeEach(() => {
+  window.history.replaceState(null, '', '/learn');
   authMocks.restoreSession.mockClear();
   authMocks.setState({ status: 'restoring' });
 });
 
 describe('AppProviders bootstrap', () => {
+  it.each([
+    { status: 'restoring' },
+    { status: 'restore-error', reason: 'network' },
+    { status: 'anonymous', reason: 'missing-session' },
+  ] satisfies AuthSessionState[])(
+    '공개 홈은 $status 상태에서도 표시한다',
+    (state) => {
+      window.history.replaceState(null, '', '/');
+      authMocks.setState(state);
+      render(<AppProviders />);
+      expect(screen.getByText('보호 콘텐츠')).toBeInTheDocument();
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    },
+  );
+
   it('세션 복원이 끝나기 전 보호 콘텐츠를 노출하지 않는다', () => {
     render(<AppProviders />);
 

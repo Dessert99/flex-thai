@@ -63,7 +63,7 @@ export function subscribeToSessionQueryCleanup(
   });
 }
 
-/** 세션 복원 결과가 안전할 때만 Query와 Router provider를 노출한다 */
+/** 공개 홈은 즉시 표시하고 나머지 경로는 세션 복원 결과를 확인한다 */
 export function AppProviders() {
   const session = useSyncExternalStore(
     (listener) => authSessionStore.subscribe(listener),
@@ -80,6 +80,18 @@ export function AppProviders() {
     void restoreSession();
     return unsubscribe;
   }, [queryClient]);
+
+  const pathname = useSyncExternalStore(
+    (listener) => router.history.subscribe(() => listener()),
+    () => router.history.location.pathname,
+  );
+  if (pathname === '/') {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    );
+  }
 
   if (session.status === 'restoring') {
     return (
