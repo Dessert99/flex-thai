@@ -25,9 +25,9 @@ const handlers = {
   onRetryJobs: vi.fn(),
   onRetryPresets: vi.fn(),
 };
-const questionPreset = {
+const vocabularyPreset = {
   id: '00000000-0000-4000-8000-000000000010',
-  name: '문제 생성',
+  name: '어휘 추출',
   version: 1,
   purpose: 'VOCABULARY_EXTRACTION' as const,
   parameters: { suspectedDuplicateMaxCodePointDistance: 1 },
@@ -55,7 +55,7 @@ describe('콘텐츠 제작 console 화면', () => {
     expect(screen.getByText('아직 작업이 없습니다.')).toBeVisible();
   });
 
-  it('mutation 오류를 표시하고 진행 중에는 preview와 실행을 함께 막는다', () => {
+  it('mutation 오류를 표시하고 진행 중에는 추가 실행을 막는다', () => {
     render(
       <ContentProductionConsolePageView
         {...handlers}
@@ -65,7 +65,7 @@ describe('콘텐츠 제작 console 화면', () => {
         jobsLoading={false}
         mutationPending
         presets={{
-          items: [questionPreset],
+          items: [vocabularyPreset],
         }}
         presetsError={false}
         presetsLoading={false}
@@ -78,8 +78,6 @@ describe('콘텐츠 제작 console 화면', () => {
   });
 });
 
-describe('콘텐츠 제작 console 서버 행동', () => {});
-
 describe('콘텐츠 제작 console 생성 행동', () => {
   it('upload 검증 뒤 생성 중 중복 실행을 막고 실패를 안내한다', async () => {
     let rejectCreate: ((error: Error) => void) | undefined;
@@ -90,7 +88,7 @@ describe('콘텐츠 제작 console 생성 행동', () => {
     mocks.authenticatedRequest.mockImplementation(
       ({ path }: { path: string }) => {
         if (path === '/admin/content-production/presets') {
-          return Promise.resolve({ items: [questionPreset] });
+          return Promise.resolve({ items: [vocabularyPreset] });
         }
         if (path === '/admin/content-production/jobs?limit=20') {
           return Promise.resolve({ items: [] });

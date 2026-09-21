@@ -193,7 +193,7 @@ describe('ContentErrorReportManagementPageView 탐색', () => {
   it('목록 선택과 이전·다음 page 이동을 전달한다', () => {
     const props = renderView({ detail: undefined });
 
-    fireEvent.click(screen.getByRole('button', { name: /문제 · OPEN/u }));
+    fireEvent.click(screen.getByRole('button', { name: /어휘 · OPEN/u }));
     fireEvent.click(screen.getByRole('button', { name: '이전' }));
     fireEvent.click(screen.getByRole('button', { name: '다음' }));
 
