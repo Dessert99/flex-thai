@@ -9,7 +9,10 @@ export type VocabularyListSearch = VocabularyListQuery;
 
 /** 페이지를 제외한 어휘 목록 filter 변경값 */
 export type VocabularyListFilterPatch = Partial<
-  Pick<VocabularyListSearch, 'difficulty' | 'kind' | 'partOfSpeech' | 'query'>
+  Pick<
+    VocabularyListSearch,
+    'difficulty' | 'kind' | 'partOfSpeech' | 'query' | 'section'
+  >
 >;
 
 const parseCompactSearch = (

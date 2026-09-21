@@ -163,6 +163,7 @@ const toVocabularyListQuery = (
   pageSize: query.pageSize,
   ...(query.query === undefined ? {} : { query: query.query }),
   ...(query.kind === undefined ? {} : { kind: query.kind }),
+  ...(query.section === undefined ? {} : { section: query.section }),
   ...(query.partOfSpeech === undefined
     ? {}
     : { partOfSpeech: query.partOfSpeech }),

@@ -57,7 +57,8 @@ export function useExtractionReview(
       // 단어 관리 목록과 상세 캐시를 함께 갱신한다.
       void client.invalidateQueries({
         predicate: (q) =>
-          q.queryKey[0] === 'admin' && q.queryKey[1] === 'vocabularies',
+          ['admin', 'learner'].includes(String(q.queryKey[0])) &&
+          q.queryKey[1] === 'vocabularies',
       });
     },
   });

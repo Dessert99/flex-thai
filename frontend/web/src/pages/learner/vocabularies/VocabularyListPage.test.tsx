@@ -28,6 +28,71 @@ beforeEach(() => {
   });
 });
 
+describe('어휘 목록 추출 섹션', () => {
+  it('세 섹션을 제공하고 전환 시 검색 조건을 유지하며 첫 페이지로 돌아간다', async () => {
+    const onSearchChange = vi.fn();
+    renderWithProviders(
+      <VocabularyListPageContainer
+        onSearchChange={onSearchChange}
+        search={{ query: '학교', page: 2, pageSize: 20 }}
+      />,
+    );
+    await screen.findByText('โรงเรียน');
+    expect(screen.getByRole('tab', { name: '모든 단어' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    fireEvent.mouseDown(
+      screen.getByRole('tab', { name: '최근에 추출한 단어' }),
+      { button: 0, ctrlKey: false },
+    );
+    expect(onSearchChange).toHaveBeenCalledWith({
+      query: '학교',
+      section: 'recent',
+      page: 1,
+      pageSize: 20,
+    });
+    fireEvent.mouseDown(screen.getByRole('tab', { name: '뜻이 추가된 단어' }), {
+      button: 0,
+      ctrlKey: false,
+    });
+    expect(onSearchChange).toHaveBeenCalledWith({
+      query: '학교',
+      section: 'new-meanings',
+      page: 1,
+      pageSize: 20,
+    });
+  });
+
+  it('최근 추출 조건을 서버로 보내고 한국어 뜻과 품사를 표시한다', async () => {
+    mocks.authenticatedRequest.mockResolvedValueOnce({
+      items: [
+        {
+          id: 'v',
+          thai: 'เรียน',
+          kind: 'WORD',
+          saved: false,
+          meanings: [{ id: 'm', meaningKo: '배우다', partOfSpeech: '동사' }],
+        },
+      ],
+      page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
+    });
+    renderWithProviders(
+      <VocabularyListPageContainer
+        onSearchChange={vi.fn()}
+        search={{ section: 'recent', page: 1, pageSize: 20 }}
+      />,
+    );
+    expect(await screen.findByText('배우다')).toBeInTheDocument();
+    expect(screen.getByText('동사')).toBeInTheDocument();
+    expect(mocks.authenticatedRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: '/vocabularies?section=recent&page=1&pageSize=20',
+      }),
+    );
+  });
+});
+
 describe('어휘 목록 페이지', () => {
   it('서버 태국어 원문을 상세 링크와 lang 속성으로 표시한다', async () => {
     renderWithProviders(

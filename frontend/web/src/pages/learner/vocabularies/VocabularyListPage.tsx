@@ -6,6 +6,12 @@ import { Button } from '@/shared/components/button';
 import { Input } from '@/shared/components/input';
 import { Label } from '@/shared/components/label';
 import { Container } from '@/shared/components/layouts/Container';
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from '@/shared/components/tabs';
 import { Skeleton } from '@/shared/components/skeleton';
 import { Link } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
@@ -28,17 +34,55 @@ export function VocabularyListPage(
     <Container className='max-w-content flex-1'>
       <section className='grid gap-section'>
         <h1 className='text-title text-primary'>어휘 찾기</h1>
-        <VocabularyFilters
-          onFilterChange={onFilterChange}
-          search={search}
-        />
-        <VocabularyResults
-          data={data}
-          error={error}
-          loading={loading}
-          onPageChange={onPageChange}
-          onRetry={onRetry}
-        />
+        <p className='text-body text-subtle'>
+          자료에서 추출해 저장한 단어와 뜻을 살펴보세요.
+        </p>
+        <Tabs
+          value={search.section ?? 'all'}
+          onValueChange={(section) =>
+            onFilterChange({
+              section: section as VocabularyListSearch['section'],
+            })
+          }
+        >
+          <TabsList
+            aria-label='단어 분류'
+            className='h-auto flex-wrap'
+          >
+            <TabsTrigger value='all'>모든 단어</TabsTrigger>
+            <TabsTrigger value='recent'>최근에 추출한 단어</TabsTrigger>
+            <TabsTrigger value='new-meanings'>뜻이 추가된 단어</TabsTrigger>
+          </TabsList>
+          {(['all', 'recent', 'new-meanings'] as const).map((section) => (
+            <TabsContent
+              key={section}
+              value={section}
+              className='grid gap-section'
+            >
+              <p className='text-body text-subtle'>
+                {
+                  {
+                    all: '공개된 모든 단어와 표현을 확인할 수 있어요.',
+                    recent: '가장 최근에 최종 저장한 추출 작업의 단어입니다.',
+                    'new-meanings':
+                      '자료 추출을 통해 기존 단어에 새 뜻이 추가된 단어입니다.',
+                  }[section]
+                }
+              </p>
+              <VocabularyFilters
+                onFilterChange={onFilterChange}
+                search={search}
+              />
+              <VocabularyResults
+                data={data}
+                error={error}
+                loading={loading}
+                onPageChange={onPageChange}
+                onRetry={onRetry}
+              />
+            </TabsContent>
+          ))}
+        </Tabs>
       </section>
     </Container>
   );
@@ -214,6 +258,21 @@ function VocabularyResults({
               >
                 {item.thai}
               </span>
+              <ul className='mt-cluster grid gap-cluster'>
+                {item.meanings.map((meaning) => (
+                  <li
+                    key={meaning.id}
+                    className='text-body'
+                  >
+                    {meaning.partOfSpeech && (
+                      <span className='mr-cluster text-subtle'>
+                        {meaning.partOfSpeech}
+                      </span>
+                    )}
+                    {meaning.meaningKo}
+                  </li>
+                ))}
+              </ul>
             </Link>
           </li>
         ))}
