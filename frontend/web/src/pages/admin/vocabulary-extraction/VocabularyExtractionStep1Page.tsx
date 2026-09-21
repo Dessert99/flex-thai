@@ -163,18 +163,6 @@ export function VocabularyExtractionStep1Page({
               ))}
             </ul>
           </section>
-          <Link
-            to='/admin/vocabulary-extraction/preview'
-            className='text-caption underline underline-offset-4'
-          >
-            진행 화면 미리보기
-          </Link>
-          <Link
-            to='/admin/vocabulary-extraction/result-preview'
-            className='text-caption underline underline-offset-4'
-          >
-            결과 화면 미리보기
-          </Link>
           {templatesOpen && (
             <ExtractionTemplateDialog
               onClose={() => setTemplatesOpen(false)}
