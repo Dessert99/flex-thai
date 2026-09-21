@@ -19,13 +19,12 @@ export function LandingPage() {
         <CardHeader>
           <h1 className='text-title text-primary'>FLEX 태국어 학습</h1>
           <CardDescription className='text-body text-subtle'>
-            태국어 어휘와 개념을 차근차근 익히며 FLEX 시험을 준비하세요.
+            태국어 어휘를 차근차근 익히며 FLEX 시험을 준비하세요.
           </CardDescription>
         </CardHeader>
         <CardContent className='flex flex-col gap-section'>
           <p className='text-body text-subtle'>
             어휘를 찾아 뜻과 예문을 살펴보고, 내 단어장에 모아 복습할 수 있어요.
-            개념 학습으로 태국어의 기초도 함께 다져 보세요.
           </p>
           <Button asChild>
             <Link to='/login'>로그인하기</Link>

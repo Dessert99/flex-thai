@@ -7,17 +7,6 @@ const countSchema = z.number().int().nonnegative();
 export const adminHomeOperationsResponseSchema = z
   .object({
     feedback: z.object({ pendingCount: countSchema }).strict(),
-    candidates: z
-      .object({
-        vocabularyPendingCount: countSchema,
-      })
-      .strict(),
-    contentProduction: z
-      .object({
-        runningCount: countSchema,
-        failedCount: countSchema,
-      })
-      .strict(),
     mfa: z
       .object({
         enrolled: z.boolean(),

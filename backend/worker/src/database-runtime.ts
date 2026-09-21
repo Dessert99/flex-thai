@@ -1,7 +1,7 @@
+import { DrizzleExtractionRepository } from '@flex-thia/database/repositories/vocabulary-extraction/drizzle-extraction.repository';
 /** Lambda worker가 Aurora Data API Drizzle client를 지연 생성하게 한다 */
 import { createDataApiDatabase } from '@flex-thia/database/clients/data-api';
 import { createLocalDatabase } from '@flex-thia/database/clients/local';
-import { DrizzleJobRepository } from '@flex-thia/database/repositories/drizzle-job.repository';
 
 const requireEnv = (key: string): string => {
   const value = process.env[key];
@@ -15,7 +15,7 @@ const requireEnv = (key: string): string => {
 
 /** local과 Lambda 환경에 맞는 Drizzle database를 생성한다 */
 export const createWorkerDatabase = (): ConstructorParameters<
-  typeof DrizzleJobRepository
+  typeof DrizzleExtractionRepository
 >[0] =>
   process.env.DATABASE_MODE === 'local'
     ? createLocalDatabase(requireEnv('DATABASE_URL'))

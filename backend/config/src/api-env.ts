@@ -22,7 +22,6 @@ const apiEnvSchema = z
     CUSTOM_AUTH_SECRET: z.string().min(32).optional(),
     CUSTOM_AUTH_SECRET_ARN: z.string().optional(),
     INPUT_BUCKET_NAME: z.string().optional(),
-    JOB_QUEUE_URL: z.string().optional(),
     FLEX_THIA_LOCAL_API_ORIGIN: z
       .url()
       .refine((value) => new URL(value).protocol === 'http:', {

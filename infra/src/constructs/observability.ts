@@ -9,7 +9,7 @@ import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import type { InfrastructureConfig } from '../config.js';
-import type { AsyncJobs } from './async-jobs.js';
+
 import type { HttpApi } from './http-api.js';
 
 /** 감시할 애플리케이션 자원과 production 설정 */
@@ -17,7 +17,6 @@ export interface ObservabilityProps {
   config: InfrastructureConfig;
   cluster: rds.DatabaseCluster;
   httpApi: HttpApi;
-  asyncJobs: AsyncJobs;
 }
 
 /** CloudWatch 알람, Parameter Store, 월 비용 예산 경계 */
@@ -96,58 +95,6 @@ export class Observability extends Construct {
           cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
       },
     );
-
-    for (const [name, worker] of [
-      ['JobStarter', props.asyncJobs.jobStarterFunction],
-      ['FoundationWorker', props.asyncJobs.foundationFunction],
-    ] as const) {
-      addAlarm(
-        `${name}ErrorsAlarm`,
-        worker.metricErrors({
-          period: Duration.minutes(5),
-          statistic: 'Sum',
-        }),
-        countAlarmOptions,
-      );
-      addAlarm(
-        `${name}ThrottlesAlarm`,
-        worker.metricThrottles({
-          period: Duration.minutes(5),
-          statistic: 'Sum',
-        }),
-        countAlarmOptions,
-      );
-    }
-
-    addAlarm(
-      'OldestJobMessageAlarm',
-      props.asyncJobs.queue.metricApproximateAgeOfOldestMessage({
-        period: Duration.minutes(5),
-        statistic: 'Maximum',
-      }),
-      {
-        threshold: 300,
-        evaluationPeriods: 1,
-        comparisonOperator:
-          cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
-      },
-    );
-    addAlarm(
-      'DeadLetterQueueAlarm',
-      props.asyncJobs.deadLetterQueue.metricApproximateNumberOfMessagesVisible({
-        period: Duration.minutes(5),
-        statistic: 'Maximum',
-      }),
-      countAlarmOptions,
-    );
-    addAlarm(
-      'WorkflowFailedAlarm',
-      props.asyncJobs.stateMachine.metricFailed({
-        period: Duration.minutes(5),
-        statistic: 'Sum',
-      }),
-      countAlarmOptions,
-    );
     addAlarm(
       'AuroraCapacityAlarm',
       props.cluster.metricServerlessDatabaseCapacity({
@@ -187,10 +134,7 @@ export class Observability extends Construct {
     );
 
     const parameters: Record<string, string> = {
-      'jobs/map-max-concurrency': '2',
-      'jobs/provider-max-concurrency': '1',
       'uploads/max-file-bytes': '26214400',
-      'uploads/max-job-bytes': '262144000',
     };
     for (const [name, value] of Object.entries(parameters)) {
       new ssm.StringParameter(this, `Parameter${name.replaceAll('/', '-')}`, {

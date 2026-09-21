@@ -1,5 +1,5 @@
 /** S3 없이 업로드 소유권과 검증 상태를 재현하는 in-memory adapter */
-import type { InputType } from '@flex-thia/domain/jobs/job';
+import type { InputType } from '@flex-thia/domain/uploads/input-type';
 import type {
   UploadLifecycleRepository,
   UploadRecord,

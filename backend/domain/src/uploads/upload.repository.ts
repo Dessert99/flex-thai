@@ -1,5 +1,5 @@
 /** 검증된 업로드만 Job 입력이 되게 영속 경계를 정의한다 */
-import type { InputType } from '../jobs/job.js';
+import type { InputType } from '../uploads/input-type.js';
 
 /** 업로드 정책과 S3 실제 object 검증을 연결하는 record */
 export interface UploadRecord {

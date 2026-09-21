@@ -446,23 +446,6 @@ insert into token_occurrences (
     'TARGET'
   );
 
-insert into content_production_presets (
-  id,
-  name,
-  purpose,
-  version,
-  parameters,
-  enabled
-) values
-  (
-    '00000000-0000-4000-8000-000000000901',
-    '기본 어휘 추출',
-    'VOCABULARY_EXTRACTION',
-    1,
-    '{"suspectedDuplicateMaxCodePointDistance":1}'::jsonb,
-    true
-  );
-
 insert into uploads (
   id,
   owner_id,
@@ -485,79 +468,8 @@ insert into uploads (
   '2026-07-01T00:00:00Z'
 );
 
-insert into jobs (
-  id,
-  requested_by,
-  client_request_id,
-  type,
-  purpose,
-  preset_id,
-  preset_snapshot,
-  status,
-  attempt,
-  enqueued_at,
-  completed_at,
-  created_at,
-  updated_at
-) values (
-  '00000000-0000-4000-8000-000000000931',
-  '00000000-0000-4000-8000-000000000001',
-  '00000000-0000-4000-8000-000000000932',
-  'VOCABULARY_EXTRACTION',
-  'VOCABULARY_EXTRACTION',
-  '00000000-0000-4000-8000-000000000901',
-  '{"id":"00000000-0000-4000-8000-000000000901","name":"기본 어휘 추출","purpose":"VOCABULARY_EXTRACTION","version":1,"parameters":{"suspectedDuplicateMaxCodePointDistance":1}}'::jsonb,
-  'COMPLETED',
-  0,
-  '2026-07-01T00:00:00Z',
-  '2026-07-01T00:01:00Z',
-  '2026-07-01T00:00:00Z',
-  '2026-07-01T00:01:00Z'
-);
-
-insert into job_inputs (
-  id,
-  job_id,
-  upload_id,
-  ordinal,
-  created_at
-) values (
-  '00000000-0000-4000-8000-000000000933',
-  '00000000-0000-4000-8000-000000000931',
-  '00000000-0000-4000-8000-000000000930',
-  0,
-  '2026-07-01T00:00:00Z'
-);
-
-insert into job_items (
-  id,
-  job_id,
-  job_input_id,
-  operation,
-  status,
-  source_ref,
-  attempt,
-  retryable,
-  result,
-  created_at,
-  updated_at
-) values (
-  '00000000-0000-4000-8000-000000000934',
-  '00000000-0000-4000-8000-000000000931',
-  '00000000-0000-4000-8000-000000000933',
-  'VOCABULARY_EXTRACTION',
-  'SUCCEEDED',
-  'local-source-1',
-  0,
-  false,
-  '{"generatedCount":1}'::jsonb,
-  '2026-07-01T00:00:00Z',
-  '2026-07-01T00:01:00Z'
-);
-
 insert into provider_runs (
   id,
-  job_item_id,
   operation,
   sequence,
   provider,
@@ -576,7 +488,6 @@ insert into provider_runs (
   finished_at
 ) values (
   '00000000-0000-4000-8000-000000000935',
-  '00000000-0000-4000-8000-000000000934',
   'VOCABULARY_EXTRACTION',
   0,
   'LOCAL_FAKE',
@@ -621,212 +532,6 @@ insert into wordbook_items (wordbook_id, vocabulary_id, added_at) values
   ('00000000-0000-4000-8000-000000000551', '00000000-0000-4000-8000-000000000111', '2026-07-15T00:00:00Z'),
   ('00000000-0000-4000-8000-000000000551', '00000000-0000-4000-8000-000000000112', '2026-07-15T00:00:00Z');
 
-insert into content_imports (
-  id,
-  requested_by,
-  idempotency_key,
-  request_hash,
-  status,
-  vocabulary_count,
-  imported_count,
-  rejected_count,
-  created_at,
-  completed_at
-) values (
-  '00000000-0000-4000-8000-000000000601',
-  '00000000-0000-4000-8000-000000000001',
-  '00000000-0000-4000-8000-000000000602',
-  repeat('d', 64),
-  'COMPLETED',
-  1,
-  1,
-  0,
-  '2026-07-16T00:00:00Z',
-  '2026-07-16T00:01:00Z'
-);
-
-insert into content_import_items (
-  id,
-  import_id,
-  kind,
-  source_index,
-  client_ref,
-  status,
-  target_id,
-  errors,
-  reference_map,
-  created_at
-) values
-  (
-    '00000000-0000-4000-8000-000000000611',
-    '00000000-0000-4000-8000-000000000601',
-    'VOCABULARY',
-    0,
-    'local-draft-vocabulary',
-    'IMPORTED',
-    '00000000-0000-4000-8000-000000000103',
-    '[]',
-    '{"local-draft-vocabulary":"00000000-0000-4000-8000-000000000103"}',
-    '2026-07-16T00:00:30Z'
-  );
-
-insert into concepts (
-  id,
-  status,
-  current_published_version_id,
-  created_at,
-  updated_at
-) values
-  (
-    '00000000-0000-4000-8000-000000000701',
-    'PUBLISHED',
-    null,
-    '2026-07-17T00:00:00Z',
-    '2026-07-17T00:00:00Z'
-  ),
-  (
-    '00000000-0000-4000-8000-000000000702',
-    'PUBLISHED',
-    null,
-    '2026-07-17T00:00:00Z',
-    '2026-07-17T00:00:00Z'
-  );
-
-insert into concept_versions (
-  id,
-  concept_id,
-  version,
-  revision,
-  category,
-  position,
-  title,
-  summary,
-  status,
-  validation_status,
-  validation_issues,
-  validated_revision,
-  validated_at,
-  published_at,
-  created_at,
-  updated_at
-) values
-  (
-    '00000000-0000-4000-8000-000000000711',
-    '00000000-0000-4000-8000-000000000701',
-    1,
-    0,
-    'THAI_SCRIPT',
-    0,
-    '태국어 인사말의 쓰임',
-    '기본 인사말의 뜻과 쓰임을 실제 문장으로 익힙니다.',
-    'PUBLISHED',
-    'PASSED',
-    '[]',
-    0,
-    '2026-07-17T00:10:00Z',
-    '2026-07-17T00:20:00Z',
-    '2026-07-17T00:00:00Z',
-    '2026-07-17T00:20:00Z'
-  ),
-  (
-    '00000000-0000-4000-8000-000000000712',
-    '00000000-0000-4000-8000-000000000702',
-    1,
-    0,
-    'GRAMMAR',
-    0,
-    '감사 표현의 기본 구조',
-    '감사를 나타내는 표현과 사용하는 상황을 문장으로 익힙니다.',
-    'PUBLISHED',
-    'PASSED',
-    '[]',
-    0,
-    '2026-07-17T00:10:00Z',
-    '2026-07-17T00:20:00Z',
-    '2026-07-17T00:00:00Z',
-    '2026-07-17T00:20:00Z'
-  );
-
-update concepts
-set current_published_version_id = case id
-  when '00000000-0000-4000-8000-000000000701' then '00000000-0000-4000-8000-000000000711'::uuid
-  when '00000000-0000-4000-8000-000000000702' then '00000000-0000-4000-8000-000000000712'::uuid
-  else current_published_version_id
-end;
-
-insert into concept_blocks (
-  id,
-  concept_version_id,
-  kind,
-  position,
-  heading,
-  paragraphs,
-  table_headers,
-  table_rows
-) values
-  (
-    '00000000-0000-4000-8000-000000000721',
-    '00000000-0000-4000-8000-000000000711',
-    'EXPLANATION',
-    0,
-    '인사말을 소리 내어 읽기',
-    '["สวัสดี는 처음 만났을 때와 일상적인 인사에 두루 사용합니다."]',
-    null,
-    null
-  ),
-  (
-    '00000000-0000-4000-8000-000000000722',
-    '00000000-0000-4000-8000-000000000711',
-    'THAI_EXAMPLES',
-    1,
-    '인사말 예문',
-    null,
-    null,
-    null
-  ),
-  (
-    '00000000-0000-4000-8000-000000000723',
-    '00000000-0000-4000-8000-000000000712',
-    'RULE_TABLE',
-    0,
-    '감사 표현',
-    null,
-    '["표현","쓰임"]',
-    '[["ขอบคุณ","고마움을 전할 때 사용"]]'
-  ),
-  (
-    '00000000-0000-4000-8000-000000000724',
-    '00000000-0000-4000-8000-000000000712',
-    'THAI_EXAMPLES',
-    1,
-    '감사 표현 예문',
-    null,
-    null,
-    null
-  );
-
-insert into concept_block_examples (
-  id,
-  block_id,
-  position,
-  sentence_version_id,
-  note_ko
-) values
-  (
-    '00000000-0000-4000-8000-000000000731',
-    '00000000-0000-4000-8000-000000000722',
-    0,
-    '00000000-0000-4000-8000-000000000217',
-    '인사말의 뜻과 쓰임을 함께 확인합니다.'
-  ),
-  (
-    '00000000-0000-4000-8000-000000000732',
-    '00000000-0000-4000-8000-000000000724',
-    0,
-    '00000000-0000-4000-8000-000000000218',
-    '감사 표현이 쓰이는 문맥을 확인합니다.'
-  );
-
 insert into content_error_reports (
   id,
   reporter_user_id,
@@ -852,19 +557,6 @@ insert into content_error_reports (
     '{"title":"어휘 뜻","primaryText":"สวัสดี","secondaryText":"태국어 인사말","versionLabel":"버전 1","locationLabel":"어휘 상세"}',
     '2026-07-18T00:00:00Z',
     '2026-07-18T00:00:00Z'
-  ),
-  (
-    '00000000-0000-4000-8000-000000000802',
-    '00000000-0000-4000-8000-000000000002',
-    'CONCEPT',
-    'MEANING_TRANSLATION',
-    'IN_PROGRESS',
-    '00000000-0000-4000-8000-000000000001',
-    '예문 뜻 설명을 확인해 주세요.',
-    '{"kind":"CONCEPT","contentId":"00000000-0000-4000-8000-000000000701","contentVersionId":"00000000-0000-4000-8000-000000000711","sentenceVersionId":null,"locationId":"00000000-0000-4000-8000-000000000722"}',
-    '{"title":"태국어 인사말의 쓰임","primaryText":"인사말 예문","secondaryText":"기본 인사말의 뜻과 쓰임을 실제 문장으로 익힙니다.","versionLabel":"버전 1","locationLabel":"개념 블록 2"}',
-    '2026-07-18T01:00:00Z',
-    '2026-07-18T01:02:00Z'
   );
 
 insert into content_error_report_history (
@@ -888,39 +580,6 @@ insert into content_error_report_history (
     null,
     null,
     '2026-07-18T00:00:00Z'
-  ),
-  (
-    '00000000-0000-4000-8000-000000000812',
-    '00000000-0000-4000-8000-000000000802',
-    '00000000-0000-4000-8000-000000000002',
-    'SUBMITTED',
-    null,
-    null,
-    null,
-    null,
-    '2026-07-18T01:00:00Z'
-  ),
-  (
-    '00000000-0000-4000-8000-000000000813',
-    '00000000-0000-4000-8000-000000000802',
-    '00000000-0000-4000-8000-000000000001',
-    'ASSIGNEE_CHANGED',
-    null,
-    null,
-    null,
-    '00000000-0000-4000-8000-000000000001',
-    '2026-07-18T01:01:00Z'
-  ),
-  (
-    '00000000-0000-4000-8000-000000000814',
-    '00000000-0000-4000-8000-000000000802',
-    '00000000-0000-4000-8000-000000000001',
-    'STATUS_CHANGED',
-    'OPEN',
-    'IN_PROGRESS',
-    null,
-    null,
-    '2026-07-18T01:02:00Z'
   );
 
 commit;

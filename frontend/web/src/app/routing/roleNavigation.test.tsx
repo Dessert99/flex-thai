@@ -27,9 +27,9 @@ describe('역할별 내비게이션', () => {
     expect(
       screen.queryByRole('link', { name: '내 단어장' }),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '개념 학습' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: '어휘 찾기' })).toHaveAttribute(
       'href',
-      '/concepts?category=GRAMMAR',
+      '/vocabularies',
     );
     expect(
       screen.queryByRole('region', { name: '운영자 기능' }),

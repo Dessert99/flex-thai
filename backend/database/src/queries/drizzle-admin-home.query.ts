@@ -8,17 +8,11 @@ interface AdminHomeReadDatabase {
 /** 관리자 홈 전용 안전한 운영 집계 */
 export interface AdminHomeOperationsProjection {
   pendingErrorReportCount: number;
-  pendingVocabularyCandidateCount: number;
-  runningContentJobCount: number;
-  failedContentJobCount: number;
   recentVerificationAt: Date | null;
 }
 
 type AggregateRow = {
   pendingErrorReportCount?: number | string;
-  pendingVocabularyCandidateCount?: number | string;
-  runningContentJobCount?: number | string;
-  failedContentJobCount?: number | string;
   recentVerificationAt?: Date | string | null;
 };
 
@@ -26,23 +20,6 @@ const operationsSummaryQuery = (userId: string) => sql`
   select
     (select count(*) from content_error_reports where status in ('OPEN', 'IN_PROGRESS')) as "pendingErrorReportCount",
 
-    (
-      select count(*)
-      from vocabulary_production_candidates
-      where review_status = 'PENDING'
-    ) as "pendingVocabularyCandidateCount",
-    (
-      select count(*)
-      from jobs
-      where purpose is not null
-        and status in ('QUEUED', 'RUNNING')
-    ) as "runningContentJobCount",
-    (
-      select count(*)
-      from jobs
-      where purpose is not null
-        and status in ('FAILED', 'COMPLETED_WITH_FAILURES')
-    ) as "failedContentJobCount",
     (
       select created_at
       from step_up_grants
@@ -84,11 +61,6 @@ export class DrizzleAdminHomeQuery {
 
     return {
       pendingErrorReportCount: count(row?.pendingErrorReportCount),
-      pendingVocabularyCandidateCount: count(
-        row?.pendingVocabularyCandidateCount,
-      ),
-      runningContentJobCount: count(row?.runningContentJobCount),
-      failedContentJobCount: count(row?.failedContentJobCount),
       recentVerificationAt: date(row?.recentVerificationAt),
     };
   }

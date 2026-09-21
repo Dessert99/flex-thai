@@ -4,10 +4,6 @@ import { adminHomeOperationsResponseSchema } from './admin-home.js';
 
 const response = {
   feedback: { pendingCount: 2 },
-  candidates: {
-    vocabularyPendingCount: 4,
-  },
-  contentProduction: { runningCount: 1, failedCount: 2 },
   mfa: {
     enrolled: true,
     enrolledAt: '2026-07-01T00:00:00.000Z',

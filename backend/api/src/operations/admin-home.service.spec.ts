@@ -13,18 +13,11 @@ describe('AdminHomeService', () => {
     const query = {
       getOperationsSummary: vi.fn().mockResolvedValue({
         pendingErrorReportCount: 2,
-        pendingVocabularyCandidateCount: 4,
-        runningContentJobCount: 1,
-        failedContentJobCount: 2,
         recentVerificationAt: new Date('2026-07-30T12:00:00.000Z'),
       }),
     };
     await expect(new AdminHomeService({ query }).get(actor)).resolves.toEqual({
       feedback: { pendingCount: 2 },
-      candidates: {
-        vocabularyPendingCount: 4,
-      },
-      contentProduction: { runningCount: 1, failedCount: 2 },
       mfa: {
         enrolled: true,
         enrolledAt: '2026-07-01T00:00:00.000Z',

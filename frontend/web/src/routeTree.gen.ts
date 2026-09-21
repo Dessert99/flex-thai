@@ -23,8 +23,6 @@ import { Route as AuthenticatedLearnerLearnRouteImport } from './app/routes/_aut
 import { Route as AuthenticatedLearnerVocabulariesRouteRouteImport } from './app/routes/_authenticated/_learner/vocabularies/route'
 import { Route as AuthenticatedAdminEnrolledRouteRouteImport } from './app/routes/_authenticated/admin/_enrolled/route'
 import { Route as AuthenticatedAdminEnrollmentRouteRouteImport } from './app/routes/_authenticated/admin/_enrollment/route'
-import { Route as AuthenticatedLearnerConceptsIndexRouteImport } from './app/routes/_authenticated/_learner/concepts/index'
-import { Route as AuthenticatedLearnerConceptsConceptIdRouteImport } from './app/routes/_authenticated/_learner/concepts/$conceptId'
 import { Route as AuthenticatedLearnerVocabulariesIndexRouteImport } from './app/routes/_authenticated/_learner/vocabularies/index'
 import { Route as AuthenticatedLearnerVocabulariesVocabularyIdRouteImport } from './app/routes/_authenticated/_learner/vocabularies/$vocabularyId'
 import { Route as AuthenticatedLearnerWordbooksIndexRouteImport } from './app/routes/_authenticated/_learner/wordbooks/index'
@@ -32,26 +30,16 @@ import { Route as AuthenticatedLearnerWordbooksWordbookIdRouteImport } from './a
 import { Route as AuthenticatedAdminEnrolledIndexRouteImport } from './app/routes/_authenticated/admin/_enrolled/index'
 import { Route as AuthenticatedAdminEnrolledAuditLogsRouteImport } from './app/routes/_authenticated/admin/_enrolled/audit-logs'
 import { Route as AuthenticatedAdminEnrolledContentErrorReportsRouteImport } from './app/routes/_authenticated/admin/_enrolled/content-error-reports'
-import { Route as AuthenticatedAdminEnrolledContentImportsRouteRouteImport } from './app/routes/_authenticated/admin/_enrolled/content-imports/route'
 import { Route as AuthenticatedAdminEnrolledUsageCostRouteImport } from './app/routes/_authenticated/admin/_enrolled/usage-cost'
 import { Route as AuthenticatedAdminEnrolledUsersRouteImport } from './app/routes/_authenticated/admin/_enrolled/users'
 import { Route as AuthenticatedAdminEnrolledVocabulariesRouteRouteImport } from './app/routes/_authenticated/admin/_enrolled/vocabularies/route'
 import { Route as AuthenticatedAdminEnrollmentTotpSetupRouteImport } from './app/routes/_authenticated/admin/_enrollment/totp-setup'
-import { Route as AuthenticatedAdminEnrolledConceptsIndexRouteImport } from './app/routes/_authenticated/admin/_enrolled/concepts/index'
-import { Route as AuthenticatedAdminEnrolledConceptsConceptIdRouteImport } from './app/routes/_authenticated/admin/_enrolled/concepts/$conceptId'
-import { Route as AuthenticatedAdminEnrolledContentImportsIndexRouteImport } from './app/routes/_authenticated/admin/_enrolled/content-imports/index'
-import { Route as AuthenticatedAdminEnrolledContentImportsImportIdRouteImport } from './app/routes/_authenticated/admin/_enrolled/content-imports/$importId'
-import { Route as AuthenticatedAdminEnrolledContentProductionIndexRouteImport } from './app/routes/_authenticated/admin/_enrolled/content-production/index'
-import { Route as AuthenticatedAdminEnrolledContentProductionPresetsRouteImport } from './app/routes/_authenticated/admin/_enrolled/content-production/presets'
 import { Route as AuthenticatedAdminEnrolledVocabulariesIndexRouteImport } from './app/routes/_authenticated/admin/_enrolled/vocabularies/index'
 import { Route as AuthenticatedAdminEnrolledVocabulariesVocabularyIdRouteImport } from './app/routes/_authenticated/admin/_enrolled/vocabularies/$vocabularyId'
 import { Route as AuthenticatedAdminEnrolledVocabularyExtractionIndexRouteImport } from './app/routes/_authenticated/admin/_enrolled/vocabulary-extraction/index'
 import { Route as AuthenticatedAdminEnrolledVocabularyExtractionJobIdRouteImport } from './app/routes/_authenticated/admin/_enrolled/vocabulary-extraction/$jobId'
 import { Route as AuthenticatedAdminEnrolledVocabularyExtractionPreviewRouteImport } from './app/routes/_authenticated/admin/_enrolled/vocabulary-extraction/preview'
 import { Route as AuthenticatedAdminEnrolledVocabularyExtractionResultPreviewRouteImport } from './app/routes/_authenticated/admin/_enrolled/vocabulary-extraction/result-preview'
-import { Route as AuthenticatedAdminEnrolledContentProductionJobsJobIdRouteImport } from './app/routes/_authenticated/admin/_enrolled/content-production/jobs/$jobId'
-import { Route as AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesIndexRouteImport } from './app/routes/_authenticated/admin/_enrolled/content-production/vocabulary-candidates/index'
-import { Route as AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesCandidateIdRouteImport } from './app/routes/_authenticated/admin/_enrolled/content-production/vocabulary-candidates/$candidateId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -124,18 +112,6 @@ const AuthenticatedAdminEnrollmentRouteRoute =
     id: '/_enrollment',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
-const AuthenticatedLearnerConceptsIndexRoute =
-  AuthenticatedLearnerConceptsIndexRouteImport.update({
-    id: '/concepts/',
-    path: '/concepts/',
-    getParentRoute: () => AuthenticatedLearnerRouteRoute,
-  } as any)
-const AuthenticatedLearnerConceptsConceptIdRoute =
-  AuthenticatedLearnerConceptsConceptIdRouteImport.update({
-    id: '/concepts/$conceptId',
-    path: '/concepts/$conceptId',
-    getParentRoute: () => AuthenticatedLearnerRouteRoute,
-  } as any)
 const AuthenticatedLearnerVocabulariesIndexRoute =
   AuthenticatedLearnerVocabulariesIndexRouteImport.update({
     id: '/',
@@ -178,12 +154,6 @@ const AuthenticatedAdminEnrolledContentErrorReportsRoute =
     path: '/content-error-reports',
     getParentRoute: () => AuthenticatedAdminEnrolledRouteRoute,
   } as any)
-const AuthenticatedAdminEnrolledContentImportsRouteRoute =
-  AuthenticatedAdminEnrolledContentImportsRouteRouteImport.update({
-    id: '/content-imports',
-    path: '/content-imports',
-    getParentRoute: () => AuthenticatedAdminEnrolledRouteRoute,
-  } as any)
 const AuthenticatedAdminEnrolledUsageCostRoute =
   AuthenticatedAdminEnrolledUsageCostRouteImport.update({
     id: '/usage-cost',
@@ -207,42 +177,6 @@ const AuthenticatedAdminEnrollmentTotpSetupRoute =
     id: '/totp-setup',
     path: '/totp-setup',
     getParentRoute: () => AuthenticatedAdminEnrollmentRouteRoute,
-  } as any)
-const AuthenticatedAdminEnrolledConceptsIndexRoute =
-  AuthenticatedAdminEnrolledConceptsIndexRouteImport.update({
-    id: '/concepts/',
-    path: '/concepts/',
-    getParentRoute: () => AuthenticatedAdminEnrolledRouteRoute,
-  } as any)
-const AuthenticatedAdminEnrolledConceptsConceptIdRoute =
-  AuthenticatedAdminEnrolledConceptsConceptIdRouteImport.update({
-    id: '/concepts/$conceptId',
-    path: '/concepts/$conceptId',
-    getParentRoute: () => AuthenticatedAdminEnrolledRouteRoute,
-  } as any)
-const AuthenticatedAdminEnrolledContentImportsIndexRoute =
-  AuthenticatedAdminEnrolledContentImportsIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AuthenticatedAdminEnrolledContentImportsRouteRoute,
-  } as any)
-const AuthenticatedAdminEnrolledContentImportsImportIdRoute =
-  AuthenticatedAdminEnrolledContentImportsImportIdRouteImport.update({
-    id: '/$importId',
-    path: '/$importId',
-    getParentRoute: () => AuthenticatedAdminEnrolledContentImportsRouteRoute,
-  } as any)
-const AuthenticatedAdminEnrolledContentProductionIndexRoute =
-  AuthenticatedAdminEnrolledContentProductionIndexRouteImport.update({
-    id: '/content-production/',
-    path: '/content-production/',
-    getParentRoute: () => AuthenticatedAdminEnrolledRouteRoute,
-  } as any)
-const AuthenticatedAdminEnrolledContentProductionPresetsRoute =
-  AuthenticatedAdminEnrolledContentProductionPresetsRouteImport.update({
-    id: '/content-production/presets',
-    path: '/content-production/presets',
-    getParentRoute: () => AuthenticatedAdminEnrolledRouteRoute,
   } as any)
 const AuthenticatedAdminEnrolledVocabulariesIndexRoute =
   AuthenticatedAdminEnrolledVocabulariesIndexRouteImport.update({
@@ -282,28 +216,6 @@ const AuthenticatedAdminEnrolledVocabularyExtractionResultPreviewRoute =
       getParentRoute: () => AuthenticatedAdminEnrolledRouteRoute,
     } as any,
   )
-const AuthenticatedAdminEnrolledContentProductionJobsJobIdRoute =
-  AuthenticatedAdminEnrolledContentProductionJobsJobIdRouteImport.update({
-    id: '/content-production/jobs/$jobId',
-    path: '/content-production/jobs/$jobId',
-    getParentRoute: () => AuthenticatedAdminEnrolledRouteRoute,
-  } as any)
-const AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesIndexRoute =
-  AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesIndexRouteImport.update(
-    {
-      id: '/content-production/vocabulary-candidates/',
-      path: '/content-production/vocabulary-candidates/',
-      getParentRoute: () => AuthenticatedAdminEnrolledRouteRoute,
-    } as any,
-  )
-const AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesCandidateIdRoute =
-  AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesCandidateIdRouteImport.update(
-    {
-      id: '/content-production/vocabulary-candidates/$candidateId',
-      path: '/content-production/vocabulary-candidates/$candidateId',
-      getParentRoute: () => AuthenticatedAdminEnrolledRouteRoute,
-    } as any,
-  )
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -316,9 +228,7 @@ export interface FileRoutesByFullPath {
   '/login/': typeof LoginIndexRoute
   '/vocabularies': typeof AuthenticatedLearnerVocabulariesRouteRouteWithChildren
   '/learn': typeof AuthenticatedLearnerLearnRoute
-  '/admin/content-imports': typeof AuthenticatedAdminEnrolledContentImportsRouteRouteWithChildren
   '/admin/vocabularies': typeof AuthenticatedAdminEnrolledVocabulariesRouteRouteWithChildren
-  '/concepts/$conceptId': typeof AuthenticatedLearnerConceptsConceptIdRoute
   '/vocabularies/$vocabularyId': typeof AuthenticatedLearnerVocabulariesVocabularyIdRoute
   '/wordbooks/$wordbookId': typeof AuthenticatedLearnerWordbooksWordbookIdRoute
   '/admin/audit-logs': typeof AuthenticatedAdminEnrolledAuditLogsRoute
@@ -326,25 +236,15 @@ export interface FileRoutesByFullPath {
   '/admin/usage-cost': typeof AuthenticatedAdminEnrolledUsageCostRoute
   '/admin/users': typeof AuthenticatedAdminEnrolledUsersRoute
   '/admin/totp-setup': typeof AuthenticatedAdminEnrollmentTotpSetupRoute
-  '/concepts/': typeof AuthenticatedLearnerConceptsIndexRoute
   '/vocabularies/': typeof AuthenticatedLearnerVocabulariesIndexRoute
   '/wordbooks/': typeof AuthenticatedLearnerWordbooksIndexRoute
   '/admin/': typeof AuthenticatedAdminEnrolledIndexRoute
-  '/admin/concepts/$conceptId': typeof AuthenticatedAdminEnrolledConceptsConceptIdRoute
-  '/admin/content-imports/$importId': typeof AuthenticatedAdminEnrolledContentImportsImportIdRoute
-  '/admin/content-production/presets': typeof AuthenticatedAdminEnrolledContentProductionPresetsRoute
   '/admin/vocabularies/$vocabularyId': typeof AuthenticatedAdminEnrolledVocabulariesVocabularyIdRoute
   '/admin/vocabulary-extraction/$jobId': typeof AuthenticatedAdminEnrolledVocabularyExtractionJobIdRoute
   '/admin/vocabulary-extraction/preview': typeof AuthenticatedAdminEnrolledVocabularyExtractionPreviewRoute
   '/admin/vocabulary-extraction/result-preview': typeof AuthenticatedAdminEnrolledVocabularyExtractionResultPreviewRoute
-  '/admin/concepts/': typeof AuthenticatedAdminEnrolledConceptsIndexRoute
-  '/admin/content-imports/': typeof AuthenticatedAdminEnrolledContentImportsIndexRoute
-  '/admin/content-production/': typeof AuthenticatedAdminEnrolledContentProductionIndexRoute
   '/admin/vocabularies/': typeof AuthenticatedAdminEnrolledVocabulariesIndexRoute
   '/admin/vocabulary-extraction/': typeof AuthenticatedAdminEnrolledVocabularyExtractionIndexRoute
-  '/admin/content-production/jobs/$jobId': typeof AuthenticatedAdminEnrolledContentProductionJobsJobIdRoute
-  '/admin/content-production/vocabulary-candidates/$candidateId': typeof AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesCandidateIdRoute
-  '/admin/content-production/vocabulary-candidates/': typeof AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -355,7 +255,6 @@ export interface FileRoutesByTo {
   '/login/mfa': typeof LoginMfaRoute
   '/login': typeof LoginIndexRoute
   '/learn': typeof AuthenticatedLearnerLearnRoute
-  '/concepts/$conceptId': typeof AuthenticatedLearnerConceptsConceptIdRoute
   '/vocabularies/$vocabularyId': typeof AuthenticatedLearnerVocabulariesVocabularyIdRoute
   '/wordbooks/$wordbookId': typeof AuthenticatedLearnerWordbooksWordbookIdRoute
   '/admin/audit-logs': typeof AuthenticatedAdminEnrolledAuditLogsRoute
@@ -363,24 +262,14 @@ export interface FileRoutesByTo {
   '/admin/usage-cost': typeof AuthenticatedAdminEnrolledUsageCostRoute
   '/admin/users': typeof AuthenticatedAdminEnrolledUsersRoute
   '/admin/totp-setup': typeof AuthenticatedAdminEnrollmentTotpSetupRoute
-  '/concepts': typeof AuthenticatedLearnerConceptsIndexRoute
   '/vocabularies': typeof AuthenticatedLearnerVocabulariesIndexRoute
   '/wordbooks': typeof AuthenticatedLearnerWordbooksIndexRoute
-  '/admin/concepts/$conceptId': typeof AuthenticatedAdminEnrolledConceptsConceptIdRoute
-  '/admin/content-imports/$importId': typeof AuthenticatedAdminEnrolledContentImportsImportIdRoute
-  '/admin/content-production/presets': typeof AuthenticatedAdminEnrolledContentProductionPresetsRoute
   '/admin/vocabularies/$vocabularyId': typeof AuthenticatedAdminEnrolledVocabulariesVocabularyIdRoute
   '/admin/vocabulary-extraction/$jobId': typeof AuthenticatedAdminEnrolledVocabularyExtractionJobIdRoute
   '/admin/vocabulary-extraction/preview': typeof AuthenticatedAdminEnrolledVocabularyExtractionPreviewRoute
   '/admin/vocabulary-extraction/result-preview': typeof AuthenticatedAdminEnrolledVocabularyExtractionResultPreviewRoute
-  '/admin/concepts': typeof AuthenticatedAdminEnrolledConceptsIndexRoute
-  '/admin/content-imports': typeof AuthenticatedAdminEnrolledContentImportsIndexRoute
-  '/admin/content-production': typeof AuthenticatedAdminEnrolledContentProductionIndexRoute
   '/admin/vocabularies': typeof AuthenticatedAdminEnrolledVocabulariesIndexRoute
   '/admin/vocabulary-extraction': typeof AuthenticatedAdminEnrolledVocabularyExtractionIndexRoute
-  '/admin/content-production/jobs/$jobId': typeof AuthenticatedAdminEnrolledContentProductionJobsJobIdRoute
-  '/admin/content-production/vocabulary-candidates/$candidateId': typeof AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesCandidateIdRoute
-  '/admin/content-production/vocabulary-candidates': typeof AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -398,9 +287,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/_enrolled': typeof AuthenticatedAdminEnrolledRouteRouteWithChildren
   '/_authenticated/admin/_enrollment': typeof AuthenticatedAdminEnrollmentRouteRouteWithChildren
   '/_authenticated/_learner/learn': typeof AuthenticatedLearnerLearnRoute
-  '/_authenticated/admin/_enrolled/content-imports': typeof AuthenticatedAdminEnrolledContentImportsRouteRouteWithChildren
   '/_authenticated/admin/_enrolled/vocabularies': typeof AuthenticatedAdminEnrolledVocabulariesRouteRouteWithChildren
-  '/_authenticated/_learner/concepts/$conceptId': typeof AuthenticatedLearnerConceptsConceptIdRoute
   '/_authenticated/_learner/vocabularies/$vocabularyId': typeof AuthenticatedLearnerVocabulariesVocabularyIdRoute
   '/_authenticated/_learner/wordbooks/$wordbookId': typeof AuthenticatedLearnerWordbooksWordbookIdRoute
   '/_authenticated/admin/_enrolled/audit-logs': typeof AuthenticatedAdminEnrolledAuditLogsRoute
@@ -408,25 +295,15 @@ export interface FileRoutesById {
   '/_authenticated/admin/_enrolled/usage-cost': typeof AuthenticatedAdminEnrolledUsageCostRoute
   '/_authenticated/admin/_enrolled/users': typeof AuthenticatedAdminEnrolledUsersRoute
   '/_authenticated/admin/_enrollment/totp-setup': typeof AuthenticatedAdminEnrollmentTotpSetupRoute
-  '/_authenticated/_learner/concepts/': typeof AuthenticatedLearnerConceptsIndexRoute
   '/_authenticated/_learner/vocabularies/': typeof AuthenticatedLearnerVocabulariesIndexRoute
   '/_authenticated/_learner/wordbooks/': typeof AuthenticatedLearnerWordbooksIndexRoute
   '/_authenticated/admin/_enrolled/': typeof AuthenticatedAdminEnrolledIndexRoute
-  '/_authenticated/admin/_enrolled/concepts/$conceptId': typeof AuthenticatedAdminEnrolledConceptsConceptIdRoute
-  '/_authenticated/admin/_enrolled/content-imports/$importId': typeof AuthenticatedAdminEnrolledContentImportsImportIdRoute
-  '/_authenticated/admin/_enrolled/content-production/presets': typeof AuthenticatedAdminEnrolledContentProductionPresetsRoute
   '/_authenticated/admin/_enrolled/vocabularies/$vocabularyId': typeof AuthenticatedAdminEnrolledVocabulariesVocabularyIdRoute
   '/_authenticated/admin/_enrolled/vocabulary-extraction/$jobId': typeof AuthenticatedAdminEnrolledVocabularyExtractionJobIdRoute
   '/_authenticated/admin/_enrolled/vocabulary-extraction/preview': typeof AuthenticatedAdminEnrolledVocabularyExtractionPreviewRoute
   '/_authenticated/admin/_enrolled/vocabulary-extraction/result-preview': typeof AuthenticatedAdminEnrolledVocabularyExtractionResultPreviewRoute
-  '/_authenticated/admin/_enrolled/concepts/': typeof AuthenticatedAdminEnrolledConceptsIndexRoute
-  '/_authenticated/admin/_enrolled/content-imports/': typeof AuthenticatedAdminEnrolledContentImportsIndexRoute
-  '/_authenticated/admin/_enrolled/content-production/': typeof AuthenticatedAdminEnrolledContentProductionIndexRoute
   '/_authenticated/admin/_enrolled/vocabularies/': typeof AuthenticatedAdminEnrolledVocabulariesIndexRoute
   '/_authenticated/admin/_enrolled/vocabulary-extraction/': typeof AuthenticatedAdminEnrolledVocabularyExtractionIndexRoute
-  '/_authenticated/admin/_enrolled/content-production/jobs/$jobId': typeof AuthenticatedAdminEnrolledContentProductionJobsJobIdRoute
-  '/_authenticated/admin/_enrolled/content-production/vocabulary-candidates/$candidateId': typeof AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesCandidateIdRoute
-  '/_authenticated/admin/_enrolled/content-production/vocabulary-candidates/': typeof AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -441,9 +318,7 @@ export interface FileRouteTypes {
     | '/login/'
     | '/vocabularies'
     | '/learn'
-    | '/admin/content-imports'
     | '/admin/vocabularies'
-    | '/concepts/$conceptId'
     | '/vocabularies/$vocabularyId'
     | '/wordbooks/$wordbookId'
     | '/admin/audit-logs'
@@ -451,25 +326,15 @@ export interface FileRouteTypes {
     | '/admin/usage-cost'
     | '/admin/users'
     | '/admin/totp-setup'
-    | '/concepts/'
     | '/vocabularies/'
     | '/wordbooks/'
     | '/admin/'
-    | '/admin/concepts/$conceptId'
-    | '/admin/content-imports/$importId'
-    | '/admin/content-production/presets'
     | '/admin/vocabularies/$vocabularyId'
     | '/admin/vocabulary-extraction/$jobId'
     | '/admin/vocabulary-extraction/preview'
     | '/admin/vocabulary-extraction/result-preview'
-    | '/admin/concepts/'
-    | '/admin/content-imports/'
-    | '/admin/content-production/'
     | '/admin/vocabularies/'
     | '/admin/vocabulary-extraction/'
-    | '/admin/content-production/jobs/$jobId'
-    | '/admin/content-production/vocabulary-candidates/$candidateId'
-    | '/admin/content-production/vocabulary-candidates/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -480,7 +345,6 @@ export interface FileRouteTypes {
     | '/login/mfa'
     | '/login'
     | '/learn'
-    | '/concepts/$conceptId'
     | '/vocabularies/$vocabularyId'
     | '/wordbooks/$wordbookId'
     | '/admin/audit-logs'
@@ -488,24 +352,14 @@ export interface FileRouteTypes {
     | '/admin/usage-cost'
     | '/admin/users'
     | '/admin/totp-setup'
-    | '/concepts'
     | '/vocabularies'
     | '/wordbooks'
-    | '/admin/concepts/$conceptId'
-    | '/admin/content-imports/$importId'
-    | '/admin/content-production/presets'
     | '/admin/vocabularies/$vocabularyId'
     | '/admin/vocabulary-extraction/$jobId'
     | '/admin/vocabulary-extraction/preview'
     | '/admin/vocabulary-extraction/result-preview'
-    | '/admin/concepts'
-    | '/admin/content-imports'
-    | '/admin/content-production'
     | '/admin/vocabularies'
     | '/admin/vocabulary-extraction'
-    | '/admin/content-production/jobs/$jobId'
-    | '/admin/content-production/vocabulary-candidates/$candidateId'
-    | '/admin/content-production/vocabulary-candidates'
   id:
     | '__root__'
     | '/'
@@ -522,9 +376,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/_enrolled'
     | '/_authenticated/admin/_enrollment'
     | '/_authenticated/_learner/learn'
-    | '/_authenticated/admin/_enrolled/content-imports'
     | '/_authenticated/admin/_enrolled/vocabularies'
-    | '/_authenticated/_learner/concepts/$conceptId'
     | '/_authenticated/_learner/vocabularies/$vocabularyId'
     | '/_authenticated/_learner/wordbooks/$wordbookId'
     | '/_authenticated/admin/_enrolled/audit-logs'
@@ -532,25 +384,15 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/_enrolled/usage-cost'
     | '/_authenticated/admin/_enrolled/users'
     | '/_authenticated/admin/_enrollment/totp-setup'
-    | '/_authenticated/_learner/concepts/'
     | '/_authenticated/_learner/vocabularies/'
     | '/_authenticated/_learner/wordbooks/'
     | '/_authenticated/admin/_enrolled/'
-    | '/_authenticated/admin/_enrolled/concepts/$conceptId'
-    | '/_authenticated/admin/_enrolled/content-imports/$importId'
-    | '/_authenticated/admin/_enrolled/content-production/presets'
     | '/_authenticated/admin/_enrolled/vocabularies/$vocabularyId'
     | '/_authenticated/admin/_enrolled/vocabulary-extraction/$jobId'
     | '/_authenticated/admin/_enrolled/vocabulary-extraction/preview'
     | '/_authenticated/admin/_enrolled/vocabulary-extraction/result-preview'
-    | '/_authenticated/admin/_enrolled/concepts/'
-    | '/_authenticated/admin/_enrolled/content-imports/'
-    | '/_authenticated/admin/_enrolled/content-production/'
     | '/_authenticated/admin/_enrolled/vocabularies/'
     | '/_authenticated/admin/_enrolled/vocabulary-extraction/'
-    | '/_authenticated/admin/_enrolled/content-production/jobs/$jobId'
-    | '/_authenticated/admin/_enrolled/content-production/vocabulary-candidates/$candidateId'
-    | '/_authenticated/admin/_enrolled/content-production/vocabulary-candidates/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -660,20 +502,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminEnrollmentRouteRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
-    '/_authenticated/_learner/concepts/': {
-      id: '/_authenticated/_learner/concepts/'
-      path: '/concepts'
-      fullPath: '/concepts/'
-      preLoaderRoute: typeof AuthenticatedLearnerConceptsIndexRouteImport
-      parentRoute: typeof AuthenticatedLearnerRouteRoute
-    }
-    '/_authenticated/_learner/concepts/$conceptId': {
-      id: '/_authenticated/_learner/concepts/$conceptId'
-      path: '/concepts/$conceptId'
-      fullPath: '/concepts/$conceptId'
-      preLoaderRoute: typeof AuthenticatedLearnerConceptsConceptIdRouteImport
-      parentRoute: typeof AuthenticatedLearnerRouteRoute
-    }
     '/_authenticated/_learner/vocabularies/': {
       id: '/_authenticated/_learner/vocabularies/'
       path: '/'
@@ -723,13 +551,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminEnrolledContentErrorReportsRouteImport
       parentRoute: typeof AuthenticatedAdminEnrolledRouteRoute
     }
-    '/_authenticated/admin/_enrolled/content-imports': {
-      id: '/_authenticated/admin/_enrolled/content-imports'
-      path: '/content-imports'
-      fullPath: '/admin/content-imports'
-      preLoaderRoute: typeof AuthenticatedAdminEnrolledContentImportsRouteRouteImport
-      parentRoute: typeof AuthenticatedAdminEnrolledRouteRoute
-    }
     '/_authenticated/admin/_enrolled/usage-cost': {
       id: '/_authenticated/admin/_enrolled/usage-cost'
       path: '/usage-cost'
@@ -757,48 +578,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/totp-setup'
       preLoaderRoute: typeof AuthenticatedAdminEnrollmentTotpSetupRouteImport
       parentRoute: typeof AuthenticatedAdminEnrollmentRouteRoute
-    }
-    '/_authenticated/admin/_enrolled/concepts/': {
-      id: '/_authenticated/admin/_enrolled/concepts/'
-      path: '/concepts'
-      fullPath: '/admin/concepts/'
-      preLoaderRoute: typeof AuthenticatedAdminEnrolledConceptsIndexRouteImport
-      parentRoute: typeof AuthenticatedAdminEnrolledRouteRoute
-    }
-    '/_authenticated/admin/_enrolled/concepts/$conceptId': {
-      id: '/_authenticated/admin/_enrolled/concepts/$conceptId'
-      path: '/concepts/$conceptId'
-      fullPath: '/admin/concepts/$conceptId'
-      preLoaderRoute: typeof AuthenticatedAdminEnrolledConceptsConceptIdRouteImport
-      parentRoute: typeof AuthenticatedAdminEnrolledRouteRoute
-    }
-    '/_authenticated/admin/_enrolled/content-imports/': {
-      id: '/_authenticated/admin/_enrolled/content-imports/'
-      path: '/'
-      fullPath: '/admin/content-imports/'
-      preLoaderRoute: typeof AuthenticatedAdminEnrolledContentImportsIndexRouteImport
-      parentRoute: typeof AuthenticatedAdminEnrolledContentImportsRouteRoute
-    }
-    '/_authenticated/admin/_enrolled/content-imports/$importId': {
-      id: '/_authenticated/admin/_enrolled/content-imports/$importId'
-      path: '/$importId'
-      fullPath: '/admin/content-imports/$importId'
-      preLoaderRoute: typeof AuthenticatedAdminEnrolledContentImportsImportIdRouteImport
-      parentRoute: typeof AuthenticatedAdminEnrolledContentImportsRouteRoute
-    }
-    '/_authenticated/admin/_enrolled/content-production/': {
-      id: '/_authenticated/admin/_enrolled/content-production/'
-      path: '/content-production'
-      fullPath: '/admin/content-production/'
-      preLoaderRoute: typeof AuthenticatedAdminEnrolledContentProductionIndexRouteImport
-      parentRoute: typeof AuthenticatedAdminEnrolledRouteRoute
-    }
-    '/_authenticated/admin/_enrolled/content-production/presets': {
-      id: '/_authenticated/admin/_enrolled/content-production/presets'
-      path: '/content-production/presets'
-      fullPath: '/admin/content-production/presets'
-      preLoaderRoute: typeof AuthenticatedAdminEnrolledContentProductionPresetsRouteImport
-      parentRoute: typeof AuthenticatedAdminEnrolledRouteRoute
     }
     '/_authenticated/admin/_enrolled/vocabularies/': {
       id: '/_authenticated/admin/_enrolled/vocabularies/'
@@ -842,27 +621,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminEnrolledVocabularyExtractionResultPreviewRouteImport
       parentRoute: typeof AuthenticatedAdminEnrolledRouteRoute
     }
-    '/_authenticated/admin/_enrolled/content-production/jobs/$jobId': {
-      id: '/_authenticated/admin/_enrolled/content-production/jobs/$jobId'
-      path: '/content-production/jobs/$jobId'
-      fullPath: '/admin/content-production/jobs/$jobId'
-      preLoaderRoute: typeof AuthenticatedAdminEnrolledContentProductionJobsJobIdRouteImport
-      parentRoute: typeof AuthenticatedAdminEnrolledRouteRoute
-    }
-    '/_authenticated/admin/_enrolled/content-production/vocabulary-candidates/': {
-      id: '/_authenticated/admin/_enrolled/content-production/vocabulary-candidates/'
-      path: '/content-production/vocabulary-candidates'
-      fullPath: '/admin/content-production/vocabulary-candidates/'
-      preLoaderRoute: typeof AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesIndexRouteImport
-      parentRoute: typeof AuthenticatedAdminEnrolledRouteRoute
-    }
-    '/_authenticated/admin/_enrolled/content-production/vocabulary-candidates/$candidateId': {
-      id: '/_authenticated/admin/_enrolled/content-production/vocabulary-candidates/$candidateId'
-      path: '/content-production/vocabulary-candidates/$candidateId'
-      fullPath: '/admin/content-production/vocabulary-candidates/$candidateId'
-      preLoaderRoute: typeof AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesCandidateIdRouteImport
-      parentRoute: typeof AuthenticatedAdminEnrolledRouteRoute
-    }
   }
 }
 
@@ -887,9 +645,7 @@ const AuthenticatedLearnerVocabulariesRouteRouteWithChildren =
 interface AuthenticatedLearnerRouteRouteChildren {
   AuthenticatedLearnerVocabulariesRouteRoute: typeof AuthenticatedLearnerVocabulariesRouteRouteWithChildren
   AuthenticatedLearnerLearnRoute: typeof AuthenticatedLearnerLearnRoute
-  AuthenticatedLearnerConceptsConceptIdRoute: typeof AuthenticatedLearnerConceptsConceptIdRoute
   AuthenticatedLearnerWordbooksWordbookIdRoute: typeof AuthenticatedLearnerWordbooksWordbookIdRoute
-  AuthenticatedLearnerConceptsIndexRoute: typeof AuthenticatedLearnerConceptsIndexRoute
   AuthenticatedLearnerWordbooksIndexRoute: typeof AuthenticatedLearnerWordbooksIndexRoute
 }
 
@@ -898,12 +654,8 @@ const AuthenticatedLearnerRouteRouteChildren: AuthenticatedLearnerRouteRouteChil
     AuthenticatedLearnerVocabulariesRouteRoute:
       AuthenticatedLearnerVocabulariesRouteRouteWithChildren,
     AuthenticatedLearnerLearnRoute: AuthenticatedLearnerLearnRoute,
-    AuthenticatedLearnerConceptsConceptIdRoute:
-      AuthenticatedLearnerConceptsConceptIdRoute,
     AuthenticatedLearnerWordbooksWordbookIdRoute:
       AuthenticatedLearnerWordbooksWordbookIdRoute,
-    AuthenticatedLearnerConceptsIndexRoute:
-      AuthenticatedLearnerConceptsIndexRoute,
     AuthenticatedLearnerWordbooksIndexRoute:
       AuthenticatedLearnerWordbooksIndexRoute,
   }
@@ -911,24 +663,6 @@ const AuthenticatedLearnerRouteRouteChildren: AuthenticatedLearnerRouteRouteChil
 const AuthenticatedLearnerRouteRouteWithChildren =
   AuthenticatedLearnerRouteRoute._addFileChildren(
     AuthenticatedLearnerRouteRouteChildren,
-  )
-
-interface AuthenticatedAdminEnrolledContentImportsRouteRouteChildren {
-  AuthenticatedAdminEnrolledContentImportsImportIdRoute: typeof AuthenticatedAdminEnrolledContentImportsImportIdRoute
-  AuthenticatedAdminEnrolledContentImportsIndexRoute: typeof AuthenticatedAdminEnrolledContentImportsIndexRoute
-}
-
-const AuthenticatedAdminEnrolledContentImportsRouteRouteChildren: AuthenticatedAdminEnrolledContentImportsRouteRouteChildren =
-  {
-    AuthenticatedAdminEnrolledContentImportsImportIdRoute:
-      AuthenticatedAdminEnrolledContentImportsImportIdRoute,
-    AuthenticatedAdminEnrolledContentImportsIndexRoute:
-      AuthenticatedAdminEnrolledContentImportsIndexRoute,
-  }
-
-const AuthenticatedAdminEnrolledContentImportsRouteRouteWithChildren =
-  AuthenticatedAdminEnrolledContentImportsRouteRoute._addFileChildren(
-    AuthenticatedAdminEnrolledContentImportsRouteRouteChildren,
   )
 
 interface AuthenticatedAdminEnrolledVocabulariesRouteRouteChildren {
@@ -950,30 +684,20 @@ const AuthenticatedAdminEnrolledVocabulariesRouteRouteWithChildren =
   )
 
 interface AuthenticatedAdminEnrolledRouteRouteChildren {
-  AuthenticatedAdminEnrolledContentImportsRouteRoute: typeof AuthenticatedAdminEnrolledContentImportsRouteRouteWithChildren
   AuthenticatedAdminEnrolledVocabulariesRouteRoute: typeof AuthenticatedAdminEnrolledVocabulariesRouteRouteWithChildren
   AuthenticatedAdminEnrolledAuditLogsRoute: typeof AuthenticatedAdminEnrolledAuditLogsRoute
   AuthenticatedAdminEnrolledContentErrorReportsRoute: typeof AuthenticatedAdminEnrolledContentErrorReportsRoute
   AuthenticatedAdminEnrolledUsageCostRoute: typeof AuthenticatedAdminEnrolledUsageCostRoute
   AuthenticatedAdminEnrolledUsersRoute: typeof AuthenticatedAdminEnrolledUsersRoute
   AuthenticatedAdminEnrolledIndexRoute: typeof AuthenticatedAdminEnrolledIndexRoute
-  AuthenticatedAdminEnrolledConceptsConceptIdRoute: typeof AuthenticatedAdminEnrolledConceptsConceptIdRoute
-  AuthenticatedAdminEnrolledContentProductionPresetsRoute: typeof AuthenticatedAdminEnrolledContentProductionPresetsRoute
   AuthenticatedAdminEnrolledVocabularyExtractionJobIdRoute: typeof AuthenticatedAdminEnrolledVocabularyExtractionJobIdRoute
   AuthenticatedAdminEnrolledVocabularyExtractionPreviewRoute: typeof AuthenticatedAdminEnrolledVocabularyExtractionPreviewRoute
   AuthenticatedAdminEnrolledVocabularyExtractionResultPreviewRoute: typeof AuthenticatedAdminEnrolledVocabularyExtractionResultPreviewRoute
-  AuthenticatedAdminEnrolledConceptsIndexRoute: typeof AuthenticatedAdminEnrolledConceptsIndexRoute
-  AuthenticatedAdminEnrolledContentProductionIndexRoute: typeof AuthenticatedAdminEnrolledContentProductionIndexRoute
   AuthenticatedAdminEnrolledVocabularyExtractionIndexRoute: typeof AuthenticatedAdminEnrolledVocabularyExtractionIndexRoute
-  AuthenticatedAdminEnrolledContentProductionJobsJobIdRoute: typeof AuthenticatedAdminEnrolledContentProductionJobsJobIdRoute
-  AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesCandidateIdRoute: typeof AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesCandidateIdRoute
-  AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesIndexRoute: typeof AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesIndexRoute
 }
 
 const AuthenticatedAdminEnrolledRouteRouteChildren: AuthenticatedAdminEnrolledRouteRouteChildren =
   {
-    AuthenticatedAdminEnrolledContentImportsRouteRoute:
-      AuthenticatedAdminEnrolledContentImportsRouteRouteWithChildren,
     AuthenticatedAdminEnrolledVocabulariesRouteRoute:
       AuthenticatedAdminEnrolledVocabulariesRouteRouteWithChildren,
     AuthenticatedAdminEnrolledAuditLogsRoute:
@@ -984,28 +708,14 @@ const AuthenticatedAdminEnrolledRouteRouteChildren: AuthenticatedAdminEnrolledRo
       AuthenticatedAdminEnrolledUsageCostRoute,
     AuthenticatedAdminEnrolledUsersRoute: AuthenticatedAdminEnrolledUsersRoute,
     AuthenticatedAdminEnrolledIndexRoute: AuthenticatedAdminEnrolledIndexRoute,
-    AuthenticatedAdminEnrolledConceptsConceptIdRoute:
-      AuthenticatedAdminEnrolledConceptsConceptIdRoute,
-    AuthenticatedAdminEnrolledContentProductionPresetsRoute:
-      AuthenticatedAdminEnrolledContentProductionPresetsRoute,
     AuthenticatedAdminEnrolledVocabularyExtractionJobIdRoute:
       AuthenticatedAdminEnrolledVocabularyExtractionJobIdRoute,
     AuthenticatedAdminEnrolledVocabularyExtractionPreviewRoute:
       AuthenticatedAdminEnrolledVocabularyExtractionPreviewRoute,
     AuthenticatedAdminEnrolledVocabularyExtractionResultPreviewRoute:
       AuthenticatedAdminEnrolledVocabularyExtractionResultPreviewRoute,
-    AuthenticatedAdminEnrolledConceptsIndexRoute:
-      AuthenticatedAdminEnrolledConceptsIndexRoute,
-    AuthenticatedAdminEnrolledContentProductionIndexRoute:
-      AuthenticatedAdminEnrolledContentProductionIndexRoute,
     AuthenticatedAdminEnrolledVocabularyExtractionIndexRoute:
       AuthenticatedAdminEnrolledVocabularyExtractionIndexRoute,
-    AuthenticatedAdminEnrolledContentProductionJobsJobIdRoute:
-      AuthenticatedAdminEnrolledContentProductionJobsJobIdRoute,
-    AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesCandidateIdRoute:
-      AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesCandidateIdRoute,
-    AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesIndexRoute:
-      AuthenticatedAdminEnrolledContentProductionVocabularyCandidatesIndexRoute,
   }
 
 const AuthenticatedAdminEnrolledRouteRouteWithChildren =

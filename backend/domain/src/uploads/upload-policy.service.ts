@@ -1,5 +1,5 @@
 /** private S3 upload 정책과 서버측 완료 검증을 조율한다 */
-import type { InputType } from '../jobs/job.js';
+import type { InputType } from '../uploads/input-type.js';
 import type {
   UploadLifecycleRepository,
   UploadRecord,

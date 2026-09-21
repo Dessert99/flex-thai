@@ -5,7 +5,7 @@ import * as ses from 'aws-cdk-lib/aws-ses';
 import type { Construct } from 'constructs';
 import { fileURLToPath } from 'node:url';
 import type { InfrastructureConfig } from './config.js';
-import { AsyncJobs } from './constructs/async-jobs.js';
+
 import { HttpApi } from './constructs/http-api.js';
 import { Identity } from './constructs/identity.js';
 import { Observability } from './constructs/observability.js';
@@ -21,8 +21,6 @@ export interface ApplicationStackProps extends StackProps {
 export class ApplicationStack extends Stack {
   /** 학교 이메일 확인 기반 Custom Auth identity 경계 */
   readonly identity: Identity;
-  /** SQS와 Step Functions 비동기 Job 경계 */
-  readonly asyncJobs: AsyncJobs;
   /** Lambda와 route별 JWT를 연결하는 HTTP API 경계 */
   readonly httpApi: HttpApi;
   /** 장애 알람, 일반 설정, 월 비용 예산 경계 */
@@ -52,14 +50,6 @@ export class ApplicationStack extends Stack {
       createAuthChallengeEntry: `${workerRoot}identity/create-auth-challenge.ts`,
       verifyAuthChallengeEntry: `${workerRoot}identity/verify-auth-challenge.ts`,
     });
-    this.asyncJobs = new AsyncJobs(this, 'AsyncJobs', {
-      jobStarterEntry: `${workerRoot}job-starter.ts`,
-      foundationEntry: `${workerRoot}content-production-task.ts`,
-      failureMarkerEntry: `${workerRoot}content-production-failure-marker.ts`,
-      relayEntry: `${workerRoot}dispatch/async-dispatch-relay-task.ts`,
-      cluster: props.dataStack.cluster,
-      clusterSecret: props.dataStack.clusterSecret,
-    });
     const apiAssetPath = fileURLToPath(
       new URL('../../backend/api/dist/', import.meta.url),
     );
@@ -77,7 +67,6 @@ export class ApplicationStack extends Stack {
       emailLinkConfirmationUrl: `https://${webDomain}/login/confirm`,
       fromEmail: `no-reply@${props.config.rootDomain}`,
       inputBucket: props.dataStack.inputBucket,
-      jobQueue: this.asyncJobs.queue,
       userPool: this.identity.userPool,
       userPoolClient: this.identity.userPoolClient,
     });
@@ -85,7 +74,6 @@ export class ApplicationStack extends Stack {
       config: props.config,
       cluster: props.dataStack.cluster,
       httpApi: this.httpApi,
-      asyncJobs: this.asyncJobs,
     });
     this.httpApi.apiFunction.addEnvironment(
       'ALARM_TOPIC_ARN',

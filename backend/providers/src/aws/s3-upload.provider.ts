@@ -8,7 +8,7 @@ import {
   createPresignedPost,
   type PresignedPostOptions,
 } from '@aws-sdk/s3-presigned-post';
-import type { InputType } from '@flex-thia/domain/jobs/job';
+import type { InputType } from '@flex-thia/domain/uploads/input-type';
 import type {
   UploadInspection,
   UploadPolicy,

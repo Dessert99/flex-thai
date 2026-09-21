@@ -16,7 +16,6 @@ describe('콘텐츠 오류 신고 schema', () => {
     expect(contentErrorReportTargetKindEnum.enumValues).toEqual([
       'VOCABULARY',
       'SENTENCE',
-      'CONCEPT',
     ]);
     expect(contentErrorReportCategoryEnum.enumValues).toHaveLength(4);
     expect(contentErrorReportStatusEnum.enumValues).toEqual([

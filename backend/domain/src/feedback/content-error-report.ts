@@ -4,8 +4,7 @@
 export type ContentErrorReportStatus =
   'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'REJECTED';
 /** 콘텐츠 오류 신고 대상 종류 */
-export type ContentErrorReportTargetKind =
-  'VOCABULARY' | 'SENTENCE' | 'CONCEPT';
+export type ContentErrorReportTargetKind = 'VOCABULARY' | 'SENTENCE';
 /** 콘텐츠 오류 신고 분류 */
 export type ContentErrorReportCategory =
   'MEANING_TRANSLATION' | 'ANSWER_EXPLANATION' | 'TOKENIZATION' | 'OTHER';
@@ -20,12 +19,6 @@ export type ContentErrorReportOrigin =
       kind: 'SENTENCE';
       sentenceVersionId: string;
       tokenPosition: number | null;
-    }
-  | {
-      kind: 'CONCEPT';
-      conceptId: string;
-      conceptVersionId: string;
-      blockId: string | null;
     };
 
 /** 서버가 확정한 대상 식별자 */

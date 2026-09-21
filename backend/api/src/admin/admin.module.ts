@@ -10,7 +10,7 @@ import {
   CognitoAuthorizerGuard,
   IDENTITY_USER_REPOSITORY,
 } from '../identity/cognito-authorizer.guard.js';
-import { AdminContentImportsController } from './admin-content-imports.controller.js';
+
 import {
   type AdminContentDependencies,
   AdminContentService,
@@ -31,7 +31,7 @@ export class AdminModule {
   static register(options: AdminModuleOptions): DynamicModule {
     return {
       module: AdminModule,
-      controllers: [AdminContentImportsController, AdminVocabulariesController],
+      controllers: [AdminVocabulariesController],
       providers: [
         {
           provide: AdminContentService,

@@ -46,28 +46,12 @@ pnpm local:stop
 - 학습자: `learner@hufs.ac.kr` → 이메일 코드 `123456`
 - 관리자: `admin@hufs.ac.kr` → 이메일 코드 `123456` → TOTP `123456`
 
-## Upload부터 게시까지
+## 단어 추출
 
-관리자 로그인 뒤 Swagger의 콘텐츠 제작과 어휘 후보 검수 API를 사용합니다.
+관리자 로그인 뒤 **단어 추출**에서 URL·PDF·이미지를 입력하고 추출 결과를 확인합니다. 저장할 어휘를 선택하면 공용 어휘에 반영됩니다.
 
-1. `uploads/policies`로 upload policy를 만들고 응답 URL에 파일을 전송합니다.
-2. `uploads/{uploadId}/complete`로 업로드를 완료합니다.
-3. `GET /api/v1/admin/content-production/presets`에서 활성 어휘 추출 preset을 선택합니다.
-4. `POST /api/v1/admin/content-production/jobs`로 작업을 생성하고 작업 상세에서 결과를 확인합니다.
-5. `vocabulary-candidates`에서 어휘 후보를 검수하고 승인합니다.
-
-fresh seed의 VERIFIED upload와 어휘 추출 preset을 사용하는 작업 요청 예시입니다. 새 작업에는 새 `clientRequestId`를 사용합니다.
-
-```json
-{
-  "clientRequestId": "11111111-1111-4111-8111-111111111111",
-  "uploadIds": ["00000000-0000-4000-8000-000000000930"],
-  "purpose": "VOCABULARY_EXTRACTION",
-  "presetId": "00000000-0000-4000-8000-000000000901",
-  "options": {}
-}
-```
+파일 업로드 API는 `/api/v1/admin/vocabulary-extraction/uploads`, 추출 작업 API는 `/api/v1/admin/vocabulary-extraction/jobs`입니다. 콘텐츠 가져오기·콘텐츠 제작·개념 기능은 제거되었습니다.
 
 ## Local 범위
 
-local runtime은 실제 filesystem upload, deterministic candidate를 사용합니다. 유료 provider나 network 호출은 하지 않습니다. production에서 provider가 구성되지 않은 경우의 fail-closed 동작은 이 local runtime이 바꾸지 않습니다.
+local runtime은 실제 filesystem upload, 단어 추출 작업를 사용합니다. 유료 provider나 network 호출은 하지 않습니다. production에서 provider가 구성되지 않은 경우의 fail-closed 동작은 이 local runtime이 바꾸지 않습니다.

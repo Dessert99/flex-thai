@@ -152,7 +152,7 @@ export class DrizzleUsageCostOperationsQuery implements UsageCostOperationsQuery
           order by source, provider, model`),
       this.database.execute(sql`
           select (
-            (select count(*) from jobs where status in ('QUEUED', 'RUNNING')
+            (select count(*) from vocabulary_extraction_jobs where status in ('queued', 'running')
               and created_at >= ${input.range.from} and created_at < ${input.range.to})
           )::int as in_progress_job_count`),
       this.database.execute(sql`${normalizedRuns}
@@ -161,8 +161,8 @@ export class DrizzleUsageCostOperationsQuery implements UsageCostOperationsQuery
           where ${failedConditions} and status = 'FAILED'`),
       this.database.execute(sql`
           select count(*)::int as pending_review_candidate_count
-          from vocabulary_production_candidates
-          where review_status = 'PENDING'
+          from vocabulary_extraction_jobs
+          where status = 'complete' and saved_at is null
             and created_at >= ${input.range.from} and created_at < ${input.range.to}`),
     ]);
     const [cost] = rowsOf(costResult);

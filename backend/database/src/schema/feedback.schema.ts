@@ -19,7 +19,7 @@ import { users } from './identity.schema.js';
 /** 콘텐츠 오류 신고 대상 종류 enum */
 export const contentErrorReportTargetKindEnum = pgEnum(
   'content_error_report_target_kind',
-  ['VOCABULARY', 'SENTENCE', 'CONCEPT'],
+  ['VOCABULARY', 'SENTENCE'],
 );
 /** 콘텐츠 오류 신고 분류 enum */
 export const contentErrorReportCategoryEnum = pgEnum(

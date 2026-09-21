@@ -66,42 +66,7 @@ export function AdminHomeOperationsCards({
         ]}
         title='콘텐츠 오류 신고'
       />
-      <OperationalCard
-        content={renderOperationalState({
-          ...state,
-          content: data ? (
-            <p className='text-body text-primary'>
-              어휘
-              {data.candidates.vocabularyPendingCount}건
-            </p>
-          ) : null,
-        })}
-        links={[
-          {
-            href: '/admin/content-production/vocabulary-candidates',
-            label: '어휘 후보 검수 열기',
-          },
-        ]}
-        title='게시 검토 대기'
-      />
-      <OperationalCard
-        content={renderOperationalState({
-          ...state,
-          content: data ? (
-            <p className='text-body text-primary'>
-              실행 중 {data.contentProduction.runningCount}건 · 실패{' '}
-              {data.contentProduction.failedCount}건
-            </p>
-          ) : null,
-        })}
-        links={[
-          {
-            href: '/admin/content-production',
-            label: '콘텐츠 생성 열기',
-          },
-        ]}
-        title='AI 생성 작업'
-      />
+
       <OperationalCard
         content={renderCostState({
           cost,

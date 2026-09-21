@@ -34,10 +34,10 @@ describe('SidebarLayout 화면 전환', () => {
       path: '/learn',
       component: () => <p>학습 시작 화면</p>,
     });
-    const concepts = createRoute({
+    const vocabularies = createRoute({
       getParentRoute: () => root,
-      path: '/concepts',
-      component: () => <p>개념 목록 화면</p>,
+      path: '/vocabularies',
+      component: () => <p>어휘 목록 화면</p>,
     });
     const users = createRoute({
       getParentRoute: () => root,
@@ -51,7 +51,7 @@ describe('SidebarLayout 화면 전환', () => {
     });
     const router = createRouter({
       history: createMemoryHistory({ initialEntries: ['/learn'] }),
-      routeTree: root.addChildren([home, concepts, users, wordbooks]),
+      routeTree: root.addChildren([home, vocabularies, users, wordbooks]),
     });
     await router.load();
     render(<RouterProvider router={router} />);
@@ -59,14 +59,14 @@ describe('SidebarLayout 화면 전환', () => {
     await screen.findByText('학습 시작 화면');
     const sidebar = desktopSidebar();
     const main = screen.getByRole('main');
-    const link = screen.getByRole('link', { name: '개념 학습' });
+    const link = screen.getByRole('link', { name: '어휘 찾기' });
     // 일반 anchor는 기본 문서 이동을 취소하지 않아 이 검증을 통과할 수 없다.
     const click = new MouseEvent('click', { bubbles: true, cancelable: true });
     fireEvent(link, click);
     expect(click.defaultPrevented).toBe(true);
-    await screen.findByText('개념 목록 화면');
-    expect(router.state.location.pathname).toBe('/concepts');
-    expect(router.state.location.search).toEqual({ category: 'GRAMMAR' });
+    await screen.findByText('어휘 목록 화면');
+    expect(router.state.location.pathname).toBe('/vocabularies');
+    expect(router.state.location.search).toEqual({});
     expect(desktopSidebar()).toBe(sidebar);
     expect(sidebar).toHaveAttribute('data-state', 'collapsed');
     expect(screen.getByRole('main')).toBe(main);

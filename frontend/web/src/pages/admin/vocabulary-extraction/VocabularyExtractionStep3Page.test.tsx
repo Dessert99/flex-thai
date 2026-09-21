@@ -8,10 +8,10 @@ const api = vi.hoisted(() => ({
   saveExtractionResults: vi.fn(),
 }));
 vi.mock(
-  '@/features/content-production/apis/vocabulary-extraction/extractionJobApi',
+  '@/features/vocabulary-extraction/apis/vocabulary-extraction/extractionJobApi',
   async (original) => ({
     ...(await original<
-      typeof import('@/features/content-production/apis/vocabulary-extraction/extractionJobApi')
+      typeof import('@/features/vocabulary-extraction/apis/vocabulary-extraction/extractionJobApi')
     >()),
     ...api,
   }),

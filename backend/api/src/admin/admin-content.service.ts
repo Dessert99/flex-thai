@@ -1,12 +1,4 @@
 /** 관리자 use case와 read model을 strict 공개 응답·감사 문맥으로 조립한다 */
-import {
-  contentImportDetailResponseSchema,
-  contentImportListResponseSchema,
-  type ContentImportDetailResponse,
-  type ContentImportListQuery,
-  type ContentImportListResponse,
-  type ContentImportRequest,
-} from '@flex-thia/contracts/admin/content-imports';
 
 import {
   adminVocabularyDetailResponseSchema,
@@ -30,16 +22,11 @@ import {
 } from '@flex-thia/contracts/admin/vocabulary-relations';
 
 import type { DrizzleAdminVocabularyQuery } from '@flex-thia/database/queries/drizzle-admin-vocabulary.query';
-import type { DrizzleContentImportQuery } from '@flex-thia/database/queries/drizzle-content-import.query';
-import type { ContentImportService } from '@flex-thia/domain/content-import/content-import.service';
 
 import type { VocabularyAdminService } from '@flex-thia/domain/vocabulary/vocabulary-admin';
 import { NotFoundException } from '@nestjs/common';
 import type { ZodType } from 'zod';
 import type { AuthenticatedUser } from '../common/auth/current-user.decorator.js';
-
-type ContentImports = Pick<ContentImportService, 'execute'>;
-type ContentImportQuery = Pick<DrizzleContentImportQuery, 'findById' | 'list'>;
 type Vocabularies = Pick<
   VocabularyAdminService,
   | 'setImportance'
@@ -74,8 +61,6 @@ export const createAdminActorContext = (
 
 /** 관리자 facade가 조정하는 기존 Stage 3~8 use case와 read model */
 export interface AdminContentDependencies {
-  contentImports: ContentImports;
-  contentImportQuery: ContentImportQuery;
   vocabularies: Vocabularies;
   vocabularyQuery: VocabularyQuery;
   now?: () => Date;
@@ -108,21 +93,6 @@ const toAuditContext = (actor: AdminActorContext, occurredAt: Date) => ({
   occurredAt,
 });
 
-const toContentDraftContext = (actor: AdminActorContext, occurredAt: Date) => ({
-  actorSub: actor.sub,
-  actorUserId: actor.userId,
-  requestId: actor.requestId,
-  occurredAt,
-});
-
-const mapImportSummary = <T extends { createdAt: Date; completedAt: Date }>(
-  summary: T,
-) => ({
-  ...summary,
-  createdAt: summary.createdAt.toISOString(),
-  completedAt: summary.completedAt.toISOString(),
-});
-
 const toVocabularyListQuery = (
   query: AdminVocabularyListQuery,
 ): Parameters<VocabularyQuery['list']>[0] => ({
@@ -139,52 +109,6 @@ export class AdminContentService {
 
   constructor(private readonly dependencies: AdminContentDependencies) {
     this.now = dependencies.now ?? (() => new Date());
-  }
-
-  /** canonical 요청을 동기 처리하고 private hash·reference map 없는 상세를 반환한다 */
-  async createContentImport(
-    actor: AdminActorContext,
-    idempotencyKey: string,
-    request: ContentImportRequest,
-  ): Promise<ContentImportDetailResponse> {
-    const occurredAt = this.now();
-    const detail = await this.dependencies.contentImports.execute({
-      requestedBy: actor.userId,
-      idempotencyKey,
-      // Zod optional 출력의 explicit undefined 가능성만 제거된 domain 동형 계약이다.
-      request: request as Parameters<ContentImports['execute']>[0]['request'],
-      context: toContentDraftContext(actor, occurredAt),
-    });
-    return parseAdminPublicResponse(
-      contentImportDetailResponseSchema,
-      mapImportSummary(detail),
-    );
-  }
-
-  /** 완료된 전체 가져오기 이력을 ISO 시각의 page로 반환한다 */
-  async listContentImports(
-    query: ContentImportListQuery,
-  ): Promise<ContentImportListResponse> {
-    const result = await this.dependencies.contentImportQuery.list(query);
-    return parseAdminPublicResponse(contentImportListResponseSchema, {
-      ...result,
-      items: result.items.map(mapImportSummary),
-    });
-  }
-
-  /** 완료된 가져오기 한 건을 항목별 안정 오류와 함께 반환한다 */
-  async getContentImport(
-    importId: string,
-  ): Promise<ContentImportDetailResponse> {
-    const detail =
-      await this.dependencies.contentImportQuery.findById(importId);
-    if (!detail) {
-      throw new NotFoundException({ code: 'CONTENT_IMPORT_NOT_FOUND' });
-    }
-    return parseAdminPublicResponse(
-      contentImportDetailResponseSchema,
-      mapImportSummary(detail),
-    );
   }
 
   setVocabularyImportance(

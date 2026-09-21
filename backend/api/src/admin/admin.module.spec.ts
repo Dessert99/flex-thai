@@ -15,8 +15,6 @@ import { AdminModule } from './admin.module.js';
 describe('AdminModule 조립', () => {
   it('관리자 Controller 네 개와 facade·세 guard를 등록한다', () => {
     const module = AdminModule.register({
-      contentImports: {} as never,
-      contentImportQuery: {} as never,
       vocabularies: {} as never,
       vocabularyQuery: {} as never,
       users: {} as never,

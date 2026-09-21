@@ -2,7 +2,7 @@
 import type { ProblemDetailsResponse } from '@flex-thia/contracts/common/problem';
 import { WordbookPersistenceError } from '@flex-thia/database/repositories/drizzle-wordbook.repository';
 import { AuthDomainError } from '@flex-thia/domain/auth/auth-domain.error';
-import { ContentImportError } from '@flex-thia/domain/content-import/content-import.service';
+
 import { IdentityDomainError } from '@flex-thia/domain/identity/authentication.service';
 import { EmailChallengeError } from '@flex-thia/domain/identity/email-challenge';
 import { UserManagementError } from '@flex-thia/domain/identity/user-management';
@@ -199,14 +199,6 @@ export const buildErrorResponse = (
   }
 
   if (error instanceof WordbookPersistenceError) {
-    const status = HttpStatus.CONFLICT;
-    return {
-      status,
-      body: createProblem(error.code, status, requestId),
-    };
-  }
-
-  if (error instanceof ContentImportError) {
     const status = HttpStatus.CONFLICT;
     return {
       status,

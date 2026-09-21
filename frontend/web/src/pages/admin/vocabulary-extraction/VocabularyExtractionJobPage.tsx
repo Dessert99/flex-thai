@@ -1,6 +1,6 @@
 import { VocabularyExtractionStep3Page } from './VocabularyExtractionStep3Page';
 import { Link } from '@tanstack/react-router';
-import { useExtractionJob } from '@/features/content-production/hooks/vocabulary-extraction/useExtractionJob';
+import { useExtractionJob } from '@/features/vocabulary-extraction/hooks/vocabulary-extraction/useExtractionJob';
 import { Button } from '@/shared/components/button';
 import { Container } from '@/shared/components/layouts/Container';
 import { VocabularyExtractionStep2Page } from './VocabularyExtractionStep2Page';

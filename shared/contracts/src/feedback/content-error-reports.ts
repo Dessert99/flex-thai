@@ -18,7 +18,6 @@ const httpIntegerSchema = (maximum: number) =>
 export const contentErrorReportTargetKindSchema = z.enum([
   'VOCABULARY',
   'SENTENCE',
-  'CONCEPT',
 ]);
 
 /** 학습자가 선택하는 오류 분류 */
@@ -53,14 +52,6 @@ export const contentErrorReportOriginSchema = z.discriminatedUnion('kind', [
       kind: z.literal('SENTENCE'),
       sentenceVersionId: uuidSchema,
       tokenPosition: z.number().int().safe().nonnegative().nullable(),
-    })
-    .strict(),
-  z
-    .object({
-      kind: z.literal('CONCEPT'),
-      conceptId: uuidSchema,
-      conceptVersionId: uuidSchema,
-      blockId: nullableUuidSchema,
     })
     .strict(),
 ]);

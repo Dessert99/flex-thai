@@ -70,23 +70,9 @@ describe('root route 제목', () => {
     ['/login/confirm', '이메일 링크 확인'],
     ['/wordbooks', '내 단어장'],
     ['/wordbooks/00000000-0000-4000-8000-000000000101', '단어장 상세'],
-    ['/concepts', '개념 학습'],
-    ['/concepts/00000000-0000-4000-8000-000000000102', '개념 상세'],
-    ['/admin/concepts', '개념 관리'],
     ['/admin/content-error-reports', '콘텐츠 오류 신고 관리'],
     ['/admin/users', '사용자 관리'],
     ['/admin/audit-logs', '감사 기록'],
-    ['/admin/content-production', '콘텐츠 제작'],
-    [
-      '/admin/content-production/jobs/00000000-0000-4000-8000-000000000103',
-      '콘텐츠 제작 작업 상세',
-    ],
-    ['/admin/content-production/vocabulary-candidates', '어휘 후보 검수'],
-    [
-      '/admin/content-production/vocabulary-candidates/00000000-0000-4000-8000-000000000106',
-      '어휘 후보 상세',
-    ],
-    ['/admin/content-production/presets', '콘텐츠 제작 Preset'],
   ])('%s 경로에 %s 제목을 제공한다', (pathname, title) => {
     expect(getRouteTitle(pathname)).toBe(title);
   });

@@ -13,10 +13,5 @@ export const toContentErrorReportTargetLink = (reference: {
       params: { vocabularyId: reference.contentId },
       search: { page: 1, pageSize: 20 },
     });
-  if (reference.kind === 'CONCEPT')
-    return linkOptions({
-      to: '/admin/concepts/$conceptId',
-      params: { conceptId: reference.contentId },
-    });
   return null;
 };

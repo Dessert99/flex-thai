@@ -1,13 +1,10 @@
 /** 관리자 shell이 공개하는 승인된 콘텐츠 관리 경로만 정의한다 */
 import {
-  BookOpenText,
   BookType,
   CircleDollarSign,
-  Database,
   House,
   MessageSquareWarning,
   ScrollText,
-  Upload,
   Users,
   WandSparkles,
 } from 'lucide-react';
@@ -24,33 +21,9 @@ export const adminNavigation = [
   },
   {
     group: '콘텐츠',
-    href: '/admin/content-imports',
-    icon: Upload,
-    label: '콘텐츠 가져오기',
-  },
-  {
-    group: '콘텐츠',
-    href: '/admin/content-production',
-    icon: WandSparkles,
-    label: '콘텐츠 제작',
-  },
-  {
-    group: '콘텐츠',
-    href: '/admin/content-production/vocabulary-candidates',
-    icon: Database,
-    label: '어휘 후보 검수',
-  },
-  {
-    group: '콘텐츠',
     href: '/admin/vocabularies',
     icon: BookType,
     label: '어휘 관리',
-  },
-  {
-    group: '콘텐츠',
-    href: '/admin/concepts',
-    icon: BookOpenText,
-    label: '개념 관리',
   },
   {
     group: '운영',

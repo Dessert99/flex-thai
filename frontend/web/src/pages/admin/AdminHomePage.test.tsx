@@ -26,10 +26,6 @@ const page = {
 const emptyPage = { ...page, totalItems: 0, totalPages: 0 };
 const emptyOperations = {
   feedback: { pendingCount: 0 },
-  candidates: {
-    vocabularyPendingCount: 0,
-  },
-  contentProduction: { runningCount: 0, failedCount: 0 },
   mfa: {
     enrolled: true,
     enrolledAt: '2026-07-01T00:00:00.000Z',
@@ -97,10 +93,6 @@ describe('관리자 홈 페이지', () => {
       },
       {
         feedback: { pendingCount: 2 },
-        candidates: {
-          vocabularyPendingCount: 4,
-        },
-        contentProduction: { runningCount: 1, failedCount: 2 },
         mfa: {
           enrolled: true,
           enrolledAt: '2026-07-01T00:00:00.000Z',
@@ -113,7 +105,6 @@ describe('관리자 홈 페이지', () => {
     expect(await screen.findByText('โรงเรียน')).toHaveAttribute('lang', 'th');
     expect(screen.getByText('로컬 시스템')).toBeInTheDocument();
     expect(screen.getByText('미처리 2건')).toBeInTheDocument();
-    expect(screen.getByText('실행 중 1건 · 실패 2건')).toBeInTheDocument();
     expect(screen.getByText('16.500000 USD · WARNING')).toBeInTheDocument();
     expect(
       screen.getByText('등록됨 · 최근 재인증 시각 미추적'),
@@ -121,12 +112,6 @@ describe('관리자 홈 페이지', () => {
     expect(
       screen.getByRole('link', { name: '오류 신고 열기' }),
     ).toHaveAttribute('href', '/admin/content-error-reports');
-    expect(
-      screen.getByRole('link', { name: '어휘 후보 검수 열기' }),
-    ).toHaveAttribute(
-      'href',
-      '/admin/content-production/vocabulary-candidates',
-    );
     expect(mocks.authenticatedRequest).toHaveBeenCalledWith(
       expect.objectContaining({ path: '/admin/home' }),
     );
@@ -142,7 +127,7 @@ describe('관리자 홈 페이지', () => {
     renderAdminHome();
     expect(
       await screen.findAllByText('운영 상태를 불러오지 못했습니다.'),
-    ).toHaveLength(4);
+    ).toHaveLength(2);
     expect(screen.getByText('16.500000 USD · WARNING')).toBeInTheDocument();
   });
 

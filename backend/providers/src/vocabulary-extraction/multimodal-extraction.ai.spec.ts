@@ -121,27 +121,25 @@ it('uses Claude by default and sends PDF documents through the Messages API', as
 it.each(['claude', 'gemini'] as const)(
   'sends an image with its MIME type to %s',
   async (provider) => {
-    const fetch = vi
-      .fn()
-      .mockResolvedValue(
-        new Response(
-          JSON.stringify(
-            provider === 'claude'
-              ? {
-                  stop_reason: 'end_turn',
-                  content: [{ type: 'text', text: '{"words":[]}' }],
-                }
-              : {
-                  candidates: [
-                    {
-                      finishReason: 'STOP',
-                      content: { parts: [{ text: '{"words":[]}' }] },
-                    },
-                  ],
-                },
-          ),
+    const fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify(
+          provider === 'claude'
+            ? {
+                stop_reason: 'end_turn',
+                content: [{ type: 'text', text: '{"words":[]}' }],
+              }
+            : {
+                candidates: [
+                  {
+                    finishReason: 'STOP',
+                    content: { parts: [{ text: '{"words":[]}' }] },
+                  },
+                ],
+              },
         ),
-      );
+      ),
+    );
     vi.stubGlobal('fetch', fetch);
     await new MultimodalExtractionAi({
       ANTHROPIC_API_KEY: 'test',

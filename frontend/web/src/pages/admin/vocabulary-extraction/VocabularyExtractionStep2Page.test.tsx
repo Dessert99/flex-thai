@@ -1,7 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { createProgressPreview } from '@/features/content-production/libs/vocabulary-extraction/extractionProgress';
+import { createProgressPreview } from '@/features/vocabulary-extraction/libs/vocabulary-extraction/extractionProgress';
 import { renderWithProviders } from '@/shared/test/renderWithProviders';
 import { VocabularyExtractionStep2Page } from './VocabularyExtractionStep2Page';
 

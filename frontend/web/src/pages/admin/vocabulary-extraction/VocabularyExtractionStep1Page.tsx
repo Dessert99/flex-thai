@@ -1,11 +1,11 @@
-import { defaultExtractionPrompt } from '@/features/content-production/libs/vocabulary-extraction/defaultExtractionPrompt';
+import { defaultExtractionPrompt } from '@/features/vocabulary-extraction/libs/vocabulary-extraction/defaultExtractionPrompt';
 import {
   useCreateExtraction,
   type ExtractionSourceInput,
-} from '@/features/content-production/hooks/vocabulary-extraction/useCreateExtraction';
+} from '@/features/vocabulary-extraction/hooks/vocabulary-extraction/useCreateExtraction';
 import { Link } from '@tanstack/react-router';
-import { ExtractionTemplateDialog } from '@/features/content-production/components/vocabulary-extraction/ExtractionTemplateDialog';
-import { VocabularyExtractionSource } from '@/features/content-production/components/vocabulary-extraction/VocabularyExtractionSource';
+import { ExtractionTemplateDialog } from '@/features/vocabulary-extraction/components/vocabulary-extraction/ExtractionTemplateDialog';
+import { VocabularyExtractionSource } from '@/features/vocabulary-extraction/components/vocabulary-extraction/VocabularyExtractionSource';
 import { useRef, useState } from 'react';
 import { Button } from '@/shared/components/button';
 import {

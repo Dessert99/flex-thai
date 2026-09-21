@@ -52,7 +52,7 @@ describe('Observability', () => {
     });
   });
 
-  it('DLQ와 핵심 장애 지표를 운영자 이메일 topic에 연결한다', () => {
+  it('핵심 장애 지표를 운영자 이메일 topic에 연결한다', () => {
     const app = new App();
     const dataStack = new DataStack(app, 'AlarmData');
     const template = Template.fromStack(
@@ -68,11 +68,6 @@ describe('Observability', () => {
       Protocol: 'email',
     });
     template.hasResourceProperties('AWS::CloudWatch::Alarm', {
-      MetricName: 'ApproximateNumberOfMessagesVisible',
-      Threshold: 0,
-      ComparisonOperator: 'GreaterThanThreshold',
-    });
-    template.hasResourceProperties('AWS::CloudWatch::Alarm', {
       MetricName: '5xx',
     });
     template.hasResourceProperties('AWS::CloudWatch::Alarm', {
@@ -80,7 +75,7 @@ describe('Observability', () => {
     });
   });
 
-  it('실제로 runtime에서 읽는 job과 upload 설정만 Parameter Store에 둔다', () => {
+  it('실제로 runtime에서 읽는 upload 설정만 Parameter Store에 둔다', () => {
     const app = new App();
     const dataStack = new DataStack(app, 'ParameterData');
     const template = Template.fromStack(
@@ -90,14 +85,10 @@ describe('Observability', () => {
       }),
     );
 
-    template.resourceCountIs('AWS::SSM::Parameter', 4);
+    template.resourceCountIs('AWS::SSM::Parameter', 1);
     template.hasResourceProperties('AWS::SSM::Parameter', {
-      Name: '/flex-thia/prod/jobs/map-max-concurrency',
-      Value: '2',
-    });
-    template.hasResourceProperties('AWS::SSM::Parameter', {
-      Name: '/flex-thia/prod/uploads/max-job-bytes',
-      Value: '262144000',
+      Name: '/flex-thia/prod/uploads/max-file-bytes',
+      Value: '26214400',
     });
     expect(JSON.stringify(template.toJSON())).not.toContain(
       '/flex-thia/prod/auth/',

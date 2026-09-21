@@ -1,4 +1,4 @@
-import { useLatestSavedExtraction } from '@/features/content-production/hooks/vocabulary-extraction/useExtractionReview';
+import { useLatestSavedExtraction } from '@/features/vocabulary-extraction/hooks/vocabulary-extraction/useExtractionReview';
 import { useVocabularyManagement } from '@/features/learning/hooks/vocabulary-management/useVocabularyManagement';
 import { Alert, AlertDescription, AlertTitle } from '@/shared/components/alert';
 import { Badge } from '@/shared/components/badge';

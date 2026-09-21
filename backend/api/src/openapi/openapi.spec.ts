@@ -19,32 +19,12 @@ const ACTIVE_PATHS = [
   '/api/v1/admin/vocabulary-extraction/jobs/{id}/save',
   '/api/v1/admin/vocabulary-extraction/templates',
   '/api/v1/admin/vocabulary-extraction/templates/{templateId}',
-  '/api/v1/admin/concept-versions/{versionId}',
-  '/api/v1/admin/concept-versions/{versionId}/publish',
-  '/api/v1/admin/concept-versions/{versionId}/validate',
-  '/api/v1/admin/concepts',
-  '/api/v1/admin/concepts/{conceptId}',
-  '/api/v1/admin/concepts/{conceptId}/hide',
-  '/api/v1/admin/concepts/{conceptId}/restore',
-  '/api/v1/admin/concepts/{conceptId}/versions',
-  '/api/v1/admin/content-imports',
-  '/api/v1/admin/content-imports/{importId}',
   '/api/v1/admin/content-error-reports',
   '/api/v1/admin/content-error-reports/{reportId}',
   '/api/v1/admin/content-error-reports/{reportId}/assignee',
   '/api/v1/admin/content-error-reports/{reportId}/status',
-  '/api/v1/admin/content-production/jobs',
-  '/api/v1/admin/content-production/jobs/{jobId}',
-  '/api/v1/admin/content-production/jobs/{jobId}/retry',
-  '/api/v1/admin/content-production/preset-versions',
-  '/api/v1/admin/content-production/presets',
-  '/api/v1/admin/content-production/presets/{presetId}/enabled',
-  '/api/v1/admin/content-production/presets/{presetId}/versions',
-  '/api/v1/admin/content-production/vocabulary-candidates',
-  '/api/v1/admin/content-production/vocabulary-candidates/{candidateId}',
-  '/api/v1/admin/content-production/vocabulary-candidates/{candidateId}/approve',
-  '/api/v1/admin/content-production/uploads/policies',
-  '/api/v1/admin/content-production/uploads/{uploadId}/complete',
+  '/api/v1/admin/vocabulary-extraction/uploads/policies',
+  '/api/v1/admin/vocabulary-extraction/uploads/{uploadId}/complete',
   '/api/v1/admin/audit-logs',
   '/api/v1/admin/audit-logs/{auditLogId}',
   '/api/v1/admin/home',
@@ -73,8 +53,6 @@ const ACTIVE_PATHS = [
   '/api/v1/auth/mfa/totp/setup/verify',
   '/api/v1/auth/refresh',
   '/api/v1/auth/logout',
-  '/api/v1/concepts',
-  '/api/v1/concepts/{conceptId}',
   '/api/v1/content-error-reports',
   '/api/v1/me',
   '/api/v1/me/recommendations',
@@ -436,35 +414,6 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
   },
   {
     method: 'get',
-    path: '/api/v1/admin/content-production/preset-versions',
-    success: ['200', 'ContentProductionPresetVersionListResponseDto'],
-    errors: ['401', '403', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/content-production/presets',
-    body: 'CreateContentProductionPresetRequestDto',
-    success: ['201', 'ContentProductionPresetVersionResponseDto'],
-    errors: ['400', '401', '403', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/content-production/presets/{presetId}/versions',
-    pathParameters: ['presetId'],
-    body: 'CreateContentProductionPresetVersionRequestDto',
-    success: ['201', 'ContentProductionPresetVersionResponseDto'],
-    errors: ['400', '401', '403', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/content-production/presets/{presetId}/enabled',
-    pathParameters: ['presetId'],
-    body: 'SetContentProductionPresetEnabledRequestDto',
-    success: ['200', 'ContentProductionPresetVersionListResponseDto'],
-    errors: ['400', '401', '403', '409', '500'],
-  },
-  {
-    method: 'get',
     path: '/api/v1/admin/usage-cost',
     query: ['from', 'to', 'source', 'provider', 'model', 'status'],
     success: ['200', 'UsageCostOverviewResponseDto'],
@@ -482,36 +431,6 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
     body: 'UpdateOperationsCostSettingsRequestDto',
     success: ['200', 'OperationsCostSettingsResponseDto'],
     errors: ['400', '401', '403', '409', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/admin/content-production/vocabulary-candidates',
-    query: ['jobId', 'reviewStatus', 'page', 'pageSize'],
-    success: ['200', 'VocabularyCandidateListResponseDto'],
-    errors: ['400', '401', '403', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/admin/content-production/vocabulary-candidates/{candidateId}',
-    pathParameters: ['candidateId'],
-    success: ['200', 'VocabularyCandidateDetailResponseDto'],
-    errors: ['400', '401', '403', '404', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/content-production/vocabulary-candidates/{candidateId}/approve',
-    pathParameters: ['candidateId'],
-    body: 'VocabularyCandidateApproveRequestDto',
-    success: ['200', 'VocabularyCandidateApproveResponseDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'delete',
-    path: '/api/v1/admin/content-production/vocabulary-candidates/{candidateId}',
-    pathParameters: ['candidateId'],
-    body: 'VocabularyCandidateDiscardRequestDto',
-    success: ['200', 'VocabularyCandidateDiscardResponseDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
   },
   {
     method: 'get',
@@ -536,70 +455,6 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
     pathParameters: ['auditLogId'],
     success: ['200', 'AuditLogDetailResponseDto'],
     errors: ['400', '401', '403', '404', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/admin/concepts',
-    query: ['category', 'status', 'page', 'pageSize'],
-    success: ['200', 'AdminConceptListResponseDto'],
-    errors: ['400', '401', '403', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/concepts',
-    body: 'CreateConceptRequestDto',
-    success: ['201', 'ConceptVersionResponseDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/admin/concepts/{conceptId}',
-    pathParameters: ['conceptId'],
-    success: ['200', 'AdminConceptDetailResponseDto'],
-    errors: ['400', '401', '403', '404', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/concepts/{conceptId}/versions',
-    pathParameters: ['conceptId'],
-    success: ['201', 'ConceptVersionResponseDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'put',
-    path: '/api/v1/admin/concept-versions/{versionId}',
-    pathParameters: ['versionId'],
-    body: 'ReplaceConceptVersionRequestDto',
-    success: ['200', 'ConceptVersionResponseDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/concept-versions/{versionId}/validate',
-    pathParameters: ['versionId'],
-    success: ['200', 'ConceptValidationReportDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/concept-versions/{versionId}/publish',
-    pathParameters: ['versionId'],
-    success: ['204'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/concepts/{conceptId}/hide',
-    pathParameters: ['conceptId'],
-    success: ['204'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/concepts/{conceptId}/restore',
-    pathParameters: ['conceptId'],
-    success: ['204'],
-    errors: ['400', '401', '403', '404', '409', '500'],
   },
   {
     method: 'get',
@@ -643,76 +498,6 @@ const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
     path: '/api/v1/admin/content-error-reports/{reportId}/assignee',
     pathParameters: ['reportId'],
     success: ['200', 'AdminContentErrorReportDetailResponseDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/content-imports',
-    headers: ['Idempotency-Key'],
-    body: 'ContentImportRequestDto',
-    success: ['201', 'ContentImportDetailResponseDto'],
-    errors: ['400', '401', '403', '409', '413', '429', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/admin/content-imports',
-    query: ['page', 'pageSize'],
-    success: ['200', 'ContentImportListResponseDto'],
-    errors: ['400', '401', '403', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/admin/content-imports/{importId}',
-    pathParameters: ['importId'],
-    success: ['200', 'ContentImportDetailResponseDto'],
-    errors: ['400', '401', '403', '404', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/content-production/uploads/policies',
-    body: 'ContentProductionUploadPolicyRequestDto',
-    success: ['201', 'ContentProductionUploadPolicyResponseDto'],
-    errors: ['400', '401', '403', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/content-production/uploads/{uploadId}/complete',
-    pathParameters: ['uploadId'],
-    success: ['200', 'CompletedContentProductionUploadResponseDto'],
-    errors: ['400', '401', '403', '404', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/admin/content-production/presets',
-    success: ['200', 'ContentProductionPresetListResponseDto'],
-    errors: ['401', '403', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/content-production/jobs',
-    body: 'CreateContentProductionJobRequestDto',
-    success: ['202', 'ContentProductionJobSummaryDto'],
-    errors: ['400', '401', '403', '409', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/admin/content-production/jobs',
-    query: ['limit'],
-    success: ['200', 'ContentProductionJobListResponseDto'],
-    errors: ['400', '401', '403', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/admin/content-production/jobs/{jobId}',
-    pathParameters: ['jobId'],
-    success: ['200', 'ContentProductionJobDetailResponseDto'],
-    errors: ['400', '401', '403', '404', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/content-production/jobs/{jobId}/retry',
-    pathParameters: ['jobId'],
-    success: ['202', 'ContentProductionJobSummaryDto'],
     errors: ['400', '401', '403', '404', '409', '500'],
   },
   {
@@ -843,20 +628,6 @@ const LEARNER_OPERATIONS: readonly LearnerOperationExpectation[] = [
     path: '/api/v1/me/recommendations',
     success: ['200', 'RecommendationResponseDto'],
     errors: ['401', '403', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/concepts',
-    query: ['category'],
-    success: ['200', 'ConceptListResponseDto'],
-    errors: ['400', '401', '403', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/concepts/{conceptId}',
-    pathParameters: ['conceptId'],
-    success: ['200', 'ConceptDetailResponseDto'],
-    errors: ['400', '401', '403', '404', '500'],
   },
   {
     method: 'post',
@@ -1245,12 +1016,12 @@ describe('OpenAPI 문서', () => {
     });
   });
 
-  it('학습자 operation 열일곱 개의 요청·성공·보안·오류 계약을 모두 고정한다', () => {
+  it('학습자 operation 열다섯 개의 요청·성공·보안·오류 계약을 모두 고정한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
 
-    expect(LEARNER_OPERATIONS).toHaveLength(17);
+    expect(LEARNER_OPERATIONS).toHaveLength(15);
     expectProtectedOpenApiOperations(document, LEARNER_OPERATIONS);
   });
 
@@ -1259,7 +1030,7 @@ describe('OpenAPI 문서', () => {
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
 
-    expect(ADMIN_OPERATIONS).toHaveLength(54);
+    expect(ADMIN_OPERATIONS).toHaveLength(27);
     expectProtectedOpenApiOperations(document, ADMIN_OPERATIONS);
   });
 
@@ -1277,7 +1048,6 @@ describe('OpenAPI 문서', () => {
     expect(serialized).not.toMatch(
       /storageKey|requestHash|referenceMap|isCorrect|dbRow/u,
     );
-    expect(adminComponents).toHaveProperty('ContentImportRequestDto');
     expect(adminComponents).toHaveProperty('AdminVocabularyDetailResponseDto');
   });
 });

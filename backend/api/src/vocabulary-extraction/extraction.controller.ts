@@ -29,7 +29,7 @@ import {
   extractionJobSchema,
   extractionJobsSchema,
   extractionResultsSchema,
-} from '@flex-thia/contracts/content-production/vocabulary-extraction';
+} from '@flex-thia/contracts/vocabulary-extraction/vocabulary-extraction';
 import type {
   ExtractionRepository,
   ExtractionJob,

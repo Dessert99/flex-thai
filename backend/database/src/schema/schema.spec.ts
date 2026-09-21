@@ -3,7 +3,6 @@ import { getTableColumns } from 'drizzle-orm';
 import { getTableConfig } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 import { auditLogs, authChallenges, users } from './identity.schema.js';
-import { jobs } from './jobs.schema.js';
 
 describe('기초 데이터베이스 schema', () => {
   it('사용자 신원은 변경 불가능한 cognitoSub를 가진다', () => {
@@ -35,12 +34,6 @@ describe('기초 데이터베이스 schema', () => {
         'emailHash',
         'cognitoSessionCiphertext',
       ]),
-    );
-  });
-
-  it('Job은 clientRequestId와 queue 전달 시각을 저장한다', () => {
-    expect(Object.keys(getTableColumns(jobs))).toEqual(
-      expect.arrayContaining(['clientRequestId', 'enqueuedAt']),
     );
   });
 

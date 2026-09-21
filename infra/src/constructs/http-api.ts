@@ -14,7 +14,7 @@ import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
 import type * as s3 from 'aws-cdk-lib/aws-s3';
 import type * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import type * as ses from 'aws-cdk-lib/aws-ses';
-import type * as sqs from 'aws-cdk-lib/aws-sqs';
+
 import { Construct } from 'constructs';
 
 /** API bundle과 AWS 자원별 최소 권한을 연결하는 설정 */
@@ -32,7 +32,6 @@ export interface HttpApiProps {
   emailLinkConfirmationUrl: string;
   fromEmail: string;
   inputBucket: s3.IBucket;
-  jobQueue: sqs.IQueue;
   userPool: cognito.IUserPool;
   userPoolClient: cognito.IUserPoolClient;
 }
@@ -71,7 +70,6 @@ export class HttpApi extends Construct {
         COGNITO_USER_POOL_ID: props.userPool.userPoolId,
         COGNITO_CLIENT_ID: props.userPoolClient.userPoolClientId,
         INPUT_BUCKET_NAME: props.inputBucket.bucketName,
-        JOB_QUEUE_URL: props.jobQueue.queueUrl,
         CHALLENGE_HMAC_PEPPER_SECRET_ARN: props.challengeHmacPepper.secretArn,
         CUSTOM_AUTH_SECRET_ARN: props.customAuthSecret.secretArn,
         SCHOOL_EMAIL_DOMAINS: props.allowedEmailDomains,
@@ -86,7 +84,6 @@ export class HttpApi extends Construct {
     props.customAuthSecret.grantRead(this.apiFunction);
     props.emailIdentity.grant(this.apiFunction, 'ses:SendEmail');
     props.inputBucket.grantReadWrite(this.apiFunction, 'inputs/*');
-    props.jobQueue.grantSendMessages(this.apiFunction);
     this.apiFunction.addToRolePolicy(
       new iam.PolicyStatement({
         actions: [
@@ -190,24 +187,6 @@ export class HttpApi extends Construct {
       [apigwv2.HttpMethod.GET, '/api/v1/admin/audit-logs'],
       [apigwv2.HttpMethod.GET, '/api/v1/admin/audit-logs/{auditLogId}'],
       [apigwv2.HttpMethod.GET, '/api/v1/admin/home'],
-      [apigwv2.HttpMethod.POST, '/api/v1/admin/content-imports'],
-      [apigwv2.HttpMethod.GET, '/api/v1/admin/content-imports'],
-      [apigwv2.HttpMethod.GET, '/api/v1/admin/content-imports/{importId}'],
-      [apigwv2.HttpMethod.GET, '/api/v1/admin/concepts'],
-      [apigwv2.HttpMethod.POST, '/api/v1/admin/concepts'],
-      [apigwv2.HttpMethod.GET, '/api/v1/admin/concepts/{conceptId}'],
-      [apigwv2.HttpMethod.POST, '/api/v1/admin/concepts/{conceptId}/versions'],
-      [apigwv2.HttpMethod.POST, '/api/v1/admin/concepts/{conceptId}/hide'],
-      [apigwv2.HttpMethod.POST, '/api/v1/admin/concepts/{conceptId}/restore'],
-      [apigwv2.HttpMethod.PUT, '/api/v1/admin/concept-versions/{versionId}'],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/admin/concept-versions/{versionId}/validate',
-      ],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/admin/concept-versions/{versionId}/publish',
-      ],
       [apigwv2.HttpMethod.GET, '/api/v1/admin/content-error-reports'],
       [
         apigwv2.HttpMethod.GET,
@@ -227,48 +206,11 @@ export class HttpApi extends Construct {
       ],
       [
         apigwv2.HttpMethod.POST,
-        '/api/v1/admin/content-production/uploads/policies',
+        '/api/v1/admin/vocabulary-extraction/uploads/policies',
       ],
       [
         apigwv2.HttpMethod.POST,
-        '/api/v1/admin/content-production/uploads/{uploadId}/complete',
-      ],
-      [apigwv2.HttpMethod.GET, '/api/v1/admin/content-production/presets'],
-      [
-        apigwv2.HttpMethod.GET,
-        '/api/v1/admin/content-production/preset-versions',
-      ],
-      [apigwv2.HttpMethod.POST, '/api/v1/admin/content-production/presets'],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/admin/content-production/presets/{presetId}/versions',
-      ],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/admin/content-production/presets/{presetId}/enabled',
-      ],
-      [apigwv2.HttpMethod.POST, '/api/v1/admin/content-production/jobs'],
-      [apigwv2.HttpMethod.GET, '/api/v1/admin/content-production/jobs'],
-      [apigwv2.HttpMethod.GET, '/api/v1/admin/content-production/jobs/{jobId}'],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/admin/content-production/jobs/{jobId}/retry',
-      ],
-      [
-        apigwv2.HttpMethod.GET,
-        '/api/v1/admin/content-production/vocabulary-candidates',
-      ],
-      [
-        apigwv2.HttpMethod.GET,
-        '/api/v1/admin/content-production/vocabulary-candidates/{candidateId}',
-      ],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/admin/content-production/vocabulary-candidates/{candidateId}/approve',
-      ],
-      [
-        apigwv2.HttpMethod.DELETE,
-        '/api/v1/admin/content-production/vocabulary-candidates/{candidateId}',
+        '/api/v1/admin/vocabulary-extraction/uploads/{uploadId}/complete',
       ],
 
       [apigwv2.HttpMethod.GET, '/api/v1/admin/usage-cost'],
@@ -337,8 +279,6 @@ export class HttpApi extends Construct {
         '/api/v1/me/vocabularies/{vocabularyId}/wordbook-memberships',
       ],
       [apigwv2.HttpMethod.GET, '/api/v1/me/recommendations'],
-      [apigwv2.HttpMethod.GET, '/api/v1/concepts'],
-      [apigwv2.HttpMethod.GET, '/api/v1/concepts/{conceptId}'],
       [apigwv2.HttpMethod.POST, '/api/v1/content-error-reports'],
       [apigwv2.HttpMethod.GET, '/api/v1/vocabularies'],
       [apigwv2.HttpMethod.GET, '/api/v1/vocabularies/{vocabularyId}'],

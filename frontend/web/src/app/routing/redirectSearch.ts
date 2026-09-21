@@ -1,7 +1,7 @@
 /** 로그인 redirect를 승인된 same-origin route와 search 계약으로 제한한다 */
 
 import { usageCostOverviewQuerySchema } from '@flex-thia/contracts/operations/usage-cost';
-import { vocabularyCandidateListQuerySchema } from '@flex-thia/contracts/content-production/vocabulary-candidates';
+
 import {
   wordbookIdPathSchema,
   wordbookItemListQuerySchema,
@@ -18,10 +18,6 @@ const approvedStaticPaths = new Set([
   '/admin/users',
   '/admin/audit-logs',
   '/admin/totp-setup',
-  '/admin/content-imports',
-  '/admin/content-production',
-  '/admin/content-production/vocabulary-candidates',
-  '/admin/content-production/presets',
   '/admin/usage-cost',
   '/admin/vocabularies',
   '/forbidden',
@@ -30,9 +26,6 @@ const approvedStaticPaths = new Set([
 const approvedDynamicPaths = [
   /^\/vocabularies\/[0-9a-f-]+$/u,
   /^\/wordbooks\/[0-9a-f-]+$/u,
-  /^\/admin\/content-imports\/[0-9a-f-]+$/u,
-  /^\/admin\/content-production\/jobs\/[0-9a-f-]+$/u,
-  /^\/admin\/content-production\/vocabulary-candidates\/[0-9a-f-]+$/u,
   /^\/admin\/vocabularies\/[0-9a-f-]+$/u,
 ];
 
@@ -69,11 +62,6 @@ function hasValidSearch(url: URL): boolean {
   }
   if (isValidWordbookPath(url.pathname)) {
     return wordbookItemListQuerySchema.safeParse(
-      Object.fromEntries(url.searchParams),
-    ).success;
-  }
-  if (url.pathname === '/admin/content-production/vocabulary-candidates') {
-    return vocabularyCandidateListQuerySchema.safeParse(
       Object.fromEntries(url.searchParams),
     ).success;
   }

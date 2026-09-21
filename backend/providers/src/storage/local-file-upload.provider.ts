@@ -1,5 +1,5 @@
 /** local browser upload을 HMAC policy와 private filesystem object로 구현한다 */
-import { type InputType } from '@flex-thia/domain/jobs/job';
+import { type InputType } from '@flex-thia/domain/uploads/input-type';
 import {
   type UploadInspection,
   type UploadPolicy,
@@ -121,7 +121,7 @@ export class LocalFileUploadProvider implements UploadStorage {
     this.publicOrigin = parsedOrigin.origin;
   }
 
-  /** 콘텐츠 제작 input의 exact key·MIME·declared size를 local token에 고정한다 */
+  /** 단어 추출 input의 exact key·MIME·declared size를 local token에 고정한다 */
   // eslint-disable-next-line @typescript-eslint/require-await -- 동기 검증 throw도 storage port의 rejected Promise로 보존한다.
   async createPolicy(
     input: Parameters<UploadStorage['createPolicy']>[0],

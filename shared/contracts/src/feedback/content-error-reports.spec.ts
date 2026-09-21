@@ -17,7 +17,6 @@ describe('콘텐츠 오류 신고 계약', () => {
       meaningId: null,
     },
     { kind: 'SENTENCE', sentenceVersionId: id, tokenPosition: null },
-    { kind: 'CONCEPT', conceptId: id, conceptVersionId: id, blockId: null },
   ])('$kind origin을 허용한다', (origin) => {
     expect(contentErrorReportOriginSchema.parse(origin)).toEqual(origin);
   });

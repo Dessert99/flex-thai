@@ -1,11 +1,4 @@
 /** 공개 Zod 계약을 Nest Swagger reflection DTO로 연결한다 */
-import {
-  contentImportDetailResponseSchema,
-  contentImportIdPathSchema,
-  contentImportListQuerySchema,
-  contentImportListResponseSchema,
-  contentImportRequestSchema,
-} from '@flex-thia/contracts/admin/content-imports';
 
 import {
   adminVocabularyDetailResponseSchema,
@@ -206,31 +199,6 @@ export class BetaInvitationRequestDto extends createZodDto(
 /** beta 안내 발송 기록 응답 Swagger DTO */
 export class BetaInvitationResponseDto extends createZodDto(
   betaInvitationResponseSchema,
-) {}
-
-/** canonical 콘텐츠 가져오기 요청 Swagger DTO */
-export class ContentImportRequestDto extends createZodDto(
-  contentImportRequestSchema,
-) {}
-
-/** 콘텐츠 가져오기 목록 query Swagger DTO */
-export class ContentImportListQueryDto extends createZodDto(
-  contentImportListQuerySchema,
-) {}
-
-/** 콘텐츠 가져오기 UUID path Swagger DTO */
-export class ContentImportIdPathDto extends createZodDto(
-  contentImportIdPathSchema,
-) {}
-
-/** 콘텐츠 가져오기 상세 Swagger DTO */
-export class ContentImportDetailResponseDto extends createZodDto(
-  contentImportDetailResponseSchema,
-) {}
-
-/** 콘텐츠 가져오기 이력 page Swagger DTO */
-export class ContentImportListResponseDto extends createZodDto(
-  contentImportListResponseSchema,
 ) {}
 
 /** 관리자 어휘 목록 query Swagger DTO */

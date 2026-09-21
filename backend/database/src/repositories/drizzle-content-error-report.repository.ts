@@ -34,17 +34,6 @@ type FeedbackDatabase = PgDatabase<
   }
 >;
 
-/** concept-learning이 공개 상태·block 관계·READY media를 검증해 제공할 대상 lookup */
-export interface ConceptErrorReportTargetLookup {
-  resolve(
-    origin: Extract<ContentErrorReportOrigin, { kind: 'CONCEPT' }>,
-  ): Promise<ResolvedContentErrorReportTarget | null>;
-  resolveSentence(input: {
-    sentenceVersionId: string;
-    tokenPosition: number | null;
-  }): Promise<ResolvedContentErrorReportTarget | null>;
-}
-
 const mapReport = (
   row: typeof contentErrorReports.$inferSelect,
 ): ContentErrorReport => ({
@@ -61,91 +50,13 @@ const mapReport = (
   updatedAt: row.updatedAt,
 });
 
-const referenceKeys = [
-  'kind',
-  'contentId',
-  'contentVersionId',
-  'sentenceVersionId',
-  'locationId',
-] as const;
-const snapshotKeys = [
-  'title',
-  'primaryText',
-  'secondaryText',
-  'versionLabel',
-  'locationLabel',
-] as const;
-
-const hasExactKeys = (
-  value: Record<string, unknown>,
-  keys: readonly string[],
-): boolean => {
-  const actual = Object.keys(value).sort();
-  const expected = [...keys].sort();
-  return (
-    actual.length === expected.length &&
-    actual.every((key, index) => key === expected[index])
-  );
-};
-
-const isNullableString = (value: unknown): value is string | null =>
-  value === null || typeof value === 'string';
-
-const strictResolvedTarget = (
-  value: unknown,
-): ResolvedContentErrorReportTarget | null => {
-  if (
-    !value ||
-    typeof value !== 'object' ||
-    !hasExactKeys(value as Record<string, unknown>, ['reference', 'snapshot'])
-  ) {
-    return null;
-  }
-  const { reference, snapshot } = value as Record<string, unknown>;
-  if (
-    !reference ||
-    typeof reference !== 'object' ||
-    !hasExactKeys(reference as Record<string, unknown>, referenceKeys) ||
-    !snapshot ||
-    typeof snapshot !== 'object' ||
-    !hasExactKeys(snapshot as Record<string, unknown>, snapshotKeys)
-  ) {
-    return null;
-  }
-  const referenceRecord = reference as Record<string, unknown>;
-  const snapshotRecord = snapshot as Record<string, unknown>;
-  const kinds = ['VOCABULARY', 'SENTENCE', 'CONCEPT'];
-  if (
-    !kinds.includes(String(referenceRecord.kind)) ||
-    typeof referenceRecord.contentId !== 'string' ||
-    referenceRecord.contentId.length === 0 ||
-    !referenceKeys
-      .slice(2)
-      .every((key) => isNullableString(referenceRecord[key])) ||
-    typeof snapshotRecord.title !== 'string' ||
-    snapshotRecord.title.length === 0 ||
-    typeof snapshotRecord.primaryText !== 'string' ||
-    snapshotRecord.primaryText.length === 0 ||
-    !isNullableString(snapshotRecord.secondaryText) ||
-    !isNullableString(snapshotRecord.versionLabel) ||
-    typeof snapshotRecord.locationLabel !== 'string' ||
-    snapshotRecord.locationLabel.length === 0
-  ) {
-    return null;
-  }
-  return value as ResolvedContentErrorReportTarget;
-};
-
 export class DrizzleContentErrorReportRepository
   implements
     ContentErrorReportRepository,
     ContentErrorReportTargetResolver,
     ContentErrorReportAssigneeResolver
 {
-  constructor(
-    private readonly database: FeedbackDatabase,
-    private readonly conceptLookup?: ConceptErrorReportTargetLookup,
-  ) {}
+  constructor(private readonly database: FeedbackDatabase) {}
 
   /** origin 종류에 맞는 canonical target을 해석한다 */
   async resolve(
@@ -155,12 +66,7 @@ export class DrizzleContentErrorReportRepository
       case 'VOCABULARY':
         return this.resolveVocabulary(origin);
       case 'SENTENCE':
-        return this.resolveSentence(
-          origin.sentenceVersionId,
-          origin.tokenPosition,
-        );
-      case 'CONCEPT':
-        return this.resolveConcept(origin);
+        return null;
     }
   }
 
@@ -343,23 +249,6 @@ export class DrizzleContentErrorReportRepository
     });
   }
 
-  private async resolveConcept(
-    origin: Extract<ContentErrorReportOrigin, { kind: 'CONCEPT' }>,
-  ): Promise<ResolvedContentErrorReportTarget | null> {
-    const target = strictResolvedTarget(
-      await this.conceptLookup?.resolve(origin),
-    );
-    if (
-      target?.reference.kind !== 'CONCEPT' ||
-      target.reference.contentId !== origin.conceptId ||
-      target.reference.contentVersionId !== origin.conceptVersionId ||
-      target.reference.locationId !== origin.blockId
-    ) {
-      return null;
-    }
-    return target;
-  }
-
   private async resolveVocabulary(
     origin: Extract<ContentErrorReportOrigin, { kind: 'VOCABULARY' }>,
   ): Promise<ResolvedContentErrorReportTarget | null> {
@@ -406,22 +295,5 @@ export class DrizzleContentErrorReportRepository
         locationLabel: '어휘 상세',
       },
     };
-  }
-
-  private async resolveSentence(
-    sentenceVersionId: string,
-    tokenPosition: number | null,
-  ): Promise<ResolvedContentErrorReportTarget | null> {
-    const target = strictResolvedTarget(
-      await this.conceptLookup?.resolveSentence({
-        sentenceVersionId,
-        tokenPosition,
-      }),
-    );
-    return target?.reference.kind === 'SENTENCE' &&
-      target.reference.contentVersionId === sentenceVersionId &&
-      target.reference.sentenceVersionId === sentenceVersionId
-      ? target
-      : null;
   }
 }

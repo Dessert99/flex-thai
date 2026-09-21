@@ -1,5 +1,5 @@
 /** S3 없이 presigned policy와 object 검사 결과를 제공한다 */
-import type { InputType } from '@flex-thia/domain/jobs/job';
+import type { InputType } from '@flex-thia/domain/uploads/input-type';
 import type {
   UploadInspection,
   UploadPolicy,

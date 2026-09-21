@@ -5,7 +5,7 @@ import {
   progressScenarios,
   type ExtractionProgress,
   type ProgressScenario,
-} from '@/features/content-production/libs/vocabulary-extraction/extractionProgress';
+} from '@/features/vocabulary-extraction/libs/vocabulary-extraction/extractionProgress';
 import { Button } from '@/shared/components/button';
 import {
   Card,

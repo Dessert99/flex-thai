@@ -1,8 +1,8 @@
-import { extractionReviewPreview } from '@/features/content-production/libs/vocabulary-extraction/extractionReviewPreview';
+import { extractionReviewPreview } from '@/features/vocabulary-extraction/libs/vocabulary-extraction/extractionReviewPreview';
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import type { ExtractionReviewItem } from '@flex-thia/contracts/content-production/vocabulary-extraction';
-import { useExtractionReview } from '@/features/content-production/hooks/vocabulary-extraction/useExtractionReview';
+import type { ExtractionReviewItem } from '@flex-thia/contracts/vocabulary-extraction/vocabulary-extraction';
+import { useExtractionReview } from '@/features/vocabulary-extraction/hooks/vocabulary-extraction/useExtractionReview';
 import { Button } from '@/shared/components/button';
 import {
   Card,

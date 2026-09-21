@@ -1,9 +1,6 @@
 /** 관리자 내부 결과를 strict 공개 계약과 감사 문맥으로 조립하는지 검증한다 */
 import { describe, expect, it, vi } from 'vitest';
-import {
-  AdminContentService,
-  AdminPublicResponseError,
-} from './admin-content.service.js';
+import { AdminContentService } from './admin-content.service.js';
 
 const ids = {
   import: '00000000-0000-4000-8000-000000000001',
@@ -17,50 +14,8 @@ const actor = {
   sub: 'subject-1',
   requestId: 'request-1',
 } as const;
-const page = {
-  page: 1,
-  pageSize: 20,
-  totalItems: 1,
-  totalPages: 1,
-} as const;
-const importDetail = {
-  id: ids.import,
-  status: 'COMPLETED',
-  vocabularyCount: 1,
-  importedCount: 1,
-  rejectedCount: 0,
-  createdAt: occurredAt,
-  completedAt: occurredAt,
-  items: [
-    {
-      kind: 'VOCABULARY',
-      sourceIndex: 0,
-      status: 'IMPORTED',
-      targetId: ids.vocabulary,
-      errors: [],
-    },
-  ],
-} as const;
 
 const dependencies = () => ({
-  contentImports: { execute: vi.fn().mockResolvedValue(importDetail) },
-  contentImportQuery: {
-    list: vi.fn().mockResolvedValue({
-      items: [
-        {
-          id: importDetail.id,
-          status: importDetail.status,
-          vocabularyCount: importDetail.vocabularyCount,
-          importedCount: importDetail.importedCount,
-          rejectedCount: importDetail.rejectedCount,
-          createdAt: importDetail.createdAt,
-          completedAt: importDetail.completedAt,
-        },
-      ],
-      page,
-    }),
-    findById: vi.fn().mockResolvedValue(importDetail),
-  },
   questionPublication: {
     validateVersion: vi.fn().mockResolvedValue({
       status: 'FAILED',
@@ -117,19 +72,4 @@ describe('AdminContentService 감사 문맥', () => {
       updatedAt: occurredAt.toISOString(),
     });
   });
-
-  it.each(['storageKey', 'requestHash', 'referenceMap', 'isCorrect'] as const)(
-    '내부 필드 %s가 섞이면 generic 공개 응답 오류를 던진다',
-    async (privateField) => {
-      const fakes = dependencies();
-      fakes.contentImportQuery.findById.mockResolvedValueOnce({
-        ...importDetail,
-        [privateField]: 'private',
-      });
-
-      await expect(
-        new AdminContentService(fakes as never).getContentImport(ids.import),
-      ).rejects.toBeInstanceOf(AdminPublicResponseError);
-    },
-  );
 });

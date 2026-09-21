@@ -12,20 +12,6 @@ describe('안전한 로그인 redirect', () => {
     ],
     ['/admin/users', '/admin/users'],
     ['/admin/audit-logs', '/admin/audit-logs'],
-    ['/admin/content-production', '/admin/content-production'],
-    [
-      '/admin/content-production/jobs/00000000-0000-4000-8000-000000000103',
-      '/admin/content-production/jobs/00000000-0000-4000-8000-000000000103',
-    ],
-    [
-      '/admin/content-production/vocabulary-candidates?reviewStatus=PENDING&page=1&pageSize=20',
-      '/admin/content-production/vocabulary-candidates?reviewStatus=PENDING&page=1&pageSize=20',
-    ],
-    [
-      '/admin/content-production/vocabulary-candidates/00000000-0000-4000-8000-000000000104',
-      '/admin/content-production/vocabulary-candidates/00000000-0000-4000-8000-000000000104',
-    ],
-    ['/admin/content-production/presets', '/admin/content-production/presets'],
   ])('승인된 내부 경로 %s를 보존한다', (value, expected) => {
     expect(parseSafeRedirect(value)).toBe(expected);
   });

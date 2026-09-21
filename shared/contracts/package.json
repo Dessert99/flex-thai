@@ -3,18 +3,13 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./admin/content-imports": "./src/admin/content-imports.ts",
     "./admin/vocabularies": "./src/admin/vocabularies.ts",
     "./admin/vocabulary-relations": "./src/admin/vocabulary-relations.ts",
     "./common/problem": "./src/common/problem.ts",
-    "./concepts/concepts": "./src/concepts/concepts.ts",
-    "./content-production/content-production": "./src/content-production/content-production.ts",
-    "./content-production/vocabulary-candidates": "./src/content-production/vocabulary-candidates.ts",
     "./feedback/content-error-reports": "./src/feedback/content-error-reports.ts",
     "./health/status": "./src/health/status.ts",
     "./identity/auth": "./src/identity/auth.ts",
     "./identity/user-management": "./src/identity/user-management.ts",
-    "./jobs": "./src/jobs.ts",
     "./learning/vocabularies": "./src/learning/vocabularies.ts",
     "./learning/wordbooks": "./src/learning/wordbooks.ts",
     "./operations/admin-home": "./src/operations/admin-home.ts",
@@ -22,9 +17,10 @@
     "./operations/usage-cost": "./src/operations/usage-cost.ts",
     "./recommendations/recommendations": "./src/recommendations/recommendations.ts",
     "./thai-content/sentences": "./src/thai-content/sentences.ts",
-    "./content-production/extraction-templates": "./src/content-production/extraction-templates.ts",
-    "./content-production/vocabulary-extraction": "./src/content-production/vocabulary-extraction.ts",
-    "./learning/pagination": "./src/learning/pagination.ts"
+    "./vocabulary-extraction/extraction-templates": "./src/vocabulary-extraction/extraction-templates.ts",
+    "./vocabulary-extraction/vocabulary-extraction": "./src/vocabulary-extraction/vocabulary-extraction.ts",
+    "./learning/pagination": "./src/learning/pagination.ts",
+    "./vocabulary-extraction/uploads": "./src/vocabulary-extraction/uploads.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",

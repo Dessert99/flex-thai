@@ -23,29 +23,7 @@ describe('로컬 seed SQL', () => {
     expect(seedSql).toContain("'저장한 어휘'");
   });
 
-  it('단어 연습·개념 학습·오류 신고를 직접 확인할 대표 데이터를 만든다', () => {
-    expect(seedSql).toContain("'ขอโทษ'");
-    expect(seedSql).toMatch(/insert into concepts/iu);
-    expect(seedSql).toMatch(/insert into concept_versions/iu);
-    expect(seedSql).toMatch(/insert into content_error_reports/iu);
-    expect(seedSql).toMatch(/insert into content_error_report_history/iu);
-  });
-
   it('공개 어휘의 fallback 추천 정렬에 사용할 공개 시각을 채운다', () => {
     expect(seedSql).toMatch(/insert into vocabularies \([\s\S]*published_at/iu);
-  });
-
-  it('개념 block 신고 snapshot을 현재 canonical 위치와 문맥으로 저장한다', () => {
-    expect(seedSql).toContain(
-      '"primaryText":"인사말 예문","secondaryText":"기본 인사말의 뜻과 쓰임을 실제 문장으로 익힙니다."',
-    );
-    expect(seedSql).toContain('"locationLabel":"개념 블록 2"');
-  });
-
-  it('AI 어휘 preset과 복합 preset의 중복 거리 정책을 보장한다', () => {
-    const presetPolicy =
-      /'00000000-0000-4000-8000-00000000090[13]'[\s\S]*?suspectedDuplicateMaxCodePointDistance[\s\S]*?1/giu;
-
-    expect(seedSql.match(presetPolicy)).toHaveLength(2);
   });
 });
