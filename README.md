@@ -48,56 +48,25 @@ pnpm local:stop
 
 ## Upload부터 게시까지
 
-관리자 로그인 뒤 Swagger의 `Admin Content Production`, `Admin Question Candidates`, `Admin Questions` 순서로 다음을 확인합니다.
+관리자 로그인 뒤 Swagger의 콘텐츠 제작과 어휘 후보 검수 API를 사용합니다.
 
-1. `uploads/policies`로 TEXT, PDF 또는 IMAGE upload policy를 만들고, 응답 URL에 multipart form을 전송합니다.
-2. `uploads/{uploadId}/complete`로 실제 bytes를 검사해 upload를 VERIFIED로 만듭니다.
-3. `jobs`에서 업로드 ID와 활성 preset을 사용해 콘텐츠 제작 job을 만듭니다. 문제 생성이면 `options`에 question count, active question type version, difficulty plan을 입력합니다.
-4. job 상세를 조회해 local queue가 candidate를 만든 것을 확인합니다. input ordinal 0은 후보를 만들고, ordinal 1은 검토 필요, ordinal 2는 재시도 가능한 실패 fixture입니다.
-5. `question-candidates`에서 NORMAL 후보를 확인하고 `approve`합니다. 승인은 question DRAFT를 만듭니다.
-6. `GET /api/v1/admin/questions/{questionId}`로 초안을 확인하고, `POST /api/v1/admin/questions/{questionId}/status`에 `status: "PUBLISHED"`와 조회한 `expectedUpdatedAt`을 전달해 게시합니다.
+1. `uploads/policies`로 upload policy를 만들고 응답 URL에 파일을 전송합니다.
+2. `uploads/{uploadId}/complete`로 업로드를 완료합니다.
+3. `GET /api/v1/admin/content-production/presets`에서 활성 어휘 추출 preset을 선택합니다.
+4. `POST /api/v1/admin/content-production/jobs`로 작업을 생성하고 작업 상세에서 결과를 확인합니다.
+5. `vocabulary-candidates`에서 어휘 후보를 검수하고 승인합니다.
 
-활성 ID는 로그인한 관리자 세션으로 다음 endpoint에서 확인합니다.
-
-- `GET /api/v1/admin/content-production/presets`: `presetId`
-- `GET /api/v1/admin/question-taxonomy`: ACTIVE `questionTypeVersionId`
-- `GET /api/v1/admin/vocabularies?status=PUBLISHED&pageSize=20`: 게시 어휘 ID
-
-fresh seed의 ID를 터미널에서 직접 확인하려면 다음 명령도 사용할 수 있습니다.
-
-```bash
-docker compose --project-name flex-thia-local exec postgres psql -U flex_thia -d flex_thia -c \
-  "select 'preset' as kind,id,name from content_production_presets where enabled union all select 'question_type_version',id,status::text from question_type_versions where status='ACTIVE' union all select 'vocabulary',id,thai from vocabularies where status='PUBLISHED' order by kind,id;"
-```
-
-fresh seed에 포함된 VERIFIED upload `00000000-0000-4000-8000-000000000930`으로 문제 생성 job을 만들 때의 실제 request body는 다음과 같습니다. `clientRequestId`는 재호출할 때 새 UUID로 바꿉니다.
+fresh seed의 VERIFIED upload와 어휘 추출 preset을 사용하는 작업 요청 예시입니다. 새 작업에는 새 `clientRequestId`를 사용합니다.
 
 ```json
 {
   "clientRequestId": "11111111-1111-4111-8111-111111111111",
   "uploadIds": ["00000000-0000-4000-8000-000000000930"],
-  "purpose": "QUESTION_GENERATION",
-  "presetId": "00000000-0000-4000-8000-000000000902",
-  "options": {
-    "questionCount": 1,
-    "questionTypePlan": [
-      {
-        "questionTypeVersionId": "00000000-0000-4000-8000-000000000311",
-        "count": 1
-      }
-    ],
-    "difficultyPlan": [{ "difficulty": 1, "count": 1 }],
-    "targetVocabularyIds": ["00000000-0000-4000-8000-000000000101"],
-    "requiredVocabularyIds": [],
-    "excludedVocabularyIds": [],
-    "newAuxiliaryVocabularyLimit": 0,
-    "similarityThreshold": 0.7,
-    "additionalInstructionKo": null
-  }
+  "purpose": "VOCABULARY_EXTRACTION",
+  "presetId": "00000000-0000-4000-8000-000000000901",
+  "options": {}
 }
 ```
-
-이 body를 `POST /api/v1/admin/content-production/jobs`에 전송합니다.
 
 ## Local 범위
 

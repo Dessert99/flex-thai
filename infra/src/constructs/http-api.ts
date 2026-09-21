@@ -235,10 +235,6 @@ export class HttpApi extends Construct {
       ],
       [apigwv2.HttpMethod.GET, '/api/v1/admin/content-production/presets'],
       [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/admin/content-production/prompt-previews',
-      ],
-      [
         apigwv2.HttpMethod.GET,
         '/api/v1/admin/content-production/preset-versions',
       ],
@@ -260,26 +256,6 @@ export class HttpApi extends Construct {
       ],
       [
         apigwv2.HttpMethod.GET,
-        '/api/v1/admin/content-production/question-candidates',
-      ],
-      [
-        apigwv2.HttpMethod.GET,
-        '/api/v1/admin/content-production/question-candidates/{candidateId}',
-      ],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/admin/content-production/question-candidates/{candidateId}/approve',
-      ],
-      [
-        apigwv2.HttpMethod.DELETE,
-        '/api/v1/admin/content-production/question-candidates/{candidateId}',
-      ],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/admin/content-production/question-candidates/{candidateId}/regenerate',
-      ],
-      [
-        apigwv2.HttpMethod.GET,
         '/api/v1/admin/content-production/vocabulary-candidates',
       ],
       [
@@ -295,62 +271,9 @@ export class HttpApi extends Construct {
         '/api/v1/admin/content-production/vocabulary-candidates/{candidateId}',
       ],
 
-      [apigwv2.HttpMethod.GET, '/api/v1/admin/questions'],
-      [apigwv2.HttpMethod.GET, '/api/v1/admin/questions/{questionId}'],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/admin/questions/{questionId}/versions',
-      ],
-
-      [apigwv2.HttpMethod.POST, '/api/v1/admin/questions/{questionId}/hide'],
-      [apigwv2.HttpMethod.POST, '/api/v1/admin/questions/{questionId}/restore'],
-      [apigwv2.HttpMethod.PUT, '/api/v1/admin/question-versions/{versionId}'],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/admin/question-versions/{versionId}/validate',
-      ],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/admin/question-versions/{versionId}/publish',
-      ],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/admin/question-versions/{versionId}/invalidate',
-      ],
-      [apigwv2.HttpMethod.GET, '/api/v1/admin/question-taxonomy'],
-
       [apigwv2.HttpMethod.GET, '/api/v1/admin/usage-cost'],
       [apigwv2.HttpMethod.GET, '/api/v1/admin/usage-cost/settings'],
       [apigwv2.HttpMethod.PUT, '/api/v1/admin/usage-cost/settings'],
-      [apigwv2.HttpMethod.POST, '/api/v1/admin/question-types'],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/admin/question-types/{questionTypeId}/versions',
-      ],
-      [
-        apigwv2.HttpMethod.PUT,
-        '/api/v1/admin/question-type-versions/{versionId}/difficulty-criteria',
-      ],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/admin/question-type-versions/{versionId}/examples',
-      ],
-      [
-        apigwv2.HttpMethod.DELETE,
-        '/api/v1/admin/question-type-versions/{versionId}/examples/{exampleId}',
-      ],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/admin/question-type-versions/{versionId}/activate',
-      ],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/admin/question-type-versions/{versionId}/retire',
-      ],
-      [apigwv2.HttpMethod.POST, '/api/v1/admin/question-topics'],
-      [apigwv2.HttpMethod.POST, '/api/v1/admin/question-tags'],
-      [apigwv2.HttpMethod.POST, '/api/v1/admin/question-topics/{id}/archive'],
-      [apigwv2.HttpMethod.POST, '/api/v1/admin/question-tags/{id}/archive'],
       [apigwv2.HttpMethod.GET, '/api/v1/admin/vocabularies'],
       [apigwv2.HttpMethod.GET, '/api/v1/admin/vocabularies/{vocabularyId}'],
       [apigwv2.HttpMethod.PUT, '/api/v1/admin/vocabularies/{vocabularyId}'],
@@ -413,28 +336,12 @@ export class HttpApi extends Construct {
         apigwv2.HttpMethod.GET,
         '/api/v1/me/vocabularies/{vocabularyId}/wordbook-memberships',
       ],
-      [apigwv2.HttpMethod.GET, '/api/v1/me/question-attempts'],
       [apigwv2.HttpMethod.GET, '/api/v1/me/recommendations'],
-      [apigwv2.HttpMethod.PUT, '/api/v1/me/saved-questions/{questionId}'],
-      [apigwv2.HttpMethod.DELETE, '/api/v1/me/saved-questions/{questionId}'],
-      [apigwv2.HttpMethod.POST, '/api/v1/me/vocabulary-practice/sessions'],
-      [
-        apigwv2.HttpMethod.GET,
-        '/api/v1/me/vocabulary-practice/sessions/{sessionId}',
-      ],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/me/vocabulary-practice/sessions/{sessionId}/questions/{questionId}/answers',
-      ],
       [apigwv2.HttpMethod.GET, '/api/v1/concepts'],
       [apigwv2.HttpMethod.GET, '/api/v1/concepts/{conceptId}'],
       [apigwv2.HttpMethod.POST, '/api/v1/content-error-reports'],
-      [apigwv2.HttpMethod.GET, '/api/v1/questions'],
-      [apigwv2.HttpMethod.GET, '/api/v1/questions/{questionId}'],
-      [apigwv2.HttpMethod.POST, '/api/v1/questions/{questionId}/attempts'],
       [apigwv2.HttpMethod.GET, '/api/v1/vocabularies'],
       [apigwv2.HttpMethod.GET, '/api/v1/vocabularies/{vocabularyId}'],
-      [apigwv2.HttpMethod.GET, '/api/v1/vocabularies/{vocabularyId}/questions'],
     ] as const) {
       this.api.addRoutes({
         path,
