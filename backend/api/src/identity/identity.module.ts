@@ -17,6 +17,7 @@ import {
 import { CSRF_ALLOWED_ORIGINS, CsrfGuard } from './csrf.guard.js';
 import { IdentityController } from './identity.controller.js';
 import { MeController } from './me.controller.js';
+import { LOCAL_AUTO_LOGIN, type LocalAutoLogin } from './local-auto-login.js';
 
 /** Identity HTTP 경계를 구성하는 실행 환경 의존성 */
 export interface IdentityModuleOptions {
@@ -26,6 +27,7 @@ export interface IdentityModuleOptions {
   users: IdentityUserRepository;
   authorizer: AuthorizerGuardOptions;
   allowedOrigins: string[];
+  localAutoLogin?: LocalAutoLogin | undefined;
 }
 
 /** MVP 인증 endpoint와 보호 route용 guard를 제공한다 */
@@ -42,6 +44,9 @@ export class IdentityModule {
         AdminUserManagementController,
       ],
       providers: [
+        ...(options.localAutoLogin
+          ? [{ provide: LOCAL_AUTO_LOGIN, useValue: options.localAutoLogin }]
+          : []),
         Reflector,
         {
           provide: IdentityAuthenticationService,

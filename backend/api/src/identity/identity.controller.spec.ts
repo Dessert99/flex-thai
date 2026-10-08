@@ -22,6 +22,30 @@ const tokens = {
 const response = () => ({ cookie: vi.fn(), clearCookie: vi.fn() });
 
 describe('IdentityController 인증 흐름', () => {
+  it('개발 자동 로그인도 기존 응답 계약과 보안 쿠키로 세션을 전달한다', async () => {
+    const autoLogin = vi
+      .fn()
+      .mockResolvedValue({ kind: 'AUTHENTICATED', tokens, user });
+    const controller = new IdentityController(
+      {} as never,
+      {} as never,
+      autoLogin,
+    );
+    const cookieResponse = response();
+    await expect(
+      controller.refresh({ headers: {} }, cookieResponse),
+    ).resolves.toMatchObject({
+      status: 'AUTHENTICATED',
+      user: { id: user.id, role: 'ADMIN', mfaEnrolled: true },
+    });
+    expect(autoLogin).toHaveBeenCalledWith(undefined);
+    expect(cookieResponse.cookie).toHaveBeenCalledWith(
+      '__Host-flex-thia-refresh',
+      'refresh',
+      expect.objectContaining({ httpOnly: true, secure: true }),
+    );
+  });
+
   it('공개 signup·password reset·phone·SMS method를 제공하지 않는다', () => {
     [
       'signup',

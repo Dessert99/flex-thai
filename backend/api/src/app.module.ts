@@ -70,6 +70,7 @@ import {
   ReadinessService,
 } from './health/readiness.service.js';
 import { IdentityModule } from './identity/identity.module.js';
+import { createLocalAutoLogin } from './identity/local-auto-login.js';
 import { LearningModule } from './learning/learning.module.js';
 
 import { OperationsModule } from './operations/operations.module.js';
@@ -218,6 +219,11 @@ export const createApplicationModule = (
     imports: [
       IdentityModule.register({
         identity,
+        localAutoLogin: createLocalAutoLogin(
+          env,
+          fakeAuthenticationProvider,
+          identity,
+        ),
         passwordless,
         userManagement,
         users,

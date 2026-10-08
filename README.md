@@ -43,6 +43,10 @@ pnpm local:stop
 
 ## Local 로그인
 
+로컬 실행은 기본적으로 `/learn`에 접속하면 개발용 관리자 계정으로 자동 로그인합니다. 이메일 코드와 TOTP를 입력하지 않아도 학습·관리자 화면을 사용할 수 있습니다. 사용자 ID와 DB 권한 검사는 유지됩니다.
+
+인증 흐름을 다시 확인하려면 `LOCAL_AUTO_LOGIN=false pnpm local:dev`로 실행합니다. 자동 로그인은 `development` + `fake` 인증 + `local` DB에서만 허용됩니다. 아래 계정은 자동 로그인을 끈 상태에서 사용할 수 있습니다.
+
 - 학습자: `learner@hufs.ac.kr` → 이메일 코드 `123456`
 - 관리자: `admin@hufs.ac.kr` → 이메일 코드 `123456` → TOTP `123456`
 

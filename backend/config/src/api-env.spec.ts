@@ -3,6 +3,27 @@ import { describe, expect, it } from 'vitest';
 import { readApiEnv } from './api-env.js';
 
 describe('readApiEnv가 API 환경 변수를 검증한다', () => {
+  it('자동 로그인은 명시적으로 켜야 활성화된다', () => {
+    expect(readApiEnv({}).LOCAL_AUTO_LOGIN).toBe(false);
+    expect(readApiEnv({ LOCAL_AUTO_LOGIN: 'false' }).LOCAL_AUTO_LOGIN).toBe(
+      false,
+    );
+    expect(readApiEnv({ LOCAL_AUTO_LOGIN: 'true' }).LOCAL_AUTO_LOGIN).toBe(
+      true,
+    );
+  });
+
+  it.each([
+    { NODE_ENV: 'production' },
+    { NODE_ENV: 'test' },
+    { AUTH_MODE: 'cognito' },
+    { DATABASE_MODE: 'data-api' },
+  ])('로컬 개발 조건을 벗어나면 자동 로그인을 거부한다: %j', (config) => {
+    expect(() => readApiEnv({ ...config, LOCAL_AUTO_LOGIN: 'true' })).toThrow(
+      '자동 로그인은 development의 fake 인증과 local DB에서만 사용할 수 있습니다',
+    );
+  });
+
   it('production에서 fake 인증 모드를 거부한다', () => {
     expect(() =>
       readApiEnv({

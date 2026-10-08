@@ -7,6 +7,10 @@ const apiEnvSchema = z
       .enum(['development', 'test', 'production'])
       .default('development'),
     AUTH_MODE: z.enum(['fake', 'cognito']).default('fake'),
+    LOCAL_AUTO_LOGIN: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
     DATABASE_MODE: z.enum(['local', 'data-api']).default('local'),
     AWS_REGION: z.string().default('ap-northeast-2'),
     DATABASE_URL: z
@@ -58,6 +62,20 @@ const apiEnvSchema = z
     ALLOWED_ORIGINS: z.string().default('http://localhost:5173'),
   })
   .superRefine((value, context) => {
+    if (
+      value.LOCAL_AUTO_LOGIN &&
+      (value.NODE_ENV !== 'development' ||
+        value.AUTH_MODE !== 'fake' ||
+        value.DATABASE_MODE !== 'local')
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['LOCAL_AUTO_LOGIN'],
+        message:
+          '자동 로그인은 development의 fake 인증과 local DB에서만 사용할 수 있습니다',
+      });
+    }
+
     if (value.NODE_ENV === 'production' && value.AUTH_MODE === 'fake') {
       context.addIssue({
         code: 'custom',

@@ -5,6 +5,7 @@ x-app-environment: &app-environment
   GEMINI_API_KEY: ${GEMINI_API_KEY:-}
   ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
   AUTH_MODE: fake
+  LOCAL_AUTO_LOGIN: ${LOCAL_AUTO_LOGIN:-true}
   DATABASE_MODE: local
   DATABASE_URL: postgres://flex_thia:local_only_password@postgres:5432/flex_thia
   FAKE_USER_SUB: local-admin-sub

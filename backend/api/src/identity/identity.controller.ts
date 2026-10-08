@@ -3,6 +3,8 @@ import {
   Body,
   Controller,
   HttpCode,
+  Inject,
+  Optional,
   Param,
   Post,
   Req,
@@ -78,6 +80,7 @@ import {
   writeRefreshCookie,
 } from './refresh-cookie.js';
 import { RequireRole } from './require-role.decorator.js';
+import { LOCAL_AUTO_LOGIN, type LocalAutoLogin } from './local-auto-login.js';
 
 type CookieRequest = {
   headers?: Record<string, string | string[] | undefined>;
@@ -98,6 +101,9 @@ export class IdentityController {
   constructor(
     private readonly identity: IdentityAuthenticationService,
     private readonly passwordless: PasswordlessAuthenticationService,
+    @Optional()
+    @Inject(LOCAL_AUTO_LOGIN)
+    private readonly localAutoLogin?: LocalAutoLogin,
   ) {}
 
   /** 학교 이메일 challenge를 계정 존재 여부 없는 응답으로 시작한다 */
@@ -295,6 +301,13 @@ export class IdentityController {
     @Res({ passthrough: true }) response: CookieResponse,
   ): Promise<LoginResponse> {
     const refreshToken = readRefreshToken(request.headers?.cookie);
+
+    if (this.localAutoLogin) {
+      return this.finish(
+        this.localAutoLogin(refreshToken ?? undefined),
+        response,
+      );
+    }
 
     if (!refreshToken) {
       throw new UnauthorizedException({ code: 'INVALID_REFRESH_TOKEN' });
