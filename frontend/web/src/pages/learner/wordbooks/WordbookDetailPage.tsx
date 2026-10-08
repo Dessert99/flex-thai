@@ -1,4 +1,3 @@
-import { WordbookItemActions } from '@/features/learning/components/manage-wordbook-items/WordbookItemActions';
 import { useWordbookDetail } from '@/features/learning/hooks/wordbook-detail/useWordbookDetail';
 import type { WordbookDetailSearch } from '@/features/learning/libs/wordbook-detail/wordbookDetailSearch';
 import { Alert, AlertDescription, AlertTitle } from '@/shared/components/alert';
@@ -13,50 +12,22 @@ import { useState, type FormEvent } from 'react';
 export function WordbookDetailPage(
   pageInput: Parameters<typeof useWordbookDetail>[0],
 ) {
-  const {
-    onSearchChange,
-    search,
-    wordbookId,
-    detail,
-    wordbooks,
-    selectedIds,
-    setSelectedIds,
-    toggleSelection,
-  } = useWordbookDetail(pageInput);
+  const { onSearchChange, search, detail } = useWordbookDetail(pageInput);
 
   return (
     <Container className='max-w-content flex-1'>
-      <>
-        <div className='grid gap-section'>
-          <WordbookDetailContent
-            data={detail.data}
-            error={detail.isError}
-            loading={detail.isPending}
-            onRetry={() => void detail.refetch()}
-            onSearchChange={onSearchChange}
-            onSelectionChange={toggleSelection}
-            onSelectPage={() =>
-              setSelectedIds(
-                new Set(detail.data?.items.map(({ id }) => id) ?? []),
-              )
-            }
-            search={search}
-            selectedIds={selectedIds}
-          />
-          <WordbookItemActions
-            onConfirmed={() => setSelectedIds(new Set())}
-            selectedIds={[...selectedIds]}
-            sourceWordbookId={wordbookId}
-            wordbooks={
-              wordbooks.data?.items.map(({ id, name }) => ({ id, name })) ?? []
-            }
-          />
-        </div>
-      </>
+      <WordbookDetailContent
+        data={detail.data}
+        error={detail.isError}
+        loading={detail.isPending}
+        onRetry={() => void detail.refetch()}
+        onSearchChange={onSearchChange}
+        search={search}
+      />
     </Container>
   );
 }
-/** 단어장 상세의 검색·페이지·선택과 상태 화면을 표현한다 */
+/** 단어장 상세의 검색·페이지와 상태 화면을 표현한다 */
 
 interface WordbookDetailPageViewProps {
   data: WordbookItemListResponse | undefined;
@@ -64,14 +35,11 @@ interface WordbookDetailPageViewProps {
   loading: boolean;
   onRetry: () => void;
   onSearchChange: (search: WordbookDetailSearch) => void;
-  onSelectionChange: (vocabularyId: string) => void;
-  onSelectPage: () => void;
   search: WordbookDetailSearch;
-  selectedIds: Set<string>;
 }
 
-/** 서버 검색값과 현재 page selection을 사용자 행동으로 연결한다 */
-// 검색·선택·페이지 접근성 상태를 같은 presentational 경계에서 표현한다.
+/** 서버 검색값과 페이지 이동을 사용자 행동으로 연결한다 */
+// 검색·페이지 접근성 상태를 같은 presentational 경계에서 표현한다.
 
 export function WordbookDetailContent({
   data,
@@ -79,10 +47,7 @@ export function WordbookDetailContent({
   loading,
   onRetry,
   onSearchChange,
-  onSelectionChange,
-  onSelectPage,
   search,
-  selectedIds,
 }: WordbookDetailPageViewProps) {
   const [query, setQuery] = useState(search.query ?? '');
   if (loading) {
@@ -176,13 +141,6 @@ export function WordbookDetailContent({
         <p className='text-body text-subtle'>조건에 맞는 어휘가 없습니다.</p>
       ) : (
         <>
-          <Button
-            onClick={onSelectPage}
-            type='button'
-            variant='outline'
-          >
-            현재 페이지 전체 선택
-          </Button>
           <ul className='grid gap-cluster'>
             {data.items.map((item) => (
               <li
@@ -195,14 +153,6 @@ export function WordbookDetailContent({
                 >
                   {item.thai}
                 </span>
-                <Button
-                  aria-pressed={selectedIds.has(item.id)}
-                  onClick={() => onSelectionChange(item.id)}
-                  type='button'
-                  variant='outline'
-                >
-                  {selectedIds.has(item.id) ? '선택 해제' : '선택'}
-                </Button>
               </li>
             ))}
           </ul>

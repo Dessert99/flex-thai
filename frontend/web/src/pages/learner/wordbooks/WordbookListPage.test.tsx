@@ -19,14 +19,16 @@ beforeEach(() => {
 });
 
 describe('단어장 목록 페이지', () => {
-  it('빈 목록에도 단어장 만들기 입력과 안내를 표시한다', async () => {
+  it('빈 목록의 안내를 표시한다', async () => {
     mocks.authenticatedRequest.mockResolvedValue({ items: [] });
 
     renderWithProviders(<WordbookListPageContainer />);
 
     expect(await screen.findByText('아직 단어장이 없습니다.')).toBeVisible();
-    expect(screen.getByLabelText('새 단어장 이름')).toBeVisible();
-    expect(screen.getByRole('button', { name: '단어장 만들기' })).toBeVisible();
+    expect(screen.queryByLabelText('새 단어장 이름')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: '단어장 만들기' }),
+    ).not.toBeInTheDocument();
   });
 
   it('단어장 이름·항목 수·상세 링크를 표시한다', async () => {

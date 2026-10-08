@@ -1,4 +1,3 @@
-import { InteractiveThaiSentence } from '@/features/learning/components/explore-thai-content/InteractiveThaiSentence';
 import { ContentErrorReportDialog } from '@/features/learning/components/report-content-error/ContentErrorReportDialog';
 import { VocabularyWordbookPicker } from '@/features/learning/components/save-vocabulary-to-wordbooks/VocabularyWordbookPicker';
 import { useVocabularyDetail } from '@/features/learning/hooks/vocabulary-detail/useVocabularyDetail';
@@ -179,10 +178,13 @@ function VocabularyExamples({
           className='grid gap-cluster'
           key={sentence.sentenceVersionId}
         >
-          <InteractiveThaiSentence
-            sentence={sentence}
-            showTranslation
-          />
+          <p
+            className='font-thai text-body'
+            lang='th'
+          >
+            {sentence.originalText}
+          </p>
+          <p className='text-body text-subtle'>{sentence.translationKo}</p>
           <ContentErrorReportDialog
             origin={{
               kind: 'SENTENCE',

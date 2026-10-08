@@ -67,15 +67,17 @@ beforeEach(() => {
 });
 
 describe('어휘 상세 페이지', () => {
-  it('단어장 picker와 예문 token 상호작용을 서로 중첩하지 않고 제공한다', async () => {
+  it('예문 원문·번역과 단어장 선택을 제공한다', async () => {
     const user = userEvent.setup();
     const { container } = renderWithProviders(
       <VocabularyDetailPageContainer vocabularyId='01933b6a-8f13-7a19-b7e5-536d70f57aaa' />,
     );
 
     expect(await screen.findByText('나는 온다')).toBeVisible();
-    await user.click(screen.getByRole('button', { name: 'ฉัน 뜻 보기' }));
-    expect(screen.getByText('나')).toBeVisible();
+    expect(screen.getByText('ฉันมา')).toHaveAttribute('lang', 'th');
+    expect(
+      screen.queryByRole('button', { name: 'ฉัน 뜻 보기' }),
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: '단어장에 추가' }));
     expect(

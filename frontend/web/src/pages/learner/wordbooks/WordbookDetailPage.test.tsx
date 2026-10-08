@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { WordbookDetailContent } from '@/pages/learner/wordbooks/WordbookDetailPage';
-/** 단어장 상세의 검색·페이지·현재 page 선택·상태 화면을 검증한다 */
+/** 단어장 상세의 검색·페이지·상태 화면을 검증한다 */
 
 const vocabularyId = '00000000-0000-4000-8000-000000000103';
 const data: WordbookItemListResponse = {
@@ -52,21 +52,15 @@ describe('단어장 상세 페이지', () => {
     );
   });
 
-  it('개별과 현재 page 전체 선택을 aria-pressed로 표현한다', async () => {
-    const user = userEvent.setup();
-    const onSelectionChange = vi.fn();
-    const onSelectPage = vi.fn();
-    renderView({ onSelectionChange, onSelectPage });
-
-    const item = screen.getByRole('button', { name: '선택' });
-    expect(item).toHaveAttribute('aria-pressed', 'false');
-    await user.click(item);
-    await user.click(
-      screen.getByRole('button', { name: '현재 페이지 전체 선택' }),
-    );
-
-    expect(onSelectionChange).toHaveBeenCalledWith(vocabularyId);
-    expect(onSelectPage).toHaveBeenCalled();
+  it('단어장 항목을 표시하고 일괄 작업용 선택은 제공하지 않는다', () => {
+    renderView();
+    expect(screen.getByText('สวัสดี')).toHaveAttribute('lang', 'th');
+    expect(
+      screen.queryByRole('button', { name: '선택' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: '현재 페이지 전체 선택' }),
+    ).not.toBeInTheDocument();
   });
 
   it('로딩·오류·빈 상태를 각각 표시한다', () => {
@@ -89,10 +83,7 @@ function baseView(overrides: Record<string, unknown> = {}) {
       loading={false}
       onRetry={vi.fn()}
       onSearchChange={vi.fn()}
-      onSelectionChange={vi.fn()}
-      onSelectPage={vi.fn()}
       search={{ page: 2, pageSize: 20 }}
-      selectedIds={new Set()}
       {...overrides}
     />
   );

@@ -1,23 +1,8 @@
 /** 단어장 상세 검색 상태를 strict 응답 query로 변환한다 */
-import {
-  wordbookItemListResponseSchema,
-  wordbookListResponseSchema,
-} from '@flex-thia/contracts/learning/wordbooks';
+import { wordbookItemListResponseSchema } from '@flex-thia/contracts/learning/wordbooks';
 import { queryOptions } from '@tanstack/react-query';
 import { authenticatedRequest } from '@/shared/apis/auth/authenticatedRequest';
 import type { WordbookDetailSearch } from '../../libs/wordbook-detail/wordbookDetailSearch';
-
-/** 상세 Page가 cross-slice import 없이 쓰는 단어장 목록 query option */
-export function detailWordbookListQueryOptions() {
-  return queryOptions({
-    queryKey: ['learner', 'wordbooks'] as const,
-    queryFn: () =>
-      authenticatedRequest({
-        path: '/me/wordbooks',
-        response: { kind: 'json', schema: wordbookListResponseSchema },
-      }),
-  });
-}
 
 /** 단어장 ID와 URL 검색값을 포함한 상세 query option을 만든다 */
 export function wordbookDetailQueryOptions(

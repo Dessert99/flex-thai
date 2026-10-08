@@ -1,5 +1,4 @@
 import { WordbookActions } from '@/features/learning/components/manage-wordbook/WordbookActions';
-import { WordbookForm } from '@/features/learning/components/manage-wordbook/WordbookForm';
 import { useWordbookList } from '@/features/learning/hooks/wordbook-list/useWordbookList';
 import { Alert, AlertDescription, AlertTitle } from '@/shared/components/alert';
 import { Button } from '@/shared/components/button';
@@ -71,7 +70,7 @@ export function WordbookListPage() {
     </Container>
   );
 }
-/** 단어장 생성 입력과 목록·빈 상태를 한 화면에 표현한다 */
+/** 단어장 목록과 빈 상태를 한 화면에 표현한다 */
 
 interface WordbookListPageViewProps {
   items: WordbookListResponse['items'];
@@ -91,7 +90,6 @@ export function WordbookListContent({ items }: WordbookListPageViewProps) {
         >
           내 단어장
         </h1>
-        <WordbookForm />
       </header>
       {items.length === 0 ? (
         <p className='text-body text-subtle'>아직 단어장이 없습니다.</p>
@@ -114,10 +112,7 @@ export function WordbookListContent({ items }: WordbookListPageViewProps) {
                   >
                     {wordbook.name} 열기
                   </Link>
-                  <WordbookActions
-                    name={wordbook.name}
-                    wordbookId={wordbook.id}
-                  />
+                  <WordbookActions wordbookId={wordbook.id} />
                 </CardContent>
               </Card>
             </li>
