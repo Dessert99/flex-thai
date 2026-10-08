@@ -7,6 +7,17 @@ import {
 } from './vocabularyListSearch';
 
 describe('어휘 목록 검색 상태', () => {
+  it('과거 URL의 추출 분류를 숨은 필터로 남기지 않는다', () => {
+    expect(
+      parseVocabularyListSearch({
+        section: 'recent',
+        query: '학교',
+        page: 1,
+        pageSize: 20,
+      }),
+    ).toEqual({ query: '학교', page: 1, pageSize: 20 });
+  });
+
   it('태국어·한국어 검색어와 계약 필터·페이지를 보존한다', () => {
     expect(
       parseVocabularyListSearch({

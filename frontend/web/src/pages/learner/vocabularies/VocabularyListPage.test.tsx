@@ -28,43 +28,25 @@ beforeEach(() => {
   });
 });
 
-describe('어휘 목록 추출 섹션', () => {
-  it('세 섹션을 제공하고 전환 시 검색 조건을 유지하며 첫 페이지로 돌아간다', async () => {
-    const onSearchChange = vi.fn();
+describe('공용 사전 목록', () => {
+  it('검색 중심 화면을 제공하고 중복 분류 탭을 표시하지 않는다', async () => {
     renderWithProviders(
       <VocabularyListPageContainer
-        onSearchChange={onSearchChange}
-        search={{ query: '학교', page: 2, pageSize: 20 }}
+        onSearchChange={vi.fn()}
+        search={{ page: 1, pageSize: 20 }}
       />,
     );
     await screen.findByText('โรงเรียน');
-    expect(screen.getByRole('tab', { name: '모든 단어' })).toHaveAttribute(
-      'aria-selected',
-      'true',
-    );
-    fireEvent.mouseDown(
-      screen.getByRole('tab', { name: '최근에 추출한 단어' }),
-      { button: 0, ctrlKey: false },
-    );
-    expect(onSearchChange).toHaveBeenCalledWith({
-      query: '학교',
-      section: 'recent',
-      page: 1,
-      pageSize: 20,
-    });
-    fireEvent.mouseDown(screen.getByRole('tab', { name: '뜻이 추가된 단어' }), {
-      button: 0,
-      ctrlKey: false,
-    });
-    expect(onSearchChange).toHaveBeenCalledWith({
-      query: '학교',
-      section: 'new-meanings',
-      page: 1,
-      pageSize: 20,
-    });
+    expect(
+      screen.getByRole('heading', { name: '공용 사전' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('어휘 종류')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '필터' }));
+    expect(screen.getByLabelText('어휘 종류')).toBeVisible();
   });
 
-  it('최근 추출 조건을 서버로 보내고 한국어 뜻과 품사를 표시한다', async () => {
+  it('전체 목록을 조회하고 한국어 뜻과 품사를 표시한다', async () => {
     mocks.authenticatedRequest.mockResolvedValueOnce({
       items: [
         {
@@ -93,7 +75,7 @@ describe('어휘 목록 추출 섹션', () => {
     renderWithProviders(
       <VocabularyListPageContainer
         onSearchChange={vi.fn()}
-        search={{ section: 'recent', page: 1, pageSize: 20 }}
+        search={{ page: 1, pageSize: 20 }}
       />,
     );
     expect(await screen.findByText('배우다')).toBeInTheDocument();
@@ -103,7 +85,7 @@ describe('어휘 목록 추출 섹션', () => {
     expect(screen.getByText('동사구')).toBeInTheDocument();
     expect(mocks.authenticatedRequest).toHaveBeenCalledWith(
       expect.objectContaining({
-        path: '/vocabularies?section=recent&page=1&pageSize=20',
+        path: '/vocabularies?page=1&pageSize=20',
       }),
     );
   });
@@ -143,6 +125,7 @@ describe('어휘 목록 페이지', () => {
     );
     await screen.findByText('โรงเรียน');
 
+    fireEvent.click(screen.getByRole('button', { name: '필터 · 적용됨' }));
     fireEvent.change(screen.getByLabelText('어휘 종류'), {
       target: { value: 'EXPRESSION' },
     });
@@ -182,6 +165,60 @@ describe('어휘 목록 페이지', () => {
         }),
       ),
     );
+  });
+});
+
+describe('공용 사전 검색 조작', () => {
+  it('검색 제출과 지우기는 다른 필터를 보존하고 첫 페이지로 이동한다', async () => {
+    const onSearchChange = vi.fn();
+    renderWithProviders(
+      <VocabularyListPageContainer
+        onSearchChange={onSearchChange}
+        search={{ kind: 'WORD', page: 2, pageSize: 20 }}
+      />,
+    );
+    await screen.findByText('โรงเรียน');
+    fireEvent.change(screen.getByLabelText('어휘 검색어'), {
+      target: { value: ' 학교 ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '검색' }));
+    expect(onSearchChange).toHaveBeenLastCalledWith({
+      kind: 'WORD',
+      query: '학교',
+      page: 1,
+      pageSize: 20,
+    });
+    fireEvent.click(screen.getByRole('button', { name: '검색어 지우기' }));
+    expect(onSearchChange).toHaveBeenLastCalledWith({
+      kind: 'WORD',
+      page: 1,
+      pageSize: 20,
+    });
+    expect(screen.getByLabelText('어휘 검색어')).toHaveValue('');
+  });
+
+  it('빈 결과의 전체 단어 보기는 검색 조건을 해제한다', async () => {
+    mocks.authenticatedRequest.mockResolvedValueOnce({
+      items: [],
+      page: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 },
+    });
+    const onSearchChange = vi.fn();
+    renderWithProviders(
+      <VocabularyListPageContainer
+        onSearchChange={onSearchChange}
+        search={{
+          query: '없는 단어',
+          kind: 'WORD',
+          difficulty: 3,
+          page: 1,
+          pageSize: 20,
+        }}
+      />,
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: '전체 단어 보기' }),
+    );
+    expect(onSearchChange).toHaveBeenCalledWith({ page: 1, pageSize: 20 });
   });
 
   it('history 이동으로 URL query가 바뀌면 검색 input도 새 값으로 동기화한다', async () => {
