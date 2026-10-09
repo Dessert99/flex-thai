@@ -21,7 +21,7 @@ describe('로컬 seed SQL', () => {
     expect(seedSql).toContain("'저장한 어휘'");
   });
 
-  it('공개 어휘의 fallback 추천 정렬에 사용할 공개 시각을 채운다', () => {
+  it('공개 어휘의 게시 시각을 채운다', () => {
     expect(seedSql).toMatch(/insert into vocabularies \([\s\S]*published_at/iu);
   });
 });

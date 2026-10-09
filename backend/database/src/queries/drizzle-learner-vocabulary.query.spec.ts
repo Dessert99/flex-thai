@@ -1,4 +1,4 @@
-/** 학습자 어휘 read model의 검색·사용처·게시 무결성을 검증한다 */
+/** 학습자 어휘 read model의 검색과 게시 무결성을 검증한다 */
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import { Pool } from 'pg';
@@ -238,8 +238,8 @@ describe('DrizzleLearnerVocabularyQuery 공용 어휘 검색', () => {
   });
 });
 
-describe('DrizzleLearnerVocabularyQuery 상세와 예문', () => {
-  it('뜻·발음 exact link와 현재 게시 문제의 동결 예문을 중복 없이 조립한다', async () => {
+describe('DrizzleLearnerVocabularyQuery 상세', () => {
+  it('뜻 관계를 중복 없이 조립한다', async () => {
     const fake = createSelectFake([
       [summaryRows.bases[1]],
       [...summaryRows.meanings.slice(0, 2)],
@@ -263,7 +263,6 @@ describe('DrizzleLearnerVocabularyQuery 상세와 예문', () => {
 
     const detail = await query.getVocabularyDetail('user-id', 'vocabulary-1');
 
-    expect(detail?.exampleSentences).toEqual([]);
     expect(detail?.relations).toEqual([
       {
         id: 'relation-1',
@@ -338,13 +337,6 @@ const ids = {
     '32000000-0000-4000-8000-000000000002',
     '32000000-0000-4000-8000-000000000003',
   ],
-  sentence: '41000000-0000-4000-8000-000000000001',
-  sentenceVersion: '42000000-0000-4000-8000-000000000001',
-  type: '51000000-0000-4000-8000-000000000001',
-  typeVersion: '52000000-0000-4000-8000-000000000001',
-  question: '61000000-0000-4000-8000-000000000001',
-  block: '71000000-0000-4000-8000-000000000001',
-  option: '81000000-0000-4000-8000-000000000001',
   wordbook: '91000000-0000-4000-8000-000000000001',
   invalidVocabulary: '31000000-0000-4000-8000-000000000099',
   invalidMeaning: '32000000-0000-4000-8000-000000000099',
@@ -355,18 +347,6 @@ const cleanupVocabularyQueryFixture = async (pool: Pool): Promise<void> => {
     ids.wordbook,
   ]);
   await pool.query(`delete from wordbooks where id = $1`, [ids.wordbook]);
-  await pool.query(
-    `delete from expression_occurrences where sentence_version_id = $1`,
-    [ids.sentenceVersion],
-  );
-  await pool.query(
-    `delete from token_occurrences where sentence_version_id = $1`,
-    [ids.sentenceVersion],
-  );
-  await pool.query(`delete from thai_sentence_versions where id = $1`, [
-    ids.sentenceVersion,
-  ]);
-  await pool.query(`delete from thai_sentences where id = $1`, [ids.sentence]);
   await pool.query(
     `delete from vocabulary_meanings where id = any($1::uuid[])`,
     [[...ids.meaning, ids.invalidMeaning]],
@@ -399,21 +379,6 @@ const createVocabularyQueryFixture = async (pool: Pool): Promise<void> => {
        ($2, $4, '안녕', '인사말', 2),
        ($3, $5, '매우 감사합니다', '표현', 3)`,
     [...ids.meaning, ids.vocabulary[0], ids.vocabulary[1]],
-  );
-  await pool.query(`insert into thai_sentences (id) values ($1)`, [
-    ids.sentence,
-  ]);
-  await pool.query(
-    "insert into thai_sentence_versions (id, sentence_id, version, original_text, translation_ko, frozen_at) values ($1, $2, 1, 'ศัพท์ทดสอบอัลฟา วลีทดสอบเบตา', '안녕하세요, 매우 감사합니다', now())",
-    [ids.sentenceVersion, ids.sentence],
-  );
-  await pool.query(
-    "insert into token_occurrences (sentence_version_id, position, surface, start_offset, end_offset, vocabulary_id, meaning_id, context_meaning_ko, role) values ($1, 0, 'ศัพท์ทดสอบอัลฟา', 0, 15, $2, $3, '안녕하세요', 'TARGET')",
-    [ids.sentenceVersion, ids.vocabulary[0], ids.meaning[0]],
-  );
-  await pool.query(
-    "insert into expression_occurrences (sentence_version_id, start_token_index, end_token_index, vocabulary_id, vocabulary_kind, meaning_id, context_meaning_ko, representative) values ($1, 0, 2, $2, 'EXPRESSION', $3, '매우 감사합니다', true)",
-    [ids.sentenceVersion, ids.vocabulary[1], ids.meaning[2]],
   );
   await pool.query(
     `insert into wordbooks (id, user_id, name, created_at, updated_at)
@@ -475,16 +440,13 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       expect(result.items[0]?.meanings).toHaveLength(2);
     });
 
-    it('상세의 exact link와 현재 공개 문제의 동결 예문만 반환한다', async () => {
+    it('게시 어휘 상세를 반환한다', async () => {
       const detail = await query.getVocabularyDetail(
         ids.user,
         ids.vocabulary[0],
       );
 
-      expect(detail?.exampleSentences).toHaveLength(1);
-      expect(detail?.exampleSentences[0]?.sentenceVersionId).toBe(
-        ids.sentenceVersion,
-      );
+      expect(detail?.id).toBe(ids.vocabulary[0]);
     });
 
     it('단어장 목록과 항목의 correlated count를 실제 PostgreSQL에서 계산한다', async () => {

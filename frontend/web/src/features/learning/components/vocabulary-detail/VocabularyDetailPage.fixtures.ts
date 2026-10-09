@@ -38,26 +38,6 @@ export function createDetail(
         relatedMeaningKo: '안녕',
       },
     ],
-    exampleSentences: [
-      {
-        sentenceVersionId: '01933b6a-8f13-7a19-b7e5-536d70f57ab5',
-        originalText: 'ฉันมา',
-        translationKo: '나는 온다',
-        tokens: [
-          {
-            position: 0,
-            surface: 'ฉัน',
-            startOffset: 0,
-            endOffset: 3,
-            vocabularyId: '01933b6a-8f13-7a19-b7e5-536d70f57ab6',
-            meaningId: '01933b6a-8f13-7a19-b7e5-536d70f57ab7',
-            contextMeaningKo: '나',
-            role: 'TARGET',
-          },
-        ],
-        expressions: [],
-      },
-    ],
     saved: false,
   };
 }

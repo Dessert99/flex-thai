@@ -47,14 +47,13 @@ beforeEach(() => {
 });
 
 describe('어휘 상세 페이지', () => {
-  it('예문 원문·번역과 단어장 선택을 제공한다', async () => {
+  it('어휘 상세와 단어장 선택을 제공한다', async () => {
     const user = userEvent.setup();
     const { container } = renderWithProviders(
       <VocabularyDetailPageContainer vocabularyId='01933b6a-8f13-7a19-b7e5-536d70f57aaa' />,
     );
 
-    expect(await screen.findByText('나는 온다')).toBeVisible();
-    expect(screen.getByText('ฉันมา')).toHaveAttribute('lang', 'th');
+    expect(await screen.findByText('สวัสดี')).toHaveAttribute('lang', 'th');
     expect(
       screen.queryByRole('button', { name: 'ฉัน 뜻 보기' }),
     ).not.toBeInTheDocument();

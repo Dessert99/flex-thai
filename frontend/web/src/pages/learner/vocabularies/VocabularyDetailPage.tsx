@@ -137,44 +137,8 @@ export function VocabularyDetailContent({
           </ul>
         </section>
       ) : null}
-      <VocabularyExamples sentences={detail.exampleSentences} />
       <VocabularyDetailTabs detail={detail} />
     </article>
-  );
-}
-
-function VocabularyExamples({
-  sentences,
-}: {
-  sentences: VocabularyDetailResponse['exampleSentences'];
-}) {
-  if (sentences.length === 0) return null;
-  return (
-    <section
-      aria-labelledby='vocabulary-examples-title'
-      className='grid gap-cluster'
-    >
-      <h2
-        className='text-heading text-primary'
-        id='vocabulary-examples-title'
-      >
-        예문
-      </h2>
-      {sentences.map((sentence) => (
-        <div
-          className='grid gap-cluster'
-          key={sentence.sentenceVersionId}
-        >
-          <p
-            className='font-thai text-body'
-            lang='th'
-          >
-            {sentence.originalText}
-          </p>
-          <p className='text-body text-subtle'>{sentence.translationKo}</p>
-        </div>
-      ))}
-    </section>
   );
 }
 

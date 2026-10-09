@@ -30,7 +30,6 @@ const detail = {
   kind: 'WORD',
   meanings: [],
   saved: false,
-  exampleSentences: [],
   relations: [],
 } as const;
 

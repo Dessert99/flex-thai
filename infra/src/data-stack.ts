@@ -70,7 +70,7 @@ export class DataStack extends Stack {
       this,
       'ChallengeHmacPepper',
       {
-        description: 'Passwordless와 step-up HMAC pepper',
+        description: 'Passwordless HMAC pepper',
         // 특수문자를 빼 env·헤더로 옮길 때 escape 사고를 없앤다.
         generateSecretString: {
           passwordLength: 64,

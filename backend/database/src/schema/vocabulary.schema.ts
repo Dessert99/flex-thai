@@ -3,7 +3,6 @@ import {
   check,
   foreignKey,
   integer,
-  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -12,7 +11,6 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { users } from './identity.schema.js';
 
 /** 공용 어휘 종류 */
 export const vocabularyKindEnum = pgEnum('vocabulary_kind', [
@@ -149,41 +147,6 @@ export const vocabularyMeaningRelations = pgTable(
     check(
       'vocabulary_meaning_relations_bidirectional_order',
       sql`${table.direction} <> 'BIDIRECTIONAL' or ${table.sourceMeaningId} < ${table.targetMeaningId}`,
-    ),
-  ],
-);
-
-/** 어휘 병합의 두 graph와 이동 수·감사 문맥을 append-only로 보존한다 */
-export const vocabularyMergeHistory = pgTable(
-  'vocabulary_merge_history',
-  {
-    id: uuid('id').defaultRandom().primaryKey(),
-    sourceVocabularyId: uuid('source_vocabulary_id')
-      .references(() => vocabularies.id, { onDelete: 'restrict' })
-      .notNull(),
-    representativeVocabularyId: uuid('representative_vocabulary_id')
-      .references(() => vocabularies.id, { onDelete: 'restrict' })
-      .notNull(),
-    fingerprint: text('fingerprint').notNull(),
-    sourceSnapshot: jsonb('source_snapshot')
-      .$type<Record<string, unknown>>()
-      .notNull(),
-    representativeSnapshot: jsonb('representative_snapshot')
-      .$type<Record<string, unknown>>()
-      .notNull(),
-    movedCounts: jsonb('moved_counts')
-      .$type<Record<string, number>>()
-      .notNull(),
-    actorUserId: uuid('actor_user_id')
-      .references(() => users.id, { onDelete: 'restrict' })
-      .notNull(),
-    requestId: text('request_id').notNull(),
-    mergedAt: timestamp('merged_at', { withTimezone: true }).notNull(),
-  },
-  (table) => [
-    check(
-      'vocabulary_merge_history_distinct_vocabularies',
-      sql`${table.sourceVocabularyId} <> ${table.representativeVocabularyId}`,
     ),
   ],
 );

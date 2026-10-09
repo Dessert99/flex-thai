@@ -37,7 +37,6 @@ const protectedRouteKeys = [
   'DELETE /api/v1/me/wordbooks/{wordbookId}',
   'DELETE /api/v1/me/wordbooks/{wordbookId}/items/{vocabularyId}',
   'GET /api/v1/me',
-  'GET /api/v1/me/recommendations',
   'GET /api/v1/me/vocabularies/{vocabularyId}/wordbook-memberships',
   'GET /api/v1/me/wordbooks',
   'GET /api/v1/me/wordbooks/{wordbookId}/items',

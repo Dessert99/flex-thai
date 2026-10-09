@@ -9,7 +9,6 @@ import {
 const ids = {
   vocabulary: '00000000-0000-4000-8000-000000000021',
   meaning: '00000000-0000-4000-8000-000000000022',
-  sentence: '00000000-0000-4000-8000-000000000024',
   question: '00000000-0000-4000-8000-000000000025',
   version: '00000000-0000-4000-8000-000000000026',
   type: '00000000-0000-4000-8000-000000000027',
@@ -81,7 +80,7 @@ describe('학습자 어휘 query와 path 계약', () => {
 });
 
 describe('학습자 어휘 공개 응답 계약', () => {
-  it('어휘 상세에 게시 문장의 공개 예문을 허용한다', () => {
+  it('어휘 상세에 공개 관계를 허용한다', () => {
     const detail = {
       ...vocabulary,
       relations: [
@@ -94,15 +93,6 @@ describe('학습자 어휘 공개 응답 계약', () => {
           relatedThai: 'หวัดดี',
           relatedMeaningId: ids.relatedMeaning,
           relatedMeaningKo: '안녕',
-        },
-      ],
-      exampleSentences: [
-        {
-          sentenceVersionId: ids.sentence,
-          originalText: 'เขาพูดว่าสวัสดี',
-          translationKo: '그는 안녕하세요라고 말했다',
-          tokens: [],
-          expressions: [],
         },
       ],
     };
@@ -123,7 +113,6 @@ describe('학습자 어휘 공개 응답 계약', () => {
         },
       ],
       relations: [],
-      exampleSentences: [],
     };
 
     expect(vocabularyDetailResponseSchema.parse(detail)).toEqual(detail);
@@ -133,7 +122,6 @@ describe('학습자 어휘 공개 응답 계약', () => {
     const detail = {
       ...vocabulary,
       relations: [],
-      exampleSentences: [],
     };
 
     expect(() =>

@@ -6,7 +6,6 @@
     "./clients/data-api": "./src/clients/data-api.ts",
     "./clients/local": "./src/clients/local.ts",
     "./queries/drizzle-learner-vocabulary.query": "./src/queries/drizzle-learner-vocabulary.query.ts",
-    "./queries/drizzle-recommendation.query": "./src/queries/drizzle-recommendation.query.ts",
     "./queries/drizzle-wordbook.query": "./src/queries/drizzle-wordbook.query.ts",
     "./repositories/drizzle-email-challenge.repository": "./src/repositories/drizzle-email-challenge.repository.ts",
     "./repositories/drizzle-readiness.probe": "./src/repositories/drizzle-readiness.probe.ts",
@@ -14,7 +13,6 @@
     "./repositories/drizzle-wordbook.repository": "./src/repositories/drizzle-wordbook.repository.ts",
     "./schema/identity.schema": "./src/schema/identity.schema.ts",
     "./schema/learning.schema": "./src/schema/learning.schema.ts",
-    "./schema/thai-content.schema": "./src/schema/thai-content.schema.ts",
     "./schema/vocabulary.schema": "./src/schema/vocabulary.schema.ts"
   },
   "scripts": {

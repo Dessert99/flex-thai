@@ -3,11 +3,7 @@ import { getTableColumns, getTableName } from 'drizzle-orm';
 import { getTableConfig } from 'drizzle-orm/pg-core';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import {
-  savedVocabularies,
-  wordbookItems,
-  wordbooks,
-} from './learning.schema.js';
+import { wordbookItems, wordbooks } from './learning.schema.js';
 
 const questionMigrationSql = readFileSync(
   new URL('../../drizzle/0004_question-publishing.sql', import.meta.url),
@@ -88,8 +84,7 @@ const primaryKeySummaries = (table: Parameters<typeof getTableConfig>[0]) =>
   }));
 
 describe('학습 기록 데이터베이스 schema', () => {
-  it('기존 저장 어휘를 보존하면서 단어장 table 두 개를 공개한다', () => {
-    expect(savedVocabularies).toBeDefined();
+  it('단어장 table 두 개를 공개한다', () => {
     expect(getTableName(wordbooks)).toBe('wordbooks');
     expect(getTableName(wordbookItems)).toBe('wordbook_items');
     expect(columnSummaries(wordbooks)).toEqual({

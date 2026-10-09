@@ -19,7 +19,6 @@ const ACTIVE_PATHS = [
   '/api/v1/auth/refresh',
   '/api/v1/auth/logout',
   '/api/v1/me',
-  '/api/v1/me/recommendations',
   '/api/v1/me/vocabularies/{vocabularyId}/wordbook-memberships',
   '/api/v1/me/wordbooks',
   '/api/v1/me/wordbooks/{wordbookId}',
@@ -353,12 +352,6 @@ const expectProtectedOpenApiOperations = (
 };
 
 const LEARNER_OPERATIONS: readonly LearnerOperationExpectation[] = [
-  {
-    method: 'get',
-    path: '/api/v1/me/recommendations',
-    success: ['200', 'RecommendationResponseDto'],
-    errors: ['401', '403', '500'],
-  },
   {
     method: 'get',
     path: '/api/v1/vocabularies',
@@ -731,12 +724,12 @@ describe('OpenAPI 문서', () => {
     });
   });
 
-  it('학습자 operation 열다섯 개의 요청·성공·보안·오류 계약을 모두 고정한다', () => {
+  it('학습자 operation 열세 개의 요청·성공·보안·오류 계약을 모두 고정한다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
 
-    expect(LEARNER_OPERATIONS).toHaveLength(14);
+    expect(LEARNER_OPERATIONS).toHaveLength(13);
     expectProtectedOpenApiOperations(document, LEARNER_OPERATIONS);
   });
 

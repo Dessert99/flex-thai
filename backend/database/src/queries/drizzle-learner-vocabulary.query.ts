@@ -1,4 +1,4 @@
-/** 현재 게시 어휘와 현재 공개 문제의 어휘 사용처를 읽는다 */
+/** 게시 어휘의 목록과 상세 정보를 읽는다 */
 import { normalizeThaiSearchText } from '@flex-thia/domain/vocabulary/normalize-thai-search-text';
 import { and, asc, count, eq, inArray, or, type SQL, sql } from 'drizzle-orm';
 import { alias, type PgDatabase } from 'drizzle-orm/pg-core';
@@ -10,10 +10,6 @@ import {
   vocabularyMeaningRelations,
   vocabularyMeanings,
 } from '../schema/vocabulary.schema.js';
-import type {
-  ThaiExpressionProjection,
-  ThaiTokenProjection,
-} from './thai-sentence-projection.js';
 
 type LearnerVocabularyDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 
@@ -68,18 +64,8 @@ export interface LearnerVocabularyListProjection {
   page: LearnerVocabularyPageMetadata;
 }
 
-/** 현재 게시 문제에서 사용하는 불변 예문 projection */
-export interface LearnerVocabularyExampleSentenceProjection {
-  sentenceVersionId: string;
-  originalText: string;
-  translationKo: string;
-  tokens: ThaiTokenProjection[];
-  expressions: ThaiExpressionProjection[];
-}
-
 /** 공용 어휘 상세의 내부 projection */
 export interface LearnerVocabularyDetailProjection extends LearnerVocabularySummaryProjection {
-  exampleSentences: LearnerVocabularyExampleSentenceProjection[];
   relations: Array<{
     id: string;
     type: 'SYNONYM' | 'ANTONYM' | 'RELATED';
@@ -228,11 +214,9 @@ export class DrizzleLearnerVocabularyQuery {
       return null;
     }
 
-    const exampleSentences: LearnerVocabularyExampleSentenceProjection[] = [];
     const relations = await this.loadPassedRelations(vocabularyId);
     return {
       ...summary,
-      exampleSentences,
       relations,
     };
   }

@@ -153,16 +153,9 @@ importers:
       '@aws-sdk/client-sesv2':
         specifier: ^3.900.0
         version: 3.1089.0
-      '@aws-sdk/client-sns':
-        specifier: ^3.900.0
-        version: 3.1089.0
       '@flex-thia/domain':
         specifier: workspace:*
         version: link:../domain
-    devDependencies:
-      tsx:
-        specifier: ^4.20.0
-        version: 4.23.1
 
   backend/worker:
     dependencies:
@@ -176,12 +169,6 @@ importers:
       '@types/aws-lambda':
         specifier: ^8.10.0
         version: 8.10.162
-      esbuild:
-        specifier: ^0.25.0
-        version: 0.25.12
-      tsx:
-        specifier: ^4.20.0
-        version: 4.23.1
 
   frontend/web:
     dependencies:
@@ -404,10 +391,6 @@ packages:
 
   '@aws-sdk/client-sesv2@3.1089.0':
     resolution: {integrity: sha512-g7QQ63YawmZKLfvs0UO3YfQCRG2K6rE8bQXcRsZkzPgBBhSD/H5Qx6iNQgEzkCBPUXJaDrN4e0OuG3C0ML47tA==}
-    engines: {node: '>=20.0.0'}
-
-  '@aws-sdk/client-sns@3.1089.0':
-    resolution: {integrity: sha512-7/1GaKWggyNqMGBWK86LJl9ifp9ZAJShjyKTzyRrlopsmNjfd8MSYYX0azjDI7aU8INm5zf6JBWSl0B/8oB7BQ==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/core@3.975.3':
@@ -6640,17 +6623,6 @@ snapshots:
       '@aws-sdk/core': 3.975.3
       '@aws-sdk/credential-provider-node': 3.972.70
       '@aws-sdk/signature-v4-multi-region': 3.996.41
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.29.5
-      '@smithy/fetch-http-handler': 5.6.7
-      '@smithy/node-http-handler': 4.9.7
-      '@smithy/types': 4.16.1
-      tslib: 2.8.1
-
-  '@aws-sdk/client-sns@3.1089.0':
-    dependencies:
-      '@aws-sdk/core': 3.975.3
-      '@aws-sdk/credential-provider-node': 3.972.70
       '@aws-sdk/types': 3.974.2
       '@smithy/core': 3.29.5
       '@smithy/fetch-http-handler': 5.6.7

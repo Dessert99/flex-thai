@@ -45,7 +45,6 @@ const apiEnvSchema = z
     ALARM_TOPIC_ARN: z.string().optional(),
     FAKE_LEARNER_SUB: z.string().default('local-learner-sub'),
     FAKE_LEARNER_EMAIL: z.string().default('learner@hufs.ac.kr'),
-    FAKE_PHONE_NUMBER: z.string().default('+821000000000'),
     ALLOWED_ORIGINS: z.string().default('http://localhost:5173'),
   })
   .superRefine((value, context) => {

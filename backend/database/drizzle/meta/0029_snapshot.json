@@ -1,0 +1,882 @@
+{
+  "id": "2aef307b-3783-44dc-b3f5-a178720d1930",
+  "prevId": "9b4c7cd1-f121-465f-aee2-744b44aee1bf",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.auth_challenges": {
+      "name": "auth_challenges",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "purpose": {
+          "name": "purpose",
+          "type": "auth_challenge_purpose",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'LOGIN'"
+        },
+        "code_hmac": {
+          "name": "code_hmac",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "link_hmac": {
+          "name": "link_hmac",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "attempts": {
+          "name": "attempts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "status": {
+          "name": "status",
+          "type": "email_challenge_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PENDING'"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "resend_at": {
+          "name": "resend_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reserved_at": {
+          "name": "reserved_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "consumed_at": {
+          "name": "consumed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "delivery_status": {
+          "name": "delivery_status",
+          "type": "email_challenge_delivery_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PENDING'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "auth_challenges_email_created_at_idx": {
+          "name": "auth_challenges_email_created_at_idx",
+          "columns": [
+            {
+              "expression": "email",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "auth_challenges_created_at_idx": {
+          "name": "auth_challenges_created_at_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.users": {
+      "name": "users",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "cognito_sub": {
+          "name": "cognito_sub",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "user_role",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'LEARNER'"
+        },
+        "status": {
+          "name": "status",
+          "type": "user_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ACTIVE'"
+        },
+        "mfa_enrolled_at": {
+          "name": "mfa_enrolled_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "users_cognito_sub_unique": {
+          "name": "users_cognito_sub_unique",
+          "columns": [
+            {
+              "expression": "cognito_sub",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "users_email_unique": {
+          "name": "users_email_unique",
+          "columns": [
+            {
+              "expression": "email",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "users_updated_at_id_idx": {
+          "name": "users_updated_at_id_idx",
+          "columns": [
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.wordbook_items": {
+      "name": "wordbook_items",
+      "schema": "",
+      "columns": {
+        "wordbook_id": {
+          "name": "wordbook_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "vocabulary_id": {
+          "name": "vocabulary_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "added_at": {
+          "name": "added_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "wordbook_items_vocabulary_id_idx": {
+          "name": "wordbook_items_vocabulary_id_idx",
+          "columns": [
+            {
+              "expression": "vocabulary_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "wordbook_items_page_idx": {
+          "name": "wordbook_items_page_idx",
+          "columns": [
+            {
+              "expression": "wordbook_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "added_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            },
+            {
+              "expression": "vocabulary_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "wordbook_items_wordbook_id_wordbooks_id_fk": {
+          "name": "wordbook_items_wordbook_id_wordbooks_id_fk",
+          "tableFrom": "wordbook_items",
+          "tableTo": "wordbooks",
+          "columnsFrom": [
+            "wordbook_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "wordbook_items_vocabulary_id_vocabularies_id_fk": {
+          "name": "wordbook_items_vocabulary_id_vocabularies_id_fk",
+          "tableFrom": "wordbook_items",
+          "tableTo": "vocabularies",
+          "columnsFrom": [
+            "vocabulary_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "wordbook_items_pk": {
+          "name": "wordbook_items_pk",
+          "columns": [
+            "wordbook_id",
+            "vocabulary_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.wordbooks": {
+      "name": "wordbooks",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "wordbooks_user_name_unique": {
+          "name": "wordbooks_user_name_unique",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "wordbooks_user_id_users_id_fk": {
+          "name": "wordbooks_user_id_users_id_fk",
+          "tableFrom": "wordbooks",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.vocabularies": {
+      "name": "vocabularies",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "thai": {
+          "name": "thai",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "normalized_thai": {
+          "name": "normalized_thai",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "importance_weight": {
+          "name": "importance_weight",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 5
+        },
+        "kind": {
+          "name": "kind",
+          "type": "vocabulary_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "vocabulary_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'DRAFT'"
+        },
+        "merged_into_vocabulary_id": {
+          "name": "merged_into_vocabulary_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "published_at": {
+          "name": "published_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "vocabularies_normalized_thai_unique": {
+          "name": "vocabularies_normalized_thai_unique",
+          "columns": [
+            {
+              "expression": "normalized_thai",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "vocabularies_merged_into_fk": {
+          "name": "vocabularies_merged_into_fk",
+          "tableFrom": "vocabularies",
+          "tableTo": "vocabularies",
+          "columnsFrom": [
+            "merged_into_vocabulary_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "vocabularies_id_kind_unique": {
+          "name": "vocabularies_id_kind_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "kind"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "vocabularies_importance_weight_range": {
+          "name": "vocabularies_importance_weight_range",
+          "value": "\"vocabularies\".\"importance_weight\" between 1 and 10"
+        },
+        "vocabularies_merge_state_match": {
+          "name": "vocabularies_merge_state_match",
+          "value": "(\"vocabularies\".\"status\"::text = 'MERGED' and \"vocabularies\".\"merged_into_vocabulary_id\" is not null and \"vocabularies\".\"merged_into_vocabulary_id\" <> \"vocabularies\".\"id\") or (\"vocabularies\".\"status\"::text <> 'MERGED' and \"vocabularies\".\"merged_into_vocabulary_id\" is null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.vocabulary_meaning_relations": {
+      "name": "vocabulary_meaning_relations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "source_meaning_id": {
+          "name": "source_meaning_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_meaning_id": {
+          "name": "target_meaning_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "vocabulary_meaning_relation_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "direction": {
+          "name": "direction",
+          "type": "vocabulary_meaning_relation_direction",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "vocabulary_meaning_relation_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PENDING'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "vocabulary_meaning_relations_source_meaning_id_vocabulary_meanings_id_fk": {
+          "name": "vocabulary_meaning_relations_source_meaning_id_vocabulary_meanings_id_fk",
+          "tableFrom": "vocabulary_meaning_relations",
+          "tableTo": "vocabulary_meanings",
+          "columnsFrom": [
+            "source_meaning_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "vocabulary_meaning_relations_target_meaning_id_vocabulary_meanings_id_fk": {
+          "name": "vocabulary_meaning_relations_target_meaning_id_vocabulary_meanings_id_fk",
+          "tableFrom": "vocabulary_meaning_relations",
+          "tableTo": "vocabulary_meanings",
+          "columnsFrom": [
+            "target_meaning_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "vocabulary_meaning_relations_unique": {
+          "name": "vocabulary_meaning_relations_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "source_meaning_id",
+            "target_meaning_id",
+            "type",
+            "direction"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "vocabulary_meaning_relations_not_self": {
+          "name": "vocabulary_meaning_relations_not_self",
+          "value": "\"vocabulary_meaning_relations\".\"source_meaning_id\" <> \"vocabulary_meaning_relations\".\"target_meaning_id\""
+        },
+        "vocabulary_meaning_relations_bidirectional_order": {
+          "name": "vocabulary_meaning_relations_bidirectional_order",
+          "value": "\"vocabulary_meaning_relations\".\"direction\" <> 'BIDIRECTIONAL' or \"vocabulary_meaning_relations\".\"source_meaning_id\" < \"vocabulary_meaning_relations\".\"target_meaning_id\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.vocabulary_meanings": {
+      "name": "vocabulary_meanings",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "vocabulary_id": {
+          "name": "vocabulary_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "meaning_ko": {
+          "name": "meaning_ko",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "part_of_speech": {
+          "name": "part_of_speech",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "difficulty": {
+          "name": "difficulty",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "context_note": {
+          "name": "context_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "vocabulary_meanings_vocabulary_id_vocabularies_id_fk": {
+          "name": "vocabulary_meanings_vocabulary_id_vocabularies_id_fk",
+          "tableFrom": "vocabulary_meanings",
+          "tableTo": "vocabularies",
+          "columnsFrom": [
+            "vocabulary_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "vocabulary_meanings_id_vocabulary_unique": {
+          "name": "vocabulary_meanings_id_vocabulary_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "vocabulary_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "vocabulary_meanings_difficulty_range": {
+          "name": "vocabulary_meanings_difficulty_range",
+          "value": "\"vocabulary_meanings\".\"difficulty\" is null or \"vocabulary_meanings\".\"difficulty\" between 1 and 5"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.auth_challenge_purpose": {
+      "name": "auth_challenge_purpose",
+      "schema": "public",
+      "values": [
+        "SIGNUP",
+        "PASSWORD_RESET",
+        "LOGIN"
+      ]
+    },
+    "public.email_challenge_delivery_status": {
+      "name": "email_challenge_delivery_status",
+      "schema": "public",
+      "values": [
+        "PENDING",
+        "SENT",
+        "FAILED"
+      ]
+    },
+    "public.email_challenge_status": {
+      "name": "email_challenge_status",
+      "schema": "public",
+      "values": [
+        "PENDING",
+        "RESERVED",
+        "SUCCEEDED",
+        "EXPIRED"
+      ]
+    },
+    "public.user_role": {
+      "name": "user_role",
+      "schema": "public",
+      "values": [
+        "LEARNER",
+        "ADMIN"
+      ]
+    },
+    "public.user_status": {
+      "name": "user_status",
+      "schema": "public",
+      "values": [
+        "ACTIVE",
+        "DISABLED"
+      ]
+    },
+    "public.vocabulary_kind": {
+      "name": "vocabulary_kind",
+      "schema": "public",
+      "values": [
+        "WORD",
+        "EXPRESSION"
+      ]
+    },
+    "public.vocabulary_meaning_relation_direction": {
+      "name": "vocabulary_meaning_relation_direction",
+      "schema": "public",
+      "values": [
+        "DIRECTED",
+        "BIDIRECTIONAL"
+      ]
+    },
+    "public.vocabulary_meaning_relation_status": {
+      "name": "vocabulary_meaning_relation_status",
+      "schema": "public",
+      "values": [
+        "PENDING",
+        "PASSED",
+        "FAILED"
+      ]
+    },
+    "public.vocabulary_meaning_relation_type": {
+      "name": "vocabulary_meaning_relation_type",
+      "schema": "public",
+      "values": [
+        "SYNONYM",
+        "ANTONYM",
+        "RELATED"
+      ]
+    },
+    "public.vocabulary_status": {
+      "name": "vocabulary_status",
+      "schema": "public",
+      "values": [
+        "DRAFT",
+        "PUBLISHED",
+        "HIDDEN",
+        "MERGED"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

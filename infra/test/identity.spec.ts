@@ -205,47 +205,4 @@ describe('Identity 학교 이메일 인증 경계', () => {
       },
     });
   });
-
-  it('Cognito가 전화번호 검증 SMS를 보낼 전용 role을 가진다', () => {
-    const app = new App();
-    const dataStack = new DataStack(app, 'IdentitySmsData');
-    const stack = new ApplicationStack(app, 'IdentitySmsApplication', {
-      config,
-      dataStack,
-    });
-    const template = Template.fromStack(stack);
-
-    template.hasResourceProperties('AWS::Cognito::UserPool', {
-      SmsConfiguration: Match.objectLike({
-        SnsCallerArn: Match.anyValue(),
-      }),
-    });
-    template.hasResourceProperties('AWS::IAM::Policy', {
-      PolicyDocument: {
-        Statement: Match.arrayWith([
-          Match.objectLike({
-            Action: 'sns:Publish',
-            Effect: 'Allow',
-            Resource: '*',
-          }),
-        ]),
-      },
-    });
-  });
-
-  it('서울 Cognito SMS는 AWS가 요구하는 도쿄 SNS 리전을 사용한다', () => {
-    const app = new App();
-    const dataStack = new DataStack(app, 'IdentityUrlData');
-    const stack = new ApplicationStack(app, 'IdentityUrlApplication', {
-      config,
-      dataStack,
-    });
-    const template = Template.fromStack(stack);
-
-    template.hasResourceProperties('AWS::Cognito::UserPool', {
-      SmsConfiguration: Match.objectLike({
-        SnsRegion: 'ap-northeast-1',
-      }),
-    });
-  });
 });

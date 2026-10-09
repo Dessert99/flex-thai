@@ -12,8 +12,6 @@
     "@flex-thia/domain": "workspace:*"
   },
   "devDependencies": {
-    "@types/aws-lambda": "^8.10.0",
-    "esbuild": "^0.25.0",
-    "tsx": "^4.20.0"
+    "@types/aws-lambda": "^8.10.0"
   }
 }

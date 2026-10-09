@@ -1,4 +1,4 @@
-/** 학습자 내부 projection이 서명 URL과 strict 공개 계약으로 바뀌는지 검증한다 */
+/** 학습자 내부 projection이 strict 공개 계약으로 바뀌는지 검증한다 */
 import { describe, expect, it, vi } from 'vitest';
 import { LearnerContentService } from './learner-content.service.js';
 
@@ -7,7 +7,6 @@ const ids = {
   version: '00000000-0000-4000-8000-000000000002',
   type: '00000000-0000-4000-8000-000000000003',
   block: '00000000-0000-4000-8000-000000000004',
-  sentence: '00000000-0000-4000-8000-000000000005',
   option: '00000000-0000-4000-8000-000000000006',
   vocabulary: '00000000-0000-4000-8000-000000000007',
   meaning: '00000000-0000-4000-8000-000000000008',
@@ -15,34 +14,6 @@ const ids = {
   clientAttempt: '00000000-0000-4000-8000-000000000011',
   requestedVersion: '00000000-0000-4000-8000-000000000012',
   persistedVersion: '00000000-0000-4000-8000-000000000013',
-} as const;
-
-const sentence = {
-  sentenceVersionId: ids.sentence,
-  originalText: 'สวัสดี',
-  translationKo: '안녕하세요',
-  tokens: [
-    {
-      position: 0,
-      surface: 'สวัสดี',
-      startOffset: 0,
-      endOffset: 6,
-      vocabularyId: ids.vocabulary,
-      meaningId: ids.meaning,
-      contextMeaningKo: '안녕하세요',
-      role: 'TARGET',
-    },
-  ],
-  expressions: [
-    {
-      startTokenIndex: 0,
-      endTokenIndex: 1,
-      vocabularyId: ids.vocabulary,
-      meaningId: ids.meaning,
-      contextMeaningKo: '안녕하세요',
-      representative: true,
-    },
-  ],
 } as const;
 
 const page = {
@@ -98,15 +69,6 @@ const dependencies = () => ({
           relatedThai: 'หวัดดี',
           relatedMeaningId: '00000000-0000-4000-8000-000000000097',
           relatedMeaningKo: '안녕',
-        },
-      ],
-      exampleSentences: [
-        {
-          sentenceVersionId: ids.sentence,
-          originalText: 'เขาพูดว่าสวัสดี',
-          translationKo: '그는 안녕하세요라고 말했다',
-          tokens: sentence.tokens,
-          expressions: sentence.expressions,
         },
       ],
     }),

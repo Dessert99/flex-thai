@@ -2,12 +2,10 @@
 
 import * as schema6 from './identity.schema.js';
 import * as schema9 from './learning.schema.js';
-import * as schema12 from './thai-content.schema.js';
 import * as schema13 from './vocabulary.schema.js';
 
 export const databaseSchema = {
   ...schema6,
   ...schema9,
-  ...schema12,
   ...schema13,
 };

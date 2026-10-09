@@ -71,9 +71,6 @@ export class Identity extends Construct {
         requireDigits: true,
         requireSymbols: true,
       },
-      enableSmsRole: true,
-      // 서울 Cognito SMS는 AWS 규칙상 도쿄 SNS 리전만 사용할 수 있다.
-      snsRegion: 'ap-northeast-1',
       removalPolicy: RemovalPolicy.RETAIN,
       lambdaTriggers: {
         defineAuthChallenge,

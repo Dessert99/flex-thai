@@ -3,13 +3,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./aws/cognito-phone-verification.provider": "./src/aws/cognito-phone-verification.provider.ts",
-    "./aws/sns-sms.sender": "./src/aws/sns-sms.sender.ts",
     "./crypto/challenge-crypto": "./src/crypto/challenge-crypto.ts",
-    "./fakes/fake-challenge.repository": "./src/fakes/fake-challenge.repository.ts",
     "./fakes/fake-email-challenge.sender": "./src/fakes/fake-email-challenge.sender.ts",
-    "./fakes/fake-phone-verification.provider": "./src/fakes/fake-phone-verification.provider.ts",
-    "./fakes/fake-sms-sender": "./src/fakes/fake-sms-sender.ts",
     "./identity/cognito-authentication.provider": "./src/identity/cognito-authentication.provider.ts",
     "./identity/cognito-passwordless-authentication.provider": "./src/identity/cognito-passwordless-authentication.provider.ts",
     "./identity/fake-passwordless-authentication.provider": "./src/identity/fake-passwordless-authentication.provider.ts",
@@ -23,10 +18,6 @@
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.900.0",
     "@aws-sdk/client-sesv2": "^3.900.0",
-    "@aws-sdk/client-sns": "^3.900.0",
     "@flex-thia/domain": "workspace:*"
-  },
-  "devDependencies": {
-    "tsx": "^4.20.0"
   }
 }

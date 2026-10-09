@@ -8,8 +8,6 @@ import { createLocalDatabase } from '@flex-thia/database/clients/local';
 
 import { DrizzleLearnerVocabularyQuery } from '@flex-thia/database/queries/drizzle-learner-vocabulary.query';
 
-import { DrizzleRecommendationQuery } from '@flex-thia/database/queries/drizzle-recommendation.query';
-
 import { DrizzleWordbookQuery } from '@flex-thia/database/queries/drizzle-wordbook.query';
 
 import { DrizzleEmailChallengeRepository } from '@flex-thia/database/repositories/drizzle-email-challenge.repository';
@@ -39,8 +37,6 @@ import {
 import { IdentityModule } from './identity/identity.module.js';
 import { createLocalAutoLogin } from './identity/local-auto-login.js';
 import { LearningModule } from './learning/learning.module.js';
-
-import { RecommendationsModule } from './recommendations/recommendations.module.js';
 
 /** 기초 API의 root module */
 @Module({})
@@ -164,11 +160,6 @@ export const createApplicationModule = (
         vocabularyQuery: new DrizzleLearnerVocabularyQuery(database),
         wordbookQuery: new DrizzleWordbookQuery(database),
         wordbooks: new WordbookService(new DrizzleWordbookRepository(database)),
-        users,
-        authorizer,
-      }),
-      RecommendationsModule.register({
-        query: new DrizzleRecommendationQuery(database),
         users,
         authorizer,
       }),

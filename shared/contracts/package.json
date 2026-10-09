@@ -8,8 +8,6 @@
     "./identity/auth": "./src/identity/auth.ts",
     "./learning/vocabularies": "./src/learning/vocabularies.ts",
     "./learning/wordbooks": "./src/learning/wordbooks.ts",
-    "./recommendations/recommendations": "./src/recommendations/recommendations.ts",
-    "./thai-content/sentences": "./src/thai-content/sentences.ts",
     "./learning/pagination": "./src/learning/pagination.ts"
   },
   "scripts": {

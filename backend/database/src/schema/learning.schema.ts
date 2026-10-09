@@ -1,4 +1,4 @@
-/** 학습자의 append-only 답안과 저장 문제·어휘 연결을 저장한다 */
+/** 학습자의 단어장과 공용 어휘 연결을 저장한다 */
 
 import {
   index,
@@ -12,27 +12,6 @@ import {
 import { users } from './identity.schema.js';
 
 import { vocabularies } from './vocabulary.schema.js';
-
-/** 사용자가 저장한 공용 어휘의 중복 없는 연결 */
-export const savedVocabularies = pgTable(
-  'saved_vocabularies',
-  {
-    userId: uuid('user_id')
-      .references(() => users.id, { onDelete: 'restrict' })
-      .notNull(),
-    vocabularyId: uuid('vocabulary_id')
-      .references(() => vocabularies.id, { onDelete: 'restrict' })
-      .notNull(),
-    savedAt: timestamp('saved_at', { withTimezone: true }).notNull(),
-  },
-  (table) => [
-    primaryKey({
-      name: 'saved_vocabularies_pk',
-      columns: [table.userId, table.vocabularyId],
-    }),
-    index('saved_vocabularies_vocabulary_id_idx').on(table.vocabularyId),
-  ],
-);
 
 /** 사용자가 이름으로 구분해 소유하는 어휘 모음 */
 export const wordbooks = pgTable(

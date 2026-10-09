@@ -72,7 +72,7 @@ const mapVocabularySummary = (
 export class LearnerContentService {
   constructor(private readonly dependencies: LearnerContentDependencies) {}
 
-  /** 게시 어휘 목록의 모든 private media를 response-local URL로 바꾼다 */
+  /** 게시 어휘 목록을 공개 응답 계약으로 검증한다 */
   async listVocabularies(
     userId: string,
     query: VocabularyListQuery,
@@ -101,7 +101,6 @@ export class LearnerContentService {
     return parseLearnerPublicResponse(vocabularyDetailResponseSchema, {
       ...mapVocabularySummary(detail),
       relations: detail.relations,
-      exampleSentences: detail.exampleSentences,
     });
   }
 }

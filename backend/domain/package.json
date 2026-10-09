@@ -4,8 +4,6 @@
   "type": "module",
   "exports": {
     "./auth/challenge.repository": "./src/auth/challenge.repository.ts",
-    "./auth/challenge": "./src/auth/challenge.ts",
-    "./auth/user.repository": "./src/auth/user.repository.ts",
     "./identity/authentication.service": "./src/identity/authentication.service.ts",
     "./identity/authentication": "./src/identity/authentication.ts",
     "./identity/email-challenge.repository": "./src/identity/email-challenge.repository.ts",
@@ -15,9 +13,7 @@
     "./identity/user.repository": "./src/identity/user.repository.ts",
     "./learning/wordbook.repository": "./src/learning/wordbook.repository.ts",
     "./learning/wordbook": "./src/learning/wordbook.ts",
-    "./thai-content/thai-sentence-version": "./src/thai-content/thai-sentence-version.ts",
-    "./vocabulary/normalize-thai-search-text": "./src/vocabulary/normalize-thai-search-text.ts",
-    "./vocabulary/vocabulary": "./src/vocabulary/vocabulary.ts"
+    "./vocabulary/normalize-thai-search-text": "./src/vocabulary/normalize-thai-search-text.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",

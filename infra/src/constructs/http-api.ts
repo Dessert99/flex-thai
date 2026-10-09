@@ -101,12 +101,6 @@ export class HttpApi extends Construct {
         resources: ['*'],
       }),
     );
-    this.apiFunction.addToRolePolicy(
-      new iam.PolicyStatement({
-        actions: ['sns:Publish'],
-        resources: ['*'],
-      }),
-    );
 
     this.api = new apigwv2.HttpApi(this, 'Gateway', {
       corsPreflight: {
@@ -123,7 +117,6 @@ export class HttpApi extends Construct {
           'content-type',
           'idempotency-key',
           'x-csrf-protection',
-          'x-step-up-token',
         ],
         allowCredentials: true,
         maxAge: Duration.hours(1),
@@ -201,7 +194,6 @@ export class HttpApi extends Construct {
         apigwv2.HttpMethod.GET,
         '/api/v1/me/vocabularies/{vocabularyId}/wordbook-memberships',
       ],
-      [apigwv2.HttpMethod.GET, '/api/v1/me/recommendations'],
       [apigwv2.HttpMethod.GET, '/api/v1/vocabularies'],
       [apigwv2.HttpMethod.GET, '/api/v1/vocabularies/{vocabularyId}'],
     ] as const) {

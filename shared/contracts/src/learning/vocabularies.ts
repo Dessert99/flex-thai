@@ -1,6 +1,5 @@
 /** 학습자 공용 어휘와 관련 문제의 공개 JSON 계약을 정의한다 */
 import { z } from 'zod';
-import { publicThaiSentenceSchema } from '../thai-content/sentences.js';
 import { pageMetadataSchema } from './pagination.js';
 
 const uuidSchema = z.uuid();
@@ -79,7 +78,6 @@ export const vocabularyDetailResponseSchema = z
   .object({
     ...vocabularySummaryShape,
     relations: z.array(vocabularyMeaningRelationSchema),
-    exampleSentences: z.array(publicThaiSentenceSchema),
   })
   .strict()
   .superRefine((detail, context) => {
