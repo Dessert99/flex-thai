@@ -8,10 +8,10 @@ import { createLocalAutoLogin } from './local-auto-login.js';
 
 function setup(overrides: Partial<IdentityUser> = {}) {
   let user: IdentityUser = {
-    id: '00000000-0000-4000-8000-000000000001',
-    cognitoSub: 'local-admin-sub',
-    email: 'admin@hufs.ac.kr',
-    role: 'ADMIN',
+    id: '00000000-0000-4000-8000-000000000002',
+    cognitoSub: 'local-learner-sub',
+    email: 'learner@hufs.ac.kr',
+    role: 'LEARNER',
     status: 'ACTIVE',
     mfaEnrolledAt: null,
     ...overrides,
@@ -26,7 +26,9 @@ function setup(overrides: Partial<IdentityUser> = {}) {
   };
   const provider = new FakePasswordlessAuthenticationProvider({
     mode: 'local',
-    accounts: [{ email: user.email, subject: user.cognitoSub, role: 'ADMIN' }],
+    accounts: [
+      { email: user.email, subject: user.cognitoSub, role: 'LEARNER' },
+    ],
   });
   const identity = new IdentityAuthenticationService(provider, users);
   const env = readApiEnv({ LOCAL_AUTO_LOGIN: 'true' });
@@ -41,19 +43,19 @@ describe('로컬 개발 자동 로그인', () => {
     expect(result.kind).toBe('AUTHENTICATED');
     if (result.kind !== 'AUTHENTICATED') throw new Error('자동 로그인 실패');
     expect(result.user).toMatchObject({
-      id: '00000000-0000-4000-8000-000000000001',
-      role: 'ADMIN',
+      id: '00000000-0000-4000-8000-000000000002',
+      role: 'LEARNER',
     });
-    expect(result.user.mfaEnrolledAt).toBeInstanceOf(Date);
+    expect(result.user.mfaEnrolledAt).toBeNull();
     expect(provider.resolveAccessTokenSubject(result.tokens.accessToken)).toBe(
-      'local-admin-sub',
+      'local-learner-sub',
     );
     const refreshed = await login(result.tokens.refreshToken);
     expect(refreshed).toMatchObject({
       kind: 'AUTHENTICATED',
       user: result.user,
     });
-    expect(users.markMfaEnrolled).toHaveBeenCalledTimes(1);
+    expect(users.markMfaEnrolled).not.toHaveBeenCalled();
   });
 
   it('API 재시작으로 무효화된 쿠키는 새 개발 세션으로 복구한다', async () => {
@@ -63,7 +65,7 @@ describe('로컬 개발 자동 로그인', () => {
     });
   });
 
-  it('DB에 저장된 학습자 권한을 관리자로 승격하지 않는다', async () => {
+  it('DB에 저장된 학습자 권한을 유지한다', async () => {
     const { login, users } = setup({ role: 'LEARNER' });
     await expect(login()).resolves.toMatchObject({
       user: { role: 'LEARNER', mfaEnrolledAt: null },

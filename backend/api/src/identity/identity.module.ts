@@ -4,9 +4,6 @@ import { Reflector } from '@nestjs/core';
 import { IdentityAuthenticationService } from '@flex-thia/domain/identity/authentication.service';
 import { type IdentityUserRepository } from '@flex-thia/domain/identity/user.repository';
 import { PasswordlessAuthenticationService } from '@flex-thia/domain/identity/passwordless-authentication.service';
-import { UserManagementService } from '@flex-thia/domain/identity/user-management';
-import { AdminUserManagementController } from './admin-user-management.controller.js';
-import { AdminMfaGuard } from './admin-mfa.guard.js';
 import { ApplicationRoleGuard } from './application-role.guard.js';
 import {
   AUTHORIZER_GUARD_OPTIONS,
@@ -23,7 +20,6 @@ import { LOCAL_AUTO_LOGIN, type LocalAutoLogin } from './local-auto-login.js';
 export interface IdentityModuleOptions {
   identity: IdentityAuthenticationService;
   passwordless: PasswordlessAuthenticationService;
-  userManagement: UserManagementService;
   users: IdentityUserRepository;
   authorizer: AuthorizerGuardOptions;
   allowedOrigins: string[];
@@ -38,11 +34,7 @@ export class IdentityModule {
     return {
       global: true,
       module: IdentityModule,
-      controllers: [
-        IdentityController,
-        MeController,
-        AdminUserManagementController,
-      ],
+      controllers: [IdentityController, MeController],
       providers: [
         ...(options.localAutoLogin
           ? [{ provide: LOCAL_AUTO_LOGIN, useValue: options.localAutoLogin }]
@@ -55,10 +47,6 @@ export class IdentityModule {
         {
           provide: PasswordlessAuthenticationService,
           useValue: options.passwordless,
-        },
-        {
-          provide: UserManagementService,
-          useValue: options.userManagement,
         },
         {
           provide: IDENTITY_USER_REPOSITORY,
@@ -75,14 +63,8 @@ export class IdentityModule {
         },
         CsrfGuard,
         ApplicationRoleGuard,
-        AdminMfaGuard,
       ],
-      exports: [
-        CognitoAuthorizerGuard,
-        ApplicationRoleGuard,
-        AdminMfaGuard,
-        CsrfGuard,
-      ],
+      exports: [CognitoAuthorizerGuard, ApplicationRoleGuard, CsrfGuard],
     };
   }
 }

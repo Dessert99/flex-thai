@@ -2,7 +2,6 @@
 import { problemDetailsSchema } from '@flex-thia/contracts/common/problem';
 import { startEmailAuthenticationRequestSchema } from '@flex-thia/contracts/identity/auth';
 import { WordbookPersistenceError } from '@flex-thia/database/repositories/drizzle-wordbook.repository';
-import { AuthDomainError } from '@flex-thia/domain/auth/auth-domain.error';
 
 import { IdentityDomainError } from '@flex-thia/domain/identity/authentication.service';
 import { EmailChallengeError } from '@flex-thia/domain/identity/email-challenge';
@@ -51,7 +50,7 @@ describe('공개 오류 응답 변환', () => {
   );
 
   it('운영 응답에는 stack 없이 code와 request id만 남긴다', () => {
-    const error = new AuthDomainError('STEP_UP_INVALID');
+    const error = new IdentityDomainError('INVALID_MFA_CHALLENGE');
     error.stack = 'sensitive stack';
 
     const result = buildErrorResponse(error, 'request-1');
@@ -59,10 +58,10 @@ describe('공개 오류 응답 변환', () => {
     expect(result).toEqual({
       status: 401,
       body: {
-        type: 'https://flex-thia.example/problems/step-up-invalid',
+        type: 'https://flex-thia.example/problems/invalid-mfa-challenge',
         title: '요청을 처리할 수 없습니다.',
         status: 401,
-        code: 'STEP_UP_INVALID',
+        code: 'INVALID_MFA_CHALLENGE',
         requestId: 'request-1',
         fieldErrors: [],
       },
@@ -186,19 +185,6 @@ describe('공개 오류 응답 변환', () => {
     expect(identity.status).toBe(401);
     expect(invalidBody.status).toBe(400);
     expect(invalidBody.body.fieldErrors.length).toBeGreaterThan(0);
-  });
-
-  it.each([
-    'CONTENT_DRAFT_ITEM_CONFLICT',
-    'CONTENT_DRAFT_PERSISTENCE_CONFLICT',
-    'CONTENT_IMPORT_PERSISTENCE_CONFLICT',
-  ])('관리자 persistence 충돌 %s를 409로 변환한다', (code) => {
-    const result = buildErrorResponse({ code }, 'request-persistence');
-
-    expect(result).toMatchObject({
-      status: 409,
-      body: { code, status: 409, requestId: 'request-persistence' },
-    });
   });
 
   it.each([

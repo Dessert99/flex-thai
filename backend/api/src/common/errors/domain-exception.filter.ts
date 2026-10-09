@@ -1,18 +1,11 @@
 /** 도메인 오류를 안정적인 HTTP code로 바꾸고 내부 정보를 숨긴다 */
 import type { ProblemDetailsResponse } from '@flex-thia/contracts/common/problem';
 import { WordbookPersistenceError } from '@flex-thia/database/repositories/drizzle-wordbook.repository';
-import { AuthDomainError } from '@flex-thia/domain/auth/auth-domain.error';
 
 import { IdentityDomainError } from '@flex-thia/domain/identity/authentication.service';
 import { EmailChallengeError } from '@flex-thia/domain/identity/email-challenge';
-import { UserManagementError } from '@flex-thia/domain/identity/user-management';
 
 import { WordbookDomainError } from '@flex-thia/domain/learning/wordbook';
-import { AuditLogError } from '@flex-thia/domain/operations/audit-log.service';
-
-import { UploadPolicyError } from '@flex-thia/domain/uploads/upload-policy.service';
-import { VocabularyAdminError } from '@flex-thia/domain/vocabulary/vocabulary-admin';
-import { VocabularyRelationsMergeAdminError } from '@flex-thia/domain/vocabulary/vocabulary-relations-merge.service';
 import {
   ArgumentsHost,
   Catch,
@@ -21,10 +14,7 @@ import {
   type ExceptionFilter,
 } from '@nestjs/common';
 import { ZodError } from 'zod';
-import {
-  resolveAdminRequestId,
-  type AdminRequestIdRequest,
-} from '../http/admin-request-id.js';
+import { resolveRequestId, type RequestIdRequest } from '../http/request-id.js';
 import type { StructuredLogger } from '../logging/structured-logger.js';
 
 const INTERNAL_SERVER_ERROR_STATUS: number = HttpStatus.INTERNAL_SERVER_ERROR;
@@ -35,21 +25,8 @@ export interface ErrorResponse {
   body: ProblemDetailsResponse;
 }
 
-const AUTH_STATUS: Record<AuthDomainError['code'], number> = {
-  ADMIN_REQUIRED: HttpStatus.FORBIDDEN,
-  PHONE_VERIFICATION_REQUIRED: HttpStatus.FORBIDDEN,
-  STEP_UP_INVALID: HttpStatus.UNAUTHORIZED,
-};
-
 const APPLICATION_STATUS: Record<string, number> = {
-  INVALID_JOB_REQUEST: HttpStatus.BAD_REQUEST,
-  UPLOAD_NOT_VERIFIED: HttpStatus.BAD_REQUEST,
-  JOB_INPUT_TOO_LARGE: HttpStatus.BAD_REQUEST,
-  JOB_NOT_FOUND: HttpStatus.NOT_FOUND,
   DB_RESUMING: HttpStatus.SERVICE_UNAVAILABLE,
-  CONTENT_DRAFT_ITEM_CONFLICT: HttpStatus.CONFLICT,
-  CONTENT_DRAFT_PERSISTENCE_CONFLICT: HttpStatus.CONFLICT,
-  CONTENT_IMPORT_PERSISTENCE_CONFLICT: HttpStatus.CONFLICT,
 };
 
 const IDENTITY_STATUS: Record<IdentityDomainError['code'], number> = {
@@ -59,19 +36,6 @@ const IDENTITY_STATUS: Record<IdentityDomainError['code'], number> = {
   INVALID_REFRESH_TOKEN: HttpStatus.UNAUTHORIZED,
   AUTH_RATE_LIMITED: HttpStatus.TOO_MANY_REQUESTS,
   ACCOUNT_DISABLED: HttpStatus.FORBIDDEN,
-};
-
-const USER_MANAGEMENT_STATUS: Record<UserManagementError['code'], number> = {
-  ADMIN_REQUIRED: HttpStatus.FORBIDDEN,
-  INVALID_SCHOOL_EMAIL: HttpStatus.BAD_REQUEST,
-  USER_NOT_FOUND: HttpStatus.NOT_FOUND,
-  SELF_LOCKOUT_FORBIDDEN: HttpStatus.CONFLICT,
-  LAST_ACTIVE_ADMIN_REQUIRED: HttpStatus.CONFLICT,
-};
-
-const AUDIT_LOG_STATUS: Record<AuditLogError['code'], number> = {
-  ADMIN_REQUIRED: HttpStatus.FORBIDDEN,
-  AUDIT_LOG_NOT_FOUND: HttpStatus.NOT_FOUND,
 };
 
 const EMAIL_CHALLENGE_STATUS: Record<EmailChallengeError['code'], number> = {
@@ -92,30 +56,6 @@ const WORDBOOK_STATUS: Record<WordbookDomainError['code'], number> = {
   WORDBOOK_NOT_FOUND: HttpStatus.NOT_FOUND,
   WORDBOOK_SAME_TARGET: HttpStatus.BAD_REQUEST,
   VOCABULARY_UNAVAILABLE: HttpStatus.NOT_FOUND,
-};
-
-const VOCABULARY_ADMIN_STATUS: Record<VocabularyAdminError['code'], number> = {
-  VOCABULARY_NOT_FOUND: HttpStatus.NOT_FOUND,
-  VOCABULARY_DUPLICATE: HttpStatus.CONFLICT,
-  VOCABULARY_IN_USE: HttpStatus.CONFLICT,
-  VOCABULARY_CONTENT_INVALID: HttpStatus.BAD_REQUEST,
-  VOCABULARY_STATE_CONFLICT: HttpStatus.CONFLICT,
-};
-
-const VOCABULARY_RELATIONS_MERGE_STATUS: Record<
-  VocabularyRelationsMergeAdminError['code'],
-  number
-> = {
-  MEANING_RELATION_DUPLICATE: HttpStatus.CONFLICT,
-  MEANING_RELATION_NOT_FOUND: HttpStatus.NOT_FOUND,
-  MEANING_RELATION_SELF: HttpStatus.BAD_REQUEST,
-  MEANING_RELATION_STATE_CONFLICT: HttpStatus.CONFLICT,
-  VOCABULARY_MERGE_CONFLICT: HttpStatus.CONFLICT,
-  VOCABULARY_MERGE_KIND_MISMATCH: HttpStatus.CONFLICT,
-  VOCABULARY_MERGE_REPRESENTATIVE_INVALID: HttpStatus.CONFLICT,
-  VOCABULARY_MERGE_SAME_TARGET: HttpStatus.BAD_REQUEST,
-  VOCABULARY_MERGE_SOURCE_INVALID: HttpStatus.CONFLICT,
-  VOCABULARY_NOT_FOUND: HttpStatus.NOT_FOUND,
 };
 
 const readPublicCode = (value: unknown): string | null => {
@@ -150,14 +90,6 @@ export const buildErrorResponse = (
   error: unknown,
   requestId: string,
 ): ErrorResponse => {
-  if (error instanceof AuthDomainError) {
-    const status = AUTH_STATUS[error.code];
-    return {
-      status,
-      body: createProblem(error.code, status, requestId),
-    };
-  }
-
   if (error instanceof IdentityDomainError) {
     const status = IDENTITY_STATUS[error.code];
     return {
@@ -174,22 +106,6 @@ export const buildErrorResponse = (
     };
   }
 
-  if (error instanceof UserManagementError) {
-    const status = USER_MANAGEMENT_STATUS[error.code];
-    return {
-      status,
-      body: createProblem(error.code, status, requestId),
-    };
-  }
-
-  if (error instanceof AuditLogError) {
-    const status = AUDIT_LOG_STATUS[error.code];
-    return {
-      status,
-      body: createProblem(error.code, status, requestId),
-    };
-  }
-
   if (error instanceof WordbookDomainError) {
     const status = WORDBOOK_STATUS[error.code];
     return {
@@ -200,33 +116,6 @@ export const buildErrorResponse = (
 
   if (error instanceof WordbookPersistenceError) {
     const status = HttpStatus.CONFLICT;
-    return {
-      status,
-      body: createProblem(error.code, status, requestId),
-    };
-  }
-
-  if (error instanceof VocabularyAdminError) {
-    const status = VOCABULARY_ADMIN_STATUS[error.code];
-    return {
-      status,
-      body: createProblem(error.code, status, requestId),
-    };
-  }
-
-  if (error instanceof VocabularyRelationsMergeAdminError) {
-    const status = VOCABULARY_RELATIONS_MERGE_STATUS[error.code];
-    return {
-      status,
-      body: createProblem(error.code, status, requestId),
-    };
-  }
-
-  if (error instanceof UploadPolicyError) {
-    const status =
-      error.code === 'UPLOAD_NOT_FOUND'
-        ? HttpStatus.NOT_FOUND
-        : HttpStatus.BAD_REQUEST;
     return {
       status,
       body: createProblem(error.code, status, requestId),
@@ -288,7 +177,7 @@ export const buildErrorResponse = (
   };
 };
 
-type ErrorRequest = AdminRequestIdRequest & {
+type ErrorRequest = RequestIdRequest & {
   route?: { path?: unknown };
   path?: unknown;
   url?: unknown;
@@ -311,7 +200,7 @@ export class DomainExceptionFilter implements ExceptionFilter {
     const http = host.switchToHttp();
     const request = http.getRequest<ErrorRequest>();
     const response = http.getResponse<ErrorResponseAdapter>();
-    const requestId = resolveAdminRequestId(request);
+    const requestId = resolveRequestId(request);
     const result = buildErrorResponse(error, requestId);
 
     if (result.status === INTERNAL_SERVER_ERROR_STATUS) {

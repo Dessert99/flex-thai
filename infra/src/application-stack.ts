@@ -66,7 +66,6 @@ export class ApplicationStack extends Stack {
       emailIdentity,
       emailLinkConfirmationUrl: `https://${webDomain}/login/confirm`,
       fromEmail: `no-reply@${props.config.rootDomain}`,
-      inputBucket: props.dataStack.inputBucket,
       userPool: this.identity.userPool,
       userPoolClient: this.identity.userPoolClient,
     });

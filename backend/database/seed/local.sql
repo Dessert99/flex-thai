@@ -13,17 +13,6 @@ insert into users (
   updated_at
 ) values
   (
-    '00000000-0000-4000-8000-000000000001',
-    'local-admin-sub',
-    'admin@hufs.ac.kr',
-    'ADMIN',
-    'ACTIVE',
-    '2026-07-01T00:00:00Z',
-    '2026-07-01T00:00:00Z',
-    '2026-07-01T00:00:00Z',
-    '2026-07-01T00:00:00Z'
-  ),
-  (
     '00000000-0000-4000-8000-000000000002',
     'local-learner-sub',
     'learner@hufs.ac.kr',
@@ -435,66 +424,6 @@ insert into token_occurrences (
     'TARGET'
   );
 
-insert into uploads (
-  id,
-  owner_id,
-  input_type,
-  object_key,
-  declared_content_type,
-  size_bytes,
-  status,
-  verified_at,
-  created_at
-) values (
-  '00000000-0000-4000-8000-000000000930',
-  '00000000-0000-4000-8000-000000000001',
-  'TEXT',
-  'local/content-production/source.txt',
-  'text/plain',
-  128,
-  'VERIFIED',
-  '2026-07-01T00:00:00Z',
-  '2026-07-01T00:00:00Z'
-);
-
-insert into provider_runs (
-  id,
-  operation,
-  sequence,
-  provider,
-  model,
-  prompt_version,
-  item_lease_token,
-  attempt,
-  status,
-  usage,
-  estimated_cost_usd,
-  success,
-  result,
-  retryable,
-  provider_request_id,
-  started_at,
-  finished_at
-) values (
-  '00000000-0000-4000-8000-000000000935',
-  'VOCABULARY_EXTRACTION',
-  0,
-  'LOCAL_FAKE',
-  'deterministic-content-v1',
-  'local-prompt-v1',
-  'local-lease-1',
-  0,
-  'SUCCEEDED',
-  '{"inputTokens":100,"outputTokens":50}'::jsonb,
-  '0.750000',
-  true,
-  '{"generatedCount":1}'::jsonb,
-  false,
-  'local-content-provider-request',
-  '2026-07-01T00:00:00Z',
-  '2026-07-01T00:01:00Z'
-);
-
 insert into wordbooks (
   id,
   user_id,
@@ -520,55 +449,5 @@ insert into wordbook_items (wordbook_id, vocabulary_id, added_at) values
   ('00000000-0000-4000-8000-000000000551', '00000000-0000-4000-8000-000000000110', '2026-07-15T00:00:00Z'),
   ('00000000-0000-4000-8000-000000000551', '00000000-0000-4000-8000-000000000111', '2026-07-15T00:00:00Z'),
   ('00000000-0000-4000-8000-000000000551', '00000000-0000-4000-8000-000000000112', '2026-07-15T00:00:00Z');
-
-insert into content_error_reports (
-  id,
-  reporter_user_id,
-  target_kind,
-  category,
-  status,
-  assignee_user_id,
-  description,
-  canonical_reference,
-  snapshot,
-  created_at,
-  updated_at
-) values
-  (
-    '00000000-0000-4000-8000-000000000801',
-    '00000000-0000-4000-8000-000000000002',
-    'VOCABULARY',
-    'MEANING_TRANSLATION',
-    'OPEN',
-    null,
-    '어휘 뜻 설명을 조금 더 자세히 확인해 주세요.',
-    '{"kind":"VOCABULARY","contentId":"00000000-0000-4000-8000-000000000101","contentVersionId":null,"sentenceVersionId":null,"locationId":null}',
-    '{"title":"어휘 뜻","primaryText":"สวัสดี","secondaryText":"태국어 인사말","versionLabel":"버전 1","locationLabel":"어휘 상세"}',
-    '2026-07-18T00:00:00Z',
-    '2026-07-18T00:00:00Z'
-  );
-
-insert into content_error_report_history (
-  id,
-  report_id,
-  actor_user_id,
-  action,
-  from_status,
-  to_status,
-  from_assignee_user_id,
-  to_assignee_user_id,
-  created_at
-) values
-  (
-    '00000000-0000-4000-8000-000000000811',
-    '00000000-0000-4000-8000-000000000801',
-    '00000000-0000-4000-8000-000000000002',
-    'SUBMITTED',
-    null,
-    null,
-    null,
-    null,
-    '2026-07-18T00:00:00Z'
-  );
 
 commit;

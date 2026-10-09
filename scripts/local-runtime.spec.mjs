@@ -136,12 +136,6 @@ describe('local runtime 명령', () => {
       '@flex-thia/api',
       'dev',
     ]);
-    expect(compose.services['local-worker-dev'].command).toEqual([
-      'pnpm',
-      '--filter',
-      '@flex-thia/worker',
-      'dev',
-    ]);
     expect(compose.services['web-dev'].command).toEqual([
       'pnpm',
       '--filter',

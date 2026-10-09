@@ -9,8 +9,6 @@ import {
   requestLogout,
   requestMe,
   requestRefresh,
-  requestTotpSetup,
-  requestTotpSetupVerification,
   startEmailAuthentication,
   verifyEmailCode,
 } from './authApi';
@@ -108,31 +106,11 @@ describe('인증 세션 endpoint adapter', () => {
     );
   });
 
-  it('현재 사용자와 TOTP 등록 요청에만 bearer token을 전달한다', async () => {
-    apiRequestMock
-      .mockResolvedValueOnce(createUser())
-      .mockResolvedValueOnce({ secretCode: 'ABCDEFGHIJKLMNOP' })
-      .mockResolvedValueOnce({ ...createUser(), mfaEnrolled: true });
-
+  it('현재 사용자 요청에 bearer token을 전달한다', async () => {
+    apiRequestMock.mockResolvedValueOnce(createUser());
     await requestMe('access-token');
-    await requestTotpSetup('access-token');
-    await requestTotpSetupVerification('access-token', {
-      code: '123456',
-    });
-
-    expect(apiRequestMock.mock.calls.map(([options]) => options)).toMatchObject(
-      [
-        { accessToken: 'access-token', path: '/me' },
-        {
-          accessToken: 'access-token',
-          path: '/auth/mfa/totp/setup',
-        },
-        {
-          accessToken: 'access-token',
-          body: { code: '123456' },
-          path: '/auth/mfa/totp/setup/verify',
-        },
-      ],
+    expect(apiRequestMock).toHaveBeenCalledWith(
+      expect.objectContaining({ accessToken: 'access-token', path: '/me' }),
     );
   });
 

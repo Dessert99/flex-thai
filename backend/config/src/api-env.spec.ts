@@ -115,20 +115,9 @@ describe('readApiEnv가 API 환경 변수를 검증한다', () => {
     ).toThrow('production EMAIL_LINK_CONFIRMATION_URL은 HTTPS여야 합니다');
   });
 
-  it('local public origin은 브라우저가 접근할 수 있는 HTTP origin만 허용한다', () => {
-    expect(() =>
-      readApiEnv({
-        NODE_ENV: 'test',
-        FLEX_THIA_LOCAL_PUBLIC_ORIGIN: 'https://localhost:5173',
-      }),
-    ).toThrow('local public origin은 HTTP URL이어야 합니다');
-  });
-
-  it('local fake 관리자와 학생 계정 기본값을 제공한다', () => {
+  it('local fake 학습자 계정 기본값을 제공한다', () => {
     const env = readApiEnv({});
     expect(env).toMatchObject({
-      FAKE_USER_SUB: 'local-admin-sub',
-      FAKE_USER_EMAIL: 'admin@hufs.ac.kr',
       FAKE_LEARNER_SUB: 'local-learner-sub',
       FAKE_LEARNER_EMAIL: 'learner@hufs.ac.kr',
       CHALLENGE_HMAC_PEPPER: 'local-only-email-challenge-pepper',

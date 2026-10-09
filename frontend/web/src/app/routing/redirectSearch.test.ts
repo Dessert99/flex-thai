@@ -10,8 +10,6 @@ describe('안전한 로그인 redirect', () => {
       '/wordbooks/00000000-0000-4000-8000-000000000101?page=2&pageSize=20',
       '/wordbooks/00000000-0000-4000-8000-000000000101?page=2&pageSize=20',
     ],
-    ['/admin/users', '/admin/users'],
-    ['/admin/audit-logs', '/admin/audit-logs'],
   ])('승인된 내부 경로 %s를 보존한다', (value, expected) => {
     expect(parseSafeRedirect(value)).toBe(expected);
   });

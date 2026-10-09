@@ -40,7 +40,6 @@ export interface SidebarLayoutProps {
     role: 'ADMIN' | 'LEARNER';
   };
   navigation: readonly SidebarLayoutNavigationItem[];
-  adminNavigation?: readonly SidebarLayoutNavigationItem[];
   profileMenu?: ReactNode;
 }
 
@@ -50,16 +49,12 @@ export function SidebarLayout({
   currentPath,
   identity,
   navigation,
-  adminNavigation = [],
   profileMenu,
 }: SidebarLayoutProps) {
   const isMobile = useIsMobile();
   const { open, changeOpen, panelRef, panelEvents, onProfileOpenChange } =
     useFloatingSidebar(isMobile);
-  const activeHref = findActiveHref(currentPath, [
-    ...navigation,
-    ...adminNavigation,
-  ]);
+  const activeHref = findActiveHref(currentPath, navigation);
   const home = navigation[0];
 
   return (
@@ -81,18 +76,6 @@ export function SidebarLayout({
             activeHref={activeHref}
             navigation={navigation}
           />
-          {identity?.role === 'ADMIN' && adminNavigation.length > 0 ? (
-            <section
-              aria-label='운영자 기능'
-              className='flex-1 border-t border-operator-border bg-operator-surface'
-            >
-              <AppNavigation
-                activeHref={activeHref}
-                navigation={adminNavigation}
-                label='운영자 메뉴'
-              />
-            </section>
-          ) : null}
         </SidebarContent>
 
         <SidebarFooter className='border-t border-sidebar-border'>

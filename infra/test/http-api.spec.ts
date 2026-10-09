@@ -1,4 +1,4 @@
-/** 공개 인증 route 외의 Job API가 JWT 없이 열리지 않게 고정한다 */
+/** 공개 인증과 학습 API의 권한 경계를 검증한다 */
 import { App } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import { describe, expect, it } from 'vitest';
@@ -34,20 +34,8 @@ const publicRouteKeys = [
 ] as const;
 
 const protectedRouteKeys = [
-  'POST /api/v1/admin/vocabulary-extraction/uploads/policies',
-  'POST /api/v1/admin/vocabulary-extraction/uploads/{uploadId}/complete',
-  'DELETE /api/v1/admin/content-error-reports/{reportId}/assignee',
-  'DELETE /api/v1/admin/vocabularies/{vocabularyId}/relations/{relationId}',
   'DELETE /api/v1/me/wordbooks/{wordbookId}',
   'DELETE /api/v1/me/wordbooks/{wordbookId}/items/{vocabularyId}',
-  'GET /api/v1/admin/audit-logs',
-  'GET /api/v1/admin/audit-logs/{auditLogId}',
-  'GET /api/v1/admin/content-error-reports',
-  'GET /api/v1/admin/content-error-reports/{reportId}',
-  'GET /api/v1/admin/home',
-  'GET /api/v1/admin/users',
-  'GET /api/v1/admin/vocabularies',
-  'GET /api/v1/admin/vocabularies/{vocabularyId}',
   'GET /api/v1/me',
   'GET /api/v1/me/recommendations',
   'GET /api/v1/me/vocabularies/{vocabularyId}/wordbook-memberships',
@@ -55,27 +43,11 @@ const protectedRouteKeys = [
   'GET /api/v1/me/wordbooks/{wordbookId}/items',
   'GET /api/v1/vocabularies',
   'GET /api/v1/vocabularies/{vocabularyId}',
-  'PATCH /api/v1/admin/users/{userId}/status',
-  'PATCH /api/v1/admin/users/{userId}/role',
   'PATCH /api/v1/me/wordbooks/{wordbookId}',
-  'POST /api/v1/admin/users/invitations',
-  'POST /api/v1/admin/vocabularies/{vocabularyId}/hide',
-  'POST /api/v1/admin/vocabularies/{vocabularyId}/merge',
-  'POST /api/v1/admin/vocabularies/{vocabularyId}/merge-preview',
-  'POST /api/v1/admin/vocabularies/{vocabularyId}/publish',
-  'POST /api/v1/admin/vocabularies/{vocabularyId}/relations',
-  'POST /api/v1/admin/vocabularies/{vocabularyId}/restore',
-  'POST /api/v1/auth/mfa/totp/setup',
-  'POST /api/v1/auth/mfa/totp/setup/verify',
-  'POST /api/v1/content-error-reports',
   'POST /api/v1/me/wordbooks',
   'POST /api/v1/me/wordbooks/{wordbookId}/items/copy',
   'POST /api/v1/me/wordbooks/{wordbookId}/items/move',
   'POST /api/v1/me/wordbooks/{wordbookId}/items/remove',
-  'PUT /api/v1/admin/content-error-reports/{reportId}/assignee',
-  'PUT /api/v1/admin/content-error-reports/{reportId}/status',
-  'PUT /api/v1/admin/vocabularies/{vocabularyId}',
-  'PUT /api/v1/admin/vocabularies/{vocabularyId}/relations/{relationId}',
   'PUT /api/v1/me/wordbooks/{wordbookId}/items/{vocabularyId}',
 ] as const;
 

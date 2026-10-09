@@ -52,16 +52,6 @@ export const totpChallengeRequestSchema = z
   })
   .strict();
 
-/** TOTP 등록 검증 요청 */
-export const totpSetupVerifyRequestSchema = z
-  .object({ code: totpCodeSchema })
-  .strict();
-
-/** 인증 앱에 등록할 Cognito TOTP secret 응답 */
-export const totpSetupResponseSchema = z
-  .object({ secretCode: z.string().min(16).max(128) })
-  .strict();
-
 const userSchema = z.object({
   id: z.uuid(),
   email: emailSchema,
@@ -116,12 +106,6 @@ export type EmailChallengeIdPath = z.infer<typeof emailChallengeIdPathSchema>;
 
 /** 검증된 TOTP challenge 요청 type */
 export type TotpChallengeInput = z.infer<typeof totpChallengeRequestSchema>;
-
-/** 검증된 TOTP 등록 요청 type */
-export type TotpSetupVerifyInput = z.infer<typeof totpSetupVerifyRequestSchema>;
-
-/** 직렬화 가능한 TOTP 등록 응답 type */
-export type TotpSetupResponse = z.infer<typeof totpSetupResponseSchema>;
 
 /** 직렬화 가능한 인증 성공 응답 type */
 export type AuthenticatedResponse = z.infer<typeof authenticatedResponseSchema>;

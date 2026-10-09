@@ -23,7 +23,7 @@
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm build:lambda && vitest run",
     "build": "pnpm -r build",
-    "build:lambda": "pnpm --filter @flex-thia/api build:lambda && pnpm --filter @flex-thia/worker build:lambda",
+    "build:lambda": "pnpm --filter @flex-thia/api build:lambda",
     "infra:test": "pnpm --filter @flex-thia/infra test",
     "infra:synth": "pnpm --filter @flex-thia/infra synth",
     "infra:diff": "pnpm --filter @flex-thia/infra exec cdk diff",

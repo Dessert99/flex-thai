@@ -7,15 +7,11 @@ import {
   meResponseSchema,
   startEmailAuthenticationRequestSchema,
   totpChallengeRequestSchema,
-  totpSetupResponseSchema,
-  totpSetupVerifyRequestSchema,
   verifyEmailCodeRequestSchema,
   type AuthenticatedResponse,
   type LoginResponse,
   type MeResponse,
   type TotpChallengeInput,
-  type TotpSetupResponse,
-  type TotpSetupVerifyInput,
 } from '@flex-thia/contracts/identity/auth';
 import { ApiError } from '../ApiError';
 import { apiRequest } from '../apiRequest';
@@ -123,31 +119,5 @@ export function requestLogout(): Promise<void> {
     method: 'POST',
     path: '/auth/logout',
     response: { kind: 'empty' },
-  });
-}
-
-/** 현재 관리자 access token으로 TOTP secret 생성을 시작한다 */
-export function requestTotpSetup(
-  accessToken: string,
-): Promise<TotpSetupResponse> {
-  return apiRequest({
-    accessToken,
-    method: 'POST',
-    path: '/auth/mfa/totp/setup',
-    response: { kind: 'json', schema: totpSetupResponseSchema },
-  });
-}
-
-/** TOTP 코드를 검증하고 최신 관리자 공개 상태를 반환한다 */
-export function requestTotpSetupVerification(
-  accessToken: string,
-  input: TotpSetupVerifyInput,
-): Promise<MeResponse> {
-  return apiRequest({
-    accessToken,
-    body: totpSetupVerifyRequestSchema.parse(input),
-    method: 'POST',
-    path: '/auth/mfa/totp/setup/verify',
-    response: { kind: 'json', schema: meResponseSchema },
   });
 }

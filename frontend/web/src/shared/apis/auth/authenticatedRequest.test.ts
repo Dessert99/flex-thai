@@ -12,8 +12,6 @@ const mocks = vi.hoisted(() => ({
   requestLogout: vi.fn(),
   requestMe: vi.fn(),
   requestRefresh: vi.fn(),
-  requestTotpSetup: vi.fn(),
-  requestTotpSetupVerification: vi.fn(),
 }));
 
 vi.mock('../apiRequest', () => ({ apiRequest: mocks.apiRequest }));
@@ -22,8 +20,6 @@ vi.mock('./authApi', () => ({
   requestLogout: mocks.requestLogout,
   requestMe: mocks.requestMe,
   requestRefresh: mocks.requestRefresh,
-  requestTotpSetup: mocks.requestTotpSetup,
-  requestTotpSetupVerification: mocks.requestTotpSetupVerification,
 }));
 
 const user: MeResponse = {
@@ -149,7 +145,7 @@ describe('authenticatedRequest', () => {
     await expect(
       authenticatedRequest({
         ...requestOptions,
-        path: '/auth/mfa/totp/setup',
+        path: '/auth/mfa/totp/challenge',
       }),
     ).rejects.toBeInstanceOf(ApiError);
     expect(mocks.requestRefresh).not.toHaveBeenCalled();

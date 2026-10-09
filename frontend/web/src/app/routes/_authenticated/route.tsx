@@ -6,7 +6,6 @@ import {
 } from '@tanstack/react-router';
 import { LogoutButton } from '@/features/identity/components/logout/LogoutButton';
 import { SidebarLayout } from '../../layouts/SidebarLayout';
-import { adminNavigation } from '../../routing/adminNavigation';
 import { learnerNavigation } from '../../routing/learnerNavigation';
 import { requireAuthenticated } from '../../routing/guards';
 
@@ -31,7 +30,6 @@ function AuthenticatedRoute() {
       currentPath={currentPath}
       identity={{ email: session.user.email, role: session.user.role }}
       navigation={learnerNavigation}
-      adminNavigation={session.user.role === 'ADMIN' ? adminNavigation : []}
       profileMenu={<LogoutButton appearance='menu' />}
     >
       <Outlet />

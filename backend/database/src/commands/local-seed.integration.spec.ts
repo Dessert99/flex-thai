@@ -1,4 +1,4 @@
-/** 로컬 시드가 관리자 작업과 학생 개인 데이터를 역할에 맞게 연결하는지 검증한다 */
+/** 로컬 시드가 학습자 개인 데이터를 올바르게 연결하는지 검증한다 */
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -20,39 +20,25 @@ describe.runIf(integrationDatabaseUrl !== undefined)(
       await pool.end();
     });
 
-    it('학생 개인 데이터와 관리자 작업을 역할에 맞는 사용자에게 연결한다', async () => {
+    it('단어장 항목이 로컬 학습자 계정에 속한다', async () => {
       const users = await pool.query(
-        `select cognito_sub, email, role, mfa_enrolled_at
-         from users
-         where cognito_sub in ('local-admin-sub', 'local-learner-sub')
-         order by cognito_sub`,
+        `select cognito_sub, email, role from users order by cognito_sub`,
       );
       const owners = await pool.query(
-        `select
-           (select u.cognito_sub from question_attempts qa join users u on u.id = qa.user_id limit 1) as attempt_owner,
-           (select u.cognito_sub from saved_questions sq join users u on u.id = sq.user_id limit 1) as question_owner,
-           (select u.cognito_sub from wordbooks w join users u on u.id = w.user_id join wordbook_items wi on wi.wordbook_id = w.id limit 1) as vocabulary_owner`,
+        `select distinct u.cognito_sub
+         from wordbooks w
+         join users u on u.id = w.user_id
+         join wordbook_items wi on wi.wordbook_id = w.id`,
       );
 
       expect(users.rows).toEqual([
         {
-          cognito_sub: 'local-admin-sub',
-          email: 'admin@hufs.ac.kr',
-          role: 'ADMIN',
-          mfa_enrolled_at: new Date('2026-07-01T00:00:00.000Z'),
-        },
-        {
           cognito_sub: 'local-learner-sub',
           email: 'learner@hufs.ac.kr',
           role: 'LEARNER',
-          mfa_enrolled_at: null,
         },
       ]);
-      expect(owners.rows[0]).toEqual({
-        attempt_owner: 'local-learner-sub',
-        question_owner: 'local-learner-sub',
-        vocabulary_owner: 'local-learner-sub',
-      });
+      expect(owners.rows).toEqual([{ cognito_sub: 'local-learner-sub' }]);
     });
   },
 );

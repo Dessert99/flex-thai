@@ -1,24 +1,16 @@
 # 로컬 DB 초기화와 API·프론트 실행 모드를 같은 서비스 정의로 재현한다.
 x-app-environment: &app-environment
-  EXTRACTION_AI_PROVIDER: ${EXTRACTION_AI_PROVIDER:-claude}
-  EXTRACTION_AI_MODEL: ${EXTRACTION_AI_MODEL:-}
-  GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
   AUTH_MODE: fake
   LOCAL_AUTO_LOGIN: ${LOCAL_AUTO_LOGIN:-true}
   DATABASE_MODE: local
   DATABASE_URL: postgres://flex_thia:local_only_password@postgres:5432/flex_thia
-  FAKE_USER_SUB: local-admin-sub
-  FAKE_USER_EMAIL: admin@hufs.ac.kr
   FAKE_LEARNER_SUB: local-learner-sub
   FAKE_LEARNER_EMAIL: learner@hufs.ac.kr
   CHALLENGE_HMAC_PEPPER: local-only-email-challenge-pepper
   EMAIL_LINK_CONFIRMATION_URL: ${FLEX_THIA_LOCAL_PUBLIC_ORIGIN:-http://localhost:5173}/login/confirm
   ALLOWED_ORIGINS: ${FLEX_THIA_LOCAL_PUBLIC_ORIGIN:-http://localhost:5173}
-  FLEX_THIA_LOCAL_UPLOAD_DIRECTORY: /var/lib/flex-thia/uploads
   FLEX_THIA_LOCAL_API_ORIGIN: http://localhost:3000
   FLEX_THIA_LOCAL_PUBLIC_ORIGIN: ${FLEX_THIA_LOCAL_PUBLIC_ORIGIN:-http://localhost:5173}
-  FLEX_THIA_LOCAL_UPLOAD_HMAC_SECRET: local-only-content-upload-hmac-secret
 
 services:
   postgres:
@@ -67,8 +59,6 @@ services:
       PORT: '3000'
     ports:
       - '${FLEX_THIA_API_HOST_PORT:-53000}:3000'
-    volumes:
-      - flex-thia-uploads:/var/lib/flex-thia/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -102,7 +92,6 @@ services:
       - ./backend/domain/src:/workspace/backend/domain/src
       - ./backend/providers/src:/workspace/backend/providers/src
       - ./shared/contracts/src:/workspace/shared/contracts/src
-      - flex-thia-uploads:/var/lib/flex-thia/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -111,53 +100,6 @@ services:
       interval: 2s
       timeout: 2s
       retries: 30
-
-  local-worker:
-    profiles: [test, workers]
-    build:
-      context: .
-      dockerfile: Dockerfile.local
-      target: workspace
-    command:
-      - pnpm
-      - --filter
-      - '@flex-thia/worker'
-      - exec
-      - tsx
-      - src/local-worker.ts
-    environment:
-      <<: *app-environment
-    volumes:
-      - flex-thia-uploads:/var/lib/flex-thia/uploads
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: unless-stopped
-
-  local-worker-dev:
-    profiles: [dev]
-    build:
-      context: .
-      dockerfile: Dockerfile.local
-      target: workspace
-    command:
-      - pnpm
-      - --filter
-      - '@flex-thia/worker'
-      - dev
-    environment:
-      <<: *app-environment
-    volumes:
-      - ./backend/config/src:/workspace/backend/config/src
-      - ./backend/database/src:/workspace/backend/database/src
-      - ./backend/domain/src:/workspace/backend/domain/src
-      - ./backend/providers/src:/workspace/backend/providers/src
-      - ./backend/worker/src:/workspace/backend/worker/src
-      - ./shared/contracts/src:/workspace/shared/contracts/src
-      - flex-thia-uploads:/var/lib/flex-thia/uploads
-    depends_on:
-      postgres:
-        condition: service_healthy
 
   web:
     profiles: [test]
@@ -197,4 +139,3 @@ services:
 
 volumes:
   flex-thia-postgres-data:
-  flex-thia-uploads:

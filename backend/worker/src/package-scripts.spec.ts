@@ -18,7 +18,7 @@ describe('worker package 스크립트', () => {
     );
   });
 
-  it('compose local worker가 실행하는 tsx를 worker package가 직접 선언한다', () => {
+  it('단어 추출 worker를 compose에서 실행하지 않는다', () => {
     const manifest = JSON.parse(
       readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
     ) as PackageManifest;
@@ -27,9 +27,7 @@ describe('worker package 스크립트', () => {
       'utf8',
     );
 
-    expect(manifest.devDependencies?.tsx).toBe('^4.20.0');
-    expect(compose).toMatch(
-      /--filter\s*\n\s*- '@flex-thia\/worker'\s*\n\s*- exec\s*\n\s*- tsx\s*\n\s*- src\/local-worker\.ts/u,
-    );
+    expect(manifest.scripts?.dev).toBeUndefined();
+    expect(compose).not.toContain('local-worker');
   });
 });

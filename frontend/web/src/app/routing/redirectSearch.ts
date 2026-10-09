@@ -12,18 +12,12 @@ const approvedStaticPaths = new Set([
   '/learn',
   '/vocabularies',
   '/wordbooks',
-  '/admin',
-  '/admin/users',
-  '/admin/audit-logs',
-  '/admin/totp-setup',
-  '/admin/vocabularies',
   '/forbidden',
 ]);
 
 const approvedDynamicPaths = [
   /^\/vocabularies\/[0-9a-f-]+$/u,
   /^\/wordbooks\/[0-9a-f-]+$/u,
-  /^\/admin\/vocabularies\/[0-9a-f-]+$/u,
 ];
 
 /** 외부·미등록 route·계약 밖 search를 제거하고 안전한 내부 href만 반환한다 */

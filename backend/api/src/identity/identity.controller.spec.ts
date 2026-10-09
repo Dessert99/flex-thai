@@ -231,30 +231,4 @@ describe('IdentityController 인증 흐름', () => {
     );
     expect(result).toBeUndefined();
   });
-
-  it('setup verify는 현재 sub와 bearer access token을 use case에 전달한다', async () => {
-    const verifyTotpSetup = vi.fn().mockResolvedValue(user);
-    const controller = new IdentityController(
-      { verifyTotpSetup } as never,
-      {} as never,
-    );
-
-    await controller.verifyTotpSetup(
-      { headers: { authorization: 'Bearer access' } },
-      {
-        userId: user.id,
-        sub: user.cognitoSub,
-        email: user.email,
-        role: user.role,
-        mfaEnrolledAt: null,
-      },
-      { code: '123456' },
-    );
-
-    expect(verifyTotpSetup).toHaveBeenCalledWith({
-      subject: 'cognito-sub',
-      accessToken: 'access',
-      code: '123456',
-    });
-  });
 });

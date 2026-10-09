@@ -75,7 +75,7 @@ describe('Observability', () => {
     });
   });
 
-  it('실제로 runtime에서 읽는 upload 설정만 Parameter Store에 둔다', () => {
+  it('사용하지 않는 upload 설정을 Parameter Store에 두지 않는다', () => {
     const app = new App();
     const dataStack = new DataStack(app, 'ParameterData');
     const template = Template.fromStack(
@@ -85,11 +85,7 @@ describe('Observability', () => {
       }),
     );
 
-    template.resourceCountIs('AWS::SSM::Parameter', 1);
-    template.hasResourceProperties('AWS::SSM::Parameter', {
-      Name: '/flex-thia/prod/uploads/max-file-bytes',
-      Value: '26214400',
-    });
+    template.resourceCountIs('AWS::SSM::Parameter', 0);
     expect(JSON.stringify(template.toJSON())).not.toContain(
       '/flex-thia/prod/auth/',
     );

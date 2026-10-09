@@ -9,10 +9,8 @@ const seedSql = readFileSync(
 );
 
 describe('로컬 seed SQL', () => {
-  it('학교 이메일 사용자와 관리자 MFA 상태를 password 없이 만든다', () => {
-    expect(seedSql).toContain("'admin@hufs.ac.kr'");
+  it('학교 이메일 학습자를 password 없이 만든다', () => {
     expect(seedSql).toContain("'learner@hufs.ac.kr'");
-    expect(seedSql).toContain('mfa_enrolled_at');
     expect(seedSql).not.toMatch(/password(?:_hash)?/iu);
   });
 

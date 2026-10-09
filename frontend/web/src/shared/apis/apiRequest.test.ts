@@ -166,11 +166,6 @@ describe('apiRequest 요청 옵션', () => {
       });
     }
     await apiRequest({
-      method: 'POST',
-      path: '/auth/mfa/totp/setup',
-      response: { kind: 'empty' },
-    });
-    await apiRequest({
       method: 'GET',
       path: '/auth/challenges',
       response: { kind: 'empty' },

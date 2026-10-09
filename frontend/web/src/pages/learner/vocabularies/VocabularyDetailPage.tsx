@@ -1,4 +1,3 @@
-import { ContentErrorReportDialog } from '@/features/learning/components/report-content-error/ContentErrorReportDialog';
 import { VocabularyWordbookPicker } from '@/features/learning/components/save-vocabulary-to-wordbooks/VocabularyWordbookPicker';
 import { useVocabularyDetail } from '@/features/learning/hooks/vocabulary-detail/useVocabularyDetail';
 import { formatPartOfSpeech } from '@/features/learning/libs/vocabulary/formatPartOfSpeech';
@@ -105,18 +104,6 @@ export function VocabularyDetailContent({
           </h1>
           <p className='text-body text-subtle'>종류: {detail.kind}</p>
         </div>
-        <ContentErrorReportDialog
-          origin={{
-            kind: 'VOCABULARY',
-            vocabularyId: detail.id,
-            meaningId: null,
-          }}
-          preview={{
-            title: detail.thai,
-            metadata: `어휘 ${detail.id}`,
-          }}
-          triggerLabel='어휘 오류 신고'
-        />
       </header>
       <VocabularyWordbookPicker
         key={detail.id}
@@ -185,18 +172,6 @@ function VocabularyExamples({
             {sentence.originalText}
           </p>
           <p className='text-body text-subtle'>{sentence.translationKo}</p>
-          <ContentErrorReportDialog
-            origin={{
-              kind: 'SENTENCE',
-              sentenceVersionId: sentence.sentenceVersionId,
-              tokenPosition: null,
-            }}
-            preview={{
-              title: sentence.originalText,
-              metadata: sentence.translationKo,
-            }}
-            triggerLabel='예문 오류 신고'
-          />
         </div>
       ))}
     </section>
@@ -223,18 +198,6 @@ function VocabularyDetailTabs({
                   ? '난이도 미정'
                   : `난이도 ${item.difficulty}`}
               </span>
-              <ContentErrorReportDialog
-                origin={{
-                  kind: 'VOCABULARY',
-                  vocabularyId: detail.id,
-                  meaningId: item.id,
-                }}
-                preview={{
-                  title: detail.thai,
-                  metadata: item.meaningKo,
-                }}
-                triggerLabel='뜻 오류 신고'
-              />
             </li>
           ))}
         </ul>

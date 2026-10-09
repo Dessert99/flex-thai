@@ -2,7 +2,7 @@
 import { getTableColumns } from 'drizzle-orm';
 import { getTableConfig } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
-import { auditLogs, authChallenges, users } from './identity.schema.js';
+import { authChallenges, users } from './identity.schema.js';
 
 describe('기초 데이터베이스 schema', () => {
   it('사용자 신원은 변경 불가능한 cognitoSub를 가진다', () => {
@@ -37,36 +37,9 @@ describe('기초 데이터베이스 schema', () => {
     );
   });
 
-  it('감사 로그는 기존 문자열 대상과 nullable 구조화 대상을 함께 보존한다', () => {
-    const columns = getTableColumns(auditLogs);
-
-    expect(Object.keys(columns)).toEqual(
-      expect.arrayContaining([
-        'actorSub',
-        'target',
-        'actorUserId',
-        'targetType',
-        'targetId',
-      ]),
-    );
-    expect(columns.actorUserId.notNull).toBe(false);
-    expect(columns.targetType.notNull).toBe(false);
-    expect(columns.targetId.notNull).toBe(false);
-  });
-
-  it('사용자와 감사 로그는 stable 최신순 조회 index를 가진다', () => {
+  it('사용자는 stable 최신순 조회 index를 가진다', () => {
     expect(
       getTableConfig(users).indexes.map(({ config }) => config.name),
     ).toContain('users_updated_at_id_idx');
-    expect(
-      getTableConfig(auditLogs).indexes.map(({ config }) => config.name),
-    ).toEqual(
-      expect.arrayContaining([
-        'audit_logs_created_at_id_idx',
-        'audit_logs_actor_created_at_id_idx',
-        'audit_logs_action_created_at_id_idx',
-        'audit_logs_target_created_at_id_idx',
-      ]),
-    );
   });
 });

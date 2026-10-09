@@ -4,7 +4,6 @@ import { and, asc, count, eq, inArray, or, type SQL, sql } from 'drizzle-orm';
 import { alias, type PgDatabase } from 'drizzle-orm/pg-core';
 import type { PgQueryResultHKT } from 'drizzle-orm/pg-core/session';
 import { databaseSchema as schema } from '../schema/databaseSchema.js';
-import { extractionJobs } from '../schema/vocabulary-extraction.schema.js';
 import { wordbookItems, wordbooks } from '../schema/learning.schema.js';
 import {
   vocabularies,
@@ -24,7 +23,6 @@ export type LearnerVocabularyKind = 'WORD' | 'EXPRESSION';
 /** database query가 소비하는 검증 완료 어휘 목록 조건 */
 export interface LearnerVocabularyListQuery {
   query?: string;
-  section?: 'all' | 'recent' | 'new-meanings';
   kind?: LearnerVocabularyKind;
   partOfSpeech?: string;
   difficulty?: number;
@@ -128,28 +126,6 @@ const compareCreatedAtThenId = (
 
 const buildVocabularyFilter = (query: LearnerVocabularyListQuery): SQL[] => {
   const conditions: SQL[] = [eq(vocabularies.status, 'PUBLISHED')];
-  if (query.section === 'recent') {
-    conditions.push(sql`exists (
-      select 1
-      from jsonb_array_elements((
-        select ${extractionJobs.receipt}->'items'
-        from ${extractionJobs}
-        where ${extractionJobs.savedAt} is not null
-        order by ${extractionJobs.savedAt} desc, ${extractionJobs.id} desc
-        limit 1
-      )) as extracted(item)
-      where extracted.item->>'vocabularyId' = ${vocabularies.id}::text
-    )`);
-  }
-  if (query.section === 'new-meanings') {
-    conditions.push(sql`exists (
-      select 1 from ${extractionJobs},
-        lateral jsonb_array_elements(${extractionJobs.receipt}->'items') as extracted(item)
-      where ${extractionJobs.savedAt} is not null
-        and extracted.item->>'vocabularyId' = ${vocabularies.id}::text
-        and extracted.item->>'classification' = 'NEW_MEANING'
-    )`);
-  }
   if (query.kind !== undefined) {
     conditions.push(eq(vocabularies.kind, query.kind));
   }

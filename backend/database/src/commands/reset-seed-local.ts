@@ -1,9 +1,8 @@
 /** 로컬 전용 DB reset·migration·seed 실행 경계를 제공한다 */
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Pool } from 'pg';
+import { migrateLocalDatabase } from '../operations/migrate-local-database.js';
 
 type LocalResetOptions = {
   databaseUrl: string;
@@ -48,7 +47,7 @@ const resetAndSeedLocalDatabase = async (
     await pool.query(
       'drop schema if exists public cascade; drop schema if exists drizzle cascade; create schema public;',
     );
-    await migrate(drizzle(pool), { migrationsFolder });
+    await migrateLocalDatabase(pool, migrationsFolder);
     await pool.query(seedSql);
   } finally {
     await pool.end();

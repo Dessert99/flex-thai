@@ -11,26 +11,6 @@ const firstWordbookId = '01933b6a-8f13-7a19-b7e5-536d70f57ab4';
 const firstVocabularyId = '01933b6a-8f13-7a19-b7e5-536d70f57aaa';
 const secondVocabularyId = '01933b6a-8f13-7a19-b7e5-536d70f57aab';
 
-vi.mock(
-  '@/features/learning/components/report-content-error/ContentErrorReportDialog',
-  () => ({
-    ContentErrorReportDialog: ({
-      origin,
-      triggerLabel,
-    }: {
-      origin: unknown;
-      triggerLabel: string;
-    }) => (
-      <button
-        data-origin={JSON.stringify(origin)}
-        type='button'
-      >
-        {triggerLabel}
-      </button>
-    ),
-  }),
-);
-
 vi.mock('@/shared/apis/auth/authenticatedRequest', async (importOriginal) => {
   const actual =
     await importOriginal<
@@ -135,49 +115,5 @@ describe('어휘 상세 페이지', () => {
     expect(
       screen.getByRole('link', { name: 'หวัดดี · 안녕' }),
     ).toBeInTheDocument();
-  });
-});
-
-describe('어휘 오류 신고 연결', () => {
-  it('어휘 하위 콘텐츠별 식별자를 오류 신고 origin에 명시한다', () => {
-    const detail = createDetail();
-    renderWithProviders(
-      <VocabularyDetailContent
-        detail={detail}
-        onWordbookMembershipConfirmed={vi.fn()}
-      />,
-    );
-
-    expect(
-      screen.getByRole('button', { name: '어휘 오류 신고' }),
-    ).toHaveAttribute(
-      'data-origin',
-      JSON.stringify({
-        kind: 'VOCABULARY',
-        vocabularyId: detail.id,
-        meaningId: null,
-      }),
-    );
-    expect(
-      screen.getByRole('button', { name: '예문 오류 신고' }),
-    ).toHaveAttribute(
-      'data-origin',
-      JSON.stringify({
-        kind: 'SENTENCE',
-        sentenceVersionId: detail.exampleSentences[0]?.sentenceVersionId,
-        tokenPosition: null,
-      }),
-    );
-    expect(
-      screen.getAllByRole('button', { name: '뜻 오류 신고' })[0],
-    ).toHaveAttribute(
-      'data-origin',
-      JSON.stringify({
-        kind: 'VOCABULARY',
-        vocabularyId: detail.id,
-        meaningId: detail.meanings[0]?.id,
-      }),
-    );
-    expect(screen.queryByRole('tab', { name: '발음' })).not.toBeInTheDocument();
   });
 });

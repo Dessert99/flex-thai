@@ -25,23 +25,12 @@ const apiEnvSchema = z
     COGNITO_CLIENT_ID: z.string().optional(),
     CUSTOM_AUTH_SECRET: z.string().min(32).optional(),
     CUSTOM_AUTH_SECRET_ARN: z.string().optional(),
-    INPUT_BUCKET_NAME: z.string().optional(),
     FLEX_THIA_LOCAL_API_ORIGIN: z
       .url()
       .refine((value) => new URL(value).protocol === 'http:', {
         message: 'local API origin은 HTTP URL이어야 합니다',
       })
       .default('http://localhost:3000'),
-    FLEX_THIA_LOCAL_UPLOAD_HMAC_SECRET: z
-      .string()
-      .min(32)
-      .default('local-only-content-upload-hmac-secret'),
-    FLEX_THIA_LOCAL_PUBLIC_ORIGIN: z
-      .url()
-      .refine((value) => new URL(value).protocol === 'http:', {
-        message: 'local public origin은 HTTP URL이어야 합니다',
-      })
-      .default('http://localhost:5173'),
     CHALLENGE_HMAC_PEPPER: z
       .string()
       .min(32)
@@ -54,8 +43,6 @@ const apiEnvSchema = z
     SCHOOL_EMAIL_DOMAINS: z.string().default('hufs.ac.kr'),
     FROM_EMAIL: z.string().email().optional(),
     ALARM_TOPIC_ARN: z.string().optional(),
-    FAKE_USER_SUB: z.string().default('local-admin-sub'),
-    FAKE_USER_EMAIL: z.string().default('admin@hufs.ac.kr'),
     FAKE_LEARNER_SUB: z.string().default('local-learner-sub'),
     FAKE_LEARNER_EMAIL: z.string().default('learner@hufs.ac.kr'),
     FAKE_PHONE_NUMBER: z.string().default('+821000000000'),

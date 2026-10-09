@@ -56,7 +56,6 @@ const vocabularySummaryShape = {
 export const vocabularyListQuerySchema = z
   .object({
     query: z.string().trim().min(1).optional(),
-    section: z.enum(['all', 'recent', 'new-meanings']).optional(),
     kind: z.enum(['WORD', 'EXPRESSION']).optional(),
     partOfSpeech: z.string().trim().min(1).optional(),
     difficulty: httpIntegerSchema(1, 5).optional(),

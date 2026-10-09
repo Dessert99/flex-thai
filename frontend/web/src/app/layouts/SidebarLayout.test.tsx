@@ -14,7 +14,6 @@ import {
   useRouterState,
 } from '@tanstack/react-router';
 import userEvent from '@testing-library/user-event';
-import { adminNavigation } from '../routing/adminNavigation';
 import { learnerNavigation } from '../routing/learnerNavigation';
 
 const navigation = [
@@ -39,11 +38,6 @@ describe('SidebarLayout 화면 전환', () => {
       path: '/vocabularies',
       component: () => <p>어휘 목록 화면</p>,
     });
-    const users = createRoute({
-      getParentRoute: () => root,
-      path: '/admin/users',
-      component: () => <p>사용자 관리 화면</p>,
-    });
     const wordbooks = createRoute({
       getParentRoute: () => root,
       path: '/wordbooks',
@@ -51,7 +45,7 @@ describe('SidebarLayout 화면 전환', () => {
     });
     const router = createRouter({
       history: createMemoryHistory({ initialEntries: ['/learn'] }),
-      routeTree: root.addChildren([home, vocabularies, users, wordbooks]),
+      routeTree: root.addChildren([home, vocabularies, wordbooks]),
     });
     await router.load();
     render(<RouterProvider router={router} />);
@@ -70,11 +64,6 @@ describe('SidebarLayout 화면 전환', () => {
     expect(desktopSidebar()).toBe(sidebar);
     expect(sidebar).toHaveAttribute('data-state', 'collapsed');
     expect(screen.getByRole('main')).toBe(main);
-    await user.click(screen.getByRole('link', { name: '사용자 관리' }));
-    await screen.findByText('사용자 관리 화면');
-    expect(router.state.location.pathname).toBe('/admin/users');
-    expect(desktopSidebar()).toBe(sidebar);
-    expect(sidebar).toHaveAttribute('data-state', 'expanded');
     await user.click(screen.getByRole('link', { name: '학습 홈' }));
     await screen.findByText('학습 시작 화면');
     expect(desktopSidebar()).toBe(sidebar);
@@ -163,7 +152,6 @@ function NavigationShell() {
     <SidebarLayout
       currentPath={path}
       navigation={learnerNavigation}
-      adminNavigation={adminNavigation}
       identity={{ email: 'admin@example.com', role: 'ADMIN' }}
     >
       <Outlet />
@@ -172,13 +160,12 @@ function NavigationShell() {
 }
 
 describe('SidebarLayout 계정 영역', () => {
-  it('관리자 계정과 운영자 섹션을 표시한다', () => {
+  it('관리자 계정에도 학습 메뉴를 표시한다', () => {
     render(
       <SidebarLayout
         currentPath='/dashboard'
         identity={{ email: 'admin@example.com', role: 'ADMIN' }}
         navigation={navigation}
-        adminNavigation={adminNavigation}
       >
         관리자 본문
       </SidebarLayout>,
@@ -186,9 +173,9 @@ describe('SidebarLayout 계정 영역', () => {
 
     expect(screen.getByText('admin@example.com')).toBeVisible();
     expect(screen.getByRole('button', { name: '프로필 메뉴' })).toBeVisible();
-    expect(screen.getByRole('link', { name: '사용자 관리' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: '대시보드' })).toHaveAttribute(
       'href',
-      '/admin/users',
+      '/dashboard',
     );
   });
 

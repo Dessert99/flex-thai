@@ -3,20 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/local-worker.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --root ../.. backend/worker/src",
-    "build": "tsc -p tsconfig.json",
-    "build:lambda": "node esbuild.config.mjs",
-    "extraction:worker": "tsx src/vocabulary-extraction/main.ts"
+    "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "@aws-sdk/client-secrets-manager": "^3.900.0",
-    "@aws-sdk/client-sfn": "^3.900.0",
-    "@flex-thia/database": "workspace:*",
-    "@flex-thia/domain": "workspace:*",
-    "@flex-thia/providers": "workspace:*",
-    "@aws-sdk/client-s3": "^3.900.0"
+    "@flex-thia/domain": "workspace:*"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.0",

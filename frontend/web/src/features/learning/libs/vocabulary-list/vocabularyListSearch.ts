@@ -5,7 +5,7 @@ import {
 } from '@flex-thia/contracts/learning/vocabularies';
 
 /** Router와 Page가 공유하는 검증된 어휘 검색값 */
-export type VocabularyListSearch = Omit<VocabularyListQuery, 'section'>;
+export type VocabularyListSearch = VocabularyListQuery;
 
 /** 페이지를 제외한 어휘 목록 filter 변경값 */
 export type VocabularyListFilterPatch = Partial<

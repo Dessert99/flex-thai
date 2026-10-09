@@ -13,12 +13,6 @@ const approvedTargets = [
   '/learn',
   '/vocabularies',
   '/wordbooks',
-  '/admin',
-  '/admin/users',
-  '/admin/audit-logs',
-  '/admin/totp-setup',
-  '/admin/vocabularies',
-  '/admin/content-error-reports',
   '/forbidden',
 ] as const;
 const vocabularyId = '01933b6a-8f13-7a19-b7e5-536d70f57aab';
@@ -42,15 +36,6 @@ const dynamicTargets = [
       }),
     label: '학습자 어휘 상세',
   },
-  {
-    build: () =>
-      router.buildLocation({
-        params: { vocabularyId },
-        search: { page: 1, pageSize: 20 },
-        to: '/admin/vocabularies/$vocabularyId',
-      }),
-    label: '관리자 어휘 상세',
-  },
 ] as const;
 
 describe('route 도달 가능성', () => {
@@ -68,13 +53,12 @@ describe('route 도달 가능성', () => {
     },
   );
 
-  it.each([
-    '/wordbooks/$wordbookId',
-    '/vocabularies/$vocabularyId',
-    '/admin/vocabularies/$vocabularyId',
-  ])('%s 동적 경로를 route tree에서 찾을 수 있다', (to) => {
-    expect(
-      (router.routesByPath as unknown as Record<string, unknown>)[to],
-    ).toBeDefined();
-  });
+  it.each(['/wordbooks/$wordbookId', '/vocabularies/$vocabularyId'])(
+    '%s 동적 경로를 route tree에서 찾을 수 있다',
+    (to) => {
+      expect(
+        (router.routesByPath as unknown as Record<string, unknown>)[to],
+      ).toBeDefined();
+    },
+  );
 });

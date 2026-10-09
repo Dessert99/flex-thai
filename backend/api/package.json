@@ -3,7 +3,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "bootstrap-admin": "tsx src/commands/bootstrap-admin.ts",
     "dev": "nest start --watch --exec tsx",
     "swagger": "tsx src/swagger.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -13,12 +12,8 @@
   },
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.900.0",
-    "@aws-sdk/client-s3": "^3.900.0",
     "@aws-sdk/client-secrets-manager": "^3.900.0",
     "@aws-sdk/client-sesv2": "^3.900.0",
-    "@aws-sdk/client-sns": "^3.900.0",
-    "@aws-sdk/client-sqs": "^3.900.0",
-    "@aws-sdk/client-ssm": "^3.900.0",
     "@codegenie/serverless-express": "^4.17.0",
     "@flex-thia/config": "workspace:*",
     "@flex-thia/contracts": "workspace:*",

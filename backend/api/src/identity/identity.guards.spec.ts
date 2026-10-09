@@ -1,6 +1,5 @@
 /** Identity guard의 access claim·역할 상속·MFA·CSRF 경계를 검증한다 */
 import { describe, expect, it, vi } from 'vitest';
-import { AdminMfaGuard } from './admin-mfa.guard.js';
 import { ApplicationRoleGuard } from './application-role.guard.js';
 import { CognitoAuthorizerGuard } from './cognito-authorizer.guard.js';
 import { CsrfGuard } from './csrf.guard.js';
@@ -85,49 +84,6 @@ describe('ApplicationRoleGuard 역할 상속', () => {
     expect(() => guard.canActivate(createContext({}))).toThrowError(
       expect.objectContaining({ status: 403 }),
     );
-  });
-});
-
-describe('AdminMfaGuard 관리자 MFA 검증', () => {
-  it('ADMIN이 TOTP 등록 전이면 관리자 route를 거부한다', () => {
-    const guard = new AdminMfaGuard();
-
-    expect(() =>
-      guard.canActivate(
-        createContext({
-          user: {
-            userId: 'user-id',
-            sub: 'cognito-sub',
-            email: 'admin@example.com',
-            role: 'ADMIN',
-            mfaEnrolledAt: null,
-          },
-        }),
-      ),
-    ).toThrowError(
-      expect.objectContaining({
-        status: 403,
-        response: { code: 'MFA_ENROLLMENT_REQUIRED' },
-      }),
-    );
-  });
-
-  it('TOTP 등록을 마친 ADMIN은 관리자 route를 사용할 수 있다', () => {
-    const guard = new AdminMfaGuard();
-
-    expect(
-      guard.canActivate(
-        createContext({
-          user: {
-            userId: 'user-id',
-            sub: 'cognito-sub',
-            email: 'admin@example.com',
-            role: 'ADMIN',
-            mfaEnrolledAt: new Date('2026-07-23T00:00:00.000Z'),
-          },
-        }),
-      ),
-    ).toBe(true);
   });
 });
 

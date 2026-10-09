@@ -97,13 +97,6 @@ const routeTitles = [
   [/^\/wordbooks\/?$/, '내 단어장'],
   [/^\/vocabularies\/[^/]+\/?$/, '어휘 상세'],
   [/^\/vocabularies\/?$/, '어휘 목록'],
-  [/^\/admin\/totp-setup\/?$/, '관리자 TOTP 설정'],
-  [/^\/admin\/vocabularies\/[^/]+\/?$/, '관리자 어휘 상세'],
-  [/^\/admin\/vocabularies\/?$/, '어휘 관리'],
-  [/^\/admin\/content-error-reports\/?$/, '콘텐츠 오류 신고 관리'],
-  [/^\/admin\/users\/?$/, '사용자 관리'],
-  [/^\/admin\/audit-logs\/?$/, '감사 기록'],
-  [/^\/admin\/?$/, '관리자 홈'],
   [/^\/forbidden\/?$/, '접근 권한 없음'],
 ] as const;
 

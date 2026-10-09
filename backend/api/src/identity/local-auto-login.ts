@@ -47,30 +47,15 @@ export function createLocalAutoLogin(
       }
     }
 
-    const result = await provider.complete(env.FAKE_USER_EMAIL);
+    const result = await provider.complete(env.FAKE_LEARNER_EMAIL);
     return result.kind === 'MFA_REQUIRED'
       ? identity.completeTotpChallenge({
-          email: env.FAKE_USER_EMAIL,
+          email: env.FAKE_LEARNER_EMAIL,
           challengeToken: result.challengeToken,
           code: '123456',
         })
       : identity.completePasswordless(result);
   };
 
-  return async (refreshToken) => {
-    const result = await authenticate(refreshToken);
-    if (
-      result.kind === 'AUTHENTICATED' &&
-      result.user.role === 'ADMIN' &&
-      !result.user.mfaEnrolledAt
-    ) {
-      const user = await identity.verifyTotpSetup({
-        subject: result.user.cognitoSub,
-        accessToken: result.tokens.accessToken,
-        code: '123456',
-      });
-      return { ...result, user };
-    }
-    return result;
-  };
+  return authenticate;
 }

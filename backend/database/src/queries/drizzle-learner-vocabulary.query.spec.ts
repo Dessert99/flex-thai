@@ -128,33 +128,6 @@ const summaryRows = {
 } as const;
 
 describe('DrizzleLearnerVocabularyQuery 공용 어휘 검색', () => {
-  it.each(['recent', 'new-meanings'] as const)(
-    '추출 섹션 %s는 게시 상태와 전체 관리자 저장 이력을 함께 조회한다',
-    async (section) => {
-      const fake = createSelectFake([[{ totalItems: 0 }], []]);
-      const query = new DrizzleLearnerVocabularyQuery(fake.database as never);
-      await query.listVocabularies('learner', {
-        section,
-        page: 1,
-        pageSize: 20,
-      });
-      for (const call of fake.selectCalls.slice(0, 2)) {
-        const compiled = toSql(call.condition);
-        expect(compiled.params).toContain('PUBLISHED');
-        expect(compiled.sql).toContain('vocabulary_extraction_jobs');
-        expect(compiled.sql).toContain('saved_at');
-        expect(compiled.sql).toContain('vocabularyId');
-        expect(compiled.sql).not.toContain('owner_id');
-        if (section === 'recent') {
-          expect(compiled.sql).toContain('limit 1');
-          expect(compiled.sql).toContain('desc');
-        } else {
-          expect(compiled.sql).toContain('NEW_MEANING');
-        }
-      }
-    },
-  );
-
   it('전체 SELECT에서도 correlated subquery 컬럼을 명시적으로 한정한다', async () => {
     const capture = createSqlCaptureDatabase();
     const query = new DrizzleLearnerVocabularyQuery(capture.database);

@@ -11,7 +11,6 @@ import * as logs from 'aws-cdk-lib/aws-logs';
 import type * as rds from 'aws-cdk-lib/aws-rds';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
-import type * as s3 from 'aws-cdk-lib/aws-s3';
 import type * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import type * as ses from 'aws-cdk-lib/aws-ses';
 
@@ -31,7 +30,6 @@ export interface HttpApiProps {
   emailIdentity: ses.IEmailIdentity;
   emailLinkConfirmationUrl: string;
   fromEmail: string;
-  inputBucket: s3.IBucket;
   userPool: cognito.IUserPool;
   userPoolClient: cognito.IUserPoolClient;
 }
@@ -69,7 +67,6 @@ export class HttpApi extends Construct {
         RDS_SECRET_ARN: props.clusterSecret.secretArn,
         COGNITO_USER_POOL_ID: props.userPool.userPoolId,
         COGNITO_CLIENT_ID: props.userPoolClient.userPoolClientId,
-        INPUT_BUCKET_NAME: props.inputBucket.bucketName,
         CHALLENGE_HMAC_PEPPER_SECRET_ARN: props.challengeHmacPepper.secretArn,
         CUSTOM_AUTH_SECRET_ARN: props.customAuthSecret.secretArn,
         SCHOOL_EMAIL_DOMAINS: props.allowedEmailDomains,
@@ -83,7 +80,6 @@ export class HttpApi extends Construct {
     props.challengeHmacPepper.grantRead(this.apiFunction);
     props.customAuthSecret.grantRead(this.apiFunction);
     props.emailIdentity.grant(this.apiFunction, 'ses:SendEmail');
-    props.inputBucket.grantReadWrite(this.apiFunction, 'inputs/*');
     this.apiFunction.addToRolePolicy(
       new iam.PolicyStatement({
         actions: [
@@ -182,76 +178,6 @@ export class HttpApi extends Construct {
     }
     for (const [method, path] of [
       [apigwv2.HttpMethod.GET, '/api/v1/me'],
-      [apigwv2.HttpMethod.POST, '/api/v1/auth/mfa/totp/setup'],
-      [apigwv2.HttpMethod.POST, '/api/v1/auth/mfa/totp/setup/verify'],
-      [apigwv2.HttpMethod.GET, '/api/v1/admin/audit-logs'],
-      [apigwv2.HttpMethod.GET, '/api/v1/admin/audit-logs/{auditLogId}'],
-      [apigwv2.HttpMethod.GET, '/api/v1/admin/home'],
-      [apigwv2.HttpMethod.GET, '/api/v1/admin/content-error-reports'],
-      [
-        apigwv2.HttpMethod.GET,
-        '/api/v1/admin/content-error-reports/{reportId}',
-      ],
-      [
-        apigwv2.HttpMethod.PUT,
-        '/api/v1/admin/content-error-reports/{reportId}/status',
-      ],
-      [
-        apigwv2.HttpMethod.PUT,
-        '/api/v1/admin/content-error-reports/{reportId}/assignee',
-      ],
-      [
-        apigwv2.HttpMethod.DELETE,
-        '/api/v1/admin/content-error-reports/{reportId}/assignee',
-      ],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/admin/vocabulary-extraction/uploads/policies',
-      ],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/admin/vocabulary-extraction/uploads/{uploadId}/complete',
-      ],
-
-      [apigwv2.HttpMethod.GET, '/api/v1/admin/vocabularies'],
-      [apigwv2.HttpMethod.GET, '/api/v1/admin/vocabularies/{vocabularyId}'],
-      [apigwv2.HttpMethod.PUT, '/api/v1/admin/vocabularies/{vocabularyId}'],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/admin/vocabularies/{vocabularyId}/publish',
-      ],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/admin/vocabularies/{vocabularyId}/hide',
-      ],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/admin/vocabularies/{vocabularyId}/restore',
-      ],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/admin/vocabularies/{vocabularyId}/relations',
-      ],
-      [
-        apigwv2.HttpMethod.PUT,
-        '/api/v1/admin/vocabularies/{vocabularyId}/relations/{relationId}',
-      ],
-      [
-        apigwv2.HttpMethod.DELETE,
-        '/api/v1/admin/vocabularies/{vocabularyId}/relations/{relationId}',
-      ],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/admin/vocabularies/{vocabularyId}/merge-preview',
-      ],
-      [
-        apigwv2.HttpMethod.POST,
-        '/api/v1/admin/vocabularies/{vocabularyId}/merge',
-      ],
-      [apigwv2.HttpMethod.GET, '/api/v1/admin/users'],
-      [apigwv2.HttpMethod.PATCH, '/api/v1/admin/users/{userId}/status'],
-      [apigwv2.HttpMethod.PATCH, '/api/v1/admin/users/{userId}/role'],
-      [apigwv2.HttpMethod.POST, '/api/v1/admin/users/invitations'],
       [apigwv2.HttpMethod.GET, '/api/v1/me/wordbooks'],
       [apigwv2.HttpMethod.POST, '/api/v1/me/wordbooks'],
       [apigwv2.HttpMethod.PATCH, '/api/v1/me/wordbooks/{wordbookId}'],
@@ -276,7 +202,6 @@ export class HttpApi extends Construct {
         '/api/v1/me/vocabularies/{vocabularyId}/wordbook-memberships',
       ],
       [apigwv2.HttpMethod.GET, '/api/v1/me/recommendations'],
-      [apigwv2.HttpMethod.POST, '/api/v1/content-error-reports'],
       [apigwv2.HttpMethod.GET, '/api/v1/vocabularies'],
       [apigwv2.HttpMethod.GET, '/api/v1/vocabularies/{vocabularyId}'],
     ] as const) {

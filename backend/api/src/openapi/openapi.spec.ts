@@ -11,47 +11,13 @@ import {
 } from './openapi.js';
 
 const ACTIVE_PATHS = [
-  '/api/v1/admin/vocabulary-extraction/jobs',
-  '/api/v1/admin/vocabulary-extraction/jobs/latest-saved',
-  '/api/v1/admin/vocabulary-extraction/jobs/{id}',
-  '/api/v1/admin/vocabulary-extraction/jobs/{id}/results',
-  '/api/v1/admin/vocabulary-extraction/jobs/{id}/retry',
-  '/api/v1/admin/vocabulary-extraction/jobs/{id}/save',
-  '/api/v1/admin/vocabulary-extraction/templates',
-  '/api/v1/admin/vocabulary-extraction/templates/{templateId}',
-  '/api/v1/admin/content-error-reports',
-  '/api/v1/admin/content-error-reports/{reportId}',
-  '/api/v1/admin/content-error-reports/{reportId}/assignee',
-  '/api/v1/admin/content-error-reports/{reportId}/status',
-  '/api/v1/admin/vocabulary-extraction/uploads/policies',
-  '/api/v1/admin/vocabulary-extraction/uploads/{uploadId}/complete',
-  '/api/v1/admin/audit-logs',
-  '/api/v1/admin/audit-logs/{auditLogId}',
-  '/api/v1/admin/home',
-  '/api/v1/admin/vocabularies',
-  '/api/v1/admin/vocabularies/{vocabularyId}',
-  '/api/v1/admin/vocabularies/{vocabularyId}/importance',
-  '/api/v1/admin/vocabularies/{vocabularyId}/hide',
-  '/api/v1/admin/vocabularies/{vocabularyId}/merge',
-  '/api/v1/admin/vocabularies/{vocabularyId}/merge-preview',
-  '/api/v1/admin/vocabularies/{vocabularyId}/publish',
-  '/api/v1/admin/vocabularies/{vocabularyId}/relations',
-  '/api/v1/admin/vocabularies/{vocabularyId}/relations/{relationId}',
-  '/api/v1/admin/vocabularies/{vocabularyId}/restore',
-  '/api/v1/admin/users',
-  '/api/v1/admin/users/{userId}/role',
-  '/api/v1/admin/users/{userId}/status',
-  '/api/v1/admin/users/invitations',
   '/api/v1/auth/challenges',
   '/api/v1/auth/challenges/{challengeId}/code',
   '/api/v1/auth/challenges/{challengeId}/link',
   '/api/v1/auth/challenges/{challengeId}/resend',
   '/api/v1/auth/mfa/totp/challenge',
-  '/api/v1/auth/mfa/totp/setup',
-  '/api/v1/auth/mfa/totp/setup/verify',
   '/api/v1/auth/refresh',
   '/api/v1/auth/logout',
-  '/api/v1/content-error-reports',
   '/api/v1/me',
   '/api/v1/me/recommendations',
   '/api/v1/me/vocabularies/{vocabularyId}/wordbook-memberships',
@@ -110,7 +76,7 @@ type LearnerOperationExpectation = {
   errors: readonly string[];
 };
 
-type AdminOperationExpectation = LearnerOperationExpectation & {
+type ProtectedOperationExpectation = LearnerOperationExpectation & {
   headers?: readonly string[];
 };
 
@@ -177,23 +143,6 @@ const IDENTITY_OPERATIONS: readonly IdentityOperationExpectation[] = [
     body: 'TotpChallengeRequestDto',
     security: [],
     success: ['201', 'authentication'],
-    errors: ['400', '401', '403', '429', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/auth/mfa/totp/setup',
-    headers: [],
-    security: [{ accessToken: [] }],
-    success: ['201', 'TotpSetupResponseDto'],
-    errors: ['401', '403', '429', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/auth/mfa/totp/setup/verify',
-    headers: [],
-    body: 'TotpSetupVerifyRequestDto',
-    security: [{ accessToken: [] }],
-    success: ['201', 'MeResponseDto'],
     errors: ['400', '401', '403', '429', '500'],
   },
   {
@@ -286,7 +235,7 @@ const collectOpenApiOperations = (
 
 const expectProtectedOpenApiOperations = (
   document: ReturnType<typeof createOpenApiDocument>,
-  expectations: readonly AdminOperationExpectation[],
+  expectations: readonly ProtectedOperationExpectation[],
 ): void => {
   expect(
     collectOpenApiOperations(
@@ -403,203 +352,6 @@ const expectProtectedOpenApiOperations = (
   });
 };
 
-const ADMIN_OPERATIONS: readonly AdminOperationExpectation[] = [
-  {
-    method: 'get',
-    path: '/api/v1/admin/home',
-    success: ['200', 'AdminHomeOperationsResponseDto'],
-    errors: ['401', '403', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/admin/audit-logs',
-    query: [
-      'query',
-      'actorUserId',
-      'action',
-      'targetType',
-      'targetId',
-      'from',
-      'to',
-      'page',
-      'pageSize',
-    ],
-    success: ['200', 'AuditLogListResponseDto'],
-    errors: ['400', '401', '403', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/admin/audit-logs/{auditLogId}',
-    pathParameters: ['auditLogId'],
-    success: ['200', 'AuditLogDetailResponseDto'],
-    errors: ['400', '401', '403', '404', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/admin/content-error-reports',
-    query: [
-      'status',
-      'targetKind',
-      'category',
-      'assigneeUserId',
-      'page',
-      'pageSize',
-    ],
-    success: ['200', 'AdminContentErrorReportListResponseDto'],
-    errors: ['400', '401', '403', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/admin/content-error-reports/{reportId}',
-    pathParameters: ['reportId'],
-    success: ['200', 'AdminContentErrorReportDetailResponseDto'],
-    errors: ['400', '401', '403', '404', '500'],
-  },
-  {
-    method: 'put',
-    path: '/api/v1/admin/content-error-reports/{reportId}/status',
-    pathParameters: ['reportId'],
-    body: 'ChangeContentErrorReportStatusRequestDto',
-    success: ['200', 'AdminContentErrorReportDetailResponseDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'put',
-    path: '/api/v1/admin/content-error-reports/{reportId}/assignee',
-    pathParameters: ['reportId'],
-    body: 'AssignContentErrorReportRequestDto',
-    success: ['200', 'AdminContentErrorReportDetailResponseDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'delete',
-    path: '/api/v1/admin/content-error-reports/{reportId}/assignee',
-    pathParameters: ['reportId'],
-    success: ['200', 'AdminContentErrorReportDetailResponseDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'put',
-    path: '/api/v1/admin/vocabularies/{vocabularyId}/importance',
-    pathParameters: ['vocabularyId'],
-    body: 'AdminVocabularyImportanceRequestDto',
-    success: ['204'],
-    errors: [],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/admin/vocabularies',
-    query: ['query', 'kind', 'status', 'page', 'pageSize'],
-    success: ['200', 'AdminVocabularyListResponseDto'],
-    errors: ['400', '401', '403', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/admin/vocabularies/{vocabularyId}',
-    pathParameters: ['vocabularyId'],
-    success: ['200', 'AdminVocabularyDetailResponseDto'],
-    errors: ['400', '401', '403', '404', '500'],
-  },
-  {
-    method: 'put',
-    path: '/api/v1/admin/vocabularies/{vocabularyId}',
-    pathParameters: ['vocabularyId'],
-    body: 'AdminVocabularyReplaceRequestDto',
-    success: ['204'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/vocabularies/{vocabularyId}/publish',
-    pathParameters: ['vocabularyId'],
-    success: ['204'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/vocabularies/{vocabularyId}/hide',
-    pathParameters: ['vocabularyId'],
-    success: ['204'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/vocabularies/{vocabularyId}/restore',
-    pathParameters: ['vocabularyId'],
-    success: ['204'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/vocabularies/{vocabularyId}/relations',
-    pathParameters: ['vocabularyId'],
-    body: 'AdminVocabularyRelationCreateRequestDto',
-    success: ['201', 'AdminVocabularyRelationDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'put',
-    path: '/api/v1/admin/vocabularies/{vocabularyId}/relations/{relationId}',
-    pathParameters: ['vocabularyId', 'relationId'],
-    body: 'AdminVocabularyRelationUpdateRequestDto',
-    success: ['200', 'AdminVocabularyRelationDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'delete',
-    path: '/api/v1/admin/vocabularies/{vocabularyId}/relations/{relationId}',
-    pathParameters: ['vocabularyId', 'relationId'],
-    success: ['204'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/vocabularies/{vocabularyId}/merge-preview',
-    pathParameters: ['vocabularyId'],
-    body: 'AdminVocabularyMergePreviewRequestDto',
-    success: ['200', 'AdminVocabularyMergePreviewResponseDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/vocabularies/{vocabularyId}/merge',
-    pathParameters: ['vocabularyId'],
-    body: 'AdminVocabularyMergeExecuteRequestDto',
-    success: ['200', 'AdminVocabularyMergeResponseDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'get',
-    path: '/api/v1/admin/users',
-    query: ['query', 'role', 'status', 'mfaEnrolled', 'page', 'pageSize'],
-    success: ['200', 'UserManagementListResponseDto'],
-    errors: ['401', '403', '500'],
-  },
-  {
-    method: 'patch',
-    path: '/api/v1/admin/users/{userId}/status',
-    pathParameters: ['userId'],
-    body: 'UserStatusUpdateRequestDto',
-    success: ['200', 'ManagedIdentityUserResponseDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'patch',
-    path: '/api/v1/admin/users/{userId}/role',
-    pathParameters: ['userId'],
-    body: 'UserRoleUpdateRequestDto',
-    success: ['200', 'ManagedIdentityUserResponseDto'],
-    errors: ['400', '401', '403', '404', '409', '500'],
-  },
-  {
-    method: 'post',
-    path: '/api/v1/admin/users/invitations',
-    body: 'BetaInvitationRequestDto',
-    success: ['201', 'BetaInvitationResponseDto'],
-    errors: ['400', '401', '403', '500'],
-  },
-];
-
 const LEARNER_OPERATIONS: readonly LearnerOperationExpectation[] = [
   {
     method: 'get',
@@ -608,24 +360,9 @@ const LEARNER_OPERATIONS: readonly LearnerOperationExpectation[] = [
     errors: ['401', '403', '500'],
   },
   {
-    method: 'post',
-    path: '/api/v1/content-error-reports',
-    body: 'CreateContentErrorReportRequestDto',
-    success: ['201', 'CreateContentErrorReportResponseDto'],
-    errors: ['400', '401', '403', '404', '500'],
-  },
-  {
     method: 'get',
     path: '/api/v1/vocabularies',
-    query: [
-      'query',
-      'section',
-      'kind',
-      'partOfSpeech',
-      'difficulty',
-      'page',
-      'pageSize',
-    ],
+    query: ['query', 'kind', 'partOfSpeech', 'difficulty', 'page', 'pageSize'],
     success: ['200', 'VocabularyListResponseDto'],
     errors: ['400', '401', '403', '500'],
   },
@@ -802,9 +539,9 @@ describe('OpenAPI 문서', () => {
     expect(document.components?.securitySchemes).toHaveProperty(
       'refreshCookie',
     );
-    expect(
-      document.paths['/api/v1/auth/mfa/totp/setup']?.post?.security,
-    ).toContainEqual({ accessToken: [] });
+    expect(document.paths['/api/v1/me']?.get?.security).toContainEqual({
+      accessToken: [],
+    });
     expect(
       document.paths['/api/v1/auth/refresh']?.post?.security,
     ).toContainEqual({ refreshCookie: [] });
@@ -826,7 +563,7 @@ describe('OpenAPI 문서', () => {
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
 
-    expect(IDENTITY_OPERATIONS).toHaveLength(10);
+    expect(IDENTITY_OPERATIONS).toHaveLength(8);
     expect(document.security).toBeUndefined();
     expect(
       collectOpenApiOperations(
@@ -999,34 +736,18 @@ describe('OpenAPI 문서', () => {
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
     const document = createOpenApiDocument(app);
 
-    expect(LEARNER_OPERATIONS).toHaveLength(15);
+    expect(LEARNER_OPERATIONS).toHaveLength(14);
     expectProtectedOpenApiOperations(document, LEARNER_OPERATIONS);
   });
 
-  it('관리자 operation의 입력·성공·Bearer·오류 계약을 모두 고정한다', () => {
+  it('관리자 및 오류 신고 경로를 노출하지 않는다', () => {
     if (!app)
       throw new Error('OpenAPI test application이 초기화되지 않았습니다');
-    const document = createOpenApiDocument(app);
-
-    expect(ADMIN_OPERATIONS).toHaveLength(24);
-    expectProtectedOpenApiOperations(document, ADMIN_OPERATIONS);
-  });
-
-  it('관리자 DTO component JSON에는 private 내부 필드가 없다', () => {
-    if (!app)
-      throw new Error('OpenAPI test application이 초기화되지 않았습니다');
-    const document = createOpenApiDocument(app);
-    const adminComponents = Object.fromEntries(
-      Object.entries(document.components?.schemas ?? {}).filter(([name]) =>
-        /Admin|ContentImport/u.test(name),
-      ),
+    const paths = Object.keys(createOpenApiDocument(app).paths);
+    expect(paths.filter((path) => path.startsWith('/api/v1/admin/'))).toEqual(
+      [],
     );
-    const serialized = JSON.stringify(adminComponents);
-
-    expect(serialized).not.toMatch(
-      /storageKey|requestHash|referenceMap|isCorrect|dbRow/u,
-    );
-    expect(adminComponents).toHaveProperty('AdminVocabularyDetailResponseDto');
+    expect(paths).not.toContain('/api/v1/content-error-reports');
   });
 });
 

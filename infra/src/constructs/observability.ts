@@ -6,7 +6,6 @@ import * as cloudwatchActions from 'aws-cdk-lib/aws-cloudwatch-actions';
 import type * as rds from 'aws-cdk-lib/aws-rds';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
-import * as ssm from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import type { InfrastructureConfig } from '../config.js';
 
@@ -132,16 +131,6 @@ export class Observability extends Construct {
       }),
       countAlarmOptions,
     );
-
-    const parameters: Record<string, string> = {
-      'uploads/max-file-bytes': '26214400',
-    };
-    for (const [name, value] of Object.entries(parameters)) {
-      new ssm.StringParameter(this, `Parameter${name.replaceAll('/', '-')}`, {
-        parameterName: `/flex-thia/prod/${name}`,
-        stringValue: value,
-      });
-    }
 
     const emailSubscriber: budgets.CfnBudget.SubscriberProperty = {
       address: props.config.alertEmail,

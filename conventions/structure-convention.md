@@ -134,7 +134,6 @@ frontend/web/src/
 │   │   └── vocabularies/
 │   │       ├── VocabularyListPage.tsx
 │   │       └── VocabularyListPage.test.tsx
-│   ├── admin/                 # 관리자 화면, 업무별 하위 폴더
 │   └── errors/                # 접근 거부·없는 경로 안내
 ├── features/{기능}/            # 업무 기능의 UI·상태·API·로직
 │   ├── components/
@@ -160,7 +159,7 @@ frontend/web/src/
   페이지와 일대일로 대응하는 `PageContainer`, `PageView`, `Step1` 같은
   화면 전체 위임용 래퍼를 `features`에 만들지 않는다.
   단계별 화면은 `VocabularyExtractionStep1Page.tsx`처럼 `pages`에 둔다.
-  `auth`, `learner`, `admin`, `errors`로 분류하고, 화면이 많은 영역은
+  `auth`, `learner`, `errors`로 분류하고, 화면이 많은 영역은
   `vocabularies`, `questions`, `concepts` 등 업무별 하위 폴더로 묶는다.
   테스트는 해당 페이지 파일 옆에 둔다. 분류를 위한 폴더는 허용하되,
   `components`, `hooks`, `apis`, `libs`, `ui`, `model` 폴더를 두지 않는다.
@@ -174,9 +173,8 @@ frontend/web/src/
 - 같은 페이지 파일 안에서 순수한 표시 영역을 작은 함수로 나누는 것은 허용한다.
   상세 항목 변경 시 입력 초기화처럼 React의 별도 컴포넌트 경계가 필요한 경우는
   해당 경계를 유지하되, 페이지 전체 배치는 여전히 페이지 파일에서 소유한다.
-- `features`는 업무 영역으로 묶는다. 현재 인증·사용자 관리는 `identity`,
-  어휘·문제·개념·단어장·연습은 `learning`, 콘텐츠 제작·후보 검토·가져오기는
-  `content-production`, 운영 현황·감사·비용·신고 관리는 `operations`가 담당한다.
+- `features`는 업무 영역으로 묶는다. 현재 인증은 `identity`,
+  어휘·단어장 학습은 `learning`이 담당한다.
   접근 거부·없는 경로 안내는 `pages/errors`에서 직접 구성한다.
   내부는 컴포넌트 `components`, React 훅 `hooks`, API 요청과
   query·mutation 설정 `apis`, 일반 로직 `libs`로 구분한다.
@@ -208,11 +206,8 @@ frontend/web/src/
 - `app/routes`는 TanStack Router의 파일 기반 라우팅을 사용하며, 접근
   권한과 기능별 디렉터리로 계층을 표현한다. 여러 경로를 점으로 연결한
   긴 파일명은 사용하지 않는다.
-- `_authenticated/route.tsx`에서 로그인 확인과 공통 사이드바를 제공하고, `_learner`에는 학습
-  화면을, `admin`에는 관리자 화면을 둔다. `admin/_enrollment`는 TOTP 등록
-  화면, `admin/_enrolled`는 TOTP 등록을 마친 관리자의 화면을 담당한다.
-- 로그인 기본 홈은 역할과 무관하게 `/learn`이다. 학습 메뉴 아래에 관리자만
-  운영자 메뉴를 별도 섹션으로 보며, `/admin` 하위에서는 추가 권한을 검사한다.
+- `_authenticated/route.tsx`에서 로그인 확인과 공통 사이드바를 제공하고, `_learner`에는 학습 화면을 둔다.
+- 로그인 기본 홈은 역할과 무관하게 `/learn`이다.
 - 공통 접근 검사나 레이아웃은 `route.tsx`, 기본 화면은 `index.tsx`,
   동적 경로는 `$questionId` 같은 이름으로 표현한다. 공통 처리가 없는
   디렉터리에는 `route.tsx`를 만들지 않는다.

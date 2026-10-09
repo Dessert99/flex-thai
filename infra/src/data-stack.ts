@@ -8,7 +8,6 @@ import {
 } from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as rds from 'aws-cdk-lib/aws-rds';
-import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import type { Construct } from 'constructs';
 
@@ -18,7 +17,6 @@ export class DataStack extends Stack {
   /** Aurora가 자동 생성한 DB 접속 정보 — 코드·env에 비밀번호를 두지 않으려고 secret으로 받는다 */
   readonly clusterSecret: secretsmanager.ISecret;
 
-  readonly inputBucket: s3.Bucket;
   /** 인증 코드 해시에 섞는 서버 비밀값(pepper) — DB가 새도 코드 역산을 막는다 */
   readonly challengeHmacPepper: secretsmanager.Secret;
 
@@ -68,10 +66,6 @@ export class DataStack extends Stack {
     // fromGeneratedSecret을 썼으므로 secret은 항상 생성된다.
     this.clusterSecret = this.cluster.secret!;
 
-    // 업로드 원본은 처리 뒤 쓸 일이 없어 30일 만료 규칙으로 보관 비용을 끊는다.
-    this.inputBucket = this.createPrivateBucket('InputBucket', [
-      { expiration: Duration.days(30) },
-    ]);
     this.challengeHmacPepper = new secretsmanager.Secret(
       this,
       'ChallengeHmacPepper',
@@ -91,24 +85,6 @@ export class DataStack extends Stack {
     });
     new CfnOutput(this, 'SecretArn', {
       value: this.clusterSecret.secretArn,
-    });
-  }
-
-  /** 공개 접근·평문 전송·ACL을 모두 막은 bucket 기본값을 한곳에 모은다 */
-  private createPrivateBucket(
-    id: string,
-    lifecycleRules: s3.LifecycleRule[] = [],
-  ): s3.Bucket {
-    return new s3.Bucket(this, id, {
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      enforceSSL: true,
-      encryption: s3.BucketEncryption.S3_MANAGED,
-      // 객체별 ACL을 아예 꺼서 접근 허용 경로를 bucket policy 하나로 좁힌다.
-      objectOwnership: s3.ObjectOwnership.BUCKET_OWNER_ENFORCED,
-      lifecycleRules,
-      // Stack을 지워도 bucket과 객체는 남긴다 — 배포 사고로 데이터가 사라지지 않게
-      removalPolicy: RemovalPolicy.RETAIN,
-      autoDeleteObjects: false,
     });
   }
 }

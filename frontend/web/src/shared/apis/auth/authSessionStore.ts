@@ -3,8 +3,6 @@ import type {
   AuthenticatedResponse,
   LoginResponse,
   MeResponse,
-  TotpSetupResponse,
-  TotpSetupVerifyInput,
 } from '@flex-thia/contracts/identity/auth';
 import type { ProblemDetailsResponse } from '@flex-thia/contracts/common/problem';
 import { isApiError } from '../ApiError';
@@ -13,8 +11,6 @@ import {
   requestLogout,
   requestMe,
   requestRefresh,
-  requestTotpSetup,
-  requestTotpSetupVerification,
   confirmEmailLink,
   resendEmailChallenge,
   startEmailAuthentication,
@@ -178,24 +174,6 @@ export async function completeLoginTotpSession(
 /** reload 뒤에도 사용할 로그인 TOTP challenge가 메모리에 있는지 확인한다 */
 export function hasLoginTotpChallenge(): boolean {
   return loginChallenge !== undefined;
-}
-
-/** 인증된 관리자 세션으로 TOTP enrollment secret을 요청한다 */
-export function beginTotpSetup(): Promise<TotpSetupResponse> {
-  return runWithAccessToken(requestTotpSetup);
-}
-
-/** TOTP enrollment 확인 결과를 현재 사용자 snapshot에 반영한다 */
-export async function verifyTotpSetup(
-  input: TotpSetupVerifyInput,
-): Promise<MeResponse> {
-  const user = await runWithAccessToken((token) =>
-    requestTotpSetupVerification(token, input),
-  );
-  if (sessionState.status === 'authenticated') {
-    publish({ ...sessionState, user });
-  }
-  return user;
 }
 
 /** token 원문을 노출하지 않고 인증된 callback만 실행한다 */

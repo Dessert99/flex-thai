@@ -13,8 +13,6 @@ const authApiMocks = vi.hoisted(() => ({
   requestLogout: vi.fn(),
   requestMe: vi.fn(),
   requestRefresh: vi.fn(),
-  requestTotpSetup: vi.fn(),
-  requestTotpSetupVerification: vi.fn(),
   startEmailAuthentication: vi.fn(),
   verifyEmailCode: vi.fn(),
 }));
@@ -43,8 +41,6 @@ beforeEach(() => {
   authApiMocks.requestLogout.mockReset();
   authApiMocks.requestMe.mockReset();
   authApiMocks.requestRefresh.mockReset();
-  authApiMocks.requestTotpSetup.mockReset();
-  authApiMocks.requestTotpSetupVerification.mockReset();
   authApiMocks.confirmEmailLink.mockReset();
   authApiMocks.resendEmailChallenge.mockReset();
   authApiMocks.startEmailAuthentication.mockReset();

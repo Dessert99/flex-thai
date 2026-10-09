@@ -1,4 +1,4 @@
-/** 학교 이메일 passwordless 로그인·TOTP·refresh·logout HTTP 경계를 제공한다 */
+/** 학교 이메일 passwordless 로그인·refresh·logout HTTP 경계를 제공한다 */
 import {
   Body,
   Controller,
@@ -13,7 +13,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
-  ApiBearerAuth,
   ApiBody,
   ApiCookieAuth,
   ApiCreatedResponse,
@@ -28,19 +27,14 @@ import {
   emailAuthenticationChallengeResponseSchema,
   emailChallengeIdPathSchema,
   loginResponseSchema,
-  type MeResponse,
   startEmailAuthenticationRequestSchema,
   totpChallengeRequestSchema,
-  totpSetupResponseSchema,
-  totpSetupVerifyRequestSchema,
   type ConfirmEmailLinkInput,
   type EmailAuthenticationChallengeResponse,
   type EmailChallengeIdPath,
   type LoginResponse,
   type StartEmailAuthenticationInput,
   type TotpChallengeInput,
-  type TotpSetupResponse,
-  type TotpSetupVerifyInput,
   type VerifyEmailCodeInput,
   verifyEmailCodeRequestSchema,
 } from '@flex-thia/contracts/identity/auth';
@@ -50,10 +44,6 @@ import {
 } from '@flex-thia/domain/identity/authentication.service';
 import { PasswordlessAuthenticationService } from '@flex-thia/domain/identity/passwordless-authentication.service';
 import {
-  CurrentUser,
-  type AuthenticatedUser,
-} from '../common/auth/current-user.decorator.js';
-import {
   ApiAuthenticationResponse,
   ApiCsrfProtection,
   ApiProblemResponse,
@@ -62,24 +52,18 @@ import {
   AuthenticatedResponseDto,
   ConfirmEmailLinkRequestDto,
   EmailAuthenticationChallengeResponseDto,
-  MeResponseDto,
   MfaRequiredResponseDto,
   ProblemDetailsDto,
   StartEmailAuthenticationRequestDto,
   TotpChallengeRequestDto,
-  TotpSetupResponseDto,
-  TotpSetupVerifyRequestDto,
   VerifyEmailCodeRequestDto,
 } from '../openapi/openapi.dto.js';
-import { ApplicationRoleGuard } from './application-role.guard.js';
-import { CognitoAuthorizerGuard } from './cognito-authorizer.guard.js';
 import { CsrfGuard } from './csrf.guard.js';
 import {
   clearRefreshCookie,
   readRefreshToken,
   writeRefreshCookie,
 } from './refresh-cookie.js';
-import { RequireRole } from './require-role.decorator.js';
 import { LOCAL_AUTO_LOGIN, type LocalAutoLogin } from './local-auto-login.js';
 
 type CookieRequest = {
@@ -89,7 +73,7 @@ type CookieRequest = {
 type CookieResponse = Parameters<typeof writeRefreshCookie>[0] &
   Parameters<typeof clearRefreshCookie>[0];
 
-/** 공개 인증 및 관리자 TOTP 등록 endpoint */
+/** 공개 인증 endpoint */
 @ApiTags('Authentication')
 @ApiExtraModels(
   AuthenticatedResponseDto,
@@ -232,59 +216,6 @@ export class IdentityController {
     return this.finish(this.identity.completeTotpChallenge(input), response);
   }
 
-  /** 현재 관리자의 access token으로 TOTP secret 생성을 시작한다 */
-  @ApiOperation({ summary: '현재 관리자의 TOTP 등록을 시작한다' })
-  @ApiBearerAuth('accessToken')
-  @ApiCreatedResponse({ type: TotpSetupResponseDto })
-  @ApiProblemResponse(401, 'access token이 없거나 올바르지 않음')
-  @ApiProblemResponse(403, '관리자 역할 또는 계정 상태가 요청을 허용하지 않음')
-  @ApiProblemResponse(429, '인증 공급자 요청 제한을 초과함')
-  @ApiProblemResponse(500, '예상하지 못한 서버 오류')
-  @Post('mfa/totp/setup')
-  @UseGuards(CognitoAuthorizerGuard, ApplicationRoleGuard)
-  @RequireRole('ADMIN')
-  async startTotpSetup(
-    @Req() request: CookieRequest,
-  ): Promise<TotpSetupResponse> {
-    const accessToken = readBearerAccessToken(request);
-    const result = await this.identity.startTotpSetup(accessToken);
-    return totpSetupResponseSchema.parse(result);
-  }
-
-  /** Cognito TOTP 확인 뒤 현재 관리자의 등록 상태를 갱신한다 */
-  @ApiOperation({ summary: '현재 관리자의 TOTP 등록을 확인한다' })
-  @ApiBearerAuth('accessToken')
-  @ApiBody({ type: TotpSetupVerifyRequestDto })
-  @ApiCreatedResponse({ type: MeResponseDto })
-  @ApiProblemResponse(400, '요청 body가 공개 계약과 일치하지 않음')
-  @ApiProblemResponse(401, 'access token 또는 TOTP code가 올바르지 않음')
-  @ApiProblemResponse(403, '관리자 역할 또는 계정 상태가 요청을 허용하지 않음')
-  @ApiProblemResponse(429, '인증 공급자 요청 제한을 초과함')
-  @ApiProblemResponse(500, '예상하지 못한 서버 오류')
-  @Post('mfa/totp/setup/verify')
-  @UseGuards(CognitoAuthorizerGuard, ApplicationRoleGuard)
-  @RequireRole('ADMIN')
-  async verifyTotpSetup(
-    @Req() request: CookieRequest,
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() body: TotpSetupVerifyInput,
-  ): Promise<MeResponse> {
-    const input = totpSetupVerifyRequestSchema.parse(body);
-    const accessToken = readBearerAccessToken(request);
-    const verifiedUser = await this.identity.verifyTotpSetup({
-      subject: user.sub,
-      accessToken,
-      code: input.code,
-    });
-
-    return {
-      id: verifiedUser.id,
-      email: verifiedUser.email,
-      role: verifiedUser.role,
-      mfaEnrolled: verifiedUser.mfaEnrolledAt !== null,
-    };
-  }
-
   /** HttpOnly refresh cookie를 회전된 access token과 cookie로 교환한다 */
   @ApiOperation({ summary: 'refresh cookie로 access token을 갱신한다' })
   @ApiCookieAuth('refreshCookie')
@@ -366,20 +297,6 @@ export class IdentityController {
     });
   }
 }
-
-const readBearerAccessToken = (request: CookieRequest): string => {
-  const authorization = request.headers?.authorization;
-
-  if (
-    typeof authorization !== 'string' ||
-    !authorization.startsWith('Bearer ') ||
-    authorization.length === 'Bearer '.length
-  ) {
-    throw new UnauthorizedException();
-  }
-
-  return authorization.slice('Bearer '.length);
-};
 
 const toChallengeResponse = (input: {
   challengeId: string;

@@ -1,4 +1,4 @@
-/** 인증·role·관리자 TOTP 상태별 pathless route 접근을 제한한다 */
+/** 인증 상태별 pathless route 접근을 제한한다 */
 import type { AnyRouter, ParsedLocation } from '@tanstack/react-router';
 import { redirect } from '@tanstack/react-router';
 import type { AuthSessionState } from '@/shared/apis/auth/authSessionStore';
@@ -35,31 +35,4 @@ function throwLoginRedirect(preservedPath: string | undefined): never {
 /** 인증된 학습자와 관리자가 learner portal을 함께 사용하게 한다 */
 export function requireLearnerPortal(session: AuthenticatedSession): void {
   void session;
-}
-
-/** 관리자 TOTP enrollment 영역을 미등록 관리자에게만 허용한다 */
-export function requireAdminEnrollment(session: AuthenticatedSession): void {
-  if (session.user.role === 'LEARNER') {
-    return throwAccessRedirect('/learn');
-  }
-  if (session.user.mfaEnrolled) {
-    return throwAccessRedirect('/admin');
-  }
-}
-
-/** enrolled 관리자 portal을 TOTP 등록 관리자에게만 허용한다 */
-export function requireAdminPortal(session: AuthenticatedSession): void {
-  if (session.user.role === 'LEARNER') {
-    return throwAccessRedirect('/learn');
-  }
-  if (!session.user.mfaEnrolled) {
-    return throwAccessRedirect('/admin/totp-setup');
-  }
-}
-
-function throwAccessRedirect(
-  to: '/learn' | '/admin' | '/admin/totp-setup',
-): never {
-  redirect({ throw: true, to });
-  throw new Error('접근 경계 redirect를 생성하지 못했습니다.');
 }

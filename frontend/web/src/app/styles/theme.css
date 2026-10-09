@@ -60,12 +60,6 @@
   --semantic-color-action-primary: var(--foundation-color-neutral-700);
   --semantic-color-action-primary-strong: var(--foundation-color-neutral-800);
   --semantic-color-action-primary-soft: var(--foundation-color-neutral-300);
-  --semantic-color-operator-surface: var(--foundation-color-danger-soft);
-  --semantic-color-operator-border: color-mix(
-    in oklch,
-    var(--foundation-color-danger) 18%,
-    var(--foundation-color-neutral-100)
-  );
   --semantic-color-focus-ring: var(--foundation-color-neutral-500);
   --semantic-color-status-danger: var(--foundation-color-danger);
   --semantic-color-status-danger-soft: var(--foundation-color-danger-soft);
@@ -82,9 +76,6 @@
   --semantic-size-icon: var(--foundation-size-icon);
   --semantic-size-form: var(--foundation-size-form);
   --semantic-size-state: var(--foundation-size-state);
-  --semantic-size-extraction-source: 14rem;
-  --semantic-size-extraction-input: 10rem;
-  --semantic-size-template-panel: 24rem;
   --semantic-size-dialog: 85dvh;
   --semantic-size-vocabulary-card: 3.5rem;
   --semantic-size-word-label: 50%;
@@ -127,8 +118,6 @@
 }
 
 @theme inline {
-  --color-operator-surface: var(--semantic-color-operator-surface);
-  --color-operator-border: var(--semantic-color-operator-border);
   --color-canvas: var(--semantic-color-surface-canvas);
   --color-surface: var(--semantic-color-surface-default);
   --color-surface-muted: var(--semantic-color-surface-muted);
@@ -189,9 +178,6 @@
   --spacing-section: var(--semantic-space-section);
   --spacing-icon: var(--semantic-size-icon);
   --spacing-state: var(--semantic-size-state);
-  --spacing-extraction-source: var(--semantic-size-extraction-source);
-  --spacing-extraction-input: var(--semantic-size-extraction-input);
-  --spacing-template-panel: var(--semantic-size-template-panel);
   --spacing-dialog: var(--semantic-size-dialog);
   --spacing-vocabulary-card: var(--semantic-size-vocabulary-card);
   --container-word-label: var(--semantic-size-word-label);
